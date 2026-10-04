@@ -2,13 +2,21 @@
 
 import { useEffect, useState } from "react"
 
-import type { SavedItemDTO, SavedVerdict } from "@effy/shared-types"
+import {
+  DEFAULT_LIST_ID,
+  type SavedAddToCartResultDTO,
+  type SavedItemDTO,
+  type SavedVerdict,
+} from "@effy/shared-types"
 
+import { openListChooser } from "@/app/(shop)/_components/ListChooser"
 import { EmptyState } from "@/components/storefront/kit"
-import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
+import { DEFAULT_PACKAGE_KEY, useCart } from "@/lib/cart-store"
 import { addItem } from "@/lib/cart-actions"
+import { addToList, fetchListItems, removeFromList } from "@/lib/list-actions"
 import { formatMoney } from "@/lib/money"
-import { refreshSaved, toggleSaved } from "@/lib/saved-actions"
+import { refreshSaved } from "@/lib/saved-actions"
+import { capture } from "@/lib/telemetry"
 import { takeMergeNotice } from "@/lib/saved-merge"
 import { isPurchasable, verdictNote } from "@/lib/saved-display"
 
@@ -17,15 +25,26 @@ import { isPurchasable, verdictNote } from "@/lib/saved-display"
  *
  * ⚠ A LIST, not a grid of cards. Principle V bars card-style containers for laying out content, and
  * this is account content — the address book presents the same way.
+ *
+ * ⚠ 068: THIS RENDERS ANY ONE OF THE SHOPPER'S LISTS. `listId` is `default` for "Saved" or a named
+ * list's id. Everything a row does — add to cart, remove, add-all — is scoped to THIS list; a product
+ * removed here stays in every other list it is in.
  */
-export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
+export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: SavedItemDTO[]; listId?: string }) {
   const [items, setItems] = useState(initial)
+  const isDefault = listId === DEFAULT_LIST_ID
+  const cart = useCart()
+  // The one most recent removal, so it can be undone back into the place it held (FR-024).
+  const [removed, setRemoved] = useState<{ item: SavedItemDTO; index: number } | null>(null)
 
   // ⚠ The server render could not know the delivery location (it is device-local, deliberately not a
   // cookie), so it answered "not yet determined" for everything. Re-read with the postcode so the
   // shopper sees real verdicts. FR-039 also requires this to re-run when they change location.
   const [merged, setMerged] = useState(0)
-  const [bulk, setBulk] = useState<{ added: number; skipped: { productId: string; reason: string }[] } | null>(null)
+  // ⚠ `added` is the LIST OF PRODUCT IDS that went in, not a count (`SavedAddToCartResultDTO`). This
+  // was typed `number` and rendered directly, so the shopper was told "9f2c…,1a7b… items added to
+  // your cart" — a row of ids where a number belonged. 068's test for the per-list add-all found it.
+  const [bulk, setBulk] = useState<SavedAddToCartResultDTO | null>(null)
   const [busy, setBusy] = useState(false)
   // ⚠ CLIENT-SIDE (FR-056). The set is capped at 200 and already in memory, so a server round trip
   // per sort would be latency for nothing — and at ~135 ms to Sydney it would be latency the shopper
@@ -48,12 +67,25 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
     if (busy) return
     setBusy(true)
     try {
-      const res = await fetch("/api/saved/add-to-cart", {
+      // ⚠ THIS list only (068 FR-028). Nothing from another list goes in.
+      const res = await fetch(`/api/lists/${encodeURIComponent(listId)}/add-to-cart`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ changeId: crypto.randomUUID() }),
       })
-      if (res.ok) setBulk(await res.json())
+      if (res.ok) {
+        const result = (await res.json()) as SavedAddToCartResultDTO
+        setBulk(result)
+        // Counts and the kind of list. Never which list, and never its name (FR-040).
+        capture({
+          name: "saved_list_add_all",
+          props: {
+            listKind: isDefault ? "default" : "named",
+            addedCount: result.added.length,
+            skippedCount: result.skipped.length,
+          },
+        })
+      }
     } catch {
       /* transient — the cart is unchanged and the shopper can retry */
     } finally {
@@ -61,20 +93,76 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
     }
   }
 
-  async function remove(productId: string) {
-    setItems((prev) => prev.filter((i) => i.id !== productId))
-    await toggleSaved(productId, false)
+  /**
+   * ⚠ REMOVES FROM THIS LIST ONLY (068 FR-024). It used to be the heart's un-save, which since 068
+   * is refused for a product in a named list — and from a list's own page the shopper has said
+   * exactly which list they mean, so there is nothing to refuse.
+   */
+  async function remove(item: SavedItemDTO) {
+    const index = items.findIndex((i) => i.id === item.id)
+    setItems((prev) => prev.filter((i) => i.id !== item.id))
+    setRemoved({ item, index })
+    const result = await removeFromList(listId, item.id)
+    if (!result.ok) {
+      // It did not stick: put it back and withdraw the offer to undo something that never happened.
+      setItems((prev) => insertAt(prev, item, index))
+      setRemoved(null)
+    }
   }
+
+  /** Undo returns the product to the position it held, not the top (033 FR-018, per list). */
+  async function undo() {
+    if (!removed) return
+    const { item, index } = removed
+    setRemoved(null)
+    setItems((prev) => insertAt(prev, item, index))
+    const result = await addToList(listId, item.id, item.savedAt)
+    if (!result.ok) setItems((prev) => prev.filter((i) => i.id !== item.id))
+  }
+
+  /** The chooser can take a product out of this very list, so the rows are re-read when it closes. */
+  function chooseLists(productId: string) {
+    openListChooser(productId, () => {
+      void fetchListItems(listId).then((result) => {
+        if (result.ok) setItems(result.value)
+      })
+    })
+  }
+
+  const undoNotice = removed && (
+    <p role="status" className="mb-4 flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
+      <span className="min-w-0 flex-1">
+        Removed {removed.item.name}
+        {isDefault ? "." : " from this list."}
+      </span>
+      <button type="button" onClick={undo} className="font-medium underline-offset-4 hover:underline">
+        Undo
+      </button>
+    </p>
+  )
 
   const shown = sortSaved(items, order)
 
   if (items.length === 0) {
     return (
-      <EmptyState
-        title="Nothing saved yet"
-        description="Tap the heart on anything you want to keep an eye on. We'll show you when the price drops or it comes back in stock. Saved before signing in? Those stay on this device until you sign in."
-        action={{ label: "Start shopping", href: "/search" }}
-      />
+      <>
+        {undoNotice}
+        {isDefault ? (
+          <EmptyState
+            title="Nothing saved yet"
+            description="Tap the heart on anything you want to keep an eye on. We'll show you when the price drops or it comes back in stock. Saved before signing in? Those stay on this device until you sign in."
+            action={{ label: "Start shopping", href: "/search" }}
+          />
+        ) : (
+          // ⚠ A DIFFERENT message from the one above (068 FR-026). "Nothing saved yet" on an empty
+          // named list would tell a shopper with a full "Saved" list that they had lost everything.
+          <EmptyState
+            title="This list is empty"
+            description="Open any product and choose Add to list to put it here."
+            action={{ label: "Browse products", href: "/search" }}
+          />
+        )}
+      </>
     )
   }
 
@@ -88,7 +176,8 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
   return (
     <>
       
-      {merged > 0 && (
+      {undoNotice}
+      {merged > 0 && isDefault && (
         <p role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
           {merged === 1
             ? "1 item you saved before signing in was added to your saved items."
@@ -130,7 +219,9 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
       {bulk && (
         <div role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
           <p>
-            {bulk.added === 1 ? "1 item added to your cart." : `${bulk.added} items added to your cart.`}
+            {bulk.added.length === 1
+              ? "1 item added to your cart."
+              : `${bulk.added.length} items added to your cart.`}
           </p>
           {bulk.skipped.length > 0 && (
             <>
@@ -169,7 +260,14 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
             <p className="mt-1 text-sm text-muted-foreground">{verdictNote(item.verdict)}</p>
           </div>
 
-          {isPurchasable(item.verdict) && (
+          {/* 033 FR-050a: adding to the cart keeps the product in the list, so a row that went on
+              saying "Add to cart" would invite a second tap that is NOT a no-op — it raises the
+              quantity. Say what is already there, and how many. */}
+          {inCart(cart, item.id) > 0 ? (
+            <a href="/cart" className="text-sm underline-offset-4 hover:underline">
+              {inCart(cart, item.id) === 1 ? "In your cart" : `${inCart(cart, item.id)} in your cart`}
+            </a>
+          ) : isPurchasable(item.verdict) && (
             <button
               type="button"
               onClick={() =>
@@ -191,7 +289,16 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
 
           <button
             type="button"
-            onClick={() => remove(item.id)}
+            onClick={() => chooseLists(item.id)}
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            Add to list
+          </button>
+
+          <button
+            type="button"
+            onClick={() => remove(item)}
+            aria-label={`Remove ${item.name}${isDefault ? "" : " from this list"}`}
             className="text-sm text-muted-foreground hover:underline"
           >
             Remove
@@ -204,8 +311,19 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
 }
 
 
+function insertAt(items: SavedItemDTO[], item: SavedItemDTO, index: number): SavedItemDTO[] {
+  if (items.some((i) => i.id === item.id)) return items
+  const next = [...items]
+  next.splice(Math.min(Math.max(index, 0), next.length), 0, item)
+  return next
+}
+
+function inCart(lines: readonly { productId: string; quantity: number }[], productId: string): number {
+  return lines.reduce((n, l) => (l.productId === productId ? n + l.quantity : n), 0)
+}
+
 /**
- * ⚠ A skip reason is either one of the five verdicts (so the bulk add and the list can never explain
+ * ⚠ A skip reason is either one of the verdicts (so the bulk add and the list can never explain
  * the same item differently) or one of the cart's own refusals, which mean different things and must
  * not be flattened into "couldn't add".
  */

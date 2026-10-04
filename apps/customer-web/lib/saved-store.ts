@@ -32,6 +32,16 @@ const SCHEMA_VERSION = 1
 interface Envelope {
   version: number
   productIds: readonly string[]
+  /**
+   * 068: the subset of `productIds` held in a NAMED list. A tap on one of these hearts opens the
+   * list chooser instead of un-saving.
+   *
+   * ⚠⚠ OPTIONAL, INSIDE THE v1 ENVELOPE, AND `SCHEMA_VERSION` MUST NOT BE BUMPED FOR IT. A version
+   * mismatch DISCARDS the envelope, and for a guest this envelope is the ONLY copy of what they
+   * saved — bumping it would empty every guest's list on deploy. Absent reads as empty, which is the
+   * safe direction: the heart sends an un-save and the platform refuses it (`409`).
+   */
+  namedIds?: readonly string[]
 }
 
 /**
@@ -43,6 +53,7 @@ const EMPTY: readonly string[] = Object.freeze([])
 
 const listeners = new Set<() => void>()
 let cache: readonly string[] = EMPTY
+let named: readonly string[] = EMPTY
 let cacheRaw = ""
 
 /**
@@ -57,7 +68,10 @@ let cacheRaw = ""
 function read(): readonly string[] {
   if (typeof window === "undefined") return EMPTY
   const raw = window.localStorage.getItem(KEY)
-  if (!raw) return EMPTY
+  if (!raw) {
+    named = EMPTY
+    return EMPTY
+  }
   if (raw === cacheRaw) return cache
   try {
     const parsed = JSON.parse(raw) as Envelope
@@ -65,15 +79,24 @@ function read(): readonly string[] {
     if (!parsed || parsed.version !== SCHEMA_VERSION || !Array.isArray(parsed.productIds)) return EMPTY
     cacheRaw = raw
     cache = Object.freeze(parsed.productIds.filter((id) => typeof id === "string"))
+    const n = Array.isArray(parsed.namedIds) ? parsed.namedIds.filter((id) => typeof id === "string") : []
+    named = n.length ? Object.freeze(n) : EMPTY
     return cache
   } catch {
     return EMPTY
   }
 }
 
-function write(next: readonly string[]) {
+function write(next: readonly string[], nextNamed: readonly string[] = named) {
   cache = Object.freeze([...next])
-  cacheRaw = JSON.stringify({ version: SCHEMA_VERSION, productIds: cache } satisfies Envelope)
+  // A product that is no longer saved cannot be in a named list.
+  const n = nextNamed.filter((id) => cache.includes(id))
+  named = n.length ? Object.freeze(n) : EMPTY
+  cacheRaw = JSON.stringify({
+    version: SCHEMA_VERSION,
+    productIds: cache,
+    ...(named.length ? { namedIds: named } : {}),
+  } satisfies Envelope)
   try {
     window.localStorage.setItem(KEY, cacheRaw)
   } catch {
@@ -113,11 +136,23 @@ export function isSaved(productId: string): boolean {
   return read().includes(productId)
 }
 
+/** 068: whether a saved product is in a list the shopper named. Always false for a guest. */
+export function isInNamedList(productId: string): boolean {
+  read()
+  return named.includes(productId)
+}
+
 /* ── Writes ───────────────────────────────────────────────────────────────────────────────────── */
 
-/** Replace the mirror with the platform's answer. */
-export function adoptSaved(productIds: readonly string[]) {
-  write(productIds)
+/**
+ * Replace the mirror with the platform's answer.
+ *
+ * `namedIds` omitted means the answer did not say (the merge response, or a backend from before
+ * 068), and what the mirror already knows is kept.
+ */
+export function adoptSaved(productIds: readonly string[], namedIds?: readonly string[]) {
+  read()
+  write(productIds, namedIds ?? named)
 }
 
 /** Apply an intent to the mirror immediately, before the platform is told (FR-012). */
@@ -150,11 +185,12 @@ export function applySaved(productId: string, saved: boolean) {
  * that, and it should fix the cart at the same time.
  */
 export function resetSaved() {
-  write(EMPTY)
+  write(EMPTY, EMPTY)
 }
 
 /** Test seam, mirroring `__resetToasts()` in `toast-store.ts`. */
 export function __resetSavedCache() {
   cache = EMPTY
+  named = EMPTY
   cacheRaw = ""
 }

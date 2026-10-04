@@ -23,6 +23,14 @@ export interface DomainError {
    * purpose, and the console maps it to its OWN copy. Never render `message` verbatim.
    */
   fields?: ProblemFieldIssue[];
+  /**
+   * The problem document's `type` URI, when the service sent one.
+   *
+   * ⚠ Like `fields`, this is a value the API contract defines on purpose: the hot path names a
+   * refusal by its `type` (`…/problems/name-taken`), and without it two different 400s are one
+   * indistinguishable status. A caller maps it to its OWN copy; it is never shown.
+   */
+  type?: string;
 }
 
 export function toDomainError(status: number, problem?: Partial<ProblemJSON>): DomainError {
@@ -32,6 +40,7 @@ export function toDomainError(status: number, problem?: Partial<ProblemJSON>): D
     status,
     title: problem?.title ?? defaultTitle(kind),
     detail: problem?.detail,
+    type: typeof problem?.type === "string" ? problem.type : undefined,
     // ⚠ THE WIRE KEY IS `errors`, NOT `fields`. `@effy/edge-shared`'s `problem()` serialises field
     // issues under `errors`; this reader only ever looked at `fields`, so `DomainError.fields` was
     // undefined on EVERY refusal, platform-wide, since the type was introduced. 053 found it and

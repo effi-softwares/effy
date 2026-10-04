@@ -89,6 +89,11 @@ import type {
   SavedMergeResultDTO,
   SavedAddToCartRequest,
   SavedAddToCartResultDTO,
+  SavedListDTO,
+  SavedListCreateRequest,
+  SavedListRenameRequest,
+  SavedListEntryRequest,
+  SavedListRefusal,
 } from "./saved-item";
 import type {
   DeliveryMethod,
@@ -165,6 +170,11 @@ export type {
   SavedMergeResultDTO,
   SavedAddToCartRequest,
   SavedAddToCartResultDTO,
+  SavedListDTO,
+  SavedListCreateRequest,
+  SavedListRenameRequest,
+  SavedListEntryRequest,
+  SavedListRefusal,
   DeliveryMethod,
   AustralianState,
   ServiceabilityDTO,
@@ -243,6 +253,12 @@ export interface CustomerCommerceContract {
   savedMergeResult: SavedMergeResultDTO;
   savedAddToCartRequest: SavedAddToCartRequest;
   savedAddToCartResult: SavedAddToCartResultDTO;
+  // 068 lists. Same rule: a type not referenced HERE is never generated, and the drift check passes.
+  savedList: SavedListDTO;
+  savedListCreateRequest: SavedListCreateRequest;
+  savedListRenameRequest: SavedListRenameRequest;
+  savedListEntryRequest: SavedListEntryRequest;
+  savedListRefusal: SavedListRefusal;
   // ⚠ 047 delivery. Referencing them here is what makes them EXIST in Kotlin (same rule as saved-item
   // above). DeliveryMethod / AustralianState are reached transitively; the rest each need a field.
   serviceability: ServiceabilityDTO;

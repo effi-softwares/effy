@@ -239,6 +239,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Home> {
                     HomeScreen(
                         container = container,
+                        onRequireSignIn = { requireSignIn() },
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         // 028 FR-008: ONE tap reaches a live keyboard. The focus request is set
                         // before the tab switch, so Search consumes it as it composes. Home itself
@@ -335,6 +336,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Results> { key ->
                     SearchScreen(
                         container,
+                        onRequireSignIn = { requireSignIn() },
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         onCart = { navState.push(CustomerNavKey.Cart) },
                         entryCategoryKey = key.categoryKey,
@@ -363,6 +365,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     val autoFocus = remember { navState.consumeSearchFocus() }
                     SearchScreen(
                         container,
+                        onRequireSignIn = { requireSignIn() },
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         onCart = { navState.push(CustomerNavKey.Cart) },
                         autoFocus = autoFocus,

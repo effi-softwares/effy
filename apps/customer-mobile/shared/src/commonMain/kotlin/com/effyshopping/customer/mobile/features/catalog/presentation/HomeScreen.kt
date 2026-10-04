@@ -111,12 +111,14 @@ fun HomeScreen(
     onSeeAll: (Rail) -> Unit = {},
     onCategoryClick: (CategoryShortcut) -> Unit = {},
     onBannerClick: (Banner) -> Unit = {},
+    /** 068: where the list chooser sends a guest who wants a named list. */
+    onRequireSignIn: (() -> Unit)? = null,
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: ONE membership read for the whole screen, however many rails it renders, and
     // one mirror every heart on it reads — so two rails carrying the same product cannot disagree.
-    val savedTiles = rememberSavedTiles(container)
+    val savedTiles = rememberSavedTiles(container, onRequireSignIn)
 
     Column(modifier = Modifier.fillMaxSize().background(EffySurface.page)) {
         DiscoverHeader(

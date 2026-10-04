@@ -1677,6 +1677,76 @@ enum class SavedVerdict(val value: String) {
 }
 
 /**
+ * One of the shopper's lists.
+ *
+ * ⚠ `name` is `null` for the default list. "Saved" is display text and each client supplies
+ * it.
+ */
+@Serializable
+data class SavedListDTO (
+    /**
+     * Present only when the read named a product: whether this list holds it.
+     */
+    val containsProduct: Boolean? = null,
+
+    val count: Long,
+
+    /**
+     * A uuid, or `"default"` for the default list.
+     */
+    val id: String,
+
+    val isDefault: Boolean,
+    val name: String? = null,
+
+    /**
+     * How many of this list's products are in NO other list. Deleting the list stops those
+     * being saved at all, and the confirmation must say so (068 FR-006).
+     */
+    val onlyHereCount: Long
+)
+
+@Serializable
+data class SavedListCreateRequest (
+    val name: String,
+
+    /**
+     * Place this product in the new list in the same action (068 FR-015).
+     */
+    @SerialName("productId")
+    val productID: String? = null
+)
+
+@Serializable
+data class SavedListEntryRequest (
+    /**
+     * Set ONLY by undo, to return the product to the position it held in this list.
+     */
+    val restoreAddedAt: String? = null
+)
+
+/**
+ * Why the platform refused a list request. A closed set; clients switch on these and
+ * nothing else. Carried as the last path segment of the problem's `type`, with `_` written
+ * as `-`.
+ */
+@Serializable
+enum class SavedListRefusal(val value: String) {
+    @SerialName("default_list") DefaultList("default_list"),
+    @SerialName("in_named_lists") InNamedLists("in_named_lists"),
+    @SerialName("invalid_name") InvalidName("invalid_name"),
+    @SerialName("list_limit") ListLimit("list_limit"),
+    @SerialName("list_not_found") ListNotFound("list_not_found"),
+    @SerialName("name_taken") NameTaken("name_taken"),
+    @SerialName("saved_items_cap_reached") SavedItemsCapReached("saved_items_cap_reached");
+}
+
+@Serializable
+data class SavedListRenameRequest (
+    val name: String
+)
+
+/**
  * The shopper's whole set of saved product ids.
  *
  * ⚠ THIS IS WHAT MAKES THE HEART TELL THE TRUTH. It is fetched ONCE per screen and answers
@@ -1694,6 +1764,20 @@ data class SavedMembershipDTO (
      * ⚠ WireInt, not number — see the note on the import.
      */
     val count: Long,
+
+    /**
+     * The subset of `productIds` held in at least one NAMED list (068).
+     *
+     * ⚠ This is what the heart reads to decide what a tap on a FILLED heart means: a product
+     * only in "Saved" is un-saved; a product in a named list opens the list chooser instead,
+     * because one tap must never remove something from a list the shopper built (068 FR-020).
+     * The platform enforces the same rule (`409`), so a client that ignores this field is safe,
+     * just less graceful.
+     *
+     * Optional: a backend older than 068 omits it, and absent reads as empty.
+     */
+    @SerialName("namedProductIds")
+    val namedProductIDS: List<String>? = null,
 
     @SerialName("productIds")
     val productIDS: List<String>

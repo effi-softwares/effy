@@ -91,6 +91,17 @@ export interface SavedMembershipDTO {
   productIds: string[];
   /** ⚠ WireInt, not number — see the note on the import. */
   count: WireInt;
+  /**
+   * The subset of `productIds` held in at least one NAMED list (068).
+   *
+   * ⚠ This is what the heart reads to decide what a tap on a FILLED heart means: a product only in
+   * "Saved" is un-saved; a product in a named list opens the list chooser instead, because one tap
+   * must never remove something from a list the shopper built (068 FR-020). The platform enforces
+   * the same rule (`409`), so a client that ignores this field is safe, just less graceful.
+   *
+   * Optional: a backend older than 068 omits it, and absent reads as empty.
+   */
+  namedProductIds?: string[];
 }
 
 /** One device-held saved item being offered to an account (FR-028). */
@@ -151,3 +162,68 @@ export interface SavedAddToCartResultDTO {
   added: string[];
   skipped: SavedSkip[];
 }
+
+/* ── 068: lists the shopper names for themselves ─────────────────────────────────────────────── */
+
+/** How many lists of their own a shopper may hold, the default excluded. Mirrors `saveditems.ListLimit`. */
+export const LIST_LIMIT = 20;
+
+/**
+ * The longest list name, in Unicode code points, after the platform has normalised it. Mirrors
+ * `saveditems.ListNameMax`.
+ *
+ * ⚠ Clients use this to show a remaining-characters count. The count is advisory: the platform
+ * decides, and a client that disagrees is told `invalid_name`.
+ */
+export const LIST_NAME_MAX = 40;
+
+/** The default list's id on the wire. No client ever needs its real id. */
+export const DEFAULT_LIST_ID = "default";
+
+/**
+ * One of the shopper's lists.
+ *
+ * ⚠ `name` is `null` for the default list. "Saved" is display text and each client supplies it.
+ */
+export interface SavedListDTO {
+  /** A uuid, or `"default"` for the default list. */
+  id: string;
+  isDefault: boolean;
+  name: string | null;
+  count: WireInt;
+  /**
+   * How many of this list's products are in NO other list. Deleting the list stops those being
+   * saved at all, and the confirmation must say so (068 FR-006).
+   */
+  onlyHereCount: WireInt;
+  /** Present only when the read named a product: whether this list holds it. */
+  containsProduct?: boolean;
+}
+
+export interface SavedListCreateRequest {
+  name: string;
+  /** Place this product in the new list in the same action (068 FR-015). */
+  productId?: string;
+}
+
+export interface SavedListRenameRequest {
+  name: string;
+}
+
+export interface SavedListEntryRequest {
+  /** Set ONLY by undo, to return the product to the position it held in this list. */
+  restoreAddedAt?: string;
+}
+
+/**
+ * Why the platform refused a list request. A closed set; clients switch on these and nothing else.
+ * Carried as the last path segment of the problem's `type`, with `_` written as `-`.
+ */
+export type SavedListRefusal =
+  | "name_taken"
+  | "invalid_name"
+  | "list_limit"
+  | "default_list"
+  | "list_not_found"
+  | "in_named_lists"
+  | "saved_items_cap_reached";

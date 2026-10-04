@@ -76,20 +76,32 @@ type Item struct {
 	CategoryKey      *string
 }
 
-// Membership is the shopper's whole set of saved product ids.
+// Membership is the shopper's whole set of saved product ids, across every list.
 type Membership struct {
 	ProductIDs []string
 	Count      int
+	// The subset held in at least one NAMED list (068). A tap on a filled heart un-saves a product
+	// that is only in "Saved"; for one of these it must open the list chooser instead.
+	NamedProductIDs []string
 }
 
 // Reader is the repository seam. Declared here so the service can be tested with a hand-rolled fake
 // and no database (the house pattern — see storefront/service_test.go).
 type Reader interface {
 	MembershipIDs(ctx context.Context, customerID string) ([]string, error)
-	List(ctx context.Context, customerID string) ([]listRow, error)
+	NamedProductIDs(ctx context.Context, customerID string) ([]string, error)
+	List(ctx context.Context, customerID, listRef string) ([]listRow, error)
 	Save(ctx context.Context, customerID, productID string, savedAt *time.Time, cap int) error
 	Remove(ctx context.Context, customerID, productID string) error
 	Merge(ctx context.Context, customerID string, items []MergeItem, cap int) (int, []Skip, []string, error)
+
+	// 068 lists.
+	Lists(ctx context.Context, customerID string, productID *string) ([]listSummaryRow, error)
+	CreateList(ctx context.Context, customerID, name string, productID *string, listLimit, cap int) (string, error)
+	RenameList(ctx context.Context, customerID, listRef, name string) error
+	DeleteList(ctx context.Context, customerID, listRef string) error
+	AddEntry(ctx context.Context, customerID, listRef, productID string, at *time.Time, cap int) error
+	RemoveEntry(ctx context.Context, customerID, listRef, productID string) error
 }
 
 // CartAdder is the cart seam for the bulk add (FR-051).
@@ -122,15 +134,23 @@ func (s *Service) Membership(ctx context.Context, customerID string) (Membership
 	if err != nil {
 		return Membership{}, err
 	}
-	return Membership{ProductIDs: ids, Count: len(ids)}, nil
+	// ⚠ A second statement, still ONE REQUEST per screen (FR-021). It is skipped for a shopper with
+	// nothing saved, which is most page loads.
+	named := []string{}
+	if len(ids) > 0 {
+		if named, err = s.repo.NamedProductIDs(ctx, customerID); err != nil {
+			return Membership{}, err
+		}
+	}
+	return Membership{ProductIDs: ids, Count: len(ids), NamedProductIDs: named}, nil
 }
 
 // List returns the saved list with a verdict per item.
 //
 // ⚠ It takes no location. Delivery zones were withdrawn, so purchasability is decided by catalogue
 // status alone and every address is implicitly deliverable.
-func (s *Service) List(ctx context.Context, customerID string) ([]Item, error) {
-	rows, err := s.repo.List(ctx, customerID)
+func (s *Service) List(ctx context.Context, customerID, listRef string) ([]Item, error) {
+	rows, err := s.repo.List(ctx, customerID, listRef)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +270,8 @@ type AddToCartResult struct {
 	Skipped []Skip
 }
 
-// AddAllToCart puts every PURCHASABLE saved item in the cart.
+// AddAllToCart puts every PURCHASABLE product in ONE list in the cart (068 FR-028). Nothing from
+// any other list is considered, and nothing leaves the list (FR-029).
 //
 // ⚠ THE SERVER DECIDES PURCHASABILITY, not the client. A client filtering by its own copy of the
 // verdict would be re-implementing the four-term delivery predicate, and the two would drift — which
@@ -259,8 +280,8 @@ type AddToCartResult struct {
 // ⚠ NOTHING IS EVER SILENTLY OMITTED (FR-052). Every item that does not go in comes back named, with
 // a reason. A bulk add that quietly drops what it could not take leaves the shopper believing they
 // bought something they did not, and they find out at the till.
-func (s *Service) AddAllToCart(ctx context.Context, customerID, changeID string) (AddToCartResult, error) {
-	items, err := s.List(ctx, customerID)
+func (s *Service) AddAllToCart(ctx context.Context, customerID, listRef, changeID string) (AddToCartResult, error) {
+	items, err := s.List(ctx, customerID, listRef)
 	if err != nil {
 		return AddToCartResult{}, err
 	}

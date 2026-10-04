@@ -2129,6 +2129,95 @@
       ],
       "type": "object"
     },
+    "SavedListCreateRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "productId": {
+          "description": "Place this product in the new list in the same action (068 FR-015).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "SavedListDTO": {
+      "additionalProperties": false,
+      "description": "One of the shopper's lists.\n\n⚠ `name` is `null` for the default list. \"Saved\" is display text and each client supplies it.",
+      "properties": {
+        "containsProduct": {
+          "description": "Present only when the read named a product: whether this list holds it.",
+          "type": "boolean"
+        },
+        "count": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "id": {
+          "description": "A uuid, or `\"default\"` for the default list.",
+          "type": "string"
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "onlyHereCount": {
+          "$ref": "#/definitions/WireInt",
+          "description": "How many of this list's products are in NO other list. Deleting the list stops those being saved at all, and the confirmation must say so (068 FR-006)."
+        }
+      },
+      "required": [
+        "id",
+        "isDefault",
+        "name",
+        "count",
+        "onlyHereCount"
+      ],
+      "type": "object"
+    },
+    "SavedListEntryRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "restoreAddedAt": {
+          "description": "Set ONLY by undo, to return the product to the position it held in this list.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SavedListRefusal": {
+      "description": "Why the platform refused a list request. A closed set; clients switch on these and nothing else. Carried as the last path segment of the problem's `type`, with `_` written as `-`.",
+      "enum": [
+        "name_taken",
+        "invalid_name",
+        "list_limit",
+        "default_list",
+        "list_not_found",
+        "in_named_lists",
+        "saved_items_cap_reached"
+      ],
+      "type": "string"
+    },
+    "SavedListRenameRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
     "SavedMembershipDTO": {
       "additionalProperties": false,
       "description": "The shopper's whole set of saved product ids.\n\n⚠ THIS IS WHAT MAKES THE HEART TELL THE TRUTH. It is fetched ONCE per screen and answers for every product on it. The two alternatives were both rejected: an `isSaved` field on catalogue reads would make every product response shopper-specific and destroy the storefront's static shell, and a per-product lookup would be one request per tile (FR-020).\n\nBounded by the 200-item cap, which is what keeps a whole-set read cheap enough to do this way.",
@@ -2136,6 +2225,13 @@
         "count": {
           "$ref": "#/definitions/WireInt",
           "description": "⚠ WireInt, not number — see the note on the import."
+        },
+        "namedProductIds": {
+          "description": "The subset of `productIds` held in at least one NAMED list (068).\n\n⚠ This is what the heart reads to decide what a tap on a FILLED heart means: a product only in \"Saved\" is un-saved; a product in a named list opens the list chooser instead, because one tap must never remove something from a list the shopper built (068 FR-020). The platform enforces the same rule (`409`), so a client that ignores this field is safe, just less graceful.\n\nOptional: a backend older than 068 omits it, and absent reads as empty.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         "productIds": {
           "items": {
@@ -2759,6 +2855,21 @@
     "savedItem": {
       "$ref": "#/definitions/SavedItemDTO"
     },
+    "savedList": {
+      "$ref": "#/definitions/SavedListDTO"
+    },
+    "savedListCreateRequest": {
+      "$ref": "#/definitions/SavedListCreateRequest"
+    },
+    "savedListEntryRequest": {
+      "$ref": "#/definitions/SavedListEntryRequest"
+    },
+    "savedListRefusal": {
+      "$ref": "#/definitions/SavedListRefusal"
+    },
+    "savedListRenameRequest": {
+      "$ref": "#/definitions/SavedListRenameRequest"
+    },
     "savedMembership": {
       "$ref": "#/definitions/SavedMembershipDTO"
     },
@@ -2834,6 +2945,11 @@
     "savedMergeResult",
     "savedAddToCartRequest",
     "savedAddToCartResult",
+    "savedList",
+    "savedListCreateRequest",
+    "savedListRenameRequest",
+    "savedListEntryRequest",
+    "savedListRefusal",
     "serviceability",
     "locality",
     "localitiesResult",

@@ -4,6 +4,7 @@ import {
   __resetSavedCache,
   adoptSaved,
   applySaved,
+  isInNamedList,
   isSaved,
   readSavedIds,
   resetSaved,
@@ -125,5 +126,65 @@ describe("saved-store", () => {
     window.localStorage.setItem("effy:saved:v1", "corrupt")
     __resetSavedCache()
     expect(isSaved("anything")).toBe(false)
+  })
+
+  /* ── 068: named lists ───────────────────────────────────────────────────────────────────────── */
+
+  /**
+   * ⚠ THE GUEST-SURVIVAL PROOF. This is byte-for-byte what a browser holds from before 068. For a
+   * guest it is the only copy of what they saved, and a version bump would discard it on deploy.
+   */
+  it("loads an envelope written before 068 with every id intact", () => {
+    window.localStorage.setItem("effy:saved:v1", JSON.stringify({ version: 1, productIds: ["a", "b", "c"] }))
+    __resetSavedCache()
+    expect(readSavedIds()).toEqual(["a", "b", "c"])
+    expect(isInNamedList("a")).toBe(false)
+  })
+
+  it("still writes under the v1 key and version", () => {
+    adoptSaved(["a", "b"], ["a"])
+    expect(Object.keys(window.localStorage)).toEqual(["effy:saved:v1"])
+    const raw = JSON.parse(window.localStorage.getItem("effy:saved:v1")!)
+    expect(raw.version).toBe(1)
+    expect(raw.namedIds).toEqual(["a"])
+  })
+
+  it("round-trips the named set", () => {
+    adoptSaved(["a", "b"], ["a"])
+    __resetSavedCache()
+    expect(isInNamedList("a")).toBe(true)
+    expect(isInNamedList("b")).toBe(false)
+  })
+
+  /** A guest has no named lists, so nothing about lists is written for them. */
+  it("writes no named field when there is nothing named", () => {
+    applySaved("a", true)
+    const raw = JSON.parse(window.localStorage.getItem("effy:saved:v1")!)
+    expect("namedIds" in raw).toBe(false)
+  })
+
+  it("keeps the named set when an answer does not mention it", () => {
+    adoptSaved(["a", "b"], ["a"])
+    adoptSaved(["a", "b", "c"]) // the merge response: ids only
+    expect(isInNamedList("a")).toBe(true)
+  })
+
+  it("drops a product from the named set once it is no longer saved", () => {
+    adoptSaved(["a", "b"], ["a"])
+    adoptSaved(["b"])
+    expect(isInNamedList("a")).toBe(false)
+  })
+
+  it("clears the named set on reset", () => {
+    adoptSaved(["a"], ["a"])
+    resetSaved()
+    expect(isInNamedList("a")).toBe(false)
+  })
+
+  it("ignores a named field that is not an array", () => {
+    window.localStorage.setItem("effy:saved:v1", JSON.stringify({ version: 1, productIds: ["a"], namedIds: "a" }))
+    __resetSavedCache()
+    expect(readSavedIds()).toEqual(["a"])
+    expect(isInNamedList("a")).toBe(false)
   })
 })

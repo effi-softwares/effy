@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
+import com.effyshopping.customer.mobile.features.saved.presentation.ListChooserSheet
 import com.effyshopping.customer.mobile.features.deliveryinstructions.presentation.DeliveryInstructionsText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -170,6 +172,11 @@ private fun ReceiptBody(
 ) {
     val savedIds by container.savedStore.saved.collectAsState()
     val scope = rememberCoroutineScope()
+    // 068: the list chooser, for a line whose product is in a list the shopper named.
+    var chooserFor by remember { mutableStateOf<String?>(null) }
+    chooserFor?.let { productId ->
+        ListChooserSheet(container = container, productId = productId, onDismiss = { chooserFor = null })
+    }
 
     // ── Confirmation ────────────────────────────────────────────────────────────────────────────
     StatusDot(
@@ -210,7 +217,11 @@ private fun ReceiptBody(
             currency = receipt.currency,
             saved = item.productId in savedIds,
             onToggleSaved = { wanted ->
-                scope.launch { runCatching { container.toggleSaved(item.productId, wanted) } }
+                scope.launch {
+                    val outcome = runCatching { container.toggleSaved(item.productId, wanted) }.getOrNull()
+                    // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
+                    if (outcome == ToggleOutcome.OPEN_CHOOSER) chooserFor = item.productId
+                }
             },
         )
     }

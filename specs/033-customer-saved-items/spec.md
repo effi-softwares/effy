@@ -559,7 +559,9 @@ item.
 - **FR-064**: This feature MUST NOT build a derived repeat-purchase list ("Buy It Again"). The name is
   reserved for a sibling feature.
 - **FR-065**: This feature MUST NOT provide public sharing of a saved list.
-- **FR-066**: This feature MUST NOT provide multiple or named lists. There is exactly one saved list
+- **FR-066**: ⚠ **RETIRED 2026-10-04 by [068-customer-lists](../068-customer-lists/spec.md)**, on a
+  client request. A shopper now has "Saved" plus lists they name themselves. Everything else in this
+  spec stands. Original text: This feature MUST NOT provide multiple or named lists. There is exactly one saved list
   per shopper.
 - **FR-067**: The word "wishlist" MUST NOT appear in any shopper-facing text.
 

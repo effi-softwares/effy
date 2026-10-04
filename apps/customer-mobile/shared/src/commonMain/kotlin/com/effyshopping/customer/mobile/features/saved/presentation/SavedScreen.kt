@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.saved.presentation
 
+import com.effyshopping.customer.mobile.features.saved.domain.DEFAULT_LIST_ID
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -101,11 +102,24 @@ fun SavedScreen(
         SavedViewModel(
             listSaved = container.listSaved,
             loadMembership = container.loadSavedMembership,
-            removeSaved = container.removeSaved,
-            undoRemove = container.undoRemoveSaved,
+            loadLists = container.loadLists,
+            removeFromList = container.removeFromList,
+            addToList = container.addToList,
+            createList = container.createList,
+            renameList = container.renameList,
+            deleteList = container.deleteList,
         )
     }
     val state by vm.state.collectAsState()
+    // 068: every list the shopper has, and the one on screen. `lists` is empty for a guest, and the
+    // screen is then exactly the single saved list it was before lists existed.
+    val lists by vm.lists.collectAsState()
+    val selectedId by vm.selected.collectAsState()
+    val selectedList = lists.firstOrNull { it.id == selectedId }
+    val isDefault = selectedId == DEFAULT_LIST_ID
+    var chooserFor by remember { mutableStateOf<String?>(null) }
+    var naming by remember { mutableStateOf<Naming?>(null) }
+    var deleting by remember { mutableStateOf(false) }
     val pendingUndo by vm.undo.collectAsState()
     // ⚠ WHAT IS ALREADY IN THE CART, read from the cart's own mirror — never a second copy.
     //
@@ -142,7 +156,8 @@ fun SavedScreen(
     LaunchedEffect(pendingUndo) {
         val undo = pendingUndo ?: return@LaunchedEffect
         val result = snackbarHost.showSnackbar(
-            message = "Removed ${undo.item.name}",
+            message = if (undo.listId == DEFAULT_LIST_ID) "Removed ${undo.item.name}"
+            else "Removed ${undo.item.name} from this list",
             actionLabel = "Undo", // at most ONE action
             duration = SnackbarDuration.Short,
         )
@@ -192,7 +207,8 @@ fun SavedScreen(
         bulkBusy = true
         scope.launch {
             try {
-                val outcome = container.addAllSavedToCart(postcode = null, changeId = newUuid())
+                // ⚠ THE LIST ON SCREEN, and only it (068 FR-028). Nothing from another list goes in.
+                val outcome = container.addAllSavedToCart(listId = selectedId, changeId = newUuid())
                 bulk = outcome
                 // The platform wrote to the account cart; the local mirror has not heard about it yet.
                 container.syncCart()
@@ -214,7 +230,26 @@ fun SavedScreen(
     // a transient message.
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "Saved items", onBack = onBack)
+        EffyAppBar(
+            title = "Saved items",
+            onBack = onBack,
+            // Named lists need an account; `lists` is empty for a guest, so this is not offered.
+            trailing = if (lists.isEmpty()) null else {
+                { TextButton(onClick = { naming = Naming.New }) { Text("New list") } }
+            },
+        )
+        if (lists.size > 1 || !isDefault) {
+            SavedListsBar(
+                lists = lists,
+                selectedId = selectedId,
+                onSelect = {
+                    bulk = null // the skip notes belong to the list they were about
+                    vm.select(it)
+                },
+                onRename = { naming = Naming.Rename },
+                onDelete = { deleting = true },
+            )
+        }
 
         when (val s = state) {
             // ⚠ A CONTENT-SHAPED skeleton, not an empty box. The old loading state rendered a bare
@@ -267,18 +302,31 @@ fun SavedScreen(
                         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        EffyEmptyState(
-                            title = "Nothing saved yet",
-                            // ⚠ FR-027: guest saves are DEVICE-HELD, and saying so is the difference
-                            // between a deliberate design and an apparent bug when they sign in on
-                            // another phone.
-                            body = "Tap the heart on anything you want to keep an eye on. " +
-                                "We'll tell you when the price drops or it comes back in stock. " +
-                                "Saved before signing in? Those stay on this device until you sign in.",
-                            icon = Res.drawable.ic_favorite_outlined,
-                            actionLabel = "Start shopping",
-                            onAction = onBrowse,
-                        )
+                        if (isDefault) {
+                            EffyEmptyState(
+                                title = "Nothing saved yet",
+                                // ⚠ FR-027: guest saves are DEVICE-HELD, and saying so is the difference
+                                // between a deliberate design and an apparent bug when they sign in on
+                                // another phone.
+                                body = "Tap the heart on anything you want to keep an eye on. " +
+                                    "We'll tell you when the price drops or it comes back in stock. " +
+                                    "Saved before signing in? Those stay on this device until you sign in.",
+                                icon = Res.drawable.ic_favorite_outlined,
+                                actionLabel = "Start shopping",
+                                onAction = onBrowse,
+                            )
+                        } else {
+                            // ⚠ A DIFFERENT message (068 FR-026). "Nothing saved yet" on an empty
+                            // named list would tell a shopper with a full "Saved" list that they
+                            // had lost everything.
+                            EffyEmptyState(
+                                title = "This list is empty",
+                                body = "Open any product and choose Add to list to put it here.",
+                                icon = Res.drawable.ic_favorite_outlined,
+                                actionLabel = "Browse products",
+                                onAction = onBrowse,
+                            )
+                        }
                     }
                 }
 
@@ -323,6 +371,12 @@ fun SavedScreen(
                                     onAddToCart = { addOne(item) },
                                     onGoToCart = onCart,
                                     onRemove = { vm.remove(item) },
+                                    removeLabel = if (isDefault) "Remove ${item.name} from saved items"
+                                    else "Remove ${item.name} from this list",
+                                    // Named lists need an account; a guest's row has no chooser.
+                                    onAddToList = if (lists.isEmpty()) null else {
+                                        { chooserFor = item.productId }
+                                    },
                                 )
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             }
@@ -366,7 +420,48 @@ fun SavedScreen(
             modifier = Modifier.align(Alignment.BottomCenter).padding(EffySpacing.s),
         )
     }
+
+    chooserFor?.let { productId ->
+        ListChooserSheet(
+            container = container,
+            productId = productId,
+            onDismiss = {
+                chooserFor = null
+                // The chooser can take a product out of the very list on screen.
+                vm.onChooserClosed()
+            },
+        )
+    }
+
+    when (naming) {
+        Naming.New -> ListNameDialog(
+            title = "New list",
+            confirmLabel = "Create",
+            initial = "",
+            onSubmit = vm::createList,
+            onDismiss = { naming = null },
+        )
+        Naming.Rename -> ListNameDialog(
+            title = "Rename list",
+            confirmLabel = "Save",
+            initial = selectedList?.name.orEmpty(),
+            onSubmit = vm::renameSelected,
+            onDismiss = { naming = null },
+        )
+        null -> Unit
+    }
+
+    if (deleting && selectedList != null && !selectedList.isDefault) {
+        DeleteListDialog(
+            list = selectedList,
+            onConfirm = vm::deleteSelected,
+            onDismiss = { deleting = false },
+        )
+    }
 }
+
+/** Which name dialog is open on the saved screen. */
+private enum class Naming { New, Rename }
 
 /**
  * One saved item — the cart row's composition, carrying the watchlist's own facts.
@@ -393,6 +488,8 @@ private fun SavedRow(
     onAddToCart: () -> Unit,
     onGoToCart: () -> Unit,
     onRemove: () -> Unit,
+    removeLabel: String,
+    onAddToList: (() -> Unit)?,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.md)) {
         Row(
@@ -509,12 +606,14 @@ private fun SavedRow(
                 else -> TextButton(onClick = onAddToCart) { Text("Add to cart") }
             }
             Spacer(Modifier.weight(1f))
+            // 068 FR-014: the labelled way into the list chooser from a row.
+            if (onAddToList != null) TextButton(onClick = onAddToList) { Text("Add to list") }
             // The cart's destructive icon, in the cart's error tint — one visual language for "this
             // takes the thing away", both places it can happen. Removal is undoable (FR-017).
             IconButton(onClick = onRemove) {
                 Icon(
                     painterResource(Res.drawable.ic_delete_outlined),
-                    contentDescription = "Remove ${item.name} from saved items",
+                    contentDescription = removeLabel,
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

@@ -115,12 +115,14 @@ fun SearchScreen(
      * from "On sale" must say "On sale", not "Search".
      */
     title: String = "Search",
+    /** 068: where the list chooser sends a guest who wants a named list. */
+    onRequireSignIn: (() -> Unit)? = null,
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts, container.getFacets) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: ONE membership read for the whole grid, and one mirror every tile's heart
     // reads — never a boolean per tile, and never a request per product.
-    val savedTiles = rememberSavedTiles(container)
+    val savedTiles = rememberSavedTiles(container, onRequireSignIn)
     val gridState = rememberLazyGridState()
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current

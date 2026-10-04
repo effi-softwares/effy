@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
+import com.effyshopping.customer.mobile.features.saved.presentation.ListChooserSheet
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -116,6 +118,9 @@ fun ProductDetailScreen(
     // the shared mirror means the control tells the truth on first render (FR-019).
     val savedIds by container.savedStore.saved.collectAsState()
     val scope = rememberCoroutineScope()
+    // 068: the list chooser for this product, opened from "Add to list" or from a filled heart on a
+    // product that is in a named list.
+    var choosingLists by remember { mutableStateOf(false) }
     val signedIn = session is SessionState.Authenticated
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -144,19 +149,31 @@ fun ProductDetailScreen(
                     // actually saw. Without it the merge would fall back to the price at sign-in time
                     // and the shopper would silently lose whatever drop they had been watching for.
                     scope.launch {
-                        runCatching {
+                        val outcome = runCatching {
                             container.toggleSaved(
                                 s.product.card.id, wanted,
                                 s.product.card.priceAmount, s.product.card.currency,
                             )
-                        }
+                        }.getOrNull()
+                        // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
+                        if (outcome == ToggleOutcome.OPEN_CHOOSER) choosingLists = true
                     }
                 },
+                onAddToList = { choosingLists = true },
                 onAddToCart = vm::addToCart,
                 onRefresh = vm::refresh,
                 onProductClick = onProductClick,
             )
         }
+    }
+
+    if (choosingLists) {
+        ListChooserSheet(
+            container = container,
+            productId = productId,
+            onDismiss = { choosingLists = false },
+            onRequireSignIn = onRequireSignIn,
+        )
     }
 }
 
@@ -167,6 +184,7 @@ private fun ProductBody(
     justAdded: Boolean,
     saved: Boolean,
     onToggleSaved: (Boolean) -> Unit,
+    onAddToList: () -> Unit,
     onAddToCart: (Int) -> Unit,
     onProductClick: (String) -> Unit,
     onRefresh: suspend () -> Unit,
@@ -240,7 +258,11 @@ private fun ProductBody(
         // 033: the heart. A real icon toggle, never the "♥"/"♡" text glyphs 025 removed and
         // mobile-guard now fails the build on. Its accessible NAME is stable and the state travels
         // separately, so a screen reader hears one control whose state changed (FR-058).
-        SaveControl(saved = saved, onToggle = onToggleSaved)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            SaveControl(saved = saved, onToggle = onToggleSaved)
+            // 068 FR-014: the labelled way into the list chooser. The heart keeps its one tap.
+            TextButton(onClick = onAddToList) { Text("Add to list") }
+        }
 
         product.longDescription?.let {
             HorizontalDivider(

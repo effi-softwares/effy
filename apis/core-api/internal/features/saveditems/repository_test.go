@@ -3,6 +3,8 @@ package saveditems
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,7 +47,7 @@ func startPostgres(t *testing.T) *pgxpool.Pool {
 
 // seedSchema mirrors only the tables the saved-items SQL spans. Deliberately minimal — these tests
 // are about one statement, not about any table's full shape.
-func seedSchema(t *testing.T, pool *pgxpool.Pool) {
+func seedBaseSchema(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
 		CREATE TABLE public.customer (id uuid PRIMARY KEY);
@@ -61,6 +63,8 @@ func seedSchema(t *testing.T, pool *pgxpool.Pool) {
 			currency            text NOT NULL DEFAULT 'AUD',
 			compare_at_amount   numeric(12,2),
 			status              text NOT NULL DEFAULT 'active',
+			stock_tracked       boolean NOT NULL DEFAULT false,
+			stock_on_hand       int,
 			created_at          timestamptz NOT NULL DEFAULT now()
 		);
 		CREATE TABLE public.product_media (
@@ -83,6 +87,38 @@ func seedSchema(t *testing.T, pool *pgxpool.Pool) {
 			PRIMARY KEY (customer_id, product_id)
 		);
 	`)
+	require.NoError(t, err)
+}
+
+// seedSchema is the pre-068 schema with the 068 migration applied on top — the state the code runs
+// against. The backfill proof uses seedBaseSchema and applies the migration itself.
+func seedSchema(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	seedBaseSchema(t, pool)
+	applyListsMigration(t, pool)
+}
+
+// listsMigration is the REAL 068 migration, read from db/migrations rather than mirrored here.
+//
+// ⚠ A hand-copied schema is how this file went red without anyone noticing: its seed kept inserting
+// into `delivery_pricing_rule` after delivery zones were withdrawn, and its product table never
+// gained 054's stock columns, so every test here failed at setup. Reading the migration means the
+// tables, the constraints and the BACKFILL under test are the ones that will actually run.
+const listsMigration = "../../../../../db/migrations/20261004090557_customer_lists.sql"
+
+// listsMigrationUp returns the migration's Up section.
+func listsMigrationUp(t *testing.T) string {
+	t.Helper()
+	raw, err := os.ReadFile(listsMigration)
+	require.NoError(t, err)
+	up, _, found := strings.Cut(string(raw), "-- +goose Down")
+	require.True(t, found, "the migration must have a Down section")
+	return up
+}
+
+func applyListsMigration(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(), listsMigrationUp(t))
 	require.NoError(t, err)
 }
 
@@ -123,8 +159,6 @@ func seedWorld(t *testing.T, pool *pgxpool.Pool) {
 	      VALUES ($1, $2, 'Regional Honey', 9.00, 'active')`, pOtherShop, orphanShop)
 
 	exec(`INSERT INTO public.product_media (product_id, storage_key, is_primary) VALUES ($1, 'media/eggs.jpg', true)`, pActive)
-
-	exec(`INSERT INTO public.delivery_pricing_rule (method) VALUES ('standard')`)
 }
 
 func repo(t *testing.T) (*Repository, *pgxpool.Pool) {
@@ -213,7 +247,7 @@ func TestSave_AFreshSaveLandsAtTheTop(t *testing.T) {
 	require.NoError(t, r.Save(ctx, shopper, pDraft, &old, AccountCap))
 	require.NoError(t, r.Save(ctx, shopper, pActive, nil, AccountCap)) // now()
 
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	require.Equal(t, pActive, rows[0].ProductID,
@@ -263,7 +297,7 @@ func TestList_PriceDropIsDetected(t *testing.T) {
 	_, err := pool.Exec(ctx, `UPDATE public.product SET price_amount = 4.00 WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.True(t, rows[0].PriceDropped)
 	require.Equal(t, "6.50", rows[0].SavedPriceAmount, "the list shows what it was when saved")
@@ -278,7 +312,7 @@ func TestList_PriceRiseIsNotFlagged(t *testing.T) {
 	_, err := pool.Exec(ctx, `UPDATE public.product SET price_amount = 9.99 WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.False(t, rows[0].PriceDropped,
 		"the current price is always shown, so nothing is concealed — but a rise is not actionable")
@@ -294,7 +328,7 @@ func TestList_ACurrencyChangeReportsNoDrop(t *testing.T) {
 		`UPDATE public.product SET price_amount = 1.00, currency = 'NZD' WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.False(t, rows[0].PriceDropped, "1.00 NZD is not 'cheaper than' 6.50 AUD — it is incomparable")
 }
@@ -309,7 +343,7 @@ func TestList_ShowsTheProductsCurrentIdentity(t *testing.T) {
 	_, err := pool.Exec(ctx, `UPDATE public.product SET name = 'Renamed Eggs' WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.Equal(t, "Renamed Eggs", rows[0].Name,
 		"only the save-time PRICE is remembered; everything else is read live")
@@ -373,7 +407,7 @@ func TestList_AtTheCapIsStillOneStatement(t *testing.T) {
 		require.NoError(t, r.Save(ctx, shopper, id, nil, AccountCap+1))
 	}
 
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.Len(t, rows, AccountCap, "the cap's worth of items come back in one read")
 
@@ -532,7 +566,7 @@ func TestMerge_WithoutADevicePriceUsesTheProductsCurrentPrice(t *testing.T) {
 	require.Equal(t, "AUD", currency)
 
 	// And it must therefore report NO drop — the item did not become cheaper by being merged.
-	rows, err := r.List(ctx, shopper)
+	rows, err := r.List(ctx, shopper, DefaultListRef)
 	require.NoError(t, err)
 	require.False(t, rows[0].PriceDropped)
 }

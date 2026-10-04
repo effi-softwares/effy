@@ -14,16 +14,27 @@ import com.effyshopping.customer.mobile.core.error.AppException
  * connection, and a control that moves and never reverts lies about what was recorded.
  */
 
+/** What a tap on the heart came to. */
+enum class ToggleOutcome {
+    /** The shopper's intent was applied (or was already true). */
+    DONE,
+
+    /** A guest at the device cap. Nothing was saved, and nothing was evicted to make room. */
+    GUEST_CAP,
+
+    /**
+     * ⚠ 068 FR-020: the product is in a list the shopper named, so the tap removed NOTHING and the
+     * caller must open the list chooser. One tap on a heart never takes a product out of a list.
+     */
+    OPEN_CHOOSER,
+}
+
 /**
- * Toggle a product's saved state, optimistically.
+ * The heart. Optimistic: the mirror moves first and the platform is told second; a refusal puts it
+ * back (FR-012).
  *
- * ⚠ Takes the DESIRED end state rather than "flip whatever is there". Under rapid tapping a flip
- * resolves against whatever the mirror happened to hold when the coroutine ran, so two fast taps can
- * settle on the wrong value; an absolute intent cannot (FR-014 — last intent wins, independent of the
- * order responses arrive in).
- *
- * ⚠ Idempotent at both ends: the platform's PUT/DELETE are no-ops when already in the target state,
- * so a retry is always safe.
+ * Takes the DESIRED end state rather than "flip whatever is there", so two fast taps cannot settle on
+ * the wrong value (FR-014).
  */
 class ToggleSaved(
     private val repo: SavedRepository,
@@ -31,40 +42,42 @@ class ToggleSaved(
     private val isSignedIn: () -> Boolean,
     private val now: () -> String,
 ) {
-    /**
-     * Returns false when a GUEST is refused by the device cap, so the caller can say why.
-     *
-     * [priceAmount]/[currency] are what the tapped surface knew, and may be null — the merge then
-     * falls back to the product's real current price rather than inventing a baseline.
-     */
     suspend operator fun invoke(
         productId: String,
         saved: Boolean,
         priceAmount: String? = null,
         currency: String? = null,
-    ): Boolean {
+    ): ToggleOutcome {
         val previous = store.isSaved(productId)
-        if (previous == saved) return true // nothing to do — and nothing to revert if it fails
+        if (previous == saved) return ToggleOutcome.DONE // nothing to do — and nothing to revert if it fails
 
-        // ⚠ A GUEST NEVER SEES A SIGN-IN WALL (FR-024). Their taps are kept on the device and joined
-        // to an account later. The sign-in wall is the single biggest documented reason saved-item
-        // features go unused, and the predecessor put one on the very first tap.
         if (!isSignedIn()) {
-            if (saved && store.guestCount() >= GUEST_CAP) return false
+            // ⚠ A guest has no named lists, so a guest's filled heart always un-saves.
+            if (saved && store.guestCount() >= GUEST_CAP) return ToggleOutcome.GUEST_CAP
             store.applyGuest(productId, saved, priceAmount, currency, now())
-            return true
+            return ToggleOutcome.DONE
         }
+
+        // Known in advance: nothing is sent and the heart never flickers.
+        if (!saved && store.isInNamedList(productId)) return ToggleOutcome.OPEN_CHOOSER
 
         store.apply(productId, saved)
         try {
             if (saved) repo.save(productId) else repo.remove(productId)
+        } catch (e: ListRefusedException) {
+            store.revert(productId, previous)
+            // The mirror did not know (another device made the list). The platform refused; nothing
+            // was removed. Any other refusal of a save is the cap.
+            if (e.refusal == ListRefusal.IN_NAMED_LISTS) return ToggleOutcome.OPEN_CHOOSER
+            throw e
         } catch (e: AppException) {
             store.revert(productId, previous)
             throw e
         }
-        return true
+        return ToggleOutcome.DONE
     }
 }
+
 
 /**
  * How many a device-held guest list may hold (FR-046).
@@ -93,45 +106,7 @@ class LoadSavedMembership(
 
 /** The saved list, with a verdict per item for the shopper's current location. */
 class ListSaved(private val repo: SavedRepository) {
-    suspend operator fun invoke(): List<SavedItem> = repo.list()
-}
-
-/**
- * Remove an item from the list, keeping what undo needs to put it back.
- *
- * Returns the removed item's `savedAt` so the caller can restore the position it held (FR-018). A
- * deliberate re-save later is a different act and correctly goes to the top.
- */
-class RemoveSaved(
-    private val repo: SavedRepository,
-    private val store: SavedStore,
-) {
-    suspend operator fun invoke(item: SavedItem): String {
-        store.apply(item.productId, false)
-        try {
-            repo.remove(item.productId)
-        } catch (e: AppException) {
-            store.revert(item.productId, true)
-            throw e
-        }
-        return item.savedAt
-    }
-}
-
-/** Undo a removal, restoring the item to the position it previously held (FR-018). */
-class UndoRemoveSaved(
-    private val repo: SavedRepository,
-    private val store: SavedStore,
-) {
-    suspend operator fun invoke(productId: String, savedAt: String) {
-        store.apply(productId, true)
-        try {
-            repo.save(productId, restoreSavedAt = savedAt)
-        } catch (e: AppException) {
-            store.revert(productId, false)
-            throw e
-        }
-    }
+    suspend operator fun invoke(listId: String = DEFAULT_LIST_ID): List<SavedItem> = repo.list(listId)
 }
 
 /**
@@ -152,20 +127,62 @@ class MergeSavedOnSignIn(
     suspend operator fun invoke(): Int {
         val entries = store.guestEntries()
         val outcome = merge.merge(entries)
-        store.adopt(SavedMembership(outcome.productIds))
+        // ⚠ 068: the merge answer does not say which products are in NAMED lists, so the named set
+        // the store already holds is carried over rather than wiped. The next membership read
+        // (every screen with hearts does one) brings the platform's own answer.
+        store.adopt(SavedMembership(outcome.productIds, store.named.value intersect outcome.productIds))
         return outcome.added
     }
 }
 
 
-/**
- * Add every purchasable saved item to the cart (FR-051).
- *
- * ⚠ The SERVER decides what is purchasable. A client filtering by its own copy of the verdict would
- * be re-implementing the four-term delivery predicate, and the two would drift — which is the exact
- * class of defect this feature exists to remove.
- */
+/** Adds every purchasable product in ONE list to the cart — the weekly-shop action (068 FR-028). */
 class AddAllSavedToCart(private val repo: SavedCartRepository) {
-    suspend operator fun invoke(postcode: String?, changeId: String): SavedAddToCartOutcome =
-        repo.addAllToCart(postcode, changeId)
+    suspend operator fun invoke(listId: String, changeId: String): SavedAddToCartOutcome =
+        repo.addAllToCart(listId, changeId)
+}
+
+/* ── 068: lists ──────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * ⚠ EVERY CHANGE BELOW RE-READS THE MEMBERSHIP rather than patching the mirror. Whether a product is
+ * still saved, and whether it is still in a named list, depends on every list it is in — a rule the
+ * platform owns. A failed re-read is swallowed: the change itself succeeded, and the next screen
+ * with hearts reads again.
+ */
+class LoadLists(private val repo: ListRepository) {
+    suspend operator fun invoke(productId: String? = null): List<SavedList> = repo.lists(productId)
+}
+
+class CreateList(private val repo: ListRepository, private val reload: LoadSavedMembership) {
+    suspend operator fun invoke(name: String, productId: String? = null): SavedList {
+        val list = repo.create(name, productId)
+        if (productId != null) runCatching { reload() }
+        return list
+    }
+}
+
+class RenameList(private val repo: ListRepository) {
+    suspend operator fun invoke(listId: String, name: String): SavedList = repo.rename(listId, name)
+}
+
+class DeleteList(private val repo: ListRepository, private val reload: LoadSavedMembership) {
+    suspend operator fun invoke(listId: String) {
+        repo.delete(listId)
+        runCatching { reload() }
+    }
+}
+
+class AddToList(private val repo: ListRepository, private val reload: LoadSavedMembership) {
+    suspend operator fun invoke(listId: String, productId: String, restoreAddedAt: String? = null) {
+        repo.addEntry(listId, productId, restoreAddedAt)
+        runCatching { reload() }
+    }
+}
+
+class RemoveFromList(private val repo: ListRepository, private val reload: LoadSavedMembership) {
+    suspend operator fun invoke(listId: String, productId: String) {
+        repo.removeEntry(listId, productId)
+        runCatching { reload() }
+    }
 }

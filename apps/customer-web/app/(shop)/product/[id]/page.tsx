@@ -10,6 +10,7 @@ import { coreApi, uncached } from "@/lib/api/core"
 import { formatMoney, isDiscounted } from "@/lib/money"
 
 import { AddToCartControl } from "../../_components/AddToCartControl"
+import { AddToListButton } from "../../_components/AddToListButton"
 import { SaveControl } from "../../_components/SaveControl"
 import { ProductGallery } from "../../_components/ProductGallery"
 import { RecordView } from "../../_components/RecordView"
@@ -161,8 +162,10 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           <div className="mt-6">
             {/* 033: the heart, beside the buy action. Reads the shared mirror, so an already-saved
                 product opens SAVED — the predecessor hard-coded false and un-saved on the 2nd tap. */}
-            <div className="mb-3">
+            <div className="mb-3 flex items-center gap-3">
               <SaveControl productId={product.id} />
+              {/* 068: the labelled way into the list chooser. The heart's one tap stays save/un-save. */}
+              <AddToListButton productId={product.id} />
             </div>
 
             <AddToCartControl

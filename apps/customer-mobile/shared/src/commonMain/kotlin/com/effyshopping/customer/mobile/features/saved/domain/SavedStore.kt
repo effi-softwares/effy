@@ -30,6 +30,18 @@ class SavedStore(
     private val _saved = MutableStateFlow<Set<String>>(emptySet())
     val saved: StateFlow<Set<String>> = _saved.asStateFlow()
 
+    /**
+     * The saved products held in a list the shopper NAMED (068).
+     *
+     * ⚠ In memory only. A guest has no named lists, so nothing about lists is ever written to the
+     * device; and an empty set is the safe reading, because the platform refuses the un-save anyway.
+     */
+    private val _named = MutableStateFlow<Set<String>>(emptySet())
+    val named: StateFlow<Set<String>> = _named.asStateFlow()
+
+    /** Whether a tap on this product's filled heart must open the list chooser instead of un-saving. */
+    fun isInNamedList(productId: String): Boolean = productId in _named.value
+
     /** The guest's device-held entries, carrying what a merge needs. Empty once signed in and merged. */
     private var guest: List<SavedGuestEntry> = local.load()
 
@@ -53,6 +65,7 @@ class SavedStore(
      */
     fun adopt(membership: SavedMembership) {
         _saved.value = membership.productIds
+        _named.value = membership.namedProductIds
         // The account is now the record. The device copy has served its purpose and must not linger —
         // a shared device would otherwise hand the next person the previous shopper's interests.
         if (guest.isNotEmpty()) {
@@ -104,6 +117,7 @@ class SavedStore(
     /** Sign-out: an account's saved items must not stay readable on the device (FR-031). */
     fun reset() {
         _saved.value = emptySet()
+        _named.value = emptySet()
         guest = emptyList()
         local.clear()
     }

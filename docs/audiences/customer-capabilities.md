@@ -1351,3 +1351,30 @@ logs. It may hold a gate code.
 
 ⚠ **Not walked on either surface.** The telemetry event is declared and emits nothing.
 
+## §068 — Customer lists (2026-10-04)
+
+Spec: [specs/068-customer-lists/](../../specs/068-customer-lists/). Client feedback R3. Retires 033
+FR-066 ("exactly one saved list per shopper").
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| One-tap save lands in "Saved" | ✅ built | ✅ built | Unchanged; the confirmation now offers "Add to a list" |
+| Heart filled for a product in ANY list | ✅ built | ✅ built | Still one membership read per screen |
+| Filled heart on a product in a named list opens the chooser | ✅ built | ✅ built | The platform refuses the un-save too (`409`), so installed builds cannot do it either |
+| List chooser: tick lists, make a new one with the product in it | ✅ built | ✅ built | Dialog on web, bottom sheet on mobile |
+| "Add to list" on the product page | ✅ built | ✅ built | |
+| Lists as tabs with counts; a page per list | ✅ built | ✅ built | `/saved/[listId]` on web; tabs on the saved screen on mobile |
+| "Add everything available to cart", per list | ✅ built | ✅ built | Skipped products named with the reason |
+| Rename / delete a list; delete states both counts | ✅ built | ✅ built | Same sentence on both |
+| Remove from one list, with undo to the same position | ✅ built | ✅ built | Undo is NEW on web: 033's saved list had none there |
+| "In your cart (n)" on a row instead of "Add to cart" | ✅ built | ✅ built | NEW on web: 033 FR-050a was mobile-only until now |
+| Guest: one device list; chooser says lists need an account | ✅ built | ✅ built | Sign-in button on mobile wherever the screen can route to it |
+
+⚠ **One standing difference, inherited**: the web search grid carries no heart (033 FR-007 as
+amended), so it carries no chooser either. Mobile search has both.
+
+⚠ **A list's name is the shopper's own text.** It is in no URL, no page title, no log line and no
+analytics event on either surface.
+
+⚠ **Not walked on either surface.** The three telemetry events are declared on web and emit nothing
+until PostHog is initialised; mobile has no event taxonomy to declare them in.

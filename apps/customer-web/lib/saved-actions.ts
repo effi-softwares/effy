@@ -15,7 +15,7 @@
  * — a normal state, not a failure — and the mirror is the whole truth for them until guest saving is
  * wired to the platform in US3. `cart-actions.ts` carries the same rule for the same reason.
  */
-import { adoptSaved, applySaved, isSaved, readSavedIds } from "./saved-store"
+import { adoptSaved, applySaved, isInNamedList, isSaved, readSavedIds } from "./saved-store"
 
 /** How many a device-held guest list may hold (FR-046). Mirrors `saveditems.GuestCap` on the hot path. */
 export const GUEST_CAP = 50
@@ -39,10 +39,16 @@ async function send(path: string, method: "PUT" | "DELETE"): Promise<number> {
  * responses arrive in).
  *
  * Returns `false` when the save was refused by the guest cap, so the caller can say why.
+ *
+ * ⚠ Returns `"chooser"` when the tap must OPEN THE LIST CHOOSER instead (068 FR-020): the product is
+ * in a list the shopper named, and one tap on a heart must never take it out of that list. Nothing
+ * is sent and nothing moves. The platform enforces the same rule, so a mirror that did not know
+ * (`409`) lands in the same place after reverting.
  */
-export async function toggleSaved(productId: string, saved: boolean): Promise<boolean> {
+export async function toggleSaved(productId: string, saved: boolean): Promise<boolean | "chooser"> {
   const previous = isSaved(productId)
   if (previous === saved) return true // nothing to do, and nothing to revert if it fails
+  if (!saved && isInNamedList(productId)) return "chooser"
 
   if (saved && readSavedIds().length >= GUEST_CAP) {
     // ⚠ Refused, never resolved by evicting something the shopper deliberately saved (FR-047).
@@ -56,7 +62,8 @@ export async function toggleSaved(productId: string, saved: boolean): Promise<bo
   // mirror stands. Anything else in the 4xx/5xx range is the platform saying no.
   if (status >= 400 && status !== 401) {
     applySaved(productId, previous)
-    return false
+    // The only 409 an un-save can get is "this is in one of your lists".
+    return !saved && status === 409 ? "chooser" : false
   }
   return true
 }
@@ -72,8 +79,9 @@ export async function refreshSaved(): Promise<void> {
   try {
     const res = await fetch("/api/saved/ids")
     if (!res.ok) return // 401 = guest; the local mirror is already their truth
-    const body = (await res.json()) as { productIds?: string[] }
-    if (Array.isArray(body.productIds)) adoptSaved(body.productIds)
+    const body = (await res.json()) as { productIds?: string[]; namedProductIds?: string[] }
+    // A backend from before 068 sends no `namedProductIds`; an empty set is the safe reading.
+    if (Array.isArray(body.productIds)) adoptSaved(body.productIds, body.namedProductIds ?? [])
   } catch {
     /* transient — the next page load repairs it */
   }

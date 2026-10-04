@@ -15,7 +15,9 @@ import com.effyshopping.customer.mobile.features.saved.domain.SavedRepository
 import com.effyshopping.customer.mobile.features.saved.domain.SavedStore
 import com.effyshopping.customer.mobile.features.saved.domain.SavedVerdict
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleSaved
-import com.effyshopping.customer.mobile.features.saved.domain.UndoRemoveSaved
+import com.effyshopping.customer.mobile.features.saved.domain.ListRefusal
+import com.effyshopping.customer.mobile.features.saved.domain.ListRefusedException
+import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,17 +58,21 @@ class SavedStoreTest {
     private class FakeRepo(
         var failWith: AppError? = null,
         var membership: Set<String> = emptySet(),
+        var named: Set<String> = emptySet(),
+        /** 068: what the platform answers to the heart's un-save of a product in a named list. */
+        var refuseRemove: ListRefusal? = null,
     ) : SavedRepository {
         val saved = mutableListOf<Pair<String, String?>>()
         val removed = mutableListOf<String>()
 
-        override suspend fun membership() = SavedMembership(membership)
-        override suspend fun list(): List<SavedItem> = emptyList()
+        override suspend fun membership() = SavedMembership(membership, named)
+        override suspend fun list(listId: String): List<SavedItem> = emptyList()
         override suspend fun save(productId: String, restoreSavedAt: String?) {
             failWith?.let { throw AppException(it) }
             saved += productId to restoreSavedAt
         }
         override suspend fun remove(productId: String) {
+            refuseRemove?.let { throw ListRefusedException(it) }
             failWith?.let { throw AppException(it) }
             removed += productId
         }
@@ -162,22 +168,89 @@ class SavedStoreTest {
         assertEquals(1, repo.removed.size)
     }
 
-    // ── Undo (FR-018) ───────────────────────────────────────────────────────────────────────────
+    // ── 068: the heart never takes a product out of a named list (FR-019, FR-020, SC-008) ────────
 
     @Test
-    fun `undo restores the original savedAt - not now`() = runTest {
+    fun `loading membership seeds the named set too`() = runTest {
+        val store = SavedStore()
+        LoadSavedMembership(FakeRepo(membership = setOf("p1", "p2"), named = setOf("p2")), store)()
+
+        assertFalse(store.isInNamedList("p1"))
+        assertTrue(store.isInNamedList("p2"))
+    }
+
+    @Test
+    fun `a filled heart on a product in a named list opens the chooser and sends nothing`() = runTest {
         val store = SavedStore()
         val repo = FakeRepo()
+        store.adopt(SavedMembership(setOf("p1"), namedProductIds = setOf("p1")))
 
-        UndoRemoveSaved(repo, store)("p1", savedAt = "2026-07-20T04:11:00Z")
+        val outcome = signedInToggle(repo, store)("p1", saved = false)
 
-        assertTrue(store.isSaved("p1"))
-        assertEquals(
-            listOf<Pair<String, String?>>("p1" to "2026-07-20T04:11:00Z"),
-            repo.saved,
-            "undo means 'that removal did not happen' — the item returns to the position it held, " +
-                "not to the top of the list",
-        )
+        assertEquals(ToggleOutcome.OPEN_CHOOSER, outcome)
+        assertTrue(repo.removed.isEmpty(), "known in advance, so no request and no flicker")
+        assertTrue(store.isSaved("p1"), "one tap must never take a product out of a list")
+    }
+
+    @Test
+    fun `a filled heart on a product only in Saved still un-saves`() = runTest {
+        val store = SavedStore()
+        val repo = FakeRepo()
+        store.adopt(SavedMembership(setOf("p1")))
+
+        val outcome = signedInToggle(repo, store)("p1", saved = false)
+
+        assertEquals(ToggleOutcome.DONE, outcome)
+        assertFalse(store.isSaved("p1"))
+        assertEquals(listOf("p1"), repo.removed)
+    }
+
+    /** The mirror did not know: another device made the list. The platform refuses; nothing is lost. */
+    @Test
+    fun `a platform refusal reverts the heart and opens the chooser`() = runTest {
+        val store = SavedStore()
+        val repo = FakeRepo(refuseRemove = ListRefusal.IN_NAMED_LISTS)
+        store.adopt(SavedMembership(setOf("p1", "p2")))
+
+        val outcome = signedInToggle(repo, store)("p1", saved = false)
+
+        assertEquals(ToggleOutcome.OPEN_CHOOSER, outcome)
+        assertTrue(store.isSaved("p1"), "reverted")
+        assertTrue(store.isSaved("p2"), "and only the product that was refused")
+    }
+
+    /** A guest has no named lists, so a guest's filled heart always un-saves. */
+    @Test
+    fun `a guest's filled heart un-saves and nothing about lists reaches the device`() = runTest {
+        val disk = FakeDisk()
+        val store = SavedStore(disk)
+        val toggle = guestToggle(FakeRepo(), store)
+
+        toggle("p1", saved = true)
+        assertEquals(ToggleOutcome.DONE, toggle("p1", saved = false))
+
+        assertFalse(store.isSaved("p1"))
+        assertTrue(store.named.value.isEmpty())
+        assertTrue(disk.items.isEmpty())
+    }
+
+    @Test
+    fun `sign-out clears the named set`() = runTest {
+        val store = SavedStore()
+        store.adopt(SavedMembership(setOf("p1"), namedProductIds = setOf("p1")))
+        store.reset()
+        assertFalse(store.isInNamedList("p1"))
+    }
+
+    @Test
+    fun `the join keeps what is already known about named lists`() = runTest {
+        val store = SavedStore()
+        store.adopt(SavedMembership(setOf("p1"), namedProductIds = setOf("p1")))
+
+        MergeSavedOnSignIn(FakeMerge(result = setOf("p1", "p2")), store)()
+
+        assertTrue(store.isInNamedList("p1"), "the merge answer carries ids only; it must not wipe this")
+        assertFalse(store.isInNamedList("p2"))
     }
 
     // ── Membership load ─────────────────────────────────────────────────────────────────────────
@@ -250,7 +323,7 @@ class SavedStoreTest {
 
         val accepted = toggle("one-too-many", saved = true)
 
-        assertFalse(accepted, "the shopper is told, not silently ignored")
+        assertEquals(ToggleOutcome.GUEST_CAP, accepted, "the shopper is told, not silently ignored")
         assertEquals(GUEST_CAP, disk.items.size)
         assertTrue(store.isSaved("p0"), "⚠ nothing already saved is EVER evicted to make room (FR-047)")
     }

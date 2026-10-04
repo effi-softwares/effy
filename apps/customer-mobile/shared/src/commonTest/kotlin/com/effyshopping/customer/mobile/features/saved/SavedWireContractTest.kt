@@ -3,6 +3,9 @@ package com.effyshopping.customer.mobile.features.saved
 import com.effyshopping.customer.mobile.commerce.contract.OrderItemDTO
 import com.effyshopping.customer.mobile.commerce.contract.SavedItemDTO
 import com.effyshopping.customer.mobile.commerce.contract.SavedMembershipDTO
+import com.effyshopping.customer.mobile.commerce.contract.SavedListDTO
+import com.effyshopping.customer.mobile.features.saved.data.listRefusal
+import com.effyshopping.customer.mobile.features.saved.domain.ListRefusal
 import com.effyshopping.customer.mobile.commerce.contract.SavedVerdict
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -34,8 +37,19 @@ class SavedWireContractTest {
         const val SAVED_ITEM_WIRE_JSON =
             """{"id":"9f2c1d4e-0000-0000-0000-000000000001","name":"Free Range Eggs 12pk","brand":"Effy","imageUrl":"https://media.example/eggs.jpg","priceAmount":"6.50","currency":"AUD","compareAtAmount":"8.00","badges":["on_sale"],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"8.00","priceDropped":true,"verdict":"purchasable","categoryKey":"dairy-eggs"}"""
 
+        // ⚠ 068 added `namedProductIds`. Byte-identical to SAVED_MEMBERSHIP_WIRE_JSON in
+        // wire_contract_test.go.
         const val SAVED_MEMBERSHIP_WIRE_JSON =
+            """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001","1a7b0000-0000-0000-0000-000000000002"],"count":2,"namedProductIds":["9f2c1d4e-0000-0000-0000-000000000001"]}"""
+
+        // What a core-api from BEFORE 068 emits (SAVED_MEMBERSHIP_PRE_068_WIRE_JSON in Go). This
+        // build can be pointed at a stale backend and must still decode it.
+        const val SAVED_MEMBERSHIP_PRE_068_WIRE_JSON =
             """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001"],"count":1}"""
+
+        // Byte-identical to SAVED_LISTS_WIRE_JSON in wire_contract_test.go.
+        const val SAVED_LISTS_WIRE_JSON =
+            """[{"id":"default","isDefault":true,"name":null,"count":12,"onlyHereCount":9},{"id":"5d1e0000-0000-0000-0000-000000000005","isDefault":false,"name":"Weekly Items","count":5,"onlyHereCount":2,"containsProduct":true}]"""
     }
 
     @Test
@@ -90,8 +104,65 @@ class SavedWireContractTest {
     @Test
     fun `Kotlin decodes the membership payload Go sends`() {
         val dto = json.decodeFromString<SavedMembershipDTO>(SAVED_MEMBERSHIP_WIRE_JSON)
+        assertEquals(2L, dto.count)
+        assertEquals(2, dto.productIDS.size)
+        assertEquals(listOf("9f2c1d4e-0000-0000-0000-000000000001"), dto.namedProductIDS)
+    }
+
+    /**
+     * ⚠ 068. A backend from before lists existed sends no `namedProductIds`. The field is optional so
+     * that this decodes; a required field would turn a stale backend into "no hearts at all".
+     */
+    @Test
+    fun `Kotlin still decodes a membership payload from before lists existed`() {
+        val dto = json.decodeFromString<SavedMembershipDTO>(SAVED_MEMBERSHIP_PRE_068_WIRE_JSON)
         assertEquals(1L, dto.count)
-        assertEquals(1, dto.productIDS.size)
+        assertEquals(null, dto.namedProductIDS)
+    }
+
+    @Test
+    fun `Kotlin decodes the lists Go sends`() {
+        val lists = json.decodeFromString<List<SavedListDTO>>(SAVED_LISTS_WIRE_JSON)
+        assertEquals(2, lists.size)
+
+        // The default list: addressed as "default", and it has NO name — "Saved" is this app's string.
+        assertEquals("default", lists[0].id)
+        assertTrue(lists[0].isDefault)
+        assertEquals(null, lists[0].name)
+        assertEquals(12L, lists[0].count)
+        assertEquals(9L, lists[0].onlyHereCount)
+        // Absent, not false, when the read named no product.
+        assertEquals(null, lists[0].containsProduct)
+
+        assertEquals("Weekly Items", lists[1].name)
+        assertEquals(true, lists[1].containsProduct)
+    }
+
+    @Test
+    fun `Kotlin emits whole numbers for list counts`() {
+        val encoded = json.encodeToString(
+            SavedListDTO.serializer(),
+            SavedListDTO(count = 5, id = "x", isDefault = false, name = "Weekly Items", onlyHereCount = 2),
+        )
+        assertTrue(encoded.contains("\"count\":5"), "expected an integer, got: $encoded")
+        assertTrue(encoded.contains("\"onlyHereCount\":2"), "expected an integer, got: $encoded")
+        assertFalse(encoded.contains(".0"), "a float count is the 027 defect: $encoded")
+    }
+
+    /** The reason a refusal carries is the last segment of the problem's `type`. */
+    @Test
+    fun `every named refusal maps to a reason the app can act on`() {
+        val base = "https://effyshopping.com/problems/"
+        assertEquals(ListRefusal.NAME_TAKEN, listRefusal(base + "name-taken"))
+        assertEquals(ListRefusal.INVALID_NAME, listRefusal(base + "invalid-name"))
+        assertEquals(ListRefusal.LIST_LIMIT, listRefusal(base + "list-limit"))
+        assertEquals(ListRefusal.DEFAULT_LIST, listRefusal(base + "default-list"))
+        assertEquals(ListRefusal.LIST_NOT_FOUND, listRefusal(base + "list-not-found"))
+        assertEquals(ListRefusal.IN_NAMED_LISTS, listRefusal(base + "in-named-lists"))
+        assertEquals(ListRefusal.CAP_REACHED, listRefusal(base + "saved-items-cap-reached"))
+        // Anything else is not a list refusal and falls back to the status-code mapping.
+        assertEquals(null, listRefusal(base + "validation-failed"))
+        assertEquals(null, listRefusal(null))
     }
 
     /**

@@ -51,6 +51,17 @@ interface GuestEntry {
  * Returns how many items joined, so the caller can DISCLOSE it (FR-032) rather than silently
  * absorbing someone else's saves on a shared device.
  */
+async function adoptMembership(): Promise<void> {
+  try {
+    const res = await fetch("/api/saved/ids")
+    if (!res.ok) return
+    const body = (await res.json()) as { productIds?: string[]; namedProductIds?: string[] }
+    if (Array.isArray(body.productIds)) adoptSaved(body.productIds, body.namedProductIds ?? [])
+  } catch {
+    /* transient — the platform still refuses a destructive tap */
+  }
+}
+
 export async function mergeSavedAfterSignIn(): Promise<number> {
   const ids = readSavedIds()
   // ⚠ Even an EMPTY device list still calls through: the account's own saved items have to reach the
@@ -74,6 +85,10 @@ export async function mergeSavedAfterSignIn(): Promise<number> {
     if (!res.ok) return 0
     const body = (await res.json()) as { added?: number; productIds?: string[] }
     if (Array.isArray(body.productIds)) adoptSaved(body.productIds)
+    // ⚠ 068: the merge answer does not say which products are in NAMED lists, and a shopper who
+    // has just signed in may own several. Without this the first tap on one of those hearts would
+    // flip off, be refused, and flip back. This runs on the auth pages, never the guest path.
+    void adoptMembership()
     const added = body.added ?? 0
     // ⚠ FR-032: the join is DISCLOSED, never silent. Parked in sessionStorage because sign-in
     // navigates away and an in-memory toast would not survive it — a shared device would otherwise

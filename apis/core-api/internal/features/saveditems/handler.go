@@ -41,6 +41,19 @@ type savedItemDTO struct {
 type membershipDTO struct {
 	ProductIDs []string `json:"productIds"`
 	Count      int      `json:"count"`
+	// 068. Always present (never null), so a client can read it without a guard.
+	NamedProductIDs []string `json:"namedProductIds"`
+}
+
+// newMembershipDTO maps the domain to the wire. ⚠ A nil slice marshals as `null`, and a client that
+// reads `namedProductIds.includes(...)` on null crashes — so the absence of named products is always
+// the empty array.
+func newMembershipDTO(m Membership) membershipDTO {
+	named := m.NamedProductIDs
+	if named == nil {
+		named = []string{}
+	}
+	return membershipDTO{ProductIDs: m.ProductIDs, Count: m.Count, NamedProductIDs: named}
 }
 
 type saveRequest struct {
@@ -67,7 +80,7 @@ func (h *Handler) membership(c *gin.Context) {
 		httpx.Internal(c)
 		return
 	}
-	c.JSON(http.StatusOK, membershipDTO{ProductIDs: m.ProductIDs, Count: m.Count})
+	c.JSON(http.StatusOK, newMembershipDTO(m))
 }
 
 // list answers the saved list with a verdict per item, against the shopper's current location.
@@ -78,8 +91,19 @@ func (h *Handler) list(c *gin.Context) {
 		return
 	}
 
-	items, err := h.svc.List(c.Request.Context(), cust.ID)
+	// "Saved" is the default list (068). This route is what installed mobile builds call.
+	h.writeItems(c, cust.ID, DefaultListRef)
+}
+
+// writeItems answers one list's products. Shared by /v1/saved and /v1/lists/:listId/items so the
+// two cannot drift.
+func (h *Handler) writeItems(c *gin.Context, customerID, listRef string) {
+	items, err := h.svc.List(c.Request.Context(), customerID, listRef)
 	if err != nil {
+		if errors.Is(err, ErrListNotFound) {
+			h.respond(c, err)
+			return
+		}
 		logger.FromContext(c.Request.Context()).Error("saveditems: list failed", zap.Error(err))
 		httpx.Internal(c)
 		return
@@ -145,6 +169,22 @@ func (h *Handler) respond(c *gin.Context, err error) {
 	case errors.Is(err, ErrCapReached):
 		httpx.ValidationFailedAs(c, "saved_items_cap_reached",
 			"You have reached the maximum number of saved items. Remove one to save another.")
+	case errors.Is(err, ErrInNamedLists):
+		// ⚠ 068 FR-020. Nothing was removed. A current client reads this as "open the list
+		// chooser"; a build from before 068 reads any refusal as "revert the heart", which is the
+		// right outcome for it too.
+		refuse(c, http.StatusConflict, "in_named_lists",
+			"This item is in one of your lists. Remove it from the list to stop saving it.")
+	case errors.Is(err, ErrListNotFound):
+		refuse(c, http.StatusNotFound, "list_not_found", "That list no longer exists.")
+	case errors.Is(err, ErrNameTaken):
+		refuse(c, http.StatusConflict, "name_taken", "You already have a list with that name.")
+	case errors.Is(err, ErrInvalidName):
+		httpx.ValidationFailedAs(c, "invalid_name", "A list name must be 1 to 40 characters.")
+	case errors.Is(err, ErrListLimit):
+		httpx.ValidationFailedAs(c, "list_limit", "You have reached the maximum number of lists.")
+	case errors.Is(err, ErrDefaultList):
+		httpx.ValidationFailedAs(c, "default_list", "This list cannot be renamed or deleted.")
 	default:
 		logger.FromContext(c.Request.Context()).Error("saveditems: write failed", zap.Error(err))
 		httpx.Internal(c)
@@ -166,6 +206,8 @@ func Register(v1 *gin.RouterGroup, verifier *auth.PoolVerifier, identity *custom
 	g.DELETE("/:productId", h.remove)
 	g.POST("/merge", h.merge)
 	g.POST("/add-to-cart", h.addToCart)
+
+	registerLists(v1, verifier, identity, h)
 }
 
 // ── The guest → account join (FR-028/FR-032) ────────────────────────────────────────────────────
@@ -272,12 +314,21 @@ func (h *Handler) addToCart(c *gin.Context) {
 		httpx.Unauthenticated(c)
 		return
 	}
+	h.writeAddToCart(c, cust.ID, DefaultListRef)
+}
 
+// writeAddToCart adds ONE list's purchasable products to the cart. Shared by /v1/saved/add-to-cart
+// (the default list) and /v1/lists/:listId/add-to-cart.
+func (h *Handler) writeAddToCart(c *gin.Context, customerID, listRef string) {
 	var req addToCartRequestDTO
 	_ = c.ShouldBindJSON(&req)
 
-	res, err := h.svc.AddAllToCart(c.Request.Context(), cust.ID, req.ChangeID)
+	res, err := h.svc.AddAllToCart(c.Request.Context(), customerID, listRef, req.ChangeID)
 	if err != nil {
+		if errors.Is(err, ErrListNotFound) {
+			h.respond(c, err)
+			return
+		}
 		logger.FromContext(c.Request.Context()).Error("saveditems: add to cart failed", zap.Error(err))
 		httpx.Internal(c)
 		return

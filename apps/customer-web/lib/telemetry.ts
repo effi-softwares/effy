@@ -297,6 +297,19 @@ export type StorefrontEvent =
   // enumeration oracle FR-032 removes from the response.
   | { name: "newsletter_submitted"; props: { outcome: "ok" | "invalid" | "error" } }
 
+  // ── 068: customer lists ───────────────────────────────────────────────────────────────────────
+  //
+  // ⚠ NEVER THE LIST'S NAME, AND NOT ITS LENGTH EITHER (FR-040). A name is the shopper's own free
+  // text — "Mum's chemo snacks" is a list name — and Principle VII permits no PII beyond the subject
+  // id. Every props type below is closed and holds only enums, booleans and counts, so attaching a
+  // name is a COMPILE ERROR rather than a review catch. `telemetry.test.ts` pins that.
+  //
+  // What they answer (FR-039): do shoppers make lists; do they put things in them; and is the
+  // weekly-shop action used from a named list or from "Saved".
+  | { name: "saved_list_created"; props: { source: "chooser" | "lists_page"; withProduct: boolean } }
+  | { name: "saved_list_entry_added"; props: { listKind: "default" | "named"; source: "chooser" | "undo" } }
+  | { name: "saved_list_add_all"; props: { listKind: "default" | "named"; addedCount: number; skippedCount: number } }
+
   // ── 046: customer feedback ────────────────────────────────────────────────────────────────────
   //
   // ⚠ NO PII. The category, whether a rating/email was given, the source and the outcome — never the

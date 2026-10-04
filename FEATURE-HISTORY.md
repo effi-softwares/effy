@@ -4,6 +4,46 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**068-customer-lists — Customer Lists.** 🚧 **58/61 tasks — CODE-COMPLETE AND MACHINE-VERIFIED across
+the migration, the hot path and both customer surfaces. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
+PERSON.** Sign-off: [specs/068-customer-lists/SIGNOFF.md](specs/068-customer-lists/SIGNOFF.md). Client
+feedback R3 ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
+⚠ Built on an UNCONFIRMED reading of the request: lists a customer names, not product categories.
+
+A shopper names their own lists ("Weekly Items"), puts saved products in any number of them, and adds
+one list to the cart in one action. The old saved list is the default list, "Saved". **Retires 033
+FR-066.**
+- ⚠ **`customer_saved_item` KEPT EVERY COLUMN AND CHANGED MEANING**: it is now "a product saved in ANY
+  list". Lists are two new tables beside it. That left the heart's membership read, the 200 cap and
+  the remembered price untouched. ⚠ **INVARIANT: a saved row exists iff the product has a list
+  entry.** A composite FK gives one direction; `sweepOrphansSQL`, in the same transaction as any
+  removal, gives the other. No trigger.
+- ⚠ **THE HEART'S UN-SAVE IS REFUSED BY THE SERVER (`409 in_named_lists`)** for a product in a named
+  list. Not a client rule: every installed mobile build sends `DELETE /v1/saved/{id}` without knowing
+  lists exist. It gets the refusal and its own revert restores the heart.
+- ⚠ **THE WEB MIRROR'S STORAGE VERSION MUST NOT BE BUMPED.** `effy:saved:v1` discards on a version
+  mismatch and is a guest's ONLY copy of what they saved. `namedIds` is optional inside v1.
+- ⚠ **A REFUSAL'S REASON IS THE LAST SEGMENT OF THE PROBLEM `type`.** Two list refusals share `400`.
+  Web: `DomainError.type` → `reason` in the proxy body (both additive). Mobile:
+  `ensureListSuccess`, because `toAppException` maps EVERY `409` to "wrong password mode".
+- ⚠ **ONE `listSQL` FOR EVERY LIST.** It carries the verdict `CASE`; a copy for named lists would be
+  a second place for the next availability term to be forgotten.
+- ⚠ **NAME UNIQUENESS LIVES ONLY IN `customer_list_name_uq`.** The service inserts and maps the
+  violation; a check-then-insert would race and a Go case-fold would drift from Postgres `lower()`.
+- ⚠ **`/` HAD 0.3 KB OF GUEST BUDGET, NOT THE 2.1–5.5 KB `bundle-budget.mjs` SAYS.** The chooser is
+  reached only through `import()`. `/` is at 173.8 of 174 now.
+- ⚠ **PRE-EXISTING, FOUND AND FIXED**: the saved-items container tests were **red at HEAD** (seed
+  inserted into the withdrawn `delivery_pricing_rule`); they now load the real migration. And web
+  add-all rendered a list of product ids as a count.
+- ⚠ **MINE, CAUGHT ONLY BY `next build`**: `/saved/[listId]` awaited `params` outside Suspense.
+- **Verified**: typecheck 21/21 · saveditems **95** with containers · customer-web **536**, build +
+  bundle gate pass · customer-mobile **352** Android host, iOS test target compiles · three negative
+  proofs.
+- **⚠ Open**: `make db-up` → `core-image-push && core-deploy` → **the two repair statements and the
+  zero-orphans check** (the old core-api writes list-less saved rows in between) → customer-web →
+  walks, incl. the previous mobile build's heart. The e2e a11y suite was not extended. The client
+  has not confirmed the reading or answered the starter-lists question.
+
 **067-product-approval-margin — Product Approval & Effy Margin.** 🚧 **68/70 tasks — CODE-COMPLETE
 AND MACHINE-VERIFIED across the migration, the hot path, four cold-path services (one new), the
 back-office console, shop-web and shop-mobile. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.**

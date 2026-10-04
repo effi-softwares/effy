@@ -1,12 +1,13 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import type { SavedItemDTO } from "@effy/shared-types"
+import { DEFAULT_LIST_ID } from "@effy/shared-types"
 
 import { PageHeader } from "@/components/storefront/kit"
-import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
 
+import { ListTabs } from "./ListTabs"
+import { readList } from "./read-list"
 import { SavedList } from "./SavedList"
 
 export const metadata: Metadata = {
@@ -36,18 +37,12 @@ export default function SavedPage() {
 async function Saved() {
   await requireCustomer("/saved")
   const session = await getSession()
+  const { lists, items } = await readList(session?.accessToken, DEFAULT_LIST_ID)
 
-  // ⚠ The shopper's CURRENT delivery location decides purchasability, and it lives in localStorage
-  // (never a cookie — a cookie would cost every public page its static shell). The server therefore
-  // cannot know it here, so this first read is location-less and every item comes back
-  // "not yet determined"; SavedList re-reads with the postcode on mount. That is FR-038 working as
-  // specified — the platform never claims an availability it has not checked.
-  let items: SavedItemDTO[] = []
-  try {
-    items = await coreApi(session?.accessToken).get<SavedItemDTO[]>("/v1/saved", uncached())
-  } catch {
-    // A failed read renders the empty state rather than an error page — the next load repairs it.
-  }
-
-  return <SavedList initial={items} />
+  return (
+    <>
+      <ListTabs lists={lists} currentId={DEFAULT_LIST_ID} />
+      <SavedList initial={items ?? []} listId={DEFAULT_LIST_ID} />
+    </>
+  )
 }

@@ -31,11 +31,15 @@ import com.effyshopping.customer.mobile.features.saved.domain.MergeSavedOnSignIn
 import com.effyshopping.customer.mobile.features.saved.domain.SavedGuestEntry
 import com.effyshopping.customer.mobile.features.saved.domain.ListSaved
 import com.effyshopping.customer.mobile.features.saved.domain.LoadSavedMembership
-import com.effyshopping.customer.mobile.features.saved.domain.RemoveSaved
+import com.effyshopping.customer.mobile.features.saved.domain.AddToList
+import com.effyshopping.customer.mobile.features.saved.domain.CreateList
+import com.effyshopping.customer.mobile.features.saved.domain.DeleteList
+import com.effyshopping.customer.mobile.features.saved.domain.LoadLists
+import com.effyshopping.customer.mobile.features.saved.domain.RemoveFromList
+import com.effyshopping.customer.mobile.features.saved.domain.RenameList
 import com.effyshopping.customer.mobile.features.saved.domain.SavedRepository
 import com.effyshopping.customer.mobile.features.saved.domain.SavedStore
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleSaved
-import com.effyshopping.customer.mobile.features.saved.domain.UndoRemoveSaved
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCancelOrderRepository
 import com.effyshopping.customer.mobile.features.checkout.data.HttpRefundRequestRepository
@@ -261,8 +265,15 @@ class AppContainer(
     val addAllSavedToCart by lazy { AddAllSavedToCart(savedHttp) }
     val loadSavedMembership by lazy { LoadSavedMembership(savedRepository, savedStore) }
     val listSaved by lazy { ListSaved(savedRepository) }
-    val removeSaved by lazy { RemoveSaved(savedRepository, savedStore) }
-    val undoRemoveSaved by lazy { UndoRemoveSaved(savedRepository, savedStore) }
+    // 068 lists. Removal is per LIST now: `removeFromList` + `addToList(restoreAddedAt)` replace the
+    // heart-shaped RemoveSaved/UndoRemoveSaved the saved screen used, which the platform refuses for
+    // a product in a named list.
+    val loadLists by lazy { LoadLists(savedHttp) }
+    val createList by lazy { CreateList(savedHttp, loadSavedMembership) }
+    val renameList by lazy { RenameList(savedHttp) }
+    val deleteList by lazy { DeleteList(savedHttp, loadSavedMembership) }
+    val addToList by lazy { AddToList(savedHttp, loadSavedMembership) }
+    val removeFromList by lazy { RemoveFromList(savedHttp, loadSavedMembership) }
 
     // Feedback (046 US1) → the COLD path (edge-api/customer). The ViewModel reads `signedIn` at submit
     // time to choose the authed vs public route.

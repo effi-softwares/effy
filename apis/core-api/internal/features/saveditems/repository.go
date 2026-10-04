@@ -7,8 +7,13 @@
 //     every render — and a shopper's second tap silently un-saved what they were trying to save.
 //     MembershipIDs is that answer, delivered ONCE per screen rather than once per product.
 //  2. The list called a product available whenever `status = 'active'`, which is not the same
-//     question as "can this shopper buy it". List answers the five-way verdict instead, against the
-//     shopper's actual delivery location.
+//     question as "can this shopper buy it". List answers a three-way verdict instead (it was five
+//     until delivery zones were withdrawn).
+//
+// ⚠ 068 CHANGED WHAT THE TABLE MEANS, NOT ITS COLUMNS. `customer_saved_item` is now the set of
+// products a shopper has saved IN ANY LIST; which lists hold a product is `customer_list_entry`
+// (lists_repository.go). A saved row exists if and only if the product has at least one entry. The
+// foreign key enforces one direction; `sweepOrphansSQL` the other.
 //
 // ⚠ NOT the cart's set-aside (`public.cart_saved_item`, 027) — a bookmark, not a heart.
 package saveditems
@@ -89,9 +94,16 @@ func (r *Repository) MembershipIDs(ctx context.Context, customerID string) ([]st
 	return ids, rows.Err()
 }
 
-// ── The list, with the five-way verdict, in ONE statement ───────────────────────────────────────
+// ── A list, with the verdict, in ONE statement ───────────────────────────────────────
 
-// listSQL answers the whole saved list.
+// listSQL answers one list — ANY list, the default included.
+//
+// ⚠ THERE IS ONE OF THESE, ON PURPOSE (068 research R4). The verdict CASE below is the platform's
+// single classification of why a product cannot be bought. A second copy for named lists would be a
+// second place for the next availability term to be forgotten.
+//
+// ⚠ `saved_at` ON THE WIRE IS THE ENTRY'S `added_at`: the position in THIS list. The remembered
+// price still comes from the saved row, so it is the same in every list that holds the product.
 //
 // ⚠ ONE STATEMENT, NOT ONE PER ITEM. A Sydney RDS round trip measures ~135 ms from a local core-api, so
 // a per-item query at the 200-item cap would cost ~27 s against a 2 s budget.
@@ -115,7 +127,7 @@ SELECT s.product_id::text                        AS product_id,
        p.compare_at_amount::text                 AS compare_at_amount,
        m.storage_key                             AS storage_key,
        m.alt_text                                AS alt_text,
-       s.saved_at                                AS saved_at,
+       e.added_at                                AS saved_at,
        s.saved_price_amount::text                AS saved_price_amount,
        c.key                                     AS category_key,
        p.created_at >= now() - interval '14 days' AS is_new,
@@ -130,8 +142,9 @@ SELECT s.product_id::text                        AS product_id,
          WHEN p.stock_tracked AND coalesce(p.stock_on_hand, 0) <= 0 THEN 'temporarily_unavailable'
          ELSE 'purchasable'
        END                                       AS verdict
-FROM public.customer_saved_item s
-JOIN public.product p ON p.id = s.product_id
+FROM public.customer_list_entry e
+JOIN public.customer_saved_item s ON s.customer_id = e.customer_id AND s.product_id = e.product_id
+JOIN public.product p ON p.id = e.product_id
 LEFT JOIN public.category c ON c.id = p.primary_category_id
 LEFT JOIN LATERAL (
     SELECT storage_key, alt_text
@@ -140,8 +153,8 @@ LEFT JOIN LATERAL (
     ORDER BY is_primary DESC, display_order ASC, created_at ASC
     LIMIT 1
 ) m ON true
-WHERE s.customer_id = $1
-ORDER BY s.saved_at DESC`
+WHERE e.customer_id = $1 AND e.list_id = $2
+ORDER BY e.added_at DESC`
 
 // listRow is the wire shape of listSQL. It never leaves this file.
 type listRow struct {
@@ -161,9 +174,19 @@ type listRow struct {
 	Verdict          string
 }
 
-// List returns the shopper's saved items, newest first, each carrying its verdict.
-func (r *Repository) List(ctx context.Context, customerID string) ([]listRow, error) {
-	rows, err := r.pool.Query(ctx, listSQL, customerID)
+// List returns one list's products, newest first, each carrying its verdict.
+//
+// listRef is a list id or DefaultListRef. A default list that has no row yet is simply empty.
+func (r *Repository) List(ctx context.Context, customerID, listRef string) ([]listRow, error) {
+	listID, err := r.resolveList(ctx, r.pool, customerID, listRef)
+	if err != nil {
+		return nil, err
+	}
+	if listID == "" {
+		return []listRow{}, nil
+	}
+
+	rows, err := r.pool.Query(ctx, listSQL, customerID, listID)
 	if err != nil {
 		return nil, fmt.Errorf("saveditems: list: %w", err)
 	}
@@ -209,60 +232,84 @@ ON CONFLICT (customer_id, product_id) DO NOTHING`
 	lockCustomerSQL = `SELECT pg_advisory_xact_lock(hashtext($1))`
 )
 
-// Save records a saved item, idempotently.
+// Save is the heart's one-tap save: the product is saved and placed in the default list.
 //
-// savedAt is nil for an ordinary save (the row takes now() and lands at the top of the list) and set
-// only by undo, which restores the row to the position it previously held (FR-018).
+// savedAt is nil for an ordinary save (the entry takes now() and lands at the top of "Saved") and set
+// only by undo, which restores the entry to the position it previously held (FR-018).
 //
 // ⚠ The cap is enforced INSIDE the transaction, under an advisory lock — not in the service. A
 // service-layer count admits a race between the check and the write, and a cap that can be exceeded
 // under load is not a cap.
 func (r *Repository) Save(ctx context.Context, customerID, productID string, savedAt *time.Time, cap int) error {
+	return r.AddEntry(ctx, customerID, DefaultListRef, productID, savedAt, cap)
+}
+
+// addEntryTx saves the product if it is not saved yet, then places it in listID. The caller holds the
+// customer lock.
+func addEntryTx(ctx context.Context, tx pgx.Tx, customerID, listID, productID string, at *time.Time, cap int) error {
+	var exists bool
+	if err := tx.QueryRow(ctx, productExistsSQL, productID).Scan(&exists); err != nil {
+		return fmt.Errorf("saveditems: product exists: %w", err)
+	}
+	if !exists {
+		return ErrProductNotFound
+	}
+
+	// ⚠ The cap counts DISTINCT SAVED PRODUCTS (068 FR-033). Placing an already-saved product in
+	// another list adds nothing to it and must never trip it.
+	var already bool
+	if err := tx.QueryRow(ctx, alreadySavedSQL, customerID, productID).Scan(&already); err != nil {
+		return fmt.Errorf("saveditems: already saved: %w", err)
+	}
+	if !already {
+		var n int
+		if err := tx.QueryRow(ctx, countSavedSQL, customerID).Scan(&n); err != nil {
+			return fmt.Errorf("saveditems: count: %w", err)
+		}
+		if n >= cap {
+			return ErrCapReached
+		}
+	}
+
+	// The saved row first: the entry's foreign key needs it. ON CONFLICT DO NOTHING keeps the
+	// ORIGINAL price and time when the product is already saved through another list (FR-031).
+	if _, err := tx.Exec(ctx, insertSavedSQL, customerID, productID, at); err != nil {
+		return fmt.Errorf("saveditems: insert: %w", err)
+	}
+	if _, err := tx.Exec(ctx, insertEntrySQL, listID, productID, customerID, at); err != nil {
+		return fmt.Errorf("saveditems: insert entry: %w", err)
+	}
+	return nil
+}
+
+// Remove is the heart's un-save.
+//
+// ⚠ IT REFUSES A PRODUCT THAT IS IN A NAMED LIST, AND REMOVES NOTHING (068 FR-020). One tap on a
+// heart must never take a product out of a list the shopper built. This is enforced HERE and not
+// only in the clients because every customer-mobile build already installed sends this request
+// without knowing lists exist; it gets a refusal and its own revert puts the heart back.
+//
+// ⚠ Still asymmetric with Save: it does NOT check that the product exists. Removing something that
+// is not there is a no-op with the same end state, and answering 404 would make a retried delete
+// look like a failure.
+func (r *Repository) Remove(ctx context.Context, customerID, productID string) error {
 	return r.inTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, lockCustomerSQL, customerID); err != nil {
 			return fmt.Errorf("saveditems: lock: %w", err)
 		}
-
-		var exists bool
-		if err := tx.QueryRow(ctx, productExistsSQL, productID).Scan(&exists); err != nil {
-			return fmt.Errorf("saveditems: product exists: %w", err)
+		var named bool
+		if err := tx.QueryRow(ctx, inNamedListSQL, customerID, productID).Scan(&named); err != nil {
+			return fmt.Errorf("saveditems: in named list: %w", err)
 		}
-		if !exists {
-			return ErrProductNotFound
+		if named {
+			return ErrInNamedLists
 		}
-
-		// Re-saving something already saved must never trip the cap — it adds nothing.
-		var already bool
-		if err := tx.QueryRow(ctx, alreadySavedSQL, customerID, productID).Scan(&already); err != nil {
-			return fmt.Errorf("saveditems: already saved: %w", err)
-		}
-		if !already {
-			var n int
-			if err := tx.QueryRow(ctx, countSavedSQL, customerID).Scan(&n); err != nil {
-				return fmt.Errorf("saveditems: count: %w", err)
-			}
-			if n >= cap {
-				return ErrCapReached
-			}
-		}
-
-		if _, err := tx.Exec(ctx, insertSavedSQL, customerID, productID, savedAt); err != nil {
-			return fmt.Errorf("saveditems: insert: %w", err)
+		// The entry's foreign key cascades, so the default-list entry goes with the saved row.
+		if _, err := tx.Exec(ctx, deleteSavedSQL, customerID, productID); err != nil {
+			return fmt.Errorf("saveditems: delete: %w", err)
 		}
 		return nil
 	})
-}
-
-// Remove un-saves a product.
-//
-// ⚠ Deliberately asymmetric with Save: it does NOT check that the product exists. Removing something
-// that is not there is a no-op with the same end state, and answering 404 would make a retried delete
-// look like a failure.
-func (r *Repository) Remove(ctx context.Context, customerID, productID string) error {
-	if _, err := r.pool.Exec(ctx, deleteSavedSQL, customerID, productID); err != nil {
-		return fmt.Errorf("saveditems: delete: %w", err)
-	}
-	return nil
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────
@@ -325,6 +372,21 @@ func (r *Repository) Merge(ctx context.Context, customerID string, items []Merge
 			return fmt.Errorf("saveditems: merge count: %w", err)
 		}
 
+		// ⚠ Device saves join "Saved" (068 FR-038). The default list is created only when there is
+		// something to place in it.
+		defaultID := ""
+		place := func(productID string, at time.Time) error {
+			if defaultID == "" {
+				if err := tx.QueryRow(ctx, ensureDefaultSQL, customerID).Scan(&defaultID); err != nil {
+					return fmt.Errorf("saveditems: merge default list: %w", err)
+				}
+			}
+			if _, err := tx.Exec(ctx, insertEntrySQL, defaultID, productID, customerID, at); err != nil {
+				return fmt.Errorf("saveditems: merge entry: %w", err)
+			}
+			return nil
+		}
+
 		for _, it := range items {
 			if !validUUID(it.ProductID) {
 				skipped = append(skipped, Skip{it.ProductID, "not_found"})
@@ -336,7 +398,12 @@ func (r *Repository) Merge(ctx context.Context, customerID string, items []Merge
 				return fmt.Errorf("saveditems: merge already: %w", err)
 			}
 			if already {
-				// Present already — the union is satisfied and the account's row stands untouched.
+				// Present already — the account's row and its price stand untouched. It still joins
+				// "Saved": the shopper tapped its heart on this device, and it may so far be held only
+				// in a named list. A no-op when it is already there.
+				if err := place(it.ProductID, it.SavedAt); err != nil {
+					return err
+				}
 				continue
 			}
 
@@ -359,6 +426,9 @@ func (r *Repository) Merge(ctx context.Context, customerID string, items []Merge
 			if _, err := tx.Exec(ctx, mergeInsertSQL,
 				customerID, it.ProductID, it.SavedPriceAmount, it.SavedCurrency, it.SavedAt); err != nil {
 				return fmt.Errorf("saveditems: merge insert: %w", err)
+			}
+			if err := place(it.ProductID, it.SavedAt); err != nil {
+				return err
 			}
 			n++
 			added++

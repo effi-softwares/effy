@@ -2,6 +2,8 @@ package saveditems
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
 	"sort"
 	"testing"
 
@@ -27,7 +29,15 @@ import (
 
 const SAVED_ITEM_WIRE_JSON = `{"id":"9f2c1d4e-0000-0000-0000-000000000001","name":"Free Range Eggs 12pk","brand":"Effy","imageUrl":"https://media.example/eggs.jpg","priceAmount":"6.50","currency":"AUD","compareAtAmount":"8.00","badges":["on_sale"],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"8.00","priceDropped":true,"verdict":"purchasable","categoryKey":"dairy-eggs"}`
 
-const SAVED_MEMBERSHIP_WIRE_JSON = `{"productIds":["9f2c1d4e-0000-0000-0000-000000000001"],"count":1}`
+// ⚠ 068 added `namedProductIds`. The literal below is what the handler emits NOW.
+const SAVED_MEMBERSHIP_WIRE_JSON = `{"productIds":["9f2c1d4e-0000-0000-0000-000000000001","1a7b0000-0000-0000-0000-000000000002"],"count":2,"namedProductIds":["9f2c1d4e-0000-0000-0000-000000000001"]}`
+
+// What a core-api from BEFORE 068 emits. Kept because a current mobile build can be pointed at a
+// stale backend, and it must still decode this (the Kotlin half asserts it).
+const SAVED_MEMBERSHIP_PRE_068_WIRE_JSON = `{"productIds":["9f2c1d4e-0000-0000-0000-000000000001"],"count":1}`
+
+// One list response, default first. Duplicated BY HAND in SavedWireContractTest.kt.
+const SAVED_LISTS_WIRE_JSON = `[{"id":"default","isDefault":true,"name":null,"count":12,"onlyHereCount":9},{"id":"5d1e0000-0000-0000-0000-000000000005","isDefault":false,"name":"Weekly Items","count":5,"onlyHereCount":2,"containsProduct":true}]`
 
 func wireFixture() savedItemDTO {
 	brand, compare, key := "Effy", "8.00", "dairy-eggs"
@@ -136,16 +146,55 @@ func TestPriceDroppedIsOmittedWhenFalse(t *testing.T) {
 // day either tool changed. The literal is the shared DECODE fixture; what is asserted about EMISSION
 // is the thing that actually broke in 027 — the numeric literal.
 func TestMembershipCountIsAWholeNumberOnTheWire(t *testing.T) {
-	raw, err := json.Marshal(membershipDTO{ProductIDs: []string{"9f2c1d4e-0000-0000-0000-000000000001"}, Count: 1})
+	raw, err := json.Marshal(newMembershipDTO(Membership{
+		ProductIDs:      []string{"9f2c1d4e-0000-0000-0000-000000000001", "1a7b0000-0000-0000-0000-000000000002"},
+		Count:           2,
+		NamedProductIDs: []string{"9f2c1d4e-0000-0000-0000-000000000001"},
+	}))
 	require.NoError(t, err)
 	require.JSONEq(t, SAVED_MEMBERSHIP_WIRE_JSON, string(raw))
-	require.Contains(t, string(raw), `"count":1`)
-	require.NotContains(t, string(raw), `"count":1.0`)
+	require.Contains(t, string(raw), `"count":2`)
+	require.NotContains(t, string(raw), `"count":2.0`)
 
 	// And the reverse direction: Go must accept what Kotlin sends.
 	var back membershipDTO
 	require.NoError(t, json.Unmarshal([]byte(SAVED_MEMBERSHIP_WIRE_JSON), &back))
-	require.Equal(t, 1, back.Count)
+	require.Equal(t, 2, back.Count)
+}
+
+// TestMembershipNamedIsNeverNull — a shopper with no named lists gets `[]`, not `null`. A nil Go
+// slice marshals as null, which a client calling a method on the field would crash on.
+func TestMembershipNamedIsNeverNull(t *testing.T) {
+	raw, err := json.Marshal(newMembershipDTO(Membership{ProductIDs: []string{}, Count: 0}))
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"namedProductIds":[]`)
+}
+
+// TestListsWireLiteralIsWhatTheHandlerEmits pins the 068 list shape, including the two things a
+// client depends on: the default list is addressed as "default" with a null name, and
+// `containsProduct` is ABSENT (not false) when the read named no product.
+func TestListsWireLiteralIsWhatTheHandlerEmits(t *testing.T) {
+	name, yes := "Weekly Items", true
+	raw, err := json.Marshal([]listDTO{
+		toListDTO(toList(listSummaryRow{ID: "0d000000-0000-0000-0000-00000000000d", IsDefault: true, Count: 12, OnlyHere: 9}, false)),
+		toListDTO(List{ID: "5d1e0000-0000-0000-0000-000000000005", Name: &name, Count: 5, OnlyHereCount: 2, ContainsProduct: &yes}),
+	})
+	require.NoError(t, err)
+	require.JSONEq(t, SAVED_LISTS_WIRE_JSON, string(raw))
+	require.Contains(t, string(raw), `"count":12`)
+	require.Contains(t, string(raw), `"onlyHereCount":9`)
+	require.NotContains(t, string(raw), `0d000000`, "the default list's real id must never reach the wire")
+}
+
+// TestListLimitsMatchTheSharedContract — LIST_LIMIT and LIST_NAME_MAX in packages/shared-types are
+// what the clients show a shopper. If these drift, a client counts to one number and the platform
+// refuses at another.
+func TestListLimitsMatchTheSharedContract(t *testing.T) {
+	src, err := os.ReadFile("../../../../../packages/shared-types/src/saved-item.ts")
+	require.NoError(t, err)
+	require.Contains(t, string(src), fmt.Sprintf("export const LIST_LIMIT = %d;", ListLimit))
+	require.Contains(t, string(src), fmt.Sprintf("export const LIST_NAME_MAX = %d;", ListNameMax))
+	require.Contains(t, string(src), fmt.Sprintf("export const DEFAULT_LIST_ID = %q;", DefaultListRef))
 }
 
 // TestGoRejectsAFloatCount is the negative proof that the guard above can fail.

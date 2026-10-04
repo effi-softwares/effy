@@ -121,3 +121,29 @@ describe("telemetry consent gate", () => {
     expect(analytics()).not.toBeNull()
   })
 })
+
+/**
+ * 068 FR-040: a list's name is the shopper's own free text and must never reach analytics.
+ *
+ * ⚠ THE GUARD IS THE TYPE, and this pins the type's SOURCE: every 068 event's props may hold only
+ * closed enums, booleans and counts. A `string` property would be a place a name could go, and
+ * `name`/`length` are refused outright. Proven by adding `listName: string` to one of them.
+ */
+describe("068 list events cannot carry a list name", () => {
+  it("declares only enums, booleans and counts", async () => {
+    const { readFileSync } = await import("node:fs")
+    // Vitest runs from the package root; `import.meta.url` is not a file URL under jsdom.
+    const src = readFileSync("lib/telemetry.ts", "utf8")
+    const events = [...src.matchAll(/\| \{ name: "(saved_list_[a-z_]+)"; props: \{([^}]*)\} \}/g)]
+    expect(events.map((m) => m[1]).sort()).toEqual(["saved_list_add_all", "saved_list_created", "saved_list_entry_added"])
+
+    for (const [, event, props] of events) {
+      for (const prop of props.split(";").map((p) => p.trim()).filter(Boolean)) {
+        const [key, type] = prop.split(":").map((p) => p.trim())
+        expect(key, `${event}.${key}`).not.toMatch(/name|label|title|text|length/i)
+        // A union of string literals, `boolean`, or `number`. Never a bare `string`.
+        expect(type, `${event}.${key}: ${type}`).toMatch(/^(boolean|number|"[a-z_]+"( \| "[a-z_]+")*)$/)
+      }
+    }
+  })
+})

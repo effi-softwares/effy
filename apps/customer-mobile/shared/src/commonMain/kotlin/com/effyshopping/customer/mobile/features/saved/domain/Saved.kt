@@ -65,9 +65,17 @@ data class SavedItem(
     val categoryKey: String?,
 )
 
-/** The shopper's whole set of saved product ids — the read that makes the heart tell the truth. */
+/**
+ * The shopper's whole set of saved product ids, across EVERY list — the read that makes the heart
+ * tell the truth.
+ *
+ * [namedProductIds] (068) is the subset held in a list the shopper named. A tap on a filled heart
+ * un-saves a product that is only in "Saved"; for one of these it opens the list chooser instead,
+ * because one tap must never take a product out of a list the shopper built (FR-020).
+ */
 data class SavedMembership(
     val productIds: Set<String>,
+    val namedProductIds: Set<String> = emptySet(),
 )
 
 /**
@@ -86,7 +94,7 @@ interface SavedRepository {
      * ⚠ No location. Delivery zones were withdrawn from the platform, so purchasability is decided by
      * catalogue status alone and every address is implicitly deliverable.
      */
-    suspend fun list(): List<SavedItem>
+    suspend fun list(listId: String = DEFAULT_LIST_ID): List<SavedItem>
 
     /**
      * [restoreSavedAt] is set ONLY by undo, returning the item to the position it previously held.
@@ -95,6 +103,12 @@ interface SavedRepository {
      */
     suspend fun save(productId: String, restoreSavedAt: String? = null)
 
+    /**
+     * The HEART's un-save.
+     *
+     * ⚠ Throws [ListRefusedException] with [ListRefusal.IN_NAMED_LISTS] when the product is in a list
+     * the shopper named. Nothing was removed; the caller opens the list chooser.
+     */
     suspend fun remove(productId: String)
 }
 
@@ -129,9 +143,9 @@ data class SavedMergeOutcome(
 data class SavedMergeSkip(val productId: String, val reason: String)
 
 
-/** Adds every purchasable saved item to the cart (FR-051). */
+/** Adds every purchasable product in ONE list to the cart (FR-051, 068 FR-028). */
 interface SavedCartRepository {
-    suspend fun addAllToCart(postcode: String?, changeId: String): SavedAddToCartOutcome
+    suspend fun addAllToCart(listId: String, changeId: String): SavedAddToCartOutcome
 }
 
 /**
@@ -143,3 +157,90 @@ data class SavedAddToCartOutcome(
     val added: List<String>,
     val skipped: List<SavedMergeSkip>,
 )
+
+
+/* ── 068: lists the shopper names for themselves ─────────────────────────────────────────────── */
+
+/** The default list's id on the wire. No screen ever needs its real id. */
+const val DEFAULT_LIST_ID = "default"
+
+/** What the default list is called. Its name is not stored: the platform sends null. */
+const val DEFAULT_LIST_NAME = "Saved"
+
+/**
+ * The longest list name, in code points. Mirrors `LIST_NAME_MAX` in `@effy/shared-types`.
+ *
+ * ⚠ ADVISORY. It drives the remaining-characters count; the platform decides, and a name it refuses
+ * comes back as [ListRefusal.INVALID_NAME] whatever this says.
+ */
+const val LIST_NAME_MAX = 40
+
+/** One of the shopper's lists. [name] is null for the default list. */
+data class SavedList(
+    val id: String,
+    val isDefault: Boolean,
+    val name: String?,
+    val count: Int,
+    /** How many of its products are in NO other list: what deleting it would un-save (FR-006). */
+    val onlyHereCount: Int,
+    /** Set only when the read named a product. */
+    val containsProduct: Boolean? = null,
+) {
+    val label: String get() = name ?: DEFAULT_LIST_NAME
+}
+
+/** Why the platform refused a list request. A closed set; screens map each to their own words. */
+enum class ListRefusal {
+    NAME_TAKEN,
+    INVALID_NAME,
+    LIST_LIMIT,
+    DEFAULT_LIST,
+    LIST_NOT_FOUND,
+    IN_NAMED_LISTS,
+    CAP_REACHED,
+}
+
+/**
+ * A list request the platform understood and refused.
+ *
+ * ⚠ NOT an [com.effyshopping.customer.mobile.core.error.AppException]. Those are mapped from the
+ * status code alone, and two different list refusals share a status; this carries the reason.
+ */
+class ListRefusedException(val refusal: ListRefusal) : Exception()
+
+/** The shopper's own lists, and which products are in them. */
+interface ListRepository {
+    /** Every list, the default first. With [productId], each says whether it holds that product. */
+    suspend fun lists(productId: String? = null): List<SavedList>
+
+    /** [productId] is placed in the new list in the same action; a refusal creates nothing. */
+    suspend fun create(name: String, productId: String? = null): SavedList
+
+    suspend fun rename(listId: String, name: String): SavedList
+
+    /** Products that were only in this list stop being saved. Products in another list stay there. */
+    suspend fun delete(listId: String)
+
+    /** [restoreAddedAt] is set ONLY by undo: the product returns to the position it held. */
+    suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String? = null)
+
+    /** Takes the product out of THIS list only. Never refused. */
+    suspend fun removeEntry(listId: String, productId: String)
+}
+
+/** How many characters of a list name remain, counted as the platform counts them: code points. */
+fun listNameRemaining(name: String): Int {
+    val normalised = name.trim().replace(Regex("\\s+"), " ")
+    return LIST_NAME_MAX - normalised.codePointCount()
+}
+
+private fun String.codePointCount(): Int {
+    var n = 0
+    var i = 0
+    while (i < length) {
+        if (this[i].isHighSurrogate() && i + 1 < length && this[i + 1].isLowSurrogate()) i++
+        i++
+        n++
+    }
+    return n
+}

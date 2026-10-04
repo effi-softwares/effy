@@ -40,12 +40,58 @@ type fakeRepo struct {
 	mergeOrder    []string
 	mergeCap      int
 	mergeErr      error
+
+	// 068 lists
+	named       []string
+	listedRef   string
+	lists       []listSummaryRow
+	createdName string
+	createdProd *string
+	createdCap  [2]int
+	createErr   error
+	renamedTo   string
+	renameErr   error
+	entryRef    string
+	entryAt     *time.Time
+	entryErr    error
+	removedRef  string
 }
+
+func (f *fakeRepo) Lists(context.Context, string, *string) ([]listSummaryRow, error) {
+	return f.lists, f.err
+}
+func (f *fakeRepo) CreateList(_ context.Context, _, name string, productID *string, listLimit, cap int) (string, error) {
+	f.createdName, f.createdProd, f.createdCap = name, productID, [2]int{listLimit, cap}
+	if f.createErr != nil {
+		return "", f.createErr
+	}
+	f.lists = append(f.lists, listSummaryRow{ID: namedList, Name: &name})
+	return namedList, nil
+}
+func (f *fakeRepo) RenameList(_ context.Context, _, _, name string) error {
+	f.renamedTo = name
+	return f.renameErr
+}
+func (f *fakeRepo) DeleteList(context.Context, string, string) error { return nil }
+func (f *fakeRepo) AddEntry(_ context.Context, _, listRef, _ string, at *time.Time, _ int) error {
+	f.entryRef, f.entryAt = listRef, at
+	return f.entryErr
+}
+func (f *fakeRepo) RemoveEntry(_ context.Context, _, listRef, _ string) error {
+	f.removedRef = listRef
+	return nil
+}
+
+const namedList = "11000000-0000-0000-0000-000000000011"
 
 func (f *fakeRepo) MembershipIDs(context.Context, string) ([]string, error) {
 	return f.membership, f.err
 }
-func (f *fakeRepo) List(_ context.Context, _ string) ([]listRow, error) {
+func (f *fakeRepo) NamedProductIDs(context.Context, string) ([]string, error) {
+	return f.named, f.err
+}
+func (f *fakeRepo) List(_ context.Context, _, listRef string) ([]listRow, error) {
+	f.listedRef = listRef
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -215,7 +261,7 @@ func TestList_CarriesTheFieldsThePredecessorDiscarded(t *testing.T) {
 	r.PriceDropped = true
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, DefaultListRef)
 	require.NoError(t, err)
 
 	// ⚠ The predecessor computed brand / compareAtAmount / badges / savedAt server-side and BOTH
@@ -233,7 +279,7 @@ func TestList_CarriesTheFieldsThePredecessorDiscarded(t *testing.T) {
 
 func TestList_BadgesAreEmptySliceNotNil(t *testing.T) {
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{row(VerdictPurchasable)}}, zones).List(context.Background(), cust)
+	items, err := svc(&fakeRepo{rows: []listRow{row(VerdictPurchasable)}}, zones).List(context.Background(), cust, DefaultListRef)
 
 	require.NoError(t, err)
 	require.NotNil(t, items[0].Badges, "badges must serialise as [] not null")
@@ -246,14 +292,14 @@ func TestList_AFailedPresignBlanksTheImageAndNeverFailsTheRead(t *testing.T) {
 	r.StorageKey = &storage
 
 	s := NewService(&fakeRepo{rows: []listRow{r}}, fakePresign{err: errors.New("s3 down")})
-	items, err := s.List(context.Background(), cust)
+	items, err := s.List(context.Background(), cust, DefaultListRef)
 
 	require.NoError(t, err, "losing one thumbnail is a blemish; losing the whole list is an outage")
 	require.Nil(t, items[0].ImageURL)
 }
 
 func TestList_EmptyIsAnEmptySliceNotNil(t *testing.T) {
-	items, err := svc(&fakeRepo{rows: []listRow{}}, &fakeZones{}).List(context.Background(), cust)
+	items, err := svc(&fakeRepo{rows: []listRow{}}, &fakeZones{}).List(context.Background(), cust, DefaultListRef)
 
 	require.NoError(t, err)
 	require.NotNil(t, items)
@@ -273,7 +319,7 @@ func TestList_PriceDropSurvivesTheMapping(t *testing.T) {
 	r.PriceAmount, r.SavedPriceAmount, r.PriceDropped = "4.00", "6.50", true
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, DefaultListRef)
 	require.NoError(t, err)
 
 	require.True(t, items[0].PriceDropped)
@@ -286,7 +332,7 @@ func TestList_NoDropIsCarriedThroughAsFalse(t *testing.T) {
 	r.PriceAmount, r.SavedPriceAmount, r.PriceDropped = "9.99", "6.50", false
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, DefaultListRef)
 	require.NoError(t, err)
 
 	// ⚠ A RISE produces no flag and no field on the wire (FR-044). The current price is always shown,
@@ -301,7 +347,7 @@ func TestList_MoneyCrossesAsTextNeverAFloat(t *testing.T) {
 	r.PriceAmount, r.SavedPriceAmount = "1234567890.05", "1234567890.99"
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, DefaultListRef)
 	require.NoError(t, err)
 
 	// ⚠ numeric(12,2)::text all the way out. A float64 cannot hold this exactly, and money that is
@@ -392,7 +438,7 @@ func TestAddAllToCart_AddsOnlyThePurchasableOnes(t *testing.T) {
 	fc := &fakeCart{}
 	s := NewService(&fakeRepo{rows: mixedRows()}, fakePresign{}).WithCart(fc)
 
-	res, err := s.AddAllToCart(context.Background(), cust, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, DefaultListRef, "chg")
 	require.NoError(t, err)
 
 	require.Equal(t, []string{"buyable"}, res.Added)
@@ -404,7 +450,7 @@ func TestAddAllToCart_AddsOnlyThePurchasableOnes(t *testing.T) {
 func TestAddAllToCart_NamesEverySkipWithAReason(t *testing.T) {
 	s := NewService(&fakeRepo{rows: mixedRows()}, fakePresign{}).WithCart(&fakeCart{})
 
-	res, err := s.AddAllToCart(context.Background(), cust, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, DefaultListRef, "chg")
 	require.NoError(t, err)
 
 	require.Len(t, res.Skipped, 2, "nothing may be omitted silently")
@@ -422,7 +468,7 @@ func TestAddAllToCart_CarriesTheCartsOwnRefusalThrough(t *testing.T) {
 	fc := &fakeCart{failOn: map[string]error{"buyable": cart.ErrCartFull}}
 	s := NewService(&fakeRepo{rows: mixedRows()}, fakePresign{}).WithCart(fc)
 
-	res, err := s.AddAllToCart(context.Background(), cust, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, DefaultListRef, "chg")
 	require.NoError(t, err)
 
 	require.Empty(t, res.Added)
@@ -434,7 +480,7 @@ func TestAddAllToCart_NothingPurchasableIsStillASuccessfulRequest(t *testing.T) 
 	rows := []listRow{row(VerdictTemporarilyOut)}
 	s := NewService(&fakeRepo{rows: rows}, fakePresign{}).WithCart(&fakeCart{})
 
-	res, err := s.AddAllToCart(context.Background(), cust, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, DefaultListRef, "chg")
 
 	// ⚠ Not an error. Nothing was wrong with the request — the shopper's list simply contains nothing
 	// they can buy where they are, and the client renders that from `skipped`.
@@ -451,7 +497,7 @@ func TestAddAllToCart_GivesEachItemItsOwnChangeID(t *testing.T) {
 	fc := &fakeCart{}
 	s := NewService(&fakeRepo{rows: rows}, fakePresign{}).WithCart(fc)
 
-	_, err := s.AddAllToCart(context.Background(), cust, "chg")
+	_, err := s.AddAllToCart(context.Background(), cust, DefaultListRef, "chg")
 	require.NoError(t, err)
 
 	require.Len(t, fc.changeIDs, 2)
@@ -479,7 +525,7 @@ func TestAddAllToCart_ChangeIDsAreStableAcrossRetries(t *testing.T) {
 		rows[0].ProductID, rows[1].ProductID = "a", "b"
 		fc := &fakeCart{}
 		s := NewService(&fakeRepo{rows: rows}, fakePresign{}).WithCart(fc)
-		_, err := s.AddAllToCart(context.Background(), cust, "same-batch")
+		_, err := s.AddAllToCart(context.Background(), cust, DefaultListRef, "same-batch")
 		require.NoError(t, err)
 		return fc.changeIDs
 	}
