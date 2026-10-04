@@ -104,6 +104,7 @@ import type {
   DeliveryOptionDTO,
   DeliveryPackageDTO,
   DeliveryQuoteDTO,
+  DeliveryChoiceRefusalDTO,
 } from "./delivery";
 
 export type {
@@ -267,6 +268,9 @@ export interface CustomerCommerceContract {
   deliveryOption: DeliveryOptionDTO;
   deliveryPackage: DeliveryPackageDTO;
   deliveryQuote: DeliveryQuoteDTO;
+  // 069 — the slot/day options are reached through the quote; the refusal body is reached from
+  // nothing, so it is named here or it would never be generated.
+  deliveryChoiceRefusal: DeliveryChoiceRefusalDTO;
   // ⚠ 051 payment. Same rule as saved-item and delivery above: referencing them HERE is what makes
   // them exist in Kotlin. PaymentMethodDTO and ListPaymentMethodsResponse are reachable from nothing
   // else in this contract, so without these two fields they would silently never be generated and

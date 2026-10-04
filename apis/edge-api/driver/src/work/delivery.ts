@@ -5,6 +5,7 @@
 // slice. A comment asserting a limitation that no longer holds is the stale-claim shape 060 and 063
 // both record, so it was corrected in the same change rather than left to be believed.
 
+import { formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
 import type {
   ActivityItem,
@@ -36,6 +37,8 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     shop_count: string;
     delivery_note: string | null;
     delivery_handover: HandoverPreference | null;
+    window_start: Date | null;
+    window_end: Date | null;
   }>(
     `SELECT rs.id                                   AS stop_id,
             rs.status                               AS status,
@@ -49,14 +52,20 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
             count(rp.id)::text                      AS package_count,
             count(DISTINCT sf.shop_id)::text        AS shop_count,
             o.delivery_note                         AS delivery_note,
-            o.delivery_handover                     AS delivery_handover
+            o.delivery_handover                     AS delivery_handover,
+            -- 069 — the window the customer was sold. Read from the ORDER's own packages rather
+            -- than through round_package: a late-joined package must not change the window.
+            (SELECT min(opd.window_start) FROM public.order_package_delivery opd
+              WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_start,
+            (SELECT min(opd.window_end)   FROM public.order_package_delivery opd
+              WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_end
        FROM public.round_stop rs
        JOIN public.driver_round dr ON dr.id = rs.round_id
        JOIN public."order"      o  ON o.id = rs.order_id
        LEFT JOIN public.round_package   rp ON rp.stop_id = rs.id
        LEFT JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
       WHERE rs.id = $1 AND dr.driver_id = $2 AND rs.kind = 'customer_drop'
-      GROUP BY rs.id, rs.status, o.order_number, o.delivery_address, o.delivery_note, o.delivery_handover`,
+      GROUP BY rs.id, rs.status, o.id, o.order_number, o.delivery_address, o.delivery_note, o.delivery_handover`,
     [dropId, driverId],
   );
 
@@ -84,6 +93,10 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     // How they asked for it to be handed over. A REQUEST the app states and leads the proof chooser
     // with — never a rule that removes a way of completing the drop (066 FR-020).
     handover: r.delivery_handover,
+    // 069 — when the customer was told to expect it. Null for an order placed before 069: the app
+    // then shows no window at all. ⚠ Instants only — "due" and "late" are the app's to derive from
+    // these and its own clock, because they change while the screen is open.
+    ...dropWindow(r.window_start, r.window_end),
     // ⚠ Every stored state reads back as itself. This used to collapse everything unrecognised to
     // "staged", which is how a drop that HAD started kept showing "Start this drop".
     status: dropStatusOf(r.status),
@@ -388,4 +401,16 @@ export async function activity(driverId: string): Promise<ActivityItem[]> {
     runId: r.id,
     dropId: null,
   }));
+}
+
+/** A drop's window as the label the app shows and the instants it judges Due and Late by. */
+function dropWindow(
+  start: Date | null,
+  end: Date | null,
+): { window: string | null; deliveryWindow: DeliveryWindow | null } {
+  if (!start || !end) return { window: null, deliveryWindow: null };
+  const deliveryWindow = { startAt: new Date(start).toISOString(), endAt: new Date(end).toISOString() };
+  // ⚠ The SERVER words the window, in Melbourne time, with the one shared formatter. The app has no
+  // timezone database to do it with, and a second wording is how two screens disagree.
+  return { window: formatDeliveryWindow(deliveryWindow), deliveryWindow };
 }

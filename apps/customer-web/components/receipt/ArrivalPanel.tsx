@@ -1,4 +1,4 @@
-import type { ArrivalEstimateDTO, OrderStage } from "@effy/shared-types"
+import { formatArrival, type ArrivalEstimateDTO, type OrderStage } from "@effy/shared-types"
 
 import { toneForDeliveryMethod } from "@/app/checkout/_components/status-palette"
 import { ProgressTrack } from "@/components/receipt/ProgressTrack"
@@ -7,10 +7,11 @@ import { StatusPill } from "@/components/receipt/StatusPill"
 /**
  * When the order arrives, and how far along it is (052 FR-007 / FR-008).
  *
- * ⚠ DATES, NEVER TIMES. `promisedFrom`/`promisedTo` are `date` columns — the platform has no delivery
- * time window and cannot derive one (research R4). An earlier draft of this design showed
- * "Today, 5:00 – 8:00 pm"; that was a promise the business has not made, printed on the one document
- * a customer treats as a record.
+ * ⚠ A TIME ONLY WHEN A WINDOW WAS SOLD (069). 052 corrected a designed "Today, 5:00 – 8:00 pm" down
+ * to a date because the business had not made that promise. It has now: a same-day order carries the
+ * window the customer chose, and this panel says it. An order with no window — every standard order,
+ * and everything placed before 069 — still shows a day and nothing finer, and an order with no
+ * promise at all still says the date will be confirmed. Nothing is derived here.
  *
  * ⚠ More than one estimate means the order arrives in more than one delivery. That is a fact about
  * the CUSTOMER'S experience — it names no shop and implies no fulfilment structure (FR-009).
@@ -70,45 +71,11 @@ function methodLabel(method: string): string {
 /**
  * The arrival, in the plainest words the DATA supports.
  *
- * ⚠ When the platform has no promise, this says so rather than inventing one. "We'll confirm your
- * delivery date" is honest; a fabricated date on a receipt is not.
+ * ⚠ THE WORDING IS `formatArrival`'S (069): the emailed receipt and both apps say it the same way,
+ * from the same fixture. This file used to carry its own copy of the date formatting, beside the
+ * email's — two implementations of one sentence, which is the shape 052 deleted
+ * `summarizeFulfillment` for.
  */
-export function arrivalLabel(a: ArrivalEstimateDTO): string {
-  if (!a.promisedFrom && !a.promisedTo) return "We'll confirm your delivery date"
-
-  const from = a.promisedFrom ?? a.promisedTo!
-  const to = a.promisedTo ?? a.promisedFrom!
-
-  if (from === to) return relativeDay(from)
-  return `${formatDay(from)} – ${formatDay(to)}`
-}
-
-/** "Today" / "Tomorrow" where it applies, otherwise the date — judged in the trading timezone. */
-function relativeDay(isoDate: string): string {
-  const today = melbourneToday()
-  if (isoDate === today) return "Today"
-  if (isoDate === addDays(today, 1)) return "Tomorrow"
-  return formatDay(isoDate)
-}
-
-function formatDay(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00`)
-  if (Number.isNaN(d.getTime())) return isoDate
-  return new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short" }).format(d)
-}
-
-/**
- * ⚠ `Australia/Melbourne`, not the server's zone. "Today" is a claim about the shopper's day, and a
- * server in another timezone would get it wrong for hours either side of midnight. 047 judges its
- * same-day cutoff in this same wall-clock for the same reason.
- */
-function melbourneToday(): string {
-  // en-CA yields yyyy-mm-dd, which is exactly the shape the wire uses.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(new Date())
-}
-
-function addDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
+export function arrivalLabel(a: ArrivalEstimateDTO, now: Date = new Date()): string {
+  return formatArrival(a, now)
 }

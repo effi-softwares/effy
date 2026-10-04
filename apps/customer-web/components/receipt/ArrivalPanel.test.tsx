@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
@@ -9,18 +12,49 @@ const est = (over: Partial<ArrivalEstimateDTO> = {}): ArrivalEstimateDTO => ({
   method: "standard",
   promisedFrom: "2026-09-02",
   promisedTo: "2026-09-02",
+  windowStart: null,
+  windowEnd: null,
   ...over,
 })
 
+interface ArrivalCase {
+  name: string
+  now: string
+  input: Pick<ArrivalEstimateDTO, "promisedFrom" | "promisedTo" | "windowStart" | "windowEnd">
+  expect: string
+}
+
 /**
- * ⚠ THE RULE THIS FILE EXISTS TO PIN (052 FR-007, research R4).
- *
- * `promised_from`/`promised_to` are `date` columns. The platform has NO delivery time window and
- * cannot derive one. An earlier draft of this design rendered "Today, 5:00 – 8:00 pm" — a promise the
- * business has not made, printed on the one document a customer treats as a record.
+ * ⚠ THE SHARED FIXTURE. The emailed receipt (`edge-api/notifications`) and both mobile apps are
+ * tested against this same file. The page saying "Today, 5 pm – 7 pm" while the email says
+ * "Thursday" is the defect it exists to catch.
  */
-describe("arrivalLabel — dates, never times", () => {
-  it("never renders a time of day", () => {
+const fixture = JSON.parse(
+  // Resolved from the package root (vitest's cwd): under jsdom `import.meta.url` is not a file URL.
+  readFileSync(resolve(process.cwd(), "../../packages/shared-types/src/delivery-window.fixtures.json"), "utf8"),
+) as { arrival: ArrivalCase[] }
+
+describe("arrivalLabel — one wording with the email and the apps", () => {
+  it("has cases to run", () => {
+    expect(fixture.arrival.length).toBeGreaterThan(10)
+  })
+
+  for (const c of fixture.arrival) {
+    it(c.name, () => {
+      expect(arrivalLabel(est(c.input), new Date(c.now))).toBe(c.expect)
+    })
+  }
+})
+
+/**
+ * ⚠ THE RULE 052 PINNED, RESTATED FOR 069 (052 FR-007, research R4; 069 research R1).
+ *
+ * 052 forbade a time of day outright, because the platform had no delivery window and an earlier
+ * design had drawn one anyway. 069 SELLS a window — so a time may now appear, and ONLY when the
+ * order carries one. Without a window this must still never print a time.
+ */
+describe("arrivalLabel — a time only when a window was sold", () => {
+  it("never renders a time of day for an order with no window", () => {
     for (const a of [
       est(),
       est({ promisedFrom: "2026-09-02", promisedTo: "2026-09-04" }),
@@ -31,6 +65,17 @@ describe("arrivalLabel — dates, never times", () => {
     }
   })
 
+  it("renders the window the customer chose, in Melbourne time", () => {
+    const a = est({
+      method: "same_day",
+      promisedFrom: "2026-10-08",
+      promisedTo: "2026-10-08",
+      windowStart: "2026-10-08T17:00:00+11:00",
+      windowEnd: "2026-10-08T19:00:00+11:00",
+    })
+    expect(arrivalLabel(a, new Date("2026-10-08T09:00:00+11:00"))).toBe("Today, 5 pm – 7 pm")
+  })
+
   it("renders a single date as one day, and a spread as a range", () => {
     expect(arrivalLabel(est({ promisedFrom: "2026-09-02", promisedTo: "2026-09-02" }))).not.toContain("–")
     expect(arrivalLabel(est({ promisedFrom: "2026-09-02", promisedTo: "2026-09-04" }))).toContain("–")
@@ -38,7 +83,8 @@ describe("arrivalLabel — dates, never times", () => {
 
   /**
    * ⚠ When the platform has no promise it SAYS SO. Inventing a date on a receipt would be a false
-   * fact on a financial record, and "we'll confirm" is both true and useful.
+   * fact on a financial record, and "we'll confirm" is both true and useful. Every order placed
+   * before 069 is this case.
    */
   it("says it will confirm rather than inventing a date", () => {
     expect(arrivalLabel(est({ promisedFrom: null, promisedTo: null }))).toBe(

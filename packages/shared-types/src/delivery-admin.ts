@@ -143,6 +143,62 @@ export interface DeliverySettingsDTO {
   samedayPrepBufferMin: number;
 }
 
+/**
+ * A same-day delivery slot, as the back-office sees it (069). Times are Australia/Melbourne
+ * wall-clock ("HH:MM"), like a collection run.
+ */
+export interface DeliverySlotDTO {
+  id: string;
+  startTime: string;
+  endTime: string;
+  cutoffTime: string;
+  capacity: number;
+  status: RingStatus;
+  /** Confirmed bookings plus holds that have not lapsed, for today (Melbourne). */
+  bookedToday: number;
+  /** Late payers honoured above capacity today (FR-009b). Normally zero. */
+  overCapacityToday: number;
+  updatedAt: string;
+}
+
+export interface DeliverySlotInput {
+  startTime: string;
+  endTime: string;
+  cutoffTime: string;
+  capacity: number;
+}
+
+/** PATCH: any of the four, and/or the status. A slot is never deleted. */
+export type DeliverySlotPatch = Partial<DeliverySlotInput> & { status?: RingStatus };
+
+/** One date with no standard delivery. */
+export interface NonDeliveryDateDTO {
+  day: string;
+  label: string | null;
+  /** Placed orders already promised this day. They are not changed (FR-043). */
+  affectedOrders: number;
+}
+
+/** Which days standard delivery runs, and the timings the day rules depend on (069). */
+export interface DeliveryDaysDTO {
+  lookaheadDays: number;
+  /** ISO weekdays, 1 = Monday … 7 = Sunday. */
+  noDeliveryWeekdays: number[];
+  /** Hub handover → delivered. ⚠ A stated assumption until there is a carrier contract. */
+  carrierLeadDays: number;
+  slotHoldMin: number;
+  /** Collection run → ready to leave the hub. ⚠ A stated assumption until a round is timed. */
+  hubTurnaroundMin: number;
+  dates: NonDeliveryDateDTO[];
+}
+
+export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates">;
+
+export interface NonDeliveryDateInput {
+  day: string;
+  label?: string | null;
+}
+
 /** A configuration problem surfaced by the delivery health view (a clean config returns none). */
 export interface ZoneHealthFlagDTO {
   zoneCode: string;

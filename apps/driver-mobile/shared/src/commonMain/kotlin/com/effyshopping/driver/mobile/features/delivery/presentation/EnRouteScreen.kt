@@ -75,6 +75,11 @@ fun EnRouteScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // 069 — when the customer expects it: the first thing to know while still driving.
+                if (drop.window != null) {
+                    Spacer(Modifier.height(8.dp))
+                    WindowLine(drop.window, drop.status, style = MaterialTheme.typography.bodyLarge)
+                }
                 // 065 — which compartment to open on arrival, read while parking.
                 if (drop.summary.total > 0) {
                     Spacer(Modifier.height(8.dp))

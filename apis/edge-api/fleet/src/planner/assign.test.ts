@@ -22,6 +22,8 @@ function pkg(p: Partial<PlannablePackage> & { packageId: string }): PlannablePac
     itemCount: 2,
     requiresChilled: false,
     requiresFrozen: false,
+    windowStart: null,
+    windowEnd: null,
     ...p,
   };
 }

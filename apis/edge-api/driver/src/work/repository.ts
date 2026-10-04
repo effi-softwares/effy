@@ -44,6 +44,9 @@ export interface StopRow {
   destination_line2: string | null;
   destination_postcode: string | null;
   destination_state: string | null;
+  /** 069 — the customer's delivery window. Null unless this is a drop for a windowed order. */
+  window_start: Date | null;
+  window_end: Date | null;
 }
 
 export interface PackageRow {

@@ -31,6 +31,11 @@ export interface DomainError {
    * indistinguishable status. A caller maps it to its OWN copy; it is never shown.
    */
   type?: string;
+  /**
+   * The problem document's `code`, when the route defines one (069's delivery-choice refusals).
+   * A contract value to switch on, like `type`; never shown.
+   */
+  code?: string;
 }
 
 export function toDomainError(status: number, problem?: Partial<ProblemJSON>): DomainError {
@@ -41,6 +46,7 @@ export function toDomainError(status: number, problem?: Partial<ProblemJSON>): D
     title: problem?.title ?? defaultTitle(kind),
     detail: problem?.detail,
     type: typeof problem?.type === "string" ? problem.type : undefined,
+    code: typeof problem?.code === "string" ? problem.code : undefined,
     // ⚠ THE WIRE KEY IS `errors`, NOT `fields`. `@effy/edge-shared`'s `problem()` serialises field
     // issues under `errors`; this reader only ever looked at `fields`, so `DomainError.fields` was
     // undefined on EVERY refusal, platform-wide, since the type was introduced. 053 found it and

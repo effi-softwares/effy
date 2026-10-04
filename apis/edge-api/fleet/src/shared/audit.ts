@@ -51,14 +51,38 @@ export type DispatchAuditAction =
   // when is the only record there will ever be.
   | "dispatch.exception_resolve";
 
-export type FleetAuditAction = DriverAuditAction | VehicleAuditAction | DispatchAuditAction;
+/**
+ * 069 — delivery capacity and calendar. Each of these changes what a CUSTOMER is offered at checkout
+ * the moment it is saved, with no release in between, so who changed it and when is the only way to
+ * answer "why was same-day not offered on Tuesday?" afterwards.
+ */
+export type DeliveryConfigAuditAction =
+  | "delivery_slot.created"
+  | "delivery_slot.updated"
+  | "delivery_slot.disabled"
+  | "delivery_slot.enabled"
+  | "delivery_days.updated"
+  | "delivery_days.date_added"
+  | "delivery_days.date_removed";
+
+export type FleetAuditAction =
+  | DriverAuditAction
+  | VehicleAuditAction
+  | DispatchAuditAction
+  | DeliveryConfigAuditAction;
 
 /** What the audited row IS. ⚠ 061 generalised this: it was hard-coded to 'driver' because a driver
  *  was the only thing this service could change. Widening the column value is the whole change — the
  *  table, the helper and the redaction rules are shared, as Principle II requires.
  *  ⚠ 063 added 'driver_round' the same way, and deliberately did NOT add a second audit writer
  *  alongside: a private INSERT would have skipped the PII redaction above without anyone noticing. */
-export type AuditTargetType = "driver" | "vehicle" | "driver_round" | "delivery_exception";
+export type AuditTargetType =
+  | "driver"
+  | "vehicle"
+  | "driver_round"
+  | "delivery_exception"
+  | "delivery_slot"
+  | "delivery_settings";
 
 /**
  * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.

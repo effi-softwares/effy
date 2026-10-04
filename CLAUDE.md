@@ -29,6 +29,14 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
 - **Work is typed tasks, not driver roles** (`collection` / `same_day_delivery`); one driver typically
   does a collection run then a same-day round in one shift, but neither is a hard-coded role.
 - **One hub for now** (matches 047's single operating-hub point); multi-hub is deferred.
+- **A same-day order is sold a TIME WINDOW; a standard order a DAY (069).** Back-office defines daily
+  **slots** (start, end, cutoff, capacity). ⚠ **Same-day is offered only while a slot is open** — its
+  cutoff has not passed, it has room, and a collection run can still reach the hub before it starts —
+  so with no active slot, same-day is offered to nobody. A place is **held at the payment-intent call**
+  (the client confirms payment with the provider directly, so that is the last server moment before
+  the charge) and confirmed at payment. The delivery wave is planned **per window**, to the window's
+  end. A standard order's chosen day is honoured **through the carrier**: hub staff hand it over on
+  day − carrier lead time. ⚠ The fee does **not** vary by slot or day.
 
 ## Platform shape (the vision)
 The full platform is **six client surfaces + two backends + DB migrations + infrastructure**. The
@@ -345,6 +353,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **069-delivery-slots-dates** — Delivery Time Slots & Standard Delivery Date
 - **068-customer-lists** — Customer Lists (named lists over saved items)
 - **067-product-approval-margin** — Product Approval & Effy Margin
 - **066-delivery-instructions** — Customer Delivery Instructions
@@ -391,5 +400,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/068-customer-lists/plan.md
+at specs/069-delivery-slots-dates/plan.md
 <!-- SPECKIT END -->

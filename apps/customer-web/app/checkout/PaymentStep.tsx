@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 import type { CreateCheckoutIntentResponse, PaymentMethodDTO } from "@effy/shared-types"
 
 import { ActionButton } from "@/components/storefront/actions"
+import { holdLapsed } from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
 import { capture } from "@/lib/telemetry"
 
@@ -41,9 +42,15 @@ import {
 export function PaymentStep({
   intent,
   onBack,
+  renewHold,
 }: {
   intent: CreateCheckoutIntentResponse
   onBack: () => void
+  /**
+   * 069 — re-run the checkout intent because the same-day place has lapsed. Resolves true when the
+   * place is held again, false when it has gone (the flow then returns to the delivery options).
+   */
+  renewHold?: () => Promise<boolean>
 }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -177,6 +184,20 @@ export function PaymentStep({
   // nothing for Effy to validate, because the provider's own form does it.
   const ready = Boolean(stripe && elements) && (usingNewCard ? card.complete : true)
 
+  /**
+   * 069 — make sure the same-day place is still held BEFORE the provider is asked to take money.
+   *
+   * ⚠ THIS IS THE LAST MOMENT THE SERVER CAN SAY NO. Payment is confirmed with the provider directly,
+   * so once it is submitted nothing of Effy's stands between the shopper and the charge. A place is
+   * held for a few minutes from the intent call; a shopper who lingers past that may have lost it to
+   * someone else, and must find out HERE rather than after paying. The server cannot enforce this
+   * (it honours and flags a late payer instead) — this is what makes that rare.
+   */
+  async function holdIsLive(): Promise<boolean> {
+    if (!renewHold || !holdLapsed(intent.slotHeldUntil, Date.now())) return true
+    return renewHold()
+  }
+
   async function pay() {
     if (!stripe || !elements || busy) return
     // Only the new-card route needs the element; a kept card confirms by id.
@@ -187,6 +208,7 @@ export function PaymentStep({
     setFailure(null)
     setAwaitingBank(false)
     try {
+      if (!(await holdIsLive())) return
       // Three routes, one for each family. Pay-over-time redirects to the provider; a kept card needs
       // nothing typed and confirms by id; a new card confirms from the element.
       const outcome = method === "later"
@@ -310,6 +332,7 @@ export function PaymentStep({
               setFailure(null)
     setAwaitingBank(false)
               try {
+                if (!(await holdIsLive())) return
                 const outcome = await confirmWalletPayment({
                   stripe: stripe!,
                   elements: elements!,

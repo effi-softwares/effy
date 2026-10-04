@@ -28,6 +28,36 @@ Each is documented in its own slice under `specs/`.
 
 ---
 
+## §069 — Delivery slots, delivery days and carrier handover (069-delivery-slots-dates)
+
+Slots and delivery days are served by `apis/edge-api/fleet` (`/fleet/v1/delivery-slots`,
+`/fleet/v1/delivery-days`); the handover list by `apis/edge-api/orders`. The screens are two tabs in
+the Delivery console and a list under Orders.
+
+| Capability | admin | manager | csa |
+|---|---|---|---|
+| See same-day slots and how full each is today | ✅ | ✅ | ✅ |
+| Create a slot, change its times or capacity, switch it off or on | ✅ | ✅ | ❌ |
+| See the standard-delivery calendar and the three timings | ✅ | ✅ | ✅ |
+| Change the look-ahead, the weekdays with no delivery and the timings | ✅ | ✅ | ❌ |
+| Close or reopen a single date | ✅ | ✅ | ❌ |
+| See each package's promised day or window, and whether it is at risk, late or on time | ✅ | ✅ | ✅ |
+| Carrier handover list: due today, overdue, upcoming | ✅ | ✅ | ✅ |
+| See each drop's window, and Due / Late, on a dispatch round | ✅ | ✅ | ✅ |
+
+⚠ **A slot cannot be deleted**, by anyone. Placed orders refer to it; it is switched off.
+
+⚠ **Every slot and delivery-day change is live at the next checkout** and writes one
+`admin.audit_log` row with who made it. Roles come from `admin.staff`, never the token claim.
+
+⚠ **Closing a date changes no placed order.** The console reports how many carry it.
+
+⚠ **Nothing alerts anyone when a slot goes over capacity.** The rule is written
+(`infra/observability/alerts/069-delivery-slots.yml`) and not loaded. The slot's row says
+"N over capacity".
+
+⚠ **Not walked.**
+
 ## §067 — Product review and Effy's margin (067-product-approval-margin)
 
 Served by `apis/edge-api/catalog` (`/catalog/v1/…`), not `edge-admin`.

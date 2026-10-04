@@ -16,10 +16,12 @@ import { sessionQuery } from "@/features/auth/queries";
 import { canManageDelivery } from "./access";
 import { deliveryMutationError, PLAN_INCOMPLETE } from "./errorText";
 import { AddPostcodeDialog } from "./components/AddPostcodeDialog";
+import { DeliveryDaysPanel } from "./components/DeliveryDaysPanel";
 import { NewPlanDialog } from "./components/NewPlanDialog";
 import { NewRingDialog } from "./components/NewRingDialog";
 import { NewZoneDialog } from "./components/NewZoneDialog";
 import { SameDayExceptionsDialog } from "./components/SameDayExceptionsDialog";
+import { SlotsPanel } from "./components/SlotsPanel";
 import {
   collectionRunsQuery, plansQuery, ringsQuery, settingsQuery, useActivatePlan, useCreateCollectionRun,
   useDeleteCollectionRun, usePatchZone, usePutSettings, useSuggestRing, zonesQuery,
@@ -46,12 +48,16 @@ export function DeliveryScreen() {
           <TabsTrigger value="rings">Rings</TabsTrigger>
           <TabsTrigger value="plans">Fee plans</TabsTrigger>
           <TabsTrigger value="schedule">Same-day</TabsTrigger>
+          <TabsTrigger value="slots">Time slots</TabsTrigger>
+          <TabsTrigger value="days">Delivery days</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="zones" className="mt-4"><ZonesPanel canManage={canManage} /></TabsContent>
         <TabsContent value="rings" className="mt-4"><RingsPanel canManage={canManage} /></TabsContent>
         <TabsContent value="plans" className="mt-4"><PlansPanel canManage={canManage} /></TabsContent>
         <TabsContent value="schedule" className="mt-4"><SchedulePanel canManage={canManage} /></TabsContent>
+        <TabsContent value="slots" className="mt-4"><SlotsPanel canManage={canManage} /></TabsContent>
+        <TabsContent value="days" className="mt-4"><DeliveryDaysPanel canManage={canManage} /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel canManage={canManage} /></TabsContent>
       </Tabs>
     </div>

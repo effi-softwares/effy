@@ -80,8 +80,13 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         line_subtotal_amount numeric(12,2) NOT NULL DEFAULT 0
       );
       CREATE TABLE public.order_package_delivery (
-        order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL
+        order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL,
+        -- 069: the package read now selects the promise. Transcribed like the rest of this schema;
+        -- handovers.container.test.ts beside this file proves the same query against the REAL one.
+        promised_to date, slot_id uuid, window_start timestamptz, window_end timestamptz
       );
+      CREATE TABLE public.delivery_slot_booking (order_id uuid NOT NULL, over_capacity boolean NOT NULL DEFAULT false);
+      CREATE TABLE public.delivery_settings (id int PRIMARY KEY, carrier_lead_days int NOT NULL DEFAULT 1);
       CREATE TABLE public.fulfillment_event (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id) ON DELETE CASCADE,

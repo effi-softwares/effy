@@ -243,6 +243,17 @@ export type StorefrontEvent =
       name: "checkout_delivery_instructions_set"
       props: { handover: "leave_at_door" | "meet_at_door" | "none"; hasNote: boolean; fromSavedDefault: boolean }
     }
+  // 069 delivery slots and dates.
+  //
+  // ⚠ COUNTS AND OFFSETS, NEVER A TIME OR AN ADDRESS. "The third of four slots, six hours ahead" says
+  // which slots people want; the slot's clock time joined to a session would say when a household is
+  // home. `position` is 1-based among the options shown.
+  | { name: "checkout_delivery_slot_selected"; props: { slotsOffered: number; position: number; hoursAhead: number } }
+  | { name: "checkout_delivery_date_selected"; props: { daysAhead: number; wasDefault: boolean } }
+  | {
+      name: "checkout_delivery_choice_refused"
+      props: { reason: "slot_unavailable" | "date_unavailable" | "slot_required" }
+    }
   // 051 payment experience.
   //
   // ⚠ WHAT THESE MAY NEVER CARRY, and the type is what enforces it: no card number (not even the last

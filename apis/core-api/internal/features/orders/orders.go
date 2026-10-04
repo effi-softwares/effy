@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/features/refunds"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
@@ -138,11 +140,15 @@ type PaymentMethod struct {
 
 // ArrivalEstimate is one package's expected arrival, as the customer was shown at checkout.
 //
-// ⚠ Dates, not times, and it carries no shop reference (FR-009).
+// PromisedFrom/To are the delivery DAY. WindowStart/End are the same-day time window the customer was
+// sold (069), already rendered with the Australia/Melbourne offset; nil for a standard package and for
+// every order placed before 069. ⚠ It carries no shop reference (FR-009).
 type ArrivalEstimate struct {
 	Method       string
 	PromisedFrom *string
 	PromisedTo   *string
+	WindowStart  *string
+	WindowEnd    *string
 }
 
 // ── Repository ──────────────────────────────────────────────────────────────────────────────────
@@ -251,12 +257,27 @@ type itemRow struct {
 // which node handles which package (FR-009). The service aggregates these into an ordered list and the
 // id never enters a struct that can reach a DTO.
 //
-// ⚠ promised_from/promised_to are `date` columns. The platform has no delivery TIME window and cannot
-// derive one (research R4) — scanning them as strings keeps that honest all the way to the wire.
+// ⚠ promised_from/promised_to are `date` columns — the delivery DAY — and are scanned as strings so a
+// date stays a date all the way to the wire. They were never written before 069 (research R1), so
+// every earlier order scans NULL for both and the client says the date will be confirmed.
+//
+// window_start/window_end are the same-day window as sold (069): instants, NULL unless same-day.
 type arrivalRow struct {
-	Method       string  `db:"method"`
-	PromisedFrom *string `db:"promised_from"`
-	PromisedTo   *string `db:"promised_to"`
+	Method       string     `db:"method"`
+	PromisedFrom *string    `db:"promised_from"`
+	PromisedTo   *string    `db:"promised_to"`
+	WindowStart  *time.Time `db:"window_start"`
+	WindowEnd    *time.Time `db:"window_end"`
+}
+
+// melbourneStamp renders an instant with the Australia/Melbourne offset, or nil. A delivery happens in
+// Melbourne wherever the customer's device is, so the wire says so explicitly (069 FR-029).
+func melbourneStamp(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.In(delivery.MelbourneTZ).Format(time.RFC3339)
+	return &s
 }
 
 // 052 — how the order was paid (FR-006). All three nullable: they are captured best-effort AFTER the
@@ -366,10 +387,12 @@ func (r *Repository) Arrivals(ctx context.Context, orderID string) ([]arrivalRow
 	rows, err := r.db.Query(ctx, `
 SELECT method AS method,
        promised_from::text AS promised_from,
-       promised_to::text   AS promised_to
+       promised_to::text   AS promised_to,
+       window_start        AS window_start,
+       window_end          AS window_end
 FROM public.order_package_delivery
 WHERE order_id = $1
-ORDER BY promised_from ASC NULLS LAST, promised_to ASC NULLS LAST, method ASC`, orderID)
+ORDER BY promised_from ASC NULLS LAST, window_start ASC NULLS LAST, promised_to ASC NULLS LAST, method ASC`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("orders: arrivals: %w", err)
 	}
@@ -532,6 +555,7 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		for _, a := range rows {
 			arrivals = append(arrivals, ArrivalEstimate{
 				Method: a.Method, PromisedFrom: a.PromisedFrom, PromisedTo: a.PromisedTo,
+				WindowStart: melbourneStamp(a.WindowStart), WindowEnd: melbourneStamp(a.WindowEnd),
 			})
 		}
 	}

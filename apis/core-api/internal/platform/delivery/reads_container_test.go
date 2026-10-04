@@ -197,7 +197,7 @@ func TestQuote_StandardOnly_Container(t *testing.T) {
 	qr := NewQuoter(pool)
 
 	// No same-day: zone default is not eligible, no collection runs → standard-only.
-	res, err := qr.Quote(ctx, "3121", []PackageInput{{ShopID: shopA, Grams: 1500}, {ShopID: shopB, Grams: 7000}}, now)
+	res, err := qr.Quote(ctx, "", "3121", []PackageInput{{ShopID: shopA, Grams: 1500}, {ShopID: shopB, Grams: 7000}}, now)
 	require.NoError(t, err)
 	assert.True(t, res.Serviced)
 	require.Len(t, res.Packages, 2)
@@ -209,7 +209,7 @@ func TestQuote_StandardOnly_Container(t *testing.T) {
 	}
 
 	// Not serviceable → no packages, one reason.
-	res, err = qr.Quote(ctx, "3999", []PackageInput{{ShopID: shopA, Grams: 1500}}, now)
+	res, err = qr.Quote(ctx, "", "3999", []PackageInput{{ShopID: shopA, Grams: 1500}}, now)
 	require.NoError(t, err)
 	assert.False(t, res.Serviced)
 	assert.Empty(t, res.Packages)
@@ -234,7 +234,7 @@ func TestQuote_SameDayPerShop_Container(t *testing.T) {
 	// Quote just before midnight Melbourne so the 23:59 run is still makeable.
 	now := time.Date(2026, 8, 24, 23, 0, 0, 0, MelbourneTZ)
 	qr := NewQuoter(pool)
-	res, err := qr.Quote(ctx, "3121", []PackageInput{{ShopID: shopA, Grams: 1500}, {ShopID: shopB, Grams: 1500}}, now)
+	res, err := qr.Quote(ctx, "", "3121", []PackageInput{{ShopID: shopA, Grams: 1500}, {ShopID: shopB, Grams: 1500}}, now)
 	require.NoError(t, err)
 	require.True(t, res.Serviced)
 	require.NotNil(t, res.SameDayUntil, "shop A can do same-day, so the cutoff is set")

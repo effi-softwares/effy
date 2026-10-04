@@ -29,6 +29,8 @@ data class DropSummary(
     val status: DropStatus,
     /** 065 — what the drop holds, shown in the list without opening it. */
     val summary: ClassSummary = ClassSummary.Empty,
+    /** 069 — the window the customer was sold; null for an order placed before 069. */
+    val window: DeliveryWindow? = null,
 )
 
 data class DeliveryRun(val runId: String, val status: String, val drops: List<DropSummary>)
@@ -70,6 +72,8 @@ data class Drop(
     val summary: ClassSummary = ClassSummary.Empty,
     /** 066 — the customer's handover preference; null for none, and for every older order. */
     val handover: Handover? = null,
+    /** 069 — the window the customer was sold; null for an order placed before 069. */
+    val window: DeliveryWindow? = null,
     /** 065 — the last loaded copy, served with no connection. See `ShopStop.stale`. */
     val stale: Boolean = false,
 )

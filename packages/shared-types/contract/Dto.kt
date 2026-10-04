@@ -427,6 +427,13 @@ data class PasswordWriteResultDTO (
 
 @Serializable
 data class ProblemJSON (
+    /**
+     * A stable, machine-readable refusal code, where the route defines one (069: the checkout's
+     * `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client
+     * switches on and maps to its OWN copy — unlike `detail`, which is prose.
+     */
+    val code: String? = null,
+
     val detail: String? = null,
 
     /**

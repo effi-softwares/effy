@@ -10,6 +10,7 @@ import {
   query,
   withTransaction,
   type ExclusionReason,
+  orderRoundStops,
 } from "@effy/edge-shared";
 
 import { loadCandidates } from "../planner/repository";
@@ -92,7 +93,21 @@ export async function readRound(roundId: string) {
     driverId: r.driver_id,
     lockedBy: r.locked_by_sub,
     updatedAt: r.updated_at,
-    stops: stops.rows.map((s) => ({
+    // ⚠ ORDERED BY THE SHARED RULE, the same one the driver's app is ordered by (research R5). This
+    // read used to return the query's own `seq NULLS LAST, id` order, which agreed with the driver
+    // only while no stop had a due time. 069 gives drops one — the window's start — so the two
+    // would have diverged the first time a round carried two windows, and nothing would have failed.
+    stops: orderRoundStops(
+      stops.rows.map((s) => ({
+        id: s.stop_id as string,
+        seq: s.seq as number | null,
+        status: s.status,
+        dueAt: (s.window_start as Date | null) ?? null,
+        zoneId: s.zone_id as string | null,
+        shopId: s.shop_id as string | null,
+        row: s,
+      })),
+    ).map(({ row: s }) => ({
       stopId: s.stop_id,
       seq: s.seq,
       kind: s.kind,
@@ -100,6 +115,11 @@ export async function readRound(roundId: string) {
       zoneName: s.zone_name,
       label: s.shop_name ?? s.destination_suburb ?? "",
       orderNumber: s.order_number,
+      // 069 — the window the customer was sold, as instants; the console says Due and Late from it.
+      deliveryWindow:
+        s.window_start && s.window_end
+          ? { startAt: (s.window_start as Date).toISOString(), endAt: (s.window_end as Date).toISOString() }
+          : null,
     })),
   };
 }

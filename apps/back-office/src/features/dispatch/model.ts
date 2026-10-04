@@ -1,3 +1,9 @@
+import {
+  formatDeliveryWindow,
+  windowStateAt,
+  type DeliveryWindow,
+  type DeliveryWindowState,
+} from "@effy/shared-types";
 import type { ExclusionReasonDTO } from "@effy/shared-types";
 
 // Presentation vocabulary for the dispatcher console (063).
@@ -31,3 +37,28 @@ export function describeReasons(reasons: ExclusionReasonDTO[]): string {
 export function roundLabel(kind: string): string {
   return kind === "collection" ? "Collection" : "Same-day delivery";
 }
+
+/**
+ * How a drop stands against the window the customer was sold, in words (069 FR-032).
+ *
+ * ⚠ ONLY FOR A STOP THAT IS STILL TO BE DONE. A finished drop is not "late" on this screen — whether
+ * it arrived inside its window is recorded on the order, against the time it actually arrived.
+ * "Late" here means "the window has closed and the driver has not been".
+ */
+export function windowNoteFor(
+  stop: { status: string; deliveryWindow?: DeliveryWindow | null },
+  now: Date,
+): { text: string; state: DeliveryWindowState | "finished" } | null {
+  if (!stop.deliveryWindow) return null;
+  const text = formatDeliveryWindow(stop.deliveryWindow);
+  if (stop.status === "done" || stop.status === "skipped") return { text, state: "finished" };
+  return { text, state: windowStateAt(now, stop.deliveryWindow) };
+}
+
+/** The word shown beside a window. Empty for one that is neither open nor missed. */
+export const WINDOW_STATE_LABEL: Record<DeliveryWindowState | "finished", string> = {
+  upcoming: "",
+  due: "Due now",
+  late: "Late",
+  finished: "",
+};

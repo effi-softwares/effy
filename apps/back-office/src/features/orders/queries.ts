@@ -1,9 +1,9 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { RecordArrivalRequest, RecordHandoffRequest } from "@effy/shared-types";
+import type { HandoverDueFilter, RecordArrivalRequest, RecordHandoffRequest } from "@effy/shared-types";
 
 import type { OrderListParams } from "./model";
-import { getOrder, listOrders, recordArrival, recordHandoff } from "./repo";
+import { getOrder, listHandovers, listOrders, recordArrival, recordHandoff } from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI) — never hand-cached in
 // component state. The list query is keyed on its params so each filter/search combination caches
@@ -13,7 +13,13 @@ export const ordersKeys = {
   all: ["orders"] as const,
   list: (params: OrderListParams) => ["orders", "list", params] as const,
   detail: (orderId: string) => ["orders", "detail", orderId] as const,
+  // ⚠ Under the "orders" root ON PURPOSE: recording a handover invalidates `ordersKeys.all`, and a
+  // package just handed over must leave this list too.
+  handovers: (due: HandoverDueFilter) => ["orders", "handovers", due] as const,
 };
+
+export const handoversQuery = (due: HandoverDueFilter) =>
+  queryOptions({ queryKey: ordersKeys.handovers(due), queryFn: () => listHandovers(due) });
 
 export const ordersListQuery = (params: OrderListParams) =>
   queryOptions({

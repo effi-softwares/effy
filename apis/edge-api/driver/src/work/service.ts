@@ -3,6 +3,7 @@
 // Maps the new round/stop/package model into the 049 wire contract the app is already built against
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
+import { formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops } from "@effy/edge-shared";
 
 import { dropStatusOf } from "./drop-status";
@@ -58,12 +59,22 @@ function ordered(stops: StopRow[]): StopRow[] {
     id: s.stop_id,
     seq: s.seq,
     status: s.stop_status,
-    dueAt: null,
+    // 069 — a drop is due when its window opens, so earlier windows come first (FR-031). ⚠ The rule
+    // that USES this is still the shared one; this only stops handing it null. Until 069 no stop had
+    // a time to be ordered by, because no window was ever sold.
+    dueAt: s.window_start,
     zoneId: s.zone_id,
     shopId: s.shop_id,
     row: s,
   }));
   return orderRoundStops(keyed).map((k) => k.row);
+}
+
+/** A drop's window, as the label the list shows and the instants the app judges Due and Late by. */
+function windowOf(s: StopRow): { window: string | null; deliveryWindow: DeliveryWindow | null } {
+  if (!s.window_start || !s.window_end) return { window: null, deliveryWindow: null };
+  const deliveryWindow = { startAt: s.window_start.toISOString(), endAt: s.window_end.toISOString() };
+  return { window: formatDeliveryWindow(deliveryWindow), deliveryWindow };
 }
 
 function packagesByStop(rows: PackageRow[]): Map<string, PackageRow[]> {
@@ -244,10 +255,11 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         orderRef: pkgs[0]?.order_number ?? "",
         customerSuburb: s.destination_suburb ?? "",
         packageCount: pkgs.length,
-        // ⚠ null, always. The platform's delivery promise is DATE-granular (052 R4) — there is no
-        // time window and none can be derived, and inventing one would put a promise on the one
-        // screen a driver reads as instructions.
-        window: null,
+        // 069 — the window the CUSTOMER WAS SOLD, read from the order, never derived. ⚠ This read
+        // `window: null` from 049 until 069, under a comment saying there was no window and that
+        // inventing one would put a promise on the one screen a driver reads as instructions. That
+        // was right, and still is: an order placed before 069 has none and still says nothing.
+        ...windowOf(s),
         // ⚠ The contract's vocabulary, not the model's. A drop that has not been started is
         // `staged` here — there is no "assigned", because to a driver a package sitting at the hub
         // is staged, not allocated. Mapping the model's word through would have typechecked only

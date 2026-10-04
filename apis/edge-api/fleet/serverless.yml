@@ -223,6 +223,88 @@ functions:
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   # ── 061 — the vehicle register. A vehicle is Effy property, not a driver's attribute. ───────────
+  # ── 069-delivery-slots-dates: same-day slots and the standard-delivery calendar ──────────────────
+  # ⚠ HERE, NOT IN edge-admin, although the screens are tabs in the Delivery console: that stack is at
+  # CloudFormation's resource ceiling (see the header of this file). Slots are delivery CAPACITY, and
+  # the planner that must respect them lives in this service. Measured before adding: 171 of 500.
+  # ⚠ There is no DELETE route for a slot. A booking references it; it is switched off, never removed.
+  deliverySlotsListV1:
+    handler: src/functions/delivery-slots-v1-get.handler
+    description: Same-day delivery slots with today's load (069 US5). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/delivery-slots
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliverySlotCreateV1:
+    handler: src/functions/delivery-slot-create-v1-post.handler
+    description: Add a same-day delivery slot (069 FR-036). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/delivery-slots
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliverySlotUpdateV1:
+    handler: src/functions/delivery-slot-update-v1-patch.handler
+    description: Change or switch off a same-day delivery slot (069 FR-036). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /fleet/v1/delivery-slots/{slotId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDaysGetV1:
+    handler: src/functions/delivery-days-v1-get.handler
+    description: The standard-delivery calendar settings and closed dates (069 US6). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/delivery-days
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDaysPutV1:
+    handler: src/functions/delivery-days-v1-put.handler
+    description: Save the standard-delivery calendar settings (069 FR-041/042). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: PUT
+          path: /fleet/v1/delivery-days
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDaysDateAddV1:
+    handler: src/functions/delivery-days-date-add-v1-post.handler
+    description: Close one date to standard delivery (069 FR-042/043). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/delivery-days/dates
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDaysDateRemoveV1:
+    handler: src/functions/delivery-days-date-remove-v1-delete.handler
+    description: Reopen a date for standard delivery (069 FR-042). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /fleet/v1/delivery-days/dates/{day}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   vehiclesListV1:
     handler: src/functions/vehicles-list-v1-get.handler
     description: The vehicle register — what Effy runs and what is roadworthy (061 FR-001/FR-009). Read = any active staff.

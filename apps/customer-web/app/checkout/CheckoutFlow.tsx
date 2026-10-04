@@ -22,6 +22,14 @@ import {
 } from "@/lib/delivery-instructions"
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
+import {
+  carryDay,
+  carrySlot,
+  feesFor,
+  needs,
+  shapeOf,
+  type DeliveryMethodChoice,
+} from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
 import { getStripe, paymentElementsOptions } from "@/lib/stripe"
 import { capture } from "@/lib/telemetry"
@@ -29,6 +37,7 @@ import { capture } from "@/lib/telemetry"
 import { AddressPicker } from "./AddressPicker"
 import { BillingSection } from "./BillingSection"
 import { DeliveryInstructions } from "./DeliveryInstructions"
+import { DeliveryOptions } from "./DeliveryOptions"
 import { PaymentStep } from "./PaymentStep"
 
 type Step = "review" | "paying"
@@ -89,10 +98,16 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // address changes (FR-004/033/036).
   const [quote, setQuote] = useState<DeliveryQuoteDTO | null>(null)
   const [quoting, setQuoting] = useState(false)
-  // 047 US2: the shopper's delivery-method choice. Same-day is offered only when EVERY package can do it
-  // (single-shop is the common case); a mixed basket falls back to standard here rather than surface
-  // hidden fulfilment. The server applies the preference per package and prices it (FR-044).
-  const [method, setMethod] = useState<"standard" | "same_day">("standard")
+  // 047 US2: the shopper's delivery-method choice. The server applies the preference per package and
+  // prices it (FR-044).
+  const [method, setMethod] = useState<DeliveryMethodChoice>("standard")
+  // 069: WHEN. A same-day slot is never selected for the shopper (FR-006); a standard day defaults to
+  // the earliest on offer (FR-015). Both are held here so they survive the move to the payment step
+  // and a failed payment (FR-007), and are carried across a re-quote only while still on offer.
+  const [slotId, setSlotId] = useState<string | null>(null)
+  const [standardDate, setStandardDate] = useState<string | null>(null)
+  // Bumped to ask for a fresh quote for the SAME address — after a refused slot or day.
+  const [quoteEpoch, setQuoteEpoch] = useState(0)
 
   useEffect(() => {
     if (!selectedId) {
@@ -118,35 +133,28 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     return () => {
       cancelled = true
     }
-  }, [selectedId])
+  }, [selectedId, quoteEpoch])
 
-  // Same-day is offerable only when the quote gives EVERY package a same_day option (so the customer,
-  // who never sees packages, is offered one honest order-level choice). Otherwise standard only.
-  const sameDayOfferable = useMemo(
-    () =>
-      quote?.serviced === true &&
-      quote.packages.length > 0 &&
-      quote.packages.every((pkg) => pkg.options.some((o) => o.method === "same_day")),
-    [quote],
-  )
+  // 069: what this quote lets the shopper choose. Same-day is offered when ANY delivery can go today
+  // and a slot is open — a basket with one excepted shop is a mixed order, and says so (research R7).
+  const shape = useMemo(() => shapeOf(quote), [quote])
+  const sameDayOfferable = shape.sameDayOffered
+  const need = needs(shape, method)
 
-  // Reset the choice to standard whenever a new quote arrives (a new address may not offer same-day).
+  // A new quote (a new address, or a re-quote after a refusal) keeps a choice only while it is still
+  // on offer. ⚠ A slot that has gone is NOT replaced by another: nothing is selected, and the shopper
+  // chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe the choice.
   useEffect(() => {
+    if (!quote) return
     if (!sameDayOfferable) setMethod("standard")
-  }, [sameDayOfferable])
+    setSlotId((prev) => carrySlot(quote, prev))
+    setStandardDate((prev) => carryDay(quote, prev))
+  }, [quote, sameDayOfferable])
 
   // The delivery fee is the sum of each package's option for the chosen method (falling back to standard
   // per package). GST-inclusive, already snapped up by the server. Distance / shop identity never appear
-  // here (FR-018/033).
-  const deliveryCents = useMemo(() => {
-    if (!quote?.serviced) return 0
-    return quote.packages.reduce((sum, pkg) => {
-      const chosen = pkg.options.find((o) => o.method === method)
-      const std = pkg.options.find((o) => o.method === "standard") ?? pkg.options[0]
-      const opt = chosen ?? std
-      return sum + (opt ? parseCents(opt.feeAmount) : 0)
-    }, 0)
-  }, [quote, method])
+  // here (FR-018/033). ⚠ It does not depend on the slot or the day (069 FR-021).
+  const deliveryCents = useMemo(() => feesFor(quote, method).totalCents, [quote, method])
 
   const serviced = quote?.serviced === true
   const totalCents = parseCents(estimate.itemSubtotal) + deliveryCents
@@ -214,8 +222,16 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
   // Pay is blocked until shipping is set (FR-007) and, when billing diverges, a billing address is
   // chosen (FR-012). Enforced at the review → delivery gate, before any payment.
+  //
+  // 069: and until a delivery time is chosen where one is needed. ⚠ The server refuses a same-day
+  // order with no slot whatever this says (`slot_required`); this only keeps the button honest.
   const canContinue =
-    !!selectedId && (billingSameAsShipping || !!billingId) && guestLines.length > 0 && serviced
+    !!selectedId &&
+    (billingSameAsShipping || !!billingId) &&
+    guestLines.length > 0 &&
+    serviced &&
+    (!need.slot || !!slotId) &&
+    (!need.day || !!standardDate)
 
   /**
    * Place the order.
@@ -225,14 +241,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
    * destination zone + package weights (SC-004); the grand total it returns already includes it. A
    * not-serviceable address is refused server-side (ErrNotServiceable) and blocked here (canContinue).
    */
-  async function placeOrder() {
+  async function placeOrder(): Promise<boolean> {
     if (!selectedId) {
       setError("Choose a delivery address.")
-      return
+      return false
     }
     if (!billingSameAsShipping && !billingId) {
       setError("Choose a billing address.")
-      return
+      return false
     }
     setBusy(true)
     setError(null)
@@ -247,6 +263,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (method === "same_day" && sameDayOfferable) {
         body.deliveryMethod = "same_day"
       }
+      // 069 — the slot and the day the shopper chose. The server holds a place in the slot when it
+      // accepts this, and refuses (409 + `code`) if either is no longer on offer.
+      if (need.slot && slotId) body.sameDaySlotId = slotId
+      if (need.day && standardDate) body.standardDate = standardDate
       // 066 — sent on EVERY placement, including as null: a shopper who cleared the note and pays
       // must not have an earlier attempt's draft delivered with the order.
       const deliveryInstructions = draftToRequest(instructions)
@@ -259,10 +279,44 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
       const data = (await res.json().catch(() => ({}))) as Partial<CreateCheckoutIntentResponse> & {
         error?: string
+        code?: string
+      }
+      // 069 — the slot or the day could not be honoured. Nothing has been charged and no payment
+      // exists. ⚠ The choice is NOT replaced: the shopper is brought back to the options, told
+      // plainly, and shown what is on offer now (FR-009, FR-010).
+      const refusal = res.status === 409 ? deliveryRefusal(data.code) : null
+      if (refusal) {
+        capture({ name: "checkout_delivery_choice_refused", props: { reason: refusal.reason } })
+        if (refusal.reason !== "date_unavailable") setSlotId(null)
+        setIntent(null)
+        setStep("review")
+        setError(refusal.message)
+        setQuoteEpoch((n) => n + 1)
+        return false
       }
       if (!res.ok || !data.clientSecret) {
         setError(data.error ?? "We couldn’t start payment. Please try again.")
-        return
+        return false
+      }
+      if (need.slot && slotId && quote) {
+        const slots = quote.sameDaySlots ?? []
+        const index = slots.findIndex((s) => s.slotId === slotId)
+        if (index >= 0) {
+          capture({
+            name: "checkout_delivery_slot_selected",
+            props: {
+              slotsOffered: slots.length,
+              position: index + 1,
+              hoursAhead: Math.max(0, Math.round((Date.parse(slots[index]!.startAt) - Date.now()) / 3_600_000)),
+            },
+          })
+        }
+      }
+      if (need.day && standardDate && quote) {
+        const index = (quote.standardDays ?? []).findIndex((d) => d.date === standardDate)
+        if (index >= 0) {
+          capture({ name: "checkout_delivery_date_selected", props: { daysAhead: index, wasDefault: index === 0 } })
+        }
       }
       capture({
         name: "checkout_delivery_instructions_set",
@@ -286,6 +340,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       }
       setIntent(data as CreateCheckoutIntentResponse)
       setStep("paying")
+      return true
     } finally {
       setBusy(false)
     }
@@ -297,7 +352,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     // along with `PaymentForm`; the amount now lives in the step's own pay rail.
     return (
       <Elements stripe={getStripe()} options={paymentElementsOptions(intent.clientSecret)}>
-        <PaymentStep intent={intent} onBack={() => setStep("review")} />
+        {/* 069: `renewHold` re-runs the intent when the same-day place has lapsed. The server either
+            holds it again (same order, same payment) or refuses — and a refusal returns here. */}
+        <PaymentStep intent={intent} onBack={() => setStep("review")} renewHold={placeOrder} />
       </Elements>
     )
   }
@@ -342,6 +399,20 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             </div>
           )}
         </section>
+
+        {quote?.serviced && (
+          <DeliveryOptions
+            quote={quote}
+            method={method}
+            onMethodChange={setMethod}
+            slotId={slotId}
+            onSlotChange={setSlotId}
+            standardDate={standardDate}
+            onStandardDateChange={setStandardDate}
+            currency={currency}
+            disabled={busy}
+          />
+        )}
 
         <BillingSection
           sameAsShipping={billingSameAsShipping}
@@ -428,56 +499,29 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           <dt className="text-muted-foreground">Items</dt>
           <dd className="font-bold">{formatMoney(estimate.itemSubtotal, currency)}</dd>
         </div>
-        {/* 047 US2: when same-day is available for the whole order, the shopper chooses their speed. The
-            fee updates live; the server re-prices and never trusts a client fee. */}
-        {serviced && sameDayOfferable ? (
-          <fieldset className="space-y-2">
-            <legend className="mb-1 text-muted-foreground">Delivery speed</legend>
-            {(["standard", "same_day"] as const).map((m) => (
-              <label key={m} className="flex cursor-pointer items-center justify-between gap-3 text-sm">
-                <span className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="delivery-method"
-                    value={m}
-                    checked={method === m}
-                    onChange={() => setMethod(m)}
-                  />
-                  {m === "same_day" ? "Same-day delivery" : "Standard delivery"}
+        {/* 069: the choice itself lives in the Delivery section; the summary states what was chosen
+            and what it costs. The fee updates live; the server re-prices and never trusts a client fee. */}
+        <div>
+          <div className="flex items-center justify-between">
+            <dt className="text-muted-foreground">Delivery</dt>
+            <dd className="text-sm">
+              {!selectedId ? (
+                <span className="text-muted-foreground">Select an address</span>
+              ) : quoting ? (
+                <span className="text-muted-foreground">Calculating…</span>
+              ) : quote && !serviced ? (
+                <span className="text-destructive">Not available</span>
+              ) : serviced ? (
+                <span className="font-medium">
+                  {method === "same_day" && sameDayOfferable ? "Same-day" : "Standard"} ·{" "}
+                  {formatMoney(formatCents(deliveryCents), currency)}
                 </span>
-                <span className="font-medium">{formatMoney(formatCents(methodTotalCents(quote, m)), currency)}</span>
-              </label>
-            ))}
-          </fieldset>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Delivery</dt>
-              <dd className="text-sm">
-                {!selectedId ? (
-                  <span className="text-muted-foreground">Select an address</span>
-                ) : quoting ? (
-                  <span className="text-muted-foreground">Calculating…</span>
-                ) : quote && !serviced ? (
-                  <span className="text-destructive">Not available</span>
-                ) : serviced ? (
-                  <span className="font-medium">
-                    Standard · {formatMoney(formatCents(deliveryCents), currency)}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </dd>
-            </div>
-            {/* 047: when the order is serviced but same-day isn't offered, say so — a shopper should know
-                same-day was considered, not silently omitted. */}
-            {serviced && !sameDayOfferable ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Same-day delivery isn’t available for this address.
-              </p>
-            ) : null}
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </dd>
           </div>
-        )}
+        </div>
         <div className="border-t pt-4">
           <div className="flex items-center justify-between">
             <dt className="text-lg">Total</dt>
@@ -506,13 +550,18 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   )
 }
 
-// methodTotalCents sums a quote's per-package fee for one method (falling back to standard per package).
-function methodTotalCents(quote: DeliveryQuoteDTO | null, method: "standard" | "same_day"): number {
-  if (!quote?.serviced) return 0
-  return quote.packages.reduce((sum, pkg) => {
-    const chosen = pkg.options.find((o) => o.method === method)
-    const std = pkg.options.find((o) => o.method === "standard") ?? pkg.options[0]
-    const opt = chosen ?? std
-    return sum + (opt ? parseCents(opt.feeAmount) : 0)
-  }, 0)
+/** The three reasons the server refuses a checkout over the delivery choice (069), in our own words. */
+function deliveryRefusal(
+  code: string | undefined,
+): { reason: "slot_unavailable" | "date_unavailable" | "slot_required"; message: string } | null {
+  switch (code) {
+    case "slot_unavailable":
+      return { reason: code, message: "That delivery time is no longer available. Please choose another." }
+    case "slot_required":
+      return { reason: code, message: "Choose a delivery time to continue." }
+    case "date_unavailable":
+      return { reason: code, message: "That delivery day is no longer available. Please choose another." }
+    default:
+      return null
+  }
 }

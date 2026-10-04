@@ -114,7 +114,7 @@
     },
     "ArrivalEstimateDTO": {
       "additionalProperties": false,
-      "description": "052 — when one package is expected to ARRIVE, as the customer was shown at checkout.\n\n⚠ NOT `DeliveryPromiseDTO`, which already exists in `shop-order.ts` and is a DIFFERENT FACT FOR A DIFFERENT AUDIENCE: that one carries `readyBy`, the time this shop must have the package ready at the fulfilment node. Research R4 records that the ready-by must never reach the customer — it means something else, and it is fulfilment structure (FR-009). The names are kept apart deliberately so the two can never be swapped by autocomplete.\n\n⚠ DATES, NOT TIMES. `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd) because the underlying `order_package_delivery.promised_from`/`.promised_to` are `date` columns — the platform has no delivery time window and cannot derive one. A client MUST NOT render a time here.",
+      "description": "052 — when one package is expected to ARRIVE, as the customer was shown at checkout.\n\n⚠ NOT `DeliveryPromiseDTO`, which already exists in `shop-order.ts` and is a DIFFERENT FACT FOR A DIFFERENT AUDIENCE: that one carries `readyBy`, the time this shop must have the package ready at the fulfilment node. Research R4 records that the ready-by must never reach the customer — it means something else, and it is fulfilment structure (FR-009). The names are kept apart deliberately so the two can never be swapped by autocomplete.\n\n`promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd): the delivery DAY. From 069 they are equal — today for same-day, the customer's chosen day for standard. ⚠ Both are null on every order placed before 069, which never recorded a day at all; a client then says the date will be confirmed and MUST NOT invent one.\n\n`windowStart`/`windowEnd` are the same-day time window the customer was sold (069). Null for standard deliveries and for every earlier order. Render all four through `formatArrival`.",
       "properties": {
         "method": {
           "description": "The method the customer chose for this package.",
@@ -136,12 +136,27 @@
             "string",
             "null"
           ]
+        },
+        "windowEnd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "windowStart": {
+          "description": "ISO datetimes with the Australia/Melbourne offset, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "method",
         "promisedFrom",
-        "promisedTo"
+        "promisedTo",
+        "windowStart",
+        "windowEnd"
       ],
       "type": "object"
     },
@@ -833,6 +848,20 @@
             "null"
           ]
         },
+        "sameDaySlotId": {
+          "description": "069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED when any package will go same-day; the intent is refused with `slot_required` without it and with `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for this order when it accepts the slot — see `slotHeldUntil` on the response.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "standardDate": {
+          "description": "069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the earliest available day, which is also what the UI preselects. Refused with `date_unavailable` if it is not among the days currently offered.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "wantsProviderMethodList": {
           "description": "051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile in-app element) and therefore needs a customer session. Web renders Effy's own list and leaves this unset.\n\n⚠ Asking is not authorization to get someone else's: the session is always minted for the AUTHENTICATED subject, so the worst a hostile client achieves is a session for itself.\n\n⚠ There is deliberately NO `billingDetails` on this request. Billing details are DERIVED from the order's own snapshot; accepting them here would let a client contradict the address it confirmed one screen earlier (contract § 1, FR-016).",
           "type": "boolean"
@@ -893,6 +922,13 @@
         },
         "publishableKey": {
           "type": "string"
+        },
+        "slotHeldUntil": {
+          "description": "069 — until when the customer's place in their same-day slot is held. Absent when no package is same-day. ⚠ A client MUST call intent again before confirming payment once this has passed: the place may have gone, and the intent call is the last moment the server can say so before the customer is charged.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -964,6 +1000,39 @@
         "amount",
         "state",
         "refundedAt"
+      ],
+      "type": "object"
+    },
+    "DeliveryChoiceRefusalCode": {
+      "description": "069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a 409 problem, with a fresh `quote` so the client can re-offer without a second request.\n\n⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses again.",
+      "enum": [
+        "slot_required",
+        "slot_unavailable",
+        "date_unavailable"
+      ],
+      "type": "string"
+    },
+    "DeliveryChoiceRefusalDTO": {
+      "additionalProperties": false,
+      "description": "The body of a delivery-choice refusal.",
+      "properties": {
+        "code": {
+          "$ref": "#/definitions/DeliveryChoiceRefusalCode"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeliveryQuoteDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The options as they stand NOW. Absent on `slot_required` from a client that sent no slot."
+        }
+      },
+      "required": [
+        "code"
       ],
       "type": "object"
     },
@@ -1070,13 +1139,39 @@
           "type": "string"
         },
         "sameDayAvailableUntil": {
+          "description": "ISO datetime with the Australia/Melbourne offset, or null. ⚠ Kept for clients built before 069; it now carries the latest OPEN SLOT's cutoff. New clients read `sameDaySlots`.",
           "type": [
             "string",
             "null"
           ]
         },
+        "sameDaySlots": {
+          "description": "069 — the same-day time slots still open for THIS order, earliest first. Empty when there are none, and then no package carries a `same_day` option. A slot is offered only if it is open for every package that would go same-day, so one choice covers the order (FR-005).",
+          "items": {
+            "$ref": "#/definitions/DeliverySlotOptionDTO"
+          },
+          "type": "array"
+        },
+        "sameDayUnavailableReason": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SameDayUnavailableReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "069 — why same-day is not offered, when it is not (FR-004). The two are different sentences to a customer: \"not in your area\" will still be true tomorrow; \"today's times are taken\" will not."
+        },
         "serviced": {
           "type": "boolean"
+        },
+        "standardDays": {
+          "description": "069 — the days a standard delivery can arrive, earliest first. The first is the default. ⚠ Never empty when `serviced` (FR-020).",
+          "items": {
+            "$ref": "#/definitions/StandardDayOptionDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1084,7 +1179,43 @@
         "serviced",
         "sameDayAvailableUntil",
         "packages",
-        "expiresAt"
+        "expiresAt",
+        "sameDaySlots",
+        "sameDayUnavailableReason",
+        "standardDays"
+      ],
+      "type": "object"
+    },
+    "DeliverySlotOptionDTO": {
+      "additionalProperties": false,
+      "description": "One open same-day delivery window (069).\n\n⚠ NO FEE: a slot has no price of its own — the fee is the same-day METHOD's, read from the package options (FR-021). ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's operational business, and \"2 left\" would be a pressure tactic nobody asked for (FR-050).",
+      "properties": {
+        "cutoffAt": {
+          "description": "After this the slot can no longer be chosen. Lets a client grey it out without a round trip.",
+          "type": "string"
+        },
+        "date": {
+          "description": "The delivery day, yyyy-mm-dd (Melbourne).",
+          "type": "string"
+        },
+        "endAt": {
+          "type": "string"
+        },
+        "slotId": {
+          "description": "Opaque. Sent back as `sameDaySlotId` on the intent request.",
+          "type": "string"
+        },
+        "startAt": {
+          "description": "ISO datetimes with the Australia/Melbourne offset.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slotId",
+        "date",
+        "startAt",
+        "endAt",
+        "cutoffAt"
       ],
       "type": "object"
     },
@@ -2022,6 +2153,14 @@
       ],
       "type": "object"
     },
+    "SameDayUnavailableReason": {
+      "description": "Why same-day is not on offer: the zone or shop does not do it, or every slot today is closed or full.",
+      "enum": [
+        "not_eligible",
+        "slots_closed"
+      ],
+      "type": "string"
+    },
     "SavedAddToCartRequest": {
       "additionalProperties": false,
       "properties": {
@@ -2362,6 +2501,20 @@
       "required": [
         "postcode",
         "serviced"
+      ],
+      "type": "object"
+    },
+    "StandardDayOptionDTO": {
+      "additionalProperties": false,
+      "description": "One day a standard delivery can arrive (069). The fee is the standard METHOD's, as above.",
+      "properties": {
+        "date": {
+          "description": "yyyy-mm-dd (Melbourne).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date"
       ],
       "type": "object"
     },
@@ -2759,6 +2912,9 @@
     "customerRefund": {
       "$ref": "#/definitions/CustomerRefundDTO"
     },
+    "deliveryChoiceRefusal": {
+      "$ref": "#/definitions/DeliveryChoiceRefusalDTO"
+    },
     "deliveryOption": {
       "$ref": "#/definitions/DeliveryOptionDTO"
     },
@@ -2956,6 +3112,7 @@
     "deliveryOption",
     "deliveryPackage",
     "deliveryQuote",
+    "deliveryChoiceRefusal",
     "paymentMethod",
     "listPaymentMethods",
     "billingDetails",

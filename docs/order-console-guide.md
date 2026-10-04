@@ -52,6 +52,30 @@ Once you know the package arrived, record it. This is the step that finishes the
 **An order is finished only when every one of its packages has arrived.** An order split across two
 shops stays open until both are in. The customer is told once, at the end, not once per package.
 
+### The day the customer chose (069)
+
+A customer now chooses **the day a standard delivery arrives**, and a **time window** for same-day.
+Each package row on an order shows what it was promised:
+
+- **Promised** — the day (and, for same-day, the window, in Melbourne time).
+- **Hand over by** — for a standard package not yet handed over: its day minus the carrier lead time.
+- **At risk of missing its day** — that day has passed and the package has not been handed over, or it
+  was handed over late.
+- **Arrived on time / Arrived late** — once it has arrived: inside its window for same-day, on or
+  before its day for standard.
+- **Slot over capacity** — a late payer was honoured in a full slot; see the delivery guide.
+
+An order placed **before this feature** was promised no day. Its row shows none of these — that is
+not missing data.
+
+**Orders → Carrier handover** lists every standard package still to be handed over, in three tabs:
+**Due today**, **Overdue** and **Upcoming**. "Not at the hub yet" means it is due out but a driver
+has not collected it from the shop. Every role can read the list; you record the handover on the
+order itself, as before.
+
+> ⚠ "Hand over by" rests on the **carrier lead time**, which is an estimate (Delivery → Delivery
+> days). If packages handed over on time keep arriving late, that number is wrong.
+
 ---
 
 ## Reading the list

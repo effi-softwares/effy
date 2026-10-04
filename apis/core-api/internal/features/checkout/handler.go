@@ -13,6 +13,7 @@ import (
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/customeridentity"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/deliveryinstructions"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
@@ -27,6 +28,10 @@ type createIntentRequest struct {
 	// 047: the order-level delivery preference ("same_day" or "standard", default standard). Applied per
 	// package where offered; the server prices it and never takes a fee from the client (FR-036/044).
 	DeliveryMethod string `json:"deliveryMethod"`
+	// 069: the same-day slot and the standard day the customer chose. Neither is ever substituted — an
+	// intent whose slot or day is no longer on offer is refused (409 + a fresh quote) and they re-choose.
+	SameDaySlotID string `json:"sameDaySlotId"`
+	StandardDate  string `json:"standardDate"`
 	// 066: what the customer tells the driver for this order. Kept RAW so the one rule in
 	// platform/deliveryinstructions decides what is valid — including "the note is not text" — and the
 	// binding layer cannot silently coerce or drop it.
@@ -58,6 +63,9 @@ type createIntentResponse struct {
 	CustomerID            string              `json:"customerId,omitempty"`
 	PayOverTimeAvailable  bool                `json:"payOverTimeAvailable"`
 	BillingDetails        *billingDetailsBody `json:"billingDetails,omitempty"`
+	// 069 — when the held same-day place lapses. Omitted when no package is same-day, which keeps the
+	// response for a standard order byte-identical to before.
+	SlotHeldUntil string `json:"slotHeldUntil,omitempty"`
 }
 
 // billingDetailsBody is what the client passes back at confirmation, because the payment step no longer
@@ -117,6 +125,33 @@ type deliveryQuoteDTO struct {
 	SameDayAvailableUntil *string           `json:"sameDayAvailableUntil"`
 	Packages              []quotePackageDTO `json:"packages"`
 	ExpiresAt             string            `json:"expiresAt"`
+	// 069. ⚠ Arrays, never null: a client iterates them without a guard.
+	SameDaySlots             []slotOptionDTO  `json:"sameDaySlots"`
+	SameDayUnavailableReason *string          `json:"sameDayUnavailableReason"`
+	StandardDays             []standardDayDTO `json:"standardDays"`
+}
+
+// slotOptionDTO mirrors @effy/shared-types DeliverySlotOptionDTO. ⚠ No capacity, no remaining count, no
+// fee: how full a slot is stays Effy's business, and the fee is the method's (FR-021, FR-050).
+type slotOptionDTO struct {
+	SlotID   string `json:"slotId"`
+	Date     string `json:"date"`
+	StartAt  string `json:"startAt"`
+	EndAt    string `json:"endAt"`
+	CutoffAt string `json:"cutoffAt"`
+}
+
+type standardDayDTO struct {
+	Date string `json:"date"`
+}
+
+// deliveryChoiceRefusal is the 409 body when the chosen slot or day cannot be honoured (069). It is an
+// RFC 9457 problem with two extension members: the `code` the client switches on, and the options as
+// they stand NOW so it can re-offer without a second request.
+type deliveryChoiceRefusal struct {
+	httpx.Problem
+	Code  string            `json:"code"`
+	Quote *deliveryQuoteDTO `json:"quote,omitempty"`
 }
 
 type confirmRequest struct {
@@ -152,11 +187,16 @@ func (h *Handler) createIntent(c *gin.Context) {
 			AddressID:               req.AddressID,
 			BillingAddressID:        req.BillingAddressID,
 			DeliveryMethod:          req.DeliveryMethod,
+			SameDaySlotID:           req.SameDaySlotID,
+			StandardDate:            req.StandardDate,
 			DeliveryInstructions:    instructions,
 			WantsProviderMethodList: req.WantsProviderMethodList,
 		}, time.Now())
 	if err != nil {
+		var choice *DeliveryChoiceError
 		switch {
+		case errors.As(err, &choice):
+			h.refuseDeliveryChoice(c, cust.ID, req.AddressID, choice)
 		case errors.Is(err, ErrEmptyCart):
 			httpx.ValidationFailed(c, "your cart has no items available to purchase")
 		case errors.Is(err, ErrAddressNotFound):
@@ -184,6 +224,7 @@ func (h *Handler) createIntent(c *gin.Context) {
 		CustomerSessionSecret: res.CustomerSessionSecret,
 		CustomerID:            res.ProviderCustomerID,
 		PayOverTimeAvailable:  res.PayOverTimeAvailable,
+		SlotHeldUntil:         melbourneStamp(res.SlotHeldUntil),
 		BillingDetails: &billingDetailsBody{
 			Name:  res.BillingDetails.Name,
 			Email: res.BillingDetails.Email,
@@ -297,12 +338,73 @@ func (h *Handler) quote(c *gin.Context) {
 		httpx.Internal(c)
 		return
 	}
-	out := deliveryQuoteDTO{Postcode: q.Postcode, Serviced: q.Serviced, Packages: []quotePackageDTO{}}
+	out := toQuoteDTO(q)
+	c.JSON(http.StatusOK, out)
+}
+
+// refuseDeliveryChoice answers a checkout whose slot or day cannot be honoured (069): 409, the code, and
+// a FRESH quote so the client re-offers what is actually available.
+//
+// ⚠ The fresh quote is best-effort. If it cannot be computed the refusal still goes out without it —
+// the customer must be told their choice was refused whether or not we can also say what is left.
+func (h *Handler) refuseDeliveryChoice(c *gin.Context, customerID, addressID string, choice *DeliveryChoiceError) {
+	detail := map[string]string{
+		ChoiceSlotRequired:    "choose a delivery time",
+		ChoiceSlotUnavailable: "that delivery time is no longer available — choose another",
+		ChoiceDateUnavailable: "that delivery day is no longer available — choose another",
+	}[choice.Code]
+
+	body := deliveryChoiceRefusal{
+		Problem: httpx.Problem{
+			Type: httpx.TypeConflict, Title: "Conflict", Status: http.StatusConflict, Detail: detail,
+			Instance: c.Request.URL.Path, RequestID: httpx.RequestID(c),
+		},
+		Code: choice.Code,
+	}
+	if q, err := h.svc.QuoteForCheckout(c.Request.Context(), customerID, addressID, time.Now()); err == nil {
+		dto := toQuoteDTO(q)
+		body.Quote = &dto
+	} else {
+		logger.FromContext(c.Request.Context()).Warn("checkout: fresh quote for refusal failed", zap.Error(err))
+	}
+	c.Header("Content-Type", "application/problem+json")
+	c.AbortWithStatusJSON(http.StatusConflict, body)
+}
+
+// melbourneStamp renders an instant with the Australia/Melbourne offset, or "" for nil. Every delivery
+// time on the wire is a Melbourne time, wherever the customer's device is (FR-029).
+func melbourneStamp(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.In(delivery.MelbourneTZ).Format(time.RFC3339)
+}
+
+// toQuoteDTO maps the service quote to its wire shape — shared by the quote route and the refusal.
+func toQuoteDTO(q DeliveryQuote) deliveryQuoteDTO {
+	out := deliveryQuoteDTO{
+		Postcode: q.Postcode, Serviced: q.Serviced, Packages: []quotePackageDTO{},
+		SameDaySlots: []slotOptionDTO{}, StandardDays: []standardDayDTO{},
+	}
 	if q.Serviced {
 		out.ExpiresAt = q.ExpiresAt.Format(time.RFC3339)
 		if q.SameDayUntil != nil {
-			s := q.SameDayUntil.Format(time.RFC3339)
+			s := melbourneStamp(q.SameDayUntil)
 			out.SameDayAvailableUntil = &s
+		}
+		if q.SameDayUnavailable != "" {
+			reason := q.SameDayUnavailable
+			out.SameDayUnavailableReason = &reason
+		}
+		for _, s := range q.SameDaySlots {
+			start, end, cutoff := s.Start, s.End, s.Cutoff
+			out.SameDaySlots = append(out.SameDaySlots, slotOptionDTO{
+				SlotID: s.ID, Date: s.Date,
+				StartAt: melbourneStamp(&start), EndAt: melbourneStamp(&end), CutoffAt: melbourneStamp(&cutoff),
+			})
+		}
+		for _, d := range q.StandardDays {
+			out.StandardDays = append(out.StandardDays, standardDayDTO{Date: d})
 		}
 		for _, p := range q.Packages {
 			opts := make([]quoteOptionDTO, 0, len(p.Options))
@@ -312,7 +414,7 @@ func (h *Handler) quote(c *gin.Context) {
 			out.Packages = append(out.Packages, quotePackageDTO{ShopRef: p.ShopRef, Options: opts})
 		}
 	}
-	c.JSON(http.StatusOK, out)
+	return out
 }
 
 // Register mounts the customer checkout routes (auth+identity) and the public signature-verified webhook.

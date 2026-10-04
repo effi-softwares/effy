@@ -56,12 +56,15 @@ type paymentMethodDTO struct {
 
 // 052 — one package's expected arrival (FR-007).
 //
-// ⚠ NO SHOP REFERENCE, and DATES not times. The underlying columns are `date`; the platform has no
-// delivery time window and must not appear to promise one (research R4).
+// ⚠ NO SHOP REFERENCE. promisedFrom/To are the delivery DAY; windowStart/End are the same-day time
+// window the customer was sold (069) and are null for standard deliveries and every earlier order —
+// a client must not render a time it was not given.
 type arrivalEstimateDTO struct {
 	Method       string  `json:"method"`
 	PromisedFrom *string `json:"promisedFrom"`
 	PromisedTo   *string `json:"promisedTo"`
+	WindowStart  *string `json:"windowStart"`
+	WindowEnd    *string `json:"windowEnd"`
 }
 
 // A shortfall the customer is being told about — product name and quantity only, NO shop (FR-018c).
@@ -200,6 +203,7 @@ func (h *Handler) get(c *gin.Context) {
 	for _, a := range order.ArrivalEstimates {
 		arrivals = append(arrivals, arrivalEstimateDTO{
 			Method: a.Method, PromisedFrom: a.PromisedFrom, PromisedTo: a.PromisedTo,
+			WindowStart: a.WindowStart, WindowEnd: a.WindowEnd,
 		})
 	}
 	var method *paymentMethodDTO

@@ -1,0 +1,75 @@
+# Alerting rules for 069-delivery-slots-dates.
+#
+# ⚠ NOT LOADED BY ANYTHING. See ../README.md — the Prometheus/Grafana stack these are written for does
+# not exist: no module, no scrape config, and nothing reads core-api's `/metrics`. These are
+# specifications, not live alerts, and this slice inherits that gap rather than introducing it (the
+# same position as 054 and 055).
+#
+# ⚠ UNTIL THE STACK EXISTS, A SLOT TAKEN OVER ITS CAPACITY PAGES NOBODY. It is visible in two places a
+# person has to look at: back-office › Delivery › Time slots shows "N over capacity" on the slot's
+# row, and the order's package row says "Slot over capacity". The query that finds every one:
+#
+#   SELECT slot_id, delivery_date, order_id FROM public.delivery_slot_booking WHERE over_capacity;
+#
+# Metrics referenced here are declared in apis/core-api/internal/platform/metrics/metrics.go and
+# emitted from the checkout intent and finalize paths.
+groups:
+  - name: delivery-slots
+    rules:
+      # ⚠ THE ONE THAT MATTERS. A customer paid AFTER their hold on a same-day slot had lapsed, and
+      # the slot had since filled. The order was honoured in the slot they chose — the platform
+      # never moves or refunds it (FR-009b, FR-010) — so tonight's round in that window is one
+      # delivery over what dispatch planned for. Someone has to decide whether a driver can absorb
+      # it, and they need to know before the window opens, not after.
+      #
+      # Pages on a single occurrence. Unlike an oversell (054), this is not an accepted residual:
+      # both clients re-run the intent before confirming payment once the hold has lapsed, so one
+      # of these means a client skipped that check or a payment took minutes to settle.
+      - alert: DeliverySlotOverCapacity
+        expr: sum(increase(effy_delivery_slot_bookings_total{outcome="over_capacity"}[15m])) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: "A same-day delivery slot has been booked over its capacity"
+          description: >-
+            A late payer was honoured in a slot that had already filled. Open back-office ›
+            Delivery › Time slots to see which window, and decide whether tonight's round can carry
+            the extra drop. The order is paid and keeps its window; nothing was moved or refunded.
+
+      # Customers being bounced at the payment step because the slot they chose filled while they
+      # were checking out. Some of this is the feature working — capacity is finite. A HIGH share
+      # means the slots are too small for demand, or the hold is too short for people to pay in.
+      - alert: DeliverySlotRefusalRate
+        expr: |
+          sum(rate(effy_delivery_slot_bookings_total{outcome=~"refused_.*"}[1h]))
+            /
+          clamp_min(sum(rate(effy_delivery_slot_bookings_total{outcome=~"held|refused_.*"}[1h])), 0.0001)
+            > 0.25
+        for: 1h
+        labels:
+          severity: ticket
+        annotations:
+          summary: "More than a quarter of same-day checkouts are losing their slot"
+          description: >-
+            Shoppers are choosing a delivery time and being told it has gone when they continue to
+            payment. Look at which slots are full by mid-afternoon and whether capacity matches the
+            evening's drivers (back-office › Delivery › Time slots).
+
+      # ⚠ NOT A FAULT ALERT. The opposite: same-day stopped being sold while orders keep flowing,
+      # which is what it looks like when every slot has been switched off or the collection
+      # schedule no longer serves any of them. From 069 same-day NEEDS an open slot, so this is the
+      # closest a metric gets to "did someone turn same-day off without meaning to".
+      - alert: DeliverySlotsSilent
+        expr: |
+          sum(increase(effy_delivery_slot_bookings_total{outcome="held"}[24h])) == 0
+            and
+          sum(increase(delivery_quotes_total{outcome!="unserviced"}[24h])) > 50
+        for: 2h
+        labels:
+          severity: ticket
+        annotations:
+          summary: "No same-day slot has been booked in a day while checkouts continue"
+          description: >-
+            Either no slot is active, every slot's cutoff precedes the day's orders, or no
+            collection run reaches the hub before any slot starts. Check back-office › Delivery ›
+            Time slots (a banner says when none is active) and the collection schedule.

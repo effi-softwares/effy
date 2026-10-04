@@ -400,6 +400,9 @@ importers:
       '@effy/email-kit':
         specifier: workspace:*
         version: link:../../../packages/email-kit
+      '@effy/shared-types':
+        specifier: workspace:*
+        version: link:../../../packages/shared-types
       firebase-admin:
         specifier: 13.6.0
         version: 13.6.0(@firebase/app-compat@0.5.18)(@firebase/app@0.16.2)

@@ -49,6 +49,19 @@ export interface CreateCheckoutIntentRequest {
    */
   deliveryMethod?: string | null;
   /**
+   * 069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED when any
+   * package will go same-day; the intent is refused with `slot_required` without it and with
+   * `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for this order when it
+   * accepts the slot — see `slotHeldUntil` on the response.
+   */
+  sameDaySlotId?: string | null;
+  /**
+   * 069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the earliest
+   * available day, which is also what the UI preselects. Refused with `date_unavailable` if it is
+   * not among the days currently offered.
+   */
+  standardDate?: string | null;
+  /**
    * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile in-app element)
    * and therefore needs a customer session. Web renders Effy's own list and leaves this unset.
    *
@@ -70,6 +83,13 @@ export interface CreateCheckoutIntentResponse {
   publishableKey: string;
   grandTotalAmount: string;
   currency: string;
+  /**
+   * 069 — until when the customer's place in their same-day slot is held. Absent when no package is
+   * same-day. ⚠ A client MUST call intent again before confirming payment once this has passed: the
+   * place may have gone, and the intent call is the last moment the server can say so before the
+   * customer is charged.
+   */
+  slotHeldUntil?: string | null;
   /**
    * 051 — authorizes a provider-owned payment-method list for THIS shopper only.
    *

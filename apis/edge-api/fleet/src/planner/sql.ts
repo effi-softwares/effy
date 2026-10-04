@@ -97,6 +97,11 @@ export const GATHER_DELIVERY = `
          z.id                        AS zone_id,
          z.name                      AS zone_name,
          hc.checked_in_at            AS ready_since,
+         -- 069 — the window the customer was sold. NULL for an order placed before 069. ⚠ Read as
+         -- stored INSTANTS: checkout turned the slot's wall-clock times into these once, and nothing
+         -- here rebuilds one (research R5) — which is why this needed no Go↔TypeScript duplicate.
+         opd.window_start            AS window_start,
+         opd.window_end              AS window_end,
          COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint        AS item_count,
          bool_or(ad.key = 'storage' AND pav.value_text = 'chilled') AS requires_chilled,
@@ -108,6 +113,7 @@ export const GATHER_DELIVERY = `
     JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
     JOIN public."order"        o  ON o.id = sf.order_id
     JOIN public.shop           s  ON s.id = sf.shop_id
+    LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
     LEFT JOIN public.product_attribute_value pav ON pav.product_id = p.id
@@ -122,7 +128,7 @@ export const GATHER_DELIVERY = `
             WHERE open_rp.shop_fulfillment_id = sf.id AND open_rp.state = 'assigned'
          )
    GROUP BY sf.id, o.order_number, sf.shop_id, s.name, o.id, o.delivery_address,
-            z.id, z.name, hc.checked_in_at
+            z.id, z.name, hc.checked_in_at, opd.window_start, opd.window_end
    ORDER BY hc.checked_in_at ASC
 `;
 

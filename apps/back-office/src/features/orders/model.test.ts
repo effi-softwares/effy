@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { OrderPackage } from "./model";
-import { nextActionFor, packagePositionFor } from "./model";
+import { nextActionFor, packagePositionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor } from "./model";
 
 const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   fulfillmentId: "f1",
@@ -13,6 +13,12 @@ const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   deliveryMethod: "standard",
   handoff: null,
   arrival: null,
+  promisedDate: null,
+  window: null,
+  overCapacity: false,
+  handoverDueOn: null,
+  atRisk: false,
+  onTime: null,
   ...over,
 });
 
@@ -87,5 +93,41 @@ describe("packagePositionFor — what the operator reads", () => {
 
   it("says Arrived once it has", () => {
     expect(packagePositionFor(pkg({ handoff: handoff(), arrival: arrival() }))).toBe("Arrived");
+  });
+});
+
+describe("069 — what a package was promised", () => {
+  it("says a standard package's day, and a same-day package's day and window", () => {
+    expect(promiseTextFor(pkg({ promisedDate: "2026-10-13" }))).toBe("Tue 13 Oct");
+    expect(
+      promiseTextFor(
+        pkg({
+          deliveryMethod: "same_day",
+          promisedDate: "2026-10-08",
+          window: { startAt: "2026-10-08T17:00:00+11:00", endAt: "2026-10-08T19:00:00+11:00" },
+        }),
+      ),
+    ).toBe("Thu 8 Oct, 5 pm – 7 pm");
+  });
+
+  it("⚠ says NOTHING for an order promised nothing — not a dash, not 'unknown'", () => {
+    expect(promiseTextFor(pkg())).toBeNull();
+    expect(promiseFlagsFor(pkg())).toEqual([]);
+  });
+
+  it("flags what staff should notice, and only that", () => {
+    expect(promiseFlagsFor(pkg({ promisedDate: "2026-10-13", atRisk: true }))).toEqual(["at_risk"]);
+    expect(promiseFlagsFor(pkg({ promisedDate: "2026-10-13", onTime: false }))).toEqual(["late"]);
+    expect(promiseFlagsFor(pkg({ promisedDate: "2026-10-13", onTime: true }))).toEqual(["on_time"]);
+    expect(promiseFlagsFor(pkg({ promisedDate: "2026-10-08", overCapacity: true }))).toEqual(["over_capacity"]);
+    // Not yet arrived: no verdict either way.
+    expect(promiseFlagsFor(pkg({ promisedDate: "2026-10-13", onTime: null }))).toEqual([]);
+  });
+
+  it("has wording for every flag, and never the raw key", () => {
+    for (const [key, label] of Object.entries(PROMISE_FLAG_LABEL)) {
+      expect(label, key).toBeTruthy();
+      expect(label).not.toMatch(/_/);
+    }
   });
 });

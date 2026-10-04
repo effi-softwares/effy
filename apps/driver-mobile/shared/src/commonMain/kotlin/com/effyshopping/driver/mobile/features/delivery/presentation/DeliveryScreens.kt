@@ -62,10 +62,11 @@ import com.effyshopping.driver.mobile.features.manifest.presentation.StaleNotice
 /**
  * The same-day round (060 US1, design screen `delivery-run`).
  *
- * \u26a0 The design shows a delivery WINDOW per drop ("12:30\u20131:00"). Omitted throughout: 052 R4
- * established the platform's delivery promise is **date-granular** \u2014 there is no time window and
- * none can be derived. A driver reading one would repeat it to a customer as a commitment Effy has
- * not made.
+ * \u26a0 The design shows a delivery WINDOW per drop, and from 069 so does this screen. It was omitted
+ * until then because the platform's promise was date-granular (052 R4) and a driver reading a window
+ * would have repeated it to a customer as a commitment Effy had not made. 069 SELLS a window at
+ * checkout, so each drop now shows the one the customer chose \u2014 read from the order, never derived \u2014
+ * and the drops arrive ordered earliest window first. A drop with no window still shows none.
  */
 @Composable
 fun DeliveryRunScreen(
@@ -169,6 +170,11 @@ private fun DropRow(drop: DropSummary, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // 069 \u2014 when the customer expects it, and whether that window is open or missed.
+            if (drop.window != null) {
+                Spacer(Modifier.height(4.dp))
+                WindowLine(drop.window, drop.status)
+            }
             // 065 \u2014 what the drop holds, without opening it: cold goods are loaded and handed over
             // differently, and the driver plans the round from this list.
             if (drop.summary.total > 0) {
@@ -333,6 +339,10 @@ private fun DropDetailBody(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (drop.window != null) {
+                Spacer(Modifier.height(10.dp))
+                WindowLine(drop.window, drop.status, style = MaterialTheme.typography.bodyLarge)
+            }
 
             drop.driverInstructions?.let {
                 Spacer(Modifier.height(18.dp))

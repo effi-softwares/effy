@@ -51,6 +51,9 @@ the union makes the compiler refuse any attempt to attach an address property.
 | `checkout_address_added` | — | A new address is added inline at checkout (shipping or billing) |
 | `checkout_billing_diverged` | — | Billing is set to an address different from shipping (toggle OFF) |
 | `checkout_delivery_instructions_set` | `{ handover, hasNote, fromSavedDefault }` | An order is placed with (or without) delivery instructions (066). `handover`: `leave_at_door` \| `meet_at_door` \| `none`. ⚠ NEVER the note, its length or the address — the note is customer-authored and may hold a gate code; the event's type admits one closed enum and two booleans. ⚠ Declared on customer-web and customer-mobile; emits nothing until PostHog is initialised on web and mobile telemetry is wired. |
+| `checkout_delivery_slot_selected` | `{ slotsOffered, position, hoursAhead }` | A same-day order is accepted with a chosen slot (069). All three are whole numbers; `position` is 1-based among the slots shown. ⚠ NEVER the slot's clock time, the address or an order id — a window joined to a session says when a household is home. ⚠ Emitted by customer-web's call site (no-op until PostHog is initialised); declared, not emitted, on customer-mobile. |
+| `checkout_delivery_date_selected` | `{ daysAhead, wasDefault }` | A standard order is accepted with a chosen day (069). `daysAhead` is the day's index in the list offered (0 = earliest); `wasDefault` is true when the shopper kept the preselected day. Same emission state as above. |
+| `checkout_delivery_choice_refused` | `{ reason }` | The server refused the checkout because the slot or day could not be honoured (069). `reason`: `slot_unavailable` \| `date_unavailable` \| `slot_required`. Nothing was charged. Same emission state as above. |
 
 > The shop/fulfilment boundary is a telemetry constraint too: the billing address never appears in any
 > shop-side log, metric, or event (FR-018 / SC-007).

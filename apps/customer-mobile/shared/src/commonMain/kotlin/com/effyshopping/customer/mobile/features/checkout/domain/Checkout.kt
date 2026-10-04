@@ -38,6 +38,13 @@ data class CheckoutIntent(
      * correct rather than silently charging against a guessed address.
      */
     val billingDetails: CheckoutBillingDetails? = null,
+    /**
+     * 069 — until when the order's same-day place is held (ISO instant), or null when nothing is
+     * same-day. ⚠ Once this has passed the place may have gone to someone else, and the payment
+     * screen must not confirm: the intent call is the last moment the server can refuse before the
+     * shopper is charged.
+     */
+    val slotHeldUntil: String? = null,
 )
 
 /** The billing details Effy attaches on the shopper's behalf (051 FR-016). */
@@ -117,8 +124,10 @@ data class PaymentMethodSummary(
 /**
  * 052 — when one package is expected to ARRIVE, as shown at checkout (FR-007).
  *
- * ⚠ DATES, NOT TIMES. The underlying columns are `date`; the platform has no delivery time window and
- * cannot derive one. Never render a time from this.
+ * [promisedFrom]/[promisedTo] are the delivery DAY (yyyy-mm-dd). [windowStart]/[windowEnd] are the
+ * same-day time window the customer was sold (069), as ISO instants — null for a standard delivery and
+ * for every order placed before 069. ⚠ A time is rendered ONLY from a window that is present; nothing
+ * is derived. Say it through [DeliveryWindowText.formatArrival].
  *
  * ⚠ It carries no shop reference of any kind (FR-009).
  */
@@ -126,6 +135,8 @@ data class ArrivalEstimate(
     val method: String,
     val promisedFrom: String?,
     val promisedTo: String?,
+    val windowStart: String? = null,
+    val windowEnd: String? = null,
 )
 
 /**
@@ -251,27 +262,82 @@ data class PlaceOrder(
      * that is this app's job — which is why editing an address later cannot change a placed order.
      */
     val deliveryInstructions: DeliveryInstructions? = null,
+    /**
+     * 069 — the same-day slot and the standard day the shopper chose. ⚠ Neither is ever substituted:
+     * the server refuses the order ([DeliveryChoiceRefused]) when one is no longer on offer, and the
+     * shopper chooses again. A null [standardDate] means the earliest day, which is what the UI
+     * preselects.
+     */
+    val sameDaySlotId: String? = null,
+    val standardDate: String? = null,
 )
 
 /** The two delivery methods (047). Same-day is always priced ≥ standard. */
 enum class DeliveryMethod { STANDARD, SAME_DAY }
 
+/** One open same-day delivery window (069). ⚠ No fee and no capacity: the fee is the method's. */
+data class DeliverySlot(
+    val id: String,
+    /** yyyy-mm-dd, Melbourne. */
+    val date: String,
+    val startAt: String,
+    val endAt: String,
+    /** After this the slot can no longer be chosen. */
+    val cutoffAt: String,
+)
+
+/** Why same-day is not on offer (069 FR-004) — two different sentences to a shopper. */
+enum class SameDayUnavailable { NotEligible, SlotsClosed }
+
 /**
- * The delivery quote for a chosen address (047 US1/US2), shown BEFORE payment. When [serviced] is false
- * there are no packages and one reason — we don't deliver there yet (FR-002). [sameDayAvailable] is true
- * only when EVERY package can do same-day, so the shopper — who never sees packages (hidden fulfilment) —
- * is offered one honest order-level choice. Fees are GST-inclusive, snapped-up 2-dp decimal strings.
+ * The delivery quote for a chosen address (047 US1/US2; 069), shown BEFORE payment. When [serviced] is
+ * false there are no packages and one reason — we don't deliver there yet (FR-002). Fees are
+ * GST-inclusive, snapped-up 2-dp decimal strings.
+ *
+ * ⚠ [sameDayAvailable] IS "ANY DELIVERY CAN GO TODAY AND A SLOT IS OPEN" (069 research R7). Until 069
+ * it meant EVERY package could, so a basket with one excepted shop could not be placed same-day at
+ * all. Such an order is now [mixed]: the shopper chooses one slot and one day, and is told how many
+ * deliveries arrive today — a fact about their experience that names no shop.
+ *
+ * ⚠ A slot and a day have no price of their own (FR-021). [sameDayPartAmount] and
+ * [standardPartAmount] are what the same-day and standard deliveries cost when same-day is chosen.
  */
 data class DeliveryQuote(
     val serviced: Boolean,
     val sameDayAvailable: Boolean,
     val standardTotalAmount: String,
     val sameDayTotalAmount: String?,
+    val slots: List<DeliverySlot> = emptyList(),
+    /** yyyy-mm-dd, earliest first. The first is the default. */
+    val standardDays: List<String> = emptyList(),
+    val sameDayUnavailable: SameDayUnavailable? = null,
+    val deliveries: Int = 0,
+    val sameDayDeliveries: Int = 0,
+    val sameDayPartAmount: String? = null,
+    val standardPartAmount: String? = null,
 ) {
+    /** Some deliveries can go today and some cannot. */
+    val mixed: Boolean get() = sameDayAvailable && sameDayDeliveries < deliveries
+
     companion object {
         val Unserviced = DeliveryQuote(serviced = false, sameDayAvailable = false, standardTotalAmount = "0.00", sameDayTotalAmount = null)
     }
 }
+
+/** Why the server refused a checkout over the delivery choice (069). */
+enum class DeliveryChoiceRefusal { SlotRequired, SlotUnavailable, DateUnavailable }
+
+/**
+ * The checkout was refused because the slot or day the shopper chose cannot be honoured (069 FR-009).
+ * Nothing has been charged and no payment exists. [quote] is what is on offer NOW, when the server
+ * sent it.
+ *
+ * ⚠ A refusal never substitutes a slot, a day or a method. The shopper chooses again.
+ */
+class DeliveryChoiceRefused(
+    val reason: DeliveryChoiceRefusal,
+    val quote: DeliveryQuote?,
+) : Exception("delivery choice refused: $reason")
 
 interface CheckoutRepository {
     /** Create/locate the pending order + PaymentIntent for the chosen address. */

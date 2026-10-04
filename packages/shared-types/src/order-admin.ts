@@ -29,6 +29,7 @@ import type {
 } from "./refund";
 import type { WireInt } from "./cart";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
+import type { DeliveryWindow } from "./delivery-window";
 
 /** How an arrival came to be known (spec FR-008; `public.package_arrival.source`). */
 export type ArrivalSource = "driver_proof" | "staff_recorded" | "carrier_signal";
@@ -87,6 +88,42 @@ export interface AdminOrderPackageDTO {
   deliveryMethod: string | null;
   handoff: CarrierHandoffDTO | null;
   arrival: PackageArrivalDTO | null;
+  /** 069 — the delivery day the customer was promised (yyyy-mm-dd), or null for an earlier order. */
+  promisedDate: string | null;
+  /** 069 — the same-day window the customer was sold, or null. */
+  window: DeliveryWindow | null;
+  /** 069 — a late payer took this order's slot over its capacity (FR-009b). Staff-only. */
+  overCapacity: boolean;
+  /**
+   * 069 — the day a STANDARD package must be handed to the carrier to arrive on `promisedDate`
+   * (that day minus the carrier lead time). Null for same-day and for earlier orders.
+   */
+  handoverDueOn: string | null;
+  /** 069 — past `handoverDueOn` with no handover, or handed over after it. Derived on read. */
+  atRisk: boolean;
+  /**
+   * 069 — whether it arrived inside its window (same-day) or on its day (standard). Null until it
+   * has arrived, and for an order with no promise to judge against.
+   */
+  onTime: boolean | null;
+}
+
+/** One standard package on the carrier handover list (069 US7). */
+export interface HandoverRowDTO {
+  fulfillmentId: string;
+  orderId: string;
+  orderNumber: string;
+  promisedDate: string;
+  handoverDueOn: string;
+  atRisk: boolean;
+  /** Checked in at the hub. False means it has not arrived there yet and cannot be handed over. */
+  atHub: boolean;
+}
+
+export type HandoverDueFilter = "today" | "overdue" | "upcoming";
+
+export interface HandoverListResponse {
+  items: HandoverRowDTO[];
 }
 
 /** A package's handover to an outside carrier. */

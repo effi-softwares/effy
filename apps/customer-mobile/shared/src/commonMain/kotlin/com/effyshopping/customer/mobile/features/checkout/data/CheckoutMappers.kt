@@ -10,7 +10,14 @@ import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
 import com.effyshopping.customer.mobile.commerce.contract.State as DtoRefundState
 import com.effyshopping.customer.mobile.commerce.contract.OrderStage as DtoOrderStage
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryMethod as DeliveryMethodDTO
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalCode
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
+import com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot
+import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
@@ -42,6 +49,10 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     deliveryMethod = if (deliveryMethod == DeliveryMethod.SAME_DAY) "same_day" else null,
     // 066 — null is omitted from the wire (explicitNulls = false), and absent means "none".
     deliveryInstructions = deliveryInstructions?.toWire(),
+    // 069 — null is omitted from the wire; the server then requires a slot only when a package
+    // actually goes same-day, and defaults the standard day to the earliest.
+    sameDaySlotID = sameDaySlotId,
+    standardDate = standardDate,
     // ⚠ 051 — MOBILE ASKS FOR A CUSTOMER SESSION; WEB DOES NOT. The in-app element renders the
     // provider's own saved-card list and needs a session to do it. The web card route renders Effy's
     // list and confirms by payment-method id, so minting one there would be an unused provider round
@@ -84,17 +95,50 @@ private fun DeliveryQuoteDTO.totalFor(method: DeliveryMethodDTO): Long =
 
 internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
     if (!serviced) return DeliveryQuote.Unserviced
-    // Same-day is offerable only when EVERY package can do it (so the order-level choice is honest and
-    // never leaks that a basket spans shops).
-    val sameDayAvailable = packages.isNotEmpty() &&
-        packages.all { pkg -> pkg.options.any { it.method == DeliveryMethodDTO.SameDay } }
+    // 069: same-day is offerable when ANY delivery can go today AND a slot is open (research R7). The
+    // server resolves the method per package; a basket with one excepted shop is a MIXED order.
+    val sameDayPackages = packages.filter { pkg -> pkg.options.any { it.method == DeliveryMethodDTO.SameDay } }
+    val sameDayAvailable = sameDayPackages.isNotEmpty() && sameDaySlots.isNotEmpty()
+
+    // What each part costs when same-day is chosen: the same-day deliveries at the same-day fee, the
+    // rest at standard. ⚠ Summed from the fees the SERVER priced; nothing is added per slot or per day.
+    val sameDayPart = sameDayPackages.sumOf { pkg ->
+        pkg.options.first { it.method == DeliveryMethodDTO.SameDay }.let { centsOf(it.feeAmount) }
+    }
+    val standardPart = packages.filter { it !in sameDayPackages }.sumOf { pkg ->
+        (pkg.options.firstOrNull { it.method == DeliveryMethodDTO.Standard } ?: pkg.options.firstOrNull())
+            ?.let { centsOf(it.feeAmount) } ?: 0L
+    }
     return DeliveryQuote(
         serviced = true,
         sameDayAvailable = sameDayAvailable,
         standardTotalAmount = formatCents(totalFor(DeliveryMethodDTO.Standard)),
         sameDayTotalAmount = if (sameDayAvailable) formatCents(totalFor(DeliveryMethodDTO.SameDay)) else null,
+        slots = sameDaySlots.map {
+            DeliverySlot(id = it.slotID, date = it.date, startAt = it.startAt, endAt = it.endAt, cutoffAt = it.cutoffAt)
+        },
+        standardDays = standardDays.map { it.date },
+        sameDayUnavailable = when (sameDayUnavailableReason) {
+            SameDayUnavailableReason.SlotsClosed -> SameDayUnavailable.SlotsClosed
+            SameDayUnavailableReason.NotEligible -> SameDayUnavailable.NotEligible
+            null -> null
+        },
+        deliveries = packages.size,
+        sameDayDeliveries = sameDayPackages.size,
+        sameDayPartAmount = if (sameDayAvailable) formatCents(sameDayPart) else null,
+        standardPartAmount = if (sameDayAvailable) formatCents(standardPart) else null,
     )
 }
+
+/** 069 — the server's refusal, as the domain exception the ViewModel acts on. */
+internal fun DeliveryChoiceRefusalDTO.toDomain(): DeliveryChoiceRefused = DeliveryChoiceRefused(
+    reason = when (code) {
+        DeliveryChoiceRefusalCode.SlotRequired -> DeliveryChoiceRefusal.SlotRequired
+        DeliveryChoiceRefusalCode.SlotUnavailable -> DeliveryChoiceRefusal.SlotUnavailable
+        DeliveryChoiceRefusalCode.DateUnavailable -> DeliveryChoiceRefusal.DateUnavailable
+    },
+    quote = quote?.toDomain(),
+)
 
 
 internal fun CreateCheckoutIntentResponse.toDomain(): CheckoutIntent = CheckoutIntent(
@@ -111,6 +155,8 @@ internal fun CreateCheckoutIntentResponse.toDomain(): CheckoutIntent = CheckoutI
     customerSessionSecret = customerSessionSecret,
     customerId = customerID,
     billingDetails = billingDetails?.toDomain(),
+    // 069 — mapped, for the same reason: the payment screen refuses to confirm once this has passed.
+    slotHeldUntil = slotHeldUntil,
 )
 
 private fun com.effyshopping.customer.mobile.commerce.contract.BillingDetailsDTO.toDomain() =
@@ -201,6 +247,9 @@ internal fun OrderDTO.toReceipt(): Receipt {
                 method = it.method.value,
                 promisedFrom = it.promisedFrom,
                 promisedTo = it.promisedTo,
+                // 069 — the window the customer was sold; null for standard and for earlier orders.
+                windowStart = it.windowStart,
+                windowEnd = it.windowEnd,
             )
         },
         // ⚠ 055 — MAPPED, not derived. The mapper dropping a field the backend sends is how `brand`,

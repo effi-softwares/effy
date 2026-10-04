@@ -291,6 +291,13 @@ data class DeliveryDropDTO (
     val addressFull: String,
     val customerName: String,
 
+    /**
+     * 069 — the time window the customer was sold. Null/absent for an order placed before 069.
+     * ⚠ Due and late are derived by the app from this and the clock; the server does not send a
+     * state that would be stale the moment the screen had been open a minute.
+     */
+    val deliveryWindow: DeliveryWindow? = null,
+
     @SerialName("dropId")
     val dropID: String,
 
@@ -316,7 +323,30 @@ data class DeliveryDropDTO (
     /**
      * 065 — the sum of `packages[].summary`.
      */
-    val summary: ClassSummary
+    val summary: ClassSummary,
+
+    /**
+     * 069 — the same window as a ready-made label in Melbourne time ("5 pm – 7 pm"), the field
+     * the run list has carried since 049. Sent so the app shows the SERVER's wording and never
+     * formats a time.
+     */
+    val window: String? = null
+)
+
+/**
+ * A same-day delivery window, as two instants.
+ */
+@Serializable
+data class DeliveryWindow (
+    /**
+     * ISO-8601 instant.
+     */
+    val endAt: String,
+
+    /**
+     * ISO-8601 instant.
+     */
+    val startAt: String
 )
 
 /**
@@ -369,6 +399,11 @@ enum class DeliveryDropStatus(val value: String) {
 data class DeliveryDropSummary (
     val customerSuburb: String,
 
+    /**
+     * 069 — the same window as instants, so the app can say Due and Late as the clock moves.
+     */
+    val deliveryWindow: DeliveryWindow? = null,
+
     @SerialName("dropId")
     val dropID: String,
 
@@ -382,6 +417,11 @@ data class DeliveryDropSummary (
      */
     val summary: ClassSummary,
 
+    /**
+     * The delivery window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time). ⚠ Null
+     * from 049 until 069 — the field existed and nothing could fill it, because no window was
+     * ever sold.
+     */
     val window: String? = null
 )
 
@@ -686,6 +726,13 @@ data class DriverVehicle (
 
 @Serializable
 data class ProblemJSON (
+    /**
+     * A stable, machine-readable refusal code, where the route defines one (069: the checkout's
+     * `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client
+     * switches on and maps to its OWN copy — unlike `detail`, which is prose.
+     */
+    val code: String? = null,
+
     val detail: String? = null,
 
     /**

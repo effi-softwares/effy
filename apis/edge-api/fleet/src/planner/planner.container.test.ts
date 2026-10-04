@@ -45,6 +45,7 @@ vi.mock("@effy/edge-shared", async () => {
 import * as repo from "./repository";
 import * as svc from "../dispatch/service";
 import { planWave } from "./assign";
+import { planDeliveryWave } from "./service";
 import type { PlannablePackage, PlannerCandidate } from "./types";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -516,6 +517,160 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
 // ⚠ NESTED, not a sibling. A second top-level describe runs AFTER the first one's afterAll has
 // closed the pool — "Cannot use a pool after calling end on the pool". The container's lifecycle
 // belongs to one owner.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// 069 — delivery windows. The wave is planned PER WINDOW, shortly before it opens, against its end.
+
+// ⚠ Nested in the suite above, like the dispatcher overrides below: it shares that suite's container
+// and must not start or end one of its own.
+describe("069 — the delivery wave respects the window the customer was sold", () => {
+  beforeEach(async () => {
+    await q(`TRUNCATE public.assignment_exclusion, public.hub_checkin, public.round_package,
+                      public.round_stop, public.driver_round, public.dispatch_wave,
+                      public.driver_zone_capability, public.vehicle_holding, public.vehicle,
+                      public.driver_duty_session, public.driver, public.shop_fulfillment,
+                      public."order", public.customer, public.delivery_zone_postcode,
+                      public.delivery_zone, public.delivery_slot, public.shop CASCADE`);
+  });
+
+  // 5–7 pm and 7–9 pm Melbourne on 2026-10-08 (AEDT, UTC+11).
+  const EARLY = { start: "2026-10-08T06:00:00Z", end: "2026-10-08T08:00:00Z" };
+  const LATE = { start: "2026-10-08T08:00:00Z", end: "2026-10-08T10:00:00Z" };
+  const SETTINGS = { prepBufferMin: 60, planningLeadMin: 45, perStopAllowanceMin: 12 };
+  let slotSeq = 0;
+
+  /** A same-day package that has been collected and checked in at the hub, sold `window` (or none). */
+  async function atHub(collector: string, shopId: string, window: { start: string; end: string } | null) {
+    const sfId = await makeReadyPackage(shopId, "3065", "same_day");
+    const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
+    const round = await q(
+      `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
+       VALUES ($1, $2, 'collection', now(), 'completed') RETURNING id`,
+      [wave.rows[0].id, collector],
+    );
+    const stop = await q(
+      `INSERT INTO public.round_stop (round_id, kind, shop_id, status) VALUES ($1, 'shop_pickup', $2, 'done') RETURNING id`,
+      [round.rows[0].id, shopId],
+    );
+    await q(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state) VALUES ($1, $2, 'picked_up')`, [stop.rows[0].id, sfId]);
+    await q(
+      `INSERT INTO public.hub_checkin (round_id, driver_id, packages_expected, packages_arrived) VALUES ($1, $2, 1, 1)`,
+      [round.rows[0].id, collector],
+    );
+    await q(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [sfId]);
+
+    const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+    let slotId: string | null = null;
+    if (window) {
+      slotSeq += 1;
+      const slot = await q(
+        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+         VALUES ('00:00'::time + ($1 || ' minutes')::interval, '00:00'::time + ($1 || ' minutes')::interval + interval '30 seconds', '00:00', 9, 'test')
+         RETURNING id`,
+        [slotSeq],
+      );
+      slotId = slot.rows[0].id;
+    }
+    await q(
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, slot_id, window_start, window_end)
+       VALUES ($1, $2, 'same_day', 8, $3, $4, $5)`,
+      [order.rows[0].order_id, shopId, slotId, window?.start ?? null, window?.end ?? null],
+    );
+    return sfId;
+  }
+
+  async function world() {
+    const zoneId = await makeZone("Inner North", "3065");
+    const shopId = await makeShop("Shop One", "SHOP1");
+    const driverId = await makeDriver("dana");
+    await clear(driverId, "delivery", "same_day", zoneId);
+    return { shopId, driverId };
+  }
+
+  async function deliveryRounds() {
+    return (await q(
+      `SELECT dr.deadline_at, count(rp.id)::int AS packages
+         FROM public.driver_round dr
+         JOIN public.round_stop rs ON rs.round_id = dr.id
+         JOIN public.round_package rp ON rp.stop_id = rs.id
+        WHERE dr.kind = 'delivery'
+        GROUP BY dr.id, dr.deadline_at ORDER BY dr.deadline_at`,
+    )).rows as Array<{ deadline_at: Date; packages: number }>;
+  }
+
+  it("the gather reads each package's window as stored instants", async () => {
+    const { shopId, driverId } = await world();
+    await atHub(driverId, shopId, EARLY);
+    await atHub(driverId, shopId, null);
+
+    const work = await repo.gatherDeliveryWork();
+    const windows = work.map((p) => (p.windowStart ? p.windowStart.toISOString() : null)).sort();
+    expect(windows).toEqual(["2026-10-08T06:00:00.000Z", null].sort());
+  });
+
+  it("⚠ a window is not planned before its lead time — the packages wait at the hub", async () => {
+    const { shopId, driverId } = await world();
+    await atHub(driverId, shopId, EARLY);
+
+    // 4:00 pm Melbourne: the 5 pm window is planned at 4:15.
+    const outcomes = await planDeliveryWave(SETTINGS, new Date("2026-10-08T05:00:00Z"), "schedule", null);
+
+    expect(outcomes).toHaveLength(1);
+    expect(outcomes[0]).toMatchObject({ skippedReason: "window_not_due", considered: 1, assigned: 0, waveId: null });
+    expect(outcomes[0]!.nextPlanningAt).toEqual(new Date("2026-10-08T05:15:00Z"));
+    expect(await deliveryRounds()).toEqual([]);
+  });
+
+  it("⚠ each window's round works to the window's END, not the end of the day (NP6)", async () => {
+    const { shopId, driverId } = await world();
+    await atHub(driverId, shopId, EARLY);
+    await atHub(driverId, shopId, LATE);
+
+    // 4:30 pm: the early window is due, the late one (planned at 6:15) is not.
+    let outcomes = await planDeliveryWave(SETTINGS, new Date("2026-10-08T05:30:00Z"), "schedule", null);
+    expect(outcomes.map((o) => o.skippedReason)).toEqual([null, "window_not_due"]);
+    let rounds = await deliveryRounds();
+    expect(rounds).toHaveLength(1);
+    expect(rounds[0]!.deadline_at).toEqual(new Date(EARLY.end));
+
+    // 6:30 pm: the late window is planned as its own round, to its own end.
+    outcomes = await planDeliveryWave(SETTINGS, new Date("2026-10-08T07:30:00Z"), "schedule", null);
+    expect(outcomes.map((o) => o.skippedReason)).toEqual([null]);
+    rounds = await deliveryRounds();
+    expect(rounds.map((r) => r.deadline_at)).toEqual([new Date(EARLY.end), new Date(LATE.end)]);
+  });
+
+  it("an order placed before 069 is planned at once, against the end of the day, as before", async () => {
+    const { shopId, driverId } = await world();
+    await atHub(driverId, shopId, null);
+
+    const now = new Date("2026-10-08T01:00:00Z"); // midday Melbourne
+    const outcomes = await planDeliveryWave(SETTINGS, now, "schedule", null);
+
+    expect(outcomes[0]).toMatchObject({ skippedReason: null, assigned: 1 });
+    const rounds = await deliveryRounds();
+    expect(rounds).toHaveLength(1);
+    // The end of 8 October in Melbourne (AEDT) is 12:59:59 UTC.
+    expect(rounds[0]!.deadline_at.toISOString().slice(0, 13)).toBe("2026-10-08T12");
+  });
+
+  it("a window that has already closed is still sent out, late, rather than left at the hub", async () => {
+    const { shopId, driverId } = await world();
+    await atHub(driverId, shopId, EARLY);
+
+    const outcomes = await planDeliveryWave(SETTINGS, new Date("2026-10-08T08:30:00Z"), "schedule", null);
+
+    expect(outcomes[0]).toMatchObject({ skippedReason: null, assigned: 1 });
+    expect((await deliveryRounds())[0]!.deadline_at.toISOString().slice(0, 13)).toBe("2026-10-08T12");
+  });
+
+  it("reports nothing at the hub as it always did", async () => {
+    await world();
+    expect(await planDeliveryWave(SETTINGS, NOW, "schedule", null)).toEqual([
+      { kind: "delivery", waveId: null, considered: 0, assigned: 0, unassigned: 0, skippedReason: "nothing_at_hub" },
+    ]);
+  });
+});
+
 describe("dispatcher overrides against real PostgreSQL", () => {
 
   /** A planned round with one driver, ready to be overridden. */

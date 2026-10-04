@@ -13,6 +13,7 @@
 
 import type { WireInt } from "./cart";
 import type { DeliveryFailureReason } from "./driver";
+import type { DeliveryWindow } from "./delivery-window";
 
 /** Collecting from shops, or delivering to customers. Independent of method and zone. */
 export type RoundKind = "collection" | "delivery";
@@ -85,6 +86,11 @@ export interface StopDTO {
   zoneName: string | null;
   /** When this stop must be done by, if anything constrains it. */
   dueAt: string | null;
+  /**
+   * 069 — a customer drop's delivery window. Absent or null for every other stop and for an order
+   * placed before 069. `dueAt` is this window's START, which is what puts earlier windows first.
+   */
+  deliveryWindow?: DeliveryWindow | null;
   completedAt: string | null;
   packages: RoundPackageDTO[];
 }

@@ -1,6 +1,9 @@
 import type {
   AdminOrderDetailDTO,
   AdminOrderListResponse,
+  HandoverDueFilter,
+  HandoverListResponse,
+  HandoverRowDTO,
   RecordArrivalRequest,
   RecordHandoffRequest,
 } from "@effy/shared-types";
@@ -47,4 +50,9 @@ export async function recordArrival(
   body: RecordArrivalRequest,
 ): Promise<unknown> {
   return api.post(`/orders/v1/fulfillments/${fulfillmentId}/arrival`, body);
+}
+
+/** Standard packages to hand to the carrier, by the day each must leave the hub (069 US7). */
+export async function listHandovers(due: HandoverDueFilter): Promise<HandoverRowDTO[]> {
+  return (await api.get<HandoverListResponse>(`/orders/v1/handovers?due=${due}`)).items;
 }

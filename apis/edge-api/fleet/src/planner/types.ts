@@ -22,6 +22,12 @@ export interface PlannablePackage {
   itemCount: number;
   requiresChilled: boolean;
   requiresFrozen: boolean;
+  /**
+   * 069 — the delivery window the customer was sold, as instants. Null for collection work, and for
+   * a same-day order placed before 069 (which was promised the day and nothing finer).
+   */
+  windowStart: Date | null;
+  windowEnd: Date | null;
 }
 
 /** One driver the wave may give work to. */

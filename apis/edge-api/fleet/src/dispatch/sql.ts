@@ -100,15 +100,23 @@ export const ROUND_FOR_UPDATE = `
 
 /** One round's stops, for the detail screen and for reordering. */
 export const ROUND_DETAIL_STOPS = `
-  SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.zone_id,
+  SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.zone_id, rs.shop_id,
          z.name AS zone_name,
          s.name AS shop_name,
          o.order_number,
-         o.delivery_address ->> 'city' AS destination_suburb
+         o.delivery_address ->> 'city' AS destination_suburb,
+         w.window_start, w.window_end
     FROM public.round_stop rs
     LEFT JOIN public.shop           s ON s.id = rs.shop_id
     LEFT JOIN public."order"        o ON o.id = rs.order_id
     LEFT JOIN public.delivery_zone  z ON z.id = rs.zone_id
+    -- 069 — the customer's delivery window, the same read the driver service makes. NULL for a
+    -- pickup, the hub, and any order placed before 069.
+    LEFT JOIN LATERAL (
+      SELECT min(opd.window_start) AS window_start, min(opd.window_end) AS window_end
+        FROM public.order_package_delivery opd
+       WHERE opd.order_id = rs.order_id AND opd.window_start IS NOT NULL
+    ) w ON TRUE
    WHERE rs.round_id = $1
    ORDER BY rs.seq NULLS LAST, rs.id
 `;

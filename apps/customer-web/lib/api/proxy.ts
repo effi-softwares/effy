@@ -13,13 +13,15 @@ function relay(data: unknown): Response {
 }
 
 function relayError(err: unknown): Response {
-  const e = err as { status?: number; detail?: string; title?: string; type?: string }
+  const e = err as { status?: number; detail?: string; title?: string; type?: string; code?: string }
   const status = e.status ?? 502
   if (status >= 400 && status < 500) {
     // 403 → 401 turns a refused session into deferred sign-in; every other 4xx (404 not-found, 409
     // the delete-default guard) forwards its status untouched so the client can map it.
     return NextResponse.json(
-      { error: e.detail ?? e.title ?? "request failed", reason: refusalReason(e.type) },
+      // `code` (069) is the refusal the ROUTE named — the checkout's slot/date refusals. `undefined`
+      // drops out of the JSON, so every other caller sees the body it always saw.
+      { error: e.detail ?? e.title ?? "request failed", reason: refusalReason(e.type), code: e.code },
       { status: status === 403 ? 401 : status },
     )
   }

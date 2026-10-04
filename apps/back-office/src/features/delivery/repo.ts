@@ -2,7 +2,14 @@
 // client to the admin cold-path service (contracts/delivery-admin-api). Screens never touch `api`
 // directly (Principle VI). DTOs double as the domain shapes here (identity map).
 import type {
+  DeliveryDaysDTO,
+  DeliveryDaysInput,
   DeliverySettingsDTO,
+  DeliverySlotDTO,
+  DeliverySlotInput,
+  DeliverySlotPatch,
+  NonDeliveryDateDTO,
+  NonDeliveryDateInput,
   FeePlanDTO,
   PostcodeCheckDTO,
   RingDTO,
@@ -146,4 +153,34 @@ export async function putException(zoneId: string, shopId: string, mode: "on" | 
 }
 export async function deleteException(zoneId: string, shopId: string): Promise<SameDayException[]> {
   return (await api.delete<{ items: SameDayException[] }>(`/admin/v1/delivery/zones/${zoneId}/sameday-exceptions/${shopId}`)).items;
+}
+
+// ── 069: same-day slots and the standard-delivery calendar ────────────────────────────────────────
+//
+// ⚠ THESE LIVE ON THE `fleet` SERVICE, not `admin` like everything above. The admin stack is at its
+// CloudFormation resource ceiling, and slots are delivery CAPACITY — the planner that must respect
+// them is in fleet. The operator sees one Delivery console; which service answers is not their concern.
+
+export async function listSlots(): Promise<DeliverySlotDTO[]> {
+  return (await api.get<{ items: DeliverySlotDTO[] }>("/fleet/v1/delivery-slots")).items;
+}
+export function createSlot(body: DeliverySlotInput): Promise<DeliverySlotDTO> {
+  return api.post<DeliverySlotDTO>("/fleet/v1/delivery-slots", body);
+}
+/** ⚠ There is no delete: a slot is switched off (`status: "disabled"`), because bookings reference it. */
+export function patchSlot(slotId: string, body: DeliverySlotPatch): Promise<DeliverySlotDTO> {
+  return api.patch<DeliverySlotDTO>(`/fleet/v1/delivery-slots/${slotId}`, body);
+}
+
+export function getDeliveryDays(): Promise<DeliveryDaysDTO> {
+  return api.get<DeliveryDaysDTO>("/fleet/v1/delivery-days");
+}
+export function putDeliveryDays(body: DeliveryDaysInput): Promise<DeliveryDaysDTO> {
+  return api.put<DeliveryDaysDTO>("/fleet/v1/delivery-days", body);
+}
+export function addNonDeliveryDate(body: NonDeliveryDateInput): Promise<NonDeliveryDateDTO> {
+  return api.post<NonDeliveryDateDTO>("/fleet/v1/delivery-days/dates", body);
+}
+export function removeNonDeliveryDate(day: string): Promise<void> {
+  return api.delete<void>(`/fleet/v1/delivery-days/dates/${day}`);
 }

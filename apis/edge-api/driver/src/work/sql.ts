@@ -50,9 +50,19 @@ export const ROUND_STOPS = `
          o.delivery_address ->> 'line1'      AS destination_line1,
          o.delivery_address ->> 'line2'      AS destination_line2,
          o.delivery_address ->> 'postalCode' AS destination_postcode,
-         o.delivery_address ->> 'region'     AS destination_state
+         o.delivery_address ->> 'region'     AS destination_state,
+         w.window_start   AS window_start,
+         w.window_end     AS window_end
     FROM public.round_stop rs
     JOIN public.driver_round dr ON dr.id = rs.round_id
+    -- 069 — the window the customer was sold. An order's same-day packages share ONE slot, so MIN is
+    -- that slot and not a choice between several. NULL for a pickup, the hub, and any order placed
+    -- before 069; a standard package has no window and is never on a delivery round.
+    LEFT JOIN LATERAL (
+      SELECT min(opd.window_start) AS window_start, min(opd.window_end) AS window_end
+        FROM public.order_package_delivery opd
+       WHERE opd.order_id = rs.order_id AND opd.window_start IS NOT NULL
+    ) w ON TRUE
     LEFT JOIN public.shop           s ON s.id = rs.shop_id
     LEFT JOIN public."order"        o ON o.id = rs.order_id
     LEFT JOIN public.delivery_zone  z ON z.id = rs.zone_id

@@ -29,5 +29,11 @@ export interface ProblemJSON {
   errors?: ProblemFieldIssue[];
   /** @deprecated The wire uses `errors`. Kept so older readers still compile. */
   fields?: ProblemFieldIssue[];
+  /**
+   * A stable, machine-readable refusal code, where the route defines one (069: the checkout's
+   * `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client switches
+   * on and maps to its OWN copy — unlike `detail`, which is prose.
+   */
+  code?: string;
   [key: string]: unknown;
 }

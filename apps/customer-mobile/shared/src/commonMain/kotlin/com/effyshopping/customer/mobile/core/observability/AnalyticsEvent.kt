@@ -37,6 +37,31 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
             mapOf("handover" to handover, "hasNote" to hasNote.toString(), "fromSavedDefault" to fromSavedDefault.toString()),
         )
 
+    /**
+     * 069 — a same-day slot or a standard day was chosen, or the choice was refused at the payment
+     * step. The same three names and props as customer-web's.
+     *
+     * ⚠ COUNTS AND OFFSETS, NEVER A TIME OR AN ADDRESS. "The third of four slots, six hours ahead"
+     * says which slots people want; a slot's clock time joined to a session would say when a
+     * household is home. `position` is 1-based among the options shown.
+     * ⚠ DECLARED, NOT EMITTED — like the rest of this app's commerce taxonomy, nothing fires them yet.
+     */
+    class CheckoutDeliverySlotSelected(slotsOffered: Int, position: Int, hoursAhead: Int) :
+        AnalyticsEvent(
+            "checkout_delivery_slot_selected",
+            mapOf("slotsOffered" to slotsOffered.toString(), "position" to position.toString(), "hoursAhead" to hoursAhead.toString()),
+        )
+
+    class CheckoutDeliveryDateSelected(daysAhead: Int, wasDefault: Boolean) :
+        AnalyticsEvent(
+            "checkout_delivery_date_selected",
+            mapOf("daysAhead" to daysAhead.toString(), "wasDefault" to wasDefault.toString()),
+        )
+
+    /** `reason`: `slot_unavailable` | `date_unavailable` | `slot_required`. */
+    class CheckoutDeliveryChoiceRefused(reason: String) :
+        AnalyticsEvent("checkout_delivery_choice_refused", mapOf("reason" to reason))
+
     // Push (platform-events.md) — the type only, never order/customer data.
     data object PushPermissionPrompted : AnalyticsEvent("push_permission_prompted")
     data object PushPermissionGranted : AnalyticsEvent("push_permission_granted")

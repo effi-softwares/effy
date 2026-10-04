@@ -4,6 +4,67 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**069-delivery-slots-dates — Delivery Time Slots & Standard Delivery Date.** 🚧 **81/82 tasks —
+CODE-COMPLETE AND MACHINE-VERIFIED across the migration, the hot path, four cold-path services, both
+customer surfaces, back-office and the driver app. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
+PERSON.** Sign-off: [specs/069-delivery-slots-dates/SIGNOFF.md](specs/069-delivery-slots-dates/SIGNOFF.md).
+Client feedback R4b + R4c ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
+
+A shopper choosing same-day picks a time slot; a shopper choosing standard picks a day. Slots have a
+cutoff and a capacity back-office sets. Settled with the operator first: a chosen standard day is
+honoured **through the carrier** (049's model stands), and **the fee does not vary by slot or day**.
+- ⚠ **NOTHING WROTE A DELIVERY PROMISE BEFORE THIS.** `promised_from` / `promised_to` had eleven
+  readers and no writer since 047, so every order said "We'll confirm your delivery date". The PRD
+  and the first spec both described a "date range the platform computes" that did not exist. 069 is
+  the first writer, into the columns the readers were built for.
+- ⚠ **"RE-CHECK AT PAYMENT" HAS TO BE A HOLD.** The client confirms payment with the provider
+  directly; the intent call is the last server moment before the charge. It checks the slot and
+  holds a place (10 min, configurable) under the slot's **row lock**, BEFORE the payment intent
+  exists. Finalize confirms. A lapsed hold is not swept — it stops counting.
+- ⚠ **THE LATE PAYER IS HONOURED AND FLAGGED, never moved or refunded.** Payment after the hold
+  lapsed into a slot that has since filled keeps its window with `over_capacity = true`.
+- ⚠ **THE STANDARD FALLBACK IS NO LONGER A SAFETY NET.** Before 069 a same-day request that could not
+  be met was quietly priced as standard. That is now a refusal (`409` + `code` + a fresh quote):
+  `slot_required`, `slot_unavailable`, `date_unavailable`. The one fallback left is a package the
+  quote never offered same-day on.
+- ⚠ **FINALIZE NO LONGER COPIES `promised_to` INTO THE SHOP'S READY-BY.** It was harmless only while
+  nothing wrote `promised_to`. Left in, an order for next Thursday would tell the shop it is not due
+  until Thursday — but a standard package waits at the HUB. Proven by restoring the line.
+- ⚠ **"A BOOKING COUNTS" IS ONE VIEW**, `delivery_slot_load`, read by checkout (Go) and the console
+  (TypeScript). ⚠ **NO GO↔TYPESCRIPT RULE DUPLICATE** this time: Go turns a slot's wall-clock times
+  into instants once, at booking, and everything downstream reads the stored instants.
+- ⚠ **ONE WORDING FOR "WHEN IT ARRIVES".** `formatArrival` in `shared-types` is called by the web
+  panel and the receipt email; both apps carry a Kotlin twin tested against the same fixture, and a
+  TypeScript test fails if an app's embedded copy of that fixture drifts. It uses no `Intl` to
+  produce text — ICU's "5 pm" differs between runtimes.
+- ⚠ **SAME-DAY IS OFFERED WHEN ANY DELIVERY CAN GO TODAY**, not every. customer-web and
+  customer-mobile both gated on "every package", so a basket with one excepted shop could not be
+  placed same-day though the server has resolved per package since 047. Such an order now asks for
+  one slot and one day.
+- ⚠ **THE PLANNER PLANS ONE DELIVERY WAVE PER WINDOW**, `planning_lead_min` before it opens, to the
+  window's END. A window already closed falls back to end of day so the package is still sent.
+  ⚠ The dispatcher's round detail now uses `orderRoundStops`; it had its own order.
+- ⚠ **`effy-edge-admin` IS STILL FULL**: slot and delivery-day routes live in `edge-api/fleet` (171
+  of 500 resources before), the handover list in `edge-api/orders`. The screens are tabs in the
+  existing Delivery console.
+- ⚠ **THE OVER-CAPACITY ALERT IS WRITTEN AND NOT LOADED** (`infra/observability/alerts/069-…`), like
+  054's and 055's. **It pages nobody.** The slot's row says "N over capacity".
+- **Verified**: typecheck **21/21** · shared-types **57** (was 34) · edge-fleet **236** (196) ·
+  edge-orders **78** (56) · edge-driver **137** (132) · edge-notifications **63** (45) · customer-web
+  **593** (536) · back-office **278** (245) · customer-mobile **380** (352) + iOS compile ·
+  driver-mobile **62** (54) + iOS compile · Go clean, checkout/refunds/orders green with containers ·
+  bundle gate within budget · **eight things proven by breaking them**, including the row lock (20
+  concurrent customers, capacity 3).
+- **⚠ Open (1)**: the operator's deploy and walks. ⚠ **`edge-deploy SERVICE=fleet` and CREATE SLOTS
+  BEFORE `core-deploy`** — same-day needs an open slot from the moment the hot path deploys. Then
+  `orders`, `driver`, `notifications`, the two web apps and the two apps. No Terraform changed.
+  ⚠ An older mobile build choosing same-day gets a generic checkout error. ⚠ Hub turnaround (60 min)
+  and carrier lead time (1 day) are guesses, labelled as such in the console. Registers:
+  [customer](docs/audiences/customer-capabilities.md) §069 ·
+  [driver](docs/audiences/driver-capabilities.md) §069 ·
+  [admin](docs/audiences/admin-capabilities.md) §069. Guides:
+  [delivery](docs/delivery-console-guide.md), [orders](docs/order-console-guide.md).
+
 **068-customer-lists — Customer Lists.** 🚧 **58/61 tasks — CODE-COMPLETE AND MACHINE-VERIFIED across
 the migration, the hot path and both customer surfaces. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Sign-off: [specs/068-customer-lists/SIGNOFF.md](specs/068-customer-lists/SIGNOFF.md). Client

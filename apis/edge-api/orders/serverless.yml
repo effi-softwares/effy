@@ -134,6 +134,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  handoversListV1:
+    handler: src/functions/handovers-v1-get.handler
+    description: Standard packages due to be handed to the carrier, by due day (069 US7). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/handovers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   fulfillmentHandoffV1:
     handler: src/functions/fulfillment-handoff-v1-post.handler
     description: Record a standard package's handover to an outside carrier (053 US2, FR-002). Write = admin/manager only.

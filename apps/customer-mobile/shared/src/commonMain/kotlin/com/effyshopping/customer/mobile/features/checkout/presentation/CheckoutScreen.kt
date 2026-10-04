@@ -1,10 +1,19 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
+import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.semantics.Role
 import com.effyshopping.customer.mobile.features.deliveryinstructions.presentation.DeliveryInstructionsField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -199,9 +207,18 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
 }
 
 /**
- * Delivery (047): serviceability + fee + the standard/same-day choice. ⚠ No distance, ring, or shop is
- * ever shown (FR-018/033) — only the method and its GST-inclusive fee.
+ * Delivery (047; 069): serviceability, the standard/same-day choice, a time slot for same-day and a day
+ * for standard. ⚠ No distance, ring, or shop is ever shown (FR-018/033).
+ *
+ * ⚠ NO SLOT IS SELECTED FOR THE SHOPPER (069 FR-006): a window is a promise about when someone will be
+ * home. The standard day IS preselected — the earliest (FR-015).
+ *
+ * ⚠ EVERY OPTION SHOWS ITS FEE, AND THEY ARE ALL THE SAME FEE. A slot and a day have no price of their
+ * own (FR-021); it is repeated so a shopper comparing slots can see the later one costs no more.
+ *
+ * A list and chips inside the section — no cards (Principle V).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     if (s.selectedId == null) return
@@ -220,49 +237,107 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )
-        s.sameDayOfferable -> {
-            // A whole-order choice (the shopper never sees packages). Fees update the row labels live.
-            DeliveryOptionRow(
-                label = "Standard delivery",
-                fee = quote.standardTotalAmount,
-                selected = s.method == DeliveryMethod.STANDARD,
-                onSelect = { vm.setMethod(DeliveryMethod.STANDARD) },
-            )
-            DeliveryOptionRow(
-                label = "Same-day delivery",
-                fee = quote.sameDayTotalAmount ?: quote.standardTotalAmount,
-                selected = s.method == DeliveryMethod.SAME_DAY,
-                onSelect = { vm.setMethod(DeliveryMethod.SAME_DAY) },
-            )
-        }
         else -> {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
-                Text("$${quote.standardTotalAmount}", style = MaterialTheme.typography.bodyMedium)
+            if (s.sameDayOfferable) {
+                DeliveryOptionRow(
+                    label = "Same-day delivery",
+                    fee = quote.sameDayTotalAmount ?: quote.standardTotalAmount,
+                    selected = s.method == DeliveryMethod.SAME_DAY,
+                    onSelect = { vm.setMethod(DeliveryMethod.SAME_DAY) },
+                )
+                DeliveryOptionRow(
+                    label = "Standard delivery",
+                    fee = quote.standardTotalAmount,
+                    selected = s.method == DeliveryMethod.STANDARD,
+                    onSelect = { vm.setMethod(DeliveryMethod.STANDARD) },
+                )
+            } else {
+                // ⚠ TWO DIFFERENT SENTENCES (FR-004). "Not in your area" will still be true tomorrow;
+                // "today's times are taken" will not.
+                Text(
+                    if (quote.sameDayUnavailable == SameDayUnavailable.SlotsClosed) {
+                        "Today’s same-day delivery times are closed or full. Standard delivery is available."
+                    } else {
+                        "Same-day delivery isn’t available for this address."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            // 047: say when same-day isn't available, rather than silently omitting it.
-            Text(
-                "Same-day delivery isn’t available for this address.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+            if (s.needsSlot) {
+                Text("Choose a delivery time", style = MaterialTheme.typography.labelLarge)
+                if (quote.mixed) {
+                    Text(
+                        "${quote.sameDayDeliveries} of your ${quote.deliveries} deliveries can arrive today.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                val slotFee = quote.sameDayPartAmount ?: quote.sameDayTotalAmount ?: quote.standardTotalAmount
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth().selectableGroup(),
+                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+                ) {
+                    quote.slots.forEach { slot ->
+                        val label = DeliveryWindowText.formatWindow(slot.startAt, slot.endAt) ?: slot.date
+                        FilterChip(
+                            selected = slot.id == s.slotId,
+                            onClick = { vm.setSlot(slot.id) },
+                            label = { Text("Today, $label · $$slotFee") },
+                            // ⚠ 48dp: a fat-finger target, and the difference between two adjacent
+                            // windows is exactly the mistake a small chip invites.
+                            modifier = Modifier.heightIn(min = 48.dp).semantics { role = Role.RadioButton },
+                        )
+                    }
+                }
+            }
+
+            if (s.needsDay) {
+                Text(
+                    if (quote.mixed && s.needsSlot) "Choose a day for the rest" else "Choose a delivery day",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                val dayFee = if (s.needsSlot) quote.standardPartAmount ?: quote.standardTotalAmount else quote.standardTotalAmount
+                val today = DeliveryWindowText.melbourneDay(nowEpochMillis())
+                Column(modifier = Modifier.selectableGroup()) {
+                    quote.standardDays.forEach { day ->
+                        DeliveryOptionRow(
+                            label = DeliveryWindowText.relativeDay(day, today),
+                            fee = dayFee,
+                            selected = day == s.standardDate,
+                            onSelect = { vm.setStandardDate(day) },
+                        )
+                    }
+                }
+            } else if (!s.sameDayOfferable) {
+                // A server older than 069 offers no days: the one standard fee, as before.
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
+                    Text("$${quote.standardTotalAmount}", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
 }
 
+@OptIn(kotlin.time.ExperimentalTime::class)
+private fun nowEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
+
 @Composable
 private fun DeliveryOptionRow(label: String, fee: String, selected: Boolean, onSelect: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        // The WHOLE row is the target, announced as one radio button with its label and fee.
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = onSelect)
-            Text(label, style = MaterialTheme.typography.bodyMedium)
+            RadioButton(selected = selected, onClick = null)
+            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = EffySpacing.s))
         }
         Text("$$fee", style = MaterialTheme.typography.bodyMedium)
     }

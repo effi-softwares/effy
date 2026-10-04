@@ -28,6 +28,8 @@ type Metrics struct {
 	serviceabilityChecks *prometheus.CounterVec // labels: serviced ∈ {true,false}
 	deliveryQuotes       *prometheus.CounterVec // labels: outcome ∈ {same_day_and_standard,standard_only,unserviced}
 	deliveryQuoteFailure prometheus.Counter     // the invariant alarm: a served zone that failed to price
+	slotBookings         *prometheus.CounterVec // labels: outcome ∈ the closed set on SlotBooking (069)
+	standardDateRefused  prometheus.Counter     // a chosen standard day went stale before payment (069)
 
 	// 054 stock. ⚠ Labels are a small closed set — never a product id or a shop id, which would make
 	// the series unbounded AND disclose shop identity into a metrics store (Principle VII, FR-015).
@@ -76,6 +78,14 @@ func New() *Metrics {
 		deliveryQuoteFailure: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "delivery_quote_failures_total",
 			Help: "⚠ INVARIANT ALARM: a served zone that failed to produce a fee. Must stay at 0 (FR-029).",
+		}),
+		slotBookings: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_delivery_slot_bookings_total",
+			Help: "Same-day slot bookings, by outcome (held | confirmed | refused_full | refused_cutoff | refused_uncollectable | refused_unknown | over_capacity). ⚠ over_capacity must stay at 0: a late payer was honoured above a slot's capacity (069 FR-009b).",
+		}, []string{"outcome"}),
+		standardDateRefused: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "effy_delivery_standard_date_refused_total",
+			Help: "Checkout intents refused because the chosen standard delivery day was no longer offered (069).",
 		}),
 		stockDeducted: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "effy_stock_deducted_total",
@@ -147,6 +157,8 @@ func New() *Metrics {
 		m.serviceabilityChecks,
 		m.deliveryQuotes,
 		m.deliveryQuoteFailure,
+		m.slotBookings,
+		m.standardDateRefused,
 		m.stockDeducted,
 		m.stockBlocked,
 		m.refundsIssued,
@@ -176,6 +188,14 @@ func (m *Metrics) DeliveryQuoted(outcome string) {
 // DeliveryQuoteFailed records the invariant alarm — a served zone that could not be priced (FR-029). This
 // must never fire; a non-zero value is a paging alert, not a metric to watch idly.
 func (m *Metrics) DeliveryQuoteFailed() { m.deliveryQuoteFailure.Inc() }
+
+// SlotBooking records what happened to one same-day slot booking (069). `outcome` is a small closed set:
+// held | confirmed | refused_full | refused_cutoff | refused_uncollectable | refused_unknown |
+// over_capacity. ⚠ NEVER a slot id, an order id or a time — the alert watches over_capacity alone.
+func (m *Metrics) SlotBooking(outcome string) { m.slotBookings.WithLabelValues(outcome).Inc() }
+
+// StandardDateRefused records one intent refused because its standard day had gone stale (069).
+func (m *Metrics) StandardDateRefused() { m.standardDateRefused.Inc() }
 
 // StockDeducted records one paid order's effect on stock (054).
 //

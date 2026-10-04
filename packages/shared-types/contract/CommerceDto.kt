@@ -576,6 +576,22 @@ data class CreateCheckoutIntentRequest (
     val deliveryMethod: String? = null,
 
     /**
+     * 069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED
+     * when any package will go same-day; the intent is refused with `slot_required` without it
+     * and with `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for
+     * this order when it accepts the slot — see `slotHeldUntil` on the response.
+     */
+    @SerialName("sameDaySlotId")
+    val sameDaySlotID: String? = null,
+
+    /**
+     * 069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the
+     * earliest available day, which is also what the UI preselects. Refused with
+     * `date_unavailable` if it is not among the days currently offered.
+     */
+    val standardDate: String? = null,
+
+    /**
      * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile
      * in-app element) and therefore needs a customer session. Web renders Effy's own list and
      * leaves this unset.
@@ -661,7 +677,15 @@ data class CreateCheckoutIntentResponse (
      */
     val payOverTimeAvailable: Boolean? = null,
 
-    val publishableKey: String
+    val publishableKey: String,
+
+    /**
+     * 069 — until when the customer's place in their same-day slot is held. Absent when no
+     * package is same-day. ⚠ A client MUST call intent again before confirming payment once
+     * this has passed: the place may have gone, and the intent call is the last moment the
+     * server can say so before the customer is charged.
+     */
+    val slotHeldUntil: String? = null
 )
 
 /**
@@ -705,6 +729,85 @@ enum class State(val value: String) {
 }
 
 /**
+ * The body of a delivery-choice refusal.
+ */
+@Serializable
+data class DeliveryChoiceRefusalDTO (
+    val code: DeliveryChoiceRefusalCode,
+
+    /**
+     * The options as they stand NOW. Absent on `slot_required` from a client that sent no slot.
+     */
+    val quote: DeliveryQuoteDTO? = null
+)
+
+/**
+ * 069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a
+ * 409 problem, with a fresh `quote` so the client can re-offer without a second request.
+ *
+ * ⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses
+ * again.
+ */
+@Serializable
+enum class DeliveryChoiceRefusalCode(val value: String) {
+    @SerialName("date_unavailable") DateUnavailable("date_unavailable"),
+    @SerialName("slot_required") SlotRequired("slot_required"),
+    @SerialName("slot_unavailable") SlotUnavailable("slot_unavailable");
+}
+
+/**
+ * The delivery quote shown at checkout, captured server-side so the order is honoured at
+ * the quoted fee — the client never sends a fee (FR-036). When `serviced` is false there
+ * are NO packages and one reason: the postcode is in no served zone (FR-002).
+ */
+@Serializable
+data class DeliveryQuoteDTO (
+    val expiresAt: String,
+    val packages: List<DeliveryPackageDTO>,
+    val postcode: String,
+
+    /**
+     * ISO datetime with the Australia/Melbourne offset, or null. ⚠ Kept for clients built
+     * before 069; it now carries the latest OPEN SLOT's cutoff. New clients read `sameDaySlots`.
+     */
+    val sameDayAvailableUntil: String? = null,
+
+    /**
+     * 069 — the same-day time slots still open for THIS order, earliest first. Empty when there
+     * are none, and then no package carries a `same_day` option. A slot is offered only if it
+     * is open for every package that would go same-day, so one choice covers the order (FR-005).
+     */
+    val sameDaySlots: List<DeliverySlotOptionDTO>,
+
+    /**
+     * 069 — why same-day is not offered, when it is not (FR-004). The two are different
+     * sentences to a customer: "not in your area" will still be true tomorrow; "today's times
+     * are taken" will not.
+     */
+    val sameDayUnavailableReason: SameDayUnavailableReason? = null,
+
+    val serviced: Boolean,
+
+    /**
+     * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
+     * ⚠ Never empty when `serviced` (FR-020).
+     */
+    val standardDays: List<StandardDayOptionDTO>
+)
+
+/**
+ * The per-shop portion of the order, priced independently (FR-030). `shopRef` is an OPAQUE
+ * handle — never a shop id, so nothing here identifies the fulfilling shop (FR-033). A
+ * served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only where
+ * the fulfilling shop does same-day in this zone and it is before the cutoff (FR-044).
+ */
+@Serializable
+data class DeliveryPackageDTO (
+    val options: List<DeliveryOptionDTO>,
+    val shopRef: String
+)
+
+/**
  * One offered method for one package, at its GST-inclusive, snapped-up fee
  * (FR-024/032/034). `feeAmount` is a 2-dp decimal string (e.g. "6.00"). The delivery window
  * is advisory copy.
@@ -727,29 +830,59 @@ enum class DeliveryMethod(val value: String) {
 }
 
 /**
- * The per-shop portion of the order, priced independently (FR-030). `shopRef` is an OPAQUE
- * handle — never a shop id, so nothing here identifies the fulfilling shop (FR-033). A
- * served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only where
- * the fulfilling shop does same-day in this zone and it is before the cutoff (FR-044).
+ * One open same-day delivery window (069).
+ *
+ * ⚠ NO FEE: a slot has no price of its own — the fee is the same-day METHOD's, read from
+ * the package options (FR-021). ⚠ NO CAPACITY and no remaining count: how full a slot is is
+ * Effy's operational business, and "2 left" would be a pressure tactic nobody asked for
+ * (FR-050).
  */
 @Serializable
-data class DeliveryPackageDTO (
-    val options: List<DeliveryOptionDTO>,
-    val shopRef: String
+data class DeliverySlotOptionDTO (
+    /**
+     * After this the slot can no longer be chosen. Lets a client grey it out without a round
+     * trip.
+     */
+    val cutoffAt: String,
+
+    /**
+     * The delivery day, yyyy-mm-dd (Melbourne).
+     */
+    val date: String,
+
+    val endAt: String,
+
+    /**
+     * Opaque. Sent back as `sameDaySlotId` on the intent request.
+     */
+    @SerialName("slotId")
+    val slotID: String,
+
+    /**
+     * ISO datetimes with the Australia/Melbourne offset.
+     */
+    val startAt: String
 )
 
 /**
- * The delivery quote shown at checkout, captured server-side so the order is honoured at
- * the quoted fee — the client never sends a fee (FR-036). When `serviced` is false there
- * are NO packages and one reason: the postcode is in no served zone (FR-002).
+ * Why same-day is not on offer: the zone or shop does not do it, or every slot today is
+ * closed or full.
  */
 @Serializable
-data class DeliveryQuoteDTO (
-    val expiresAt: String,
-    val packages: List<DeliveryPackageDTO>,
-    val postcode: String,
-    val sameDayAvailableUntil: String? = null,
-    val serviced: Boolean
+enum class SameDayUnavailableReason(val value: String) {
+    @SerialName("not_eligible") NotEligible("not_eligible"),
+    @SerialName("slots_closed") SlotsClosed("slots_closed");
+}
+
+/**
+ * One day a standard delivery can arrive (069). The fee is the standard METHOD's, as above.
+ */
+@Serializable
+data class StandardDayOptionDTO (
+    /**
+     * yyyy-mm-dd (Melbourne).
+     */
+    val date: String
 )
 
 /**
@@ -1154,10 +1287,14 @@ data class OrderDTO (
  * (FR-009). The names are kept apart deliberately so the two can never be swapped by
  * autocomplete.
  *
- * ⚠ DATES, NOT TIMES. `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd) because the
- * underlying `order_package_delivery.promised_from`/`.promised_to` are `date` columns — the
- * platform has no delivery time window and cannot derive one. A client MUST NOT render a
- * time here.
+ * `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd): the delivery DAY. From 069 they
+ * are equal — today for same-day, the customer's chosen day for standard. ⚠ Both are null
+ * on every order placed before 069, which never recorded a day at all; a client then says
+ * the date will be confirmed and MUST NOT invent one.
+ *
+ * `windowStart`/`windowEnd` are the same-day time window the customer was sold (069). Null
+ * for standard deliveries and for every earlier order. Render all four through
+ * `formatArrival`.
  */
 @Serializable
 data class ArrivalEstimateDTO (
@@ -1167,7 +1304,13 @@ data class ArrivalEstimateDTO (
     val method: Method,
 
     val promisedFrom: String? = null,
-    val promisedTo: String? = null
+    val promisedTo: String? = null,
+    val windowEnd: String? = null,
+
+    /**
+     * ISO datetimes with the Australia/Melbourne offset, or null.
+     */
+    val windowStart: String? = null
 )
 
 /**

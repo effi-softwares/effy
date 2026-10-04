@@ -19,6 +19,7 @@ import {
   loadSchedule,
 } from "./repository";
 import type { WavePlan } from "./types";
+import { deadlineFor, groupByWindow, isDue, plannedAt } from "./windows";
 
 export interface WaveOutcome {
   kind: "collection" | "delivery";
@@ -77,7 +78,7 @@ export async function runDuePlanning(now = new Date()): Promise<WaveOutcome[]> {
 
   // The delivery wave follows the same tick but a different precondition: packages at the hub, not a
   // run time. It is run whenever there is anything to deliver.
-  outcomes.push(await planDeliveryWave(settings, now, "schedule", null));
+  outcomes.push(...(await planDeliveryWave(settings, now, "schedule", null)));
   return outcomes;
 }
 
@@ -120,35 +121,58 @@ export async function planCollectionWave(
   return commitAndSummarise(plan, trigger, triggeredBySub);
 }
 
-/** Plan the same-day delivery wave over whatever has reached the hub. */
+/**
+ * Plan the same-day delivery waves over whatever has reached the hub — one wave per delivery window.
+ *
+ * ⚠ ONE WAVE PER WINDOW (069). A customer is sold a window, so each window's packages are planned
+ * together, `planningLeadMin` before it opens, against the window's END as their deadline. Packages
+ * with no window — orders placed before 069 — are planned at once against the end of the day, which
+ * is exactly what this function did for everything until 069.
+ */
 export async function planDeliveryWave(
   settings: { prepBufferMin: number; planningLeadMin: number; perStopAllowanceMin: number },
   now: Date,
   trigger: "schedule" | "manual",
   triggeredBySub: string | null,
-): Promise<WaveOutcome> {
-  const [packages, candidates] = await Promise.all([gatherDeliveryWork(), loadCandidates()]);
+): Promise<WaveOutcome[]> {
+  const packages = await gatherDeliveryWork();
   if (packages.length === 0) {
-    return { kind: "delivery", waveId: null, considered: 0, assigned: 0, unassigned: 0, skippedReason: "nothing_at_hub" };
+    return [{ kind: "delivery", waveId: null, considered: 0, assigned: 0, unassigned: 0, skippedReason: "nothing_at_hub" }];
   }
 
-  // ⚠ A same-day package is due TODAY. With no delivery window in the data model (052 R4 — the
-  // promise is date-granular), end of the local day is the only honest deadline, and it is not
-  // invented: it is the last moment the promise can still be kept.
-  const deadlineAt = endOfLocalDay(now);
+  const outcomes: WaveOutcome[] = [];
+  for (const group of groupByWindow(packages)) {
+    if (!isDue(group, now, settings.planningLeadMin)) {
+      // ⚠ REPORTED, like `no_run_due` above. Packages sitting at the hub with nothing in the log
+      // would look identical to a planner that had stopped.
+      outcomes.push({
+        kind: "delivery",
+        waveId: null,
+        considered: group.packages.length,
+        assigned: 0,
+        unassigned: group.packages.length,
+        skippedReason: "window_not_due",
+        nextPlanningAt: plannedAt(group, settings.planningLeadMin),
+      });
+      continue;
+    }
 
-  const plan = planWave({
-    kind: "delivery",
-    packages,
-    candidates,
-    plannedFor: now,
-    deadlineAt,
-    now,
-    perStopAllowanceMin: settings.perStopAllowanceMin,
-    openStops: new Map(),
-  });
-
-  return commitAndSummarise(plan, trigger, triggeredBySub);
+    // Candidates are re-read per window: a driver given the 5–7 pm round is carrying that load when
+    // the 7–9 pm round is planned in the same tick.
+    const candidates = await loadCandidates();
+    const plan = planWave({
+      kind: "delivery",
+      packages: group.packages,
+      candidates,
+      plannedFor: now,
+      deadlineAt: deadlineFor(group, now, endOfLocalDay(now)),
+      now,
+      perStopAllowanceMin: settings.perStopAllowanceMin,
+      openStops: new Map(),
+    });
+    outcomes.push(await commitAndSummarise(plan, trigger, triggeredBySub));
+  }
+  return outcomes;
 }
 
 async function commitAndSummarise(

@@ -1351,6 +1351,39 @@ logs. It may hold a gate code.
 
 ⚠ **Not walked on either surface.** The telemetry event is declared and emits nothing.
 
+## §069 — Delivery time slots and the standard delivery day (2026-10-04)
+
+Spec: [specs/069-delivery-slots-dates/](../../specs/069-delivery-slots-dates/). Client feedback R4b + R4c.
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Choose a same-day time slot at checkout | ✅ built | ✅ built | No slot is ever preselected |
+| Each slot shows its window and the same-day fee | ✅ built | ✅ built | The same fee on every slot |
+| A slot past its cutoff or full is not offered | ✅ built | ✅ built | Decided by the server; web also greys a slot out the moment its cutoff passes |
+| Told WHY same-day is not offered: not in your area, or today's times are closed or full | ✅ built | ✅ built | Two different sentences |
+| Choose the day a standard delivery arrives | ✅ built | ✅ built | Earliest day preselected |
+| A basket where only some deliveries can go today: one slot and one day | ✅ built | ✅ built | Says how many deliveries arrive today; names no shop |
+| Told when the chosen slot or day has gone, and asked to choose again, uncharged | ✅ built | ✅ built | Nothing is chosen in its place |
+| A lapsed hold is renewed before paying | ✅ automatic | ⚠ told to go back and continue again | Web re-runs the intent itself; mobile stops the payment and says so |
+| The window on the confirmation, the order page and the emailed receipt | ✅ built | ✅ built | One wording, from one shared fixture |
+| The pay button waits for a delivery time | ✅ disabled until chosen | ⚠ enabled; pressing it says "Choose a delivery time" | A deliberate difference: a disabled button on a phone gives no reason |
+
+⚠ **Same-day now needs an open slot.** With no active slot, same-day is offered to nobody.
+
+⚠ **The fee does not depend on the slot or the day.** It is still method, distance and weight.
+
+⚠ **A chosen standard day is honoured through the outside carrier.** It is as firm as the carrier;
+Effy's part is handing the package over on the right day.
+
+⚠ **An order placed before this feature** still says "We'll confirm your delivery date". It was
+never promised a day, and none is invented for it.
+
+⚠ **An older mobile build** choosing same-day gets a generic checkout error (the server requires a
+slot it does not send). Standard orders from an older build default to the earliest day.
+
+⚠ **Not walked on either surface.** Three telemetry events are declared; web's call sites emit
+nothing until PostHog is initialised, and mobile's are not wired.
+
 ## §068 — Customer lists (2026-10-04)
 
 Spec: [specs/068-customer-lists/](../../specs/068-customer-lists/). Client feedback R3. Retires 033

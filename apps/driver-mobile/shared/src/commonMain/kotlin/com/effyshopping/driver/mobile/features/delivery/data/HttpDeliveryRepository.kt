@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.delivery.data
 
+import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow
 import com.effyshopping.driver.mobile.contract.HandoverPreference
 import com.effyshopping.driver.mobile.contract.DeliveryDropDTO
 import com.effyshopping.driver.mobile.contract.DeliveryDropStatus
@@ -159,7 +160,12 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     runId = runID,
     status = status,
     drops = drops.map {
-        DropSummary(it.dropID, it.sequence.toInt(), it.orderRef, it.customerSuburb, it.packageCount.toInt(), dropStatus(it.status), it.summary.toDomain())
+        DropSummary(
+            it.dropID, it.sequence.toInt(), it.orderRef, it.customerSuburb, it.packageCount.toInt(), dropStatus(it.status), it.summary.toDomain(),
+            // 069 — ⚠ `window` (the label) existed on this DTO since 049 and was never mapped, because
+            // it was always null. It is real now, and so are the instants beside it.
+            window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
+        )
     },
 )
 
@@ -178,4 +184,5 @@ private fun DeliveryDropDTO.toDomain() = Drop(
         HandoverPreference.MeetAtDoor -> Handover.MeetAtDoor
         null -> null
     },
+    window = DeliveryWindow.of(window, deliveryWindow?.startAt, deliveryWindow?.endAt),
 )

@@ -1,5 +1,6 @@
 import { createRoute } from "@tanstack/react-router";
 
+import { HandoverListScreen } from "@/features/orders/HandoverListScreen";
 import { OrderDetailScreen } from "@/features/orders/OrderDetailScreen";
 import { OrdersListScreen } from "@/features/orders/OrdersListScreen";
 
@@ -13,6 +14,14 @@ export const ordersIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders",
   component: OrdersListScreen,
+});
+
+// 069 — what must be handed to the carrier, by when. Read-only for every role; a static segment, so
+// it is matched ahead of the `$orderId` route below.
+export const ordersHandoverRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "orders/handover",
+  component: HandoverListScreen,
 });
 
 export const orderDetailRoute = createRoute({

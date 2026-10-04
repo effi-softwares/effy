@@ -12,6 +12,7 @@ import (
 
 	"github.com/effyshopping/effy/apis/core-api/internal/features/notifications"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/events"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
@@ -42,13 +43,37 @@ type CheckoutLine struct {
 }
 
 // PackageDelivery is the captured per-package delivery outcome, written at intent and copied into
-// shop_fulfillment at finalize (047). PromisedFrom/To are nil for US1 (the window arrives with same-day).
+// shop_fulfillment at finalize (047).
+//
+// PromisedDay is the delivery DAY (yyyy-mm-dd, Melbourne): today for a same-day package, the customer's
+// chosen day for a standard one. ⚠ 069 is the first writer — from 047 until then these columns were
+// never set and every order said "we'll confirm your delivery date" (069 research R1). Empty writes NULL.
+//
+// SlotID / WindowStart / WindowEnd are the same-day window as sold, set together or not at all.
 type PackageDelivery struct {
-	ShopID       string
-	Method       string
-	FeeCents     int64
-	PromisedFrom *time.Time
-	PromisedTo   *time.Time
+	ShopID      string
+	Method      string
+	FeeCents    int64
+	PromisedDay string
+	SlotID      string
+	WindowStart *time.Time
+	WindowEnd   *time.Time
+}
+
+// SlotHold asks CaptureDelivery to hold a place in a same-day slot for this order (069 FR-009a).
+type SlotHold struct {
+	SlotID string
+	Now    time.Time
+}
+
+// SlotUnavailableError is the refusal when a place cannot be held. Verdict says why, for the metric —
+// the customer is told only that the time is no longer available.
+type SlotUnavailableError struct {
+	Verdict delivery.SlotVerdict
+}
+
+func (e *SlotUnavailableError) Error() string {
+	return "checkout: delivery slot unavailable (" + string(e.Verdict) + ")"
 }
 
 // ShopPortion is one shop's slice of the fan-out (for the outbox payload / SC-005).
@@ -86,7 +111,11 @@ type Store interface {
 	// CaptureDelivery writes the captured per-package delivery quote (047): the order's delivery_quote JSON
 	// + expiry and a fresh set of order_package_delivery rows (delete+reinsert, like order_item). Called on
 	// every intent so a re-quote overwrites cleanly. The client never sends a fee — this is the server's.
-	CaptureDelivery(ctx context.Context, orderID string, quoteJSON []byte, expiresAt time.Time, pkgs []PackageDelivery) error
+	//
+	// 069: with a non-nil hold it also takes a place in that slot for the order, under the slot's row
+	// lock, and returns when the hold lapses. With a nil hold it gives up any place the order held.
+	// Returns *SlotUnavailableError — and writes NOTHING — when the place cannot be held.
+	CaptureDelivery(ctx context.Context, orderID string, quoteJSON []byte, expiresAt time.Time, pkgs []PackageDelivery, hold *SlotHold) (*time.Time, error)
 	// UpsertPayment records/updates the payment (one per order) with the intent id + status.
 	UpsertPayment(ctx context.Context, orderID, intentID string, amountCents int64, status string) error
 	// FindOrderByIntent resolves a PaymentIntent id to its order.
@@ -431,34 +460,142 @@ func storageClassOrAmbient(c string) string {
 // CaptureDelivery writes the captured delivery quote (047): the order's delivery_quote JSON + expiry, and
 // a fresh set of order_package_delivery rows (delete+reinsert, mirroring order_item's intent-time
 // lifecycle). All in one tx. The fee is always the SERVER's — the client never supplies one (FR-036).
-func (s *pgStore) CaptureDelivery(ctx context.Context, orderID string, quoteJSON []byte, expiresAt time.Time, pkgs []PackageDelivery) error {
+func (s *pgStore) CaptureDelivery(ctx context.Context, orderID string, quoteJSON []byte, expiresAt time.Time, pkgs []PackageDelivery, hold *SlotHold) (*time.Time, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("checkout: begin capture delivery: %w", err)
+		return nil, fmt.Errorf("checkout: begin capture delivery: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	// ── 069: THE HOLD, FIRST, UNDER THE SLOT'S ROW LOCK ─────────────────────────────────────────────
+	//
+	// ⚠ THIS IS WHERE "NEVER CHARGED FOR A SLOT YOU DID NOT GET" IS DECIDED. The client confirms
+	// payment with the provider directly, so this call is the last moment the server can refuse before
+	// the money moves (research R3). It runs before the payment intent is created or updated; a
+	// refusal here rolls back everything below and leaves the order's previous capture — and any
+	// place it already held — exactly as it was.
+	//
+	// The order's own place is given up first so it is not counted against itself: a customer
+	// refreshing the payment step in a capacity-1 slot must not be refused by their own hold.
+	var heldUntil *time.Time
+	if _, err := tx.Exec(ctx, `DELETE FROM public.delivery_slot_booking WHERE order_id = $1`, orderID); err != nil {
+		return nil, fmt.Errorf("checkout: clear slot hold: %w", err)
+	}
+	if hold != nil {
+		slot, ok, err := delivery.LockSlot(ctx, tx, hold.SlotID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, &SlotUnavailableError{Verdict: delivery.SlotPastCutoff}
+		}
+		runs, buffer, err := delivery.SameDaySchedule(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+		settings, err := delivery.LoadSlotSettings(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+		load, err := delivery.SlotLoad(ctx, tx, delivery.MelbourneDate(hold.Now))
+		if err != nil {
+			return nil, err
+		}
+		open, verdict := delivery.JudgeSlot(hold.Now, slot, load[slot.ID], runs, buffer, settings.TurnaroundMin)
+		if verdict != delivery.SlotOpen {
+			return nil, &SlotUnavailableError{Verdict: verdict}
+		}
+		until := hold.Now.Add(time.Duration(settings.HoldMin) * time.Minute)
+		if _, err := tx.Exec(ctx, `
+INSERT INTO public.delivery_slot_booking
+    (slot_id, delivery_date, order_id, state, held_until, window_start, window_end)
+VALUES ($1, $2::date, $3, 'held', $4, $5, $6)`,
+			slot.ID, open.Date, orderID, until, open.Start, open.End); err != nil {
+			return nil, fmt.Errorf("checkout: hold slot: %w", err)
+		}
+		heldUntil = &until
+	}
 
 	if _, err := tx.Exec(ctx, `
 UPDATE public."order" SET delivery_quote = $2::jsonb, delivery_quote_expires_at = $3, updated_at = now()
 WHERE id = $1`, orderID, string(quoteJSON), expiresAt); err != nil {
-		return fmt.Errorf("checkout: set delivery quote: %w", err)
+		return nil, fmt.Errorf("checkout: set delivery quote: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM public.order_package_delivery WHERE order_id = $1`, orderID); err != nil {
-		return fmt.Errorf("checkout: clear package delivery: %w", err)
+		return nil, fmt.Errorf("checkout: clear package delivery: %w", err)
 	}
 	for _, p := range pkgs {
 		if _, err := tx.Exec(ctx, `
 INSERT INTO public.order_package_delivery
-    (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to)
-VALUES ($1, $2, $3, $4::numeric, $5, $6)`,
-			orderID, p.ShopID, p.Method, money.FormatCents(p.FeeCents), p.PromisedFrom, p.PromisedTo); err != nil {
-			return fmt.Errorf("checkout: insert package delivery: %w", err)
+    (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to,
+     slot_id, window_start, window_end)
+VALUES ($1, $2, $3, $4::numeric, NULLIF($5, '')::date, NULLIF($5, '')::date,
+        NULLIF($6, '')::uuid, $7, $8)`,
+			orderID, p.ShopID, p.Method, money.FormatCents(p.FeeCents), p.PromisedDay,
+			p.SlotID, p.WindowStart, p.WindowEnd); err != nil {
+			return nil, fmt.Errorf("checkout: insert package delivery: %w", err)
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("checkout: commit capture delivery: %w", err)
+		return nil, fmt.Errorf("checkout: commit capture delivery: %w", err)
 	}
-	return nil
+	return heldUntil, nil
+}
+
+// confirmSlotBookingTx turns the order's held place into a confirmed booking at payment (069).
+//
+// ⚠ THE LATE PAYER. A payment intent stays payable after the hold lapses. If the money arrives after
+// that and the slot has since filled, the two choices are to overbook by one or to refund a paid
+// grocery order nobody asked us to refund — and the spec forbids moving the order (FR-010). So the
+// booking is confirmed and FLAGGED: `over_capacity` raises a metric, an alert and a count on the
+// console. Both clients re-run the intent when the hold has lapsed, which makes this rare; the server
+// cannot enforce that, which is why the flag exists (research R3).
+//
+// ⚠ A slot that has passed its cutoff but still has room is NOT flagged. The customer chose it while
+// it was open and there is space for them; nothing about the evening's capacity was broken.
+//
+// The slot row is locked BEFORE the booking is touched — the same order the intent path takes — so a
+// finalize and a competing hold can never wait on each other.
+func confirmSlotBookingTx(ctx context.Context, tx pgx.Tx, orderID string) (confirmed, overCapacity bool, err error) {
+	var slotID, date string
+	err = tx.QueryRow(ctx, `
+SELECT slot_id::text, delivery_date::text FROM public.delivery_slot_booking
+WHERE order_id = $1 AND state = 'held'`, orderID).Scan(&slotID, &date)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, false, nil // no same-day package, or an order placed before 069
+	}
+	if err != nil {
+		return false, false, fmt.Errorf("checkout: read slot booking: %w", err)
+	}
+
+	var capacity int
+	if err := tx.QueryRow(ctx,
+		`SELECT capacity FROM public.delivery_slot WHERE id = $1 FOR UPDATE`, slotID).Scan(&capacity); err != nil {
+		return false, false, fmt.Errorf("checkout: lock slot for confirm: %w", err)
+	}
+
+	var live bool
+	if err := tx.QueryRow(ctx, `
+SELECT held_until > now() FROM public.delivery_slot_booking WHERE order_id = $1`, orderID).Scan(&live); err != nil {
+		return false, false, fmt.Errorf("checkout: read slot hold: %w", err)
+	}
+	if !live {
+		// The lapsed hold is not in this count (it stopped counting when it lapsed), so `booked` is
+		// everyone ELSE who now has a place.
+		load, err := delivery.SlotLoad(ctx, tx, date)
+		if err != nil {
+			return false, false, err
+		}
+		overCapacity = load[slotID] >= capacity
+	}
+
+	if _, err := tx.Exec(ctx, `
+UPDATE public.delivery_slot_booking
+SET state = 'confirmed', held_until = NULL, over_capacity = $2, updated_at = now()
+WHERE order_id = $1`, orderID, overCapacity); err != nil {
+		return false, false, fmt.Errorf("checkout: confirm slot booking: %w", err)
+	}
+	return true, overCapacity, nil
 }
 
 func (s *pgStore) UpsertPayment(ctx context.Context, orderID, intentID string, amountCents int64, status string) error {
@@ -553,6 +690,10 @@ LIMIT 1`, customerID)
 
 // FinalizeOutcome is what the paid transition did, for the caller to meter (054).
 type FinalizeOutcome struct {
+	// 069 — the order's same-day place was confirmed. SlotOverCapacity is the late payer: honoured
+	// above the slot's capacity, and the service raises the metric the alert watches.
+	SlotConfirmed    bool
+	SlotOverCapacity bool
 	// False when the order was already paid — a redelivered webhook. Everything below ran zero times.
 	Applied bool
 	// ⚠ TRUE IS AN OVERSELL: the order asked for more of something than the shop had, so a shopper has
@@ -598,15 +739,27 @@ ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
 	// 2b. Copy the captured per-package delivery (047) onto each fulfilment. Absent for pre-047 orders
 	// (no order_package_delivery rows) → columns stay NULL, which is valid. ⚠ delivery_fee_amount is
 	// NEVER shown to the shop; it is recorded for the customer receipt and future payout slices.
+	//
+	// ⚠ `promised_ready_at` IS DELIBERATELY NOT SET HERE (069 research R2). This statement used to copy
+	// `opd.promised_to` into it, which was harmless only because nothing wrote `promised_to`. 069 does:
+	// it is now the CUSTOMER'S DELIVERY DAY. Copying it would tell a shop that an order for next
+	// Thursday is not due until next Thursday — but a standard package waits at the HUB, not at the
+	// shop. NULL keeps the shop's own ready-by rule (edge-api/shop promise.ts). Pinned by
+	// shop_ready_by_container_test.go.
 	if _, err := tx.Exec(ctx, `
 UPDATE public.shop_fulfillment sf
 SET delivery_method     = opd.method,
     delivery_fee_amount = opd.delivery_fee_amount,
-    promised_ready_at   = opd.promised_to,
     updated_at          = now()
 FROM public.order_package_delivery opd
 WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = $1`, orderID); err != nil {
 		return result, fmt.Errorf("checkout: copy package delivery: %w", err)
+	}
+
+	// 2c. The same-day place becomes a booking (069). See confirmSlotBookingTx for the late payer.
+	result.SlotConfirmed, result.SlotOverCapacity, err = confirmSlotBookingTx(ctx, tx, orderID)
+	if err != nil {
+		return result, err
 	}
 
 	// ── 2d. THE OVERSELL, FLAGGED BEFORE ANYTHING IS DEDUCTED (054 FR-022a) ─────────────────────

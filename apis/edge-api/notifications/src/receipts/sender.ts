@@ -3,6 +3,7 @@
 // ⚠ EVERY MONEY VALUE, QUANTITY AND DATE IS FORMATTED HERE, not in the template (email-kit FR-048).
 // SES has no formatting helpers and a template handed a raw number cannot format it, so the catalogue
 // declares every one of these as a pre-formatted string. This module is where "3.60" becomes "$3.60".
+import { ARRIVAL_UNCONFIRMED, formatArrival } from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
@@ -59,36 +60,54 @@ function methodLabel(method: string): string {
   return "Standard";
 }
 
-function day(isoDate: string): string {
-  const d = new Date(`${isoDate}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return isoDate;
-  return new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short" }).format(d);
-}
-
 /**
  * The arrival estimate, in the plainest words the DATA supports.
  *
- * ⚠ A DATE OR DATE RANGE, NEVER A TIME (research R4). `promised_from`/`promised_to` are `date`
- * columns; the platform has no delivery window. And when there is no promise at all it SAYS SO —
- * inventing a date on a receipt would be a false fact on a financial record.
+ * ⚠ THE WORDING IS `formatArrival`'S, NOT THIS FILE'S (069). The confirmation page and the order
+ * page call the same function, so the email cannot say "Thursday" while the page says "today, 5 pm –
+ * 7 pm". This file used to carry its own date formatting beside customer-web's; 052 deleted a second
+ * implementation of one rule for exactly this reason.
+ *
+ * An order can arrive in more than one delivery — a same-day window for one package and a chosen day
+ * for another — so each DISTINCT promise is said once, joined with "and". When there is no promise at
+ * all it SAYS SO: inventing a date on a receipt would be a false fact on a financial record.
+ *
+ * `now` is a parameter so "today" is testable; the drain passes the moment it sends.
  */
-export function arrivalText(arrivals: ReceiptArrivalRow[]): { estimate: string; method: string } {
-  if (arrivals.length === 0) return { estimate: "a date we'll confirm", method: "Delivery" };
+export function arrivalText(
+  arrivals: ReceiptArrivalRow[],
+  now: Date = new Date(),
+): { estimate: string; method: string } {
+  if (arrivals.length === 0) return { estimate: UNCONFIRMED, method: "Delivery" };
 
   const method = arrivals.length > 1 ? "Multiple deliveries" : methodLabel(arrivals[0]!.method);
-  const froms = arrivals.map((a) => a.promised_from ?? a.promised_to).filter(Boolean) as string[];
-  const tos = arrivals.map((a) => a.promised_to ?? a.promised_from).filter(Boolean) as string[];
-  if (froms.length === 0) return { estimate: "a date we'll confirm", method };
 
-  const from = froms.reduce((a, b) => (a < b ? a : b));
-  const to = tos.reduce((a, b) => (a > b ? a : b), from);
-
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
-  if (from === to) {
-    if (from === today) return { estimate: "today", method };
-    return { estimate: day(from), method };
+  const said: string[] = [];
+  for (const a of arrivals) {
+    const text = formatArrival(
+      {
+        promisedFrom: a.promised_from,
+        promisedTo: a.promised_to,
+        windowStart: a.window_start ? a.window_start.toISOString() : null,
+        windowEnd: a.window_end ? a.window_end.toISOString() : null,
+      },
+      now,
+    );
+    if (text !== ARRIVAL_UNCONFIRMED && !said.includes(text)) said.push(text);
   }
-  return { estimate: `${day(from)} – ${day(to)}`, method };
+  if (said.length === 0) return { estimate: UNCONFIRMED, method };
+
+  // The estimate sits mid-sentence in the template ("Arriving …"), so "Today" reads as "today".
+  return { estimate: said.map(midSentence).join(" and "), method };
+}
+
+/** What the receipt says when the platform has promised no day. Every order placed before 069. */
+const UNCONFIRMED = "a date we'll confirm";
+
+function midSentence(text: string): string {
+  return text.startsWith("Today") || text.startsWith("Tomorrow")
+    ? text.charAt(0).toLowerCase() + text.slice(1)
+    : text;
 }
 
 /** "Visa ending 4242" / "Klarna" / "" — never any card field beyond last4 (051). */

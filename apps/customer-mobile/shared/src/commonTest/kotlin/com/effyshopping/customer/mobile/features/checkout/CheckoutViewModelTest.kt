@@ -254,12 +254,20 @@ class CheckoutViewModelTest {
         assertNull(unserviced.lastOrder) // never reached placement
     }
 
+    // ⚠ 069 changed what this test can say. It used to read "offerable only when the WHOLE order
+    // qualifies" — same-day is now offered when ANY delivery can go today and a slot is open, and it
+    // cannot be paid for without a slot. The slot rules themselves are in DeliveryChoiceTest.
     @Test
-    fun `same-day is offerable only when the whole order qualifies - and is sent on pay`() = runTest {
+    fun `same-day is sent on pay - with the slot it needs`() = runTest {
+        val slot = com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot(
+            id = "evening", date = "2026-10-08",
+            startAt = "2026-10-08T17:00:00+11:00", endAt = "2026-10-08T19:00:00+11:00", cutoffAt = "2026-10-08T15:00:00+11:00",
+        )
         val sameDay = FakeCheckout(
             quote = DeliveryQuote(
                 serviced = true, sameDayAvailable = true,
                 standardTotalAmount = "6.00", sameDayTotalAmount = "10.00",
+                slots = listOf(slot), standardDays = listOf("2026-10-09"), deliveries = 1, sameDayDeliveries = 1,
             ),
         )
         val vm = vm(listOf(addr("a", isDefault = true)), checkout = sameDay)
@@ -268,8 +276,10 @@ class CheckoutViewModelTest {
         vm.setMethod(DeliveryMethod.SAME_DAY)
         assertEquals(DeliveryMethod.SAME_DAY, ready(vm)?.method)
 
+        vm.setSlot("evening")
         vm.payNow()
         assertEquals(DeliveryMethod.SAME_DAY, sameDay.lastOrder?.deliveryMethod)
+        assertEquals("evening", sameDay.lastOrder?.sameDaySlotId)
     }
 
     @Test

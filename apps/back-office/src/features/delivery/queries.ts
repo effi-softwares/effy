@@ -5,8 +5,11 @@ import {
   deleteCollectionRun, deleteException, getSettings, listCollectionRuns, listExceptions, listPlans,
   listRings, listZones, patchZone, putException, putSettings, removePostcode, suggestRing,
   type NewPlanBody, type NewRingBody, type NewZoneBody, type ZonePatchBody,
+  addNonDeliveryDate, createSlot, getDeliveryDays, listSlots, patchSlot, putDeliveryDays, removeNonDeliveryDate,
 } from "./repo";
-import type { DeliverySettingsDTO } from "@effy/shared-types";
+import type {
+  DeliveryDaysInput, DeliverySettingsDTO, DeliverySlotInput, DeliverySlotPatch, NonDeliveryDateInput,
+} from "@effy/shared-types";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
 // rather than hand-patching cached rows.
@@ -101,4 +104,39 @@ export function useDeleteException() {
     mutationFn: ({ zoneId, shopId }: { zoneId: string; shopId: string }) => deleteException(zoneId, shopId),
     onSuccess: () => invalidate(qc),
   });
+}
+
+// ── 069: same-day slots and the standard-delivery calendar ────────────────────────────────────────
+
+/**
+ * ⚠ REFETCHED EVERY 30 SECONDS. "Booked today" moves as customers reach the payment step, and an
+ * operator deciding whether to raise a slot's capacity is reading a number that is already stale.
+ */
+export const slotsQuery = () =>
+  queryOptions({ queryKey: [...ROOT, "slots"] as const, queryFn: listSlots, refetchInterval: 30_000 });
+export const deliveryDaysQuery = () =>
+  queryOptions({ queryKey: [...ROOT, "days"] as const, queryFn: getDeliveryDays });
+
+export function useCreateSlot() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (b: DeliverySlotInput) => createSlot(b), onSuccess: () => invalidate(qc) });
+}
+export function usePatchSlot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slotId, body }: { slotId: string; body: DeliverySlotPatch }) => patchSlot(slotId, body),
+    onSuccess: () => invalidate(qc),
+  });
+}
+export function usePutDeliveryDays() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (b: DeliveryDaysInput) => putDeliveryDays(b), onSuccess: () => invalidate(qc) });
+}
+export function useAddNonDeliveryDate() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (b: NonDeliveryDateInput) => addNonDeliveryDate(b), onSuccess: () => invalidate(qc) });
+}
+export function useRemoveNonDeliveryDate() {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: (day: string) => removeNonDeliveryDate(day), onSuccess: () => invalidate(qc) });
 }

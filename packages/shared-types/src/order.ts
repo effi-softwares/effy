@@ -286,15 +286,22 @@ export interface PaymentMethodSummaryDTO {
  * something else, and it is fulfilment structure (FR-009). The names are kept apart deliberately so
  * the two can never be swapped by autocomplete.
  *
- * ⚠ DATES, NOT TIMES. `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd) because the underlying
- * `order_package_delivery.promised_from`/`.promised_to` are `date` columns — the platform has no
- * delivery time window and cannot derive one. A client MUST NOT render a time here.
+ * `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd): the delivery DAY. From 069 they are equal —
+ * today for same-day, the customer's chosen day for standard. ⚠ Both are null on every order placed
+ * before 069, which never recorded a day at all; a client then says the date will be confirmed and
+ * MUST NOT invent one.
+ *
+ * `windowStart`/`windowEnd` are the same-day time window the customer was sold (069). Null for
+ * standard deliveries and for every earlier order. Render all four through `formatArrival`.
  */
 export interface ArrivalEstimateDTO {
   /** The method the customer chose for this package. */
   method: "same_day" | "scheduled" | "standard";
   promisedFrom: string | null;
   promisedTo: string | null;
+  /** ISO datetimes with the Australia/Melbourne offset, or null. */
+  windowStart: string | null;
+  windowEnd: string | null;
 }
 
 /** Receipt is the same shape as the full order detail. */

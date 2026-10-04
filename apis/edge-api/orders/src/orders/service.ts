@@ -8,6 +8,8 @@ import type {
   AdminOrderSummaryDTO,
   AdminPaymentMethodDTO,
   ArrivalSource,
+  HandoverDueFilter,
+  HandoverRowDTO,
   OrderAwaiting,
   OrderStage,
   OrderStatus,
@@ -15,6 +17,7 @@ import type {
   RefundRequestDTO,
 } from "@effy/shared-types";
 
+import { judgePromise } from "./promise";
 import * as refundRepo from "./refunds";
 import * as repo from "./repository";
 
@@ -120,8 +123,29 @@ export async function listOrders(params: repo.ListParams): Promise<{
   return { items: page.map(toSummary), nextCursor };
 }
 
-function toPackage(row: repo.PackageRow): AdminOrderPackageDTO {
+/** Exported so the promise fields can be proven against the real schema without the whole order read. */
+export function toPackage(row: repo.PackageRow): AdminOrderPackageDTO {
+  // 069 — what it was promised and whether that is being kept. Derived, never stored.
+  const verdict = judgePromise({
+    method: row.method,
+    promisedDate: row.promised_date,
+    windowEnd: row.window_end,
+    today: row.today,
+    handoffDate: row.handoff_date,
+    arrivedAt: row.arrival_at,
+    arrivalDate: row.arrival_date,
+    carrierLeadDays: row.carrier_lead_days,
+  });
   return {
+    promisedDate: row.promised_date,
+    window:
+      row.window_start && row.window_end
+        ? { startAt: row.window_start.toISOString(), endAt: row.window_end.toISOString() }
+        : null,
+    overCapacity: row.over_capacity,
+    handoverDueOn: verdict.handoverDueOn,
+    atRisk: verdict.atRisk,
+    onTime: verdict.onTime,
     fulfillmentId: row.fulfillment_id,
     shopId: row.shop_id,
     shopName: row.shop_name,
@@ -367,4 +391,21 @@ function toRefundRequest(
     createdAt: r.created_at.toISOString(),
     decidedAt: r.decided_at ? r.decided_at.toISOString() : null,
   };
+}
+
+// ── 069: the carrier handover list ───────────────────────────────────────────────────────────────
+
+/** Standard packages due to be handed to the carrier, by when they must leave the hub (069 US7). */
+export async function listHandovers(due: HandoverDueFilter): Promise<HandoverRowDTO[]> {
+  const rows = await repo.handovers(due);
+  return rows.map((r) => ({
+    fulfillmentId: r.fulfillment_id,
+    orderId: r.order_id,
+    orderNumber: r.order_number,
+    promisedDate: r.promised_date,
+    handoverDueOn: r.due_on,
+    // The same rule judgePromise applies to one package: its due day has passed and it has not left.
+    atRisk: r.today > r.due_on,
+    atHub: r.at_hub,
+  }));
 }

@@ -68,7 +68,70 @@ export interface DeliveryPackageDTO {
 export interface DeliveryQuoteDTO {
   postcode: string;
   serviced: boolean;
-  sameDayAvailableUntil: string | null; // ISO datetime with the Australia/Melbourne offset, or null
+  /**
+   * ISO datetime with the Australia/Melbourne offset, or null. ⚠ Kept for clients built before 069;
+   * it now carries the latest OPEN SLOT's cutoff. New clients read `sameDaySlots`.
+   */
+  sameDayAvailableUntil: string | null;
   packages: DeliveryPackageDTO[];
   expiresAt: string;
+  /**
+   * 069 — the same-day time slots still open for THIS order, earliest first. Empty when there are
+   * none, and then no package carries a `same_day` option. A slot is offered only if it is open for
+   * every package that would go same-day, so one choice covers the order (FR-005).
+   */
+  sameDaySlots: DeliverySlotOptionDTO[];
+  /**
+   * 069 — why same-day is not offered, when it is not (FR-004). The two are different sentences to a
+   * customer: "not in your area" will still be true tomorrow; "today's times are taken" will not.
+   */
+  sameDayUnavailableReason: SameDayUnavailableReason | null;
+  /**
+   * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
+   * ⚠ Never empty when `serviced` (FR-020).
+   */
+  standardDays: StandardDayOptionDTO[];
+}
+
+/** Why same-day is not on offer: the zone or shop does not do it, or every slot today is closed or full. */
+export type SameDayUnavailableReason = "not_eligible" | "slots_closed";
+
+/**
+ * One open same-day delivery window (069).
+ *
+ * ⚠ NO FEE: a slot has no price of its own — the fee is the same-day METHOD's, read from the
+ * package options (FR-021). ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's
+ * operational business, and "2 left" would be a pressure tactic nobody asked for (FR-050).
+ */
+export interface DeliverySlotOptionDTO {
+  /** Opaque. Sent back as `sameDaySlotId` on the intent request. */
+  slotId: string;
+  /** The delivery day, yyyy-mm-dd (Melbourne). */
+  date: string;
+  /** ISO datetimes with the Australia/Melbourne offset. */
+  startAt: string;
+  endAt: string;
+  /** After this the slot can no longer be chosen. Lets a client grey it out without a round trip. */
+  cutoffAt: string;
+}
+
+/** One day a standard delivery can arrive (069). The fee is the standard METHOD's, as above. */
+export interface StandardDayOptionDTO {
+  /** yyyy-mm-dd (Melbourne). */
+  date: string;
+}
+
+/**
+ * 069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a 409
+ * problem, with a fresh `quote` so the client can re-offer without a second request.
+ *
+ * ⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses again.
+ */
+export type DeliveryChoiceRefusalCode = "slot_required" | "slot_unavailable" | "date_unavailable";
+
+/** The body of a delivery-choice refusal. */
+export interface DeliveryChoiceRefusalDTO {
+  code: DeliveryChoiceRefusalCode;
+  /** The options as they stand NOW. Absent on `slot_required` from a client that sent no slot. */
+  quote?: DeliveryQuoteDTO | null;
 }

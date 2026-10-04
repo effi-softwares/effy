@@ -70,6 +70,12 @@ fun ArrivedScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // 069 — at the door, whether the customer is expecting them yet. ⚠ A late drop is still
+        // completed here in the ordinary way: nothing below is disabled by it (FR-034).
+        if (drop.window != null) {
+            Spacer(Modifier.height(10.dp))
+            WindowLine(drop.window, drop.status)
+        }
 
         drop.driverInstructions?.let {
             Spacer(Modifier.height(20.dp))

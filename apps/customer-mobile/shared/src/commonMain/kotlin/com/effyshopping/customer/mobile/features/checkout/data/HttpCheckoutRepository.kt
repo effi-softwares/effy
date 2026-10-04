@@ -1,6 +1,10 @@
 package com.effyshopping.customer.mobile.features.checkout.data
 
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderSummaryDTO
@@ -30,8 +34,14 @@ import kotlinx.io.IOException
 class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository, OrdersRepository {
 
     override suspend fun createIntent(order: PlaceOrder): CheckoutIntent = request {
-        core.post("v1/checkout/intent") { setBody(order.toRequest()) }
-            .ensureSuccess().body<CreateCheckoutIntentResponse>().toDomain()
+        val response = core.post("v1/checkout/intent") { setBody(order.toRequest()) }
+        // 069 — a 409 carrying one of the three delivery-choice codes is a NAMED refusal with the
+        // options as they stand now. ⚠ Read BEFORE the generic mapping, which turns every 409 into an
+        // unrelated account error; a 409 that is not one of ours still falls through to it.
+        if (response.status == HttpStatusCode.Conflict) {
+            deliveryRefusalOrNull(response.bodyAsText())?.let { throw it }
+        }
+        response.ensureSuccess().body<CreateCheckoutIntentResponse>().toDomain()
     }
 
     override suspend fun confirm(orderId: String): Boolean = request {
@@ -60,6 +70,8 @@ class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository,
             throw e
         } catch (e: AppException) {
             throw e
+        } catch (e: DeliveryChoiceRefused) {
+            throw e // a refusal the shopper can act on — never flattened into "unexpected"
         } catch (e: IOException) {
             throw AppException(AppError.Network)
         } catch (e: UnresolvedAddressException) {
@@ -68,6 +80,18 @@ class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository,
             throw AppException(AppError.Unexpected)
         }
 }
+
+/**
+ * Decode a delivery-choice refusal, or null when the body is some other conflict.
+ *
+ * ⚠ Lenient on purpose: the body is an RFC 9457 problem with `code` and `quote` beside the standard
+ * members, and an unknown `code` (a refusal a newer server adds) must fall through to the generic
+ * mapping rather than crash the checkout.
+ */
+internal fun deliveryRefusalOrNull(body: String): DeliveryChoiceRefused? =
+    runCatching { refusalJson.decodeFromString(DeliveryChoiceRefusalDTO.serializer(), body).toDomain() }.getOrNull()
+
+private val refusalJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; explicitNulls = false }
 
 @kotlinx.serialization.Serializable
 private data class ConfirmResponse(val orderId: String = "", val paid: Boolean = false)

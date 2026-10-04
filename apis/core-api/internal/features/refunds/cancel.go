@@ -227,6 +227,16 @@ SELECT w.id, 'state_changed', w.from_status, 'withdrawn' FROM withdrawn w`, in.O
 		return 0, 0, "", fmt.Errorf("refunds: withdraw portions: %w", err)
 	}
 
+	// 069 — the order's place in its same-day slot is given back (FR-012). `released` stops counting,
+	// so if the slot's cutoff has not passed the next customer is offered the place. A standard order,
+	// and every order placed before 069, has no booking and this touches nothing.
+	if _, err := tx.Exec(ctx, `
+UPDATE public.delivery_slot_booking
+   SET state = 'released', held_until = NULL, updated_at = now()
+ WHERE order_id = $1 AND state <> 'released'`, in.OrderID); err != nil {
+		return 0, 0, "", fmt.Errorf("refunds: release delivery slot: %w", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return 0, 0, "", fmt.Errorf("refunds: cancel commit: %w", err)
 	}

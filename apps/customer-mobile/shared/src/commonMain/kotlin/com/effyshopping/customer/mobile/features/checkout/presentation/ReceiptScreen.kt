@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
 import com.effyshopping.customer.mobile.features.saved.presentation.ListChooserSheet
 import com.effyshopping.customer.mobile.features.deliveryinstructions.presentation.DeliveryInstructionsText
@@ -481,14 +482,22 @@ private fun paymentLabel(m: PaymentMethodSummary): String {
 /**
  * The arrival, in the plainest words the DATA supports.
  *
+ * ⚠ THE WORDING IS [DeliveryWindowText]'s (069) — the Kotlin twin of the function the web page and the
+ * emailed receipt call, tested against the same fixture. This used to print the raw ISO date.
+ *
  * ⚠ When there is no promise it SAYS SO. Inventing a date on a receipt would be a false fact on a
- * financial record.
+ * financial record; every order placed before 069 reads that line.
  */
+@OptIn(kotlin.time.ExperimentalTime::class)
 private fun arrivalLabel(a: ArrivalEstimate?): String {
-    if (a == null) return "We'll confirm your delivery date"
-    val from = a.promisedFrom ?: a.promisedTo ?: return "We'll confirm your delivery date"
-    val to = a.promisedTo ?: from
-    return if (from == to) from else "${'$'}from – ${'$'}to"
+    if (a == null) return DeliveryWindowText.UNCONFIRMED
+    return DeliveryWindowText.formatArrival(
+        promisedFrom = a.promisedFrom,
+        promisedTo = a.promisedTo,
+        windowStart = a.windowStart,
+        windowEnd = a.windowEnd,
+        nowEpochMillis = kotlin.time.Clock.System.now().toEpochMilliseconds(),
+    )
 }
 
 /** The customer-facing stage, in words. ⚠ Rendered, never recomputed (FR-008). */

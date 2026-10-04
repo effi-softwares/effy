@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.payment.presentation
 
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.core.error.AppError
@@ -87,6 +88,17 @@ class PaymentViewModel(
      */
     fun pay(handle: PaymentElementHandle) {
         if (_state.value.paying) return
+        // 069 — ⚠ THE LAST MOMENT ANYTHING OF EFFY'S CAN SAY NO. The element confirms with the
+        // provider directly, so once it is asked nothing stands between the shopper and the charge. A
+        // same-day place is held for a few minutes from the intent; past that it may have gone to
+        // someone else, and they must find out HERE rather than after paying. Going back and
+        // continuing again re-runs the intent, which holds the place afresh or says it has gone.
+        if (holdLapsed(intent.slotHeldUntil, nowEpochMillis())) {
+            _state.value = _state.value.copy(
+                error = "Your delivery time is no longer held. Nothing has been charged — go back and continue again to check it’s still available.",
+            )
+            return
+        }
         _state.value = _state.value.copy(paying = true, error = null)
         viewModelScope.launch {
             try {
@@ -159,6 +171,20 @@ class PaymentViewModel(
  * (027 R13); parsing to Double here to multiply by 100 would reintroduce the rounding this platform
  * spent three stacked defects removing.
  */
+/**
+ * Whether the order's same-day place has lapsed (069).
+ *
+ * ⚠ FALSE WHEN THERE IS NO HOLD, and false for a value that cannot be read: a standard order holds
+ * nothing, and refusing to let someone pay because a timestamp was malformed would cost the order.
+ */
+internal fun holdLapsed(slotHeldUntil: String?, nowEpochMillis: Long): Boolean {
+    val until = slotHeldUntil?.let(DeliveryWindowText::epochMillisOrNull) ?: return false
+    return nowEpochMillis >= until
+}
+
+@OptIn(kotlin.time.ExperimentalTime::class)
+private fun nowEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
+
 internal fun minorUnits(amount: String): Long {
     val negative = amount.startsWith("-")
     val body = if (negative) amount.substring(1) else amount

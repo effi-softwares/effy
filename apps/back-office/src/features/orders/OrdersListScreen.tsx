@@ -121,7 +121,11 @@ export function OrdersListScreen() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">Orders</h1>
         <p className="text-muted-foreground">
-          Every paid order, what stage the customer sees, and what it is waiting on.
+          Every paid order, what stage the customer sees, and what it is waiting on.{" "}
+          {/* 069 — the day-by-day view of what has to leave the hub. */}
+          <Link to="/orders/handover" className="font-medium text-primary hover:underline">
+            Carrier handover
+          </Link>
         </p>
       </div>
 

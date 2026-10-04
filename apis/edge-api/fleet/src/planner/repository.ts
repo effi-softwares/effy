@@ -33,6 +33,9 @@ interface GatherRow {
   item_count: string;
   requires_chilled: boolean | null;
   requires_frozen: boolean | null;
+  /** Selected by the delivery gather only; absent from collection rows. */
+  window_start?: Date | null;
+  window_end?: Date | null;
 }
 
 /** ⚠ One line a driver can read and hand to their maps app (D7). Never a coordinate. */
@@ -61,6 +64,8 @@ function mapPackage(r: GatherRow): PlannablePackage {
     itemCount: Number(r.item_count),
     requiresChilled: r.requires_chilled === true,
     requiresFrozen: r.requires_frozen === true,
+    windowStart: r.window_start ?? null,
+    windowEnd: r.window_end ?? null,
   };
 }
 

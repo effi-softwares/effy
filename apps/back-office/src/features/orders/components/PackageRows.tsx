@@ -3,7 +3,10 @@ import { useState } from "react";
 import { Button, Input } from "@effy/design-system/ui";
 
 import type { OrderPackage } from "../model";
-import { nextActionFor, packagePositionFor } from "../model";
+import {
+  nextActionFor, packagePositionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
+  formatDeliveryDay,
+} from "../model";
 
 /**
  * One row per package — a detail row, NOT a card (Principle V).
@@ -66,6 +69,8 @@ function PackageRow({
   const [reference, setReference] = useState("");
   const [carrierName, setCarrierName] = useState("");
   const action = nextActionFor(pkg);
+  const promise = promiseTextFor(pkg);
+  const flags = promiseFlagsFor(pkg);
 
   return (
     <div className="space-y-3 p-4">
@@ -79,6 +84,37 @@ function PackageRow({
         </div>
         <p className="text-sm font-medium">{packagePositionFor(pkg)}</p>
       </div>
+
+      {/*
+        069 — what the customer was promised. ⚠ Rendered ONLY when there is a promise: an order placed
+        before 069 was promised no day, and a "Promised: —" row would read as data that went missing
+        rather than data that never existed (the same rule as the consignment reference below).
+      */}
+      {promise ? (
+        <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
+          <dt className="text-muted-foreground">Promised</dt>
+          <dd className="tabular-nums">{promise}</dd>
+          {pkg.handoverDueOn && !pkg.handoff ? (
+            <>
+              <dt className="text-muted-foreground">Hand over by</dt>
+              <dd className="tabular-nums">{formatDeliveryDay(pkg.handoverDueOn)}</dd>
+            </>
+          ) : null}
+          {flags.length > 0 ? (
+            <>
+              <dt className="text-muted-foreground">Note</dt>
+              {/* ⚠ WORDS, never colour alone. The tint reinforces; the sentence carries it. */}
+              <dd className="flex flex-wrap gap-x-3">
+                {flags.map((f) => (
+                  <span key={f} className={f === "on_time" ? "text-muted-foreground" : "text-warning"}>
+                    {PROMISE_FLAG_LABEL[f]}
+                  </span>
+                ))}
+              </dd>
+            </>
+          ) : null}
+        </dl>
+      ) : null}
 
       {pkg.handoff ? (
         <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">

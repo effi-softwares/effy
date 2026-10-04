@@ -32,7 +32,11 @@ class DeliveryWireContractTest {
 
         // Byte-identical to deliveryQuoteWire in checkout/delivery_wire_contract_test.go.
         const val DELIVERY_QUOTE_WIRE =
-            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":"2026-08-24T13:00:00+10:00","packages":[{"shopRef":"pkg-1","options":[{"method":"standard","feeAmount":"6.00","promisedFrom":null,"promisedTo":null},{"method":"same_day","feeAmount":"11.00","promisedFrom":"2026-08-24","promisedTo":"2026-08-24"}]}],"expiresAt":"2026-08-24T12:20:00+10:00"}"""
+            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":"2026-08-24T13:00:00+10:00","packages":[{"shopRef":"pkg-1","options":[{"method":"standard","feeAmount":"6.00","promisedFrom":null,"promisedTo":null},{"method":"same_day","feeAmount":"11.00","promisedFrom":"2026-08-24","promisedTo":"2026-08-24"}]}],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00"}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"},{"date":"2026-08-26"}]}"""
+
+        // Byte-identical to deliveryQuoteNoSameDayWire in checkout/delivery_wire_contract_test.go (069).
+        const val DELIVERY_QUOTE_NO_SAME_DAY_WIRE =
+            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[],"sameDayUnavailableReason":"slots_closed","standardDays":[{"date":"2026-08-25"}]}"""
     }
 
     @Test
@@ -71,9 +75,39 @@ class DeliveryWireContractTest {
     @Test
     fun `an unserviced quote carries no packages`() {
         val dto = json.decodeFromString<DeliveryQuoteDTO>(
-            """{"postcode":"3999","serviced":false,"sameDayAvailableUntil":null,"packages":[],"expiresAt":""}""",
+            // Byte-identical to deliveryQuoteUnservicedWire in checkout/delivery_wire_contract_test.go.
+            """{"postcode":"3999","serviced":false,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"","sameDaySlots":[],"sameDayUnavailableReason":null,"standardDays":[]}""",
         )
         assertFalse(dto.serviced)
         assertTrue(dto.packages.isEmpty())
+    }
+
+    // ── 069: slots and days ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `Kotlin decodes the slots and days Go emits`() {
+        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
+
+        val slot = dto.sameDaySlots.single()
+        assertEquals("33333333-3333-3333-3333-333333333333", slot.slotID)
+        assertEquals("2026-08-24", slot.date)
+        assertEquals("2026-08-24T17:00:00+10:00", slot.startAt)
+        assertEquals("2026-08-24T19:00:00+10:00", slot.endAt)
+        assertEquals("2026-08-24T13:00:00+10:00", slot.cutoffAt)
+        assertEquals(listOf("2026-08-25", "2026-08-26"), dto.standardDays.map { it.date })
+        assertEquals(null, dto.sameDayUnavailableReason)
+    }
+
+    @Test
+    fun `Kotlin decodes a quote with no same-day - empty arrays and a reason`() {
+        // ⚠ The arrays are `[]`, never `null`: the generated DTO declares them non-null, and `null`
+        // there is a decode failure that would leave checkout saying "Checking delivery…" forever.
+        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_NO_SAME_DAY_WIRE)
+        assertTrue(dto.sameDaySlots.isEmpty())
+        assertEquals(listOf("2026-08-25"), dto.standardDays.map { it.date })
+        assertEquals(
+            com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason.SlotsClosed,
+            dto.sameDayUnavailableReason,
+        )
     }
 }

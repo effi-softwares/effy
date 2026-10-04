@@ -22,6 +22,7 @@
 // A wire integer (no decimal point on the wire) — the single definition lives in cart.ts.
 import type { WireInt } from "./cart";
 import type { HandoverPreference } from "./delivery-instructions";
+import type { DeliveryWindow } from "./delivery-window";
 
 // ── Identity & duty ──────────────────────────────────────────────────────────────────────────────
 
@@ -302,7 +303,13 @@ export interface DeliveryDropSummary {
   orderRef: string;
   customerSuburb: string;
   packageCount: WireInt;
+  /**
+   * The delivery window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time). ⚠ Null from 049
+   * until 069 — the field existed and nothing could fill it, because no window was ever sold.
+   */
   window: string | null;
+  /** 069 — the same window as instants, so the app can say Due and Late as the clock moves. */
+  deliveryWindow?: DeliveryWindow | null;
   status: DeliveryDropStatus;
   /** 065 — the drop's total across its packages, so cold goods show in the list unopened. */
   summary: ClassSummary;
@@ -347,6 +354,17 @@ export interface DeliveryDropDTO {
    * removes a way of completing the drop. Kept apart from `instructions` because the app ACTS on it.
    */
   handover?: HandoverPreference | null;
+  /**
+   * 069 — the time window the customer was sold. Null/absent for an order placed before 069.
+   * ⚠ Due and late are derived by the app from this and the clock; the server does not send a
+   * state that would be stale the moment the screen had been open a minute.
+   */
+  deliveryWindow?: DeliveryWindow | null;
+  /**
+   * 069 — the same window as a ready-made label in Melbourne time ("5 pm – 7 pm"), the field the run
+   * list has carried since 049. Sent so the app shows the SERVER's wording and never formats a time.
+   */
+  window?: string | null;
   packages: DropPackageRef[];
   status: DeliveryDropStatus;
   /** 065 — the sum of `packages[].summary`. */

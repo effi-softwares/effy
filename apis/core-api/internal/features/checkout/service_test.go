@@ -47,6 +47,8 @@ type fakeStore struct {
 	captureCalled bool
 	capturedPkgs  []PackageDelivery
 	capturedQuote []byte
+	capturedHold  *SlotHold
+	captureErr    error
 
 	// 051 — the provider reference and the platform's own contact fields.
 	providerCustomerID string
@@ -123,11 +125,19 @@ func (f *fakeStore) SetOrderBilling(_ context.Context, _ string, billingJSON []b
 	return nil
 }
 
-func (f *fakeStore) CaptureDelivery(_ context.Context, _ string, quoteJSON []byte, _ time.Time, pkgs []PackageDelivery) error {
+func (f *fakeStore) CaptureDelivery(_ context.Context, _ string, quoteJSON []byte, _ time.Time, pkgs []PackageDelivery, hold *SlotHold) (*time.Time, error) {
+	if f.captureErr != nil {
+		return nil, f.captureErr
+	}
 	f.captureCalled = true
 	f.capturedQuote = quoteJSON
 	f.capturedPkgs = pkgs
-	return nil
+	f.capturedHold = hold
+	if hold == nil {
+		return nil, nil
+	}
+	until := hold.Now.Add(10 * time.Minute)
+	return &until, nil
 }
 
 func (f *fakeStore) UpsertPayment(_ context.Context, _, _ string, cents int64, _ string) error {
@@ -304,16 +314,30 @@ type fakeQuoter struct {
 	err error
 }
 
-func (q fakeQuoter) Quote(context.Context, string, []delivery.PackageInput, time.Time) (delivery.QuoteResult, error) {
+func (q fakeQuoter) Quote(context.Context, string, string, []delivery.PackageInput, time.Time) (delivery.QuoteResult, error) {
 	return q.res, q.err
 }
 
 // stdOnly builds a serviced quote with one standard-only package at the given fee.
 func stdOnly(shopID string, feeCents int64) delivery.QuoteResult {
 	return delivery.QuoteResult{
-		Serviced: true,
-		Packages: []delivery.PackageQuote{{ShopID: shopID, Options: []delivery.Option{{Method: "standard", FeeCents: feeCents}}}},
+		Serviced:     true,
+		Packages:     []delivery.PackageQuote{{ShopID: shopID, Options: []delivery.Option{{Method: "standard", FeeCents: feeCents}}}},
+		StandardDays: testDays,
 	}
+}
+
+// testDays are the standard days a fake quote offers. A served quote always offers at least one (069
+// FR-020), so a fixture without them describes a state the real quoter cannot produce.
+var testDays = []string{"2026-10-08", "2026-10-09", "2026-10-10"}
+
+// testSlot is one open same-day window, 17:00–19:00 Melbourne on 2026-10-07.
+var testSlot = delivery.OpenSlot{
+	ID:     "33333333-3333-3333-3333-333333333333",
+	Date:   "2026-10-07",
+	Start:  time.Date(2026, 10, 7, 17, 0, 0, 0, delivery.MelbourneTZ),
+	End:    time.Date(2026, 10, 7, 19, 0, 0, 0, delivery.MelbourneTZ),
+	Cutoff: time.Date(2026, 10, 7, 15, 0, 0, 0, delivery.MelbourneTZ),
 }
 
 const (
@@ -528,9 +552,11 @@ func TestIntent_SameDayPreferenceAppliedPerPackage(t *testing.T) {
 			{ShopID: "s1", Options: []delivery.Option{{Method: "standard", FeeCents: 600}, {Method: "same_day", FeeCents: 1100}}},
 			{ShopID: "s2", Options: []delivery.Option{{Method: "standard", FeeCents: 700}}},
 		},
+		SameDaySlots: []delivery.OpenSlot{testSlot},
+		StandardDays: testDays,
 	})
 
-	_, err := intent(svc, IntentInput{AddressID: addrID, DeliveryMethod: "same_day"})
+	_, err := intent(svc, IntentInput{AddressID: addrID, DeliveryMethod: "same_day", SameDaySlotID: testSlot.ID})
 	require.NoError(t, err)
 
 	// s1 → same-day 1100; s2 → standard 700 (no same-day offered). Fee = 1800.

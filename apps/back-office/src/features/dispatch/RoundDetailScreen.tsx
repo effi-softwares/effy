@@ -6,6 +6,9 @@ import { canDispatch } from "./access";
 import { LockControl } from "./components/LockControl";
 import { ReassignDialog } from "./components/ReassignDialog";
 import { ReorderControl } from "./components/ReorderControl";
+import type { DeliveryWindow } from "@effy/shared-types";
+
+import { WINDOW_STATE_LABEL, windowNoteFor } from "./model";
 import { dispatchDayQuery, dispatchRoundQuery } from "./queries";
 
 interface RoundDetail {
@@ -23,6 +26,8 @@ interface RoundDetail {
     zoneName: string | null;
     label: string;
     orderNumber: string | null;
+    /** 069 — the customer's delivery window; null for a pickup, the hub, or an order before 069. */
+    deliveryWindow?: DeliveryWindow | null;
   }>;
 }
 
@@ -92,7 +97,11 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
           </div>
         ) : null}
         <ol className="mt-3 divide-y divide-border">
-          {round.stops.map((s, i) => (
+          {round.stops.map((s, i) => {
+            // 069 — the window the customer was sold. The stops arrive already ordered earliest
+            // window first, by the same shared rule the driver's app uses.
+            const note = windowNoteFor(s, new Date());
+            return (
             <li key={s.stopId} className="flex items-baseline justify-between gap-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">
@@ -102,13 +111,25 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                 {s.orderNumber ? (
                   <p className="mt-0.5 text-sm text-muted-foreground">{s.orderNumber}</p>
                 ) : null}
+                {note ? (
+                  <p className="mt-0.5 text-sm tabular-nums">
+                    {note.text}
+                    {/* ⚠ A WORD, never colour alone. */}
+                    {WINDOW_STATE_LABEL[note.state] ? (
+                      <span className={note.state === "late" ? "ml-2 text-destructive" : "ml-2 text-warning"}>
+                        {WINDOW_STATE_LABEL[note.state]}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
               </div>
               <div className="shrink-0 text-right text-sm text-muted-foreground">
                 <p>{s.zoneName ?? "No zone"}</p>
                 <p>{s.status}</p>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ol>
       </section>
     </div>

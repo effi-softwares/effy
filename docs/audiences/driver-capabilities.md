@@ -328,3 +328,26 @@ handed the package and signs; the driver can always record what actually happene
 
 ⚠ **Not walked on either platform.**
 
+## §069 — Delivery windows (2026-10-04)
+
+Spec: [specs/069-delivery-slots-dates/](../../specs/069-delivery-slots-dates/). Client feedback R4b + R4c.
+
+| Capability | Android | iOS | Notes |
+|---|---|---|---|
+| Each drop shows the window the customer was sold ("Deliver 5 pm – 7 pm") | ✅ built | ✅ built (compile-verified) | On the round list, en-route, arrived and drop detail |
+| "Due now" once the window opens, "Late" once it has closed | ✅ built | ✅ built (compile-verified) | A word with a mark; colour only reinforces. Re-judged every 30 seconds |
+| Drops ordered earliest window first | ✅ built | ✅ built (compile-verified) | The same shared rule the dispatcher's console uses |
+| A late drop can still be completed | ✅ built | ✅ built (compile-verified) | Nothing is disabled by lateness |
+
+⚠ **The window is worded by the server**, in Melbourne time. The app formats no time of its own.
+
+⚠ **A drop with no window shows none.** An order placed before 069 was promised a day and nothing
+finer; no placeholder is drawn.
+
+⚠ **A delivery round is planned per window**, `planning lead` minutes before the window opens, and
+works to the window's end. A window that has already closed is still sent out, late.
+
+⚠ **The design's per-drop window was omitted from 060 until now**, because the platform had made no
+such promise. It is shown now because checkout sells one.
+
+⚠ **Not walked on either platform.**

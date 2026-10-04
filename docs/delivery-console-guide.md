@@ -206,7 +206,83 @@ a van and staff for it, another doesn't. The exceptions dialog lets you override
 
 ---
 
-## Tab 5 — Settings
+## Tab — Time slots (069)
+
+The windows a customer can choose for **same-day** delivery, like "5 pm – 7 pm".
+
+> ⚠ **Same-day now needs an open slot.** With no active slot, same-day is offered to **nobody** — the
+> tab shows a banner saying so. Create at least one slot before the release that turns this on.
+
+> ⚠ **A slot is live the moment you save it.** There is no draft. The next customer to reach checkout
+> sees it; one you switch off stops being offered at once.
+
+| Field | Meaning |
+|---|---|
+| **Starts / Ends** | The window the customer is told, in Melbourne time (24-hour, HH:MM). |
+| **Order by** | The slot's cutoff. After this it can no longer be chosen. It cannot be later than the start. |
+| **Deliveries it can take** | The slot's capacity. One customer order to one address counts as **one**, however many packages it has. |
+| **Booked today** | Confirmed orders plus customers currently at the payment step. Updates every 30 seconds. |
+
+**A slot is offered only when all three hold:**
+
+1. its **order by** time has not passed;
+2. it has **room**;
+3. a **collection run** can still bring the goods to the hub before it starts — that is, a run the
+   customer can still make (`now ≤ run − prep buffer`) that also satisfies
+   `run + hub turnaround ≤ slot start`.
+
+Rule 3 means the time a customer is shown as the last moment to order can be **earlier** than the
+slot's own "order by". *Seeded example:* runs at 12:00 and 16:00, prep buffer 120 min, turnaround 60
+min. A 17:00–19:00 slot with "order by 15:00" is really orderable until **14:00**, because the only
+run that reaches the hub by 17:00 is the 16:00 one, and it closes to orders at 14:00.
+
+**What happens at checkout.** When a customer chooses a slot and continues to payment, their place is
+**held** for the hold time on the *Delivery days* tab (10 minutes by default). If they pay, it is theirs.
+If they don't, the place goes back on offer when the hold ends. If the slot fills or closes while
+they are choosing, they are told and asked to choose again — **nothing is charged and nothing is
+chosen for them**.
+
+**Changing a slot never changes a placed order.** Edit the times, lower the capacity or switch it
+off: orders already placed keep the window they were sold. Lowering capacity below what is booked
+keeps those bookings and simply takes no more.
+
+**There is no delete.** Placed orders refer to the slot, so it is switched off instead.
+
+**"N over capacity".** A customer who pays *after* their hold ended, into a slot that has since
+filled, keeps the window they chose — they have paid for it. The slot's row then says how many such
+orders it has. Check whether that evening's round can carry the extra drop.
+> ⚠ **Nothing alerts you to this yet.** The alert rule is written but the monitoring stack that would
+> run it does not exist. Look at this tab in the afternoon.
+
+---
+
+## Tab — Delivery days (069)
+
+Which days a **standard** delivery can arrive, and three timings.
+
+| Field | Meaning |
+|---|---|
+| **Days a customer can choose from** | How many days the checkout lists (1–30). Days with no delivery are skipped and **do not count** — "7" means seven days the customer can actually pick. |
+| **No delivery on** | Days of the week with no standard delivery. At least one day must stay open. |
+| **Carrier lead time (days)** | ⚠ An **estimate**. Hub handover → delivered. It sets the earliest day a customer is offered and the day each package must be handed to the carrier. |
+| **Hub turnaround (minutes)** | ⚠ An **estimate**. Collection run → ready to leave the hub. Used by rule 3 above. |
+| **Hold a same-day place for (minutes)** | How long a slot is held from "continue to payment". |
+| **Dates with no delivery** | Individual dates, such as public holidays. |
+
+**The earliest day offered** = the day the order can next be collected (today if a collection run can
+still be made, otherwise tomorrow) **plus the carrier lead time**, moved forward past any day with no
+delivery.
+
+**Closing a date that orders are already promised.** The console tells you how many placed orders
+carry that date. **They are not changed** — those customers were promised that day and paid. You
+need to decide what to do about them.
+
+> ⚠ These settings are saved with the hub. Set the hub on the **Settings** tab first; until then
+> this tab shows the defaults and refuses to save.
+
+---
+
+## Tab — Settings
 
 The two values that same-day and ring-suggestion depend on:
 
@@ -272,6 +348,8 @@ pricing is deliberate so a fee can't be traced back to one shop (Effy's fulfilme
    cap) → **Activate** it.
 5. **Same-day** → add collection runs; on each eligible zone toggle same-day on; add per-shop exceptions
    where a shop can't (or specially can) do same-day.
+5a. **Time slots** (069) → create at least one slot. ⚠ Without one, same-day is offered to nobody.
+5b. **Delivery days** (069) → set the days with no delivery and check the two estimated timings.
 6. Test as a shopper: an address in a zone shows a fee before pay; an address in no zone says "we don't
    deliver here yet".
 

@@ -236,7 +236,26 @@ export interface PackageRow {
   arrival_source: string | null;
   arrival_by: string | null;
   arrival_note: string | null;
+  // 069 — what the package was promised, and the Melbourne dates the verdict is judged on. Every
+  // date is computed by PostgreSQL in the operating timezone; nothing downstream rebuilds one.
+  promised_date: string | null;
+  window_start: Date | null;
+  window_end: Date | null;
+  over_capacity: boolean;
+  today: string;
+  handoff_date: string | null;
+  arrival_date: string | null;
+  carrier_lead_days: number;
 }
+
+/** Melbourne's calendar date for a timestamptz expression, as text. */
+const MEL_DATE = (expr: string) => `(${expr} AT TIME ZONE 'Australia/Melbourne')::date::text`;
+
+/**
+ * The carrier lead time. ⚠ COALESCE to the migration's own default: the settings row is created by
+ * the operator, and an order can exist before a hub is configured.
+ */
+const CARRIER_LEAD_DAYS = `COALESCE((SELECT carrier_lead_days FROM public.delivery_settings WHERE id = 1), 1)`;
 
 export async function packages(orderId: string): Promise<PackageRow[]> {
   const res = await query<PackageRow>(
@@ -245,11 +264,20 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
             h.reference AS handoff_reference, h.carrier_name AS handoff_carrier,
             h.handed_over_at AS handoff_at, h.recorded_by_sub AS handoff_by, h.note AS handoff_note,
             pa.arrived_at AS arrival_at, pa.source AS arrival_source,
-            pa.recorded_by_sub AS arrival_by, pa.note AS arrival_note
+            pa.recorded_by_sub AS arrival_by, pa.note AS arrival_note,
+            opd.promised_to::text AS promised_date,
+            opd.window_start, opd.window_end,
+            -- ⚠ The booking belongs to the ORDER; only its same-day packages are in the slot.
+            COALESCE(opd.slot_id IS NOT NULL AND b.over_capacity, false) AS over_capacity,
+            ${MEL_DATE("now()")} AS today,
+            ${MEL_DATE("h.handed_over_at")} AS handoff_date,
+            ${MEL_DATE("pa.arrived_at")} AS arrival_date,
+            ${CARRIER_LEAD_DAYS}::int AS carrier_lead_days
        FROM public.shop_fulfillment sf
        JOIN public.shop s ON s.id = sf.shop_id
   LEFT JOIN public.order_package_delivery opd
          ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+  LEFT JOIN public.delivery_slot_booking b ON b.order_id = sf.order_id
   LEFT JOIN public.carrier_handoff h  ON h.shop_fulfillment_id = sf.id
   LEFT JOIN public.package_arrival pa ON pa.shop_fulfillment_id = sf.id
       WHERE sf.order_id = $1
@@ -339,6 +367,60 @@ export async function history(orderId: string): Promise<HistoryRow[]> {
      ) t
      ORDER BY at ASC`,
     [orderId],
+  );
+  return res.rows;
+}
+
+// ── 069: the carrier handover list ───────────────────────────────────────────────────────────────
+
+export interface HandoverRow {
+  fulfillment_id: string;
+  order_id: string;
+  order_number: string;
+  promised_date: string;
+  due_on: string;
+  today: string;
+  at_hub: boolean;
+}
+
+/**
+ * Standard packages with a promised day that have not been handed to the carrier (069 US7).
+ *
+ * `due` selects against the day each must leave the hub — its promised day minus the carrier lead
+ * time: "today" is due today, "overdue" should already have gone, "upcoming" is not due yet.
+ *
+ * ⚠ A PACKAGE WITH NO PROMISED DAY NEVER APPEARS. Every order placed before 069 was promised none
+ * (research R1); listing it as overdue would be inventing a promise in order to have broken it. The
+ * existing "awaiting handover" filter on the order list still finds those.
+ *
+ * ⚠ NOT LIMITED TO PACKAGES ALREADY AT THE HUB. A package due out today that the driver has not
+ * collected yet is exactly the one staff most need to see; `at_hub` says which it is.
+ */
+export async function handovers(due: "today" | "overdue" | "upcoming"): Promise<HandoverRow[]> {
+  const cmp = due === "today" ? "=" : due === "overdue" ? "<" : ">";
+  const res = await query<HandoverRow>(
+    `SELECT * FROM (
+       SELECT sf.id AS fulfillment_id,
+              o.id AS order_id,
+              o.order_number,
+              opd.promised_to::text AS promised_date,
+              (opd.promised_to - ${CARRIER_LEAD_DAYS}::int)::text AS due_on,
+              ${MEL_DATE("now()")} AS today,
+              (sf.status = 'collected') AS at_hub
+         FROM public.shop_fulfillment sf
+         JOIN public."order" o ON o.id = sf.order_id
+         JOIN public.order_package_delivery opd
+           ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+    LEFT JOIN public.carrier_handoff h ON h.shop_fulfillment_id = sf.id
+        WHERE o.status = 'paid'
+          AND opd.method = 'standard'
+          AND opd.promised_to IS NOT NULL
+          AND h.id IS NULL
+          AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
+     ) p
+     WHERE p.due_on ${cmp} p.today
+     ORDER BY p.due_on ASC, p.order_number ASC
+     LIMIT 200`,
   );
   return res.rows;
 }

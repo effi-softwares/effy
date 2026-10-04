@@ -20,3 +20,38 @@ export const PLAN_INCOMPLETE =
   "This plan can't price every served zone yet. Price every ring and add at least one weight band, then activate.";
 
 export const POSTCODE_IN_ZONE = "That postcode already belongs to another zone.";
+
+// ── 069 ───────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The console's OWN wording for each field the service can refuse (FR-037). Keyed on the field the
+ * service named — never its `message`, which is server prose (FR-008).
+ */
+const SLOT_FIELD_COPY: Record<string, string> = {
+  startTime: "Enter the start as a time of day, like 17:00.",
+  endTime: "The slot must end after it starts.",
+  cutoffTime: "The cutoff can't be after the slot starts.",
+  capacity: "Capacity must be a whole number of at least 1.",
+  status: "Choose active or off.",
+  lookaheadDays: "Customers can be offered between 1 and 30 days.",
+  noDeliveryWeekdays: "At least one day of the week must have delivery.",
+  carrierLeadDays: "The carrier lead time must be between 0 and 14 days.",
+  slotHoldMin: "A place can be held for between 1 and 60 minutes.",
+  hubTurnaroundMin: "The hub turnaround must be between 0 and 480 minutes.",
+  day: "Enter a real date.",
+};
+
+export const SLOT_DUPLICATE = "There is already a slot with these start and end times.";
+export const HUB_NOT_SET = "Set the delivery hub on the Settings tab first — these settings are saved with it.";
+
+/** Field → message for a refused slot or delivery-day save; empty when the refusal named no field. */
+export function fieldErrors(err: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (isDomainError(err) && err.status === 400) {
+    for (const f of err.fields ?? []) {
+      const copy = SLOT_FIELD_COPY[f.field];
+      if (copy && !out[f.field]) out[f.field] = copy;
+    }
+  }
+  return out;
+}

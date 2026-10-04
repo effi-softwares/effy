@@ -26,6 +26,8 @@ export * from "./validation";
 export * from "./feedback";
 // 047-delivery-shipping-engine
 export * from "./delivery";
+// 069-delivery-slots-dates — the same-day window and the one wording every surface uses for it
+export * from "./delivery-window";
 export * from "./delivery-admin";
 // 049-driver-mobile-app
 export * from "./driver";

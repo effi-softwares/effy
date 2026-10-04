@@ -67,6 +67,9 @@ type IntentResult struct {
 	// BillingDetails is what the client passes back at confirmation, because the payment step no longer
 	// asks the shopper for a country, a postcode or a name (FR-014/FR-015).
 	BillingDetails BillingDetails
+	// SlotHeldUntil is when the order's same-day place lapses (069). Nil when no package is same-day.
+	// The client re-runs the intent before confirming payment once this has passed.
+	SlotHeldUntil *time.Time
 }
 
 // BillingDetails is what Effy supplies on the shopper's behalf at confirmation.
@@ -146,6 +149,7 @@ type StockMetrics interface {
 // actually APPLIED: a redelivered webhook does nothing, and counting it would inflate both series and
 // make the oversell rate meaningless.
 func (s *Service) meterStock(out FinalizeOutcome) {
+	s.meterSlot(out)
 	if s.stockMetrics == nil || !out.Applied {
 		return
 	}
@@ -154,6 +158,19 @@ func (s *Service) meterStock(out FinalizeOutcome) {
 		return
 	}
 	s.stockMetrics.StockDeducted("full")
+}
+
+// meterSlot counts a confirmed same-day booking (069), and separately the late payer who was honoured
+// above the slot's capacity — the series the "slot over capacity" alert watches. It rides meterStock
+// because both are "what did the paid transition just do", called at the same two sites.
+func (s *Service) meterSlot(out FinalizeOutcome) {
+	if s.deliveryMetrics == nil || !out.SlotConfirmed {
+		return
+	}
+	s.deliveryMetrics.SlotBooking("confirmed")
+	if out.SlotOverCapacity {
+		s.deliveryMetrics.SlotBooking("over_capacity")
+	}
 }
 
 // WithStockMetrics wires the stock telemetry sink.
@@ -166,7 +183,7 @@ func (s *Service) WithStockMetrics(m StockMetrics) *Service {
 // per-shop packages at time `now`. The concrete implementation is *delivery.Quoter; an interface keeps
 // checkout decoupled and testable.
 type DeliveryQuoter interface {
-	Quote(ctx context.Context, postcode string, pkgs []delivery.PackageInput, now time.Time) (delivery.QuoteResult, error)
+	Quote(ctx context.Context, customerID, postcode string, pkgs []delivery.PackageInput, now time.Time) (delivery.QuoteResult, error)
 }
 
 // WithDelivery enables the delivery fee engine (047). Separate from the constructor so the wiring is one
@@ -181,6 +198,10 @@ func (s *Service) WithDelivery(q DeliveryQuoter) *Service {
 type DeliveryMetrics interface {
 	DeliveryQuoted(outcome string) // same_day_and_standard | standard_only | unserviced
 	DeliveryQuoteFailed()          // the served-zone-unpriced invariant alarm (FR-029)
+	// 069 — held | confirmed | refused_full | refused_cutoff | refused_uncollectable |
+	// refused_unknown | over_capacity. ⚠ over_capacity is the one the alert watches.
+	SlotBooking(outcome string)
+	StandardDateRefused()
 }
 
 // WithDeliveryMetrics wires the delivery telemetry sink.
@@ -250,6 +271,15 @@ type IntentInput struct {
 	// package where it is not (FR-044/SC-011) — so a mixed basket charges same-day only where possible.
 	// The client never sends a fee; the server prices the chosen method from the captured quote (FR-036).
 	DeliveryMethod string
+	// SameDaySlotID is the delivery slot the customer chose (069). Required when any package resolves
+	// same-day. StandardDate is the day they chose for standard delivery (yyyy-mm-dd); empty means the
+	// earliest day on offer, which is what the UI preselects.
+	//
+	// ⚠ Neither is ever substituted. A slot or a day that is no longer on offer REFUSES the intent
+	// (DeliveryChoiceError) and the customer chooses again — the platform never moves an order to a
+	// time the customer did not pick (FR-010).
+	SameDaySlotID string
+	StandardDate  string
 	// DeliveryInstructions is what the customer tells the driver (066), ALREADY validated and
 	// normalised by platform/deliveryinstructions. The zero value is "said nothing".
 	//
@@ -346,13 +376,15 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	// (ErrNotServiceable). With no quoter wired the fee is zero and nothing is captured (pre-047 path).
 	deliveryFeeCents := int64(0)
 	var deliveryPkgs []PackageDelivery
+	var slotHold *SlotHold
+	var slotHeldUntil *time.Time
 	var deliveryQuoteJSON []byte
 	if s.delivery != nil {
 		postcode, ok := destinationPostcode(addressJSON)
 		if !ok {
 			return IntentResult{}, ErrAddressNotFound
 		}
-		quote, qerr := s.delivery.Quote(ctx, postcode, packagesFromLines(lines), now)
+		quote, qerr := s.delivery.Quote(ctx, customerID, postcode, packagesFromLines(lines), now)
 		if qerr != nil {
 			// ⚠ The invariant breach (a served zone that could not be priced) fires the alarm — it must
 			// never happen, and is a page, not a metric to watch idly (FR-029).
@@ -369,8 +401,16 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		}
 		// Resolve the shopper's order-level preference per package: same-day where offered, standard
 		// elsewhere (FR-044). Absent/unknown preference → standard everywhere.
+		//
+		// 069: and the slot and the day they chose. ⚠ Refused HERE, before the order is written and
+		// long before a payment intent exists, when either is no longer on offer.
 		preferred := preferredMethod(in.DeliveryMethod)
-		deliveryPkgs = resolveDelivery(quote, preferred)
+		var choiceErr *DeliveryChoiceError
+		deliveryPkgs, slotHold, choiceErr = resolveDeliveryChoice(quote, preferred, in.SameDaySlotID, in.StandardDate, now)
+		if choiceErr != nil {
+			s.meterChoiceRefusal(choiceErr, "")
+			return IntentResult{}, choiceErr
+		}
 		for _, p := range deliveryPkgs {
 			deliveryFeeCents += p.FeeCents
 		}
@@ -401,9 +441,24 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 
 	// Capture the quote so intent honours it within the validity window and the client never sends a fee
 	// (047 FR-036). Written after the order exists; re-run on every intent (delete+reinsert).
+	//
+	// 069: this is also where the same-day place is HELD, under the slot's row lock. ⚠ It runs BEFORE
+	// the payment intent is created or updated below, so a customer who loses the last place to
+	// someone else is refused while there is still nothing for them to pay.
 	if s.delivery != nil {
-		if err := s.store.CaptureDelivery(ctx, orderID, deliveryQuoteJSON, now.Add(quoteValidity), deliveryPkgs); err != nil {
+		until, err := s.store.CaptureDelivery(ctx, orderID, deliveryQuoteJSON, now.Add(quoteValidity), deliveryPkgs, slotHold)
+		if err != nil {
+			var gone *SlotUnavailableError
+			if errors.As(err, &gone) {
+				choice := &DeliveryChoiceError{Code: ChoiceSlotUnavailable}
+				s.meterChoiceRefusal(choice, gone.Verdict)
+				return IntentResult{}, choice
+			}
 			return IntentResult{}, err
+		}
+		slotHeldUntil = until
+		if until != nil && s.deliveryMetrics != nil {
+			s.deliveryMetrics.SlotBooking("held")
 		}
 	}
 
@@ -498,6 +553,7 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		ProviderCustomerID:    providerIDFor(in.WantsProviderMethodList, resolved),
 		PayOverTimeAvailable:  hasPayOverTime(pi.AvailableMethods),
 		BillingDetails:        billingDetailsFrom(billingSnapshot, profileName, profileEmail),
+		SlotHeldUntil:         slotHeldUntil,
 	}, nil
 }
 
@@ -856,9 +912,14 @@ func moneyStr(cents int64) string { return money.FormatCents(cents) }
 type DeliveryQuote struct {
 	Postcode     string
 	Serviced     bool
-	SameDayUntil *time.Time // latest still-makeable same-day cutoff, or nil
+	SameDayUntil *time.Time // the latest open slot's cutoff, or nil
 	Packages     []DeliveryQuotePackage
 	ExpiresAt    time.Time
+	// 069 — what the customer can choose. ⚠ Slots carry no capacity and days carry no fee: a slot's
+	// fullness is Effy's business, and the fee is the METHOD's (FR-021, FR-050).
+	SameDaySlots       []delivery.OpenSlot
+	SameDayUnavailable string // "" | not_eligible | slots_closed
+	StandardDays       []string
 }
 
 // DeliveryQuotePackage is one package's offered options (standard always; same-day when available).
@@ -898,7 +959,7 @@ func (s *Service) QuoteForCheckout(ctx context.Context, customerID, addressID st
 	if err != nil {
 		return DeliveryQuote{}, err
 	}
-	q, err := s.delivery.Quote(ctx, postcode, packagesFromLines(lines), now)
+	q, err := s.delivery.Quote(ctx, customerID, postcode, packagesFromLines(lines), now)
 	if err != nil {
 		return DeliveryQuote{}, err
 	}
@@ -907,6 +968,7 @@ func (s *Service) QuoteForCheckout(ctx context.Context, customerID, addressID st
 	}
 	out := DeliveryQuote{
 		Postcode: postcode, Serviced: true, SameDayUntil: q.SameDayUntil, ExpiresAt: now.Add(quoteValidity),
+		SameDaySlots: q.SameDaySlots, SameDayUnavailable: q.SameDayUnavailable, StandardDays: q.StandardDays,
 	}
 	for i, p := range q.Packages {
 		opts := make([]DeliveryQuoteOption, 0, len(p.Options))
@@ -926,15 +988,122 @@ func preferredMethod(m string) string {
 	return delivery.MethodStandard
 }
 
-// resolveDelivery picks each package's captured method+fee from the quote by the shopper's preference,
-// falling back to standard where the preferred method is not offered (FR-044/SC-011).
-func resolveDelivery(q delivery.QuoteResult, preferred string) []PackageDelivery {
+// The three reasons a checkout is refused over the delivery choice (069). They are the `code` on the 409
+// the client receives; each means "choose again", never "we chose for you".
+const (
+	ChoiceSlotRequired    = "slot_required"
+	ChoiceSlotUnavailable = "slot_unavailable"
+	ChoiceDateUnavailable = "date_unavailable"
+)
+
+// DeliveryChoiceError refuses a checkout because the slot or day the customer chose cannot be honoured.
+type DeliveryChoiceError struct {
+	Code string
+}
+
+func (e *DeliveryChoiceError) Error() string { return "checkout: delivery choice refused: " + e.Code }
+
+// resolveDeliveryChoice turns the quote and the customer's choices into what each package is promised
+// (069): its method and fee as before, plus the delivery day and — for same-day — the window.
+//
+// ── What stays from 047 ─────────────────────────────────────────────────────────────────────────────
+// The method is still resolved PER PACKAGE: same-day where that package was offered it, standard
+// elsewhere (FR-044/SC-011). A basket where one shop is excepted from same-day is a mixed order, and
+// the customer was shown that it would be.
+//
+// ── What changes ────────────────────────────────────────────────────────────────────────────────────
+// ⚠ THE STANDARD FALLBACK IS NO LONGER A SAFETY NET FOR A CLOSED SLOT. Before 069, asking for same-day
+// when it could not be done quietly priced the order as standard. That is now exactly what FR-010
+// forbids: a customer who chose "today, 5–7 pm" must never find they bought "Thursday". So:
+//
+//   - same-day asked for and NOTHING can go same-day    → slot_unavailable
+//   - a package goes same-day and no slot was sent      → slot_required
+//   - the slot sent is not among the open ones          → slot_unavailable
+//   - a package goes standard and the day is not offered → date_unavailable
+//
+// An absent standard day is the earliest on offer — the same day the UI preselects (FR-015) — which
+// also keeps a client built before 069 working for standard orders.
+//
+// The returned hold is non-nil when any package goes same-day; CaptureDelivery takes the place.
+func resolveDeliveryChoice(q delivery.QuoteResult, preferred, slotID, standardDate string, now time.Time) ([]PackageDelivery, *SlotHold, *DeliveryChoiceError) {
+	anySameDay, anyStandard := false, false
+	for _, p := range q.Packages {
+		if preferred == delivery.MethodSameDay && p.OffersSameDay() {
+			anySameDay = true
+		} else {
+			anyStandard = true
+		}
+	}
+
+	if preferred == delivery.MethodSameDay && !anySameDay {
+		return nil, nil, &DeliveryChoiceError{Code: ChoiceSlotUnavailable}
+	}
+
+	var slot delivery.OpenSlot
+	if anySameDay {
+		if slotID == "" {
+			return nil, nil, &DeliveryChoiceError{Code: ChoiceSlotRequired}
+		}
+		s, ok := q.SlotByID(slotID)
+		if !ok {
+			return nil, nil, &DeliveryChoiceError{Code: ChoiceSlotUnavailable}
+		}
+		slot = s
+	}
+
+	day := standardDate
+	if anyStandard {
+		if day == "" && len(q.StandardDays) > 0 {
+			day = q.StandardDays[0]
+		}
+		if day == "" || !q.HasStandardDay(day) {
+			return nil, nil, &DeliveryChoiceError{Code: ChoiceDateUnavailable}
+		}
+	}
+
 	out := make([]PackageDelivery, 0, len(q.Packages))
 	for _, p := range q.Packages {
 		method, fee := p.FeeFor(preferred)
-		out = append(out, PackageDelivery{ShopID: p.ShopID, Method: method, FeeCents: fee})
+		pd := PackageDelivery{ShopID: p.ShopID, Method: method, FeeCents: fee}
+		if method == delivery.MethodSameDay {
+			start, end := slot.Start, slot.End
+			pd.PromisedDay, pd.SlotID, pd.WindowStart, pd.WindowEnd = slot.Date, slot.ID, &start, &end
+		} else {
+			pd.PromisedDay = day
+		}
+		out = append(out, pd)
 	}
-	return out
+
+	var hold *SlotHold
+	if anySameDay {
+		hold = &SlotHold{SlotID: slot.ID, Now: now}
+	}
+	return out, hold, nil
+}
+
+// meterChoiceRefusal counts a refused delivery choice. `verdict` is why the SLOT went, when the store
+// found out under the lock; a refusal decided from the quote alone does not know and says so.
+func (s *Service) meterChoiceRefusal(e *DeliveryChoiceError, verdict delivery.SlotVerdict) {
+	if s.deliveryMetrics == nil {
+		return
+	}
+	switch e.Code {
+	case ChoiceDateUnavailable:
+		s.deliveryMetrics.StandardDateRefused()
+	case ChoiceSlotUnavailable:
+		switch verdict {
+		case delivery.SlotFull:
+			s.deliveryMetrics.SlotBooking("refused_full")
+		case delivery.SlotUncollectable:
+			s.deliveryMetrics.SlotBooking("refused_uncollectable")
+		case delivery.SlotPastCutoff:
+			s.deliveryMetrics.SlotBooking("refused_cutoff")
+		default:
+			s.deliveryMetrics.SlotBooking("refused_unknown")
+		}
+	case ChoiceSlotRequired:
+		s.deliveryMetrics.SlotBooking("refused_unknown")
+	}
 }
 
 // destinationPostcode extracts and validates the 4-digit postcode from an address snapshot (the JSON

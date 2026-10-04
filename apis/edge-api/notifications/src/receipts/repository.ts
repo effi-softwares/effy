@@ -102,6 +102,9 @@ export interface ReceiptArrivalRow {
   method: string;
   promised_from: string | null;
   promised_to: string | null;
+  /** 069 — the same-day window the customer was sold. Null for standard and for every earlier order. */
+  window_start: Date | null;
+  window_end: Date | null;
 }
 
 /**
@@ -144,10 +147,11 @@ export async function loadReceipt(orderId: string): Promise<{
   // which package (FR-009). Ordered by the promise so the output is stable and says nothing about
   // internal grouping.
   const arrivalsRes = await query<ReceiptArrivalRow>(
-    `SELECT method, promised_from::text AS promised_from, promised_to::text AS promised_to
+    `SELECT method, promised_from::text AS promised_from, promised_to::text AS promised_to,
+            window_start, window_end
        FROM public.order_package_delivery
       WHERE order_id = $1
-      ORDER BY promised_from ASC NULLS LAST, promised_to ASC NULLS LAST, method ASC`,
+      ORDER BY promised_from ASC NULLS LAST, window_start ASC NULLS LAST, promised_to ASC NULLS LAST, method ASC`,
     [orderId],
   );
 
