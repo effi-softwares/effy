@@ -146,8 +146,22 @@ resource "aws_ssm_parameter" "edge_authorizer_id" {
 }
 
 # API-level 5xx alarm (moved from the service — A3; a service on an external API can't own it).
+#
+# ⚠ THIS IS THE PLATFORM'S ONE "A ROUTE IS FAILING" ALARM, AND UNTIL 2026-10-05 IT NOTIFIED NOBODY.
+# It had no action — and neither did the 78 per-function Lambda error alarms the `admin`, `shop` and
+# `fleet` services declared beside it. 79 alarms, about $8 a month, and not one could reach a person.
+# The 78 are deleted; this one is wired to the alerts topic. It covers a server error on ANY route of
+# ANY service behind the gateway, which is what those 78 were each watching one function of.
+#
+# ⚠ What it does NOT see: a function no request reaches — a schedule, a queue or topic consumer.
+# Those are watched by what they are for (the Effy/* metric alarms in this root), not by whether
+# they threw.
+#
+# ⚠ `ok_actions` is deliberately absent. A burst of 5xx that clears is one email, not two; the
+# alarms that carry ok_actions are the ones where "it stopped" is itself news.
 resource "aws_cloudwatch_metric_alarm" "edge_api_5xx" {
   alarm_name          = "${module.shared.name_prefix}-edge-api-5xx"
+  alarm_description   = "Requests through the shared API gateway are failing with server errors (more than 5 in 5 minutes), on any service. Open the gateway's 5xx metric by route, then that function's logs. A retryable 503 from the shopper connection limit counts here too."
   namespace           = "AWS/ApiGateway"
   metric_name         = "5xx"
   dimensions          = { ApiId = aws_apigatewayv2_api.edge.id }
@@ -157,6 +171,7 @@ resource "aws_cloudwatch_metric_alarm" "edge_api_5xx" {
   threshold           = 5
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
 output "edge_http_api_id" {
