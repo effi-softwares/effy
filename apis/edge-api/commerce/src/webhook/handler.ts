@@ -17,7 +17,7 @@ import {
   emitMetric, metricNamespace, withTransaction, type Queryable, type RequestScope, type Transactor,
 } from "@effy/edge-shared";
 import {
-  finalizeFailed, finalizeSucceeded, meterFinalize,
+  announcePaid, finalizeFailed, finalizeSucceeded, meterFinalize,
   type FinalizeOutcome, type PaymentGateway, type WebhookEvent,
 } from "@effy/edge-shared/payments";
 
@@ -83,6 +83,7 @@ export function createWebhookHandler(deps: {
     const settled = paid as { orderId: string; out: FinalizeOutcome } | null;
     if (settled) {
       meterFinalize(metricNamespace(), settled.out);
+      await announcePaid(settled.out);
       await deps.afterPaid(scope, settled.orderId, evt.paymentIntentId);
     }
     return count(evt, outcome);

@@ -36,6 +36,10 @@ compute: the constitution (Principle III) forbids it without an amendment. An ea
 was retired in feature 070; `docs/archive/core-api.md` records it for reference only. "Hot path"
 and "cold path" in older specs are history, not rules.
 
+The one standing-connection component is managed and permitted (constitution v3.1.0, feature 071):
+AWS AppSync Events carries live updates. An update says only what kind of thing changed; the app
+re-reads through the gateway. Only the backend publishes, after its transaction has committed.
+
 ## Safety boundary
 
 Agents may author code, Terraform, migrations, and deployment instructions, but must not run

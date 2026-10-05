@@ -10,7 +10,7 @@ import {
 import { meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
 import { METHOD_SAME_DAY, NoActivePlanError, ServedZoneUnpricedError, type QuoteResult } from "@effy/edge-shared/delivery";
 import {
-  finalizeFailed, finalizeSucceeded, meterFinalize,
+  announcePaid, finalizeFailed, finalizeSucceeded, meterFinalize,
   type FinalizeOutcome, type IntentStatus, type PaymentGateway,
 } from "@effy/edge-shared/payments";
 import type { DeliveryInstructionsDTO } from "@effy/shared-types";
@@ -127,6 +127,7 @@ export function createCheckoutService(deps: {
   async function settlePaid(orderId: string): Promise<FinalizeOutcome> {
     const out = await transact((tx) => finalizeSucceeded(tx, orderId));
     meterFinalize(ns(), out);
+    await announcePaid(out);
     return out;
   }
 

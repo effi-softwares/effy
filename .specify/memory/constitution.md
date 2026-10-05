@@ -1,6 +1,32 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.0.1 → 3.1.0
+Bump rationale: MINOR — guidance materially expanded and one locked standard ADDED. No principle is
+                removed or redefined, and no existing plan is invalidated.
+
+Trigger: feature 071-live-updates. The operator decided (2026-10-05) that every surface learns of a
+change over a standing connection instead of re-reading on a timer, and chose AWS AppSync Events as
+the channel. Principle III named "a persistent-connection server" among the things a plan may not
+introduce without an amendment; this is that amendment (071 research R15, plan Complexity Tracking).
+
+What changed in the text:
+  - Principle III gains one bullet: a MANAGED, pay-per-use connection service that incurs nothing
+    while idle is permitted, because none of the platform's own compute holds the connection. The
+    prohibition on always-on compute of our own is unchanged and is restated beside it.
+  - Technology Standards gains "Live channel: AWS AppSync Events", with the two rules that keep it
+    from becoming a second way to move data: an update carries no business information, and
+    clients never publish.
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged; none names a channel or a connection model.
+  ✅ CLAUDE.md, AGENTS.md — the single-backend paragraphs name the permitted managed channel.
+  ⚠ ARCHITECTURE.md, docs/api/path-assignment.md, README.md — corrected when 071 ships (its T052),
+     not before: until then they describe what is deployed.
+
+Follow-up TODOs: none.
+
+--- previous report ---
 Version change: 3.0.0 → 3.0.1
 Bump rationale: PATCH — clarification only. No principle is added, removed or redefined.
 
@@ -523,6 +549,10 @@ written under `apis/edge-api/`, and every client surface calls that backend and 
   shared backend library, never copied between services.
 - A plan MUST NOT introduce an always-on compute component — a container service, a load
   balancer, a persistent-connection server — without amending this constitution first.
+- A **managed, pay-per-use connection service** is permitted for telling open apps that something
+  changed (the live channel, see Technology Standards). It is not always-on compute: none of the
+  platform's own code holds a connection, and it MUST incur nothing while no app is connected and
+  nothing is changing. Holding connections in compute the platform runs remains prohibited.
 
 **Rationale**: The platform is pre-launch. A second, always-on backend cost money every hour
 whether or not anyone was shopping, and forced every shared rule to exist in two languages kept in
@@ -722,6 +752,9 @@ any entry requires a constitution amendment (see Governance).
   on arm64; raw SQL. **No ORM.**
 - **Database**: PostgreSQL 16; Goose migrations; **forward-only** (no down migrations relied on).
 - **Infrastructure**: Terraform; multi-environment; remote state.
+- **Live channel**: AWS AppSync Events. An update MUST carry no business information — only the
+  kind of thing that changed — and the app re-reads through the backend's own routes. Clients
+  subscribe and MUST NOT publish; only the backend publishes, after the change has committed.
 - **Observability & notifications**:
   - **Metrics and alerts**: CloudWatch metrics (embedded metric format) and CloudWatch alarms.
   - **Crash reporting**: Firebase Crashlytics (mobile).
@@ -805,4 +838,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.0.1 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-05
+**Version**: 3.1.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-05

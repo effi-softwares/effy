@@ -57,8 +57,8 @@ on the order. All read through existing repositories; none altered.
 
 | Name | Where | Holds |
 |---|---|---|
-| `/effy/<env>/live/http-host` | SSM, from Terraform | the publish and handshake host |
-| `/effy/<env>/live/realtime-host` | SSM, from Terraform | the socket host |
-| `/effy/<env>/live/api-arn` | SSM, from Terraform | scopes the publishing permission |
+| `/effy/<env>/live/http_host` | SSM, from Terraform | the publish and handshake host |
+| `/effy/<env>/live/realtime_host` | SSM, from Terraform | the socket host |
+| `/effy/<env>/live/api_arn` | SSM, from Terraform | scopes the publishing permission |
 
 No secret is introduced: publishing is by role, subscribing by the person's own token.

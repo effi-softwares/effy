@@ -41,3 +41,5 @@ export {
   type SessionQueryLike,
 } from "./auth/guards";
 export type { NavItem } from "./console/nav";
+// 071-live-updates — the live channel client (framework-free; the React provider is in ./console).
+export * from "./live";

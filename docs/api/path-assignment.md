@@ -38,6 +38,7 @@ Ask, in order:
 | `orders` | back-office | order console, handovers, arrivals, refunds, cancellation |
 | `notifications` | none (workers) | push and receipt drains |
 | `auth` | none (Cognito triggers) | one-time-code issuance |
+| `live` | none (invoked by the live channel) — all four audiences, by necessity | the live-update channel's authorizer (071). No route. Each audience's own service carries its `GET /…/v1/live` |
 
 ## Rules that follow from having one backend
 

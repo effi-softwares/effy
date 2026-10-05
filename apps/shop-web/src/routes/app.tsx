@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { createRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 
-import { ConsoleShell } from "@effy/web-kit/console";
+import { ConsoleShell, LiveProvider, LiveStatus } from "@effy/web-kit/console";
 
 import { HeaderBreadcrumbs } from "@/components/console/HeaderBreadcrumbs";
 import { HeaderChrome } from "@/components/console/HeaderChrome";
 import { PwaBanners } from "@/components/console/PwaBanners";
 import { useNotificationNavigation } from "@/features/notifications/useNotificationNavigation";
+import { getLiveDescriptor } from "@/features/live/repo";
+import { LIVE_ROUTES } from "@/features/live/routes";
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
@@ -72,37 +74,47 @@ function AppShell() {
   const subtitle = headerSubtitleFor(pathname, navBadges);
 
   return (
-    <ConsoleShell
-      brand={{ mark: "E", name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
-      surfaceLabel="Effy Shop"
-      sidebarWidth="14rem"
-      // ⚠ THE PAGE GUTTER IS `--pad` (24px), NOT THE SHELL'S DEFAULT `p-4` (16px). The design sets
-      // one page padding and uses it for the header, the content and the section rhythm alike; at
-      // 16px the console's tables sat tighter to the rail than the header above them, which reads as
-      // a misalignment rather than as a deliberate density.
-      contentClassName="flex w-full flex-1 flex-col gap-[var(--pad)] p-[var(--pad)]"
-      headerBreadcrumb={<HeaderBreadcrumbs />}
-      headerSubtitle={subtitle}
-      headerActions={<HeaderChrome />}
-      nav={NAV}
-      navBadges={navBadges}
-      roles={identity?.roles ?? []}
-      email={identity?.email ?? ""}
-      theme={theme}
-      onSetTheme={setTheme}
-      onSignOut={() =>
-        signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
-      }
-      signingOut={signOut.isPending}
-      sidebarOpen={sidebarOpen}
-      onSidebarOpenChange={setSidebarOpen}
-    >
-      {/* 059 — offline / update-ready / install, one at a time, above the screen they qualify.
-          Inside the shell so every protected screen carries them; nothing renders when all three
-          are quiet, so an operator who never installs sees no change at all (SC-012). */}
-      <PwaBanners />
-      <Outlet />
-    </ConsoleShell>
+    // 071 — the console is told when its orders, stock or attention list change and re-reads what
+    // is on screen. Independent of push notifications (FR-007): it works with them denied. Open
+    // only while signed in; signing out closes the connection.
+    <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
+      <ConsoleShell
+        brand={{ mark: "E", name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
+        surfaceLabel="Effy Shop"
+        sidebarWidth="14rem"
+        // ⚠ THE PAGE GUTTER IS `--pad` (24px), NOT THE SHELL'S DEFAULT `p-4` (16px). The design sets
+        // one page padding and uses it for the header, the content and the section rhythm alike; at
+        // 16px the console's tables sat tighter to the rail than the header above them, which reads as
+        // a misalignment rather than as a deliberate density.
+        contentClassName="flex w-full flex-1 flex-col gap-[var(--pad)] p-[var(--pad)]"
+        headerBreadcrumb={<HeaderBreadcrumbs />}
+        headerSubtitle={subtitle}
+        headerActions={
+          <>
+            <LiveStatus />
+            <HeaderChrome />
+          </>
+        }
+        nav={NAV}
+        navBadges={navBadges}
+        roles={identity?.roles ?? []}
+        email={identity?.email ?? ""}
+        theme={theme}
+        onSetTheme={setTheme}
+        onSignOut={() =>
+          signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
+        }
+        signingOut={signOut.isPending}
+        sidebarOpen={sidebarOpen}
+        onSidebarOpenChange={setSidebarOpen}
+      >
+        {/* 059 — offline / update-ready / install, one at a time, above the screen they qualify.
+            Inside the shell so every protected screen carries them; nothing renders when all three
+            are quiet, so an operator who never installs sees no change at all (SC-012). */}
+        <PwaBanners />
+        <Outlet />
+      </ConsoleShell>
+    </LiveProvider>
   );
 }
 

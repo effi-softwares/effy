@@ -1,0 +1,23 @@
+{
+  "name": "@effy/edge-live",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy live service (071-live-updates) — the authorizer for the live-update channel. NOT attached to the HTTP API: its one function is invoked by the managed channel when an app connects or subscribes. Serves all four audiences by necessity (one channel, one authorizer) and keeps them apart by pinning each pool's issuer.",
+  "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@effy/edge-shared": "workspace:*",
+    "aws-jwt-verify": "5.2.1",
+    "pg": "8.22.0",
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "esbuild": "0.28.1",
+    "serverless": "3.40.0",
+    "serverless-esbuild": "1.57.2",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

@@ -303,8 +303,15 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
     const first = await pay(orderId);
     expect(first).toMatchObject({ applied: true, stockShortfall: false, slotConfirmed: false });
+    // 071 — who is told: the fulfilling shop(s) and the customer's token subject, read from the
+    // rows this transaction wrote. A redelivery names nobody.
+    expect(first.shopIds).toHaveLength(1);
+    expect(first.shopIds[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first.customerSub).toEqual(expect.any(String));
     const second = await pay(orderId);
     expect(second.applied).toBe(false);
+    expect(second.shopIds).toEqual([]);
+    expect(second.customerSub).toBeNull();
 
     expect((await orderRow(orderId)).status).toBe("paid");
     expect(await stockOf("Scarce")).toBe(1); // 2 − 1, once

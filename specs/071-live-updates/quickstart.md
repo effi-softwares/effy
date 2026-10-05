@@ -14,7 +14,8 @@ fixes the order and what "worked" looks like.
 1. **OPERATOR** — `make edge-deploy SERVICE=live ENV=dev` (the authorizer; it must exist before the
    API that names it).
 2. **OPERATOR** — `make plan ENV=dev`, confirm an **additive** plan (one Event API, four
-   namespaces, one function permission, three parameters, alarms, one budget), then
+   namespaces, one function permission, three parameters, two alarms, one budget, and one changed
+   statement on the alerts topic's policy admitting the budgets service), then
    `make apply ENV=dev`.
 3. **OPERATOR** — `make edge-deploy SERVICE=commerce ENV=dev`, then `shop`.
 4. **OPERATOR** — release shop-web from this branch.

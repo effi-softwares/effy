@@ -49,7 +49,7 @@ native web build).
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
   client state via TanStack Store (no Zustand; constitution v1.4.0), AWS Amplify.
-- **Backend — ONE path, serverless** (constitution **v3.0.0**, Principle III; feature 070): Node +
+- **Backend — ONE path, serverless** (constitution **v3.1.0**, Principle III; feature 070): Node +
   TypeScript Lambdas (Serverless Framework v3) behind one shared HTTP gateway, **one service per
   audience and domain** under `apis/edge-api/` — `storefront` (public catalogue), `commerce`
   (cart, checkout, payment, customer orders), `customer`, `shop`, `inventory`, `driver`, `admin`,
@@ -60,6 +60,10 @@ native web build).
     into a new `apis/edge-api/<service>/`; every client calls the one gateway. A plan MUST NOT
     introduce always-on compute (a container service, a load balancer, a persistent-connection
     server) or a second backend runtime — that needs a constitution amendment first.
+    ⚠ **One managed exception (constitution v3.1.0, feature 071):** AWS AppSync Events holds the
+    live-update connections. It is a pay-per-use managed service, not compute of ours; an update
+    carries only the KIND of thing that changed, clients never publish, and holding connections
+    in anything the platform runs is still prohibited.
   - ⚠ **THERE WAS A SECOND BACKEND, AND IT IS GONE (070, 2026-10-05).** A Go service on Fargate
     behind a load balancer carried shopper traffic until then; its routes moved here, its
     infrastructure was destroyed and its source deleted. "Hot path" / "cold path" / "Path:" in

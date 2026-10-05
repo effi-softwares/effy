@@ -153,7 +153,7 @@ data "aws_iam_policy_document" "alerts_topic" {
     }
   }
 
-  # EventBridge (this slice) + CloudWatch alarms (037) publish notifications.
+  # EventBridge (this slice) + CloudWatch alarms (037) + the cost budget (071) publish notifications.
   statement {
     sid       = "ServicePublish"
     effect    = "Allow"
@@ -162,7 +162,7 @@ data "aws_iam_policy_document" "alerts_topic" {
 
     principals {
       type        = "Service"
-      identifiers = ["events.amazonaws.com", "cloudwatch.amazonaws.com"]
+      identifiers = ["events.amazonaws.com", "cloudwatch.amazonaws.com", "budgets.amazonaws.com"]
     }
 
     condition {

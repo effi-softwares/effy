@@ -51,3 +51,5 @@ export * from "./shop-insights"
 // 063-driver-work-assignment — rounds, stops, packages and the dispatcher's day. ⚠ Carries no money
 // (a driver is never told an order's value) and no coordinates (sequencing is ordering, not geometry).
 export * from "./dispatch"
+// 071-live-updates — the kinds an update may name, and where an app finds its channel
+export * from "./live"

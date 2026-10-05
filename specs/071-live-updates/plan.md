@@ -39,9 +39,9 @@ Multiplatform (three mobile apps, `packages/mobile-kit`); HCL (`infra/`).
 
 **Primary Dependencies**: **one new managed service — AWS AppSync Events.** New libraries:
 `ktor-client-websockets` and `ktor-client-okhttp` in the three mobile apps (the Android engine in
-use has no WebSocket support, R10). Backend and web add **no** package: publishing is a signed
-`fetch` with the SDK's v4 signer already bundled, the authorizer uses `aws-jwt-verify` (already in
-seven services), and the web client is the browser's own `WebSocket`.
+use has no WebSocket support, R10). Backend and web add **no** package: publishing is a `fetch`
+signed by a small signer on `node:crypto` (R6), the authorizer uses `aws-jwt-verify` (already
+installed for seven services), and the web client is the browser's own `WebSocket`.
 
 **Storage**: none. No table, no column, no migration ([data-model.md](data-model.md)).
 

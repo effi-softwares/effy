@@ -120,7 +120,10 @@ function's own role (SigV4, service `appsync`) and sends one request per distinc
 - **Never throws.** One attempt with a 1.5 s limit, one retry, then it gives up, logs and counts
   the failure (FR-006, SC-008). The handler awaits it — a function frozen mid-request would lose it.
 - De-duplicates within a call, so a change that touches the same scope twice publishes once.
-- No client and no socket: plain `fetch`, signed with the SDK's v4 signer already in the bundle.
+- No client and no socket: plain `fetch`, signed by a 60-line signer written on `node:crypto`. The
+  SDK's signer is only a transitive dependency of the shared library (not importable under pnpm),
+  and the request has one fixed shape; `sign.test.ts` pins the output to signatures the SDK's own
+  signer produced for the same inputs.
 
 **Why not through the outbox**: `event_outbox` has no drain (070 FR-026, deliberately). Building one
 means a scheduled function — a timer, and seconds of delay — to deliver something whose loss is
@@ -169,8 +172,10 @@ the socket when no `ka` arrives within the service's stated timeout, and rolls e
   (FR-011; neither reads screen data).
 - **customer-web**: order pages are server-rendered; a small client component on the order list and
   order detail routes calls `router.refresh()`. Signed-out pages load nothing.
-- **Coalescing** (FR-014, SC-012): re-read at once on the first update, then at most once per 2 s,
-  always once after the last. A ten-change burst costs at most three reads.
+- **Coalescing** (FR-014, SC-012): re-read at once on the first update; later updates are gathered
+  into one more read after they have been quiet for 1 s, or after 5 s if they never go quiet. The
+  last update is always followed by a read, and a ten-change burst over ten seconds costs three.
+  (A fixed "once per 2 s" was drafted first; it costs six reads for that burst and fails SC-012.)
 - **Catch-up** (FR-013): one re-read on `subscribe_success` after any reconnect and when the tab
   becomes visible again. Hidden tabs keep the socket for five minutes, then close it.
 - **Stale state** (FR-015): the provider exposes `live | reconnecting | off` and the time of the
@@ -198,10 +203,9 @@ use it, and two implementations of one protocol is the two-sources shape this re
 ## R11 — Infrastructure
 
 **Decision**: `infra/envs/dev/live.tf` — the Event API, four namespaces, the authorizer's invoke
-permission, one IAM policy document for publishing, SSM parameters for the hosts and API id, alarms
-and a budget. **⚠ PROVE** at `terraform validate` that provider 6.53 carries `aws_appsync_api` and
-`aws_appsync_channel_namespace`; if not, the fallback is the provider's CloudFormation-stack
-resource wrapping `AWS::AppSync::Api`, still Terraform-authored.
+permission, SSM parameters for the hosts and API ARN (each announcing service scopes its own publish
+statement to that ARN), alarms and a budget. ✅ **Proved 2026-10-05**: provider 6.53 carries
+`aws_appsync_api` and `aws_appsync_channel_namespace`, and `terraform validate` passes.
 
 No custom domain: the service's own hostnames are published through SSM into each app's build
 configuration. A certificate and a record would add nothing a customer sees.

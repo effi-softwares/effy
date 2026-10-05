@@ -28,6 +28,7 @@ import type { Queryable } from "../lib/db";
 import { formatCents, parseCents } from "../lib/money";
 import { slotLoad } from "../delivery/slots";
 import { emitMetric } from "../lib/metrics";
+import { announce, type LiveChange } from "../live";
 import { appendEvent, appendNotification } from "./outbox";
 
 export interface FinalizeOutcome {
@@ -42,9 +43,18 @@ export interface FinalizeOutcome {
    * has paid for units that do not exist. The shop is told at once (the pick line is pre-flagged).
    */
   stockShortfall: boolean;
+  /**
+   * Whose screens this payment changes (071): the shops now holding a portion of the order, and the
+   * customer's token subject. Routing only — used to tell open apps to re-read, never sent to them.
+   * Empty / null when nothing was applied.
+   */
+  shopIds: readonly string[];
+  customerSub: string | null;
 }
 
-const NOT_APPLIED: FinalizeOutcome = { applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false };
+const NOT_APPLIED: FinalizeOutcome = {
+  applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false, shopIds: [], customerSub: null,
+};
 
 /**
  * Turn the order's HELD same-day place into a confirmed booking.
@@ -302,6 +312,8 @@ DELETE FROM public.cart_item WHERE cart_id = (
     // ⚠ ONE occurrence per ORDER, not per line: the question is "how often does a shopper pay for
     // something that is not there", and a basket short on three lines is one occurrence of that.
     stockShortfall: (flagged.rowCount ?? 0) > 0,
+    shopIds: shops.map((sh) => sh.shopId),
+    customerSub: meta.cognito_sub,
   };
 }
 
@@ -321,4 +333,21 @@ export function meterFinalize(namespace: string, out: FinalizeOutcome): void {
     if (out.slotOverCapacity) emitMetric(namespace, "SlotBookings", 1, { outcome: "over_capacity" });
   }
   if (out.applied) emitMetric(namespace, "StockDeducted", 1, { outcome: out.stockShortfall ? "partial" : "full" });
+}
+
+/**
+ * Tell open apps that an order has been paid (071): each shop now holding a portion of it, the
+ * customer who placed it, and operations — whose slot load it may also have changed.
+ *
+ * ⚠ Called AFTER the transaction has committed, like `meterFinalize`, and for the same reason. It
+ * never throws: the order is paid whether or not anyone is told (FR-006). A redelivered webhook
+ * applies nothing and so announces nothing.
+ */
+export async function announcePaid(out: FinalizeOutcome): Promise<void> {
+  if (!out.applied) return;
+  const changes: LiveChange[] = out.shopIds.map((shopId) => ({ scope: "shop", shopId, kind: "orders" }));
+  if (out.customerSub) changes.push({ scope: "customer", sub: out.customerSub, kind: "orders" });
+  changes.push({ scope: "ops", kind: "orders" });
+  if (out.slotConfirmed) changes.push({ scope: "ops", kind: "slots" });
+  await announce(changes);
 }

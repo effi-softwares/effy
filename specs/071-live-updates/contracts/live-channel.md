@@ -27,7 +27,11 @@ Response `200`:
 ```
 
 - `channelPrefix` is opaque to the client; it appends `/{epoch}` and nothing else.
-- A person with no active record receives the service's usual refusal, and therefore has no channel.
+- A person with no active record receives the service's usual refusal (`403`), and therefore has
+  no channel. `204` means this environment has no live channel at all. A client treats both — and a
+  `404` from a backend that predates the route — as "live updates off", and does not retry.
+- One implementation (`liveRoute` in `@effy/edge-shared/live`) behind all four routes; they differ
+  only in how the scope is resolved.
 - Read on sign-in and after a reconnect. Never on a timer.
 - The wire shape is added to `@effy/shared-types` and to the Kotlin contract fixtures, like every
   other shape.
@@ -84,7 +88,8 @@ The list is closed and lives once, in `@effy/shared-types`; the Kotlin enum is g
 Scope per audience: shop → active staff record's shop id; driver → active driver record's id;
 admin → an active back-office account (`all`); customer → the token's `sub`, no database read.
 Anything else — a missing or inactive record, a database error, an exception — is a refusal.
-Result cached 300 s. The function logs the operation, audience and outcome; never the token, never
+An answer is cached 300 s — except a refusal caused by a fault (the database is stopped), which
+is not cached at all, so a one-second fault cannot keep a shop dark for five minutes. The function logs the operation, audience and outcome; never the token, never
 the channel's scope id.
 
 ## 4. Announcing — `@effy/edge-shared/live`
@@ -103,5 +108,5 @@ function announce(changes: readonly LiveChange[]): Promise<void>;
 - Resolves always; never rejects. A failure is logged and counted, and the caller's result is
   unaffected.
 - Publishes with the function's own role (IAM). The publishing permission and the two parameters it
-  reads (`/effy/<env>/live/http-host`, `/effy/<env>/live/api-arn`) come from Terraform.
+  reads (`/effy/<env>/live/http_host`, `/effy/<env>/live/api_arn`) come from Terraform.
 - With the parameters absent (a local run, a test) it does nothing and says so once at debug level.

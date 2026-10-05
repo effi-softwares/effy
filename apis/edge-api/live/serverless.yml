@@ -1,0 +1,93 @@
+# Effy LIVE service — 071-live-updates.
+#
+# ONE function: the authorizer the live-update channel (AWS AppSync Events) calls when an app opens
+# a connection or subscribes to a channel. It is NOT attached to the shared HTTP API and has no
+# route; the channel invokes it directly (the invoke permission is in infra/envs/<env>/live.tf).
+#
+# ⚠ WHY ONE SERVICE FOR FOUR AUDIENCES (constitution Principle III prefers one audience per
+# service, and requires the reason when it is not). The channel is one API with one authorizer, so
+# that one function must recognise all four pools — precisely in order to keep them apart: it pins
+# each pool's issuer and refuses any subscription outside the token's own audience. Four APIs with
+# four authorizers would isolate nothing the issuer pin does not already isolate.
+#
+# ⚠ DEPLOY THIS BEFORE THE TERRAFORM THAT CREATES THE CHANNEL. The channel names this function; it
+# must exist first. This service reads only parameters that already exist (the four pools).
+#
+# ⚠ THE FUNCTION NAME IS A CONTRACT with live.tf, which looks it up as
+# `effy-edge-live-<env>-authorizer`. Renaming the service or the function breaks the channel.
+service: effy-edge-live
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+
+params:
+  default:
+    logLevel: info
+    # Region-pinned AWS layer (Decisions locked: changed by hand on a region move).
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  # The channel allows an authorizer 10 s. A dead database must fail inside that as a refusal of
+  # ours (the 5 s connection timeout), never as a timeout of the channel's.
+  timeout: 8
+  logRetentionInDays: 30
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 071-live-updates
+    service: live
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # The four pools and their app clients — the SAME values the gateway's four JWT authorizers are
+    # built from (edge-gateway.tf `edge_pools`). A token the gateway would refuse is refused here.
+    CUSTOMER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_id}
+    CUSTOMER_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id},${ssm:/effy/${sls:stage}/auth/customer/mobile_app_client_id}
+    SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
+    SHOP_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/shop/app_client_id},${ssm:/effy/${sls:stage}/auth/shop/mobile_app_client_id}
+    DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
+    DRIVER_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/driver/app_client_id},${ssm:/effy/${sls:stage}/auth/driver/mobile_app_client_id}
+    BACK_OFFICE_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/back-office/user_pool_id}
+    BACK_OFFICE_CLIENT_IDS: ${ssm:/effy/${sls:stage}/auth/back-office/app_client_id}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  authorizer:
+    handler: src/functions/authorizer.handler
+    description: May this person open the live channel, and may they hear this channel? (071 FR-017..023). Invoked by the channel, not by HTTP.
