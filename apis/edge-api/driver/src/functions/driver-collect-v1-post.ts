@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceCollected } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { CollectRequest } from "@effy/shared-types";
@@ -39,6 +40,8 @@ export const handler = async (
 
   try {
     await collectStop(runId, stopId, guard.driver.id, body);
+    // 071 — committed; tell the screens that show it.
+    await announceCollected(stopId);
     return json(200, { status: "collected" }, guard.scope);
   } catch (err) {
     if (err instanceof NotFoundError) {

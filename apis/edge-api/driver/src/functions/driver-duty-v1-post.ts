@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDuty } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, ProblemType, unavailable } from "@effy/edge-shared";
 import type { DutyRequest } from "@effy/shared-types";
@@ -41,6 +42,7 @@ export const handler = async (
       // packages, so a shift can never end silently on a van with goods in it.
       body.acknowledgeHeldPackages === true,
     );
+    await announceDuty(); // 071 — committed; the dispatcher's roster shows it
     return json(200, result, guard.scope);
   } catch (err) {
     if (err instanceof HoldingPackagesError) {

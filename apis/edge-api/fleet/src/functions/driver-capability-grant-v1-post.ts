@@ -3,6 +3,7 @@
 //
 // ⚠ Granting a clearance the driver already holds returns 200, NOT a conflict (FR-005). Two operators
 // doing it at once both succeed, and the outcome is correct either way.
+import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -22,6 +23,7 @@ export const handler = async (
   try {
     const body = parseBody<GrantCapabilityRequest>(event.body);
     const items = await grantCapability(event.pathParameters?.driverId ?? "", body, g.sub, scope);
+    await announceDispatch(); // 071 — committed; who can be given what work changed
     return json(200, { items }, scope);
   } catch (err) {
     return mapFleetError(err, scope);

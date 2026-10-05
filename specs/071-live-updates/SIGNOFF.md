@@ -1,53 +1,83 @@
 # Sign-off: 071 Live Updates Without Polling
 
-**Status (2026-10-05)**: the early-proof slice is **built and tested, not deployed**. Nothing below
-the "Operator" heading has been run. The gate (tasks T019–T020) is open.
+**Status (2026-10-05)**: built for all six apps — **51 of 53 tasks**. The first slice (a paid order
+on the shop console) is **deployed and proved in dev**. Everything after it is **built and tested
+locally, not deployed**. The two open tasks are the operator's: the second round of deploys (T050)
+and the walk (T051). ⚠ **Not signed off** until that walk is recorded below.
 
-## Built (Claude) — verified locally
+## Proved in dev (the early proof — T019, T020)
+
+| Check | Result |
+|---|---|
+| Channel, parameters, both alarms deployed | ✅ alarms OK |
+| The authorizer accepts the apps' own access token (⚠ PROVE, R3) | ✅ connect and subscribe `allowed`, shop audience, no errors (authorizer log) |
+| A paid order is announced | ✅ three updates published (shop, customer, operations), zero failures (`Effy/Live`, `checkoutConfirmV1` log) |
+| The order appears on shop Today without a refresh | ✅ seen by the operator |
+| Terraform provider has the Event API resources (⚠ PROVE, R11) | ✅ `terraform validate`, applied |
+
+⚠ **Not measured**: SC-001's percentiles and SC-002's 20-of-20 (`live-latency.ts` has not been
+run); SC-005 (`live-authz.ts` has not been run); the fifteen-minute cut-off on a real suspended
+account (⚠ PROVE, R5 — SC-009); both mobile engines' subprotocols on a device (⚠ PROVE, R10).
+
+## Built since, verified locally, NOT deployed
 
 | What | Proof |
 |---|---|
-| Constitution v3.1.0 — a managed pay-per-use connection service is permitted; AppSync Events named | `.specify/memory/constitution.md` |
-| Channel rules, signer, `announce`, scope lookup, descriptor route — `@effy/edge-shared/live` | 43 unit tests; `scope.container.test.ts` 9 passed against the real migrations (`CONTAINER_TESTS=1`) |
-| Signer agrees with the AWS SDK's | `sign.test.ts` pins two signatures produced by `@smithy/signature-v4` for the same inputs |
-| Authorizer — `apis/edge-api/live` | 41 tests: every row and every refusal in contracts/live-channel.md §3; packages cleanly (`serverless package --stage dev`) |
-| Payment finalised announces to shop, customer, ops | `announce-paid.test.ts` 4 passed; `checkout.container.test.ts` 23 passed with the new assertions |
-| `GET /shop/v1/live` | `route.test.ts` 6 passed |
-| Terraform — `infra/envs/dev/live.tf` | `terraform validate` passes (provider 6.53) — research R11 ✅ |
-| Names agree across TypeScript, YAML and Terraform | `live.contract.test.ts` 10 passed. It caught one defect on its first run: `shop` had been given the publish permission before it publishes anything. Removed. |
-| Web client, coalescer, provider, status line — `packages/web-kit/src/live` | 39 tests incl. SC-003 (idle hour, no reads), SC-004 (catch-up), SC-012 (≤ 3 reads per burst), FR-015, FR-016, FR-023 (refused epoch → off) |
-| shop-web mounted | typecheck clean; 450 tests pass; design-system guards pass |
-| Every backend suite | 14 services, all passing |
+| Every backend service announces per [contracts/change-map.md](contracts/change-map.md) | 14 services typecheck; all unit suites pass; real-database suites pass for `shared` 558, `commerce` 285, `orders` 77, `driver` 137, `fleet` 236, `inventory` 62, `catalog` 43 |
+| `shop` real-database suite | 472 pass; the **same 2 failures recorded before 070** (attention recipients; order console paging) — not caused by this, not fixed by it |
+| A customer hears only when their page changes; a split order looks like any other (FR-024, SC-011) | `order-moves.test.ts` — across a whole order's journey, a 2-shop and a 3-shop order produce exactly the 3 customer updates a 1-shop order does |
+| Only three shared functions can build a customer's update | `customer-announce.guard.test.ts` |
+| Every state-changing route announces, or is exempt with a reason | `change-map.guard.test.ts` — 60 routes held; proved by removing one announcement (9 routes failed) |
+| Names agree across TypeScript, YAML and Terraform | `live.contract.test.ts` |
+| A failed announcement never fails the change (FR-006, SC-008) | `announce.test.ts`; and the refund suite ran green with the channel unreachable |
+| Channel routes for customer, driver, back-office | `route.test.ts`; services typecheck and pass |
+| shop-web: timers removed, stock and attention mapped | 450 tests; builds |
+| back-office: live-wired, both timers removed | 280 tests |
+| customer-web: order list and order page follow the order | 600 tests; **production build**, import quarantine and bundle budget pass |
+| Mobile client (`packages/mobile-kit/common/live`) | 13 tests on Android host; compiles for iOS in all three apps |
+| shop-mobile (15 s loop removed), driver-mobile, customer-mobile | 128 / 62 / 379 host tests, 0 failures |
+| No data refresh timer in the six apps (SC-010) | `scripts/check-no-refresh-timers.sh` — passes; fails on a planted web timer and a planted mobile loop; in CI |
+| SC-003 idle hour, SC-004 catch-up, SC-012 ≤ 3 reads per burst, FR-015, FR-016, FR-023 | client tests under a fake clock, web and mobile |
 
-⚠ **shop-web's refresh timers are still in place** — deliberately. They come out in US2 (T025),
-after this proof, so a console released before the channel is deployed behaves exactly as today.
+## Operator — what is left (T050, T051)
 
-## Operator — the early proof (quickstart Stage 1)
+`AWS_PROFILE=ef` throughout; the database must be running. No Terraform change since the proof.
 
-Run in this order. `AWS_PROFILE=ef` throughout; the database must be running.
-
-1. `make edge-deploy SERVICE=live ENV=dev`
-2. `make plan ENV=dev` — expect **only additions** plus **one in-place change** (the alerts topic
-   policy gains `budgets.amazonaws.com`). Then `make apply ENV=dev`.
-3. `make edge-deploy SERVICE=commerce ENV=dev`, then `make edge-deploy SERVICE=shop ENV=dev`
-4. Commit and push so Amplify releases shop-web.
-5. `scripts/verify-071/README.md`: run `live-authz.ts` (SHOP_ACCESS_TOKEN alone is enough here),
-   then `live-latency.ts`.
-6. By eye, notifications **denied** in the browser: open Today, pay a test order elsewhere.
+1. **Deploy every announcing service** (any order; each is independent):
+   `make edge-deploy SERVICE=<name> ENV=dev` for
+   `commerce`, `shop`, `inventory`, `driver`, `fleet`, `orders`, `catalog`, `customer`, `admin`.
+   ⚠ `commerce` and `shop` **again** — they changed after the proof.
+   ⚠ `live` does **not** need redeploying.
+2. **Commit and push** → Amplify releases shop-web, back-office and customer-web.
+   ⚠ Do this **after** step 1: these builds have no refresh timers, so a console released before
+   its backend announces would only update on focus and on refresh.
+3. **Rebuild the three mobile apps** and install on a device each.
+4. **Run** `scripts/verify-071/README.md`: `live-authz.ts` with all four tokens, then
+   `live-latency.ts`.
+5. **Walk** [quickstart.md](quickstart.md) Stage 4 (13 rows) and fill the table.
 
 | Check | Target | Result |
 |---|---|---|
-| Own channel granted with the app's access token (⚠ PROVE, R3) | granted | |
-| Every other attempt refused, incl. publish (SC-005) | 0 granted | |
-| New paid order appears, notifications denied (SC-002) | 20 of 20 within 5 s | |
-| Payment → update, p95 / p99 (SC-001) | < 5 s / < 15 s | |
-| Today open and idle 10 min, network panel (SC-003) | no data requests | |
+| `live-authz.ts` — attempts to hear what is not yours (SC-005) | 0 granted | |
+| `live-latency.ts` — payment → update p95 / p99 (SC-001, SC-002) | < 5 s / < 15 s; 20 of 20 | |
+| Mobile connects and updates on Android and on iOS (⚠ PROVE, R10) | both | |
 | Suspend an operator with the console open (⚠ PROVE, R5; SC-009) | "Live updates off" ≤ 15 min | |
+| Two-shop order, customer page (SC-011) | same updates as a one-shop order | |
+| Today open and idle 10 min, network panel (SC-003) | no data requests | |
+| Walk rows 1–13 | all | |
+| First week of the AppSync bill line, scaled (SC-006) | < 1 USD / month | |
 
-**If SC-001 or SC-002 is missed, or a ⚠ PROVE item fails: stop.** `research.md` and `plan.md` are
-corrected before any later task starts.
+**If a ⚠ PROVE item fails**: stop and say which. The likeliest is the mobile engines' subprotocols
+— the fix is in one file (`KtorLiveTransport.kt`) and changes nothing else.
 
-## Not yet built
+## Known limits, by decision
 
-US2's timer removal (T025) and mobile parity (T027); the mobile client (T013); US3–US6; the
-change-map guard (T047) and no-timer sweep (T048); document corrections (T052, T053).
+- **Cost at fifty shops is ≈ 4.8 USD, not 3.6** (research R12): the planned server-side throttle on
+  pick progress could not be built honestly on a function that is frozen when it returns. Inside
+  the 5 USD bound with little room; the 4 USD budget alert fires first.
+- **An open driver stop or drop does not re-read** on an update — it is the driver's own work in
+  progress. Today and the open round do.
+- **Customer apps say nothing when the channel is off** — only when a connection that was live is
+  lost. A page that does not update by itself is what every page did before this.
+- **`admin` is exempt from the change-map guard as a whole**, with a test that it still writes no
+  order, round, slot or review decision.

@@ -1,6 +1,7 @@
 // Service for the shop ORDER CONSOLE (057 Amendment A3): parsing, validation, and the wording of the
 // activity log. No HTTP, no SQL (Principle VI). The repository owns shop scoping.
 
+import { announceMoves } from "@effy/edge-shared/live";
 import * as fulfillmentsRepo from "../fulfillments/repository";
 import type { Actor } from "../fulfillments/service";
 import { FulfillmentError } from "../fulfillments/types";
@@ -158,8 +159,9 @@ export async function setPicks(
 
   const current = await fulfillmentsRepo.readStatus(fulfillmentId, actor.shopId);
   if (current === null) throw notFound();
+  let started = false;
   if (current === "received") {
-    const started = await fulfillmentsRepo.transition(fulfillmentId, actor.shopId, "received", "picking", actor.staffId);
+    started = await fulfillmentsRepo.transition(fulfillmentId, actor.shopId, "received", "picking", actor.staffId);
     if (!started) {
       const now = await fulfillmentsRepo.readStatus(fulfillmentId, actor.shopId);
       if (now !== "picking") throw new FulfillmentError("conflict", `items can only be picked while picking (is ${now})`);
@@ -170,6 +172,9 @@ export async function setPicks(
 
   const done = await repo.applyPicks(fulfillmentId, actor.shopId, picks, actor.staffId);
   if (done === null) throw notFound();
+  // 071 — the first tick also started picking, which is a status change operations can see; a
+  // later tick is progress inside `picking`, which only this shop's screens show.
+  await announceMoves([{ fulfillmentId, from: started ? "received" : null }], { ops: started });
   return repo.readOrder(fulfillmentId, actor.shopId);
 }
 

@@ -27,6 +27,7 @@
 // be a pass-through module that adds a file and no guarantee. The principle is "one rule, two
 // callers", and that is satisfied by importing it. What the cap parameter buys is below.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
+import { announce } from "@effy/edge-shared/live";
 import {
   ATTENTION_TYPE,
   MANAGER_ONLY_KINDS,
@@ -114,6 +115,9 @@ export async function evaluateAll(): Promise<EvaluatorStats> {
   for (const shop of shops) {
     try {
       const s = await evaluateShop(shop.id);
+      // 071 — only the shops whose list actually changed in this pass are told; a quiet pass over
+      // forty shops publishes nothing. After evaluateShop's transaction has committed.
+      if (s.appeared > 0 || s.cleared > 0) await announce([{ scope: "shop", shopId: shop.id, kind: "attention" }]);
       stats.appeared += s.appeared;
       stats.cleared += s.cleared;
       stats.intents += s.intents;

@@ -29,8 +29,9 @@ fixes the order and what "worked" looks like.
 
 ## Stage 2 — every service announces
 
-6. **OPERATOR** — deploy, in this order: `inventory` → `driver` → `fleet` → `orders` → `catalog` →
-   `customer` → `admin`. Each is independent; an app that is not yet listening ignores nothing it
+6. **OPERATOR** — deploy, in any order (each is independent): `commerce`, `shop`, `inventory`,
+   `driver`, `fleet`, `orders`, `catalog`, `customer`, `admin`. ⚠ `commerce` and `shop` again: they
+   changed after the early proof (refunds, cancellation, stock, picks, the review queue). Each is independent; an app that is not yet listening ignores nothing it
    needs.
 7. Smoke, no app needed — subscribe with a command-line WebSocket client using a real token:
    - own channel → `subscribe_success`

@@ -4,6 +4,7 @@
 // ⚠ The body is passed through as parsed JSON rather than being rebuilt field by field, because the
 // PRESENCE of a key is the signal: absent means "leave alone", null means "clear" (FR-010). Copying
 // it into a typed object with `??` defaults would erase exactly that distinction.
+import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -22,11 +23,10 @@ export const handler = async (
   if (denied(g)) return g.deny;
   try {
     const body = parseBody<AdminDriverUpdateRequest>(event.body);
-    return json(
-      200,
-      await updateDriver(event.pathParameters?.driverId ?? "", body, g.sub, scope),
-      scope,
-    );
+    const updated = await updateDriver(event.pathParameters?.driverId ?? "", body, g.sub, scope);
+    // 071 — committed. The roster shows the change; the driver's own app shows their zone/vehicle.
+    await announceDispatch([event.pathParameters?.driverId]);
+    return json(200, updated, scope);
   } catch (err) {
     return mapFleetError(err, scope);
   }

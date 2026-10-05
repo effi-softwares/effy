@@ -308,6 +308,8 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(first.shopIds).toHaveLength(1);
     expect(first.shopIds[0]).toMatch(/^[0-9a-f-]{36}$/);
     expect(first.customerSub).toEqual(expect.any(String));
+    // Both products here are tracked, so the fulfilling shop's stock screen is told too.
+    expect(first.stockShopIds).toEqual(first.shopIds);
     const second = await pay(orderId);
     expect(second.applied).toBe(false);
     expect(second.shopIds).toEqual([]);

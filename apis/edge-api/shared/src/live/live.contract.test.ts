@@ -44,10 +44,12 @@ const services = readdirSync(edgeApi)
   }));
 
 /**
- * A service announces if its own source calls `announce(…)`, or one of the shared library's
- * announcing helpers (`announcePaid` — the publish then runs inside this service, under its role).
+ * A service announces if its own source calls one of the announcing functions, or builds the shared
+ * refund service — whose refunds and cancellations announce from inside it, under the calling
+ * service's role. Missing the second case is how a back-office refund would publish from a role
+ * with no permission to: refused, swallowed, and every screen stale.
  */
-const announces = (s: { src: string }) => /\bannounce(?:Paid)?\(/.test(s.src);
+const announces = (s: { src: string }) => /\bannounce\w*\(/.test(s.src) || /\bcreateRefundService\(/.test(s.src);
 const describes = (s: { src: string }) => /\bliveRoute\(/.test(s.src);
 
 describe("071 — services and the channel's configuration", () => {

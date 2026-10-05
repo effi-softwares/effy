@@ -12,6 +12,7 @@ const paid = (over: Partial<FinalizeOutcome> = {}): FinalizeOutcome => ({
   stockShortfall: false,
   shopIds: ["shop-a", "shop-b"],
   customerSub: "sub-1",
+  stockShopIds: [],
   ...over,
 });
 
@@ -31,6 +32,13 @@ describe("announcePaid (071)", () => {
   it("also tells operations the slot load changed when a same-day place was confirmed", async () => {
     await announcePaid(paid({ slotConfirmed: true }));
     expect(announce.mock.calls[0]![0]).toContainEqual({ scope: "ops", kind: "slots" });
+  });
+
+  it("tells a shop its stock changed when the sale reduced tracked stock", async () => {
+    await announcePaid(paid({ stockShopIds: ["shop-a"] }));
+    const changes = announce.mock.calls[0]![0] as unknown[];
+    expect(changes).toContainEqual({ scope: "shop", shopId: "shop-a", kind: "stock" });
+    expect(changes).not.toContainEqual({ scope: "shop", shopId: "shop-b", kind: "stock" });
   });
 
   it("says nothing for a redelivery — nothing was applied, so nothing changed", async () => {

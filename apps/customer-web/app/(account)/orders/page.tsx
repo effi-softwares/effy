@@ -7,6 +7,7 @@ import type { OrderSummaryDTO } from "@effy/shared-types"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
+import { LiveRefresh } from "@/components/live/LiveRefresh"
 import { Display } from "@/components/storefront/kit"
 
 import { ReorderButton } from "./ReorderButton"
@@ -21,6 +22,8 @@ export default function OrdersPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
       <Display as="h1" size="section" className="mb-6">Your orders</Display>
+      {/* 071 — the list follows the customer's orders without a refresh. Renders nothing while live. */}
+      <LiveRefresh />
       <Suspense fallback={<ListSkeleton />}>
         <OrdersList />
       </Suspense>

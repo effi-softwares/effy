@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDispatch, driverOfRound } from "../lib/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem } from "@effy/edge-shared";
 
@@ -24,7 +25,10 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     return problem(400, "invalid_request", "Missing fields", "A driverId and expectedUpdatedAt are required.", scope);
   }
   try {
+    const previousDriver = await driverOfRound(id);
     await reassign(id, body.driverId, body.expectedUpdatedAt, g.sub);
+    // 071 — committed. BOTH drivers: the one who lost the round and the one who gained it.
+    await announceDispatch([previousDriver, body.driverId]);
     return json(200, { ok: true }, scope);
   } catch (err) {
     return mapDispatchError(err, scope);

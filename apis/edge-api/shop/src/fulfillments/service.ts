@@ -1,6 +1,7 @@
 // Service for shop order fulfilment (020): state-machine rules and validation. No HTTP, no SQL
 // (constitution Principle VI). The repository owns shop-scoping; this module owns legality.
 
+import { announceMoves } from "@effy/edge-shared/live";
 import * as repo from "./repository";
 import {
   FulfillmentError,
@@ -73,6 +74,10 @@ export async function transition(
     if (now !== to) {
       throw new FulfillmentError("conflict", `cannot move a ${now} fulfillment to ${to}`);
     }
+  } else {
+    // 071 — committed. Tell the shop's other screens and operations, and the customer if their
+    // order page now says something different. Only the writer that won the race announces.
+    await announceMoves([{ fulfillmentId, from: current }]);
   }
   return getDetail(actor, fulfillmentId);
 }
@@ -98,6 +103,9 @@ export async function updateItemProgress(
   }
 
   await repo.updateItemProgress(fulfillmentId, actor.shopId, orderItemId, progress, actor.staffId);
+  // 071 — a colleague's screen shows the line picked. The shop only: no status changed, so neither
+  // the customer's page nor any back-office screen says anything different.
+  await announceMoves([{ fulfillmentId, from: null }], { ops: false });
   return getDetail(actor, fulfillmentId);
 }
 
@@ -126,6 +134,7 @@ export async function collectViaStub(
   }
 
   await repo.collectViaStub(fulfillmentId, actor.shopId, driverRef, actor.staffId);
+  await announceMoves([{ fulfillmentId, from: "ready_for_pickup" }]);
   return getDetail(actor, fulfillmentId);
 }
 
@@ -153,6 +162,7 @@ export async function deliverViaStub(
   }
 
   await repo.deliverViaStub(fulfillmentId, actor.shopId, driverRef, actor.staffId);
+  await announceMoves([{ fulfillmentId, from: "collected" }]);
   return getDetail(actor, fulfillmentId);
 }
 

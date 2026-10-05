@@ -2,7 +2,11 @@ package com.effyshopping.driver.mobile.app
 
 import com.effyshopping.driver.mobile.core.auth.AuthDriver
 import com.effyshopping.driver.mobile.core.config.AppConfig
+import com.effyshopping.mobile.kit.live.KtorLiveTransport
+import com.effyshopping.mobile.kit.live.LiveClient
+import com.effyshopping.mobile.kit.live.fetchLiveDescriptor
 import com.effyshopping.driver.mobile.core.http.createHttpClient
+import com.effyshopping.driver.mobile.core.http.liveEngine
 import com.effyshopping.driver.mobile.core.observability.AnalyticsDriver
 import com.effyshopping.driver.mobile.core.observability.CrashReporter
 import com.effyshopping.driver.mobile.core.observability.NoOpAnalyticsDriver
@@ -76,6 +80,21 @@ class AppContainer(
     // ── data ──────────────────────────────────────────────────────────────────────────────────────
     private val driverClient by lazy {
         createHttpClient(AppConfig.driverApiBaseUrl, sessionProvider = { authDriver.currentSession() }, debug = debugLogging)
+    }
+
+    /**
+     * 071 — the live-update channel. Tells the app when this driver's work is assigned, reassigned,
+     * withdrawn or re-ordered, so Today and an open round re-read then — before 071 they changed
+     * only when the driver pulled to refresh. Independent of push (FR-007). Held only while the app
+     * is in the foreground and signed in — `LiveLifecycle` in [App] starts and stops it.
+     */
+    val live: LiveClient by lazy {
+        LiveClient(
+            scope = appScope,
+            loadDescriptor = { fetchLiveDescriptor(driverClient, "driver/v1/live") },
+            token = { authDriver.currentSession()?.accessToken },
+            transport = KtorLiveTransport(liveEngine()),
+        )
     }
     // Offline write queue + drain coordinator (US6, FR-039/040). Persisted; survives process death.
     val offlineQueue: OfflineQueue by lazy { OfflineQueue(Settings()) }

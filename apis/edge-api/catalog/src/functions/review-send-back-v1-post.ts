@@ -1,5 +1,6 @@
 // POST /catalog/v1/review/items/{productId}/send-back — send a new product or a pending change back
 // with a written reason (067 FR-012). Decide = admin/manager, from the staff record.
+import { announce } from "@effy/edge-shared/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -14,7 +15,9 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   if (denied(g)) return g.deny;
   try {
     const body = parseBody<{ version?: unknown; reason?: unknown }>(event.body);
-    return json(200, await sendBack(event.pathParameters?.productId, body, g.sub), scope);
+    const sent = await sendBack(event.pathParameters?.productId, body, g.sub);
+    await announce([{ scope: "ops", kind: "review" }]); // 071 — committed
+    return json(200, sent, scope);
   } catch (err) {
     return mapReviewError(err, scope);
   }

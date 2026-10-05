@@ -58,7 +58,10 @@ import com.effyshopping.shop.mobile.features.orders.domain.GetFulfillment
 import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.QueueState
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
-import kotlinx.coroutines.delay
+import com.effyshopping.mobile.kit.live.LiveClient
+import com.effyshopping.mobile.kit.live.LiveKind
+import com.effyshopping.mobile.kit.live.LiveStatusLine
+import kotlinx.coroutines.flow.emptyFlow
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -80,37 +83,40 @@ fun OrdersRoute(
     initialOrderId: String? = null,
     onOpenOrder: (String) -> Unit = {},
     onCloseOrder: () -> Unit = {},
+    /** 071 — the live channel. Null in previews and tests: the screen then reads on open and on request. */
+    live: LiveClient? = null,
 ) {
     // Keyed by the portion so that pushing OrderDetail(b) after OrderDetail(a) does not reuse a's ViewModel
     // (the ViewModelStore outlives the composable, and the default key is the call site alone).
     val viewModel = viewModel(key = "orders-${initialOrderId ?: "queue"}") {
-        OrdersViewModel(listFulfillments, getFulfillment, advanceFulfillment, recordItemProgress, initialOrderId)
+        OrdersViewModel(
+            listFulfillments, getFulfillment, advanceFulfillment, recordItemProgress, initialOrderId,
+            liveChanges = live?.changes(LiveKind.ORDERS) ?: emptyFlow(),
+        )
     }
     val state by viewModel.state.collectAsState()
 
-    // The queue heartbeat (FR-004). It lives in the composition, so leaving the screen cancels it — there is
-    // no path by which this keeps polling in the background.
-    LaunchedEffect(viewModel) {
-        while (true) {
-            delay(QueueRefreshIntervalMillis)
-            viewModel.refreshQueue()
-        }
-    }
+    // ⚠ NO HEARTBEAT (071). This screen used to re-read the queue every fifteen seconds; it is now told
+    // when this shop's orders change (the ViewModel collects the live channel) and reads then. If the
+    // channel cannot be held, say so and offer a refresh — never present a stale queue as current.
+    Column {
+        live?.let { LiveStatusLine(it, onRefresh = viewModel::refresh) }
 
-    OrdersScreen(
-        state = state,
-        onSelectQueue = viewModel::selectQueue,
-        onSelectOrder = viewModel::selectOrder,
-        onOpenOrder = onOpenOrder,
-        onCloseOrder = {
-            viewModel.clearSelection()
-            onCloseOrder()
-        },
-        onRetry = viewModel::refresh,
-        onTransition = viewModel::requestTransition,
-        onItemProgress = viewModel::recordProgress,
-        onDismissMessage = viewModel::dismissMessage,
-    )
+        OrdersScreen(
+            state = state,
+            onSelectQueue = viewModel::selectQueue,
+            onSelectOrder = viewModel::selectOrder,
+            onOpenOrder = onOpenOrder,
+            onCloseOrder = {
+                viewModel.clearSelection()
+                onCloseOrder()
+            },
+            onRetry = viewModel::refresh,
+            onTransition = viewModel::requestTransition,
+            onItemProgress = viewModel::recordProgress,
+            onDismissMessage = viewModel::dismissMessage,
+        )
+    }
 }
 
 /**

@@ -52,6 +52,10 @@ jobs:
         run: |
           bash scripts/check-no-jade.sh
           bash scripts/check-no-emerald.sh
+      # 071 — no screen refreshes its data on a timer. An explicit step for the same reason as the
+      # sweeps above: a guard nothing runs is a rule nothing enforces.
+      - name: "Gate: no data refresh timers (071 FR-009)"
+        run: bash scripts/check-no-refresh-timers.sh
 
   # The customer storefront's own gates (011). These are the reason this workflow exists.
   storefront-gates:

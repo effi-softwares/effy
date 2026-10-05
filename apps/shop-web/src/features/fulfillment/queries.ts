@@ -33,17 +33,13 @@ import {
 const FULFILLMENT_ROOT = ["shop", "fulfillment"] as const;
 
 /**
- * The queue (US1/US4) — POLLED.
+ * The queue (US1/US4).
  *
- * This is the monorepo's FIRST polling query (research R8). SC-001 requires a newly placed order to
- * be visible to the shop without the operator navigating away, so a 15s interval bounds worst-case
- * latency well inside the 30s target while staying cheap for a console left open all shift.
+ * ⚠ NOT POLLED (071). 020 made this the monorepo's first polling query; it is now re-read when the
+ * platform says this shop's orders changed (`features/live/routes.ts` maps `orders` to this root),
+ * when the operator returns to the tab, and when they act. Nothing here runs on a timer.
  *
- * `refetchIntervalInBackground: false` is the load-bearing half: a shop tablet is left open on a
- * bench for hours, and polling a hidden tab would bill the platform for reads nobody is looking at.
- * Focus refetch (the Query default) covers the moment the operator comes back.
- *
- * The `state` is part of the key, so active and completed cache — and poll — independently.
+ * The `state` is part of the key, so active and completed cache independently.
  *
  * ⚠ 057 A3 — still read by the dashboard and the nav badge. The Orders screen now reads
  * `orderListQuery` instead.
@@ -52,11 +48,9 @@ export const fulfillmentQueueQuery = (state: FulfillmentQueueState) =>
   queryOptions({
     queryKey: [...FULFILLMENT_ROOT, "queue", state] as const,
     queryFn: () => listFulfillments(state),
-    refetchInterval: 15_000,
-    refetchIntervalInBackground: false,
   });
 
-/** One portion's pick read (US2). Not polled: the operator is acting on it. */
+/** One portion's pick read (US2). Re-read on a live `orders` update — a colleague's pick shows. */
 export const fulfillmentDetailQuery = (id: string) =>
   queryOptions({
     queryKey: [...FULFILLMENT_ROOT, "detail", id] as const,
@@ -66,8 +60,8 @@ export const fulfillmentDetailQuery = (id: string) =>
 // ── 057 A3 — the order console ──────────────────────────────────────────────────────────────────
 
 /**
- * The Orders list — polled like the queue it replaced (SC-001: a new order appears without the
- * operator navigating), and keyed on the normalised search so two URLs for one list share an entry.
+ * The Orders list — re-read on a live `orders` update (071), so a new order appears without the
+ * operator navigating; keyed on the normalised search so two URLs for one list share an entry.
  *
  * `placeholderData: keepPreviousData` keeps the current page on screen while the next one loads, so a
  * filter change does not flash the table empty and shift the operator's place.
@@ -77,13 +71,11 @@ export const orderListQuery = (search: OrdersSearch) => {
   return queryOptions({
     queryKey: [...FULFILLMENT_ROOT, "orders", "list", q] as const,
     queryFn: () => listOrders(q),
-    refetchInterval: 15_000,
-    refetchIntervalInBackground: false,
     placeholderData: keepPreviousData,
   });
 };
 
-/** One order in the console. Not polled — every write invalidates it. */
+/** One order in the console. Every write invalidates it, and so does a live `orders` update. */
 export const orderDetailQuery = (id: string) =>
   queryOptions({
     queryKey: [...FULFILLMENT_ROOT, "orders", "detail", id] as const,

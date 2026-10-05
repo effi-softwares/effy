@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-down db-shopper-role check-goose \
-        purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -374,6 +374,9 @@ brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) s
 	@bash scripts/check-no-jade.sh
 	@bash scripts/check-no-emerald.sh
 	@bash scripts/check-no-phantm.sh
+
+live-guards: ## live updates: FAIL if any screen in the six apps refreshes its data on a timer (071 FR-009)
+	@bash scripts/check-no-refresh-timers.sh
 
 storefront-locks: ## storefront: FAIL if an operator-LOCKED file (header/nav/product card/footer) drifted (039 FR-002)
 	@bash scripts/check-storefront-locks.sh

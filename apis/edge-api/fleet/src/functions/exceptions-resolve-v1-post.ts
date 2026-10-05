@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDispatch } from "../lib/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem } from "@effy/edge-shared";
 import type { ResolveExceptionRequest } from "@effy/shared-types";
@@ -34,6 +35,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
 
   try {
     const result = await resolveException(exceptionId, g.sub, body.note?.trim() || null);
+    await announceDispatch(); // 071 — committed; the exceptions list is shorter
     return json(200, result, scope);
   } catch (err) {
     if (err instanceof ExceptionNotFoundError) {

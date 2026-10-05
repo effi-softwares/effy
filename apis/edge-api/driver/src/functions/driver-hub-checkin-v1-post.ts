@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceRoundProgress } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { HubCheckinRequest } from "@effy/shared-types";
@@ -33,7 +34,10 @@ export const handler = async (
   }
 
   try {
-    return json(200, await hubCheckin(body.runId, guard.driver.id), guard.scope);
+    const checkedIn = await hubCheckin(body.runId, guard.driver.id);
+    // 071 — committed; the dispatcher and the order console see the round arrive.
+    await announceRoundProgress();
+    return json(200, checkedIn, guard.scope);
   } catch (err) {
     if (err instanceof NotFoundError) {
       return problem(404, "not_found", "Not available", "That run is not available.", guard.scope);

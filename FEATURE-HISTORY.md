@@ -4,6 +4,47 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**071-live-updates — Live Updates Without Polling.** ⚠ **BUILT FOR ALL SIX APPS; ONLY THE FIRST
+SLICE IS DEPLOYED AND PROVED (2026-10-05).** 51/53 tasks — what remains is the operator's second
+round of deploys and the walk. Sign-off, deploy order and what is still unmeasured:
+[specs/071-live-updates/SIGNOFF.md](specs/071-live-updates/SIGNOFF.md). Which change tells whom:
+[contracts/change-map.md](specs/071-live-updates/contracts/change-map.md).
+
+No screen refreshes its data on a timer any more. The backend function that commits a change
+publishes "this KIND of thing changed" to a managed channel (AWS AppSync Events — constitution
+v3.1.0 permits it); each open app re-reads through its existing routes. Independent of push.
+- ⚠ **AN UPDATE IS ONE WORD** — `{"k":"orders"}`. No id, no status, no amount. A duplicate, late or
+  reordered update cannot show anything wrong, and there is nothing in it to leak.
+- ⚠ **THE CHANNEL NEVER RE-CHECKS AN OPEN SUBSCRIPTION**, and a connection can live a day. So the
+  channel name carries a ten-minute epoch and every app re-subscribes — through the authorizer —
+  each epoch. Worst case a removed person hears for 12 minutes. This is the feature's one piece of
+  real complexity, and it exists only because the service has no "disconnect this person" call.
+- ⚠ **A CUSTOMER HEARS ONLY WHEN THEIR OWN PAGE WOULD CHANGE.** The page shows the LEAST advanced
+  package, so on an order split across two shops the customer gets exactly the updates a one-shop
+  order gives — the count and timing cannot reveal the split. Only three shared functions may build
+  a customer's update; a guard test holds that.
+- **One authorizer function** (`apis/edge-api/live`) for all four pools: verifies the token against
+  the pool its issuer names, then checks the channel against the platform record. Customers are
+  checked against their own token subject with no database read.
+- **Three guards**: every state-changing route announces or is exempted with a reason
+  (`change-map.guard.test.ts` — proved by removing one announcement: nine routes failed); names
+  agree across TypeScript, YAML and Terraform (`live.contract.test.ts` — on its first run it caught
+  a service granted the publish permission before it published anything); no refresh timer in the
+  six apps (`scripts/check-no-refresh-timers.sh`, in CI).
+- **Defects found while building.** (1) A fixed "re-read at most every 2 s" costs six reads for a
+  ten-change burst and failed the spec's own bound; replaced with read-at-once, then one more after
+  a second of quiet. (2) The guard's first version followed imports through `commerce`'s wiring
+  module, so every cart route "reached" the refund service and the check was vacuous for the whole
+  service. (3) customer-web's production build failed on `useState(() => Date.now())` in a
+  prerendered client component — every unit test had passed. (4) The plan named OkHttp for the
+  Android socket; the version catalog records that it clashes with the auth SDK's. CIO instead.
+  (5) A server-side throttle on pick progress was planned and dropped: a frozen function cannot
+  send "the last one, after a pause".
+- **Cost**: under 0.05 USD a month now. About 4.8 USD at fifty shops (65 operations an order) —
+  inside the 5 USD bound with little room; a 4 USD budget notifies the existing alerts topic.
+- ⚠ **Not proved on a device**: that the CIO and Darwin engines send both WebSocket subprotocols.
+  The mobile client passes against a fake socket on Android and compiles for iOS; nothing more.
+
 **070-retire-core-api — One Backend: Retire the Always-On Shopper Service.** ✅ **THE MIGRATION IS
 DONE (2026-10-05): the new services are live in dev, the clients are released, the old backend's
 infrastructure is DESTROYED and its source is DELETED.** 96/102 tasks. ⚠ **NOT YET WALKED BY A

@@ -130,6 +130,22 @@ export function stageFor(statuses: readonly string[]): CustomerOrderStage {
 }
 
 /**
+ * Did moving some packages change what the CUSTOMER is shown? (071 FR-025)
+ *
+ * `after` is every package's status now; `before` is the same list with the moved packages set
+ * back to where they were. The answer is whether the one word on the customer's order page changed.
+ *
+ * ⚠ THIS IS WHY A SPLIT ORDER LOOKS LIKE ANY OTHER (FR-024). The stage is the LEAST advanced
+ * package's, so when the faster of two shops packs or hands over, nothing the customer sees has
+ * changed and they are told nothing. They hear exactly as many times, at exactly the moments, that
+ * a single-shop order would have told them — the count and timing of updates cannot reveal that a
+ * second shop exists.
+ */
+export function customerViewChanged(before: readonly string[], after: readonly string[]): boolean {
+  return stageFor(before) !== stageFor(after);
+}
+
+/**
  * May the SHOPPER still cancel this order themselves? (055 FR-012)
  *
  * ⚠ ADVISORY, NOT THE GATE. The cancel itself re-decides this under the order's row lock, because a

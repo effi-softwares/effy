@@ -115,6 +115,7 @@ kotlin {
             implementation(libs.lifecycle.viewmodel.navigation3)
             // 013 — networking (one client per base URL), serialization, async, nav, prefs
             implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.websockets) // 071 — the live-update channel
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.json)

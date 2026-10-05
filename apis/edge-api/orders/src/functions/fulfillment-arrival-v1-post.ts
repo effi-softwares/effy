@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceMoves } from "@effy/edge-shared/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, unavailable } from "@effy/edge-shared";
 import type { RecordArrivalRequest } from "@effy/shared-types";
@@ -61,6 +62,9 @@ export const handler = async (
     });
     // ⚠ Metered only on a NEW arrival — a replay must not inflate OrderCompleted.
     if (result.created) arrivalRecorded("staff_recorded", result.orderFinished);
+    // 071 — committed: the package went `collected` → `delivered`. Operations sees it; the customer
+    // hears only if that was the last of their packages to arrive (their page then says delivered).
+    if (result.created) await announceMoves([{ fulfillmentId, from: "collected" }]);
     // ⚠ The replay returns 200 with the ORIGINAL arrival time, never a refreshed one (FR-005).
     return json(result.created ? 201 : 200, result, guard.scope);
   } catch (err) {

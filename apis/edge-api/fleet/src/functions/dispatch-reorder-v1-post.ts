@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDispatch, driverOfRound } from "../lib/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem } from "@effy/edge-shared";
 
@@ -20,6 +21,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
   try {
     await reorder(id, body.stopIds, body.expectedUpdatedAt, g.sub);
+    await announceDispatch([await driverOfRound(id)]); // 071 — committed; the driver's stop order changed
     return json(200, { ok: true }, scope);
   } catch (err) {
     return mapDispatchError(err, scope);

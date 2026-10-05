@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDispatch, driverOfRound } from "../lib/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem } from "@effy/edge-shared";
 
@@ -19,7 +20,9 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     return problem(400, "invalid_request", "Missing fields", "An expectedUpdatedAt is required.", scope);
   }
   try {
+    const previousDriver = await driverOfRound(id);
     await unassign(id, body.expectedUpdatedAt, g.sub);
+    await announceDispatch([previousDriver]); // 071 — committed; the driver sees the work withdrawn
     return json(200, { ok: true }, scope);
   } catch (err) {
     return mapDispatchError(err, scope);

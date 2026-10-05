@@ -65,6 +65,8 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.android)
+            // 071 — CIO holds the live channel's WebSocket. NOT the data client's engine, and NOT OkHttp.
+            implementation(libs.ktor.client.cio)
             // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
             implementation(libs.amplify.auth.cognito)
             implementation(libs.amplify.core.kotlin)
@@ -88,6 +90,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.websockets) // 071 — the live-update channel
             implementation(libs.ktor.client.contentNegotiation)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.json)

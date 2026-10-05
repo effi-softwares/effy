@@ -192,8 +192,10 @@ use it, and two implementations of one protocol is the two-sources shape this re
 `Flow<LiveKind>`; each app's container wires it once and ViewModels collect it (MVVM, Principle VI).
 
 - **Engine**: the apps use `ktor-client-android`, which has **no WebSocket support**. The live
-  client gets its own `HttpClient` on `ktor-client-okhttp` (Android) and the existing Darwin engine
-  (iOS). **⚠ PROVE** that both engines send the two required subprotocols.
+  client gets its own `HttpClient` on **CIO** (Android) and Darwin (iOS). ⚠ **Not OkHttp**, as first
+  drafted: the version catalogs record that Ktor's OkHttp clashes with the one the auth SDK needs
+  (013), and customer-mobile already runs CIO for that reason. Compiles and passes on both targets;
+  **⚠ PROVE on a device** that both engines send the two required subprotocols.
 - **Lifecycle**: connect when the app is in the foreground and signed in; close on background.
   Returning to the foreground reconnects and reads once (FR-013).
 - **Removed**: shop-mobile's `OrdersScreen` 15 s loop and `QueueRefreshIntervalMillis`. Driver's
@@ -240,6 +242,13 @@ adopted:
 
 With both: ~45 operations per order → ~2.7 M → **≈ 3.6 USD** at fifty shops.
 
+⚠ **MEASURE 2 WAS NOT BUILT, and the estimate is corrected for it.** A serverless function is
+frozen when its handler returns, so it cannot "send the last one after a five-second pause"; a
+throttle that drops the final pick leaves a colleague's screen wrong. Every pick announces, to the
+shop only (measure 1 stands), and the apps coalesce the reads. At eight picks an order that is ~65
+operations per order → ~3.9 M → **≈ 4.8 USD** at fifty shops: inside the bound, with little room.
+The 5 USD line is now near **65,000 orders a month**, and the 4 USD budget alert fires first.
+
 The honest boundary: the bill is linear in orders. Under these assumptions 5 USD is reached near
 **90,000 orders a month**. The budget alert (R13) is what tells the operator before that.
 
@@ -255,6 +264,11 @@ The honest boundary: the bill is linear in orders. Under these assumptions 5 USD
 - **Product analytics**: none. An update is not a user action.
 - **Clients**: `live_connection_state` is not sent to PostHog; connection flapping is system
   health, visible through the authorizer and connect counts.
+
+**Proved in dev, 2026-10-05**: the channel's authorizer accepts the apps' own access token
+(connect and subscribe allowed, logged); a paid order published three updates (shop, customer,
+operations) with zero failures; the operator saw the order appear on Today. Not yet measured:
+SC-001's percentiles, and the fifteen-minute cut-off (R5) on a real suspended account.
 
 ## R14 — Early proof before the pattern scales
 

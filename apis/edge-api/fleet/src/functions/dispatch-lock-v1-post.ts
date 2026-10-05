@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDispatch } from "../lib/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem } from "@effy/edge-shared";
 
@@ -25,6 +26,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
   try {
     await setLock(id, true, body.expectedUpdatedAt, g.sub);
+    await announceDispatch(); // 071 — committed; a lock changes the console, not the driver's work
     return json(200, { ok: true }, scope);
   } catch (err) {
     return mapDispatchError(err, scope);

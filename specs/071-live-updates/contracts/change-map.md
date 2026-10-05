@@ -4,29 +4,33 @@ The binding list of announcing points. A guard test (research R8) holds the code
 state-changing or scheduled function in these services either announces or is allow-listed with a
 reason. Exact function files are fixed in `tasks.md` from the routes as they stand.
 
-`customer*` = only when the customer-visible stage or refund state changed (research R7).
+`orders`* in the customer column = only when the stage on the customer's own order page changed
+(research R7). A refund, a cancellation or a refund request always tells the customer, once: it is
+their money and it is on their page.
 
 | Change | Service that commits it | shop | customer | driver | ops |
 |---|---|---|---|---|---|
 | Order paid (webhook / finalise) | `commerce` via shared payments | `orders` (each fulfilling shop) | `orders` | — | `orders`, `slots` |
 | Customer cancels | `commerce` | `orders` | `orders` | `work` if assigned | `orders`, `slots` |
 | Customer requests a refund | `commerce` | — | `orders` | — | `orders` |
-| Staff cancels / refunds / declines | `orders` via shared payments | `orders` | `orders`* | `work` if assigned | `orders` |
-| Shop manager refunds own lines | `shop` via shared payments | `orders` | `orders`* | — | `orders` |
-| Refund settles or fails (reconciler, webhook) | `commerce` | `orders` | `orders`* | — | `orders` |
+| Staff cancels / refunds / declines | `orders` via shared payments | `orders` (not for a decline) | `orders` | `work` if assigned | `orders` |
+| Shop manager refunds own lines | `shop` via shared payments | `orders` | `orders` | — | `orders` |
+| Refund settles or fails (reconciler, webhook) | `commerce` | `orders` | `orders` | — | `orders` |
 | Portion accepted / picking / ready | `shop` | `orders` | `orders`* | — | `orders` |
-| Pick progress on an item | `shop` | `orders` (≤ 1 per order per 5 s) | — | — | — |
-| Portion handed to driver | `shop` | `orders` | `orders`* | `work` | `orders`, `dispatch` |
-| Stock runs out / crosses low level / recovers | `inventory`, and `commerce` when a sale causes it | `stock` | — | — | — |
+| Pick progress on an item | `shop` | `orders` (every pick; the apps coalesce) | — | — | — |
+| Stock edited (count, threshold, tracking), or reduced by a sale | `inventory`; `commerce` for a sale | `stock` | — | — | — |
 | Attention list gains or loses an entry | `shop` (evaluator, scheduled) | `attention` | — | — | — |
 | Work assigned / reassigned / withdrawn | `fleet` (staff action, wave planner) | — | — | `work` (old and new driver) | `dispatch` |
-| Driver collects / checks in at hub | `driver` | `orders` | `orders`* | — | `orders`, `dispatch` |
-| Driver delivers / fails a drop (proof) | `driver` | — | `orders`* | — | `orders`, `dispatch` |
+| Driver collects (the handover from shop to driver) | `driver` | `orders` | `orders`* | — | `orders`, `dispatch` |
+| Driver checks in at hub / reports a package unavailable / marks a drop en route or failed | `driver` | — | — | — | `orders`, `dispatch` |
+| Driver delivers a drop (proof) | `driver` | `orders` | `orders`* | — | `orders`, `dispatch` |
 | Driver goes on / off duty | `driver` | — | — | — | `dispatch` |
-| Driver record changed by staff | `admin` / `fleet` | — | — | `work` | `dispatch` |
-| Standard package handed to carrier / arrival recorded | `orders` | — | `orders`* | — | `orders` |
+| Driver record, status, capability or duty changed by staff | `fleet` | — | — | `work` (status, update, duty) | `dispatch` |
+| Carrier arrival recorded | `orders` | `orders` | `orders`* | — | `orders` |
+| Standard package handed to carrier (no status changes) | `orders` | — | — | — | `orders`, `dispatch` |
+| Refund proposal dismissed | `orders` | `orders` | — | — | `orders` |
 | Slot created / changed / closed | `fleet` | — | — | — | `slots` |
-| Product submitted / approved / rejected | `catalog`, `inventory` | — | — | — | `review` |
+| Product submitted / withdrawn / approved / sent back; margin set | `shop`, `catalog` | — | — | — | `review` |
 
 Not announced, by decision:
 - Catalogue, price and promotion edits — shopper-facing catalogue is out of scope (spec Assumptions).

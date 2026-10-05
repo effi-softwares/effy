@@ -16,6 +16,7 @@
 import {
   emitMetric, metricNamespace, withTransaction, type Queryable, type RequestScope, type Transactor,
 } from "@effy/edge-shared";
+import { announceOrderOfProviderRefund } from "@effy/edge-shared/live";
 import {
   announcePaid, finalizeFailed, finalizeSucceeded, meterFinalize,
   type FinalizeOutcome, type PaymentGateway, type WebhookEvent,
@@ -33,6 +34,8 @@ export function createWebhookHandler(deps: {
   refunds: RefundEventHandler;
   /** After a payment has COMMITTED: record how it was paid, best-effort. */
   afterPaid: (scope: Pick<RequestScope, "log">, orderId: string, intentId: string) => Promise<void>;
+  /** 071 — after a refund's outcome has committed. Defaults to telling the order's audience. */
+  afterRefund?: (providerRefundId: string) => Promise<void>;
   transact?: Transactor;
 }) {
   const transact = deps.transact ?? withTransaction;
@@ -49,6 +52,7 @@ export function createWebhookHandler(deps: {
     if (evt.paymentIntentId === "" && !evt.refundId) return count(evt, "ignored");
 
     let paid: { orderId: string; out: FinalizeOutcome } | null = null;
+    let refundSettled: string | null = null;
     let outcome: WebhookOutcome;
     try {
       outcome = await transact(async (tx) => {
@@ -61,6 +65,7 @@ export function createWebhookHandler(deps: {
         // A refund is keyed on its OWN id — an order can have several, and each has its own fate.
         if (evt.refundId) {
           await deps.refunds(tx, evt);
+          refundSettled = evt.refundId;
           return "handled";
         }
 
@@ -85,6 +90,13 @@ export function createWebhookHandler(deps: {
       meterFinalize(metricNamespace(), settled.out);
       await announcePaid(settled.out);
       await deps.afterPaid(scope, settled.orderId, evt.paymentIntentId);
+    }
+    // 071 — the bank's verdict on a refund changes the customer's order page ("on its way" →
+    // "completed", or "there was a problem") and back-office's. Announced after the commit, like
+    // everything else here; a duplicate delivery returned above without setting this.
+    const settledRefund = refundSettled as string | null;
+    if (settledRefund) {
+      await (deps.afterRefund ?? announceOrderOfProviderRefund)(settledRefund);
     }
     return count(evt, outcome);
   };

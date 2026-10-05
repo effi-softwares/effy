@@ -41,6 +41,11 @@ feel like one system despite spanning three languages and three runtimes:
 6. **Unidirectional state on the clients.** Mobile uses MVVM with a single immutable, observable
    UI-state object per screen (state down, events up); web treats the server-state cache as the source of truth and keeps a
    client store only for genuine client state. Server data is never hand-cached in component state.
+   ⚠ **No screen refreshes its data on a timer (071).** A screen reads when it opens, when it returns to the foreground,
+   when its connection returns, when it is told something changed, and when the person asks. The telling is the live
+   channel: the backend publishes the KIND of thing that changed (`@effy/edge-shared/live`, after commit, never
+   throwing); web consoles invalidate the matching query keys (`features/live/routes.ts`), mobile ViewModels collect
+   `LiveClient.changes(…)`. An update carries no data — the cache and the repositories stay the only source of it.
 
 ---
 

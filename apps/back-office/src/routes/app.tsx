@@ -15,11 +15,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@effy/design-system/ui";
-import { ConsoleShell, DashboardOverview } from "@effy/web-kit/console";
+import { ConsoleShell, DashboardOverview, LiveProvider, LiveStatus } from "@effy/web-kit/console";
 
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
+import { getLiveDescriptor } from "@/features/live/repo";
+import { LIVE_ROUTES } from "@/features/live/routes";
 import { AdminOnlyScreen } from "@/features/staff-identity/AdminOnlyScreen";
 import { ProvingScreen } from "@/features/staff-identity/ProvingScreen";
 import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
@@ -63,23 +65,28 @@ function AppShell() {
   const identity = data?.status === "signed-in" ? data.identity : null;
 
   return (
-    <ConsoleShell
-      brand={{ mark: "E", name: "Effy", surface: "Back-Office" }}
-      surfaceLabel="Effy Back-Office"
-      nav={NAV}
-      roles={identity?.roles ?? []}
-      email={identity?.email ?? ""}
-      theme={theme}
-      onSetTheme={setTheme}
-      onSignOut={() =>
-        signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
-      }
-      signingOut={signOut.isPending}
-      sidebarOpen={sidebarOpen}
-      onSidebarOpenChange={setSidebarOpen}
-    >
-      <Outlet />
-    </ConsoleShell>
+    // 071 — orders, dispatch and drivers, slot load and the review queue re-read when the platform
+    // says they changed; nothing here refreshes on a timer. Open only while signed in.
+    <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
+      <ConsoleShell
+        headerActions={<LiveStatus />}
+        brand={{ mark: "E", name: "Effy", surface: "Back-Office" }}
+        surfaceLabel="Effy Back-Office"
+        nav={NAV}
+        roles={identity?.roles ?? []}
+        email={identity?.email ?? ""}
+        theme={theme}
+        onSetTheme={setTheme}
+        onSignOut={() =>
+          signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
+        }
+        signingOut={signOut.isPending}
+        sidebarOpen={sidebarOpen}
+        onSidebarOpenChange={setSidebarOpen}
+      >
+        <Outlet />
+      </ConsoleShell>
+    </LiveProvider>
   );
 }
 

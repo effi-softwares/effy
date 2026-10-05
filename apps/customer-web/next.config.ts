@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
     "@effy/design-system",
     "@effy/shared-types",
     "@effy/api-client",
+    // 071 — ONLY its `/live` entry point is imported (the framework-free channel client). The package
+    // root pulls in the auth SDK and must never be imported here; `LiveRefresh.test.tsx` holds that.
+    "@effy/web-kit",
     "@effy/legal-content",
   ],
 

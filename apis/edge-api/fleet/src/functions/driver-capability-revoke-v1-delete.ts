@@ -3,6 +3,7 @@
 //
 // ⚠ Revoking a clearance the driver does not hold returns 200, NOT a 404 (FR-006). The operator's
 // intent is already true; erroring would make two operators tidying the same record fight.
+import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -25,6 +26,7 @@ export const handler = async (
       g.sub,
       scope,
     );
+    await announceDispatch(); // 071 — committed
     return json(200, { items }, scope);
   } catch (err) {
     return mapFleetError(err, scope);

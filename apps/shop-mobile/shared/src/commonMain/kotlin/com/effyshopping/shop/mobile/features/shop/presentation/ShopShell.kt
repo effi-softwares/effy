@@ -128,6 +128,7 @@ fun ShopShell(
                     getFulfillment = container.getFulfillment,
                     advanceFulfillment = container.advanceFulfillment,
                     recordItemProgress = container.recordItemProgress,
+                    live = container.live,
                     // Compact widths open a portion as its own destination; wide (tablet) widths show the
                     // queue and the pick list side by side and never reach this callback.
                     onOpenOrder = { tabs.push(OrderDetail(it)) },
@@ -137,6 +138,7 @@ fun ShopShell(
                     getFulfillment = container.getFulfillment,
                     advanceFulfillment = container.advanceFulfillment,
                     recordItemProgress = container.recordItemProgress,
+                    live = container.live,
                     initialOrderId = route.id,
                     onOpenOrder = { tabs.push(OrderDetail(it)) },
                     onCloseOrder = { tabs.pop() },

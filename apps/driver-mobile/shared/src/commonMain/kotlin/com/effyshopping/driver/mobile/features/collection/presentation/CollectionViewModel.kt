@@ -12,6 +12,8 @@ import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.collection.domain.ReportCollectionIssue
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -46,9 +48,31 @@ class CollectionViewModel(
     private val reportIssue: ReportCollectionIssue,
     private val checkInHub: CheckInHub,
     private val newChangeId: () -> String,
+    /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
+    private val liveChanges: Flow<Unit> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionUiState())
     val state = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch { liveChanges.collect { reloadRunQuietly() } }
+    }
+
+    /**
+     * A dispatcher changed this round (re-ordered its stops, moved it, withdrew it). Re-read the
+     * round the driver is looking at, quietly.
+     *
+     * ⚠ NEVER WHILE THE DRIVER IS MID-ACTION (FR-016): a load or a submission of theirs is in
+     * flight and its own answer is about to replace this state. And only once a round has loaded —
+     * the first load is `loadRun`'s, with its own loading and error states.
+     */
+    private suspend fun reloadRunQuietly() {
+        val now = _state.value
+        if (now.run == null || now.isLoading || now.isWorking) return
+        runCatching { getRun(runId) }.onSuccess { fresh ->
+            _state.update { if (it.isLoading || it.isWorking) it else it.copy(run = fresh) }
+        }
+    }
 
     fun loadRun() {
         _state.update { it.copy(isLoading = true, message = null) }

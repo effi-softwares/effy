@@ -59,6 +59,10 @@ provider:
   iam:
     role:
       statements:
+        # 071 — publish live updates, to this environment's channel only.
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource:

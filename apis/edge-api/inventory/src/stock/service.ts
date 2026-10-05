@@ -8,6 +8,7 @@
  * drift would show up as back-office being able to write something a shop cannot, or vice versa.
  */
 
+import { announce } from "@effy/edge-shared/live";
 import {
   OPERATOR_STOCK_REASONS,
   type LowStockRowDTO,
@@ -108,6 +109,13 @@ export async function getSettings(actor: Actor) {
   return { defaultThreshold: await repo.readSettings(actor.shopId) };
 }
 
+/**
+ * 071 — the shop's other screens (the stock list, the restock list, Today's attention list) show
+ * this count or this threshold. Told after the write has committed. A back-office correction tells
+ * the shop too: `actor.shopId` is the shop whose stock it is, whoever changed it.
+ */
+const stockChanged = (actor: Actor) => announce([{ scope: "shop", shopId: actor.shopId, kind: "stock" }]);
+
 // ── Writes ──────────────────────────────────────────────────────────────────────────────────────
 
 /** Turn tracking on or off. Enabling REQUIRES a count — FR-003, and the database agrees. */
@@ -132,6 +140,7 @@ export async function setTracking(
     onHand = requireWholeNumber(body.onHand, "onHand");
   }
   await repo.setTracking(actor, productId, body.tracked, onHand);
+  await stockChanged(actor);
   return getStock(actor, productId);
 }
 
@@ -144,6 +153,7 @@ export async function setCount(
   const reason = requireReason(body.reason);
   await requireTracked(actor, productId);
   await repo.setCount(actor, productId, onHand, reason, optionalNote(body.note));
+  await stockChanged(actor);
   return getStock(actor, productId);
 }
 
@@ -165,6 +175,7 @@ export async function adjustCount(
   const reason = requireReason(body.reason);
   await requireTracked(actor, productId);
   await repo.adjustCount(actor, productId, body.delta, reason, optionalNote(body.note));
+  await stockChanged(actor);
   return getStock(actor, productId);
 }
 
@@ -178,6 +189,7 @@ export async function setThreshold(
       ? null
       : requireWholeNumber(body.threshold, "threshold");
   await repo.setThreshold(actor, productId, threshold);
+  await stockChanged(actor);
   return getStock(actor, productId);
 }
 
@@ -187,6 +199,7 @@ export async function setSettings(actor: Actor, body: Record<string, unknown>) {
       ? null
       : requireWholeNumber(body.defaultThreshold, "defaultThreshold");
   await repo.writeSettings(actor.shopId, value, actor.sub);
+  await stockChanged(actor);
   return { defaultThreshold: value };
 }
 

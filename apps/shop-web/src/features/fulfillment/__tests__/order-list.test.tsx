@@ -359,10 +359,9 @@ describe("selection and the bulk bar", () => {
 })
 
 describe("orderListQuery", () => {
-  it("polls every 15s and never in a hidden tab (SC-001, carried from the queue)", () => {
-    const q = orderListQuery({})
-    expect(q.refetchInterval).toBe(15_000)
-    expect(q.refetchIntervalInBackground).toBe(false)
+  it("is not polled — a live update re-reads it, never a timer (071 FR-009)", () => {
+    const q = orderListQuery({}) as { refetchInterval?: unknown }
+    expect(q.refetchInterval).toBeUndefined()
   })
 
   it("keys equal lists identically, however the URL spelled them", () => {

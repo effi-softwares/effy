@@ -17,3 +17,11 @@ export {
 export { driverScope, opsScope, shopScope } from "./scope";
 export { describeLive, type LiveDescriptorInput } from "./descriptor";
 export { liveRoute } from "./route";
+export {
+  announceMoves,
+  announceOrder,
+  announceOrderOfProviderRefund,
+  type AnnounceMovesOptions,
+  type AnnounceOrderOptions,
+  type PackageMove,
+} from "./order-moves";

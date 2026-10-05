@@ -9,6 +9,8 @@ import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
 import com.effyshopping.driver.mobile.features.driver.domain.SetDuty
 import com.effyshopping.driver.mobile.features.today.domain.GetToday
 import com.effyshopping.driver.mobile.features.today.domain.Today
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -55,12 +57,26 @@ class TodayViewModel(
     private val newChangeId: () -> String,
     /** Flush the offline write queue — called on refresh, the natural "back online" moment (FR-040). */
     private val syncFlush: suspend () -> Unit = {},
+    /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
+    private val liveChanges: Flow<Unit> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(TodayUiState(dutyStatus = initialDuty))
     val state = _state.asStateFlow()
 
     init {
         if (initialDuty == DutyStatus.ON_DUTY) refresh()
+        viewModelScope.launch { liveChanges.collect { refreshQuietly() } }
+    }
+
+    /**
+     * Work was assigned, reassigned, withdrawn or re-ordered. Re-read without the loading state — the
+     * driver did nothing, so nothing should appear to be happening — and without touching a message
+     * they have not dismissed. Skipped while a visible load is already running.
+     */
+    private suspend fun refreshQuietly() {
+        val now = _state.value
+        if (now.dutyStatus != DutyStatus.ON_DUTY || now.isLoading) return
+        runCatching { getToday() }.onSuccess { fresh -> _state.update { it.copy(today = fresh) } }
     }
 
     fun refresh() {

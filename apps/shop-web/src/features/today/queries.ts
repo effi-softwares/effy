@@ -10,38 +10,25 @@ import { getTeamActivity, getToday } from "./repo"
 export const TODAY_KEY = ["shop", "today"] as const
 
 /**
- * How often Today is re-read while it is on screen.
- *
- * ⚠ THIS IS THE FRESHNESS, NOT A FALLBACK (070). Until 070 a server-push stream told the console
- * when to re-read and this interval only covered the stream being down; the stream went with the
- * always-on backend that carried it, and the under-ten-seconds target went with it. A change now
- * shows within thirty seconds. A cheaper way to do better is deferred, not designed.
- */
-export const REFRESH_INTERVAL_MS = 30_000
-
-/**
  * Today's snapshot.
  *
- * `refetchIntervalInBackground: false` is load-bearing (020 R8): a shop tablet sits open on a bench
- * for hours, and polling a hidden tab bills the platform for reads nobody is looking at. Focus
- * refetch covers the moment the operator comes back.
+ * ⚠ NOT POLLED (071). It is read when the screen opens, when the operator comes back to the tab,
+ * and when the platform says this shop's orders, stock or attention list changed — the console's
+ * `LiveProvider` invalidates this key (`features/live/routes.ts`). A tablet left open on a bench
+ * for a quiet hour makes no request at all.
  *
- * Every refresh is an ordinary authorised request, so an operator who is disabled or moved to
- * another shop stops seeing this shop's data at the next one — there is no long-lived connection
- * to re-check.
+ * Every read is an ordinary authorised request, so an operator who is disabled or moved to another
+ * shop is refused at the next one; the live channel itself stops telling them within fifteen
+ * minutes.
  */
 export const todayQuery = queryOptions({
   queryKey: TODAY_KEY,
   queryFn: getToday,
-  refetchInterval: REFRESH_INTERVAL_MS,
-  refetchIntervalInBackground: false,
 })
 
 /**
- * Team activity — fetched only when the sheet opens (`enabled`), and not polled.
- *
- * A shift's history does not change while you read it, and a console left open on this sheet should
- * not bill the platform for re-reading two weeks of audit rows every fifteen seconds.
+ * Team activity — fetched only when the sheet opens (`enabled`). A shift's history does not change
+ * while you read it.
  */
 export const teamActivityQuery = queryOptions({
   queryKey: ["shop", "team-activity"] as const,

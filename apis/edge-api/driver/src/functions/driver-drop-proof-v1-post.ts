@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceDelivered } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { ProofRequest, ProofResponse } from "@effy/shared-types";
@@ -39,6 +40,8 @@ export const handler = async (
 
   try {
     const result = await submitProof(dropId, guard.driver.id, guard.driver.subject, body);
+    // 071 — committed; tell the screens that show it.
+    await announceDelivered(dropId);
 
     // ⚠ A REPLAY ANSWERS 200 WITH THE ORIGINAL OUTCOME, not a conflict (FR-005). A request that
     // arrived without its response reaching the phone is ordinary in a loading bay, and the retry

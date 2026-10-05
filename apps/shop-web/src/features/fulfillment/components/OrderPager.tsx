@@ -23,7 +23,7 @@ export function OrderPager({
   search: OrdersSearch
   onNavigate: (fulfillmentId: string, search: OrdersSearch) => void
 }) {
-  const list = useQuery({ ...orderListQuery(search), refetchInterval: false })
+  const list = useQuery(orderListQuery(search))
   const rows = list.data?.items ?? []
   const index = rows.findIndex((r) => r.id === fulfillmentId)
   const page = list.data?.page ?? 1
@@ -33,8 +33,8 @@ export function OrderPager({
 
   const needPrev = index === 0 && page > 1
   const needNext = index >= 0 && index === rows.length - 1 && page < pageCount
-  const prevPage = useQuery({ ...orderListQuery({ ...search, page: page - 1 }), refetchInterval: false, enabled: needPrev })
-  const nextPage = useQuery({ ...orderListQuery({ ...search, page: page + 1 }), refetchInterval: false, enabled: needNext })
+  const prevPage = useQuery({ ...orderListQuery({ ...search, page: page - 1 }), enabled: needPrev })
+  const nextPage = useQuery({ ...orderListQuery({ ...search, page: page + 1 }), enabled: needNext })
 
   if (index < 0) return null
 

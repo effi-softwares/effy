@@ -61,6 +61,9 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
+    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
+    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
@@ -79,6 +82,10 @@ provider:
   iam:
     role:
       statements:
+        # 071 — publish live updates, to this environment's channel only.
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}

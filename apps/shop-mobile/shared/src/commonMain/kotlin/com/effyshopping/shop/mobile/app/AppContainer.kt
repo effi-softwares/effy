@@ -4,7 +4,11 @@ import com.effyshopping.shop.mobile.core.auth.AuthDriver
 import com.effyshopping.shop.mobile.core.config.AppConfig
 import com.effyshopping.shop.mobile.core.draft.DraftStore
 import com.effyshopping.shop.mobile.core.draft.SettingsDraftStore
+import com.effyshopping.mobile.kit.live.KtorLiveTransport
+import com.effyshopping.mobile.kit.live.LiveClient
+import com.effyshopping.mobile.kit.live.fetchLiveDescriptor
 import com.effyshopping.shop.mobile.core.http.createHttpClient
+import com.effyshopping.shop.mobile.core.http.liveEngine
 import com.effyshopping.shop.mobile.core.observability.AnalyticsDriver
 import com.effyshopping.shop.mobile.core.observability.CrashReporter
 import com.effyshopping.shop.mobile.core.observability.NoOpAnalyticsDriver
@@ -82,6 +86,21 @@ class AppContainer(
         createHttpClient(AppConfig.shopApiBaseUrl, sessionProvider = { authDriver.currentSession() }, debug = debugLogging)
     }
     private val shop: ShopRepository by lazy { HttpShopRepository(shopClient) }
+
+    /**
+     * 071 — the live-update channel. Tells the Orders screen when this shop's orders change, so it
+     * re-reads then instead of every fifteen seconds. Independent of push (FR-007): it needs no
+     * notification permission and works with notifications off. Held only while the app is in the
+     * foreground and signed in — `LiveLifecycle` in [App] starts and stops it.
+     */
+    val live: LiveClient by lazy {
+        LiveClient(
+            scope = appScope,
+            loadDescriptor = { fetchLiveDescriptor(shopClient, "shop/v1/live") },
+            token = { authDriver.currentSession()?.accessToken },
+            transport = KtorLiveTransport(liveEngine()),
+        )
+    }
     private val homeDashboard: HomeDashboardRepository by lazy { DummyHomeDashboardRepository() }
     // The catalog repository reuses the SAME shop client (single bearer, cross-pool isolation) — private,
     // reached only through the use cases below (Principle VI).

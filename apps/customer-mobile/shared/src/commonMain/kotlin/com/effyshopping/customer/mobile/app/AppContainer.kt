@@ -2,7 +2,11 @@ package com.effyshopping.customer.mobile.app
 
 import com.effyshopping.customer.mobile.core.auth.AuthDriver
 import com.effyshopping.customer.mobile.core.config.AppConfig
+import com.effyshopping.mobile.kit.live.KtorLiveTransport
+import com.effyshopping.mobile.kit.live.LiveClient
+import com.effyshopping.mobile.kit.live.fetchLiveDescriptor
 import com.effyshopping.customer.mobile.core.http.createHttpClient
+import com.effyshopping.customer.mobile.core.http.liveEngine
 import com.effyshopping.customer.mobile.core.observability.AnalyticsDriver
 import com.effyshopping.customer.mobile.core.observability.ConsentState
 import com.effyshopping.customer.mobile.core.observability.ConsentStore
@@ -154,6 +158,25 @@ class AppContainer(
             AppConfig.edgeApiBaseUrl,
             sessionProvider = { authDriver.currentSession() },
             debug = debugLogging,
+        )
+    }
+
+    /**
+     * 071 — the live-update channel. Tells the app when this customer's own orders change (packed,
+     * on the way, delivered, refunded, cancelled), so the order list and an open order re-read then
+     * — before 071 they changed only on pull-to-refresh. Independent of push (FR-007).
+     *
+     * ⚠ The customer is told "your orders changed" and nothing else — never which shop, or how many
+     * (FR-024). A guest has no channel: with no session there is no token, and the client stays off.
+     * Held only while the app is in the foreground and signed in (`LiveLifecycle` in [App]).
+     */
+    val live: LiveClient by lazy {
+        LiveClient(
+            scope = appScope,
+            loadDescriptor = { fetchLiveDescriptor(edgeClient, "customer/v1/live") },
+            // The ID token — the one this app's API calls are authorized with at the gateway.
+            token = { authDriver.currentSession()?.idToken },
+            transport = KtorLiveTransport(liveEngine()),
         )
     }
     private val customers: CustomerRepository by lazy { HttpCustomerRepository(edgeClient) }

@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.mobile.kit.live.LiveLifecycle
 import com.effyshopping.shop.mobile.core.session.SessionState
 import com.effyshopping.shop.mobile.core.platform.NoOpPlatformUiController
 import com.effyshopping.shop.mobile.core.platform.PlatformUiController
@@ -54,6 +55,8 @@ fun App(
         val scope = rememberCoroutineScope()
 
         LaunchedEffect(Unit) { container.session.bootstrap() }
+        // 071 — hold the live channel exactly while in the foreground and signed in.
+        LiveLifecycle(container.live, signedIn = session is SessionState.SignedIn)
 
         Surface(
             modifier = Modifier.fillMaxSize(),

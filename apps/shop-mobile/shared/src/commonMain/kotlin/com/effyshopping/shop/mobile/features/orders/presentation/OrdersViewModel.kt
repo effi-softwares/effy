@@ -14,7 +14,9 @@ import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.QueueState
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,7 +27,6 @@ import kotlinx.coroutines.launch
  * composition ([OrdersRoute]) so it is bound to the screen's lifetime and cannot keep polling in the
  * background — a tablet left on the counter must not hold the backend open all shift.
  */
-const val QueueRefreshIntervalMillis: Long = 15_000L
 
 /**
  * Everything the Orders screen renders, in ONE immutable snapshot. Failures reach the UI as a user-facing
@@ -74,6 +75,11 @@ class OrdersViewModel(
     private val recordItemProgress: RecordItemProgress,
     private val initialOrderId: String? = null,
     private val coroutineScope: CoroutineScope? = null,
+    /**
+     * 071 — "this shop's orders changed, or the channel just (re)connected: read now". Replaces the
+     * fifteen-second heartbeat this screen used to run. Empty by default (tests, previews).
+     */
+    private val liveChanges: Flow<Unit> = emptyFlow(),
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(OrdersUiState())
     val state = mutableState.asStateFlow()
@@ -82,6 +88,24 @@ class OrdersViewModel(
     init {
         refresh()
         initialOrderId?.let(::selectOrder)
+        scope.launch { liveChanges.collect { onLiveChange() } }
+    }
+
+    /**
+     * Something changed elsewhere — a new paid order, a colleague's pick, a cancellation. Re-read the
+     * queue quietly, and the open portion too.
+     *
+     * ⚠ NEVER WHILE THIS OPERATOR IS MID-ACTION (FR-016). `isBusy` means a transition or a pick of
+     * theirs is in flight; its own response is about to replace the detail, and re-reading underneath
+     * it would race that response and could show the line they just picked as unpicked.
+     */
+    private suspend fun onLiveChange() {
+        loadQueue(silent = true)
+        val open = mutableState.value.selectedId ?: return
+        if (mutableState.value.isBusy) return
+        runCatching { getFulfillment(open) }.onSuccess { detail ->
+            mutableState.update { if (it.selectedId == open && !it.isBusy) it.copy(detail = detail) else it }
+        }
     }
 
     /** A visible reload — the operator asked, so show them it is happening. */

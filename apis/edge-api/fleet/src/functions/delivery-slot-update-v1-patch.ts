@@ -1,5 +1,6 @@
 // PATCH /fleet/v1/delivery-slots/{slotId} — change or switch off a slot (069 US5). Mutate = admin/manager.
 // ⚠ There is no DELETE route for a slot, on purpose: a booking references it.
+import { announceSlots } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -17,7 +18,9 @@ export const handler = async (
   const g = await guard(event, scope, "mutate");
   if (denied(g)) return g.deny;
   try {
-    return json(200, await updateSlot(event.pathParameters?.slotId ?? "", parseBody<DeliverySlotPatch>(event.body), g.sub, scope), scope);
+    const updated = await updateSlot(event.pathParameters?.slotId ?? "", parseBody<DeliverySlotPatch>(event.body), g.sub, scope);
+    await announceSlots(); // 071 — committed
+    return json(200, updated, scope);
   } catch (err) {
     return mapFleetError(err, scope);
   }

@@ -514,15 +514,19 @@ ON CONFLICT (request_id, order_item_id) DO NOTHING`,
       }),
 
     /** ⚠ Guarded on `open`: a second decision cannot overwrite the first. */
-    async decideRequest(requestId: string, status: "declined" | "refunded", note: string, decidedBy: string): Promise<void> {
-      const res = await db.query(
+    /** Returns the order the request was against (071: whose screens to tell). */
+    async decideRequest(requestId: string, status: "declined" | "refunded", note: string, decidedBy: string): Promise<string> {
+      const res = await db.query<{ order_id: string }>(
         `
 UPDATE public.refund_request
    SET status = $2, outcome_note = NULLIF($3, ''), decided_by = $4, decided_at = now()
- WHERE id = $1 AND status = 'open'`,
+ WHERE id = $1 AND status = 'open'
+RETURNING order_id::text AS order_id`,
         [requestId, status, note, decidedBy],
       );
-      if ((res.rowCount ?? 0) === 0) throw new RequestNotFoundError();
+      const orderId = res.rows[0]?.order_id;
+      if (!orderId) throw new RequestNotFoundError();
+      return orderId;
     },
 
     /** A shopper who asked has now been answered. No open request is the ordinary case, not an error. */

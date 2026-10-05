@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.mobile.kit.live.LiveKind
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
 import com.effyshopping.customer.mobile.features.saved.presentation.ListChooserSheet
@@ -58,6 +59,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.ReceiptItem
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,7 +74,12 @@ private sealed interface ReceiptUiState {
     data object Pending : ReceiptUiState
 }
 
-private class ReceiptViewModel(private val orderId: String, private val getReceipt: GetReceipt) : ViewModel() {
+private class ReceiptViewModel(
+    private val orderId: String,
+    private val getReceipt: GetReceipt,
+    /** 071 — "your orders changed, or the channel just (re)connected: read now". */
+    private val liveChanges: Flow<Unit>,
+) : ViewModel() {
     private val _state = MutableStateFlow<ReceiptUiState>(ReceiptUiState.Loading)
     val state: StateFlow<ReceiptUiState> = _state.asStateFlow()
 
@@ -86,6 +93,9 @@ private class ReceiptViewModel(private val orderId: String, private val getRecei
                 _state.value = ReceiptUiState.Pending
             }
         }
+        // 071 — the order's progress changes while the shopper is looking at it; re-read quietly when
+        // told. It is also what turns a `Pending` receipt into the real one the moment payment lands.
+        viewModelScope.launch { liveChanges.collect { refresh() } }
     }
 
     /**
@@ -131,7 +141,7 @@ fun ReceiptScreen(
     doneLabel: String? = null,
     onDone: (() -> Unit)? = null,
 ) {
-    val vm = viewModel(key = orderId) { ReceiptViewModel(orderId, container.getReceipt) }
+    val vm = viewModel(key = orderId) { ReceiptViewModel(orderId, container.getReceipt, container.live.changes(LiveKind.ORDERS)) }
     val state by vm.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {

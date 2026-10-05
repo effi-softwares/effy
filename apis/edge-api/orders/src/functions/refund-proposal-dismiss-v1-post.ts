@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announceMoves } from "@effy/edge-shared/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, unavailable } from "@effy/edge-shared";
 
@@ -67,6 +68,9 @@ export const handler = async (
       dismissedBy: guard.sub,
       reason,
     });
+    // 071 — committed. The proposal leaves back-office's list and the shop's "needs attention";
+    // no status moved, so the customer's page is unchanged and they are not told.
+    if (result.created) await announceMoves([{ fulfillmentId, from: null }]);
     return json(result.created ? 201 : 200, { dismissed: true }, guard.scope);
   } catch (err) {
     guard.scope.log.error({ err, orderId, orderItemId }, "orders: dismiss proposal failed");

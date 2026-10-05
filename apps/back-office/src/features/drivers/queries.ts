@@ -36,9 +36,8 @@ export const dutyQuery = () =>
   queryOptions({
     queryKey: driverKeys.duty,
     queryFn: () => repo.getDuty(),
-    // "Who is working right now" is a live question. 30 s is short enough to be current and long
-    // enough not to poll the database from every open console tab.
-    refetchInterval: 30_000,
+    // "Who is working right now" is a live question — answered by a live `dispatch` update (071),
+    // which re-reads this the moment a driver goes on or off duty. Not polled.
   });
 
 export const readinessQuery = () =>

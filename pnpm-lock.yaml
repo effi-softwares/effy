@@ -874,6 +874,9 @@ importers:
       '@effy/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@effy/web-kit':
+        specifier: workspace:*
+        version: link:../../packages/web-kit
       '@stripe/react-stripe-js':
         specifier: ^6.8.0
         version: 6.8.0(@stripe/stripe-js@9.10.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

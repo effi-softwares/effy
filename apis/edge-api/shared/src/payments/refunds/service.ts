@@ -5,6 +5,7 @@
  * differ only in how the actor is resolved and what they may ask for; once an intent exists the
  * rules are identical. Two copies of "what a valid refund is" would drift, and the drift is money.
  */
+import { announceOrder } from "../../live";
 import { createHash } from "node:crypto";
 
 import type { Queryable } from "../../lib/db";
@@ -234,6 +235,8 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       if (input.kind === "item" && !input.skipStockReturn) await quietly(repo.returnStock(rec.refundId, input.orderId));
       // A shopper who asked has now been answered.
       await quietly(repo.closeOpenRequestForOrder(input.orderId, input.actorSub));
+      // 071 — the customer's order page, the shops' and back-office's now show a refund.
+      await announceOrder(input.orderId, { db: repo.db });
 
       return {
         refundId: rec.refundId, amount: formatCents(amountCents), status: REFUND_SUBMITTED,
@@ -258,6 +261,12 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         if (err instanceof AlreadyCancelledError) return { status: REFUND_SUCCEEDED };
         throw err;
       }
+
+      // 071 — THE ORDER IS CANCELLED FROM HERE, whatever becomes of the refund below (it may be
+      // refused, or stall). So this is announced now, once, before any of those outcomes: the shops
+      // stop packing, a driver holding it sees it go, a same-day place is freed, and the customer's
+      // page says cancelled. The refund's own later fate is announced when it is known.
+      await announceOrder(input.orderId, { slots: true, drivers: true, db: repo.db });
 
       // ⚠ WHAT REMAINS, NOT WHAT WAS PAID: an order already partly refunded must not be refunded
       // its full total.
@@ -300,13 +309,18 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       if (!UUID.test(input.orderId)) throw new RefundOrderNotFoundError();
       // A named line that is not an id cannot be one of this order's lines; it is dropped, as an
       // id that matches nothing always was.
-      return repo.insertRequest(input.orderId, input.customerId, message, input.items.filter((i) => UUID.test(i.orderItemId)));
+      const requestId = await repo.insertRequest(input.orderId, input.customerId, message, input.items.filter((i) => UUID.test(i.orderItemId)));
+      // 071 — back-office's order console gains a request to decide; the customer's own page shows
+      // it was received. No shop screen shows a request, so no shop is told.
+      await announceOrder(input.orderId, { shops: false, db: repo.db });
+      return requestId;
     },
 
     /** Close a request without money moving. ⚠ Not emailed: the order screen is where the shopper looks. */
     async declineRequest(requestId: string, note: string, decidedBy: string): Promise<void> {
       if (!UUID.test(requestId)) throw new RequestNotFoundError();
-      await repo.decideRequest(requestId, "declined", note, decidedBy);
+      const orderId = await repo.decideRequest(requestId, "declined", note, decidedBy);
+      await announceOrder(orderId, { shops: false, db: repo.db });
     },
 
     /**
@@ -361,6 +375,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
             if (r.amountCents > (await repo.remainingCents(r.orderId, r.id))) {
               await repo.markRefused(r.id, "not submitted: the order no longer has this much left to refund");
               outcomes.refused++;
+              await announceOrder(r.orderId, { db: repo.db });
               continue;
             }
             provider = await gateway.createRefund({
@@ -374,10 +389,12 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
           if (settled) await repo.settleByProviderId(repo.db, provider.id, settled, provider.failureReason);
           await quietly(repo.closeOpenRequestForOrder(r.orderId, r.actorSub ?? "system"));
           outcomes[existing ? "found" : "resubmitted"]++;
+          await announceOrder(r.orderId, { db: repo.db }); // 071 — a refund that was uncertain now has an answer
         } catch (err) {
           if (err instanceof RefusedError) {
             await quietly(repo.markRefused(r.id, err.reason));
             outcomes.refused++;
+            await announceOrder(r.orderId, { db: repo.db });
           } else {
             outcomes.unresolved++; // still unknown; the next run asks again
           }

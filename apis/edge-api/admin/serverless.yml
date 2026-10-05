@@ -42,6 +42,10 @@ provider:
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
+    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
+    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
+    LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
     DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
     DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
@@ -154,6 +158,17 @@ package:
 functions:
   # Two probes, both PUBLIC and unversioned. Split on purpose: a combined probe cannot tell
   # "this service is not deployed" from "the database is down" — both just look red.
+  liveV1:
+    handler: src/functions/live-v1-get.handler
+    description: Which live-update channel is this person's — read on sign-in and reconnect, never on a timer — 071
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/live
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   healthz:
     handler: src/functions/healthz-get.handler
     description: Liveness — is the admin service deployed and executing? Touches nothing. Public.

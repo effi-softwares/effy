@@ -34,7 +34,7 @@ has committed, with the scopes given in [contracts/change-map.md](contracts/chan
 - [X] T010 Terraform `infra/envs/dev/live.tf`: the Event API (connect + subscribe `AWS_LAMBDA`, publish `AWS_IAM`), namespaces `shop` `customer` `driver` `ops`, the invoke permission for `appsync.amazonaws.com` on the authorizer, an IAM policy document granting `appsync:EventPublish` on the API, SSM parameters `/effy/<env>/live/{http-host,realtime-host,api-arn}`, alarms on `Effy/Live` `UpdateSendFailures` (≥ 5 in 15 min) and authorizer errors (≥ 1) to `aws_sns_topic.alerts`, a 4 USD monthly budget scoped to AppSync notifying the same topic (extend the topic policy for `budgets.amazonaws.com`). Run `terraform validate` only; if `aws_appsync_api` / `aws_appsync_channel_namespace` are absent from provider 6.53, use the fallback in research R11 and correct R11
 - [X] T011 Config-contract test `apis/edge-api/shared/src/live/live.contract.test.ts`: every service that imports `@effy/edge-shared/live` has the publish statement and the two parameters in its `serverless.yml`; every alarm in `live.tf` has an action
 - [X] T012 Web client core in `packages/web-kit/src/live/client.ts` per contract §2: handshake with the two subprotocols, `connection_init`, subscribe, `ka` watchdog from `connectionTimeoutMs`, jittered backoff 1 s → 60 s, states `live | reconnecting | off`, `subscribe_error` → `off`, ignores unknown kinds and invalid frames, never sends `publish`; `client.test.ts` drives it with a fake `WebSocket` and fake timers
-- [ ] T013 Mobile client core in `packages/mobile-kit/common/live/LiveClient.kt` (+ `LiveState.kt`): the same state machine on Ktor WebSockets behind a small `LiveSocket` interface, exposing `Flow<LiveKind>` and `StateFlow<LiveState>`; add `ktor-client-websockets` and `ktor-client-okhttp` identically to the three `apps/*-mobile/gradle/libs.versions.toml` and `shared/build.gradle.kts`; `commonTest` against a fake socket in each app's test source set that already includes mobile-kit
+- [X] T013 Mobile client core in `packages/mobile-kit/common/live/LiveClient.kt` (+ `LiveState.kt`): the same state machine on Ktor WebSockets behind a small `LiveSocket` interface, exposing `Flow<LiveKind>` and `StateFlow<LiveState>`; add `ktor-client-websockets` and `ktor-client-okhttp` identically to the three `apps/*-mobile/gradle/libs.versions.toml` and `shared/build.gradle.kts`; `commonTest` against a fake socket in each app's test source set that already includes mobile-kit
 
 **Checkpoint**: nothing is deployed and no app has changed behaviour.
 
@@ -68,8 +68,8 @@ has committed, with the scopes given in [contracts/change-map.md](contracts/chan
 - [X] T016 [US1] `LiveProvider` and `useLiveStatus` in `packages/web-kit/src/live/LiveProvider.tsx`: takes a descriptor loader, a token getter and a `kind → query-key prefixes` map; on an update calls `queryClient.invalidateQueries` for the mapped prefixes (active queries only); connects on sign-in, closes on sign-out; export from `packages/web-kit/src/index.ts`
 - [X] T017 [US1] Mount it in shop-web: provider at the authenticated layout in `apps/shop-web/src/`, map `orders → today + fulfillment keys`; **keep** the timers for now (removed in US2 once catch-up exists)
 - [X] T018 [US1] Scripted latency measurement `apis/edge-api/ops/src/verify/live-latency.ts`: subscribes with a real shop token, pays N test orders through the existing checkout verifier, records commit-to-update times; document the command in `scripts/verify-070/README.md`'s successor `scripts/verify-071/README.md`
-- [ ] T019 [US1] **OPERATOR** — quickstart Stage 1 steps 1–4: `make edge-deploy SERVICE=live ENV=dev`; `make plan ENV=dev` (confirm additive) and `make apply ENV=dev`; `make edge-deploy SERVICE=commerce ENV=dev` then `SERVICE=shop`; release shop-web
-- [ ] T020 [US1] Record the early proof in `specs/071-live-updates/SIGNOFF.md`: SC-002 trials, the T018 figures, and each of the four ⚠ PROVE items (raw token accepted; an open subscription is not re-authorized; Ktor OkHttp and Darwin send both subprotocols — a throwaway connect from shop-mobile on each platform; Terraform resources). **A failed item corrects `research.md` and `plan.md` before any later task starts**
+- [X] T019 [US1] **OPERATOR** — quickstart Stage 1 steps 1–4: `make edge-deploy SERVICE=live ENV=dev`; `make plan ENV=dev` (confirm additive) and `make apply ENV=dev`; `make edge-deploy SERVICE=commerce ENV=dev` then `SERVICE=shop`; release shop-web
+- [X] T020 [US1] Record the early proof in `specs/071-live-updates/SIGNOFF.md`: SC-002 trials, the T018 figures, and each of the four ⚠ PROVE items (raw token accepted; an open subscription is not re-authorized; Ktor OkHttp and Darwin send both subprotocols — a throwaway connect from shop-mobile on each platform; Terraform resources). **A failed item corrects `research.md` and `plan.md` before any later task starts**
 
 **Checkpoint**: stop if SC-001 or SC-002 is missed.
 
@@ -86,9 +86,9 @@ no timer anywhere on shop-web.
 - [X] T022 [US2] Catch-up in `packages/web-kit/src/live/client.ts` and `LiveProvider.tsx`: invalidate every mapped prefix once on `subscribe_success` after any reconnect and on `visibilitychange` to visible; close the socket after 5 minutes hidden; refresh an expired token through the existing session before reconnecting; tests under fake timers
 - [X] T023 [US2] Epoch roll in `packages/web-kit/src/live/client.ts`: epoch from descriptor `serverTime` + elapsed, subscribe to next 60 s early, unsubscribe old 60 s after, re-fetch the descriptor on reconnect; a refused roll → `off`; tests across a boundary with a skewed device clock
 - [X] T024 [P] [US2] `LiveStatus` line in `packages/web-kit/src/live/LiveStatus.tsx` and its slot in `packages/web-kit/src/console/ConsoleHeader.tsx`: nothing when live; "Reconnecting — last updated HH:MM" (`--warning` on its tint) or "Live updates off — last updated HH:MM" (`muted`) with a refresh button; last-read time from the query cache's `dataUpdatedAt`; no card; component test
-- [ ] T025 [US2] Remove shop-web's data timers: `refetchInterval` / `refetchIntervalInBackground` / `REFRESH_INTERVAL_MS` in `apps/shop-web/src/features/today/queries.ts` and both in `apps/shop-web/src/features/fulfillment/queries.ts`, the now-redundant `refetchInterval: false` overrides in `apps/shop-web/src/features/fulfillment/components/OrderPager.tsx`, and their comments and tests; keep `useNow.ts` and the PWA update check
+- [X] T025 [US2] Remove shop-web's data timers: `refetchInterval` / `refetchIntervalInBackground` / `REFRESH_INTERVAL_MS` in `apps/shop-web/src/features/today/queries.ts` and both in `apps/shop-web/src/features/fulfillment/queries.ts`, the now-redundant `refetchInterval: false` overrides in `apps/shop-web/src/features/fulfillment/components/OrderPager.tsx`, and their comments and tests; keep `useNow.ts` and the PWA update check
 - [X] T026 [US2] Test in `apps/shop-web/src/` that an update arriving while a form is dirty and a list is scrolled re-reads without resetting either (FR-016)
-- [ ] T027 [P] [US2] Mobile parity in `packages/mobile-kit/common/live/`: coalescer, catch-up on reconnect, epoch roll, connect on foreground / close on background via the existing lifecycle hook, and `LiveStatusLine.kt` (Compose, existing theme colours); `commonTest` mirrors T021–T023
+- [X] T027 [P] [US2] Mobile parity in `packages/mobile-kit/common/live/`: coalescer, catch-up on reconnect, epoch roll, connect on foreground / close on background via the existing lifecycle hook, and `LiveStatusLine.kt` (Compose, existing theme colours); `commonTest` mirrors T021–T023
 
 ---
 
@@ -99,14 +99,14 @@ update on shop web and shop mobile.
 
 **Independent test**: quickstart walk rows 2, 3, 4.
 
-- [ ] T028 [US3] `customerViewChanged(before, after)` in `apis/edge-api/shared/src/lib/order-completion.ts` built on `stageFor` and `customerRefundState` (research R7); tests include the two-shop order where only the slower portion's move reports a change
-- [ ] T029 [US3] Announce shop fulfilment changes in `apis/edge-api/shop/src/` services behind `fulfillment-status-v1-post.ts`, `fulfillment-pickup-v1-post.ts`, `fulfillment-deliver-v1-post.ts`: `shop/orders`, `ops/orders`, `customer/orders` only when T028 says so, plus `driver/work` and `ops/dispatch` on handover; publish statement in `apis/edge-api/shop/serverless.yml`
-- [ ] T030 [US3] Announce pick progress in the services behind `apis/edge-api/shop/src/functions/order-picks-v1-post.ts` and `fulfillment-item-v1-patch.ts`: `shop/orders` only, at most once per order per 5 s per instance with the last always sent (a small throttle in `apis/edge-api/shared/src/live/throttle.ts`, tested)
-- [ ] T031 [P] [US3] Announce refunds and cancellations: return the affected shop ids, customer subject and assigned driver from the shared refund/cancel service in `apis/edge-api/shared/src/payments/refunds/service.ts` and announce in its three callers — `apis/edge-api/commerce/src/functions/{order-cancel,order-refund-request}-v1-post.ts` services and `refund-reconcile-scheduled.ts`, `apis/edge-api/orders/src/lib/money.ts`, `apis/edge-api/shop/src/functions/order-refund-v1-post.ts` service; publish statement in `apis/edge-api/orders/serverless.yml`
-- [ ] T032 [P] [US3] Announce `shop/stock` when a product runs out, crosses its low level or recovers (compare before and after with `shared/src/lib/low-stock.ts`, not on every change): `apis/edge-api/inventory/src/` services behind `stock-v1-put.ts`, `stock-adjustment-v1-post.ts`, `stock-threshold-v1-put.ts`, `stock-tracking-v1-put.ts` and their `admin-*` twins, and the stock decrement inside payment finalise (extend T014's result); publish statement in `apis/edge-api/inventory/serverless.yml`
-- [ ] T033 [P] [US3] Announce `shop/attention` from `apis/edge-api/shop/src/attention/evaluator.ts` only for shops whose list gained or lost an entry in that run
-- [ ] T034 [US3] Extend shop-web's kind map in `apps/shop-web/src/` with `stock → inventory keys` and `attention → attention keys`
-- [ ] T035 [US3] shop-mobile: wire `LiveClient` once in the app container (`apps/shop-mobile/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/core/`), add the descriptor call to its shop API client, collect `orders` in `features/orders/presentation/OrdersViewModel.kt`, **delete** the `LaunchedEffect` loop in `OrdersScreen.kt` and `QueueRefreshIntervalMillis`, show `LiveStatusLine`; update the ViewModel tests
+- [X] T028 [US3] `customerViewChanged(before, after)` in `apis/edge-api/shared/src/lib/order-completion.ts` built on `stageFor` and `customerRefundState` (research R7); tests include the two-shop order where only the slower portion's move reports a change
+- [X] T029 [US3] Announce shop fulfilment changes in `apis/edge-api/shop/src/` services behind `fulfillment-status-v1-post.ts`, `fulfillment-pickup-v1-post.ts`, `fulfillment-deliver-v1-post.ts`: `shop/orders`, `ops/orders`, `customer/orders` only when T028 says so, plus `driver/work` and `ops/dispatch` on handover; publish statement in `apis/edge-api/shop/serverless.yml`
+- [X] T030 [US3] Announce pick progress in the services behind `apis/edge-api/shop/src/functions/order-picks-v1-post.ts` and `fulfillment-item-v1-patch.ts`: `shop/orders` only, at most once per order per 5 s per instance with the last always sent (a small throttle in `apis/edge-api/shared/src/live/throttle.ts`, tested)
+- [X] T031 [P] [US3] Announce refunds and cancellations: return the affected shop ids, customer subject and assigned driver from the shared refund/cancel service in `apis/edge-api/shared/src/payments/refunds/service.ts` and announce in its three callers — `apis/edge-api/commerce/src/functions/{order-cancel,order-refund-request}-v1-post.ts` services and `refund-reconcile-scheduled.ts`, `apis/edge-api/orders/src/lib/money.ts`, `apis/edge-api/shop/src/functions/order-refund-v1-post.ts` service; publish statement in `apis/edge-api/orders/serverless.yml`
+- [X] T032 [P] [US3] Announce `shop/stock` when a product runs out, crosses its low level or recovers (compare before and after with `shared/src/lib/low-stock.ts`, not on every change): `apis/edge-api/inventory/src/` services behind `stock-v1-put.ts`, `stock-adjustment-v1-post.ts`, `stock-threshold-v1-put.ts`, `stock-tracking-v1-put.ts` and their `admin-*` twins, and the stock decrement inside payment finalise (extend T014's result); publish statement in `apis/edge-api/inventory/serverless.yml`
+- [X] T033 [P] [US3] Announce `shop/attention` from `apis/edge-api/shop/src/attention/evaluator.ts` only for shops whose list gained or lost an entry in that run
+- [X] T034 [US3] Extend shop-web's kind map in `apps/shop-web/src/` with `stock → inventory keys` and `attention → attention keys`
+- [X] T035 [US3] shop-mobile: wire `LiveClient` once in the app container (`apps/shop-mobile/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/core/`), add the descriptor call to its shop API client, collect `orders` in `features/orders/presentation/OrdersViewModel.kt`, **delete** the `LaunchedEffect` loop in `OrdersScreen.kt` and `QueueRefreshIntervalMillis`, show `LiveStatusLine`; update the ViewModel tests
 
 ---
 
@@ -116,10 +116,10 @@ update on shop web and shop mobile.
 
 **Independent test**: quickstart walk rows 7, 8; SC-011.
 
-- [ ] T036 [P] [US4] Live descriptor `GET /customer/v1/live` in `apis/edge-api/customer/src/functions/live-v1-get.ts` (prefix from the token subject; no database read; connects as `effy_shopper` like its neighbours if the service does); `serverless.yml`, `docs/api/path-assignment.md`, `packages/api-client`
-- [ ] T037 [US4] Guard test `apis/edge-api/shared/src/live/customer-announce.guard.test.ts`: every `scope: "customer"` announcement in the backend is either the paid/cancel/refund-request path or is gated by `customerViewChanged`; and no `LiveChange` for a customer can carry a shop id (type-level and by scan)
-- [ ] T038 [US4] customer-web: `apps/customer-web/components/live/LiveRefresh.tsx` (client component using the web-kit client and coalescer, calling `router.refresh()`), mounted in `apps/customer-web/app/(account)/orders/` list and `[id]` pages only; a quiet inline status line per FR-015; nothing loaded for signed-out visitors (assert by test)
-- [ ] T039 [US4] customer-mobile: wire `LiveClient` in the container under `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/`, connect only when signed in, collect `orders` in the order list and order detail ViewModels under `features/orders/`, show `LiveStatusLine`; tests
+- [X] T036 [P] [US4] Live descriptor `GET /customer/v1/live` in `apis/edge-api/customer/src/functions/live-v1-get.ts` (prefix from the token subject; no database read; connects as `effy_shopper` like its neighbours if the service does); `serverless.yml`, `docs/api/path-assignment.md`, `packages/api-client`
+- [X] T037 [US4] Guard test `apis/edge-api/shared/src/live/customer-announce.guard.test.ts`: every `scope: "customer"` announcement in the backend is either the paid/cancel/refund-request path or is gated by `customerViewChanged`; and no `LiveChange` for a customer can carry a shop id (type-level and by scan)
+- [X] T038 [US4] customer-web: `apps/customer-web/components/live/LiveRefresh.tsx` (client component using the web-kit client and coalescer, calling `router.refresh()`), mounted in `apps/customer-web/app/(account)/orders/` list and `[id]` pages only; a quiet inline status line per FR-015; nothing loaded for signed-out visitors (assert by test)
+- [X] T039 [US4] customer-mobile: wire `LiveClient` in the container under `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/`, connect only when signed in, collect `orders` in the order list and order detail ViewModels under `features/orders/`, show `LiveStatusLine`; tests
 
 ---
 
@@ -129,10 +129,10 @@ update on shop web and shop mobile.
 
 **Independent test**: quickstart walk row 9.
 
-- [ ] T040 [P] [US5] Live descriptor `GET /driver/v1/live` in `apis/edge-api/driver/src/functions/live-v1-get.ts` (scope via `requireDriver` / T005); `serverless.yml`, path assignment, Kotlin driver contract
-- [ ] T041 [US5] Announce assignment changes in `apis/edge-api/fleet/src/` services behind `dispatch-reassign-v1-post.ts`, `dispatch-unassign-v1-post.ts`, `dispatch-reorder-v1-post.ts`, `dispatch-lock-v1-post.ts`, `dispatch-unlock-v1-delete.ts`, `exceptions-resolve-v1-post.ts` and `plan-waves-scheduled.ts`: `driver/work` to **both** the old and the new driver, and `ops/dispatch`; publish statement in `apis/edge-api/fleet/serverless.yml`
-- [ ] T042 [P] [US5] Announce the driver's own actions in `apis/edge-api/driver/src/` services behind `driver-collect-v1-post.ts`, `driver-collect-issue-v1-post.ts`, `driver-hub-checkin-v1-post.ts`, `driver-drop-status-v1-post.ts`, `driver-drop-proof-v1-post.ts`, `driver-drop-fail-v1-post.ts`, `driver-duty-v1-post.ts` per the change map (`shop/orders` on collection, `customer/orders` via T028, `ops/orders`, `ops/dispatch`); publish statement in `apis/edge-api/driver/serverless.yml`
-- [ ] T043 [US5] driver-mobile: wire `LiveClient` in the container under `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/core/`, collect `work` in the work-list, collection and delivery ViewModels, show `LiveStatusLine`; `WindowLine.kt`'s clock is left as is; tests
+- [X] T040 [P] [US5] Live descriptor `GET /driver/v1/live` in `apis/edge-api/driver/src/functions/live-v1-get.ts` (scope via `requireDriver` / T005); `serverless.yml`, path assignment, Kotlin driver contract
+- [X] T041 [US5] Announce assignment changes in `apis/edge-api/fleet/src/` services behind `dispatch-reassign-v1-post.ts`, `dispatch-unassign-v1-post.ts`, `dispatch-reorder-v1-post.ts`, `dispatch-lock-v1-post.ts`, `dispatch-unlock-v1-delete.ts`, `exceptions-resolve-v1-post.ts` and `plan-waves-scheduled.ts`: `driver/work` to **both** the old and the new driver, and `ops/dispatch`; publish statement in `apis/edge-api/fleet/serverless.yml`
+- [X] T042 [P] [US5] Announce the driver's own actions in `apis/edge-api/driver/src/` services behind `driver-collect-v1-post.ts`, `driver-collect-issue-v1-post.ts`, `driver-hub-checkin-v1-post.ts`, `driver-drop-status-v1-post.ts`, `driver-drop-proof-v1-post.ts`, `driver-drop-fail-v1-post.ts`, `driver-duty-v1-post.ts` per the change map (`shop/orders` on collection, `customer/orders` via T028, `ops/orders`, `ops/dispatch`); publish statement in `apis/edge-api/driver/serverless.yml`
+- [X] T043 [US5] driver-mobile: wire `LiveClient` in the container under `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/core/`, collect `work` in the work-list, collection and delivery ViewModels, show `LiveStatusLine`; `WindowLine.kt`'s clock is left as is; tests
 
 ---
 
@@ -142,23 +142,48 @@ update on shop web and shop mobile.
 
 **Independent test**: quickstart walk row 10.
 
-- [ ] T044 [P] [US6] Live descriptor `GET /admin/v1/live` in `apis/edge-api/admin/src/functions/live-v1-get.ts` (active back-office account → `/ops/all`); `serverless.yml`, path assignment, `packages/api-client`
-- [ ] T045 [P] [US6] Announce the remaining ops changes: `apis/edge-api/orders/src/` services behind `fulfillment-arrival-v1-post.ts` and `fulfillment-handoff-v1-post.ts` (`ops/orders`, `customer/orders` via T028); `apis/edge-api/fleet/src/` behind `delivery-slot-create-v1-post.ts`, `delivery-slot-update-v1-patch.ts`, `delivery-days-*` (`ops/slots`) and `driver-status-v1-post.ts`, `driver-update-v1-patch.ts`, `duty-end-v1-post.ts` (`ops/dispatch`, `driver/work`); `apis/edge-api/catalog/src/` behind `review-approve-v1-post.ts`, `review-send-back-v1-post.ts` and `apis/edge-api/shop/src/` behind `product-submit-v1-post.ts`, `product-withdraw-v1-post.ts` (`ops/review`); publish statement in `apis/edge-api/catalog/serverless.yml`
-- [ ] T046 [US6] back-office: mount `LiveProvider` at the authenticated layout in `apps/back-office/src/`, map `orders`, `dispatch`, `slots`, `review` to their query keys, show `LiveStatus`; remove `refetchInterval` from `apps/back-office/src/features/drivers/queries.ts` and `apps/back-office/src/features/delivery/queries.ts`; tests
+- [X] T044 [P] [US6] Live descriptor `GET /admin/v1/live` in `apis/edge-api/admin/src/functions/live-v1-get.ts` (active back-office account → `/ops/all`); `serverless.yml`, path assignment, `packages/api-client`
+- [X] T045 [P] [US6] Announce the remaining ops changes: `apis/edge-api/orders/src/` services behind `fulfillment-arrival-v1-post.ts` and `fulfillment-handoff-v1-post.ts` (`ops/orders`, `customer/orders` via T028); `apis/edge-api/fleet/src/` behind `delivery-slot-create-v1-post.ts`, `delivery-slot-update-v1-patch.ts`, `delivery-days-*` (`ops/slots`) and `driver-status-v1-post.ts`, `driver-update-v1-patch.ts`, `duty-end-v1-post.ts` (`ops/dispatch`, `driver/work`); `apis/edge-api/catalog/src/` behind `review-approve-v1-post.ts`, `review-send-back-v1-post.ts` and `apis/edge-api/shop/src/` behind `product-submit-v1-post.ts`, `product-withdraw-v1-post.ts` (`ops/review`); publish statement in `apis/edge-api/catalog/serverless.yml`
+- [X] T046 [US6] back-office: mount `LiveProvider` at the authenticated layout in `apps/back-office/src/`, map `orders`, `dispatch`, `slots`, `review` to their query keys, show `LiveStatus`; remove `refetchInterval` from `apps/back-office/src/features/drivers/queries.ts` and `apps/back-office/src/features/delivery/queries.ts`; tests
 
 ---
 
 ## Phase 9: Polish & cross-cutting
 
-- [ ] T047 Change-map guard `apis/edge-api/shared/src/live/change-map.guard.test.ts`: enumerate every `-post|-put|-patch|-delete` and `-scheduled` function in `commerce`, `shop`, `inventory`, `driver`, `fleet`, `orders`, `catalog`, `admin`; each must reach an `announce` call or appear in an allow-list with a written reason (cart, lists, saved items, catalogue and promotion edits, devices, accounts, delivery-zone configuration, notes and tags, feedback); prove it by removing one announcement
-- [ ] T048 [P] No-timer sweep `scripts/check-no-refresh-timers.sh` (wired into the root test target): fails on `refetchInterval` with a non-false value in the three web apps and on a `delay(`-in-a-loop that calls a refresh in the three mobile apps, with `useNow.ts`, `pwa.ts` and `WindowLine.kt` allow-listed by reason (SC-010)
+- [X] T047 Change-map guard `apis/edge-api/shared/src/live/change-map.guard.test.ts`: enumerate every `-post|-put|-patch|-delete` and `-scheduled` function in `commerce`, `shop`, `inventory`, `driver`, `fleet`, `orders`, `catalog`, `admin`; each must reach an `announce` call or appear in an allow-list with a written reason (cart, lists, saved items, catalogue and promotion edits, devices, accounts, delivery-zone configuration, notes and tags, feedback); prove it by removing one announcement
+- [X] T048 [P] No-timer sweep `scripts/check-no-refresh-timers.sh` (wired into the root test target): fails on `refetchInterval` with a non-false value in the three web apps and on a `delay(`-in-a-loop that calls a refresh in the three mobile apps, with `useNow.ts`, `pwa.ts` and `WindowLine.kt` allow-listed by reason (SC-010)
 - [X] T049 [P] Authorization verifier `apis/edge-api/ops/src/verify/live-authz.ts` (60-odd cross-scope, cross-audience, wildcard, stale-epoch and publish attempts → 0 succeed); commands in `scripts/verify-071/README.md`. ⚠ No `live-burst.ts`: SC-012 is a property of the client (reads per burst), proved under a fake clock in `packages/web-kit/src/live/LiveProvider.test.tsx` — a script counting updates on a socket would measure the channel, not the screen
 - [ ] T050 **OPERATOR** — quickstart Stage 2 and 3: deploy `inventory` → `driver` → `fleet` → `orders` → `catalog` → `customer` → `admin`; release the three web apps; rebuild the three mobile apps
 - [ ] T051 Walk quickstart Stage 4 (13 rows) with the operator and run the measured checks; record every result, including SC-008 (publishing forced to fail) and SC-009 (suspend with a console open), in `specs/071-live-updates/SIGNOFF.md`; fix forward and re-walk any failure
-- [ ] T052 Correct the documents that still describe polling or the withdrawn promise: `CLAUDE.md` (Current status: remove "a cheaper-than-a-server way to refresh the shop console"; add `live` to the service list; AppSync Events under Infra), `AGENTS.md`, `ARCHITECTURE.md` (client state: how a screen learns of a change; the `announce` rule), `docs/api/path-assignment.md`, `README.md`
-- [ ] T053 Write the `FEATURE-HISTORY.md` entry and add 071 to the index in `CLAUDE.md`, with the measured latency, the first real AppSync bill line, and the operator steps still open
+- [X] T052 Correct the documents that still describe polling or the withdrawn promise: `CLAUDE.md` (Current status: remove "a cheaper-than-a-server way to refresh the shop console"; add `live` to the service list; AppSync Events under Infra), `AGENTS.md`, `ARCHITECTURE.md` (client state: how a screen learns of a change; the `announce` rule), `docs/api/path-assignment.md`, `README.md`
+- [X] T053 Write the `FEATURE-HISTORY.md` entry and add 071 to the index in `CLAUDE.md`, with the measured latency, the first real AppSync bill line, and the operator steps still open
 
 ---
+
+**Built differently from the task text (second pass, 2026-10-05), and why:**
+- **T013 / T027** — Android uses **CIO**, not OkHttp. The plan named `ktor-client-okhttp`; the
+  version catalogs record that OkHttp clashes with the auth SDK's own (013's runtime fix), and
+  customer-mobile already uses CIO for the same reason. iOS uses Darwin.
+- **T030** — **no server-side throttle** on pick progress. A serverless function is frozen when its
+  handler returns, so "send the last one after a pause" cannot be kept; a suppressed final pick
+  would leave a colleague's screen wrong until the next change. Every pick announces, to the shop
+  only; the apps coalesce. Cost effect: research R12.
+- **T031** — refunds and cancellations announce from INSIDE the shared refund service
+  (`announceOrder`), so all three callers get it from one place. A cancellation is announced as
+  soon as the order is cancelled, before the refund's own outcome is known.
+- **T032** — a manual stock edit always announces `stock` (they are rare, and the stock list shows
+  the count itself); a sale announces `stock` to the shops whose tracked stock it reduced.
+- **T041 / T042 / T045** — the driver and fleet announcements are called by each handler straight
+  after its service call returns (i.e. after commit), through one module per service
+  (`driver/src/work/announce.ts`, `fleet/src/lib/live.ts`), rather than inside each service
+  function: several of those functions ARE the transaction, and the announcement must be outside it.
+- **T038** — customer-web gets its token and channel from one same-origin route (`/api/live`); it
+  imports only `@effy/web-kit/live`, never the package root (which carries the auth SDK).
+- **T043** — the driver's Today and an open round re-read; an open stop or drop does not (it is the
+  driver's own work in progress).
+- **T047** — reach is by import and does not follow `commerce`'s wiring hub; the whole `admin`
+  service is exempt with one stated reason and a test that the reason still holds.
+- **T050 / T051** remain: the operator's deploys and the walk.
 
 ## Dependencies & Execution Order
 

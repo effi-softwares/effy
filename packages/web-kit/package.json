@@ -4,10 +4,11 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy shared web runtime + console chrome — config, Amplify wiring, the passwordless email one-time code flow, session guard, server-state client, telemetry, client store, and the SPA shell. Audience-neutral: every web surface consumes it, none re-implements it (constitution Principle II). Exports TS source.",
+  "description": "Effy shared web runtime + console chrome \u2014 config, Amplify wiring, the passwordless email one-time code flow, session guard, server-state client, telemetry, client store, and the SPA shell. Audience-neutral: every web surface consumes it, none re-implements it (constitution Principle II). Exports TS source.",
   "exports": {
     ".": "./src/index.ts",
-    "./console": "./src/console/index.ts"
+    "./console": "./src/console/index.ts",
+    "./live": "./src/live/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

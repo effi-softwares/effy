@@ -50,10 +50,12 @@ export interface FinalizeOutcome {
    */
   shopIds: readonly string[];
   customerSub: string | null;
+  /** The shops whose tracked stock this sale reduced — their stock screens are now out of date. */
+  stockShopIds: readonly string[];
 }
 
 const NOT_APPLIED: FinalizeOutcome = {
-  applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false, shopIds: [], customerSub: null,
+  applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false, shopIds: [], customerSub: null, stockShopIds: [],
 };
 
 /**
@@ -187,7 +189,7 @@ ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`,
   //     holds the locks: the floor is what makes a negative count impossible, not merely unlikely.
   //     The `prev` CTE carries the before-value out so the movement records what happened.
   //     Untracked products match nothing here and produce no movement.
-  await tx.query(
+  const stockMoved = await tx.query<{ shop_id: string }>(
     `
 WITH ordered AS (
     SELECT oi.product_id, oi.shop_id, SUM(oi.quantity)::int AS qty
@@ -211,7 +213,8 @@ WITH ordered AS (
 INSERT INTO public.stock_movement
     (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub, order_id)
 SELECT id, shop_id, after - before, before, after, 'order_paid', 'system', NULL, $1
-  FROM moved`,
+  FROM moved
+RETURNING shop_id::text AS shop_id`,
     [orderId],
   );
 
@@ -314,6 +317,7 @@ DELETE FROM public.cart_item WHERE cart_id = (
     stockShortfall: (flagged.rowCount ?? 0) > 0,
     shopIds: shops.map((sh) => sh.shopId),
     customerSub: meta.cognito_sub,
+    stockShopIds: [...new Set(stockMoved.rows.map((r) => r.shop_id))],
   };
 }
 
@@ -346,6 +350,7 @@ export function meterFinalize(namespace: string, out: FinalizeOutcome): void {
 export async function announcePaid(out: FinalizeOutcome): Promise<void> {
   if (!out.applied) return;
   const changes: LiveChange[] = out.shopIds.map((shopId) => ({ scope: "shop", shopId, kind: "orders" }));
+  for (const shopId of out.stockShopIds) changes.push({ scope: "shop", shopId, kind: "stock" });
   if (out.customerSub) changes.push({ scope: "customer", sub: out.customerSub, kind: "orders" });
   changes.push({ scope: "ops", kind: "orders" });
   if (out.slotConfirmed) changes.push({ scope: "ops", kind: "slots" });

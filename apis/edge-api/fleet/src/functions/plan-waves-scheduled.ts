@@ -21,6 +21,7 @@
 // have — a cast asserting a shape the runtime never produces.
 //
 // The notifications drain (050) had the right shape all along; this now matches it.
+import { announceDispatch, driversPlannedSince } from "../lib/live";
 import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
@@ -31,7 +32,11 @@ import { runDuePlanning } from "../planner/service";
 export const handler: ScheduledHandler = async (_event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
   const scope = { log: logger.child({ awsRequestId: context.awsRequestId }) };
+  const passBegan = new Date();
   const outcomes = await runDuePlanning();
+  // 071 — every wave above has committed. Tell the drivers it gave work to (or changed), and the
+  // dispatch console — but only if a wave actually ran: a pass with nothing due publishes nothing.
+  if (outcomes.length > 0) await announceDispatch(await driversPlannedSince(passBegan));
 
   // ⚠ 064 — CUSTODY IS MEASURED ON THE SCHEDULE, NOT ON A SCREEN OPENING. Goods sitting in a parked
   // van are what 056 found could be stranded permanently and invisibly, and an alarm fed by a

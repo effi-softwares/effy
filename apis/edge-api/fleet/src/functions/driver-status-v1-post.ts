@@ -1,5 +1,6 @@
 // POST /fleet/v1/drivers/{driverId}/status — the employment lifecycle (056 US2, FR-015…FR-020).
 // Write = admin/manager.
+import { announceDispatch } from "../lib/live";
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -33,6 +34,8 @@ export const handler = async (
       g.sub,
       scope,
     );
+    // 071 — committed. The roster changed, and a driver stood down must see their work go.
+    await announceDispatch([event.pathParameters?.driverId]);
     return json(200, out.profile, scope);
   } catch (err) {
     return mapFleetError(err, scope);

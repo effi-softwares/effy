@@ -14,6 +14,7 @@ import { ArrivalPanel } from "@/components/receipt/ArrivalPanel"
 import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
 import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
+import { LiveRefresh } from "@/components/live/LiveRefresh"
 import { ActionLink } from "@/components/storefront/actions"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
@@ -35,6 +36,9 @@ export const metadata: Metadata = {
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="container py-8">
+      {/* 071 — the page follows the order (packed, on the way, delivered, refunded) without a
+          refresh. Outside the Suspense boundary so it is not remounted on each re-render. */}
+      <LiveRefresh />
       <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-xl bg-muted" />}>
         <OrderDetail params={params} />
       </Suspense>

@@ -109,11 +109,12 @@ export function useDeleteException() {
 // ── 069: same-day slots and the standard-delivery calendar ────────────────────────────────────────
 
 /**
- * ⚠ REFETCHED EVERY 30 SECONDS. "Booked today" moves as customers reach the payment step, and an
- * operator deciding whether to raise a slot's capacity is reading a number that is already stale.
+ * ⚠ NOT POLLED (071). "Booked today" moves as customers pay; a live `slots` update re-reads this
+ * when a same-day place is confirmed or freed, so an operator deciding whether to raise a slot's
+ * capacity is reading the current number without the console asking every 30 seconds.
  */
 export const slotsQuery = () =>
-  queryOptions({ queryKey: [...ROOT, "slots"] as const, queryFn: listSlots, refetchInterval: 30_000 });
+  queryOptions({ queryKey: [...ROOT, "slots"] as const, queryFn: listSlots });
 export const deliveryDaysQuery = () =>
   queryOptions({ queryKey: [...ROOT, "days"] as const, queryFn: getDeliveryDays });
 

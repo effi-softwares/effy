@@ -53,7 +53,8 @@ native web build).
   TypeScript Lambdas (Serverless Framework v3) behind one shared HTTP gateway, **one service per
   audience and domain** under `apis/edge-api/` — `storefront` (public catalogue), `commerce`
   (cart, checkout, payment, customer orders), `customer`, `shop`, `inventory`, `driver`, `admin`,
-  `catalog`, `fleet`, `orders`, plus the `notifications` and `auth` workers. Which service a route
+  `catalog`, `fleet`, `orders`, plus the `notifications` and `auth` workers and `live` (the
+  live-update channel's authorizer — no route). Which service a route
   belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
   - ⚠ **EVERY API IS WRITTEN IN `apis/edge-api`. THERE IS NO OTHER BACKEND, AND NONE MAY BE
     ADDED.** A new endpoint goes into the existing service that owns its audience and domain, or
@@ -79,7 +80,8 @@ native web build).
   (operational) and `admin` (back-office accounts + audit).
 - **Infra:** Terraform, multi-env, remote state (S3-native lockfile — ⚠ **no DynamoDB lock table**;
   the platform's only DynamoDB table is 035's OTP issuance counter). AWS-native: Cognito, RDS,
-  Lambda, API Gateway, S3, SNS/SQS, SES, Amplify Hosting. ⚠ No ECS, ECR or load balancer (070).
+  Lambda, API Gateway, AppSync Events (071), S3, SNS/SQS, SES, Amplify Hosting. ⚠ No ECS, ECR or
+  load balancer (070).
 - **Observability & telemetry:** CloudWatch metrics + alarms (⚠ a Prometheus + Grafana stack was
   documented here for months and **never built**); Crashlytics (mobile crash reporting); PostHog (product analytics + web error tracking on all
   clients); push via FCM (+ APNs for iOS) through the notifications path.
@@ -356,8 +358,26 @@ days, stock, the shop and back-office consoles, the driver operation. ⚠ **Sinc
 served by the one serverless backend** — `storefront` and `commerce` for shoppers, beside the staff,
 shop and driver services — at `edge-api.dev.effyshopping.com`. The Go service that 040 deployed at
 `core-api.dev.effyshopping.com` no longer exists. Still ahead: **delivering the event backbone**
-(the order-placed record is written and not yet delivered), sweeping abandoned unpaid orders, and a
-cheaper-than-a-server way to refresh the shop console faster than every 30 seconds.
+(the order-placed record is written and not yet delivered) and sweeping abandoned unpaid orders.
+
+⚠ **NO SCREEN REFRESHES ITS DATA ON A TIMER (071).** All six apps are told when something they show
+has changed — over a managed channel (AWS AppSync Events), independent of push notifications — and
+re-read through the routes they already use; an app that was away reads once when it is back.
+- **An update carries one word**, the kind of thing (`{"k":"orders"}`) — no id, no status, no
+  amount — so a duplicate or late update cannot show anything wrong and a customer's update cannot
+  name a shop.
+- **Backend:** after a transaction COMMITS, call `announce` / `announceMoves` / `announceOrder`
+  from `@effy/edge-shared/live`. They never throw. ⚠ A new route that changes an order, a round, a
+  slot or stock and announces nothing fails `change-map.guard.test.ts`; a customer's update may be
+  built only by the three shared functions (`customer-announce.guard.test.ts`).
+- **Clients:** web consoles map kinds to query keys in `features/live/routes.ts`; mobile ViewModels
+  collect `LiveClient.changes(…)`. ⚠ Do not add `refetchInterval` or a `delay` loop —
+  `scripts/check-no-refresh-timers.sh` fails the build.
+- ⚠ **The channel name carries a ten-minute epoch**: the channel authorizes a subscription once
+  and never re-checks, so every app re-subscribes — and is re-checked — each epoch. That is what
+  stops updates reaching someone whose access has ended.
+- ⚠ **Mobile uses CIO (Android) / Darwin (iOS) for the socket** — never OkHttp (it clashes with the
+  auth SDK's), and never the data client's engine (it cannot hold a WebSocket).
 
 Everything gets built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
@@ -372,6 +392,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **071-live-updates** — Live Updates Without Polling (all six apps)
 - **070-retire-core-api** — One Backend: Retire the Always-On Shopper Service
 - **069-delivery-slots-dates** — Delivery Time Slots & Standard Delivery Date
 - **068-customer-lists** — Customer Lists (named lists over saved items)

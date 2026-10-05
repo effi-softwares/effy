@@ -1,5 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
+import { announce } from "@effy/edge-shared/live";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, unavailable } from "@effy/edge-shared";
 import type { RecordHandoffRequest } from "@effy/shared-types";
@@ -59,6 +60,10 @@ export const handler = async (
     // ⚠ Metered only on a NEW record. Counting the idempotent replay too would make the metric a
     // measure of how often someone double-clicked, not of how many packages left the hub.
     if (result.created) carrierHandoffRecorded(result.reference !== null);
+    // 071 — committed. A handover to the carrier changes no status (the package stays `collected`
+    // until it arrives), so the customer's page does not change and they are not told; the order
+    // console and the hub's list do.
+    if (result.created) await announce([{ scope: "ops", kind: "orders" }, { scope: "ops", kind: "dispatch" }]);
     // 201 for a new record, 200 for the idempotent replay — the client can tell them apart without
     // either being an error.
     return json(result.created ? 201 : 200, result, guard.scope);

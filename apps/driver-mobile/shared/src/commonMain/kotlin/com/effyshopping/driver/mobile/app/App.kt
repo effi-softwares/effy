@@ -25,6 +25,7 @@ import com.effyshopping.driver.mobile.core.platform.MapLauncher
 import com.effyshopping.driver.mobile.core.platform.NoOpMapLauncher
 import com.effyshopping.driver.mobile.core.platform.NoOpPlatformUiController
 import com.effyshopping.driver.mobile.core.platform.PlatformUiController
+import com.effyshopping.mobile.kit.live.LiveLifecycle
 import com.effyshopping.driver.mobile.core.session.SessionState
 import com.effyshopping.driver.mobile.core.theme.EffyTheme
 import com.effyshopping.driver.mobile.features.auth.presentation.SignInFlow
@@ -50,6 +51,8 @@ fun App(
     EffyTheme(mode = appearanceMode, onResolvedAppearance = platformUiController::applyAppearance) {
         val session by container.session.state.collectAsState()
         val scope = rememberCoroutineScope()
+        // 071 — hold the live channel exactly while in the foreground and signed in.
+        LiveLifecycle(container.live, signedIn = session is SessionState.SignedIn)
 
         LaunchedEffect(Unit) {
             container.session.bootstrap()

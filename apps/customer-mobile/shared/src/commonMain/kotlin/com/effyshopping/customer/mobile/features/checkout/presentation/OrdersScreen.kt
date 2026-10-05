@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.effyshopping.mobile.kit.live.LiveKind
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
@@ -39,6 +40,7 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderSummary
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,12 +52,18 @@ private sealed interface OrdersUiState {
     data object Error : OrdersUiState
 }
 
-private class OrdersViewModel(private val listOrders: ListOrders) : ViewModel() {
+private class OrdersViewModel(
+    private val listOrders: ListOrders,
+    /** 071 — "your orders changed, or the channel just (re)connected: read now". */
+    private val liveChanges: Flow<Unit>,
+) : ViewModel() {
     private val _state = MutableStateFlow<OrdersUiState>(OrdersUiState.Loading)
     val state: StateFlow<OrdersUiState> = _state.asStateFlow()
 
     init {
         load()
+        // 071 — the same quiet re-read a pull-to-refresh does: what is on screen stays on screen.
+        viewModelScope.launch { liveChanges.collect { refresh() } }
     }
 
     /** 026: extracted from `init` so the error state can offer a retry (FR-021). */
@@ -99,7 +107,7 @@ fun OrdersScreen(
     /** FR-044: an empty order list offers a route back into the catalogue. */
     onBrowse: () -> Unit = {},
 ) {
-    val vm = viewModel { OrdersViewModel(container.listOrders) }
+    val vm = viewModel { OrdersViewModel(container.listOrders, container.live.changes(LiveKind.ORDERS)) }
     val state by vm.state.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHost = remember { SnackbarHostState() }

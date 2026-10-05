@@ -279,19 +279,21 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
     caughtUp = false;
     setState("reconnecting");
 
+    // The channel first, then the token: a surface whose server hands back both in one answer
+    // (customer-web) only has its token once the descriptor has been loaded.
     let token: string | null;
     let found: LiveDescriptor | null;
     try {
-      token = await options.getToken();
-      if (mine !== generation) return;
-      if (!token) return turnOff();
       found = await options.loadDescriptor();
+      if (mine !== generation) return;
+      if (!found) return turnOff();
+      token = await options.getToken();
     } catch {
       if (mine === generation) scheduleReconnect();
       return;
     }
     if (mine !== generation) return;
-    if (!found) return turnOff();
+    if (!token) return turnOff();
 
     descriptor = found;
     const serverTime = Date.parse(found.serverTime);

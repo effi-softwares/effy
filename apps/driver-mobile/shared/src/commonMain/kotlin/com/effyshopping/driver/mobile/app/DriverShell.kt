@@ -26,6 +26,8 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.effyshopping.mobile.kit.live.LiveKind
+import com.effyshopping.mobile.kit.live.LiveStatusLine
 import com.effyshopping.driver.mobile.core.nav.AccountRoot
 import com.effyshopping.driver.mobile.core.nav.ActivityRoute
 import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
@@ -145,20 +147,26 @@ fun DriverShell(
                             setDuty = container.setDuty,
                             newChangeId = container::newChangeId,
                             syncFlush = { container.syncCoordinator.flush() },
+                            liveChanges = container.live.changes(LiveKind.WORK),
                         )
                     }
                     val state by vm.state.collectAsState()
-                    TodayScreen(
-                        driver = session.driver,
-                        state = state,
-                        onToggleDuty = vm::toggleDuty,
-                        onRefresh = vm::refresh,
-                        onOpenRun = { runId, phase ->
-                            tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
-                        },
-                        onOpenActivity = { tabs.push(ActivityRoute) },
-                        reducedMotion = reducedMotion,
-                    )
+                    androidx.compose.foundation.layout.Column {
+                        // 071 FR-015 — if the live channel cannot be held, say so: a work list that
+                        // has stopped updating must not look current. Nothing is shown while live.
+                        LiveStatusLine(container.live, onRefresh = vm::refresh)
+                        TodayScreen(
+                            driver = session.driver,
+                            state = state,
+                            onToggleDuty = vm::toggleDuty,
+                            onRefresh = vm::refresh,
+                            onOpenRun = { runId, phase ->
+                                tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
+                            },
+                            onOpenActivity = { tabs.push(ActivityRoute) },
+                            reducedMotion = reducedMotion,
+                        )
+                    }
                 }
                 ActivityRoute -> {
                     val vm = viewModel(key = "activity") { ActivityViewModel(container.getActivity, container.markActivityRead) }
@@ -272,6 +280,7 @@ fun DriverShell(
                             setDuty = container.setDuty,
                             newChangeId = container::newChangeId,
                             syncFlush = { container.syncCoordinator.flush() },
+                            liveChanges = container.live.changes(LiveKind.WORK),
                         )
                     }
                     val todaySt by todayVm.state.collectAsState()
@@ -401,6 +410,7 @@ private fun newCollectionVm(container: AppContainer, runId: String) = Collection
     reportIssue = container.reportCollectionIssue,
     checkInHub = container.checkInHub,
     newChangeId = container::newChangeId,
+    liveChanges = container.live.changes(LiveKind.WORK),
 )
 
 private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryViewModel(
@@ -411,6 +421,7 @@ private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryView
     completeWithMedia = container.completeWithMedia,
     failDrop = container.failDrop,
     newChangeId = container::newChangeId,
+    liveChanges = container.live.changes(LiveKind.WORK),
 )
 
 private fun com.effyshopping.driver.mobile.features.driver.domain.Driver.railInitials(): String {

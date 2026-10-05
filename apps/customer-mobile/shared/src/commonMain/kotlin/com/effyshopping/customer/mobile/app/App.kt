@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import coil3.SingletonImageLoader
+import com.effyshopping.mobile.kit.live.LiveLifecycle
 import com.effyshopping.customer.mobile.core.image.newImageLoader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +60,8 @@ fun App(container: AppContainer) {
     CompositionLocalProvider(LocalMotionLevel provides platformMotionLevel()) {
     EffyTheme {
         val session by container.session.state.collectAsState()
+        // 071 — hold the live channel exactly while in the foreground and signed in. A guest holds none.
+        LiveLifecycle(container.live, signedIn = session is SessionState.Authenticated)
         val scope = rememberCoroutineScope()
 
         // FR-033. `remember` so the store is read once per process, not on every recomposition, and

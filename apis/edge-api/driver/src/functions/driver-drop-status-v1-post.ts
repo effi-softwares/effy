@@ -1,4 +1,5 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
+import { announceRoundProgress } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { DropStatusRequest } from "@effy/shared-types";
@@ -17,7 +18,9 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   catch { return problem(400, "invalid_request", "Malformed body", "The request body was not valid JSON.", guard.scope); }
   if (!body.changeId) return problem(400, "invalid_request", "Missing changeId", "A changeId is required so a retry is recognised.", guard.scope);
   try {
-    return json(200, await setDropStatus(dropId, guard.driver.id, body), guard.scope);
+    const status = await setDropStatus(dropId, guard.driver.id, body);
+    await announceRoundProgress(); // 071 — committed; dispatch sees the drop's progress
+    return json(200, status, guard.scope);
   } catch (err) {
     if (err instanceof NotFoundError) return problem(404, "not_found", "Not available", "That drop is not available.", guard.scope);
     throw err;
