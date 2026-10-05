@@ -11,6 +11,7 @@ approved operational mailbox.
 | `infra/envs/<env>/catalog-review.tf` | products waiting on review |
 | `infra/envs/<env>/dns.tf` | certificates and mail deliverability |
 | `infra/envs/<env>/edge-gateway.tf` | **a server error on any route of any service** — the one "a route is failing" alarm |
+| `infra/envs/<env>/background-functions.tf` | **a scheduled function that keeps failing** — refund reconciler, notification and receipt drains, wave planner, shop attention, insights reconcile, review-queue age |
 | a service's `serverless.yml` (`resources:`) | only what the gateway cannot see: a function run by a schedule, queue or topic, or a failure that is not a 5xx |
 
 Metrics are **CloudWatch metrics**. Backend services emit them in embedded metric format through one

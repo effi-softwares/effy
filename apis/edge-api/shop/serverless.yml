@@ -703,8 +703,8 @@ functions:
 # error on any route is caught by ONE alarm that does notify: `effy-<env>-edge-api-5xx` on the
 # shared gateway (infra/envs/<env>/edge-gateway.tf). None of the 32 watched a scheduled function.
 #
-# The three scheduled functions here are not behind the gateway. `insightsRollup` and
-# `insightsReconcile` are watched in infra/envs/<env>/insights.tf (rollup errors, backlog age,
-# reconcile corrections). ⚠ `attentionEvaluate` has NO alarm and never had one: if it stops, shop
-# staff stop being told about ageing work and nothing reports it. Add an alarm here only for a
-# function the gateway cannot see, and only with AlarmActions.
+# The three scheduled functions here are not behind the gateway. Each has a failure alarm in
+# Terraform that does not depend on its own code running: `insightsRollup` in
+# infra/envs/<env>/insights.tf, `insightsReconcile` and `attentionEvaluate` in
+# infra/envs/<env>/background-functions.tf. ⚠ Those alarms address the function BY NAME — rename a
+# function here and rename it there (`background-alarms.contract.test.ts` fails if you forget).
