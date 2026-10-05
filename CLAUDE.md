@@ -55,10 +55,16 @@ native web build).
   (cart, checkout, payment, customer orders), `customer`, `shop`, `inventory`, `driver`, `admin`,
   `catalog`, `fleet`, `orders`, plus the `notifications` and `auth` workers. Which service a route
   belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
-  - ⚠ **THERE WAS A SECOND BACKEND AND IT IS BEING RETIRED.** `apis/core-api` (Go + Gin + pgx on
-    Fargate behind an ALB — the "hot path") carried all shopper traffic until 070. It **still
-    serves until 070's cut-over** and its source is deleted last; do not add to it, and do not cite
-    "hot path" as a reason for anything. A plan MUST NOT introduce always-on compute.
+  - ⚠ **EVERY API IS WRITTEN IN `apis/edge-api`. THERE IS NO OTHER BACKEND, AND NONE MAY BE
+    ADDED.** A new endpoint goes into the existing service that owns its audience and domain, or
+    into a new `apis/edge-api/<service>/`; every client calls the one gateway. A plan MUST NOT
+    introduce always-on compute (a container service, a load balancer, a persistent-connection
+    server) or a second backend runtime — that needs a constitution amendment first.
+  - ⚠ **THERE WAS A SECOND BACKEND, AND IT IS GONE (070, 2026-10-05).** A Go service on Fargate
+    behind a load balancer carried shopper traffic until then; its routes moved here, its
+    infrastructure was destroyed and its source deleted. "Hot path" / "cold path" / "Path:" in
+    specs 004–069 are history, never a reason for anything now. What it was, how it was built and
+    how to recover its code: [docs/archive/core-api.md](docs/archive/core-api.md).
   - ⚠ **Shopper-facing services connect as a connection-limited database role** (`effy_shopper`),
     so a shopper burst is refused at the database instead of starving staff, shop and driver traffic.
   - ⚠ **Money logic lives once** — `@effy/edge-shared/payments`. Three services move money
@@ -69,7 +75,7 @@ native web build).
   (operational) and `admin` (back-office accounts + audit).
 - **Infra:** Terraform, multi-env, remote state (S3-native lockfile — ⚠ **no DynamoDB lock table**;
   the platform's only DynamoDB table is 035's OTP issuance counter). AWS-native: Cognito, RDS,
-  ECS/ECR, Lambda, S3, SNS/SQS, SES, Amplify Hosting.
+  Lambda, API Gateway, S3, SNS/SQS, SES, Amplify Hosting. ⚠ No ECS, ECR or load balancer (070).
 - **Observability & telemetry:** CloudWatch metrics + alarms (⚠ a Prometheus + Grafana stack was
   documented here for months and **never built**); Crashlytics (mobile crash reporting); PostHog (product analytics + web error tracking on all
   clients); push via FCM (+ APNs for iOS) through the notifications path.
@@ -128,7 +134,7 @@ Observable and measurable from day one (constitution Principle VII; full detail 
   root** (`make global-apply`), deliberately outside the `ENV=` workflow so `make destroy ENV=dev`
   can never take the platform's apex with it. Registrar control is an **out-of-code dependency**:
   Terraform can rebuild every zone and record, but not the domain.
-- **Repo shape:** MONOREPO (Turborepo + pnpm for JS/TS; Go lives alongside with its own module; each
+- **Repo shape:** MONOREPO (Turborepo + pnpm for JS/TS — the backend, the web apps and the shared packages; each
   KMP app is its own Gradle build). Reason: solo/small team → consistency across surfaces is the #1
   need; shared packages (design-system, api-client, shared-types, config) are the whole point.
 - **Methodology:** Spec Kit (official CLI), with a product Brief up front.
@@ -320,7 +326,7 @@ defers an unresolved symbol to RUNTIME. All three are currently the base KMP tem
 
 ## Current status
 Built so far: the **infrastructure** (four Cognito pools, dev DB, shared HTTP gateway), the
-**migration workflow**, the **cold path** (`apis/edge-api/{shared,admin,shop,customer}`), and **all
+**migration workflow**, the **backend** (twelve services and a shared library under `apis/edge-api/`), and **all
 three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`apps/customer-web`
 (011 — the first PUBLIC surface, Next.js 16 SSR)** — on the shared packages
 `@effy/{design-system,shared-types,api-client,web-kit}`.
@@ -338,16 +344,16 @@ template"*, which had been **false since 049** and is the same stale-claim shape
 the shared asset pipeline for four features (see 060 T019). All three mobile apps share a **production
 navigation shell** (015 — `packages/mobile-kit`:
 adaptive bottom-bar/rail + per-tab back stacks; customer guest-first with deferred sign-in, shop login-first;
-built on stable Material 3, Nav3-migration-ready). Still the **documented vision**: the **catalog** (there
-are no product tables anywhere yet — spec'd as **016-shop-product-catalog**),
-**cart / checkout / payment**, the hot path's **cloud deployment** — ✅ **DONE for dev as
-040-core-api-deploy**: `core-api` was local-Docker-only; it now runs as a cheapest single-task Fargate
-service + ALB (no autoscaling, default-VPC public subnets, no NAT, ~$30/mo), **DEPLOYED and LIVE at
-`core-api.dev.effyshopping.com`**, with customer-mobile wired to it. ⚠ Acceptance walk (health/secret-
-sweep/cost-audit SC proofs), customer-web repoint + CORS, container CI/CD, and the commit are pending;
-prod bring-up carries recorded dependencies (apex cert/record, private DB + NAT). Sign-off:
-[specs/040-core-api-deploy/SIGNOFF.md](specs/040-core-api-deploy/SIGNOFF.md). Still ahead: the
-**event backbone**.
+built on stable Material 3, Nav3-migration-ready).
+
+**The commerce path is built and live in dev**: catalogue, search and facets, cart and promo, saved
+items and lists, checkout and payment, orders, refunds and cancellation, delivery zones, slots and
+days, stock, the shop and back-office consoles, the driver operation. ⚠ **Since 070 all of it is
+served by the one serverless backend** — `storefront` and `commerce` for shoppers, beside the staff,
+shop and driver services — at `edge-api.dev.effyshopping.com`. The Go service that 040 deployed at
+`core-api.dev.effyshopping.com` no longer exists. Still ahead: **delivering the event backbone**
+(the order-placed record is written and not yet delivered), sweeping abandoned unpaid orders, and a
+cheaper-than-a-server way to refresh the shop console faster than every 30 seconds.
 
 Everything gets built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.

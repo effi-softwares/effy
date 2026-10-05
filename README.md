@@ -11,8 +11,9 @@ each service under [apis/edge-api/](apis/edge-api/) (operator tools:
 [apis/edge-api/ops](apis/edge-api/ops/README.md)) · API contracts:
 [docs/api/](docs/api/).
 
-**Tools**: Terraform, AWS CLI, goose (`brew install goose`), Docker Desktop,
-Go 1.25+, Node 22 + pnpm.
+**Tools**: Terraform, AWS CLI, goose (`brew install goose`), Docker Desktop (for the
+real-database test suites), Node 22 + pnpm. No Go toolchain is needed: the Go backend was retired
+by feature 070 ([docs/archive/core-api.md](docs/archive/core-api.md)).
 
 ---
 
@@ -200,4 +201,4 @@ AWS_PROFILE=ef aws cloudformation get-template --stack-name effy-edge-api-dev \
 | 002 dev database (cost floor, `/effy/dev/db/*` contract) | `specs/002-dev-database/` |
 | 003 goose migration workflow | `specs/003-db-migrations/` + `db/README.md` |
 | 004 backend bootstrap (versioning, auth; written for two backends) | `specs/004-backend-bootstrap/` (full verification runbook: `quickstart.md`) |
-| 070 one backend (the Go service retired) | `specs/070-retire-core-api/` (status and operator steps: `SIGNOFF.md`) |
+| 070 one backend (the Go service retired) | `specs/070-retire-core-api/` (status: `SIGNOFF.md`) · what it was: `docs/archive/core-api.md` |

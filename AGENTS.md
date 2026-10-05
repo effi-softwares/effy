@@ -22,6 +22,20 @@ phase being performed:
 Do not skip phases or silently repair an upstream artifact during a later phase. If implementation
 reveals a specification or plan gap, return to the appropriate earlier artifact first.
 
+## Where backend code goes
+
+**Every API is written in `apis/edge-api/`** — serverless TypeScript services behind one gateway,
+one service per audience and domain. There is no other backend. Put a new endpoint in the service
+that already owns its audience and domain, or add a new `apis/edge-api/<service>/`
+(`docs/api/path-assignment.md` decides which). Logic more than one service needs lives in the
+shared library `apis/edge-api/shared`, never copied; money logic lives only in its `payments`
+module. Every client — web and mobile — calls the one gateway.
+
+Do not add a second backend runtime, a container service, a load balancer or any always-on
+compute: the constitution (Principle III) forbids it without an amendment. An earlier Go backend
+was retired in feature 070; `docs/archive/core-api.md` records it for reference only. "Hot path"
+and "cold path" in older specs are history, not rules.
+
 ## Safety boundary
 
 Agents may author code, Terraform, migrations, and deployment instructions, but must not run

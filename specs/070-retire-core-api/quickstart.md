@@ -159,7 +159,7 @@ If SC-004, SC-006 or SC-007 cannot be met, stop and return to the operator (spec
     Every file it lists must be on this allow-list: `FEATURE-HISTORY.md`; applied files in
     `db/migrations/`; anything under `specs/`; `CLAUDE.md` (only the `040` and `070` lines of the
     feature index); `.specify/memory/constitution.md` (only its Sync Impact Report); and the dated
-    research records, which are history and are not rewritten — `docs/research/`, `docs/prd/`,
+    research records, which are history and are not rewritten — `docs/archive/` (the reference record of the retired service), `docs/research/`, `docs/prd/`,
     `docs/insights-architecture.md` and the per-feature notes in
     `docs/audiences/customer-capabilities.md` (each carries a dated note saying what 070 superseded;
     their current-state tables are corrected) (SC-015).

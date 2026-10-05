@@ -1,7 +1,19 @@
 # 070 — Sign-off record
 
-Status (2026-10-05, evening): **THE NEW BACKEND IS DEPLOYED AND THE CLIENTS ARE RELEASED. THE
-TEARDOWN IS WRITTEN AND NOT APPLIED. NOT WALKED BY A PERSON.** 93 of 102 tasks done.
+Status (2026-10-05, night): **THE MIGRATION IS DONE.** The new backend is deployed, the clients are
+released, the teardown is **applied** (verified read-only: no cluster, no load balancer, no image
+registry, no `core-api` DNS name, no base-url parameter; the gateway answers 200), and
+`apis/core-api/` is **deleted**. 96 of 102 tasks done. **NOT YET WALKED BY A PERSON.**
+
+What remains: the verification walk and the measurements (T095, T097, T098), finishing the
+inventory's last column and the bill (T099, T102), and the last pass of the document sweep (T101).
+
+The retired service is recorded for reference in [docs/archive/core-api.md](../../docs/archive/core-api.md):
+technology, folder structure, architecture, configuration, and the commits its code can be
+recovered from. Rule files now state that every API is written in `apis/edge-api` (constitution
+3.0.1, `CLAUDE.md`, `AGENTS.md`).
+
+*(Earlier:)* the teardown was written and not applied; 93 of 102 tasks done.
 
 *(Earlier today:)* 87 of 102 tasks done. Every one of the 15 that remain is either an operator step, or
 work that must not exist in the working tree until the operator has switched traffic.
@@ -295,7 +307,7 @@ until the teardown is applied; this column is finished after Stage 4.
 | c `event_outbox` never drained | **Deferred** (clarification 4) — still written, still not delivered |
 | d no refund reconciler | Repaired · no sweep of abandoned unpaid orders — **Deferred** · `cart_change_log` never pruned — **Deferred**, unchanged |
 | e catalogue validation | Repaired |
-| f `stop-db.sh` aborts after teardown | **Pending** — fixed with the teardown (T092) |
+| f `stop-db.sh` aborts after teardown | Repaired — both scripts only start and stop the database |
 | g money through floats in order reads | Repaired |
 | h alert rule on an unregistered metric | Retired with the four alert files |
 
@@ -341,9 +353,9 @@ until the teardown is applied; this column is finished after Stage 4.
 | Clients (customer-web, shop-web, back-office, customer-mobile) | Done |
 | Edge (routing-law comments, `admin/serverless.yml`, stale mentions) | Done |
 | Build/scripts: `stripe-listen.sh`, `check-no-telemetry-pii.sh`, `mobile-guard.sh`, `web.yml`, the three operator Make targets | Done |
-| Build/scripts: `core-*` and `cm-ngrok-core` Make targets, `start-db.sh`, `stop-db.sh` | **Pending** — with the teardown (T092, T093) |
+| Build/scripts: `core-*` and `cm-ngrok-core` Make targets, `start-db.sh`, `stop-db.sh` | Done |
 | Infra: alarms, observability README, four alert files, gateway CORS, `commerce.tf` | Done |
-| Infra: `core-api.tf`, the Fargate module, eight variables, `dev.tfvars`, both Amplify files' leftover variable, `infra/envs/README.md` | **Pending** — the teardown (T091) |
+| Infra: `core-api.tf`, the Fargate module, eight variables, `dev.tfvars`, both Amplify files' leftover variable, `infra/envs/README.md` | Done and applied |
 | Docs: constitution, `ARCHITECTURE.md`, `platform-brief.md`, `docs/api/*`, `CLAUDE.md` | Done |
 | Docs: `README.md`, `ORDER-FLOW-GAPS.md`, `docs/audiences/*`, `docs/insights-architecture.md`, `docs/logistics-engine-architecture.md` | Done 2026-10-05 (see below) |
 
@@ -351,22 +363,19 @@ until the teardown is applied; this column is finished after Stage 4.
 
 | Item | State |
 |---|---|
-| 19 resources under `module.core_api`, `aws_ssm_parameter.core_api_base_url`, two outputs | **To destroy** — Stage 4 |
+| 19 resources under `module.core_api`, `aws_ssm_parameter.core_api_base_url`, two outputs | **Destroyed** 2026-10-05 (verified read-only) |
 | Certificate and zone, RDS, both payment secrets, media bucket, Cognito pools, alerts topic | Keep — untouched |
-| `apis/core-api/` (incl. `.env` and the 50 MB `tmp/` build output) | **To delete** — T100, after the walk |
+| `apis/core-api/` (incl. `.env` and the 50 MB `tmp/` build output) | **Deleted** 2026-10-05, on the operator's instruction, ahead of the walk. Recorded in `docs/archive/core-api.md` |
 
 ## Still open
 
 | Task | Whose | What |
 |---|---|---|
-| T033, T088, T089 | operator | Stage 2 above |
-| T090 | operator | Stage 3 above |
-| T091–T093 | Claude, **after T090** | author the teardown |
-| T094 | operator | apply the teardown |
-| T095, T097, T098 | operator + Claude | walk, measure, re-measure the baseline |
-| T099 | Claude | account for every row of the inventory (needs the teardown applied to mark "destroyed") |
-| T100 | Claude, after the walk | delete `apis/core-api/` |
-| T101, T102 | Claude | final document sweep; finish the history entry with the bill before and after |
+| T095 | operator + Claude | the fifteen-journey walk; bugs fixed forward |
+| T097, T098 | operator + Claude | the harness and the timings; re-measure the baseline |
+| T099, T102 | Claude | finish the accounting and the history entry once the bill is known |
+| T101 | Claude | last pass of the document sweep after the walk |
 
-⚠ `apis/core-api/.env` (untracked) holds a payment-provider **test** secret key and webhook secret in
-plain text. I have not copied them anywhere. If that file was ever shared, rotate both.
+⚠ **The deleted `apis/core-api/.env` held a payment-provider TEST secret key and webhook secret in
+plain text.** It was never committed and is gone from disk. If that file was ever shared or backed
+up, rotate both.

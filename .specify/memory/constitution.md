@@ -1,6 +1,32 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.0.0 → 3.0.1
+Bump rationale: PATCH — clarification only. No principle is added, removed or redefined.
+
+Trigger: feature 070's cut-over completed on 2026-10-05. The always-on backend that v3.0.0 named as
+"being retired" is retired: its routes are served by the serverless backend, its infrastructure is
+destroyed and its source is deleted from the repository.
+
+What changed in the text:
+  - Principle III gains one sentence stating WHERE backend code is written (`apis/edge-api/`), so
+    the rule names its location as well as its shape. v3.0.0 already required every plan to state
+    its service and already forbade always-on compute; this makes the first of those impossible to
+    read as optional.
+  - The v3.0.0 report's caveat — "apis/core-api and its infrastructure still exist and still serve
+    until 070's cut-over" — no longer describes the repository. It is left in that report as the
+    record of the interval it described.
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged; none names a backend path.
+  ✅ CLAUDE.md, AGENTS.md, README.md, ARCHITECTURE.md, docs/api/path-assignment.md — describe one
+     backend and say where new endpoints go.
+  ✅ docs/archive/core-api.md — NEW. The retired service's technology, structure and architecture,
+     and the commits its code can be recovered from. Reference only; not a pattern for new work.
+
+Follow-up TODOs: none.
+
+--- previous report ---
 Version change: 2.0.0 → 3.0.0
 Bump rationale: MAJOR — Principle III is REDEFINED and a locked technology is REMOVED. v2.0.0
                 required every plan to justify its feature against TWO backend paths and forbade
@@ -484,7 +510,8 @@ are the mechanism that makes cross-cutting changes happen once.
 
 ### III. Single Serverless Backend
 
-The backend is one path: serverless TypeScript. There is no second backend runtime.
+The backend is one path: serverless TypeScript. There is no second backend runtime. Every API is
+written under `apis/edge-api/`, and every client surface calls that backend and no other.
 
 - **All server behaviour** — public and customer reads, transactions and payments, operator and
   back-office workflows, and asynchronous workers — runs on Node + TypeScript Lambdas behind the
@@ -778,4 +805,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.0.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-05
+**Version**: 3.0.1 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-05
