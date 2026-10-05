@@ -416,5 +416,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/070-retire-core-api/plan.md
+at specs/071-live-updates/plan.md
 <!-- SPECKIT END -->
