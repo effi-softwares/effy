@@ -39,7 +39,19 @@ account (⚠ PROVE, R5 — SC-009); both mobile engines' subprotocols on a devic
 | No data refresh timer in the six apps (SC-010) | `scripts/check-no-refresh-timers.sh` — passes; fails on a planted web timer and a planted mobile loop; in CI |
 | SC-003 idle hour, SC-004 catch-up, SC-012 ≤ 3 reads per burst, FR-015, FR-016, FR-023 | client tests under a fake clock, web and mobile |
 
-## Operator — what is left (T050, T051)
+## Deployed (T050) — checked read-only, 2026-10-05 16:30 UTC
+
+| Check | Result |
+|---|---|
+| All nine announcing services redeployed with the channel configured | ✅ |
+| `GET /{shop,customer,driver,admin}/v1/live` | ✅ all four exist (401 without a token) |
+| shop-web, back-office, customer-web released from `0f5a216e` | ✅ all three builds succeeded |
+| Both alarms | ✅ OK; 0 send failures of 10 updates (3 `orders`, 7 `dispatch`) |
+| Shop audience on the channel | ✅ 5 connects, 18 subscribes, all allowed |
+| **Customer, driver and back-office on the channel** | ⚠ **NONE YET** — their `/v1/live` routes have been called 0 times and the authorizer has seen no token from those three pools. Nothing is wrong; they have simply not been exercised. |
+| `stock`, `attention`, `work`, `slots`, `review` updates | ⚠ none published yet — no such change has been made since the deploy |
+
+## Operator — what is left (T051)
 
 `AWS_PROFILE=ef` throughout; the database must be running. No Terraform change since the proof.
 
