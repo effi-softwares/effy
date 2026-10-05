@@ -481,6 +481,7 @@ dev-stop: check-dev-park ## OPERATOR: stop the dev DB instance (compute stops bi
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }
 	@status=$$($(DB_STATUS_CMD)) || exit 1; \
 	if [ "$$status" = "available" ]; then \
+		AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-schedules.sh pause $(ENV); \
 		$(RDS_CMD) stop-db-instance --db-instance-identifier $(DB_INSTANCE_ID) --query 'DBInstance.DBInstanceStatus' --output text; \
 		echo "db: stopping (takes a few minutes; AWS auto-restarts it after 7 days)"; \
 	else \
@@ -496,4 +497,5 @@ dev-start: check-dev-park ## OPERATOR: start the dev DB instance and wait until 
 	fi; \
 	echo "waiting for the DB to become available (usually 3-8 min)…"; \
 	$(RDS_CMD) wait db-instance-available --db-instance-identifier $(DB_INSTANCE_ID); \
+	AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-schedules.sh resume $(ENV); \
 	echo "db: available"
