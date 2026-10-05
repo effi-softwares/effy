@@ -152,7 +152,12 @@ test.describe("category shortcuts (US2, SC-002)", () => {
     const links = await page.locator('a[href^="/search?category="]').all()
 
     const stocked = new Set(
-      ((await (await request.get("http://localhost:8080/v1/storefront/categories")).json()) as {
+      ((await (
+        await request.get(
+          // The same backend address the app under test was built with — never a second literal.
+          `${(process.env.NEXT_PUBLIC_EDGE_API_BASE_URL ?? "").replace(/\/$/, "")}/storefront/v1/categories`,
+        )
+      ).json()) as {
         key: string
         productCount: number
       }[])

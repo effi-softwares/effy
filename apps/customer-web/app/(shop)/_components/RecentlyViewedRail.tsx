@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 
 import type { ProductSearchResultDTO, StorefrontProductCardDTO } from "@effy/shared-types"
 
-import { coreApiBaseUrl } from "@/lib/config"
+import { edgeApiBaseUrl } from "@/lib/config"
 import { getRecentlyViewedIds } from "@/lib/recently-viewed"
 
 import { ProductRail } from "./ProductRail"
@@ -21,7 +21,7 @@ export function RecentlyViewedRail() {
     const ids = getRecentlyViewedIds()
     if (ids.length === 0) return
     const controller = new AbortController()
-    const url = `${coreApiBaseUrl()}/v1/storefront/products?ids=${encodeURIComponent(ids.join(","))}`
+    const url = `${edgeApiBaseUrl()}/storefront/v1/products?ids=${encodeURIComponent(ids.join(","))}`
     fetch(url, { signal: controller.signal })
       .then((r) => (r.ok ? (r.json() as Promise<ProductSearchResultDTO>) : null))
       .then((data) => {

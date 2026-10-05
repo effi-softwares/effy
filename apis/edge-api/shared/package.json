@@ -5,7 +5,10 @@
   "type": "module",
   "description": "Effy cold-path shared library — db/secrets/logger/http/claims/validate + the RFC 9457 error contract. Single source of truth for every edge service (Principle II). Exports TS source.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./delivery": "./src/delivery/index.ts",
+    "./cart-policy": "./src/cart-policy/index.ts",
+    "./payments": "./src/payments/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {
@@ -17,7 +20,8 @@
     "@aws-sdk/client-s3": "3.1088.0",
     "@aws-sdk/s3-request-presigner": "3.1088.0",
     "pg": "8.22.0",
-    "pino": "10.3.1"
+    "pino": "10.3.1",
+    "stripe": "18.5.0"
   },
   "devDependencies": {
     "@types/aws-lambda": "8.10.162",

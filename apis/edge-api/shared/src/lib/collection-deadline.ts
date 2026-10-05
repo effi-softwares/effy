@@ -1,25 +1,10 @@
-// When collection must be finished for a given run — ONE definition (063).
+// Wall-clock time in the platform's operating zone — the ONE file that does zone arithmetic.
 //
-// ⚠⚠ THIS IS A DELIBERATE DUPLICATE OF GO, AND THE DUPLICATION IS THE DECISION.
-// `apis/core-api/internal/platform/delivery/sameday.go` answers the checkout question — "can this
-// shopper still get same-day?" — with `now <= run_time - prep_buffer`. This file answers the planner's
-// question over the same schedule: "when must collection for that run be complete?". Same arithmetic,
-// opposite direction.
-//
-// The rule could not be shared: `@effy/edge-shared` is TypeScript and `SameDayCutoff` is Go, and
-// Principle II's shared-package mechanism does not span runtimes. Three options were weighed
-// (research R2):
-//
-//   · the planner asks core-api          — REJECTED: wave planning would depend on the hot path being
-//                                          up, and a missed wave is SILENT. No error a shopper sees,
-//                                          no alarm, just packages that do not move. 053 recorded the
-//                                          same shape when an unconfigured FCM halted a whole drain.
-//   · move the rule to a shared package  — IMPOSSIBLE across Go and TypeScript.
-//   · a duplicate pinned by a contract test — CHOSEN.
-//
-// ⚠ 054 SPENT A WHOLE SLICE DELETING A RULE WRITTEN IN 14 PLACES, and this writes one in two on
-// purpose. It is justified ONLY while `collection-deadline.contract.test.ts` and its Go counterpart
-// share byte-identical fixtures. If that test is ever weakened, this decision is no longer justified.
+// It began (063) as the wave planner's "when must collection for a run be complete?", written as a
+// deliberate duplicate of the Go checkout rule because the two runtimes could not share code. 070
+// retired the Go backend, so the checkout question (`delivery/sameday.ts`), the slot rules
+// (`delivery/slots.ts`) and the standard-day rule (`delivery/standard-days.ts`) now build their
+// instants HERE too, from `instantAtLocalTime`. There is no second implementation left to drift.
 //
 // ⚠ DST IS NOT A DETAIL HERE. 058 found TWO real calendar bugs that only DST tests caught, including
 // one that silently skipped an entire trading hour — both from rebuilding an instant out of wall-clock
@@ -29,7 +14,7 @@
 /** The platform's operating timezone. Collection runs are wall-clock facts about Effy's working day. */
 export const OPERATING_TZ = "Australia/Melbourne";
 
-/** One daily collection run, as a wall-clock time of day. Mirrors Go's `delivery.CollectionRun`. */
+/** One daily collection run, as a wall-clock time of day. */
 export interface CollectionRun {
   hour: number;
   minute: number;
@@ -97,7 +82,7 @@ function readsAs(at: Date, year: number, month: number, day: number, hour: numbe
  * hour. A deadline that slips an hour lets a package miss the van while the system believes it has
  * time — and nothing anywhere reports it.
  */
-function instantAtLocalTime(year: number, month: number, day: number, hour: number, minute: number): Date {
+export function instantAtLocalTime(year: number, month: number, day: number, hour: number, minute: number): Date {
   const naive = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
 
   // The two offsets that can be in force around this local time. They differ only across a
@@ -138,7 +123,7 @@ export function localDateParts(at: Date): { year: number; month: number; day: nu
  * 063's research R1 reasoned "given the 14:00 run and a 60-minute buffer, everything for that run must
  * be collected by 13:00" — reading the prep buffer as time taken off the END of the collection window.
  * It is the opposite. The buffer is the time a SHOP gets to pick and pack AFTER ordering closes:
- * checkout offers same-day while `now ≤ run_time − prep_buffer` (Go's `SameDayCutoff`, unchanged), and
+ * checkout offers same-day while `now ≤ run_time − prep_buffer` (`sameDayCutoff`, unchanged), and
  * the driver collects AT the run time. 063's own spec always said so — FR-002: "early enough that an
  * assigned driver can complete the round before the **run time**". The code implemented the research,
  * not the spec.

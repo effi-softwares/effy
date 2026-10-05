@@ -7,7 +7,7 @@ import { Suspense } from "react"
 import type { PromotionDTO } from "@effy/shared-types"
 
 import { ActionLink, Display, Rule } from "@/components/storefront/kit"
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApiPublic, uncached } from "@/lib/api/edge"
 
 import { CopyCodeButton } from "../../_components/CopyCodeButton"
 
@@ -22,8 +22,8 @@ import { CopyCodeButton } from "../../_components/CopyCodeButton"
  */
 async function fetchPromotion(id: string): Promise<PromotionDTO | null> {
   try {
-    return await coreApi().get<PromotionDTO>(
-      `/v1/storefront/promotions/${encodeURIComponent(id)}`,
+    return await edgeApiPublic().get<PromotionDTO>(
+      `/storefront/v1/promotions/${encodeURIComponent(id)}`,
       uncached(),
     )
   } catch (err) {

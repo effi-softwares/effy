@@ -53,3 +53,11 @@ export * from "./lib/custody";
 // 063: may this driver do this work. Read by the wave planner (to choose) and by the dispatcher's
 // reassign route (to refuse). If they disagreed, a dispatcher could do what the planner would not.
 export * from "./lib/driver-eligibility";
+// 070 — the shopper-facing services (storefront, commerce). Promoted from core-api's platform layer
+// when the Go backend was retired: one money parser, one "is it purchasable" rule, one customer
+// gate, one metric emitter, one overload answer.
+export * from "./lib/money";
+export * from "./lib/availability";
+export * from "./lib/customer-identity";
+export * from "./lib/metrics";
+export * from "./lib/shopper-handler";

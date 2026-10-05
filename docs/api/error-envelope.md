@@ -1,6 +1,6 @@
 # Effy API Error Envelope (RFC 9457 Problem Details)
 
-**Binding on**: every failure response from `core-api` and `edge-api`, all versions.
+**Binding on**: every failure response from the backend (`edge-api`), all versions.
 This file is the cross-backend single source of truth (constitution Principle II);
 each service enforces it with conformance tests. Origin: specs/004-backend-bootstrap
 (research decision A6).

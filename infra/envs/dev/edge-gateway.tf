@@ -44,6 +44,26 @@ locals {
       "https://${var.back_office_subdomain}.${module.dns.zone_name}",
     ],
   )
+
+  # ⚠ THE STOREFRONT'S ORIGINS — GATEWAY ONLY, deliberately NOT part of browser_origins (070).
+  #
+  # Until 070 the storefront's browser reached one backend directly: the always-on Go service, for
+  # the three client-side catalogue fetches (search results, facets, recently viewed). Those now
+  # come here, so its origin must be allowed here or every one of them fails at the pre-flight with
+  # nothing on any server to look at.
+  #
+  # It is kept OUT of browser_origins because that list is also the product-media bucket's, and the
+  # storefront never uploads: an origin that has no reason to PUT to the bucket is not given the
+  # CORS grant to try.
+  #
+  # Config-derived from this environment's own zone — the storefront is served at the zone apex and
+  # at www (amplify-customer-web.tf). ⚠ No production origin is listed in a dev gateway: core-api's
+  # allow-list carried `effyshopping.com` "ahead of" a prod storefront, which let a prod page call
+  # dev. Prod's own root derives prod's own origins from prod's zone.
+  storefront_origins = [
+    "https://${module.dns.zone_name}",
+    "https://www.${module.dns.zone_name}",
+  ]
 }
 
 resource "aws_apigatewayv2_api" "edge" {
@@ -61,7 +81,7 @@ resource "aws_apigatewayv2_api" "edge" {
   # console origin is a Terraform change, not a code change. Without the deployed origin, every
   # authenticated console call fails at the OPTIONS pre-flight.
   cors_configuration {
-    allow_origins  = local.browser_origins
+    allow_origins  = concat(local.browser_origins, local.storefront_origins)
     allow_methods  = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers  = ["Authorization", "Content-Type", "X-Request-ID"]
     expose_headers = ["x-request-id"]

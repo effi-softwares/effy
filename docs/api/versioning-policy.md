@@ -1,6 +1,6 @@
 # Effy API Versioning Policy
 
-**Binding on**: every externally consumed endpoint of `core-api` and `edge-api`.
+**Binding on**: every externally consumed endpoint of the backend (`edge-api`).
 Origin: specs/004-backend-bootstrap (research decisions A1–A5; industry survey:
 Google AIP-185/180, GitHub, Shopify, Stripe, Uber, Zalando, RFC 9745/8594/9457).
 
@@ -32,9 +32,8 @@ once**, forever treating "the fleet is mixed" as the normal state, not an except
    ignores unknown response fields, maps unknown enum values to a safe fallback, and
    never depends on field order.
 5. **Coexistence mechanics** — version-neutral services/repositories; version-specific
-   handlers/DTOs only where shapes differ (core-api: Gin `/v1`,`/v2` route groups —
-   unchanged endpoints register the same handler in both; edge-api: one handler file per
-   route per version sharing the service module). **Never** API Gateway stages or Lambda
+   handlers/DTOs only where shapes differ (one handler file per route per version, sharing
+   the service module). **Never** API Gateway stages or Lambda
    aliases as version mechanisms.
 6. **Lifecycle** — `active → deprecated → retired`, one-way:
    - *Deprecated*: every response from the version carries `Deprecation` (RFC 9745) +
@@ -63,7 +62,7 @@ is deprecated or retired yet — rules 6.7 activate as the platform evolves.
 
 ## Path scheme under the shared gateway (A3, 2026-07-08)
 
-With the cold path decomposed into services behind one HTTP API, the version segment follows the
+With the backend decomposed into services behind one HTTP API, the version segment follows the
 service prefix: **`/<service>/v<major>/...`** (e.g. `/admin/v1/me`, `/shop/v2/status`). Service
 prefix first = the ownership boundary is the routing boundary (route-key uniqueness across the
 shared API by construction), and each service versions on its own cadence. Health is

@@ -245,7 +245,7 @@ data class PriceBounds(val min: String, val max: String)
 /** The facets available for a query + applied filters, with per-option counts (043 US2). */
 data class FacetSet(val priceBounds: PriceBounds?, val facets: List<Facet>)
 
-/** The catalog read port (hot path). Implemented by HttpCatalogRepository over the core client. */
+/** The catalog read port. Implemented by HttpCatalogRepository over the core client. */
 interface CatalogRepository {
     suspend fun home(): HomeContent
     suspend fun categories(): List<Category>

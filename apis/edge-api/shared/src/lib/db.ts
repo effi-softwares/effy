@@ -43,6 +43,24 @@ async function resetPool(): Promise<void> {
   await dead?.end().catch(() => undefined);
 }
 
+/**
+ * The database refused the connection because this role (or the server) has no connections left
+ * (070 FR-030). Shopper-facing services connect as a role with a connection limit, so a shopper
+ * burst lands HERE — fast, at the database — instead of taking the connections staff, shop and
+ * driver services share. `shopperHandler` answers it as a retryable 503.
+ */
+export class ConnectionLimitError extends Error {
+  constructor() {
+    super("db: connection limit reached");
+    this.name = "ConnectionLimitError";
+  }
+}
+
+export function isConnectionLimit(err: unknown): boolean {
+  // 53300 too_many_connections — raised for the server-wide limit AND for a role's CONNECTION LIMIT.
+  return typeof err === "object" && err !== null && (err as { code?: string }).code === "53300";
+}
+
 function isAuthFailure(err: unknown): boolean {
   // 28P01 invalid_password — the signature of a rotated credential (research C6).
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "28P01";
@@ -57,6 +75,7 @@ export async function query<R extends pg.QueryResultRow>(
   try {
     return await (await getPool()).query<R>(text, values as never);
   } catch (err) {
+    if (isConnectionLimit(err)) throw new ConnectionLimitError();
     if (!isAuthFailure(err)) throw err;
     await resetPool();
     return await (await getPool()).query<R>(text, values as never);
@@ -69,7 +88,13 @@ export async function query<R extends pg.QueryResultRow>(
 export async function withTransaction<T>(
   fn: (client: pg.PoolClient) => Promise<T>,
 ): Promise<T> {
-  const client = await (await getPool()).connect();
+  let client: pg.PoolClient;
+  try {
+    client = await (await getPool()).connect();
+  } catch (err) {
+    if (isConnectionLimit(err)) throw new ConnectionLimitError();
+    throw err;
+  }
   try {
     await client.query("BEGIN");
     const result = await fn(client);
@@ -88,3 +113,18 @@ export async function withTransaction<T>(
 export async function pingDatabase(): Promise<void> {
   await query("SELECT 1");
 }
+
+/**
+ * What a repository needs from a connection: run one statement. The module pool satisfies it
+ * (`pooled`), and so does the client a transaction hands out — so one repository function serves a
+ * plain read and a read under a row lock without knowing which it is.
+ */
+export interface Queryable {
+  query<R extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    values?: unknown[],
+  ): Promise<pg.QueryResult<R>>;
+}
+
+/** The module pool as a `Queryable`. */
+export const pooled: Queryable = { query };

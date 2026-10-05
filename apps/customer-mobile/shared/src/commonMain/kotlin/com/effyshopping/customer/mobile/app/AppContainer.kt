@@ -170,7 +170,7 @@ class AppContainer(
         )
     }
     private val customers: CustomerRepository by lazy { HttpCustomerRepository(edgeClient) }
-    private val catalog: CatalogRepository by lazy { HttpCatalogRepository(coreClient) }
+    private val catalog: CatalogRepository by lazy { HttpCatalogRepository(edgeClient) }
     private val checkoutRepo by lazy { HttpCheckoutRepository(coreClient) }
     // The address book (022) — customer profile management → the COLD path (edge-api/customer,
     // `/customer/v1/addresses`), per the routing law (011 FR-028). A full-CRUD repo, distinct from

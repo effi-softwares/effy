@@ -1,6 +1,68 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 2.0.0 → 3.0.0
+Bump rationale: MAJOR — Principle III is REDEFINED and a locked technology is REMOVED. v2.0.0
+                required every plan to justify its feature against TWO backend paths and forbade
+                latency-sensitive customer traffic on the serverless one. v3.0.0 has ONE backend, so
+                every plan justified as "hot path" is justified against a rule that no longer
+                exists. Under the versioning policy that is a principle "redefined in a way that
+                invalidates existing plans" — MAJOR.
+
+Trigger: feature 070-retire-core-api. The operator decided (spec Clarifications, 2026-10-04) to
+move every capability of the always-on Go backend onto the serverless TypeScript backend and
+destroy the container service and load balancer, for cost. The plan's Constitution Check failed
+v2.0.0 on three counts — Principle III, the locked "Hot path: Go" standard, and Principle VII —
+and the repository's method is to change the law before the code. No 070 code task may start
+before this amendment (specs/070-retire-core-api/tasks.md T002).
+
+Two findings behind the change, recorded so the reversal is not read as taste:
+  (1) The latency premise was a laptop measurement. The "~135 ms per database round trip" that
+      justified keeping shopper traffic off serverless was measured from a LOCAL core-api to the
+      Sydney database (FEATURE-HISTORY.md, 028). It is not an in-region figure
+      (specs/070-retire-core-api/research.md R1).
+  (2) Principle VII described infrastructure that was never built. No Prometheus or Grafana stack
+      exists (infra/observability/README.md); four alert rule files were written against it and
+      have never paged anyone. The principle is restated as what exists and what 070 makes live.
+
+Modified in this amendment:
+  - Principle III: "Dual-Path Backend Discipline" → "Single Serverless Backend". All server
+    behaviour runs on serverless TypeScript; services split by audience and domain; a plan states
+    which service it extends; no always-on compute without an amendment.
+  - Principle VI → last bullet: "both backends publish" → one backend publishes one envelope.
+  - Principle VII → first bullet: Prometheus metrics + Grafana dashboards → structured logs,
+    CloudWatch metrics (embedded metric format) and CloudWatch alarms to the operator's approved
+    operational mailbox.
+  - Technology Standards → "Hot path: Go 1.25; Gin; pgx/v5" REMOVED. "Cold path" renamed "Backend"
+    and gains the raw-SQL / no-ORM clause the removed line carried. Metrics line rewritten.
+    Closing example "move the hot path off Go" → "reintroduce a second backend runtime".
+  - Quality Gates → "path justification per Principle III" → "service placement per Principle III".
+
+Unchanged and restated so they are not read as dropped:
+  - Raw SQL, no ORM, Goose migrations, PostgreSQL 16.
+  - Principles I, II, IV and V, the Real-World Identifiers section and every design-system gate.
+  - The layered three-slice architecture, explicit wiring and idempotent consumers of Principle VI.
+  - No PII in telemetry; low-cardinality dimensions; push through the notifications path.
+
+Dependent updates in THIS change:
+  ✅ .specify/memory/constitution.md — Principles III, VI, VII; Technology Standards; Quality Gates;
+     version line; history.
+  ✅ .specify/templates/{plan,spec,tasks}-template.md — verified: none names a backend path, a
+     language or a metrics stack. The Constitution Check cites principles by number, so no edit.
+  ⚠ ARCHITECTURE.md, platform-brief.md, docs/api/path-assignment.md, docs/api/error-envelope.md,
+     docs/api/versioning-policy.md, CLAUDE.md — still describe two backends. Corrected by
+     070 tasks T003 and T004, in the same feature.
+  ⚠ apis/edge-api/customer/serverless.yml and package.json carry a "routing law" comment citing
+     the old Principle III. Removed by 070 task T087.
+  ⚠ apis/core-api and its infrastructure still exist and still serve until 070's cut-over. Between
+     this amendment and that teardown the code is AHEAD of nothing and BEHIND the law, deliberately:
+     the always-on backend is a component being retired, not one being sanctioned.
+  ⚠ Every plan from 004 to 069 that records "hot path" / "cold path" under Principle III is
+     HISTORY, not live law. They are deliberately NOT rewritten. This report supersedes them.
+
+Follow-up TODOs: none.
+
+--- previous report ---
 Version change: 1.13.0 → 2.0.0
 Bump rationale: MAJOR — Principle V's colour doctrine is REDEFINED, not extended. Three rules that
                 existing plans were justified against are REMOVED outright:
@@ -420,20 +482,26 @@ All apps, services, and infrastructure live in ONE monorepo.
 **Rationale**: Consistency across the six surfaces is a primary platform goal. Shared packages
 are the mechanism that makes cross-cutting changes happen once.
 
-### III. Dual-Path Backend Discipline
+### III. Single Serverless Backend
 
-The backend is intentionally two paths, and every plan MUST justify which path a feature uses.
+The backend is one path: serverless TypeScript. There is no second backend runtime.
 
-- **Hot path** — latency-sensitive customer reads and transactions run on Go (Gin + pgx/v5)
-  on Fargate.
-- **Cold path** — ops/admin CRUD and back-office workflows run on serverless TypeScript
-  Lambdas.
-- Every feature's `plan.md` MUST state which path(s) it targets and why. A feature MUST NOT
-  place latency-sensitive customer traffic on the cold path, nor low-frequency admin CRUD on
-  the hot path, without an explicit, justified exception recorded in the plan.
+- **All server behaviour** — public and customer reads, transactions and payments, operator and
+  back-office workflows, and asynchronous workers — runs on Node + TypeScript Lambdas behind the
+  shared HTTP gateway.
+- **Services are split by audience and domain.** One audience per service is preferred; a service
+  that mixes audiences or carries unauthenticated routes MUST record why in its plan.
+- Every feature's `plan.md` MUST state which service(s) it extends or adds, and why.
+- A rule MUST have exactly one implementation. Logic needed by more than one service lives in the
+  shared backend library, never copied between services.
+- A plan MUST NOT introduce an always-on compute component — a container service, a load
+  balancer, a persistent-connection server — without amending this constitution first.
 
-**Rationale**: The split exists to serve customer latency cheaply while keeping ops simple.
-Forcing each plan to declare its path keeps the boundary honest.
+**Rationale**: The platform is pre-launch. A second, always-on backend cost money every hour
+whether or not anyone was shopping, and forced every shared rule to exist in two languages kept in
+step by cross-checks. The latency premise for the original split was a measurement taken from a
+laptop, not from inside the region. One pay-per-use backend is cheaper to run and simpler to
+reason about; if real traffic later shows a need, the amendment procedure is the way back.
 
 ### IV. Auth Isolation
 
@@ -585,8 +653,8 @@ review. `ARCHITECTURE.md` is the binding elaboration of this principle; plans MU
   user actions (state flows down, events flow up). Web treats the server-state cache as the source of
   truth and keeps a client store only for genuine client state. Server data MUST NOT be hand-cached in
   component state.
-- **One event language across backends** — both backends publish the same event envelope to the
-  shared topic, and event consumers MUST be idempotent.
+- **One event language** — the backend publishes one event envelope to the shared topic, and
+  event consumers MUST be idempotent.
 
 **Rationale**: One coherent shape across four languages and three runtimes is what lets a small team
 move between surfaces freely and keeps features predictable to write, read, and review.
@@ -596,8 +664,9 @@ move between surfaces freely and keeps features predictable to write, read, and 
 The platform MUST be observable and measurable from day one. `ARCHITECTURE.md` is the binding
 elaboration of this principle.
 
-- **Backends** emit structured logs and expose **metrics** (Prometheus); customer-facing flows have
-  **dashboards and alerts** (Grafana).
+- **The backend** emits structured logs and **CloudWatch metrics** (embedded metric format);
+  customer-facing flows have **CloudWatch alarms** delivered to the operator's approved
+  operational mailbox.
 - **Mobile ships crash reporting** (Crashlytics); **web ships error tracking** (PostHog).
 - **Product analytics** (PostHog) is captured on every client through a shared, typed event taxonomy —
   kept conceptually distinct from operational metrics (behavior vs. system health).
@@ -622,19 +691,19 @@ any entry requires a constitution amendment (see Governance).
   **TanStack suite** — Router, Query (server-state cache = source of truth), Table, Form, Store,
   Virtual, DevTools, Hotkeys. **Client state via TanStack Store** (genuine client state only —
   **no Zustand**). TanStack DB is not adopted yet (revisit on a real product-collection need).
-- **Hot path**: Go 1.25; Gin; pgx/v5; raw SQL. **No ORM.**
-- **Cold path**: Node 22 (current Lambda-supported LTS) + TypeScript; Serverless Framework; Lambda on arm64.
+- **Backend**: Node 22 (current Lambda-supported LTS) + TypeScript; Serverless Framework; Lambda
+  on arm64; raw SQL. **No ORM.**
 - **Database**: PostgreSQL 16; Goose migrations; **forward-only** (no down migrations relied on).
 - **Infrastructure**: Terraform; multi-environment; remote state.
 - **Observability & notifications**:
-  - **Metrics**: Prometheus + Grafana (self-hosted on ECS); Lambda metrics via CloudWatch datasource.
+  - **Metrics and alerts**: CloudWatch metrics (embedded metric format) and CloudWatch alarms.
   - **Crash reporting**: Firebase Crashlytics (mobile).
   - **Product analytics + web error tracking**: PostHog (all clients).
   - **Push notifications**: Firebase Cloud Messaging (FCM); APNs for iOS.
 
-A plan MAY introduce a new library only within these standards (e.g., a Go helper, a React
+A plan MAY introduce a new library only within these standards (e.g., a backend helper, a React
 utility). It MUST NOT swap a locked technology (e.g., add an ORM, change the migration tool,
-move the hot path off Go) without amending this constitution first.
+reintroduce a second backend runtime) without amending this constitution first.
 
 ## Real-World Identifiers (NON-NEGOTIABLE)
 
@@ -673,7 +742,7 @@ Compliance is enforced at merge time, not discovered later.
 - Every feature ships **verified against its spec's acceptance criteria** — implementation is
   done when those criteria are demonstrably met, not when code compiles.
 - No feature merges without `spec.md`, `plan.md`, and `tasks.md` committed alongside the code.
-- Every plan MUST pass the Constitution Check gate (path justification per Principle III,
+- Every plan MUST pass the Constitution Check gate (service placement per Principle III,
   shared-contract usage per Principle II, auth isolation per Principle IV, design-system usage
   per Principle V, architecture conformance per Principle VI, telemetry declaration per
   Principle VII) before implementation begins.
@@ -709,4 +778,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 2.0.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-09-20
+**Version**: 3.0.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-05

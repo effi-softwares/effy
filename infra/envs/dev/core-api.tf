@@ -19,15 +19,8 @@
 #   aws_eip(nat) / aws_vpc_endpoint · NO new aws_acm_certificate / aws_secretsmanager_secret /
 #   aws_db_instance. Recurring dev cost ≈ $30/mo (research R12).
 
-# Stripe secrets are operator-created (019), NOT Terraform-managed — look them up by name for their
-# ARNs. They must exist before apply (quickstart precheck); a missing one fails loudly here.
-data "aws_secretsmanager_secret" "stripe_secret_key" {
-  name = "/effy/${var.env}/stripe/secret_key"
-}
-
-data "aws_secretsmanager_secret" "stripe_webhook_secret" {
-  name = "/effy/${var.env}/stripe/webhook_secret"
-}
+# The two Stripe secret lookups (data.aws_secretsmanager_secret.stripe_*) this module reads now live
+# in commerce.tf (070): they outlive this file, which 070's teardown deletes.
 
 module "core_api" {
   source = "../../modules/ecs-fargate-web-service"

@@ -6,7 +6,7 @@ import { Suspense } from "react"
 import type { StorefrontProductDetailDTO } from "@effy/shared-types"
 
 import { Display, Rule } from "@/components/storefront/kit"
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApiPublic, uncached } from "@/lib/api/edge"
 import { formatMoney, isDiscounted } from "@/lib/money"
 
 import { AddToCartControl } from "../../_components/AddToCartControl"
@@ -18,8 +18,8 @@ import { RelatedProducts } from "../../_components/RelatedProducts"
 
 async function fetchProduct(id: string): Promise<StorefrontProductDetailDTO | null> {
   try {
-    return await coreApi().get<StorefrontProductDetailDTO>(
-      `/v1/storefront/products/${encodeURIComponent(id)}`,
+    return await edgeApiPublic().get<StorefrontProductDetailDTO>(
+      `/storefront/v1/products/${encodeURIComponent(id)}`,
       uncached(),
     )
   } catch (err) {

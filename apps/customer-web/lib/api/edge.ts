@@ -52,3 +52,21 @@ export function edgeApiPublic() {
 
 /** Account data is per-customer: it must never be cached, and never prerendered. */
 export const perCustomer: RequestInit = { cache: "no-store" }
+
+/**
+ * Next cache options for a PUBLIC read (the catalogue).
+ *
+ * Use these on storefront reads only. Anything fetched with a shopper's session is per-customer
+ * and takes `perCustomer` above — a tagged cache entry for one shopper's cart would be served to
+ * the next.
+ */
+export function cached(opts: { tags: string[]; revalidate?: number }): RequestInit {
+  return {
+    next: { tags: opts.tags, revalidate: opts.revalidate },
+  } as RequestInit
+}
+
+/** A public read that must nonetheless be fresh on every request. */
+export function uncached(): RequestInit {
+  return { cache: "no-store" }
+}

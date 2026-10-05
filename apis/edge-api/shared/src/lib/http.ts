@@ -1,13 +1,12 @@
 // The shared handler preamble + response/problem builders. There is deliberately NO
 // middleware framework (ARCHITECTURE.md): every handler calls preamble() first and
 // owns its own parsing, claims checks, and error mapping. The problem vocabulary
-// mirrors docs/api/error-envelope.md — the cross-backend contract.
+// mirrors docs/api/error-envelope.md.
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import { logger } from "./logger";
 
-// Problem type URIs — keep in lockstep with core-api's httpx package and
-// docs/api/error-envelope.md.
+// Problem type URIs — the vocabulary of docs/api/error-envelope.md. Clients switch on these.
 export const ProblemType = {
   ValidationFailed: "https://effyshopping.com/problems/validation-failed",
   Unauthenticated: "https://effyshopping.com/problems/unauthenticated",
@@ -115,7 +114,69 @@ export function internal(scope: RequestScope): APIGatewayProxyStructuredResultV2
     "an unexpected error occurred; reference request_id when reporting", scope);
 }
 
-export function unavailable(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
-  return problem(503, ProblemType.Unavailable, "Service unavailable",
+/**
+ * 503. `retryAfterSeconds` sets `Retry-After` when the caller should simply try again — the
+ * shopper connection limit (070) is the case that does.
+ */
+export function unavailable(
+  scope: RequestScope,
+  retryAfterSeconds?: number,
+): APIGatewayProxyStructuredResultV2 {
+  const res = problem(503, ProblemType.Unavailable, "Service unavailable",
     "a required dependency is currently unreachable", scope);
+  if (retryAfterSeconds === undefined) return res;
+  return { ...res, headers: { ...res.headers, "retry-after": String(retryAfterSeconds) } };
+}
+
+/**
+ * Deliberately identical for every authentication failure — missing, malformed, expired, tampered,
+ * wrong-pool, or no platform record — so a response leaks nothing about which check failed.
+ */
+export function unauthenticated(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
+  return problem(401, ProblemType.Unauthenticated, "Authentication required",
+    "a valid access token for this audience is required", scope);
+}
+
+/**
+ * 404 for a missing RESOURCE as well as a missing route — one type, on purpose: a shopper asking
+ * for another shopper's order must not be able to tell "not yours" from "not there".
+ */
+export function notFound(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
+  return problem(404, ProblemType.NoRoute, "No such route",
+    "the requested path (or API version) does not exist", scope);
+}
+
+export function validationFailed(
+  scope: RequestScope,
+  detail: string,
+  errors?: FieldError[],
+): APIGatewayProxyStructuredResultV2 {
+  return problem(400, ProblemType.ValidationFailed, "Request validation failed", detail, scope, errors);
+}
+
+/**
+ * A refusal the CLIENT must tell apart from other refusals (a promo code that is expired vs
+ * exhausted; a list at its limit). `reason` becomes the problem's own type URI — which is what
+ * RFC 9457's `type` is for — with underscores written as hyphens.
+ */
+export function refused(
+  scope: RequestScope,
+  status: number,
+  reason: string,
+  detail: string,
+  extra?: Record<string, unknown>,
+): APIGatewayProxyStructuredResultV2 {
+  const res = problem(status, `https://effyshopping.com/problems/${reason.replaceAll("_", "-")}`,
+    status === 409 ? "Conflict" : "Request validation failed", detail, scope);
+  if (!extra) return res;
+  return { ...res, body: JSON.stringify({ ...(JSON.parse(res.body ?? "{}") as object), ...extra }) };
+}
+
+/** A state clash the client resolves by re-reading (a stale delivery quote). */
+export function conflict(scope: RequestScope, detail: string): APIGatewayProxyStructuredResultV2 {
+  return problem(409, ProblemType.Conflict, "Conflict", detail, scope);
+}
+
+export function noContent(scope: RequestScope): APIGatewayProxyStructuredResultV2 {
+  return { statusCode: 204, headers: { "x-request-id": scope.requestId } };
 }

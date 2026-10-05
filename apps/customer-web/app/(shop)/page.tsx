@@ -4,7 +4,7 @@ import { Suspense } from "react"
 import type { StorefrontCategoryDTO, StorefrontHomeDTO } from "@effy/shared-types"
 
 import { EmptyState } from "@/components/storefront/kit"
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApiPublic, uncached } from "@/lib/api/edge"
 import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
 
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
  *    decision.
  *
  * The static shell (H1, hero, section scaffolding) prerenders and is present in the raw HTML for
- * crawlers (FR-002). The merchandised rails depend on `core-api`, so they stream inside a <Suspense>
+ * crawlers (FR-002). The merchandised rails depend on the backend, so they stream inside a <Suspense>
  * boundary — the PPR model: instant static shell, then content, degrading to a skeleton and then to a
  * friendly empty/error state.
  */
@@ -81,7 +81,7 @@ export default function HomePage() {
           category read it has no use for, and put the whole first screen behind whichever of the two
           requests was slower. Its own boundary means it paints as soon as its own data lands.
 
-          Both boundaries read `/v1/storefront/home`; `getHome()` is `cache()`-wrapped so that is one
+          Both boundaries read `/storefront/v1/home`; `getHome()` is `cache()`-wrapped so that is one
           request, by construction rather than by relying on Next's memoization. */}
       <Suspense fallback={<PromoHeroSkeleton />}>
         <PromoHeroSection />
@@ -89,7 +89,7 @@ export default function HomePage() {
 
       {/* Client island: shown only when the shopper's postcode is outside a serviced zone. */}
 
-      {/* Dynamic hole — the merchandised store, streamed from the hot path. */}
+      {/* Dynamic hole — the merchandised store, streamed from the backend. */}
       <Suspense fallback={<HomeSkeleton />}>
         <HomeContent />
       </Suspense>
@@ -133,7 +133,7 @@ async function HomeContent() {
   try {
     ;[home, categories] = await Promise.all([
       getHome(),
-      coreApi().get<StorefrontCategoryDTO[]>("/v1/storefront/categories", uncached()),
+      edgeApiPublic().get<StorefrontCategoryDTO[]>("/storefront/v1/categories", uncached()),
     ])
   } catch {
     return <StoreUnavailable />

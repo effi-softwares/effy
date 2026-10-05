@@ -25,7 +25,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
-        db-new db-status db-up db-down check-goose \
+        db-new db-status db-up db-down db-shopper-role check-goose \
         core-run core-test core-lint core-build core-ecr-login core-image-push core-deploy purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
@@ -167,6 +167,15 @@ db-up: check-goose ## OPERATOR: apply pending migrations (confirm; FORCE=1 skips
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up
 
+# 070: the shopper-facing services (edge storefront + commerce) connect as a connection-limited role
+# so a shopper burst cannot starve staff, shop and driver services. The migration creates the role
+# with NO password; this gives it one, stores it in Secrets Manager, and enables login. Re-running
+# rotates the password. Run AFTER `make db-up` and BEFORE `make apply` (which publishes the ARN).
+db-shopper-role: ## OPERATOR: set/rotate the shopper DB role's password and store it in Secrets Manager (ENV=dev)
+	@printf 'SET PASSWORD for role effy_shopper + write secret /effy/%s/db/shopper  →  env=%s\nContinue? [y/N] ' "$(ENV)" "$(ENV)"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
+	AWS_PROFILE=$(AWS_PROFILE) bash $(INFRA_DIR)/scripts/db-shopper-role.sh $(ENV)
+
 db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration convenience
 	@if [ "$(ENV)" != "dev" ]; then \
 		echo "db-down REFUSED for ENV=$(ENV): the platform is forward-only — step-back exists only as a dev iteration convenience."; \
@@ -300,15 +309,15 @@ delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=d
 edge-install: ## Install the JS/TS workspace dependencies (pnpm)
 	@pnpm install
 
-edge-test: ## typecheck + vitest for every cold-path service (edge-shared + admin + shop)
+edge-test: ## typecheck + vitest for every backend service and the shared library
 	@pnpm --filter "@effy/edge-*" run typecheck && pnpm --filter "@effy/edge-*" run test
 
-edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop|customer|driver|notifications|orders|inventory; needs the ef profile)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory ENV=dev"; exit 1; }
+edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce; needs the ef profile)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|fleet|catalog ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders|inventory|fleet|catalog ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|fleet|catalog|storefront|commerce ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders|inventory|fleet|catalog|storefront|commerce ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (attaches to the shared HTTP API, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
@@ -523,7 +532,7 @@ dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL sti
 
 edge-health: ## Probe every cold-path service: healthz (liveness) + readyz (readiness). Public, no token.
 	@API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
-	SERVICES="admin shop customer" bash scripts/edge-health.sh
+	SERVICES="admin shop customer storefront commerce" bash scripts/edge-health.sh
 
 # 010 SC-001/002/004 + 037 FR-001/FR-017: is the platform AUTHORIZED to send as its namespace?
 mail-verify: ## Mail is authorized: DKIM/SPF/DMARC published, SES identity verified, sender configured

@@ -34,7 +34,9 @@ build and a native web build — both native because the team prefers a native w
 a cross-platform web target).
 - **Mobile (3):** customer app, driver app, shop (shop-operator) app.
 - **Web (3):** customer-web storefront, store-web operator console, back-office admin console.
-- **Backends (2):** a Go hot-path API and a TypeScript serverless cold-path fleet.
+- **Backend (1):** a TypeScript serverless fleet, split into services by audience and domain.
+  (Originally two — a Go API for shopper traffic beside it — until feature 070 retired the Go one
+  for cost.)
 - **Plus:** database (PostgreSQL) and infrastructure-as-code (Terraform).
 
 ## 5. What success looks like
@@ -46,15 +48,15 @@ packages. Adding a feature should be fast and land coherently across every surfa
 ## 6. Architecture choices (anchors for the constitution)
 - **Monorepo + shared packages** as the single source of truth: design-system, api-client,
   shared-types, config. Cross-cutting changes happen once.
-- **Dual-path backend:** latency-sensitive customer reads/transactions on the **hot path** (Go +
-  Gin + pgx on Fargate); ops/admin/operator CRUD and async workers on the **cold path** (TS Lambdas).
-  An **SNS → SQS** event backbone decouples the two and drives fulfillment fan-out.
+- **One serverless backend:** customer reads and transactions, ops/admin/operator CRUD and async
+  workers all run on TypeScript Lambdas, one service per audience and domain. An **SNS → SQS** event
+  backbone decouples services and drives fulfillment fan-out.
 - **Clean Architecture everywhere; MVVM on mobile** (KMP + Compose Multiplatform).
 - **Auth:** four isolated AWS Cognito pools (customer / driver / shop / admin), **passwordless
   EMAIL_OTP across all four**, per-pool JWT validation, no auth proxy. Admin pool has RBAC groups.
 - **Data:** PostgreSQL 16, raw SQL, Goose migrations, **no ORM**.
 - **Infra:** Terraform, multi-environment, remote state.
-- **Observable & measurable from day one:** structured logs + Prometheus/Grafana metrics & alerts on
+- **Observable & measurable from day one:** structured logs + CloudWatch metrics & alarms on
   the backends; Crashlytics crash reporting on mobile; PostHog product analytics (and web error
   tracking) across clients; push via FCM + APNs.
 - **Design:** one design-system package — Jade brand (#0FB57E / fill #047857), native-feel mobile,
@@ -68,16 +70,16 @@ packages. Adding a feature should be fast and land coherently across every surfa
 
 ## 8. First slice & sequencing (the de-risking control)
 - **First slice: Auth + customer onboarding, end-to-end** (Cognito customer pool → KMP app + web →
-  Go hot path → DB profile). Proves 4-pool auth + dual-path + monorepo + shared packages all at once,
+  backend → DB profile). Proves 4-pool auth + the backend + monorepo + shared packages all at once,
   and unblocks everything else.
-- **Second slice:** customer catalog browse (read-heavy hot path).
+- **Second slice:** customer catalog browse (read-heavy).
 - Then build the remaining surfaces one vertical slice at a time, by business priority.
 - **Rule:** don't build all six surfaces in parallel. One vertical slice proves the foundation before
   the pattern scales — so if an approach proves slow, we learn it in weeks, not months.
 
 ## 9. Non-negotiables (these become constitution articles)
 - Spec-driven development for every feature. Monorepo with shared contracts as the source of truth.
-- Dual-path backend discipline. 4-pool auth isolation with passwordless EMAIL_OTP. No ORM.
+- One serverless backend. 4-pool auth isolation with passwordless EMAIL_OTP. No ORM.
 - Native-feel mobile. Jade brand + dark mode. One design system across all surfaces.
 
 ## Open questions parking lot

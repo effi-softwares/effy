@@ -16,31 +16,28 @@ patterns are the law; concrete feature, service, and module names are decided pe
 | Surface | Architectural style | Presentation / request pattern | Dependency wiring |
 |---|---|---|---|
 | Mobile apps (KMP) | **Clean Architecture** (data / domain / presentation per feature) | **MVVM** — a `ViewModel` exposing immutable observable state; the View calls its functions | Manual DI via one container |
-| Hot-path API (Go) | **Layered, feature-sliced** (`features/` + a shared `platform/` layer) | Handler → Service → Repository | Manual DI at the entry point |
-| Cold-path services (serverless) | **Layered per-service** in a workspace monorepo | Handler → Service → Repository (+ event workers) | Cached module singletons + explicit imports |
+| Backend services (serverless) | **Layered per-service** in a workspace monorepo | Handler → Service → Repository (+ event workers) | Cached module singletons + explicit imports |
 | Customer web (SSR) | App-Router app — feature segments + a typed `lib/` service layer | Server Components for reads, client components for interaction | Context + client store + server-state cache |
 | Operator / admin web (SPA) | **Feature-sliced SPA** (`features/*`) | Repository → query hooks → screen components | Server-state cache (+ router context) |
 | Migrations | Flat, ordered, reversible SQL | `up` / `down` migration files | n/a |
 | Infrastructure | **Module + per-environment-root** | Reusable modules composed by `envs/<env>` | Module inputs / outputs |
 
 A handful of decisions repeat **by design** across every surface — they are what make the platform
-feel like one system despite spanning four languages and three runtimes:
+feel like one system despite spanning three languages and three runtimes:
 
 1. **Thin edge, logic in the middle, data access at the bottom.** Handler/UI → service/use-case →
-   repository shows up in the hot-path API, every cold-path service, and (as presentation → domain ←
+   repository shows up in every backend service and (as presentation → domain ←
    data) every mobile feature. You always know where to look.
-2. **Repository pattern with raw SQL — no ORM.** Every backend hand-writes SQL inside repository
+2. **Repository pattern with raw SQL — no ORM.** Every backend service hand-writes SQL inside repository
    modules; the mobile apps mirror this with a domain `Repository` interface and an HTTP-backed
    implementation. Wire shapes (DTOs / rows) are mapped **explicitly** to domain models and never
    escape the data layer.
-3. **Explicit, greppable dependency wiring — no DI framework.** Backends wire dependencies by hand at
-   the entry point; mobile wires the whole graph in one container; cold-path services use cached
-   module singletons. The dependency graph is always readable top-to-bottom.
+3. **Explicit, greppable dependency wiring — no DI framework.** Backend services use cached module
+   singletons and explicit imports; mobile wires the whole graph in one container. The dependency graph is always readable top-to-bottom.
 4. **Auth at every boundary, pinned per pool.** Every client attaches a `Bearer` token; every backend
    verifies it against the correct user pool and structurally blocks cross-pool reuse.
-5. **One event language across backends.** Both backends publish the *same* event envelope to a shared
-   topic; queue consumers are idempotent. This lets the cold path react to the hot path without
-   coupling.
+5. **One event language.** Every service publishes the *same* event envelope to a shared topic;
+   queue consumers are idempotent. This lets one service react to another without coupling.
 6. **Unidirectional state on the clients.** Mobile uses MVVM with a single immutable, observable
    UI-state object per screen (state down, events up); web treats the server-state cache as the source of truth and keeps a
    client store only for genuine client state. Server data is never hand-cached in component state.
@@ -145,81 +142,18 @@ return Dependencies(featureRepository, featureUseCases, /* … */)
 
 ---
 
-## Hot-path API (Go)
+## Backend services (serverless)
 
-A single binary. **Layered and feature-sliced**, with a strict separation between **domain features**
-and **shared infrastructure**.
-
-### Style: feature packages + a platform layer
-
-```
-cmd/<entrypoint>/    # main, route registration, middleware
-
-internal/
-├── features/        # one package per domain — each owns handler + service + repository + types
-└── platform/        # shared infrastructure — NOT domain logic:
-    #   auth/ (per-pool JWT verifier + middleware), config/, db/ (one pool),
-    #   logger/, httpx/ (JSON response/error helpers), events/ (event publisher),
-    #   plus integration wrappers, scan helpers, asset URL resolution, health.
-```
-
-### The three-layer slice (per feature)
-
-Handlers stay thin, services hold logic, repositories hold SQL (generic sketch):
-
-```go
-// handler.go — HTTP only: parse, call service, write response
-func listItems(svc *Service) gin.HandlerFunc { /* … svc.ListPage(ctx, q) … */ }
-
-// service.go — business rules: validate, clamp, orchestrate; no HTTP, no SQL
-func (s *Service) ListPage(ctx context.Context, q ListQuery) (Page, error) { /* … s.repo.ListPage(ctx, q) */ }
-
-// repository.go — SQL only: raw query constants + driver scanning
-const qInsert = `INSERT INTO <table> (...) VALUES (...) RETURNING id, status, created_at`
-```
-
-SQL lives as named string constants in each repository (including row-locking reads such as `SELECT …
-FOR UPDATE` where a transaction needs it). There is **no ORM and no query builder** — just the raw
-driver. Services expose small interfaces for their collaborators so they're unit-testable with fakes.
-
-### Request pipeline
-
-Middleware installs, in order: request-ID → request logging → panic recovery → CORS → **per-pool
-auth**. The auth middleware selects a JWT verifier by **URL path prefix**:
-
-| Path class | Verifier |
-|---|---|
-| public reads (e.g. catalog) | none |
-| customer-scoped routes | customer pool |
-| driver-scoped routes | driver pool |
-| shop-scoped routes | shop pool |
-| service-to-service routes | a shared internal secret (constant-time compare) |
-
-### Auth: per-pool JWT verification
-
-One verifier is built per pool. Each fetches and caches the pool's signing keys, parses tokens
-**RS256-only**, and validates issuer, audience/client, and expiry. Claims (subject, email, user type,
-groups) are injected into the request context. **A missing pool configuration makes the matching
-routes reject-all** rather than run unauthenticated. Group-based RBAC is enforced from the groups
-claim.
-
-### Wiring & config
-
-Dependencies are constructed by hand at the entry point (pool, verifiers, event publisher, integration
-clients, asset resolver) and handed to a `registerFeatures()` step that calls each feature's
-`NewService(NewRepository(pool), …)`. Config is a single struct loaded from the environment; optional
-integrations **degrade gracefully** when unset.
-
----
-
-## Cold-path services (serverless)
+**The platform has one backend** (constitution v3.0.0, Principle III). Every server behaviour —
+public and customer reads, checkout and payment, operator and back-office workflows, asynchronous
+workers — runs here. An always-on Go service once carried shopper traffic; feature 070 retired it.
 
 A workspace monorepo: shared **packages** (libraries) + deployable **services**. Each service deploys
 independently with its own config.
 
 ### Style: layered per-service, shared via packages
 
-A sync HTTP service has the same three-layer shape as a hot-path feature:
+A sync HTTP service has a three-layer shape:
 
 ```
 services/<service>/src/
@@ -250,16 +184,25 @@ export const handler = async (event) => {
 | DB client | A cached client (one connection per container) reused across warm invocations. |
 | HTTP helpers | Response builders + claim extractors that read the gateway authorizer context. |
 | Logger | A structured-logging singleton tagged with the function name. |
-| Events | An event publisher with the **shared envelope** (event type, id, dedup key, …) and an attribute used for topic filter policies. **The same envelope shape the hot path publishes** — the backends speak one event language. |
+| Events | An event publisher with the **shared envelope** (event type, id, dedup key, …) and an attribute used for topic filter policies. Every service publishes this one envelope. |
 | Storage | Bucket-scoped helpers (presign upload/download, head, copy, delete). |
 | Assets | Image lifecycle: presign to a pending location, then promote to fixed variants; resolve public URLs. |
 | Notifications | Transactional **email + push** (FCM / APNs) sender + template renderer. |
 
 ### Two service shapes: sync HTTP vs async worker
 
-- **Sync HTTP (ops / operator / admin CRUD)** — attaches to a shared HTTP gateway and gates each route
-  with a **per-pool JWT authorizer** (admin pool for admin work, shop pool for operator work), with
-  group-based RBAC. Cold starts are accepted in exchange for one consistent ops stack.
+- **Sync HTTP (every audience)** — attaches to a shared HTTP gateway and gates each route with the
+  **per-pool JWT authorizer** for its audience (customer, driver, shop, back-office), with
+  record-backed authorization inside the handler. **Public routes** (catalogue reads, cart preview,
+  health) simply omit the authorizer; an authorizer is per-route and all-or-nothing, so a capability
+  offered to both guests and signed-in shoppers is two routes. Services are split **by audience and
+  domain** — one audience per service is preferred. Cold starts are accepted.
+  - **Shopper-facing services connect as a dedicated, connection-limited database role**, so a burst
+    of shopper traffic is refused at the database (and answered as a retryable 503) rather than
+    exhausting the connections staff, shop and driver services share.
+  - **Logic needed by more than one service lives in the shared library**, on its own import path
+    where it carries a heavy dependency — the payment module is the example: three services move
+    money, one module implements it.
 - **Async event workers** — no HTTP auth:
   - A **webhook** with its own endpoint and **no authorizer** (it verifies a provider signature
     instead), then publishes a domain event.
@@ -401,7 +344,7 @@ infra/
 ├── bootstrap/   # one-time, LOCAL state: creates the remote-state bucket + lock
 ├── modules/     # reusable building blocks, one concern each (network, db, compute, registry,
 │                #   auth pools, object storage, topic, queues, parameter store, secrets,
-│                #   web hosting, DNS, certs, metrics stack — Prometheus + Grafana on ECS)
+│                #   web hosting, DNS, certs)
 ├── envs/        # per-environment roots that wire modules together (dev / staging / prod)
 └── scripts/
 ```
@@ -413,8 +356,8 @@ infra/
 - **The infra ↔ app contract is the parameter store.** Infra *writes* parameters (DB URL, bucket
   names/ARNs, pool ids, gateway/authorizer ids, topic/queue ARNs); the backends and migrations *read*
   them. Adding or renaming a parameter is a breaking change to that contract. Telemetry credentials
-  (FCM service account, PostHog project keys, Grafana admin) live in **secrets**, with their non-secret
-  config (PostHog host, Grafana URL) in the parameter store.
+  (FCM service account, PostHog project keys) live in **secrets**, with their non-secret
+  config (PostHog host) in the parameter store.
 
 ---
 
@@ -426,22 +369,22 @@ notifications** (how do we reach users?). Each is a first-class capability with 
 
 | Capability | Tool | Surfaces | Where it plugs in |
 |---|---|---|---|
-| **Metrics** | Prometheus + Grafana | backends + infra | Hot-path API exposes `/metrics`; Prometheus scrapes it; Grafana dashboards + alerts. Cold-path metrics via CloudWatch. |
+| **Metrics and alerts** | CloudWatch | backend + infra | Services emit embedded-format metrics through one shared helper; alarms are declared in Terraform and notify the alerts topic. |
 | **Crash reporting** | Crashlytics | mobile apps | A `core/platform/` native driver (Android + iOS): init + non-fatal logs. |
 | **Web error tracking** | PostHog | web apps | Runtime errors/exceptions captured alongside analytics. |
 | **Product analytics** | PostHog | all clients (mobile + web) | A shared analytics capability emitting a typed event taxonomy. |
 | **Push notifications** | FCM (+ APNs for iOS) | mobile apps | Device-token registration → the notifications worker's push channel. |
-| **Structured logs** | platform logger | backends | One structured-logging singleton per backend (see above). |
+| **Structured logs** | platform logger | backend | One structured-logging singleton per service (see above). |
 
-### Operational metrics (Prometheus + Grafana)
+### Operational metrics (CloudWatch)
 
-The hot-path API exposes a **`/metrics` endpoint** in the Prometheus exposition format, fed by a
-**metrics middleware** in the `platform/` layer (a sibling to the logger): request rate / latency /
-error counts, DB-pool saturation, and per-feature business counters. **Prometheus** and **Grafana**
-run **self-hosted on ECS/Fargate** (their own infra modules) with persistent storage; Prometheus
-scrapes the API's `/metrics`, and Grafana hosts the dashboards and **alerts** on customer-facing
-flows. Cold-path Lambda metrics come from **CloudWatch**, surfaced in the same Grafana via a CloudWatch
-datasource. **No PII and no high-cardinality values in metric labels** — labels are bounded dimensions
+Services emit **CloudWatch embedded-format metrics** through one shared helper: per-feature business
+counters under a namespace per service (`Effy/<Service>`). Request rate, errors and duration come
+from the platform's built-in per-function metrics — one function per route makes them
+per-operation. **Alarms** on customer-facing flows are declared in Terraform beside the environment
+and notify the existing alerts topic, whose endpoint is the operator's approved operational
+mailbox. There is no self-hosted metrics stack and no `/metrics` endpoint; none was ever built.
+**No PII and no high-cardinality values in metric dimensions** — dimensions are bounded
 (route, status class, feature), never user ids or free text.
 
 ### Crash & error reporting
@@ -469,9 +412,9 @@ subject id. Product analytics (behavior) is kept conceptually separate from oper
 Push is an **outbound channel of the notifications path**, not an ad-hoc per-feature call:
 
 - **Token registration.** A mobile app obtains its device token via a `core/platform/` native driver
-  (FCM on Android, APNs-via-FCM on iOS) and registers it through a hot-path endpoint, which persists it
+  (FCM on Android, APNs-via-FCM on iOS) and registers it through the customer (or driver / shop) service, which persists it
   to a **device-tokens table** (keyed by the authenticated subject).
-- **Sending.** The cold-path **notifications worker** gains a **push channel** alongside email: on the
+- **Sending.** The **notifications worker** gains a **push channel** alongside email: on the
   relevant domain events it looks up the recipient's tokens and sends targeted push (order updates to
   customers, dispatch to drivers). It stays **idempotent** like every other worker.
 - **Config.** FCM service-account credentials live in secrets; iOS delivery is via APNs configured
@@ -481,12 +424,12 @@ Push is an **outbound channel of the notifications path**, not an ad-hoc per-fea
 
 ## Why the platform feels coherent
 
-Despite four languages and three runtimes, the same handful of decisions repeat by design:
+Despite three languages and three runtimes, the same handful of decisions repeat by design:
 
 1. **Thin edge, logic in the middle, data access at the bottom** — the same slice everywhere.
 2. **Repository pattern, raw SQL, no ORM** — wire shapes mapped explicitly to domain models.
 3. **Explicit dependency wiring** — no DI container anywhere; the whole graph is greppable.
 4. **Auth everywhere, pinned per pool** — cross-pool token reuse is structurally blocked.
-5. **One event language across backends** — a shared envelope + idempotent consumers.
+5. **One event language** — a shared envelope + idempotent consumers.
 6. **Unidirectional state on the clients** — MVVM (immutable observable state) on mobile; the server-state
    cache as the source of truth on web, with a client store only for genuine client state.

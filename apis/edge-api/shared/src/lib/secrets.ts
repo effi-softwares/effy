@@ -60,3 +60,12 @@ export async function getSecretString(arn: string): Promise<string> {
   secretMemo.set(arn, payload.SecretString);
   return payload.SecretString;
 }
+
+/**
+ * Drop one memoised secret so the next read fetches it again (070). The payment webhook uses it
+ * when a signature fails: the operator replaces the signing secret at cut-over, and a container
+ * that was already warm would otherwise keep verifying against the old one until it was recycled.
+ */
+export function invalidateSecret(arn: string): void {
+  secretMemo.delete(arn);
+}

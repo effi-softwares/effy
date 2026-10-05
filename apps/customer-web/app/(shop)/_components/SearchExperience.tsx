@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { FacetSetDTO, ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } from "@effy/shared-types"
 
 import { ActionButton } from "@/components/storefront/actions"
-import { coreApiBaseUrl } from "@/lib/config"
+import { edgeApiBaseUrl } from "@/lib/config"
 
 import { ProductCard, productGridNarrow } from "./ProductCard"
 import type { SelectedFilters } from "./filters/FilterControls"
@@ -169,13 +169,13 @@ export function SearchExperience() {
       p.set("sort", sort)
       if (next) p.set("cursor", next)
       p.set("limit", String(PAGE_SIZE))
-      return `${coreApiBaseUrl()}/v1/storefront/products?${p.toString()}`
+      return `${edgeApiBaseUrl()}/storefront/v1/products?${p.toString()}`
     },
     [filterParams, sort],
   )
 
   const facetsUrl = useMemo(
-    () => `${coreApiBaseUrl()}/v1/storefront/facets?${filterParams().toString()}`,
+    () => `${edgeApiBaseUrl()}/storefront/v1/facets?${filterParams().toString()}`,
     [filterParams],
   )
 

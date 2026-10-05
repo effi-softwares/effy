@@ -27,23 +27,26 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * The catalog repository over the CORE api (019 US1 — the hot path, the routing law). [core] is the
- * client built for `CORE_API_BASE_URL`. These reads are PUBLIC (no session needed); the two-token
- * plugin adds headers only when signed in, which the public routes ignore. Transport failures become
- * `AppError.Network` via [request], exactly like the account repository (013 pattern).
+ * The catalog repository over the `storefront` service (070). [edge] is the client built for
+ * `EDGE_API_BASE_URL` — the platform's one backend. These reads are PUBLIC (no session needed); the
+ * client adds its auth headers only when signed in, which the public routes ignore. Transport
+ * failures become `AppError.Network` via [request], exactly like the account repository (013 pattern).
+ *
+ * ⚠ Until 070 these were `v1/storefront/…` on a second, always-on backend (`core-api`). The paths
+ * moved under the service prefix and the second base URL is gone; the wire shapes did not change.
  */
-class HttpCatalogRepository(private val core: HttpClient) : CatalogRepository {
+class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
 
     override suspend fun home(): HomeContent = request {
-        core.get("v1/storefront/home").ensureSuccess().body<StorefrontHomeDTO>().toDomain()
+        edge.get("storefront/v1/home").ensureSuccess().body<StorefrontHomeDTO>().toDomain()
     }
 
     override suspend fun categories(): List<Category> = request {
-        core.get("v1/storefront/categories").ensureSuccess().body<List<StorefrontCategoryDTO>>().map { it.toDomain() }
+        edge.get("storefront/v1/categories").ensureSuccess().body<List<StorefrontCategoryDTO>>().map { it.toDomain() }
     }
 
     override suspend fun productDetail(id: String): ProductDetail = request {
-        core.get("v1/storefront/products/$id").ensureSuccess().body<StorefrontProductDetailDTO>().toDomain()
+        edge.get("storefront/v1/products/$id").ensureSuccess().body<StorefrontProductDetailDTO>().toDomain()
     }
 
     /**
@@ -54,7 +57,7 @@ class HttpCatalogRepository(private val core: HttpClient) : CatalogRepository {
      * not-found error the screen shows, instead of terms that stopped being true.
      */
     override suspend fun promotion(id: String): Promotion = request {
-        core.get("v1/storefront/promotions/$id").ensureSuccess().body<PromotionDTO>().toDomain()
+        edge.get("storefront/v1/promotions/$id").ensureSuccess().body<PromotionDTO>().toDomain()
     }
 
     override suspend fun search(
@@ -68,7 +71,7 @@ class HttpCatalogRepository(private val core: HttpClient) : CatalogRepository {
         minPrice: String?,
         maxPrice: String?,
     ): ProductPage = request {
-        val dto = core.get("v1/storefront/products") {
+        val dto = edge.get("storefront/v1/products") {
             applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice)
             parameter("sort", sort.wire)
             // ⚠ A cursor is minted under ONE ordering and the server rejects it under another (400
@@ -95,7 +98,7 @@ class HttpCatalogRepository(private val core: HttpClient) : CatalogRepository {
         minPrice: String?,
         maxPrice: String?,
     ): FacetSet = request {
-        core.get("v1/storefront/facets") {
+        edge.get("storefront/v1/facets") {
             applyFilterParams(query, saleOnly, categoryKey, brands, attributes, minPrice, maxPrice)
         }.ensureSuccess().body<FacetSetDTO>().toDomain()
     }

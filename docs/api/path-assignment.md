@@ -1,64 +1,59 @@
-# Path Assignment Rule — which backend does a new endpoint belong to?
+# Service Assignment Rule — which service does a new endpoint belong to?
 
-Effy's backend is deliberately two paths (constitution Principle III). Every future
-endpoint gets assigned to exactly **one** of them, and the owning feature's `plan.md`
-records the assignment and its rationale. Origin: specs/004-backend-bootstrap (FR-014);
-the operator's mandate sets the semantics.
+Effy has **one backend**: serverless TypeScript services behind one shared HTTP gateway
+(constitution v3.0.0, Principle III). Every endpoint is assigned to exactly **one service**, and
+the owning feature's `plan.md` records the assignment and its reason.
 
-## The two homes
-
-| | `services/core-api` (hot path) | `services/edge-api` (cold path) |
-|---|---|---|
-| Runtime | Go + Gin, always-on container | TypeScript Lambdas behind API Gateway |
-| Optimized for | latency + high concurrency | cost (pay-per-request, scale-to-zero) |
-| Accepts | none of: cold starts, per-request billing at high volume | cold starts, occasional multi-second first byte |
+> **History.** Until feature 070 the backend was two paths — an always-on Go service (`core-api`,
+> the "hot path") for shopper traffic and this serverless fleet (the "cold path") for everything
+> else — and this document chose between them. 070 retired the Go service. Plans from 004 to 069
+> that record "Path: core-api | edge-api" are history, not live law.
 
 ## The rule
 
 Ask, in order:
 
-1. **Must this endpoint resolve fast, for many users, on a customer's critical path?**
-   (catalog browse, search, filter, checkout reads, anything a customer stares at while
-   it loads) → **core-api**.
-2. **Is it latency-tolerant, low-frequency, or an internal/ops surface?**
-   (profile updates, back-office tasks, operator consoles, admin CRUD, async work)
-   → **edge-api**. The operator's mandate is binding here: *anything that does not
-   need low latency MUST be written in edge-api* — cost wins by default.
-3. **Genuinely unclear?** Default to **edge-api** (cheaper to be wrong there; promotion
-   to the hot path is a recorded decision later, not a rewrite — both share the layered
-   architecture and the platform contracts).
+1. **Whose credential does the route take?** A service holds one audience where it can:
+   public, customer, driver, shop, or back-office. The gateway has one JWT authorizer per pool,
+   and an authorizer is per-route and all-or-nothing.
+2. **Which domain owns the data it writes?** Put the route with the code that already owns the
+   rule. A rule has exactly one implementation.
+3. **Would it take the service past its limits?** A service is one CloudFormation stack, capped at
+   500 resources (roughly five per route). A new domain, or a service nearing the cap, gets a new
+   `apis/edge-api/<service>/`.
 
-An endpoint is never split across both paths, and neither path proxies the other
-(the event backbone, when it lands, is how the cold path reacts to the hot path).
+## The services
 
-## Worked examples
-
-| Endpoint | Home | Why |
+| Service | Audience | Owns |
 |---|---|---|
-| `GET /v1/products?query=…` (customer search) | core-api | rule 1: customer-facing, high-volume, latency-critical |
-| `PATCH /v1/me/profile` (customer profile update) | edge-api | rule 2: customer-facing but latency-tolerant and low-frequency — the mandate's own example |
-| `GET /v1/back-office/refunds` (refund review queue) | edge-api | rule 2: internal ops surface; cold starts acceptable |
-| `POST /v1/devices/push-token` (token registration) | core-api | rule 1 edge case: fires on every app launch across the fleet — high volume wins over latency tolerance |
+| `storefront` | public | catalogue reads, search, facets, promotions, serviceability, localities |
+| `commerce` | customer (+ public cart preview/policy and the payment webhook) | saved items, lists, cart, promo, checkout, payment, customer order reads, customer cancel and refund request |
+| `customer` | customer (+ a few public account routes) | profile, addresses, password, sessions, closure, feedback, newsletter, devices, receipt resend |
+| `shop` | shop | shop console: fulfilment, pick lists, products, insights, shop-manager refund |
+| `inventory` | shop and back-office (per route) | stock |
+| `driver` | driver | driver app |
+| `admin` | back-office | staff, shops, catalogue admin, promotions, delivery configuration |
+| `catalog` | back-office | product review and margin |
+| `fleet` | back-office | drivers, wave planning, delivery slots and days |
+| `orders` | back-office | order console, handovers, arrivals, refunds, cancellation |
+| `notifications` | none (workers) | push and receipt drains |
+| `auth` | none (Cognito triggers) | one-time-code issuance |
+
+## Rules that follow from having one backend
+
+- **Shopper-facing services** (`storefront`, `commerce`) connect to the database as a dedicated,
+  connection-limited role, so a shopper burst cannot starve staff, shop or driver traffic. A new
+  shopper-facing service uses the same role.
+- **Money logic lives once**, in the shared library's payments module. A service that moves money
+  imports it and is granted the payment secret; it never re-implements a refund.
+- **A capability offered to guests and to signed-in shoppers is two routes**, one with the
+  authorizer and one without.
+- **A service that mixes audiences or carries unauthenticated routes records why** in its plan
+  (Principle III).
 
 ## Process
 
-A future feature's `plan.md` MUST contain a line: *"Path: core-api|edge-api — because
-<rule # + one sentence>."* An endpoint placed against this rule without a recorded,
-justified exception is a Constitution Check failure (Principle III).
-
-## Second axis — which cold-path service? (A3, 2026-07-08)
-
-The cold path is now several independently deployable domain services behind one shared HTTP API
-(`<api_endpoint>/<service>/...`; see [shared-gateway.md](./shared-gateway.md)). So a cold-path
-endpoint is placed twice:
-
-1. **Path** — latency-critical (core-api) vs cost-optimized (edge) — the rules above.
-2. **Service** — for a cost-optimized endpoint, which domain service owns it, by audience/domain:
-   - **admin** — back-office/administrative staff work (back-office pool). e.g. `/admin/v1/me`.
-      - **shop** — shop/operator work (shop pool) + the public platform-status/version demo.
-     e.g. `/shop/v1/me`, `/shop/v1/manager-ping` (007 — the shop-web console; rule 2: an internal
-     operator console, latency-tolerant and low-frequency, cold starts acceptable).
-   - a new domain → a new `apis/edge-api/<service>/` (it attaches to the shared gateway; no
-     gateway change unless it introduces a new pool).
-
-A plan MUST record both: *"Path: edge — <rule>. Service: admin — <domain>."*
+A feature's `plan.md` MUST contain a line: *"Service: `<name>` — because <audience + domain>."* An
+endpoint placed without one is a Constitution Check failure (Principle III). Paths are
+`/<service>/v<major>/...`; see [versioning-policy.md](./versioning-policy.md) and
+[shared-gateway.md](./shared-gateway.md).

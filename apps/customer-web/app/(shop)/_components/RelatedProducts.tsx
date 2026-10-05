@@ -1,6 +1,6 @@
 import type { ProductSearchResultDTO } from "@effy/shared-types"
 
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApiPublic, uncached } from "@/lib/api/edge"
 
 import { ProductRail } from "./ProductRail"
 
@@ -26,8 +26,8 @@ export async function RelatedProducts({
 }) {
   let result: ProductSearchResultDTO
   try {
-    result = await coreApi().get<ProductSearchResultDTO>(
-      `/v1/storefront/products?categoryKey=${encodeURIComponent(categoryKey)}&limit=12`,
+    result = await edgeApiPublic().get<ProductSearchResultDTO>(
+      `/storefront/v1/products?categoryKey=${encodeURIComponent(categoryKey)}&limit=12`,
       uncached(),
     )
   } catch {

@@ -1,0 +1,176 @@
+# edge-storefront — Effy's PUBLIC catalogue service (070-retire-core-api).
+#
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/CORS/
+# authorizers created here. Routes live under /storefront/.
+#
+# ⚠ NO ROUTE IN THIS SERVICE TAKES A CREDENTIAL, AND THAT IS THE DEFINITION OF THE SERVICE. It serves
+# what a guest sees: the catalogue. Anything that needs to know WHO is asking belongs in `commerce`
+# (docs/api/path-assignment.md). `config.contract.test.ts` fails if an authorizer appears here.
+#
+# ⚠ IT CONNECTS AS THE SHOPPER DATABASE ROLE, not the master user (research R4). That role has a
+# connection limit, so a burst of shopper traffic is refused at the database — and answered as a
+# retryable 503 by `shopperHandler` — instead of taking the connections staff, shop and driver
+# services share. Every function here MUST export through `shopperHandler`.
+#
+# Until 070 these routes were served by an always-on Go backend (`core-api`).
+#
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-storefront
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  # 512, not the fleet's 256: this is the first thing a shopper waits on, and Lambda allots CPU in
+  # proportion to memory — a cold start is roughly halved for a few cents a month at this volume.
+  memorySize: 512
+  timeout: 10
+  logRetentionInDays: 30
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 070-retire-core-api
+    service: storefront
+  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    METRIC_NAMESPACE: Effy/Storefront
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    # ⚠ The SHOPPER role and its own secret — never the master user (see the header).
+    DB_USER: ${ssm:/effy/${sls:stage}/db/shopper_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
+    # Product images are private; reads are short-lived presigned URLs, signed locally.
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
+        # READ ONLY. This service never uploads.
+        - Effect: Allow
+          Action: s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as every other
+  # edge service: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev DB is
+  # reachable on its public endpoint. DEV ONLY — see infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the storefront service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the storefront service serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/readyz
+
+  # ── The catalogue (070 US1). Every route is PUBLIC: no authorizer, by definition of this service. ──
+
+  homeV1:
+    handler: src/functions/home-v1-get.handler
+    description: Home — advertised promotions as banners, plus the Featured, On-sale and category rails. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/home
+
+  categoriesV1:
+    handler: src/functions/categories-v1-get.handler
+    description: The active category tree with product counts and a representative image. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/categories
+
+  facetsV1:
+    handler: src/functions/facets-v1-get.handler
+    description: Facet options and counts for the current search, each counted with its own selection cleared. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/facets
+
+  productsV1:
+    handler: src/functions/products-v1-get.handler
+    description: Product search and browse (filters, four sorts, total, keyset paging), or hydrate a set by ids. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/products
+
+  productV1:
+    handler: src/functions/product-v1-get.handler
+    description: One product page — gallery, description, grouped attributes, category path. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/products/{id}
+
+  promotionV1:
+    handler: src/functions/promotion-v1-get.handler
+    description: One advertised promotion in full, re-checked as live at the moment it is read. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/promotions/{id}
+
+  serviceabilityV1:
+    handler: src/functions/serviceability-v1-get.handler
+    description: Does Effy deliver to this postcode — the same predicate the checkout quote uses. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/serviceability
+
+  localitiesV1:
+    handler: src/functions/localities-v1-get.handler
+    description: Address typeahead — suburbs by name or postcode prefix, never ordered by serviceability. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/localities

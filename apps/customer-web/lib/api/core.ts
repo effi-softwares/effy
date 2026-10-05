@@ -32,13 +32,6 @@ export function coreApi(token?: string | null) {
 }
 
 /** A read that is the SAME for every customer → cache it, and name the tag that busts it. */
-export function cached(opts: { tags: string[]; revalidate?: number }): RequestInit {
-  return {
-    next: { tags: opts.tags, revalidate: opts.revalidate },
-  } as RequestInit
-}
-
-/** A read that is DIFFERENT per customer (cart, orders) → never cache it. */
-export function uncached(): RequestInit {
-  return { cache: "no-store" }
-}
+// Moved to ./edge (070): the catalogue is served by the edge backend now. Re-exported until the
+// last caller of this file is re-pointed and the file is deleted.
+export { cached, uncached } from "./edge"

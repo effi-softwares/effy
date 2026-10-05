@@ -39,7 +39,7 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   day − carrier lead time. ⚠ The fee does **not** vary by slot or day.
 
 ## Platform shape (the vision)
-The full platform is **six client surfaces + two backends + DB migrations + infrastructure**. The
+The full platform is **six client surfaces + one backend + DB migrations + infrastructure**. The
 customer and shop audiences each get **two surfaces kept at parity** (a native mobile build and a
 native web build).
 
@@ -49,20 +49,29 @@ native web build).
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
   client state via TanStack Store (no Zustand; constitution v1.4.0), AWS Amplify.
-- **Backend — dual path:**
-  - **Hot path:** Go + Gin + pgx/v5 on Fargate (ARM64) — latency-sensitive customer reads &
-    transactions (catalog, profile, addresses, orders/checkout when built).
-  - **Cold path:** Node + TypeScript Lambdas (Serverless Framework v3) — ops/admin/operator CRUD and
-    async/event workers.
-  - **Event backbone:** both backends publish domain events to one SNS topic; per-consumer SQS queues
+- **Backend — ONE path, serverless** (constitution **v3.0.0**, Principle III; feature 070): Node +
+  TypeScript Lambdas (Serverless Framework v3) behind one shared HTTP gateway, **one service per
+  audience and domain** under `apis/edge-api/` — `storefront` (public catalogue), `commerce`
+  (cart, checkout, payment, customer orders), `customer`, `shop`, `inventory`, `driver`, `admin`,
+  `catalog`, `fleet`, `orders`, plus the `notifications` and `auth` workers. Which service a route
+  belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
+  - ⚠ **THERE WAS A SECOND BACKEND AND IT IS BEING RETIRED.** `apis/core-api` (Go + Gin + pgx on
+    Fargate behind an ALB — the "hot path") carried all shopper traffic until 070. It **still
+    serves until 070's cut-over** and its source is deleted last; do not add to it, and do not cite
+    "hot path" as a reason for anything. A plan MUST NOT introduce always-on compute.
+  - ⚠ **Shopper-facing services connect as a connection-limited database role** (`effy_shopper`),
+    so a shopper burst is refused at the database instead of starving staff, shop and driver traffic.
+  - ⚠ **Money logic lives once** — `@effy/edge-shared/payments`. Three services move money
+    (`commerce`, `orders`, `shop`); none re-implements a refund.
+  - **Event backbone:** services publish domain events to one SNS topic; per-consumer SQS queues
     subscribe with filter policies (the fulfillment fan-out).
 - **Data:** PostgreSQL 16, **raw SQL**, Goose migrations, **no ORM.** Two schemas: `public`
   (operational) and `admin` (back-office accounts + audit).
 - **Infra:** Terraform, multi-env, remote state (S3-native lockfile — ⚠ **no DynamoDB lock table**;
   the platform's only DynamoDB table is 035's OTP issuance counter). AWS-native: Cognito, RDS,
   ECS/ECR, Lambda, S3, SNS/SQS, SES, Amplify Hosting.
-- **Observability & telemetry:** Prometheus + Grafana (metrics/dashboards/alerts, self-hosted on
-  ECS); Crashlytics (mobile crash reporting); PostHog (product analytics + web error tracking on all
+- **Observability & telemetry:** CloudWatch metrics + alarms (⚠ a Prometheus + Grafana stack was
+  documented here for months and **never built**); Crashlytics (mobile crash reporting); PostHog (product analytics + web error tracking on all
   clients); push via FCM (+ APNs for iOS) through the notifications path.
 
 ## Architecture rule
@@ -84,18 +93,18 @@ The spine in five rules:
 - **Unidirectional client state** — mobile MVVM (a ViewModel exposing immutable, observable state; the View calls its functions for user actions);
   web treats the server-state cache as the source of truth, with a client store only for genuine
   client state. Never hand-cache server data in component state.
-- **One event language across backends** — both publish the same event envelope; consumers are idempotent.
+- **One event language** — every service publishes the same event envelope; consumers are idempotent.
 
 ## Observability & telemetry
 Observable and measurable from day one (constitution Principle VII; full detail in
 [ARCHITECTURE.md](ARCHITECTURE.md)):
-- **Backends:** structured logs + a `/metrics` endpoint (Prometheus) → Grafana dashboards & alerts;
-  Lambda metrics via CloudWatch into the same Grafana.
+- **Backend:** structured logs + CloudWatch embedded-format metrics through one shared helper;
+  alarms declared in Terraform, delivered to the alerts topic. No `/metrics` endpoint, no dashboards stack.
 - **Mobile:** Crashlytics crash reporting via a `core/platform/` native driver.
 - **Clients (all six):** PostHog product analytics through a shared, typed event taxonomy; web apps
   also route runtime errors to PostHog. No PII in telemetry beyond the auth subject id; analytics is
   consent-respecting.
-- **Push:** device tokens registered via the hot path; the notifications worker sends push (FCM/APNs)
+- **Push:** device tokens registered via the audience's own service; the notifications worker sends push (FCM/APNs)
   alongside email — never ad hoc per feature.
 
 ## Decisions locked
@@ -167,10 +176,10 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 
 ## Order of operations
 1. The **Brief** (platform-brief.md) captures the product.
-2. **/constitution** encodes the technical law (dual-path, monorepo, no-ORM, native-feel mobile,
+2. **/constitution** encodes the technical law (one serverless backend, monorepo, no-ORM, native-feel mobile,
    a MONOCHROME neutral ramp with no brand hue (v1.11.0; retired Effy Emerald #065f46 + terracotta
    #d0735a, and Jade #0FB57E before it), 4-pool auth isolation with passwordless EMAIL_OTP).
-3. First slice: **Auth + customer onboarding** end-to-end (proves 4-pool auth + dual-path +
+3. First slice: **Auth + customer onboarding** end-to-end (proves 4-pool auth + the backend +
    monorepo, and unblocks everything else). Catalog browse is the recommended second slice.
 4. Do NOT pre-build the monorepo scaffold ahead of the specs — let each feature's plan drive what
    gets scaffolded.
@@ -400,5 +409,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/069-delivery-slots-dates/plan.md
+at specs/070-retire-core-api/plan.md
 <!-- SPECKIT END -->
