@@ -4,10 +4,10 @@ Effy has **one backend**: serverless TypeScript services behind one shared HTTP 
 (constitution v3.0.0, Principle III). Every endpoint is assigned to exactly **one service**, and
 the owning feature's `plan.md` records the assignment and its reason.
 
-> **History.** Until feature 070 the backend was two paths — an always-on Go service (`core-api`,
-> the "hot path") for shopper traffic and this serverless fleet (the "cold path") for everything
+> **History.** Until feature 070 the backend was two paths — an always-on Go service (the "fast"
+> path) for shopper traffic and this serverless fleet (the "cold path") for everything
 > else — and this document chose between them. 070 retired the Go service. Plans from 004 to 069
-> that record "Path: core-api | edge-api" are history, not live law.
+> that record a choice between the two as their "Path:" are history, not live law.
 
 ## The rule
 

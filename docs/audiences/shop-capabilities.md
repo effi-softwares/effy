@@ -212,11 +212,10 @@ once left `pending`. This slice is that consumer: a queue, a pick screen, and a 
 at `ready_for_pickup`, at parity on both surfaces. It is the first time the platform's fulfilment
 side does anything at all.
 
-**Path**: cold path — `apis/edge-api/shop` `fulfillments/` (`/shop/v1/fulfillments…`), per
-[docs/api/path-assignment.md](../api/path-assignment.md) rule 2 (internal operator console,
-latency-tolerant). The **customer-facing** half of the same capability stays on the **hot path**
-(`core-api` `orders`), where the customer's receipt already lived — one capability, two audiences,
-two paths, each chosen on its own merits.
+**Service**: `apis/edge-api/shop` `fulfillments/` (`/shop/v1/fulfillments…`), per
+[docs/api/path-assignment.md](../api/path-assignment.md). The **customer-facing** half of the same
+capability is served by `apis/edge-api/commerce` (`/commerce/v1/orders…`), where the customer's
+receipt lives — one capability, two audiences, two services.
 
 **Authorization is role-agnostic**: both `shop_manager` and `shop_staff` have full fulfilment access
 (FR-019a) — fulfilment is floor work and this slice contains no adjudicable decisions. The 007
@@ -458,8 +457,8 @@ the last state a shop could not get out of.
 - ⚠ **A reason is required**, enforced by the control, the ViewModel, the service and a **CHECK
   constraint**. Back-office is asked to return a customer's money on the strength of it; "the shop said
   no" is not a basis.
-- ⚠ **`withdrawn` is a DIFFERENT state, and reads "Order cancelled".** It is written by `core-api` when
-  an order is cancelled — never by a shop. Conflating it with `unfulfillable` would tell a shop it
+- ⚠ **`withdrawn` is a DIFFERENT state, and reads "Order cancelled".** It is written by the
+  platform's cancellation (`@effy/edge-shared/payments`) when an order is cancelled — never by a shop. Conflating it with `unfulfillable` would tell a shop it
   failed at something nobody ever wanted, and would make shop-reliability reporting count cancellations
   as shop failures.
 - ⚠ **Both are terminal.** A shop that said it cannot supply must not be able to un-say it: the
@@ -513,11 +512,11 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
   revision's variants, unit cost / margin, reorder point, "Last 30 days" stats and seeded log are
   **not** reproduced — each slot carries the platform's real equivalent (spec A2 §5), and
   `inventory-guard.test.ts` passes unchanged. Presentation-only: no API, contract or data change.
-- ⚠ **THE SHOP CONSOLE NOW REACHES `core-api`, ON EXACTLY ONE ROUTE.** Refunds must settle through
-  055's state machine, which lives there because the payment secret does (019 SC-012). `core-api`
-  gains a **third** per-pool verifier (shop) — the same shape 055 used for back-office, per-pool
-  validation against that pool's own issuer, not the auth proxy Principle IV forbids. Every other
-  route on that service rejects a shop token structurally.
+- ⚠ **A SHOP REFUND SETTLES THROUGH THE PLATFORM'S ONE REFUND STATE MACHINE (055), NEVER A
+  SHOP-LOCAL ONE.** The route is `POST /shop/v1/orders/{orderId}/refunds` on the shop service, which
+  calls `@effy/edge-shared/payments` — the same code back-office and a customer's cancellation use.
+  *(Until 070 this was the console's one call to a second, always-on backend, because that backend
+  alone held the payment secret. That backend is retired.)*
 - ⚠ **The refund gate asks THREE questions and all three must hold**: an active operator, carrying
   `shop_manager`, at an active shop **that is fulfilling part of this order**. The third is what makes
   it different from every other gate on the platform — a shop manager's authority is bounded by which
@@ -568,7 +567,7 @@ is a parity debt shop-mobile now carries (⛔).
 |---|---|---|
 | Today: pick backlog, out-of-stock and low-stock rows, proposed refunds, each with a verb button | ✅ | ⛔ |
 | Today: live orders, ageing relative times, `New` under 60 s | ✅ | ⛔ |
-| Live updates as orders are paid (SSE from `core-api`, polling fallback) | ✅ | ⛔ |
+| Today re-reads itself every 30 s *(the live stream was withdrawn by 070; the under-10 s target with it)* | ✅ | ⛔ |
 | Today at a glance (revenue, orders, AOV, awaiting pick) | ✅ | ⛔ |
 | Quick actions sheet (six actions) | ✅ | ⛔ |
 | Team activity sheet | ✅ | ⛔ |

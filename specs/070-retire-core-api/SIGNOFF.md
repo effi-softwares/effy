@@ -83,11 +83,33 @@ Each is in [contracts/api-migration.md §3](contracts/api-migration.md); none wa
 - `apis/edge-api/shop/src/orders/repository.container.test.ts` — "pages with a total order and a
   stable total" returns the wrong page.
   Both fail identically with 070's migrations removed.
-- `scripts/check-no-phantm.sh` exits 1: seven lines in the specs of **042, 045 and 050** name the
-  prohibited address in the course of saying it is prohibited. No 070 file contains it. Those specs
-  were not edited here; say the word and I will reword the seven lines.
 - `scripts/check-no-telemetry-pii.sh` exits 1 on `apis/edge-api/notifications/src/worker/drain.ts`
   (the word `email` as a channel name, from 053). It failed the same way before this feature.
+
+## Done after the first handover (2026-10-05, nothing deployed yet)
+
+Checked read-only before starting: the work is committed (`722458bd`), `storefront` and `commerce`
+answer 404 on the gateway, no `effy-dev-commerce-*` alarm exists, and `core-api` answers 200. **The
+switch has not happened, so the teardown is still unwritten.**
+
+- **`scripts/check-no-phantm.sh` passes again.** Seven lines in the specs of 042, 045 and 050 named
+  the prohibited address in the course of saying it is prohibited; they now refer to the rule
+  (CLAUDE.md § Prohibited values) instead.
+- **Inventory accounting** written (below). Rows marked *Pending* or *To destroy* wait on the teardown.
+- **Document sweep, the part that does not wait on the teardown**: `README.md` (backend sections
+  rewritten for one backend; the `core-api` section carries a retirement notice until its targets
+  are deleted), `ORDER-FLOW-GAPS.md`, `docs/logistics-engine-architecture.md`,
+  `docs/audiences/shop-capabilities.md`, `docs/api/path-assignment.md`, `apps/customer-web/README.md`,
+  and the comments in `packages/shared-types`, `packages/api-client` and the three mobile apps.
+- **Two dated records are annotated rather than rewritten**, because rewriting them would falsify
+  what was known when they were written: `docs/insights-architecture.md` (its live-stream half is
+  superseded) and the per-feature notes in `docs/audiences/customer-capabilities.md` (its capability
+  tables are corrected). The sweep's allow-list in [quickstart.md](quickstart.md) names them, with
+  `docs/research/` and `docs/prd/`.
+- **Three generated mobile contract files regenerated** (`CommerceDto.kt`, `ShopDto.kt`,
+  `DriverDto.kt` and their schemas) — comment text only, because the type comments they are
+  generated from changed. ⚠ `make cm-contract-check` / `sm-contract-check` compare against the
+  **committed** files, so they report drift until these are committed.
 
 ## Deviations from the plan, recorded
 
@@ -176,6 +198,100 @@ the consoles' and storefront's leftover environment variable, the Make targets, 
 
 The fifteen journeys in [quickstart.md](quickstart.md), and the harness in
 [`scripts/verify-070/README.md`](../../scripts/verify-070/README.md). Bugs are fixed forward.
+
+## Inventory accounting (T099 — every row of [migration-inventory.md](migration-inventory.md))
+
+**Relocated** = has a new home, tested. **Repaired** = relocated and a defect fixed. **Retired** =
+deliberately not carried. **Deferred** = carried over unchanged, on record. **To destroy** = exists
+until the teardown is applied; this column is finished after Stage 4.
+
+### §2 Routes (52)
+
+| Was | State | Now |
+|---|---|---|
+| 8 storefront reads (`home`, `categories`, `facets`, `products`, `products/:id`, `promotions/:id`, `serviceability`, `localities`) | Relocated; `products` and `products/:id` **repaired** (malformed input) | `storefront` — `/storefront/v1/…` |
+| `cart/preview`, `cart/policy` (public) | Relocated | `commerce` |
+| Saved (6), lists (8), cart (9) | Relocated | `commerce` |
+| `cart/promo` POST, DELETE | **Repaired** — never existed | `commerce` |
+| `checkout/quote`, `/intent`, `/confirm`; `payment-methods` GET, DELETE | Relocated; intent **repaired** (empty cart) | `commerce` |
+| `orders` list, detail | Relocated (money no longer through floats — defect g) | `commerce` |
+| `orders/:id/cancel`, `orders/:id/refund-requests` | Relocated | `commerce` |
+| `stripe/webhook` | **Repaired** (defect b) | `commerce` |
+| `admin/orders/:id/refunds`, `/cancel`, `admin/refund-requests/:id/decline` | Relocated | `orders` — `/orders/v1/…` |
+| `shop/orders/:id/refunds` | Relocated; the order-scoped gate now has its TypeScript form | `shop` |
+| `platform/status` v1, v2 | Retired — already served by `/shop/v1/status`, `/shop/v2/status` | — |
+| `customer/ping` | Retired with the `account/hot-path` page | — |
+| `shop/live` | Retired — live updates withdrawn | — |
+| `/metrics`, `/healthz`, `/readyz` | Retired — each service has its own probes; metrics are CloudWatch | — |
+
+### §4 Defects
+
+| # | State |
+|---|---|
+| a promo routes | Repaired |
+| b webhook loses events | Repaired |
+| c `event_outbox` never drained | **Deferred** (clarification 4) — still written, still not delivered |
+| d no refund reconciler | Repaired · no sweep of abandoned unpaid orders — **Deferred** · `cart_change_log` never pruned — **Deferred**, unchanged |
+| e catalogue validation | Repaired |
+| f `stop-db.sh` aborts after teardown | **Pending** — fixed with the teardown (T092) |
+| g money through floats in order reads | Repaired |
+| h alert rule on an unregistered metric | Retired with the four alert files |
+
+### §6 Platform packages, metrics, tools
+
+| Go | State | Now |
+|---|---|---|
+| `logger`, `health`, `httpx`, `media`, `db` | Already ported; extended | `shared/src/lib` |
+| `auth` verifier | Relocated | gateway JWT authorizer per pool |
+| `auth` StaffGate | Already ported | `shared/src/lib/back-office-authz.ts` |
+| `auth` ShopGate (order-scoped) | Relocated | `shop/src/staff` (`shopMayRefundOrder`) |
+| `customeridentity` | Relocated, now one helper | `shared/src/lib/customer-identity.ts` |
+| `delivery` (engine, quote, zones, slots, standard days, localities, cutoff) | Relocated | `shared/src/delivery` |
+| `cartpolicy` | Relocated | `shared/src/cart-policy` |
+| `availability` + its guard | Relocated | `shared/src/lib/availability.ts`, `storefront/src/availability.guard.test.ts` |
+| `money`, `pricing` | Relocated | `shared/src/lib/money.ts` |
+| `events` (outbox append) | Relocated, still undrained | `shared/src/payments/outbox.ts` |
+| `metrics` | Relocated as one EMF helper | `shared/src/lib/metrics.ts` |
+| `config` | Relocated | each `serverless.yml` + its `config.contract.test.ts` |
+| 14 metrics | Relocated (names in plan.md "Telemetry declared"); `http_*` are the built-in per-function metrics | `Effy/Storefront`, `Effy/Commerce` |
+| `effy_shop_live_*`, `db_pool_connections_*` | Retired with their mechanisms | — |
+| `create-first-admin`, `delete-admin`, `load-localities` | Relocated | `apis/edge-api/ops` |
+
+### §11 Checks that depended on the Go source
+
+| Check | State |
+|---|---|
+| `orders/service.test.ts` (read `stage.go`, `refunds/repository.go`) | Rewritten — asserts the shared function is used, not a copy |
+| `refund-append-only.guard.test.ts` | Re-pointed; adds "exactly one writer" |
+| `hidden-fulfilment.guard.test.ts` | Re-pointed to `storefront`, `commerce` and the shared money/delivery code |
+| inventory `append-only.guard.test.ts`, `check-no-telemetry-pii.sh` | Re-pointed |
+| `config/contract_test.go` | Each service's `config.contract.test.ts` |
+| `db/schema_drift_test.go` | `shared/src/lib/schema-drift.guard.test.ts`, now over every service |
+| `availability/guard_test.go` | `storefront/src/availability.guard.test.ts` |
+| `checkout/customer_dto_guard`, `delivery_instructions_guard` | `commerce/src/checkout/checkout.guard.test.ts` |
+| `saveditems`, `storefront`, `checkout` wire-contract tests | `commerce/src/wire.contract.test.ts`, `storefront/src/wire.contract.test.ts` — read the mobile fixtures |
+| `delivery/deadline_contract_test.go` | `collection-deadline.contract.test.ts`, now calling the real checkout cutoff |
+
+### §12 Files outside `apis/core-api`
+
+| Group | State |
+|---|---|
+| Clients (customer-web, shop-web, back-office, customer-mobile) | Done |
+| Edge (routing-law comments, `admin/serverless.yml`, stale mentions) | Done |
+| Build/scripts: `stripe-listen.sh`, `check-no-telemetry-pii.sh`, `mobile-guard.sh`, `web.yml`, the three operator Make targets | Done |
+| Build/scripts: `core-*` and `cm-ngrok-core` Make targets, `start-db.sh`, `stop-db.sh` | **Pending** — with the teardown (T092, T093) |
+| Infra: alarms, observability README, four alert files, gateway CORS, `commerce.tf` | Done |
+| Infra: `core-api.tf`, the Fargate module, eight variables, `dev.tfvars`, both Amplify files' leftover variable, `infra/envs/README.md` | **Pending** — the teardown (T091) |
+| Docs: constitution, `ARCHITECTURE.md`, `platform-brief.md`, `docs/api/*`, `CLAUDE.md` | Done |
+| Docs: `README.md`, `ORDER-FLOW-GAPS.md`, `docs/audiences/*`, `docs/insights-architecture.md`, `docs/logistics-engine-architecture.md` | Done 2026-10-05 (see below) |
+
+### §7 Cloud resources · §13 local hygiene
+
+| Item | State |
+|---|---|
+| 19 resources under `module.core_api`, `aws_ssm_parameter.core_api_base_url`, two outputs | **To destroy** — Stage 4 |
+| Certificate and zone, RDS, both payment secrets, media bucket, Cognito pools, alerts topic | Keep — untouched |
+| `apis/core-api/` (incl. `.env` and the 50 MB `tmp/` build output) | **To delete** — T100, after the walk |
 
 ## Still open
 

@@ -11,7 +11,7 @@ androidx-core = "1.19.0"
 # mechanism covers the whole minSdk 24 … targetSdk 36 range (spec FR-012).
 androidx-splashscreen = "1.0.1"
 # 019 US3 — Stripe Android SDK. The publishable key is a NAME, not a secret (R3) — the Stripe SECRET
-# never leaves core-api.
+# never leaves the backend.
 #
 # ⚠ 051 T006: bumped 21.6.0 → 23.17.0 for `com.stripe.android.paymentelement.EmbeddedPaymentElement`,
 # which is what lets the payment method list render INSIDE an Effy screen instead of inside Stripe's

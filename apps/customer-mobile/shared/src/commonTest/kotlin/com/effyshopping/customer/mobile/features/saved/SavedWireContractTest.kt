@@ -22,9 +22,11 @@ import kotlin.test.assertTrue
  * source, takes each `const val`, and compares it with what the real mapper produces — so there is
  * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
  *
- * (Before 070 the backend half was apis/core-api/…/saveditems/wire_contract_test.go.) Neither side generates it and
- * neither imports it — that is the point. A shared fixture moves WITH the bug; two hand-maintained
- * copies make a divergence show up as a failure instead of as agreement.
+ * ⚠ ONE LITERAL, TWO INDEPENDENT JUDGES. The old arrangement kept two hand-made copies on the theory
+ * that a shared fixture "moves with the bug". This one cannot: the literal is judged here by whether
+ * the app can DECODE it, and on the backend by whether the real mapper PRODUCES it. Change the
+ * literal and both must still agree with it separately; change either side's code and its own test
+ * fails. (029 found the two-copy version agreeing with itself about a payload no server ever sent.)
  *
  * ⚠ WHY THIS EXISTS. 027 lost days to a defect no unit test on either side could see: Kotlin
  * serialised quantities as `Double`, so the wire carried `1.0`, and Go's encoding/json cannot

@@ -284,9 +284,8 @@ data class FulfillmentDetailDTO (
 
     /**
      * ⚠ 057 — THE ORDER'S OWN ID, added because `orderNumber` is a human reference and cannot
-     * address a resource. The shop refund route is `POST /v1/shop/orders/{orderId}/refunds` on
-     * `core-api`, and without this the console had literally no way to name the order it was
-     * looking at.
+     * address a resource. The shop refund route is `POST /shop/v1/orders/{orderId}/refunds`,
+     * and without this the console had literally no way to name the order it was looking at.
      *
      * ⚠ It is NOT a disclosure: the shop already sees this order's number, its items and its
      * delivery address. What stays absent is every OTHER shop's portion and any order-level
@@ -925,8 +924,8 @@ data class RegisterMediaRequest (
  *
  * ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion
  * previously lacked. ⚠ `withdrawn` is deliberately NOT requestable and must never become
- * so: it is written by `core-api` when an ORDER is cancelled, and a shop asserting it would
- * be claiming a customer cancelled.
+ * so: it is written by the platform's cancellation when an ORDER is cancelled, and a shop
+ * asserting it would be claiming a customer cancelled.
  */
 @Serializable
 enum class RequestableTransition(val value: String) {

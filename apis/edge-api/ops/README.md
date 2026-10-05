@@ -9,7 +9,7 @@ service**: there is no `serverless.yml`, nothing here is deployed, and nothing c
 | `make delete-admin EMAIL=… ENV=dev [FORCE=1]` | Completely remove a back-office admin — irreversible, asks first |
 | `make load-localities ENV=dev [CSVREL=path]` | Load the AU suburb / postcode reference data — idempotent |
 
-Until feature 070 these were Go programs inside the retired `core-api` backend. Their behaviour,
+Until feature 070 these were Go programs inside the second backend that feature retired. Their behaviour,
 arguments, output and confirm prompts are unchanged; only the language moved.
 
 ⚠ **The email is always an argument you type.** No tool here defaults an address from the

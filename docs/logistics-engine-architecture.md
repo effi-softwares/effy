@@ -55,7 +55,7 @@ deadline and zone, **work generated only at the wave, not before**) and Instacar
 cadence. Food-delivery on-demand systems are the wrong analogue.
 
 *From inside:* `public.delivery_collection_run` already stores 1..n wall-clock run times, and
-`apis/core-api/internal/platform/delivery/sameday.go` already answers the checkout question *"can this
+`apis/edge-api/shared/src/delivery/sameday.ts` already answers the checkout question *"can this
 shopper still get same-day?"*. **The engine is that same schedule read in the opposite direction:** given
 the 14:00 run and the prep buffer, which packages must be collected by then, and when must a driver leave?
 
@@ -285,10 +285,12 @@ Spec/artifacts: [specs/062-driver-zone-capability/](../specs/062-driver-zone-cap
 ### Slice C — The wave planner *(brief requirements 4 and 6)* — ✅ **BUILT (063)**
 
 **Built as `specs/063-driver-work-assignment`.** ⚠ **Its flagged decision is settled**: the cutoff rule
-is a **deliberate Go↔TypeScript duplicate pinned by a cross-language contract test with DST fixtures**
-(research R2). Calling `core-api` for the deadline was rejected because wave planning would then depend
-on the hot path being up, and **a missed wave is silent** — no error, no alarm, just packages that do
-not move. Both halves of the contract were proven by breaking each in turn.
+was built as a **deliberate duplicate in two languages, pinned by a contract test with DST fixtures**
+(research R2), because checkout then ran on a second backend and wave planning must not depend on
+another service being up — **a missed wave is silent**: no error, no alarm, just packages that do not
+move. ⚠ **070 retired that backend, so the duplicate is gone**: checkout's cutoff
+(`shared/src/delivery/sameday.ts`) and the planner's deadline now build their instants from the same
+function in `shared/src/lib/collection-deadline.ts`, and the DST fixtures pin that one implementation.
 
 ⚠ **The scope was larger than this plan recorded.** It said the driver app needed a restored route; it
 needed **fifteen** — the teardown removed sixteen routes while the app's client code and contract
@@ -305,8 +307,8 @@ Stated limitation, not an oversight.
 - Task/work model rebuilt — informed by D16, **not a restoration of 049's shape**.
 - **Sequencing by the D20 sort key** (status, time, zone, shop). No geometry, no solver.
 - Dispatcher console: see the wave, reassign, unassign, reorder, lock. **Manage by exception.**
-- ⚠ **Decide the cutoff-rule home here** (audit-00): Go on `core-api` beside `SameDayCutoff`, an internal
-  endpoint, or a deliberate duplicate pinned by a cross-language contract test with **DST fixtures** —
+- ⚠ **Decide the cutoff-rule home here** (audit-00): beside checkout's `SameDayCutoff`, an internal
+  endpoint, or a deliberate duplicate pinned by a contract test with **DST fixtures** (settled above) —
   058 found two real calendar bugs that only DST tests caught, including a silently skipped trading hour.
 
 ### Slice D — Driver execution and proof *(brief requirements 3 and 5)*

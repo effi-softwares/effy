@@ -17,7 +17,7 @@ import kotlin.test.fail
  *
  * ⚠ **This is a SOURCE guard, and it lives in `androidHostTest` rather than `commonTest` for a
  * reason**: it reads the file, and `commonMain` has no filesystem. The repo has this shape already —
- * 054's availability guard greps the Go hot path, 058's rollup guard reads the repository file. A
+ * 054's availability guard greps the shopper-facing services, 058's rollup guard reads the repository file. A
  * guard that reads source is a dev-time tool, so it belongs in the JVM source set.
  */
 class RouteSerializerGuardTest {

@@ -3,10 +3,10 @@
  *
  * Contract: `specs/047-delivery-shipping-engine/contracts/delivery-customer-api.contract.md`.
  *
- * The SSOT the Go hot path (serviceability, localities, quote), customer-web, and customer-mobile all
+ * The SSOT the backend (serviceability, localities, quote), customer-web, and customer-mobile all
  * consume (Principle II). ⚠ Money crosses the wire as a 2-dp decimal string (like every other amount on
  * the platform, e.g. `CartLineDTO.unitPriceAmount`) — never a float and never cents-as-number, which is
- * what the Go↔Kotlin wire-contract test exists to keep honest (research R14; 027 R13).
+ * what the backend↔mobile wire-contract test exists to keep honest (research R14; 027 R13).
  *
  * ⚠ Nothing here ever carries a distance, a ring name, or a shop identity (FR-018/FR-033; SC-007).
  */

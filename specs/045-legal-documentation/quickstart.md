@@ -56,7 +56,7 @@ wrong-document links.
   1. edit one generated mobile content line → **drift** failure;
   2. leave a `[LEGAL_ENTITY_NAME]` placeholder unresolved → **unresolved-identifier** failure;
   3. remove a `manifest` entry → **integrity** failure.
-- Confirm the banned `techsupport+claudeone@phantm.com` appears nowhere (`git grep` clean).
+- Confirm the banned address (CLAUDE.md § Prohibited values) appears nowhere (`scripts/check-no-phantm.sh` clean).
 
 ## F. Store-submission collateral is complete and consistent (US2 · SC-003, SC-004, SC-008)
 

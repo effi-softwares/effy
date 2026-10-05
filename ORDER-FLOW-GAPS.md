@@ -43,7 +43,8 @@ The half that is struck through was, until 2026-09-20:
   … → ready_for_pickup → driver collect → hub check-in → same-day drop → delivered
 ```
 
-The **paid transition** — `apis/core-api/internal/features/checkout/store.go:468` `FinalizeSucceeded` —
+The **paid transition** — `finalizeSucceeded` in `apis/edge-api/shared/src/payments/finalize.ts` (it was
+`FinalizeSucceeded` in the Go backend until 070) —
 is the strongest part of the platform. One transaction performs: the status-guarded
 `pending_payment → paid`, the per-shop `shop_fulfillment` fan-out, the 047 package-delivery copy, the
 `shop_new_order` push intents, the `order.placed` outbox append, the customer `order_paid` push intent,
@@ -68,7 +69,7 @@ The **only** writer of `shop_fulfillment.status = 'delivered'` is
 `opd.method = 'same_day'`.
 
 **Consequence.** Every standard package stops at `collected`, permanently. Via the rank map in
-`apis/core-api/internal/features/orders/stage.go`, `collected` scores 2 → the customer's derived stage
+`stageFor` (`apis/edge-api/shared/src/lib/order-completion.ts`), `collected` scores 2 → the customer's derived stage
 is **`on_the_way` forever**. The `order_delivered` push never fires. Standard is the *default* method
 (same-day requires a zone eligibility flag **and** a pre-cutoff order under 047), so this is the
 majority path.
@@ -96,7 +97,7 @@ decrement at finalize. A repo-wide search for stock/inventory/on_hand/reserved r
 > with the slice that needs them.
 
 That slice was never written. The only quantity constraint on the platform is
-`cartpolicy.MaxLineQuantity` (`apis/core-api/internal/features/cart/service.go:115`), which is a
+the cart policy's per-line maximum (`apis/edge-api/shared/src/cart-policy/policy.ts`), which is a
 per-line **policy cap**, not availability.
 
 **Consequence.** Overselling is unbounded. A shopper can buy 20 of something the shop has 2 of, and the
@@ -201,7 +202,7 @@ centre shows nothing, forever.
 
 ### ~~G6. `on_the_way` is claimed too early~~ — ✅ CLOSED by 053 (`ready_for_pickup` rank 2 → 1)
 
-`apis/core-api/internal/features/orders/stage.go` gives `ready_for_pickup` rank 2 → `on_the_way`. Under
+`stageFor` (then in the Go backend's `orders/stage.go`) gave `ready_for_pickup` rank 2 → `on_the_way`. Under
 049's hub-and-spoke model that means *packed and sitting on a shop shelf, waiting for the next scheduled
 collection run* — potentially the following day. `collected` also scores 2, and means *at the hub*,
 which is likewise not en route to the customer.
@@ -221,9 +222,9 @@ The delivery lifecycle landed in 049 with **`delivered`** as terminal, not `coll
 delivered order still reads as in-transit and blocks closure until the `IN_TRANSIT_BLOCK_DAYS = 7`
 backstop expires. One-line fix.
 
-*(Same file, `findBlockingOrders` docblock: the Principle III rationale — "core-api HAS NO CLOUD DEPLOY
-(local-Docker-only by platform decision)" — is stale since 040 deployed core-api. The exception may
-still be the right call; the reason given for it is no longer true.)*
+*(Same file, `findBlockingOrders` docblock: it recorded a cross-backend read as a Principle III
+exception, for a reason that had stopped being true. 070 left one backend, so the read is an ordinary
+one and the docblock now says so.)*
 
 ### G8. Internal vocabulary in customer-facing push
 
@@ -239,7 +240,7 @@ customer-visible has happened (see G6).
   then `apps/customer-web/app/checkout/page.tsx:38` redirects a guest to sign-in. The wall sits at the
   highest-intent moment in the funnel, and it is the one place the guest-first design gives out.
 - **No delivery instructions / drop-off preference.** `public.customer_address` has no such column and
-  `checkout.IntentInput` (`apis/core-api/internal/features/checkout/service.go:192`) accepts none. The
+  the checkout intent input (`apis/edge-api/commerce/src/checkout/service.ts`) accepted none. The
   driver app has a contactless proof method with no customer preference driving it.
 - **No abandoned-order sweep.** `pending_payment` orders linger indefinitely.
   `checkout/service.go:669` calls an extra abandoned pending order "harmless and sweepable" — nothing

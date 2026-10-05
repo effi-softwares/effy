@@ -82,7 +82,7 @@ enum class FulfillmentTransition(val key: String) {
 
     /**
      * ⚠ 055 US6. `withdrawn` is deliberately absent and must never be added: it is written by
-     * `core-api` when an ORDER is cancelled, and a shop asserting it would be claiming a customer
+     * the platform's cancellation when an ORDER is cancelled, and a shop asserting it would be claiming a customer
      * cancelled.
      */
     UNFULFILLABLE("unfulfillable"),

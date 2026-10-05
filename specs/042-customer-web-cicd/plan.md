@@ -68,7 +68,7 @@ app, one branch mapping, one domain (apex + `www`).
 |---|---|---|
 | **Infra is Terraform, multi-env, IaC** | ✅ | Amplify app + branch + domain + SSM authored as Terraform in a reusable module; qa/staging/prod are `env=`. |
 | **Mode of work — Claude authors, operator runs risky/outward-facing steps** | ✅ | Claude writes Terraform + `amplify.yml`; operator runs `terraform apply`, installs the Amplify GitHub App / mints the PAT, and does the DNS cutover. No `apply` run by Claude. |
-| **Real-World Identifiers (NON-NEGOTIABLE, v1.12.0)** | ✅ | GitHub token, Stripe publishable key, PostHog key, alarm endpoint — all operator-supplied via SSM/tfvars, none inferred. Banned address `techsupport+claudeone@phantm.com` appears nowhere. Missing values fail loudly (SSM data source on a non-existent key errors the plan). |
+| **Real-World Identifiers (NON-NEGOTIABLE, v1.12.0)** | ✅ | GitHub token, Stripe publishable key, PostHog key, alarm endpoint — all operator-supplied via SSM/tfvars, none inferred. The banned address (CLAUDE.md § Prohibited values) appears nowhere. Missing values fail loudly (SSM data source on a non-existent key errors the plan). |
 | **Principle II — shared packages are the single source, never copied** | ✅ | The `amplify.yml` installs from the monorepo root (`buildPath: /`) so `customer-web` consumes `@effy/{design-system,shared-types,api-client}` from the workspace, never a copy. |
 | **Config, never a literal (region/addresses flow from vars/SSM)** | ✅ | Domain from `module.dns.zone_name`; backend origins from Terraform refs / SSM; branch + repo are variables. |
 | **Principle V — design (monochrome, no card layouts)** | ✅ N/A | No UI change; the storefront's design is untouched. |

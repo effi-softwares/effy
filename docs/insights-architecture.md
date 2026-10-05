@@ -4,6 +4,17 @@
 **Status**: the research the brief asked for *before* any code. Decisions it reaches are carried into
 [research.md](../specs/058-shop-today-insights/research.md) and [plan.md](../specs/058-shop-today-insights/plan.md).
 
+> ⚠ **2026-10-05 — HALF OF THIS DOCUMENT IS SUPERSEDED (feature 070).** It is the research written
+> before 058 was built, and it is kept as written. What it decided about **Insights** (rollups, the
+> dirty-bucket queue, the triggers that mark buckets, the reconcile) stands and is what runs.
+> What it decided about **Today's freshness** does not: the live stream (server-sent events from the
+> always-on Go backend, fed by the `shop_ops` database notification) was removed when that backend
+> was retired. **Today re-reads every 30 seconds**; the under-ten-seconds target is withdrawn; the
+> notification function is dropped (migration `20261005075916`) and every trigger is kept. The
+> "two backends" this document refers to are now one — the serverless services under
+> `apis/edge-api/`. A cheaper way to be fresher than 30 seconds is deferred, not designed; when it is
+> taken up, the cost table below is the place to start, minus the option that needed a standing server.
+
 The shop console gets two screens with opposite data profiles:
 
 | | **Today** | **Insights** |

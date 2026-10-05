@@ -32,7 +32,7 @@ import kotlinx.io.IOException
  * client adds its auth headers only when signed in, which the public routes ignore. Transport
  * failures become `AppError.Network` via [request], exactly like the account repository (013 pattern).
  *
- * ⚠ Until 070 these were `v1/storefront/…` on a second, always-on backend (`core-api`). The paths
+ * ⚠ Until 070 these were `v1/storefront/…` on a second, always-on backend, since retired. The paths
  * moved under the service prefix and the second base URL is gone; the wire shapes did not change.
  */
 class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {

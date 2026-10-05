@@ -3,9 +3,9 @@
  *
  * Contract: `specs/047-delivery-shipping-engine/contracts/delivery-admin-api.contract.md`.
  *
- * The SSOT the cold-path `edge-api/admin` delivery domain and the back-office console share (Principle
- * II). ⚠ This surface VALIDATES a plan but never computes a customer fee — the engine's one home is the
- * hot path. Every mutation is attributed via `admin.audit_log`.
+ * The SSOT the `edge-api/admin` delivery domain and the back-office console share (Principle
+ * II). ⚠ This surface VALIDATES a plan but never computes a customer fee — the engine's one home is
+ * `@effy/edge-shared/delivery`. Every mutation is attributed via `admin.audit_log`.
  *
  * ⚠ Money / factors / coordinates / km are `numeric` DB columns and cross the wire as decimal STRINGS
  * (exact, no float); grams / ordinal / buffer / counts are integers (`number`).

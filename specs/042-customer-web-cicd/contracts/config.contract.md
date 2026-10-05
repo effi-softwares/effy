@@ -15,7 +15,7 @@ One writer per key, many readers (Principle II). This slice **reads** a few oper
 | `/effy/<env>/posthog/host` | String | operator (optional) | `NEXT_PUBLIC_POSTHOG_HOST` | defaults to `https://us.i.posthog.com` |
 
 **Real-World Identifiers rule**: these are external credentials/keys — operator-supplied, never
-inferred from session/environment. The banned address `techsupport+claudeone@phantm.com` must not
+inferred from session/environment. The banned address (CLAUDE.md § Prohibited values) must not
 appear in any of these values, fixtures, or docs (constitution v1.12.0).
 
 ## Outputs — written by this slice

@@ -225,7 +225,7 @@ document (quickstart D).
 - [x] T053 Confirm the guest-bundle budget lists every new public route and passes (`pnpm --filter @effy/customer-web build` + budget)
 - [ ] T054 [P] Update the parity register `docs/audiences/customer-capabilities.md` §045
 - [ ] T055 Run the full quickstart.md A–F validation walk
-- [ ] T056 Verify the banned `techsupport+claudeone@phantm.com` appears nowhere (`git grep` clean);
+- [ ] T056 Verify the banned address (CLAUDE.md § Prohibited values) appears nowhere (`scripts/check-no-phantm.sh` clean);
   run `pnpm -r typecheck`, `pnpm -r test`, `legal:check`, and Android + iOS compile
 
 ---

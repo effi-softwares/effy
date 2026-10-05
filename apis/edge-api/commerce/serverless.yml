@@ -23,7 +23,7 @@
 # ⚠ MONEY LOGIC IS NOT WRITTEN HERE. Payment finalisation, refunds and cancellation live in
 # `@effy/edge-shared/payments`, which `orders` and `shop` call too. This service wires routes to it.
 #
-# Until 070 these routes were served by an always-on Go backend (`core-api`).
+# Until 070 these routes were served by a second, always-on Go backend, since retired.
 #
 # Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
 service: effy-edge-commerce

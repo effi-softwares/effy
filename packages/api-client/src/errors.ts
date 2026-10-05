@@ -26,7 +26,7 @@ export interface DomainError {
   /**
    * The problem document's `type` URI, when the service sent one.
    *
-   * ⚠ Like `fields`, this is a value the API contract defines on purpose: the hot path names a
+   * ⚠ Like `fields`, this is a value the API contract defines on purpose: the backend names a
    * refusal by its `type` (`…/problems/name-taken`), and without it two different 400s are one
    * indistinguishable status. A caller maps it to its OWN copy; it is never shown.
    */

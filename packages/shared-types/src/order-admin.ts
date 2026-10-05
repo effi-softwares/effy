@@ -231,7 +231,7 @@ export interface AdminOrderDetailDTO {
   /**
    * What could still be refunded — the ceiling, computed once by the server.
    *
-   * ⚠ ADVISORY, NEVER THE GATE. `core-api` recomputes it inside the row lock at issue time (FR-008);
+   * ⚠ ADVISORY, NEVER THE GATE. The server recomputes it inside the row lock at issue time (FR-008);
    * this figure was true when the page loaded and another operator may have spent it since. It exists
    * so the console can show a number, not so it can decide.
    */

@@ -1,7 +1,7 @@
 /**
  * Checkout & payment contracts — 019-customer-commerce-flow.
  *
- * The server (core-api) owns the Stripe secret and computes the amount from the cart; the client
+ * The server owns the Stripe secret and computes the amount from the cart; the client
  * receives ONLY a `clientSecret` (+ the publishable key, a name not a secret) and confirms exactly one
  * PaymentIntent (R3). The webhook is the authoritative finalizer; confirm is a fallback (R4).
  *
@@ -107,7 +107,7 @@ export interface CreateCheckoutIntentResponse {
    * ⚠ REQUIRED BY THE MOBILE SDKs, which take the id and the secret together
    * (`createWithCustomerSession(id, clientSecret)`); a session without its id cannot be attached. The
    * SECRET is the credential — this id alone reaches no API, because every call that reads a customer
-   * needs a secret key that never leaves core-api. Absent from the web response, never logged, never in
+   * needs a secret key that never leaves the server. Absent from the web response, never logged, never in
    * telemetry, and never accepted as request input (data-model § 1, amended).
    */
   customerId?: string | null;

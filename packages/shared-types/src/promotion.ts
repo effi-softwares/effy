@@ -3,9 +3,8 @@
  *
  * The back-office surface for the platform's first commercial lever: promotional codes, and the one row
  * that holds the order rules (minimum spend + the two cart ceilings). Consumed by `apps/back-office`
- * against `apis/edge-api/admin` (cold path); the CUSTOMER side of a code — applying it, and the
- * discount — lives in `cart.ts` on the hot path, because that is a latency-sensitive customer
- * transaction (Principle III, 011 FR-028).
+ * against `apis/edge-api/admin`; the CUSTOMER side of a code — applying it, and the discount — lives
+ * in `cart.ts`, served by `apis/edge-api/commerce`.
  *
  * These are the OPERATOR's view. Full identity and attribution are appropriate here; none of it reaches
  * a customer surface. Mirrors the 021 delivery-management contract shape and reuses `PagedDTO<T>` and
@@ -160,7 +159,7 @@ export interface SetPromoStatusRequest {
 }
 
 /**
- * The single order-rules row (GET/PUT /admin/v1/order-policy). Read by the hot path on every cart read
+ * The single order-rules row (GET/PUT /admin/v1/order-policy). Read by the commerce service on every cart read
  * so that the rule the platform enforces and the number the shopper is shown cannot drift apart.
  */
 export interface OrderPolicyDTO {

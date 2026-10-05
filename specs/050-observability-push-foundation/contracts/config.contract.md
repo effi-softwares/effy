@@ -30,7 +30,7 @@ Read via the Parameters-and-Secrets Lambda extension layer (existing pattern in 
 
 - Web `VITE_*` / `NEXT_PUBLIC_*` telemetry vars are build-time-inlined from the SSM params above and are
   **public-safe** (project key + host only) — the same posture as the existing Cognito client config.
-- **No banned address** (`techsupport+claudeone@phantm.com`) anywhere; approved mailboxes only if a
+- **No banned address** (CLAUDE.md § Prohibited values) anywhere; approved mailboxes only if a
   contact address is ever needed (`workspace-admin@`, `hello@`).
 
 ## No-op / fail-open matrix (FR-027, SC-007)

@@ -251,8 +251,8 @@ export interface OrderDTO {
 
 /**
  * 052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived server-side from
- * every `shop_fulfillment.status` on the order. See `apis/core-api/internal/features/orders/stage.go`
- * for the single rollup that produces it.
+ * every `shop_fulfillment.status` on the order. See `stageFor` in
+ * `apis/edge-api/shared/src/lib/order-completion.ts` for the single rollup that produces it.
  */
 export type OrderStage = "confirmed" | "packing" | "on_the_way" | "delivered";
 export const ORDER_STAGES: readonly OrderStage[] = [

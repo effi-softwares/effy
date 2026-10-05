@@ -12,9 +12,9 @@ import {
 } from "./delivery-instructions";
 
 /**
- * ⚠ THE FIXTURE IS SHARED WITH GO. `apis/core-api/internal/platform/deliveryinstructions` reads this
- * same file. A case that passes here and fails there is the defect it exists to catch — 027 recorded
- * what happens when two languages each test their own half of one rule.
+ * ⚠ THE FIXTURE IS THE RULE'S TABLE. Until 070 a second implementation, in a second language on a
+ * second backend, read this same file to stay in step. The backend now imports the function below
+ * directly, so there is one implementation and this is simply its test — the cases are unchanged.
  */
 interface Case {
   name: string;

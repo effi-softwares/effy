@@ -10,7 +10,6 @@ Spec: [specs/011-customer-storefront-web](../../specs/011-customer-storefront-we
 
 ```bash
 cp .env.example .env.local     # fill from the SSM contract
-make core-run                  # the hot path — LOCAL DOCKER ONLY (it is not deployed)
 make cw-dev                    # → http://localhost:3000
 ```
 
@@ -56,15 +55,18 @@ a **barred** customer holds a perfectly valid token and must still be refused.
 Auth checks must **not** live in layouts. They don't re-render on navigation, so they would run once
 and then quietly stop guarding.
 
-### 4. The backend routing law
+### 4. One backend, one client
 
 ```
-product · catalog · search · cart · order · payment   →  core-api (Go, hot path)   lib/api/core.ts
-customer profile / account management                 →  edge-api (serverless)     lib/api/edge.ts
+catalogue (public)                          →  /storefront/v1/…   edgeApiPublic()   lib/api/edge.ts
+cart · checkout · payment · orders          →  /commerce/v1/…     edgeApi(session)
+customer profile / account management       →  /customer/v1/…     edgeApi(session)
 ```
 
-No commerce feature may go on the cold path without a recorded exception. Both addresses are
-**configuration, never literals**, so the hot path's eventual go-live needs no code change here.
+Every service is behind one gateway, and its address is **configuration, never a literal**
+(`NEXT_PUBLIC_EDGE_API_BASE_URL`). Until feature 070 commerce went to a second backend through its
+own client; both are gone. Which service a new route belongs to:
+[docs/api/path-assignment.md](../../docs/api/path-assignment.md).
 
 ## The gates
 

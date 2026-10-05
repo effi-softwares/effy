@@ -8,6 +8,18 @@ records what that audience can do and which surface delivers it. It exists so th
 to one surface cannot leave the other's state unstated — the drift a two-surface audience otherwise
 slides into silently.
 
+> ⚠ **2026-10-05 — READING THE HISTORY BELOW (feature 070).** The platform has **one backend** now.
+> Every section below that says *hot path* or `core-api` was true when its feature shipped and is
+> left as written; today those capabilities are served by two serverless services:
+>
+> | Then (`core-api`) | Now |
+> |---|---|
+> | Home, categories, search, facets, product and promotion detail, serviceability, localities | `apis/edge-api/storefront` — `/storefront/v1/…` |
+> | Cart, promo, saved items and lists, checkout, payment, a shopper's orders, cancel, refund request | `apis/edge-api/commerce` — `/commerce/v1/…` |
+>
+> *Cold path* means the same serverless backend it always did. The capability tables are current;
+> only their per-feature notes are history.
+
 > **Rule**: a change that adds or removes a customer capability on either surface **must** update this
 > table in the same change. A row with an unstated cell is a defect, not a TODO.
 
@@ -62,7 +74,7 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 | 15 | A **barred** customer is refused despite a valid credential | 🔒 | ⬜ | `edge-api/customer` |
 | 16 | The customer **maintains their own details** (display name) | 🔒 | ⬜ | `edge-api/customer` |
 | 17 | A customer credential is **structurally refused** by every employee-facing service | 🔒 | ⬜ | gateway JWT authorizers |
-| 18 | Commerce traffic is served by the **hot path** (`core-api`) | ✅ *(proven via ping)* | ⬜ | `core-api` |
+| 18 | Commerce traffic is served by the **`storefront` and `commerce` services** *(070; was a second backend)* | ✅ | ✅ | `edge-api/storefront`, `edge-api/commerce` |
 | 19 | Dark mode, and the platform's design tokens only | ✅ | ⬜ | `@effy/design-system` |
 | 20 | Consent-gated analytics; **no PII beyond the auth subject id** | ✅ | ⬜ | PostHog |
 
@@ -388,7 +400,7 @@ cart lived and died on one device. 027 rebuilds the cart as a **server-authorita
 
 | Capability | customer-web | customer-mobile | Notes |
 |---|---|---|---|
-| Cart persists to the account | ✅ | ✅ | `core-api` (hot path, FR-028) — a cart is a latency-sensitive customer transaction |
+| Cart persists to the account | ✅ | ✅ | `edge-api/commerce` |
 | Cart survives force-quit / device restart | ✅ | ✅ | mirror in `localStorage` / `DevicePreferences`, adopted forward-only on `revision` |
 | Cart follows the shopper across devices | ✅ | ✅ | SC-002 — the whole reason the slice exists |
 | Guest cart merges in at sign-in | ✅ | ✅ | union with **MAXIMUM** quantity → idempotent, so it is safe on every sign-in |
@@ -508,7 +520,7 @@ done. No measurements were taken (SC-005/SC-006/SC-008). Full record:
 | Exclusive placement per promotion | ✅ back-office | ✅ | carousel **or** between sections, never both |
 | Banner code + terms shown | ❌ | ✅ | web still ignores `code`/`terms`/`target`/`placement` |
 | Banner tap opens the promotion | ✅ | ✅ | added 2026-08-01 — **at parity**; web routes on `href`, mobile on `target`, one server decides both |
-| Promotion detail (code · terms · expiry) | ✅ `/promotions/[id]` | ✅ `PromotionScreen` | one hot-path read serves both |
+| Promotion detail (code · terms · expiry) | ✅ `/promotions/[id]` | ✅ `PromotionScreen` | one `storefront` read serves both |
 
 **Path (Principle III):** unchanged from 028 — the Home read is a latency-sensitive customer read on the
 **hot path**; authoring is operator CRUD on the **cold path**. No boundary moved.

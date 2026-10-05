@@ -34,7 +34,7 @@ import org.jetbrains.compose.resources.DrawableResource
  *
  * An `icon_key` column on `public.category`, chosen by the operator from a fixed vocabulary, is
  * strictly better and is the natural follow-up. It needs a migration, an admin route, a back-office
- * control and a hot-path read change — to solve a problem that does not exist yet at Effy's category
+ * control and a storefront read change — to solve a problem that does not exist yet at Effy's category
  * count. Recorded in research R5 rather than half-built here.
  *
  * Pure by design, so the fallback path is unit-testable without a device — which matters, because it

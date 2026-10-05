@@ -7,8 +7,8 @@ always with interactive confirmation.
 
 What the platform *is*: [CLAUDE.md](CLAUDE.md) · how code is organized:
 [ARCHITECTURE.md](ARCHITECTURE.md) · per-service guides:
-[services/core-api](services/core-api/README.md) ·
-[services/edge-api](services/edge-api/README.md) · API contracts:
+each service under [apis/edge-api/](apis/edge-api/) (operator tools:
+[apis/edge-api/ops](apis/edge-api/ops/README.md)) · API contracts:
 [docs/api/](docs/api/).
 
 **Tools**: Terraform, AWS CLI, goose (`brew install goose`), Docker Desktop,
@@ -71,7 +71,13 @@ make db-down ENV=dev                # 🧑‍💻 step back ONE — dev-only con
 
 Authoring rules: [db/README.md](db/README.md).
 
-## 3. core-api (Go hot path — local Docker)
+## 3. core-api — ⚠ BEING RETIRED (feature 070)
+
+> The platform has **one backend**: the serverless services in section 4. `core-api` was a second,
+> always-on Go service that carried shopper traffic. Every route it served now lives in
+> `apis/edge-api/storefront` and `apis/edge-api/commerce`, and no client calls it. It keeps running
+> only until the cut-over is complete; this section and the `core-*` targets are deleted with it.
+> Do not add to it. Status: [specs/070-retire-core-api/SIGNOFF.md](specs/070-retire-core-api/SIGNOFF.md).
 
 ```bash
 make core-run                # compose DSN + customer pool ids at invocation → docker compose up (air live-reload)
@@ -96,21 +102,27 @@ curl -so /dev/null -w '%{time_total}\n' localhost:8080/v1/platform/status   # < 
 Every request = one JSON log line in the compose output with a `request_id` matching
 the `X-Request-ID` response header.
 
-## 4. edge-api (serverless cold path — deployed to dev)
+## 4. The backend — `apis/edge-api` (serverless, deployed to dev)
 
 ```bash
-make edge-install            # pnpm install (workspace)
-make edge-test               # tsc --noEmit + vitest
-make edge-offline            # local serverless-offline (resolves SSM → needs ef profile)
-make edge-deploy ENV=dev     # 🧑‍💻 deploy to Lambda + API Gateway
-                             # NOTE: exactly ONE "Invalid configuration" warning about
-                             # nodejs22.x is expected (frozen serverless v3 schema)
+make edge-install                          # pnpm install (workspace)
+make edge-test                             # tsc --noEmit + vitest, every service
+CONTAINER_TESTS=1 make edge-test           # + the real-PostgreSQL suites (needs Docker)
+make edge-offline SERVICE=commerce         # ONE service locally (resolves SSM → needs ef profile)
+make edge-deploy SERVICE=commerce ENV=dev  # 🧑‍💻 deploy ONE service to Lambda + the shared gateway
+                                           # NOTE: exactly ONE "Invalid configuration" warning about
+                                           # nodejs22.x is expected (frozen serverless v3 schema)
 ```
+
+One service per audience and domain — `storefront`, `commerce`, `customer`, `shop`, `inventory`,
+`driver`, `admin`, `catalog`, `fleet`, `orders`, plus the `notifications` and `auth` workers. Which
+service a route belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md). Paths are
+`/<service>/v<major>/…`.
 
 Get the live base URL any time:
 
 ```bash
-cd services/edge-api && AWS_PROFILE=ef pnpm exec serverless info --stage dev
+cd apis/edge-api/commerce && AWS_PROFILE=ef pnpm exec serverless info --stage dev
 # The gateway host is a contract value — read it, never hardcode it (A3).
 # Since 010 this yields the platform-owned address (https://api.dev.effyshopping.com), not the
 # provider-generated execute-api hostname — the key is unchanged, only its value improved.
@@ -122,21 +134,22 @@ export EDGE_RAW_URL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/edge
   --region ap-southeast-2 --query Parameter.Value --output text)
 ```
 
-Verify (first call after idle may be cold-slow — that's the accepted cold-path trade):
+Verify (the first call after idle is slower — a cold start):
 
 ```bash
-curl -s $EDGE_URL/healthz                  # {"status":"ready","checks":{"database":"ok"}}
-curl -s $EDGE_URL/v1/platform/status       # same flat v1 shape as core-api
-curl -s $EDGE_URL/v2/platform/status       # contract_version: 2
-curl -si $EDGE_URL/v3/platform/status      # 404 (gateway body — unmatched routes never invoke a Lambda)
-curl -si $EDGE_URL/v1/back-office/ping     # 401 {"message":"Unauthorized"} without a token (gateway authorizer)
+curl -s $EDGE_URL/storefront/healthz           # {"status":"ok"} — every service has /<service>/healthz and /readyz
+curl -s $EDGE_URL/commerce/readyz              # {"status":"ready","checks":{"database":"ok"}}
+curl -s $EDGE_URL/shop/v1/status               # flat v1: environment, database_*, migration_version
+curl -s $EDGE_URL/shop/v2/status               # contract_version: 2
+curl -s "$EDGE_URL/storefront/v1/products?q=milk" | head -c 300
+curl -si $EDGE_URL/commerce/v1/cart            # 401 {"message":"Unauthorized"} without a token (gateway authorizer)
 ```
 
 Logs & alarms:
 
 ```bash
-AWS_PROFILE=ef aws logs tail /aws/lambda/effy-edge-api-dev-health --since 15m --region ap-southeast-2
-AWS_PROFILE=ef aws cloudwatch describe-alarms --alarm-name-prefix effy-edge-api-dev --region ap-southeast-2 \
+AWS_PROFILE=ef aws logs tail /aws/lambda/effy-edge-commerce-dev-readyz --since 15m --region ap-southeast-2
+AWS_PROFILE=ef aws cloudwatch describe-alarms --alarm-name-prefix effy-dev --region ap-southeast-2 \
   --query 'MetricAlarms[].{name:AlarmName,state:StateValue}' --output table
 ```
 
@@ -217,4 +230,5 @@ AWS_PROFILE=ef aws cloudformation get-template --stack-name effy-edge-api-dev \
 | 001 four Cognito pools + state backbone | `specs/001-infra-foundation/` |
 | 002 dev database (cost floor, `/effy/dev/db/*` contract) | `specs/002-dev-database/` |
 | 003 goose migration workflow | `specs/003-db-migrations/` + `db/README.md` |
-| 004 backend bootstrap (core-api + edge-api, versioning, auth) | `specs/004-backend-bootstrap/` (full verification runbook: `quickstart.md`) |
+| 004 backend bootstrap (versioning, auth; written for two backends) | `specs/004-backend-bootstrap/` (full verification runbook: `quickstart.md`) |
+| 070 one backend (the Go service retired) | `specs/070-retire-core-api/` (status and operator steps: `SIGNOFF.md`) |

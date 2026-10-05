@@ -81,7 +81,7 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
             configuration.embeddedViewDisplaysMandateText = false
 
             // The deferred flow: the order and its intent already exist, so the handler hands back the
-            // client secret core-api issued. The Stripe SECRET never leaves core-api (019 R3).
+            // client secret the server issued. The Stripe SECRET never leaves the server (019 R3).
             let intentConfiguration = PaymentSheet.IntentConfiguration(
                 mode: .payment(
                     amount: Int(amountMinor),

@@ -359,10 +359,11 @@ data class DeliveryWindow (
  * server is how a 300-character note is typed, accepted by the screen and refused at
  * payment.
  *
- * ⚠ THE GO HOT PATH CANNOT IMPORT THIS FILE, so it carries one mirror
- * (`apis/core-api/internal/platform/deliveryinstructions`). The two are pinned together by
- * `delivery-instructions.fixtures.json`, which BOTH test suites read. Changing a step here
- * without changing it there fails the Go suite — that is the point.
+ * ⚠ THE SERVER IMPORTS THIS FILE. Checkout (`edge-api/commerce`) calls
+ * `normaliseDeliveryInstructions` itself, so the client's opinion and the server's are the
+ * same function. (Until 070 the server was a second language and carried a mirror, pinned
+ * by `delivery-instructions.fixtures.json`; the fixture remains as this rule's table of
+ * cases.)
  */
 @Serializable
 enum class HandoverPreference(val value: String) {

@@ -73,10 +73,11 @@ data class DeliveryInstructionsDTO (
  * server is how a 300-character note is typed, accepted by the screen and refused at
  * payment.
  *
- * ⚠ THE GO HOT PATH CANNOT IMPORT THIS FILE, so it carries one mirror
- * (`apis/core-api/internal/platform/deliveryinstructions`). The two are pinned together by
- * `delivery-instructions.fixtures.json`, which BOTH test suites read. Changing a step here
- * without changing it there fails the Go suite — that is the point.
+ * ⚠ THE SERVER IMPORTS THIS FILE. Checkout (`edge-api/commerce`) calls
+ * `normaliseDeliveryInstructions` itself, so the client's opinion and the server's are the
+ * same function. (Until 070 the server was a second language and carried a mirror, pinned
+ * by `delivery-instructions.fixtures.json`; the fixture remains as this rule's table of
+ * cases.)
  */
 @Serializable
 enum class HandoverPreference(val value: String) {
@@ -638,8 +639,8 @@ data class CreateCheckoutIntentResponse (
      * ⚠ REQUIRED BY THE MOBILE SDKs, which take the id and the secret together
      * (`createWithCustomerSession(id, clientSecret)`); a session without its id cannot be
      * attached. The SECRET is the credential — this id alone reaches no API, because every call
-     * that reads a customer needs a secret key that never leaves core-api. Absent from the web
-     * response, never logged, never in telemetry, and never accepted as request input
+     * that reads a customer needs a secret key that never leaves the server. Absent from the
+     * web response, never logged, never in telemetry, and never accepted as request input
      * (data-model § 1, amended).
      */
     @SerialName("customerId")
@@ -1489,8 +1490,8 @@ enum class PaymentStatus(val value: String) {
  * being picked is `packing`. The customer has not received their order.
  *
  * 052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived
- * server-side from every `shop_fulfillment.status` on the order. See
- * `apis/core-api/internal/features/orders/stage.go` for the single rollup that produces it.
+ * server-side from every `shop_fulfillment.status` on the order. See `stageFor` in
+ * `apis/edge-api/shared/src/lib/order-completion.ts` for the single rollup that produces it.
  */
 @Serializable
 enum class OrderStage(val value: String) {

@@ -57,7 +57,7 @@ locals {
   # CORS grant to try.
   #
   # Config-derived from this environment's own zone — the storefront is served at the zone apex and
-  # at www (amplify-customer-web.tf). ⚠ No production origin is listed in a dev gateway: core-api's
+  # at www (amplify-customer-web.tf). ⚠ No production origin is listed in a dev gateway: the retired backend's
   # allow-list carried `effyshopping.com` "ahead of" a prod storefront, which let a prod page call
   # dev. Prod's own root derives prod's own origins from prod's zone.
   storefront_origins = [

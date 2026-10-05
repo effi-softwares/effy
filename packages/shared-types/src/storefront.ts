@@ -1,13 +1,13 @@
 /**
  * Customer storefront (public read) contracts — 019-customer-commerce-flow.
  *
- * The single source of truth (Principle II) for the customer-facing catalog read shapes served by the
- * hot path (apis/core-api `storefront` feature) and consumed by customer-web + (regenerated to Kotlin)
+ * The single source of truth (Principle II) for the customer-facing catalog read shapes served by
+ * `apis/edge-api/storefront` and consumed by customer-web + (regenerated to Kotlin)
  * customer-mobile. These are the CUSTOMER projection of the 016 catalog: they carry NO shop identity
  * and NO internal fields — shops are hidden fulfillment nodes (FR-038).
  *
  * Money is a decimal STRING + a `currency` field (matches catalog.ts / R9). Image URLs are short-lived
- * presigned S3 GET URLs minted by core-api (R7). Every enum has a tolerant-reader narrowing helper so a
+ * presigned S3 GET URLs minted by the server (R7). Every enum has a tolerant-reader narrowing helper so a
  * value the back office adds later maps to nothing here rather than throwing (versioning-policy rule 4).
  *
  * Data design: see specs/019-customer-commerce-flow/data-model.md §3.

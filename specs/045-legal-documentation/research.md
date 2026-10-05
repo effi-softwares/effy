@@ -208,7 +208,7 @@ state, and privacy/legal contact — each defaulting to an **unmistakable placeh
 `[LEGAL_ENTITY_NAME]`). `legal:check` **fails** if any placeholder remains, so publish is mechanically
 blocked until the operator supplies real values. Contact email uses an **approved mailbox**
 (`hello@`/`workspace-admin@`) or the already-shipped `support@effyshopping.com` (operator-confirmed);
-the banned `techsupport+claudeone@phantm.com` appears nowhere.
+the banned address (CLAUDE.md § Prohibited values) appears nowhere.
 
 **Rationale**: Directly implements the constitution's non-negotiable identifier rule and its "fail
 loudly" mandate; the lawyer/operator fills the values at review time.
