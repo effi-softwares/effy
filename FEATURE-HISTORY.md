@@ -4,9 +4,9 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**070-retire-core-api — One Backend: Retire the Always-On Shopper Service.** 🚧 **87/102 tasks —
-CODE-COMPLETE UP TO THE CUT-OVER AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
-PERSON. `core-api` IS UNTOUCHED AND STILL SERVING; nothing in the tree destroys anything.** Sign-off
+**070-retire-core-api — One Backend: Retire the Always-On Shopper Service.** 🚧 **93/102 tasks —
+THE NEW SERVICES ARE DEPLOYED TO DEV AND THE CLIENTS RELEASED (2026-10-05). THE TEARDOWN IS WRITTEN
+AND ⚠ NOT YET APPLIED: `core-api` still runs until the operator applies it. NOT WALKED BY A PERSON.** Sign-off
 and the operator's next steps: [specs/070-retire-core-api/SIGNOFF.md](specs/070-retire-core-api/SIGNOFF.md).
 Route map and every deliberate behaviour change:
 [contracts/api-migration.md](specs/070-retire-core-api/contracts/api-migration.md).
@@ -68,11 +68,12 @@ after the apps are switched; the shop console's **live stream is dropped**, not 
 - **Operator tools** moved to `apis/edge-api/ops` (TypeScript, run through the same `make` targets).
 - **Deferred, on purpose:** the order-placed record is still written and not delivered; abandoned
   unpaid orders are still not swept (their window holds lapse on their own).
-- ⚠ **OPERATOR STEPS OPEN** (SIGNOFF.md has the commands): apply the alarms; deploy `storefront`,
-  `commerce`, `orders`, `shop`; add the new webhook endpoint and its secret; release the four
-  clients; one paid test order; disable the old endpoint; `make db-up` for migration B. ⚠ **The
-  teardown is not written yet and must not be until the switch is recorded** — until then every
-  `make apply` is additive. `apis/core-api/` is deleted last, after the walk.
+- ⚠ **OPERATOR STEPS OPEN** (SIGNOFF.md has the commands): one paid test order through the new
+  webhook endpoint (no checkout had passed through the new services when the teardown was written);
+  empty the image registry; `make plan` — **20 to destroy, 0 to add** — then `make apply`;
+  `make db-up` for migration B; the verification walk. ⚠ **THE WORKING TREE NOW DESTROYS `core-api`
+  ON THE NEXT `make apply`** — that is the point of the teardown, and it is why it was not written
+  until the new services were live. `apis/core-api/` (the Go source) is deleted last, after the walk.
 - ⚠ **PRE-EXISTING, NOT FIXED:** two `shop` real-database tests fail with or without 070; and
   `scripts/check-no-telemetry-pii.sh` exits 1 on the notifications worker's `email` channel name.
 

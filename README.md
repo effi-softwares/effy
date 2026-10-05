@@ -55,7 +55,7 @@ make dev-start               # 🧑‍💻 start it again; waits until usable (u
 Notes:
 - **AWS auto-restarts a stopped RDS instance after 7 days** — if you're away longer,
   check `dev-status` and re-run `dev-stop`. DB storage (~US$2.5/mo) bills even while stopped.
-- While stopped, `db-*` targets, `core-run`, and the deployed edge-api's DB-backed
+- While stopped, `db-*` targets and the deployed backend's DB-backed
   endpoints fail by design; health endpoints and everything non-DB keep working.
 
 ## 2. Database migrations (goose, forward-only)
@@ -71,38 +71,7 @@ make db-down ENV=dev                # 🧑‍💻 step back ONE — dev-only con
 
 Authoring rules: [db/README.md](db/README.md).
 
-## 3. core-api — ⚠ BEING RETIRED (feature 070)
-
-> The platform has **one backend**: the serverless services in section 4. `core-api` was a second,
-> always-on Go service that carried shopper traffic. Every route it served now lives in
-> `apis/edge-api/storefront` and `apis/edge-api/commerce`, and no client calls it. It keeps running
-> only until the cut-over is complete; this section and the `core-*` targets are deleted with it.
-> Do not add to it. Status: [specs/070-retire-core-api/SIGNOFF.md](specs/070-retire-core-api/SIGNOFF.md).
-
-```bash
-make core-run                # compose DSN + customer pool ids at invocation → docker compose up (air live-reload)
-make core-test               # unit + handler tests (-short)
-make core-test FULL=1        # + repository tests against real Postgres (testcontainers; needs Docker)
-make core-lint               # gofmt + go vet
-make core-build              # production distroless image (effy/core-api:local)
-```
-
-Verify (second terminal — all should answer instantly):
-
-```bash
-curl -s localhost:8080/healthz                 # {"status":"ok"}
-curl -s localhost:8080/readyz                  # {"status":"ready","checks":{"database":"ok"}}
-curl -s localhost:8080/v1/platform/status      # flat v1: environment, database_*, migration_version
-curl -s localhost:8080/v2/platform/status      # reshaped v2: contract_version:2, nested database{}
-curl -si localhost:8080/v3/platform/status     # 404 application/problem+json, type …/no-route
-curl -s localhost:8080/metrics | grep http_request_duration   # RED metrics by route template
-curl -so /dev/null -w '%{time_total}\n' localhost:8080/v1/platform/status   # < 0.1s (SC-007)
-```
-
-Every request = one JSON log line in the compose output with a `request_id` matching
-the `X-Request-ID` response header.
-
-## 4. The backend — `apis/edge-api` (serverless, deployed to dev)
+## 3. The backend — `apis/edge-api` (serverless, deployed to dev)
 
 ```bash
 make edge-install                          # pnpm install (workspace)
@@ -153,7 +122,7 @@ AWS_PROFILE=ef aws cloudwatch describe-alarms --alarm-name-prefix effy-dev --reg
   --query 'MetricAlarms[].{name:AlarmName,state:StateValue}' --output table
 ```
 
-## 5. Auth tokens & the identity matrix
+## 4. Auth tokens & the identity matrix
 
 Pool ids come from the SSM contract; users are admin-provisioned (except customer
 self-signup later):
@@ -202,7 +171,7 @@ The matrix — cross-pool tokens MUST die (constitution Principle IV):
 
 Access tokens expire after 1h — re-run the OTP flow for fresh ones.
 
-## 6. Versioning spot-checks
+## 5. Versioning spot-checks
 
 ```bash
 # v1 and v2 serve simultaneously with different shapes (mixed mobile fleet guarantee):
@@ -214,7 +183,7 @@ Policy (what's breaking vs additive, deprecation/sunset, 410 for retired version
 [docs/api/versioning-policy.md](docs/api/versioning-policy.md). Which backend a new
 endpoint belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
 
-## 7. Secret-hygiene sweep
+## 6. Secret-hygiene sweep
 
 ```bash
 git grep -iE 'password|secret[^_a-z]' -- services/ Makefile        # names/pointers only, never values
@@ -223,7 +192,7 @@ AWS_PROFILE=ef aws cloudformation get-template --stack-name effy-edge-api-dev \
   --region ap-southeast-2 | grep -ci password                      # 0 — the secret never enters the template
 ```
 
-## 8. Where everything is specified
+## 7. Where everything is specified
 
 | Slice | Docs |
 |---|---|

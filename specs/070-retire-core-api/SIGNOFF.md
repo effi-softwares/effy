@@ -1,7 +1,9 @@
 # 070 — Sign-off record
 
-Status (2026-10-05): **CODE-COMPLETE UP TO THE CUT-OVER. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY
-A PERSON.** 87 of 102 tasks done. Every one of the 15 that remain is either an operator step, or
+Status (2026-10-05, evening): **THE NEW BACKEND IS DEPLOYED AND THE CLIENTS ARE RELEASED. THE
+TEARDOWN IS WRITTEN AND NOT APPLIED. NOT WALKED BY A PERSON.** 93 of 102 tasks done.
+
+*(Earlier today:)* 87 of 102 tasks done. Every one of the 15 that remain is either an operator step, or
 work that must not exist in the working tree until the operator has switched traffic.
 
 `core-api` is untouched and still serving. Nothing in the working tree destroys anything.
@@ -187,12 +189,72 @@ irreversible has happened.
 
 **Tell me when this stage is done.** Only then do I write the teardown.
 
-### Stage 4 — teardown (I author it after Stage 3; you apply it)
+### Stage 4 — teardown: WRITTEN 2026-10-05, NOT APPLIED
 
-I will write T091–T093: delete `core-api.tf` and the Fargate module, the `core_api_*` variables,
-the consoles' and storefront's leftover environment variable, the Make targets, and fix
-`start-db.sh` / `stop-db.sh`. You then empty the image registry, `make plan` (checked against
-[migration-inventory.md §7](migration-inventory.md)), `make apply`.
+Checked read-only before writing it: `storefront`, `commerce`, `orders` and `shop` answer on the
+gateway (health 200, search returns products, the webhook refuses an unsigned body with 400), the
+seven alarms exist and are `OK`, and all three hosted apps were last built from commit `51fee42f`.
+
+⚠ **ONE THING I COULD NOT CONFIRM, AND IT MATTERS BEFORE YOU APPLY.** The `Effy/Commerce` metric
+namespace held only `RefundsStuck` (the reconciler's heartbeat) — no `WebhookEvents`, no
+`DeliveryQuotes`, no `StockDeducted`. That means **no checkout and no provider notification had
+passed through the new services yet**. Before applying: place one paid test order on the web, and
+confirm in the provider's dashboard that the **new** endpoint
+(`…/commerce/v1/stripe/webhook`) answered 200. If the webhook still points only at the old backend,
+destroying it means paid orders are confirmed only by the shopper's return to the site, and a refund
+a bank rejects later is never seen.
+
+What the change contains (one change, because the pieces reference each other):
+
+- deleted `infra/envs/dev/core-api.tf` and `infra/modules/ecs-fargate-web-service/`
+- removed the eight `core_api_*` variables and `core_api_cors_origins` from `dev.tfvars`
+- removed `NEXT_PUBLIC_CORE_API_BASE_URL` (storefront) and `VITE_CORE_API_BASE_URL` (both consoles)
+- `start-db.sh` / `stop-db.sh` now only start and stop the database
+- `Makefile`: `core-run`, `core-test`, `core-lint`, `core-build`, `core-ecr-login`,
+  `core-image-push`, `core-deploy`, `cm-ngrok-core` removed
+- `infra/envs/README.md` and the root `README.md` no longer describe a second backend
+
+`terraform validate` passes and `fmt` is clean. **I have not run `plan` or `apply`.**
+
+```
+# 1. The registry refuses deletion while it holds images. Empty it:
+aws ecr batch-delete-image --profile ef --region ap-southeast-2 --repository-name effy-dev-core-api \
+  --image-ids "$(aws ecr list-images --profile ef --region ap-southeast-2 \
+      --repository-name effy-dev-core-api --query 'imageIds[*]' --output json)"
+
+# 2. Commit this change, then:
+make plan ENV=dev
+```
+
+**The plan must show exactly this, and nothing else:**
+
+| | Resources |
+|---|---|
+| **20 to destroy** | under `module.core_api`: `aws_ecs_service.this`, `aws_ecs_task_definition.this`, `aws_ecs_cluster.this`, `aws_lb.this`, `aws_lb_target_group.this`, `aws_lb_listener.https`, `aws_lb_listener.http_redirect`, `aws_security_group.alb`, `aws_security_group.task`, `aws_ecr_repository.this`, `aws_ecr_lifecycle_policy.this`, `aws_iam_role.execution`, `aws_iam_role_policy_attachment.execution_managed`, `aws_iam_role_policy.execution_secrets[0]`, `aws_iam_role.task`, `aws_iam_role_policy.task_s3[0]`, `aws_cloudwatch_log_group.this`, `aws_route53_record.a`, `aws_route53_record.aaaa` — plus `aws_ssm_parameter.core_api_base_url` |
+| **changed in place** | the three Amplify apps (one environment variable removed from each) |
+| **0 to add** | |
+
+⚠ **Stop if the plan destroys anything else** — in particular the database, a Cognito pool, the
+certificate or zone (`module.dns`), the media bucket, either payment secret, the alerts topic, or
+anything in `commerce.tf` / `commerce-alarms.tf`.
+
+```
+make apply ENV=dev
+make db-up ENV=dev          # migration B (drop_shop_ops_poke), if not already applied
+```
+
+Then check:
+
+```
+dig +short core-api.dev.effyshopping.com                 # nothing
+aws ecs list-clusters --profile ef --region ap-southeast-2 --query 'clusterArns'        # no effy-dev-core-api
+aws elbv2 describe-load-balancers --profile ef --region ap-southeast-2 --query 'LoadBalancers[].LoadBalancerName'   # no effy-dev-core-api
+./stop-db.sh && ./start-db.sh                            # each runs to the end
+```
+
+The Amplify apps rebuild on their next push; the removed variable was already unused by the code
+they run. The task log group is destroyed with the service — seven days of the old backend's logs
+go with it.
 
 ### Stage 5 — the walk and the measurements
 

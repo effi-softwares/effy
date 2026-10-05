@@ -6,10 +6,8 @@
 # ordering dependency), so these are plain alarms on emitted metrics.
 #
 # ⚠ NO NEW INFRASTRUCTURE OTHERWISE. This feature adds no queue, no cache, no realtime service and no
-# vendor: the analytics are Postgres rollup tables, the live stream is an HTTP response from the
-# Fargate task that already exists, and the notification channel is PostgreSQL's own LISTEN/NOTIFY.
-# docs/insights-architecture.md prices the alternatives — $25–$110/month at 500k orders, against
-# roughly $13 for this shape.
+# vendor: the analytics are Postgres rollup tables. (058 also streamed live updates from a standing
+# server; 070 retired that server and the stream with it — Today re-reads every 30 seconds.)
 # ---------------------------------------------------------------------------------------------
 
 # ⚠ THE AGE OF THE BACKLOG, NOT ITS SIZE. A queue of 400 buckets drained every minute is healthy; one

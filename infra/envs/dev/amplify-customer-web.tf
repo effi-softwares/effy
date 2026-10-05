@@ -42,14 +42,12 @@ data "aws_ssm_parameter" "stripe_publishable_key" {
 # during the build (AWS: "Making environment variables accessible to server-side runtimes"), or it
 # will be silently undefined in production exactly as this one was.
 locals {
-  storefront_url = "https://${module.dns.zone_name}"                           # https://dev.effyshopping.com
-  core_api_url   = "https://${var.core_api_subdomain}.${module.dns.zone_name}" # https://core-api.dev.effyshopping.com
-  edge_api_url   = "https://${var.api_subdomain}.${module.dns.zone_name}"      # https://edge-api.dev.effyshopping.com
+  storefront_url = "https://${module.dns.zone_name}"                      # https://dev.effyshopping.com
+  edge_api_url   = "https://${var.api_subdomain}.${module.dns.zone_name}" # https://edge-api.dev.effyshopping.com
 
   customer_web_env = {
     # public (inlined at build)
     NEXT_PUBLIC_SITE_URL               = local.storefront_url
-    NEXT_PUBLIC_CORE_API_BASE_URL      = local.core_api_url
     NEXT_PUBLIC_COGNITO_USER_POOL_ID   = module.customer_pool.user_pool_id
     NEXT_PUBLIC_COGNITO_CLIENT_ID      = module.customer_pool.app_client_id
     NEXT_PUBLIC_COGNITO_DOMAIN         = "" # set only when Google federation is enabled

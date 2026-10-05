@@ -13,15 +13,9 @@
 # a public-safe pool id / client id / gateway address.
 
 locals {
-  # The deployed cold-path (edge) gateway origin — the same address 042 wires for the storefront's
-  # cold path. Both consoles call it; shop-web on /shop/v1/*, back-office on /admin/v1/*.
+  # The backend gateway — the one address every surface calls (070: there is no second backend).
+  # shop-web uses /shop/v1/*; back-office uses /admin, /orders, /fleet, /catalog.
   console_api_base_url = "https://${var.api_subdomain}.${module.dns.zone_name}" # https://edge-api.dev.effyshopping.com
-  # ⚠ 057: the HOT path, and the shop console is the ONLY console that needs it. It calls exactly one
-  # core-api route — issuing a refund, which must settle through 055's state machine because the
-  # payment secret lives there and nowhere else. Derived from the same zone the service is served from,
-  # never hand-typed: an origin that drifts fails only at a browser pre-flight, the hardest kind of
-  # failure to recognise.
-  core_api_base_url = "https://${var.core_api_subdomain}.${module.dns.zone_name}" # https://core-api.dev.effyshopping.com
 
   # ── SPA rewrite (research D3 / contracts § "SPA rewrite") ──────────────────────────────────────
   # Any path that is NOT a real static asset → /index.html with status 200 (a rewrite, not a redirect,
@@ -79,9 +73,6 @@ locals {
     VITE_COGNITO_USER_POOL_ID = module.shop_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.shop_pool.app_client_id
     VITE_API_BASE_URL         = local.console_api_base_url
-    # ⚠ 057 — REQUIRED by apps/shop-web's config contract. Without it the hosted build serves a console
-    # that throws "Missing required config" on first render, not just on the refund path.
-    VITE_CORE_API_BASE_URL = local.core_api_base_url
 
     # ── 059 web push ─────────────────────────────────────────────────────────────────────────────
     # ⚠ ALL FIVE ARE PUBLIC BY DESIGN. They identify the Firebase project; they do not authorise.
@@ -106,17 +97,6 @@ locals {
     VITE_COGNITO_USER_POOL_ID = module.back_office_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.back_office_pool.app_client_id
     VITE_API_BASE_URL         = local.console_api_base_url
-
-    # ⚠ 055: the back office is the ONLY console that talks to a second backend.
-    #
-    # Refunds are issued by core-api because the payment secret lives there and nowhere else
-    # (019 SC-012). Reading an order still comes from the shared gateway above; only the money moves
-    # through here. See 055 research R1 for why the alternatives — duplicating the secret into a
-    # Lambda, or forwarding an operator's token between services — were both rejected.
-    #
-    # ⚠ This origin must ALSO be in core-api's CORS allowlist (`cors_allowed_origins`), or every
-    # refund call fails at the pre-flight with an error that looks nothing like a permissions problem.
-    VITE_CORE_API_BASE_URL = "https://${var.core_api_subdomain}.${module.dns.zone_name}"
   }, local.telemetry_env)
 }
 

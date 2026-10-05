@@ -26,13 +26,13 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-down db-shopper-role check-goose \
-        core-run core-test core-lint core-build core-ecr-login core-image-push core-deploy purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
-        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge cm-ngrok-core \
+        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
         brand-gen brand-check email-gen email-check email-preview \
         storefront-locks storefront-locks-update \
@@ -188,99 +188,17 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose down
 
-## --- Backend services (specs/004-backend-bootstrap) ---
-# core-api runs LOCALLY only this slice (Fargate deferred). The DSN and the customer
-# pool ids enter the container as process env composed AT INVOCATION from the platform
-# contract (SSM /effy/<env>/db|auth/* + Secrets Manager) — never a file, never echoed
-# (contracts/config.contract.md). edge-deploy mutates AWS → OPERATOR-run.
-
-CORE_DIR := apis/core-api
-# Cold path (A3): a family of services under apis/edge-api/<service>; SERVICE selects one.
+## --- Backend services ---
+# ONE backend (070): a family of serverless services under apis/edge-api/<service>; SERVICE selects
+# one. edge-deploy mutates AWS → OPERATOR-run. Configuration reaches a function from the platform
+# contract (SSM /effy/<env>/… + Secrets Manager) at deploy and at run time — never a file.
+#
+# The operator tools below (create-first-admin, delete-admin, load-localities) are TypeScript in
+# apis/edge-api/ops, run from a workstation; the DSN and pool id are composed AT INVOCATION and passed
+# as process env — never a file, never echoed.
 EDGE_DIR := apis/edge-api/$(SERVICE)
 
-# Hot-path cloud deploy (040): the ECR repo, ECS cluster and service all share the module's
-# name = effy-<env>-core-api. The account id is resolved at invocation (never hard-coded).
-CORE_ECR_REPO := effy-$(ENV)-core-api
-CORE_CLUSTER  := effy-$(ENV)-core-api
-CORE_SERVICE  := effy-$(ENV)-core-api
-TAG           ?= latest
-
 AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
-SECRET_CMD     = AWS_PROFILE=$(AWS_PROFILE) aws secretsmanager get-secret-value --region $(AWS_REGION) --query SecretString --output text --secret-id
-
-core-run: ## Run core-api locally in Docker with live reload (DSN + pool ids + Stripe/media composed at invocation)
-	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
-	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/user_pool_id)" || { echo "core-run: cannot read customer pool id from SSM (001 contract)"; exit 1; }; \
-	CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/app_client_id)" || exit 1; \
-	MOBILE_CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/mobile_app_client_id)" || { echo "core-run: cannot read customer MOBILE app client id from SSM (013 contract — /effy/$(ENV)/auth/customer/mobile_app_client_id)"; exit 1; }; \
-	MEDIA_BUCKET="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/media/bucket)" || { echo "core-run: cannot read media bucket from SSM (016 T006 /effy/$(ENV)/media/bucket)"; exit 1; }; \
-	STRIPE_SECRET="$$($(SECRET_CMD) /effy/$(ENV)/stripe/secret_key)" || { echo "core-run: cannot read Stripe secret key from Secrets Manager (019 — /effy/$(ENV)/stripe/secret_key)"; exit 1; }; \
-	STRIPE_WEBHOOK="$$($(SECRET_CMD) /effy/$(ENV)/stripe/webhook_secret)" || { echo "core-run: cannot read Stripe webhook secret from Secrets Manager (019 — /effy/$(ENV)/stripe/webhook_secret)"; exit 1; }; \
-	BO_POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "core-run: cannot read back-office pool id from SSM (055 — core-api verifies it because refunds are issued here)"; exit 1; }; \
-	BO_CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/app_client_id)" || { echo "core-run: cannot read back-office app client id from SSM (055)"; exit 1; }; \
-	SHOP_POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/shop/user_pool_id)" || { echo "core-run: cannot read shop pool id from SSM (057 — core-api verifies it because shop-initiated refunds settle here)"; exit 1; }; \
-	SHOP_CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/shop/app_client_id)" || { echo "core-run: cannot read shop app client id from SSM (057)"; exit 1; }; \
-	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AUTH_CUSTOMER_POOL_ID="$$POOL_ID" AUTH_CUSTOMER_CLIENT_ID="$$CLIENT_ID,$$MOBILE_CLIENT_ID" \
-		AUTH_BACK_OFFICE_POOL_ID="$$BO_POOL_ID" AUTH_BACK_OFFICE_CLIENT_ID="$$BO_CLIENT_ID" \
-		AUTH_SHOP_POOL_ID="$$SHOP_POOL_ID" AUTH_SHOP_CLIENT_ID="$$SHOP_CLIENT_ID" \
-	AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) AWS_MEDIA_BUCKET="$$MEDIA_BUCKET" \
-	STRIPE_SECRET_KEY="$$STRIPE_SECRET" STRIPE_WEBHOOK_SECRET="$$STRIPE_WEBHOOK" \
-		docker compose -f $(CORE_DIR)/docker-compose.yml up --build
-
-core-test: ## core-api unit + handler tests (add FULL=1 for container-backed repository tests)
-	@if [ -n "$(FULL)" ]; then \
-		cd $(CORE_DIR) && go test ./...; \
-	else \
-		cd $(CORE_DIR) && go test -short ./...; \
-	fi
-
-core-lint: ## gofmt check + go vet for core-api
-	@cd $(CORE_DIR) && test -z "$$(gofmt -l .)" || { echo "gofmt needed on:"; gofmt -l .; exit 1; }
-	@cd $(CORE_DIR) && go vet ./...
-
-core-build: ## Build the production core-api image (distroless, TARGETARCH-aware)
-	@docker build --target runtime -t effy/core-api:local $(CORE_DIR)
-
-# ── Hot-path cloud deploy (040-core-api-deploy) — OPERATOR-run (mutate live AWS) ──────────────
-core-ecr-login: ## OPERATOR: docker login to the core-api ECR repo (ENV=dev)
-	@ACCOUNT="$$(AWS_PROFILE=$(AWS_PROFILE) aws sts get-caller-identity --query Account --output text)" || exit 1; \
-	AWS_PROFILE=$(AWS_PROFILE) aws ecr get-login-password --region $(AWS_REGION) \
-	  | docker login --username AWS --password-stdin "$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com"
-
-core-image-push: ## OPERATOR: build core-api for linux/arm64 and push (TAG=latest ENV=dev)
-	@ACCOUNT="$$(AWS_PROFILE=$(AWS_PROFILE) aws sts get-caller-identity --query Account --output text)" || exit 1; \
-	REGISTRY="$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com"; \
-	REPO="$$REGISTRY/$(CORE_ECR_REPO)"; \
-	echo "authenticating to ECR ($$REGISTRY)"; \
-	AWS_PROFILE=$(AWS_PROFILE) aws ecr get-login-password --region $(AWS_REGION) \
-	  | docker login --username AWS --password-stdin "$$REGISTRY" >/dev/null || exit 1; \
-	echo "building linux/arm64 → $$REPO:$(TAG)"; \
-	docker buildx build --platform linux/arm64 --target runtime -t "$$REPO:$(TAG)" $(CORE_DIR) --push
-
-# ⚠ WHY THE LOGIN IS PART OF THIS TARGET (added 054, after it bit).
-# An ECR authorization token lasts 12 HOURS. Without the login above, `buildx --push` uses whatever
-# credentials Docker happens to still hold and fails with a bare `403 Forbidden` on a blob HEAD
-# request — which reads like a permissions problem with the IAM role, not an expired token, and sends
-# you looking in the wrong place entirely.
-#
-# ⚠ AND THE FAILURE IS WORSE THAN IT LOOKS WHEN THE TWO TARGETS ARE RUN TOGETHER. `core-image-push`
-# exits non-zero, but `core-deploy` is a separate invocation: it runs anyway, force-deploys whatever
-# `:latest` already points at, waits for the service to stabilise, and prints "deployed." Nothing is
-# wrong with the deployment — it is simply the PREVIOUS build. Check the pushed date before believing
-# a deploy shipped your code:
-#   AWS_PROFILE=ef aws ecr describe-images --region ap-southeast-2 \
-#     --repository-name effy-dev-core-api --query 'imageDetails[?contains(imageTags,`latest`)].imagePushedAt'
-
-
-core-deploy: ## OPERATOR: force a new core-api ECS deployment + wait for stable (TAG=latest ENV=dev)
-	@printf 'ECS force-new-deployment  →  cluster/service=%s stage=%s (live AWS)\nContinue? [y/N] ' "$(CORE_SERVICE)" "$(ENV)"; \
-	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
-	AWS_PROFILE=$(AWS_PROFILE) aws ecs update-service --region $(AWS_REGION) \
-	  --cluster $(CORE_CLUSTER) --service $(CORE_SERVICE) --force-new-deployment >/dev/null; \
-	echo "waiting for the service to stabilise (circuit breaker rolls back a health-failing deploy)…"; \
-	AWS_PROFILE=$(AWS_PROFILE) aws ecs wait services-stable --region $(AWS_REGION) \
-	  --cluster $(CORE_CLUSTER) --services $(CORE_SERVICE); \
-	echo "deployed."
 
 create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EMAIL=.. NAME=".." ENV=dev) — specs/006
 	@test -n "$(EMAIL)" && test -n "$(NAME)" || { echo 'usage: make create-first-admin EMAIL=jane@effy.test NAME="Jane Doe" ENV=dev'; exit 1; }
@@ -366,7 +284,7 @@ shop-test: ## shop-web unit/component tests (vitest)
 	@pnpm --filter @effy/shop-web test
 
 # --- customer storefront (011) — the platform's first PUBLIC surface. SSR-first, guest-first.
-# It runs against a LOCAL core-api (`make core-run`) + the LIVE dev edge-api.
+# It runs against the LIVE dev backend gateway (or `make edge-offline SERVICE=…` for one service).
 cw-dev: ## Run the customer storefront locally (next dev on http://localhost:3000)
 	@pnpm --filter @effy/customer-web dev
 
@@ -484,12 +402,8 @@ sm-ngrok-edge: ## Expose local edge-api on your ngrok static domain → SHOP_API
 # --- expose a local backend to a physical phone via an ngrok STATIC domain (013 quickstart § 0 Path A).
 # A phone cannot reach localhost; ngrok gives a stable public https URL to put in secrets.properties.
 # The static domain is reserved on YOUR ngrok account — pass it in (or export it); nothing is hardcoded.
-# Ports: core-api = 8080 (make core-run); edge-api serverless-offline = 3000 (make edge-offline).
-#
-#   ⚠ For 013 the account routes the app calls are on EDGE (cm-ngrok-edge → EDGE_API_BASE_URL). core-api
-#   is commerce and has nothing to call yet, so cm-ngrok-core is forward-looking. A FREE ngrok account
-#   has ONE static domain (one tunnel at a time) — for this slice, point it at edge.
-NGROK_CORE_PORT   ?= 8080
+# Port: serverless-offline = 3000 (make edge-offline SERVICE=…). A FREE ngrok account has ONE static
+# domain, so one service at a time.
 NGROK_EDGE_PORT   ?= 3000
 NGROK_STATIC_DOMAIN ?=
 
@@ -497,11 +411,6 @@ cm-ngrok-edge: ## Expose local edge-api on your ngrok static domain (NGROK_STATI
 	@test -n "$(NGROK_STATIC_DOMAIN)" || { echo "usage: make cm-ngrok-edge NGROK_STATIC_DOMAIN=<your-static>.ngrok-free.app  (run 'make edge-offline SERVICE=customer' first)"; exit 1; }
 	@command -v ngrok >/dev/null || { echo "cm-ngrok-edge: ngrok not found — install it and reserve a static domain first"; exit 1; }
 	ngrok http $(NGROK_EDGE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
-
-cm-ngrok-core: ## Expose local core-api (:8080, make core-run) on your ngrok static domain → CORE_API_BASE_URL
-	@test -n "$(NGROK_STATIC_DOMAIN)" || { echo "usage: make cm-ngrok-core NGROK_STATIC_DOMAIN=<your-static>.ngrok-free.app  (run 'make core-run' first)"; exit 1; }
-	@command -v ngrok >/dev/null || { echo "cm-ngrok-core: ngrok not found — install it and reserve a static domain first"; exit 1; }
-	ngrok http $(NGROK_CORE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
 
 # --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted

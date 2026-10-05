@@ -78,7 +78,7 @@ resource "aws_route53_record" "api_aaaa" {
 # REMOVED (count → 0) so Amplify can claim the apex, and Amplify's own apex record keeps the name
 # resolving — so the sender-domain-resolves property is preserved with NO window (FR-011/SC-009).
 # Before cutover (stage A) they remain, so the apex still resolves during first-build verification.
-# ⚠ The `api.`/`core-api.` subdomain records are UNAFFECTED — only the bare apex changes.
+# ⚠ The `api.` subdomain record is UNAFFECTED — only the bare apex changes.
 resource "aws_route53_record" "zone_apex_a" {
   count   = var.amplify_domain_enabled ? 0 : 1
   zone_id = module.dns.zone_id

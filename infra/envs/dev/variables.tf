@@ -210,7 +210,7 @@ variable "root_domain" {
 }
 
 variable "api_subdomain" {
-  description = "Single label for the shared COLD-PATH API under this env's namespace → edge-api.dev.effyshopping.com. Named for the path it fronts, not generically: the hot path (core-api) gets its own name when it deploys, and a bare `api` would have quietly claimed the shared word for one of two backends. MUST stay one label — the wildcard certificate matches exactly one (010 research R3)."
+  description = "Single label for the backend gateway under this env's namespace → edge-api.dev.effyshopping.com. MUST stay one label — the wildcard certificate matches exactly one (010 research R3). (Named `edge-api` rather than `api` from when a second backend had its own name; that backend was retired by 070.)"
   type        = string
   default     = "edge-api"
 }
@@ -219,58 +219,6 @@ variable "dmarc_rua" {
   description = "Address receiving this namespace's DMARC aggregate reports (037 FR-017). Without it, monitor mode collects nothing and there is never evidence on which to tighten the policy."
   type        = string
   default     = "mailto:dmarc@effyshopping.com"
-}
-
-# ── Hot-path (core-api) cloud deployment (040) ──────────────────────────────────────────────
-# The prod promotion knobs. Producing core-api.effyshopping.com is these values changed, not
-# code (spec FR-014 / SC-003). See data-model.md § Production delta and core-api.tf's comment.
-
-variable "core_api_subdomain" {
-  description = "Single label for the HOT-PATH API under this env's namespace → core-api.dev.effyshopping.com. Its own name, distinct from api_subdomain (the cold path). MUST stay one label — the wildcard certificate matches exactly one (010 research R3)."
-  type        = string
-  default     = "core-api"
-}
-
-variable "core_api_image_tag" {
-  description = "Image tag core-api runs. dev: latest (mutable, force-new-deployment picks it up); prod: an immutable git-sha."
-  type        = string
-  default     = "latest"
-}
-
-variable "core_api_cpu" {
-  description = "Fargate task CPU units. 256 = 0.25 vCPU, the cheapest (no autoscaling)."
-  type        = number
-  default     = 256
-}
-
-variable "core_api_memory" {
-  description = "Fargate task memory (MiB). 512 is the smallest valid pairing with 256 CPU."
-  type        = number
-  default     = 512
-}
-
-variable "core_api_desired_count" {
-  description = "Number of running tasks. FIXED at 1 (cheapest); there is NO autoscaling."
-  type        = number
-  default     = 1
-}
-
-variable "core_api_cors_origins" {
-  description = "Browser origins allowed to call the hot path. customer-web (the storefront) and — since 055 — the BACK-OFFICE console, which calls core-api directly to issue refunds because the payment secret lives there and nowhere else. Native mobile + SSR need no CORS. Each env's tfvars lists its real origins; this default only covers a bare local run."
-  type        = list(string)
-  default     = ["http://localhost:3000"]
-}
-
-variable "core_api_assign_public_ip" {
-  description = "DEV-ONLY: true = the task runs in PUBLIC subnets with a public IP and egresses with NO NAT (the cheapest posture, matching the dev DB's public endpoint). ⚠ NEVER true where real data lives — prod uses private subnets (false) + a NAT/endpoints."
-  type        = bool
-  default     = true
-}
-
-variable "core_api_subnet_ids" {
-  description = "Subnets for the ALB + task. [] = the module resolves the DEFAULT VPC's public subnets (dev). Prod supplies PRIVATE subnet ids here."
-  type        = list(string)
-  default     = []
 }
 
 variable "alert_email" {

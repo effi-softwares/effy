@@ -52,9 +52,8 @@ resource "aws_ssm_parameter" "db_shopper_secret_arn" {
 #
 # Looked up by name for their ARNs. They must exist before apply; a missing one fails loudly here.
 #
-# ⚠ These two lookups moved here from core-api.tf, which still reads them until 070's teardown
-# deletes that file. They are not core-api's: three edge services move money (commerce, orders,
-# shop) and each is granted read on the secret key by its own serverless.yml.
+# ⚠ Three services move money (commerce, orders, shop) and each is granted read on the secret key
+# by its own serverless.yml. These lookups are the one place their ARNs are published.
 
 data "aws_secretsmanager_secret" "stripe_secret_key" {
   name = "/effy/${var.env}/stripe/secret_key"

@@ -136,7 +136,7 @@ custom_auth_lambda_arns = {
 # default hostname (…​.amplifyapp.com) — verify there. Then flip to true for STAGE B (cutover):
 # attaches dev.effyshopping.com (apex + www) and removes the old apex→gateway alias records in the
 # same apply. ⚠ Highest-risk apply; confirm `dig dev.effyshopping.com` + a valid cert afterwards, and
-# that api./core-api. are unchanged.
+# that the api. subdomain is unchanged.
 amplify_domain_enabled = true
 
 # ⚠ Internal console cutover (048, quickstart §2). Stage A (false) built both consoles on their
@@ -145,22 +145,6 @@ amplify_domain_enabled = true
 # certs; the apply BLOCKS on wait_for_verification). No apex/email cutover — these are fresh subdomains.
 # Afterwards confirm each subdomain resolves + serves its own console over a valid cert.
 amplify_consoles_domain_enabled = true
-
-# Browser origins allowed to call the hot path (core-api) — closes 040's open T048. The storefront
-# fetches /v1/storefront/products and /facets client-side from the deployed origin, so without these
-# every such fetch is CORS-blocked (403, no Access-Control-Allow-Origin). Native mobile and SSR need
-# no CORS; localhost:3000 stays for local dev. Exact-match, no trailing slash — www is a distinct
-# origin and must be listed separately. effyshopping.com (the reserved prod apex) is included ahead of
-# a prod storefront so its origin is already trusted when it ships.
-core_api_cors_origins = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "https://dev.effyshopping.com",
-  "https://www.dev.effyshopping.com",
-  "https://effyshopping.com",
-  "https://www.effyshopping.com",
-]
 
 # --- Telemetry & push (050-observability-push-foundation) ---
 # PostHog PROJECT key — client-embeddable/public-safe (ships in every client build, like the Cognito

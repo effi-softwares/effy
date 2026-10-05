@@ -38,25 +38,17 @@ The higher roots are deliberately skeletons (no pools yet). To promote:
    together, or the API loses its database.
 5. `make plan ENV=<env>` → review → the **operator** runs `make apply ENV=<env>`.
 
-### Promoting the hot path (core-api) — 040-core-api-deploy
+### There is no always-on compute to promote (070)
 
-`dev` runs core-api as ONE Fargate task behind an ALB at `core-api.dev.effyshopping.com`, in the
-**default VPC's public subnets with a public IP and no NAT** — the cheapest posture, and the same
-public-network trade the dev DB already accepts. Copy `envs/dev/core-api.tf` forward, then change
-these values (they are the module's inputs — **config, not code**, spec FR-014):
+Until feature 070 a second backend ran here as one Fargate task behind a load balancer, and this
+section listed what to change to promote it. That service, its load balancer, image registry and
+DNS record are gone; the backend is the serverless services under `apis/edge-api/`, deployed per
+service with `make edge-deploy SERVICE=<name> ENV=<env>`. A new environment needs no container
+infrastructure, and the constitution (v3, Principle III) forbids a plan from adding any.
 
-- **Network**: `core_api_assign_public_ip = false` and `core_api_subnet_ids = [<private>]`. A private
-  task has **no internet path without a NAT gateway (~$32/mo) or interface endpoints** — the same
-  problem the Lambda note below documents. This lands **together** with the private-DB change (step 4);
-  a private task must reach a private DB.
-- **Hostname**: prod is `core-api.effyshopping.com` — a label **directly under the apex**, not under a
-  `prod.` child namespace. The child wildcard `*.<env>.effyshopping.com` does **not** cover it, so prod
-  needs an **apex-level record + a certificate covering `core-api.effyshopping.com`** (an apex wildcard
-  `*.effyshopping.com` or a SAN), owned by the prod/global root — not by the child zone.
-- **Image**: `core_api_image_tag = "<git-sha>"` (immutable — a known rollback artifact), not `latest`.
-- **Rollout**: dev uses `min 0 / max 100` (a brief deploy gap). Prod may set `min 100 / max 200` for a
-  zero-downtime rolling deploy (a transient second task's cost, still **no autoscaling**).
-- **DB durability**: as step 4 — backups on before real customer data.
+What a new environment DOES need beyond `make apply`, in order: the migrations (`make db-up`), the
+shopper database role's password (`make db-shopper-role` — the migration creates the role unable to
+log in), the two payment-provider secrets in Secrets Manager, then each service.
 
 ## 🔴 Known debt: the dev database is on the public internet (2026-07-12)
 
@@ -142,7 +134,7 @@ was to leave `ap-southeast-1` entirely empty. If you relocate the backend:
      hosts the consoles must create it under a `provider "aws" { alias = "us_east_1" }`, and that
      alias is a region-pinned value `var.aws_region` does **not** cover. The regional API Gateway
      certificate is unaffected — it correctly follows `var.aws_region`.
-   - `Makefile` `AWS_REGION`, `infra/scripts/db-dsn.sh`, `apis/core-api/.env.example`.
+   - `Makefile` `AWS_REGION`, `infra/scripts/db-dsn.sh`, `start-db.sh`, `stop-db.sh`.
    - **DNS survives a region move untouched** — Route 53 hosted zones are **global** and have no
      region. Do not recreate them. (Recreating the parent zone mints new name-servers and would
      require a manual GoDaddy repoint — see below.)
