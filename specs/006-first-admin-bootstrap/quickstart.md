@@ -1,5 +1,13 @@
 # Quickstart — 006 First Admin Bootstrap
 
+> **2026-10-05 — where the tool lives now (feature 070).** `create-first-admin` and `delete-admin`
+> moved from the retired Go backend (`apis/core-api/cmd/…`) to `apis/edge-api/ops/`. The `make`
+> targets, their arguments, their output and their confirm prompts are unchanged, so every command
+> in this document still works as written. Current reference:
+> [`apis/edge-api/ops/README.md`](../../apis/edge-api/ops/README.md). Paths below that name
+> `apis/core-api` are history, left as written.
+
+
 **Feature**: [spec.md](./spec.md) · **Plan**: [plan.md](./plan.md) · **Date**: 2026-07-08
 
 Operator runbook. 🧑‍💻 = touches live cloud (Cognito + DB) — operator-run per the mode of work.

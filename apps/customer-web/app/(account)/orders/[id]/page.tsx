@@ -15,7 +15,7 @@ import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
 import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { ActionLink } from "@/components/storefront/actions"
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { shortfallsFrom } from "@/lib/fulfillment-progress"
 
@@ -50,7 +50,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   let dto: OrderDTO | null = null
   if (session?.accessToken) {
     try {
-      dto = await coreApi(session.accessToken).get<OrderDTO>(`/v1/orders/${id}`, uncached())
+      dto = await edgeApi(session).get<OrderDTO>(`/commerce/v1/orders/${id}`, uncached())
     } catch (err) {
       if ((err as { status?: number }).status === 404) notFound()
       dto = null

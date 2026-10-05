@@ -11,9 +11,8 @@ import { TeamActivitySheet } from "./TeamActivitySheet"
 import { relativeTime, subheading } from "./model"
 import { NeedsAttention } from "./NeedsAttention"
 import { TodayGlance } from "./TodayGlance"
-import { todayQueryFor } from "./queries"
+import { todayQuery } from "./queries"
 import { useNow } from "./useNow"
-import { useShopLive } from "./useShopLive"
 
 import { onlineStore } from "@/lib/online"
 import { track } from "@/lib/telemetry"
@@ -34,11 +33,7 @@ import { track } from "@/lib/telemetry"
  * badge, the sidebar badge and Insights' two fulfilment cells all read `todayQuery`'s `backlog`.
  */
 export function TodayScreen() {
-  // ⚠ The stream only ever says "read again" — it never supplies a row (FR-028). What `connected`
-  // changes is the PACE of the same query, not its shape, so the screen below cannot tell the two
-  // modes apart and neither can the operator.
-  const { connected } = useShopLive()
-  const today = useQuery(todayQueryFor(connected))
+  const today = useQuery(todayQuery)
   const [quickActionsOpen, setQuickActionsOpen] = useState(false)
   const [teamActivityOpen, setTeamActivityOpen] = useState(false)
   // The render clock: relative times must age without new data (FR-009). Cleared on unmount.

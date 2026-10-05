@@ -1,4 +1,4 @@
-# Effy cold-path CATALOG service — 067-product-approval-margin.
+# Effy CATALOG service — 067-product-approval-margin.
 #
 # The BACK-OFFICE half of product review: the queue of new products and pending changes, the
 # decisions (approve / send back) and Effy's margin. Attaches to the shared HTTP API; every route is

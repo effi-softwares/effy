@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path AUTH service (035) — the Cognito custom-auth-challenge triggers that issue, send and verify the platform's 6-digit sign-in code. Serves ALL FOUR pools. Hosts NO HTTP route: every function is invoked by Cognito, not by the gateway.",
+  "description": "Effy AUTH service (035) — the Cognito custom-auth-challenge triggers that issue, send and verify the platform's 6-digit sign-in code. Serves ALL FOUR pools. Hosts NO HTTP route: every function is invoked by Cognito, not by the gateway.",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

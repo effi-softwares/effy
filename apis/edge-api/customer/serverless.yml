@@ -1,12 +1,11 @@
-# edge-customer — Effy cold-path CUSTOMER service (011-customer-storefront-web).
+# edge-customer — Effy CUSTOMER service (011-customer-storefront-web).
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
 # under /customer/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
 #
-# ⚠ THE ROUTING LAW (FR-028). This service carries CUSTOMER PROFILE / ACCOUNT MANAGEMENT ONLY.
-# Product, catalog, search, cart, order and payment are LATENCY-SENSITIVE customer traffic and
-# belong to the hot path (core-api, Go) — constitution Principle III. Adding a commerce route
-# here requires a justified, recorded exception in that feature's plan. Do not do it quietly.
+# ⚠ THIS SERVICE CARRIES CUSTOMER PROFILE / ACCOUNT MANAGEMENT ONLY (011 FR-028). The catalogue
+# is `storefront`; cart, checkout, payment and a shopper's orders are `commerce`. A route goes with
+# the code that already owns its rule (docs/api/path-assignment.md) — do not add commerce here.
 service: effy-edge-customer
 frameworkVersion: "3"
 
@@ -197,7 +196,7 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
-  # ── 022: address book (customer profile management — cold path per 011 FR-028) ────────────────
+  # ── 022: address book (customer profile management, per 011 FR-028) ────────────────────────────
 
   customerAddressesV1Get:
     handler: src/functions/customer-addresses-v1-get.handler

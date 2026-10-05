@@ -16,7 +16,7 @@ import { describe, expect, it } from "vitest";
  * ⚠ COMMENTS ARE STRIPPED FIRST. Prose must stay free to explain WHY the order tables are out of
  * bounds — including this file and the repository's own header — while the code is held strictly. A
  * guard that fires on its own justification gets deleted by the next person, and takes the
- * requirement with it (057's guard learned this; 054's `guard_test.go` was written that way).
+ * requirement with it (057's guard learned this; 054's availability guard was written that way).
  */
 
 const REPOSITORY = resolve(import.meta.dirname, "repository.ts");

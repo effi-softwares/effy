@@ -9,7 +9,7 @@ import { listAddresses } from "../addresses/service";
 /**
  * GET /customer/v1/addresses — the customer's saved delivery addresses, default first (022 US1).
  *
- * Customer profile management on the cold path (011 FR-028). Scoped to the caller's own record from
+ * Customer profile management (011 FR-028). Scoped to the caller's own record from
  * the token subject; a customer never sees another's addresses (FR-020, SC-005).
  */
 export const handler = async (

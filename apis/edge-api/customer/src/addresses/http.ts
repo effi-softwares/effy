@@ -37,7 +37,7 @@ export function toAddressInput(body: Record<string, unknown>): AddressRequestInp
   };
 }
 
-/** The shared error envelope for the write handlers — same vocabulary as core-api's addresses. */
+/** The shared error envelope for the write handlers — same vocabulary as every other customer write. */
 export function addressErrorResponse(
   err: unknown,
   scope: RequestScope,

@@ -24,15 +24,18 @@ import { describe, expect, it } from "vitest";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "..", "..", "..");
-const coreApi = resolve(here, "..", "..", "..", "..", "core-api");
 
 /** Services whose responses reach a CUSTOMER. `admin`, `shop` and `fleet` are staff-only. */
+// ⚠ 070: `storefront` and `commerce` replaced the Go backend's storefront, orders, cart and
+// checkout features. The shared delivery and payments modules are listed too — they are bundled
+// into those services, so a field named there reaches a customer just the same.
 const CUSTOMER_FACING = [
   join(edgeApi, "customer", "src"),
-  join(coreApi, "internal", "features", "storefront"),
-  join(coreApi, "internal", "features", "orders"),
-  join(coreApi, "internal", "features", "cart"),
-  join(coreApi, "internal", "features", "checkout"),
+  join(edgeApi, "storefront", "src"),
+  join(edgeApi, "commerce", "src"),
+  join(edgeApi, "shared", "src", "delivery"),
+  join(edgeApi, "shared", "src", "cart-policy"),
+  join(edgeApi, "shared", "src", "payments"),
 ];
 
 /** The address columns and DTO fields 061 introduced. */
@@ -48,12 +51,12 @@ function sourceFiles(dir: string): string[] {
   try {
     entries = readdirSync(dir);
   } catch {
-    return []; // a service that does not exist yet is not a leak
+    return []; // counted below: a root that resolves to nothing fails the floor test
   }
   return entries.flatMap((e) => {
     const full = join(dir, e);
     if (statSync(full).isDirectory()) return sourceFiles(full);
-    return /\.(ts|go)$/.test(e) && !/\.test\.ts$/.test(e) ? [full] : [];
+    return /\.ts$/.test(e) && !/\.test\.ts$/.test(e) ? [full] : [];
   });
 }
 
@@ -87,6 +90,8 @@ describe("hidden fulfilment — a shop's address never reaches a customer", () =
     // A guard that silently scans nothing passes forever. 033 shipped a test that passed VACUOUSLY
     // once the list it checked emptied, and 057 shipped one whose injection sailed straight through.
     const scanned = CUSTOMER_FACING.flatMap(sourceFiles);
-    expect(scanned.length, "the customer-facing source list resolved to nothing").toBeGreaterThan(20);
+    expect(scanned.length, "the customer-facing source list resolved to nothing").toBeGreaterThan(100);
+    // EVERY root, not the total: one service moved or renamed must not hide behind the others.
+    for (const dir of CUSTOMER_FACING) expect(sourceFiles(dir).length, `${dir} has no source — was it moved?`).toBeGreaterThan(0);
   });
 });

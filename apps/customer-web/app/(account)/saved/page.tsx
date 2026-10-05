@@ -37,7 +37,7 @@ export default function SavedPage() {
 async function Saved() {
   await requireCustomer("/saved")
   const session = await getSession()
-  const { lists, items } = await readList(session?.accessToken, DEFAULT_LIST_ID)
+  const { lists, items } = await readList(session, DEFAULT_LIST_ID)
 
   return (
     <>

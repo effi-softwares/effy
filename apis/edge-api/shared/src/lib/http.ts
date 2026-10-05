@@ -167,7 +167,7 @@ export function refused(
   extra?: Record<string, unknown>,
 ): APIGatewayProxyStructuredResultV2 {
   const res = problem(status, `https://effyshopping.com/problems/${reason.replaceAll("_", "-")}`,
-    status === 409 ? "Conflict" : "Request validation failed", detail, scope);
+    status === 409 ? "Conflict" : status === 404 ? "Not Found" : "Request validation failed", detail, scope);
   if (!extra) return res;
   return { ...res, body: JSON.stringify({ ...(JSON.parse(res.body ?? "{}") as object), ...extra }) };
 }

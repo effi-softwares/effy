@@ -8,7 +8,7 @@ import type { AddressDTO, CreateAddressRequest, UpdateAddressRequest } from "@ef
  * ⚠ NO TanStack Query on this surface. customer-web is the deliberately dependency-free storefront —
  * the address book follows the FavoritesList pattern: the page fetches the initial list server-side,
  * and the client list holds it in `useState` and calls these fetchers, which hit the authenticated
- * Next proxy routes under `app/api/addresses/` (the proxy relays the session token to core-api).
+ * Next proxy routes under `app/api/addresses/` (the proxy relays the session token to the backend).
  *
  * Every fetcher returns a discriminated result so the caller can distinguish success from a mapped
  * problem — crucially the **409** the delete-default guard raises (FR-016a), which the UI turns into

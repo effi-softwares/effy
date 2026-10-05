@@ -17,7 +17,7 @@
  */
 import { adoptSaved, applySaved, isInNamedList, isSaved, readSavedIds } from "./saved-store"
 
-/** How many a device-held guest list may hold (FR-046). Mirrors `saveditems.GuestCap` on the hot path. */
+/** How many a device-held guest list may hold (FR-046). Mirrors the saved-items guest cap on the server. */
 export const GUEST_CAP = 50
 
 

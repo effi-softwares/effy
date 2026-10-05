@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 /**
  * CHECKOUT (US3) — where Effy finally needs an identity (FR-020). Lives OUTSIDE the `(shop)` quarantine
- * so it may read the session and call the hot path with the customer's token. The gate + data read are
+ * so it may read the session and call the backend with the customer's token. The gate + data read are
  * inside <Suspense> (request-time data outside a boundary is a cacheComponents build error); the static
  * shell prerenders.
  */

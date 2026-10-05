@@ -28,7 +28,7 @@ export interface RecordArrivalInput {
 /**
  * Record an arrival, idempotently.
  *
- * ⚠ IDEMPOTENCY IS THE `FinalizeSucceeded` SHAPE (checkout/store.go), and it is belt AND braces:
+ * ⚠ IDEMPOTENCY IS THE `finalizeSucceeded` SHAPE (`@effy/edge-shared/payments`), and it is belt AND braces:
  *
  *  1. The row lock + status-guarded UPDATE (`WHERE id = $1 AND status = 'collected'`) means a second
  *     call affects 0 rows and takes the early return — no second notification, and critically the

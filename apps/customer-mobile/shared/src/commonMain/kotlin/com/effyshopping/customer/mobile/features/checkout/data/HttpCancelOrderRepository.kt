@@ -13,22 +13,20 @@ import kotlinx.serialization.Serializable
 /**
  * Cancel an order (055 US2).
  *
- * ⚠ HOT PATH (`core`), unlike the receipt resend beside it. Cancelling MOVES MONEY, and the payment
- * secret lives in `core-api` and nowhere else (019 SC-012). The cold path could only do this by
- * holding the secret too, or by forwarding this customer's token to another service — the
- * auth-brokering Principle IV forbids by name (research R1).
+ * ⚠ Cancelling MOVES MONEY: it is a full refund. It goes to the commerce service, where checkout
+ * and payment live (moved from the retired Go backend by 070).
  *
  * ⚠ IT SENDS NO BODY. Which order is in the path, who the caller is comes from the token, and the
  * amount is the platform's arithmetic. A field here would be a field somebody could use to redirect
  * somebody else's money.
  */
-class HttpCancelOrderRepository(private val core: HttpClient) : CancelOrder {
+class HttpCancelOrderRepository(private val edge: HttpClient) : CancelOrder {
 
     @Serializable
     private data class Response(@SerialName("amount") val amount: String = "")
 
     override suspend fun invoke(orderId: String): CancelOrderResult = try {
-        val response = core.post("v1/orders/$orderId/cancel")
+        val response = edge.post("commerce/v1/orders/$orderId/cancel")
         when (response.status) {
             HttpStatusCode.OK, HttpStatusCode.Accepted ->
                 CancelOrderResult.Cancelled(response.body<Response>().amount)

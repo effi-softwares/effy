@@ -362,6 +362,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **070-retire-core-api** — One Backend: Retire the Always-On Shopper Service
 - **069-delivery-slots-dates** — Delivery Time Slots & Standard Delivery Date
 - **068-customer-lists** — Customer Lists (named lists over saved items)
 - **067-product-approval-margin** — Product Approval & Effy Margin

@@ -117,6 +117,39 @@ async function readById(client: PoolClient, staffId: string): Promise<StaffRow> 
   return row;
 }
 
+/**
+ * The REFUND gate (057 US5): the manager gate above, plus "this shop has a portion of THIS order".
+ *
+ * ⚠ `shop_staff` IS DELIBERATELY NOT ENOUGH, and this is the one authority split that differs from
+ * the rest of the console. Both roles pick and pack. A refund is irreversible and spends the
+ * business's money, which places it with the manager.
+ *
+ * ⚠ The fulfilment term is an EXISTS, so several portions cannot multiply the answer. The shop id
+ * comes back with the decision — from the SAME row that granted it — so the lines a refund may name
+ * are scoped to the shop that was authorized, never to one read a moment later.
+ */
+const AUTHORIZE_SHOP_REFUND = `
+SELECT ss.shop_id::text AS shop_id
+  FROM public.shop_staff ss
+  JOIN public.shop_staff_role ssr ON ssr.staff_id = ss.id
+  JOIN public.shop            st  ON st.id = ss.shop_id
+ WHERE ss.cognito_sub = $1
+   AND ss.status      = 'active'
+   AND st.status      = 'active'
+   AND ssr.role_key   = 'shop_manager'
+   AND EXISTS (
+         SELECT 1 FROM public.shop_fulfillment f
+          WHERE f.order_id = $2 AND f.shop_id = ss.shop_id
+       )
+ LIMIT 1
+`;
+
+/** The caller's shop id when they may refund part of this order; null when they may not. */
+export async function authorizeShopRefund(sub: string, orderId: string): Promise<string | null> {
+  const res = await query<{ shop_id: string }>(AUTHORIZE_SHOP_REFUND, [sub, orderId]);
+  return res.rows[0]?.shop_id ?? null;
+}
+
 export async function authorizeShopManager(sub: string): Promise<boolean> {
   const res = await query<{ ok: boolean }>(AUTHORIZE_SHOP_MANAGER, [sub]);
   return res.rows[0]?.ok ?? false;

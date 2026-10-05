@@ -1,4 +1,4 @@
-# edge-notifications — Effy cold-path NOTIFICATIONS worker (050-observability-push-foundation).
+# edge-notifications — Effy NOTIFICATIONS worker (050-observability-push-foundation).
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md) only for healthz; the
 # real work is a SCHEDULED worker (EventBridge rate) that drains public.notification_request and sends
 # push via FCM HTTP v1 (firebase-admin). Scheduled, not event-driven — the SNS/SQS event backbone does

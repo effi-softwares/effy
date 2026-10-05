@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * The account cart, re-priced (027).
@@ -7,7 +7,7 @@ import { proxyToCore } from "@/lib/api/proxy"
  * ever reaches `aws-amplify` and the storefront's quarantine guard stays green (011 FR-006 / D11).
  */
 export async function GET() {
-  return proxyToCore((c) => c.get("/v1/cart"))
+  return proxyToEdge((c) => c.get("/commerce/v1/cart"))
 }
 
 /**
@@ -20,5 +20,5 @@ export async function GET() {
  */
 export async function DELETE(req: Request) {
   const changeId = new URL(req.url).searchParams.get("changeId") ?? ""
-  return proxyToCore((c) => c.delete(`/v1/cart?changeId=${encodeURIComponent(changeId)}`))
+  return proxyToEdge((c) => c.delete(`/commerce/v1/cart?changeId=${encodeURIComponent(changeId)}`))
 }

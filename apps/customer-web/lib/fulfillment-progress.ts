@@ -14,9 +14,8 @@ import type { OrderFulfillmentDTO, OrderShortfallDTO } from "@effy/shared-types"
  * ── ⚠ THE STAGE DERIVATION THAT USED TO LIVE HERE IS GONE (052 FR-008) ──────────────────────────
  *
  * This module also computed a four-value `ProgressStage` from the portions, with the same
- * "every portion must reach it" rule the server now applies in
- * `apis/core-api/internal/features/orders/stage.go`. It was not wrong — it was a SECOND
- * implementation of one rule, in a second language, and that is the shape of 029's banner target and
+ * "every portion must reach it" rule the server now applies (`stageFor`, in the backend's shared
+ * library). It was not wrong — it was a SECOND implementation of one rule, and that is the shape of 029's banner target and
  * 033's `available` flag: both surfaces keep rendering something, so the divergence is silent.
  *
  * The stage is now SERVER-DERIVED and arrives as `OrderDTO.stage`. Render it; never recompute it.

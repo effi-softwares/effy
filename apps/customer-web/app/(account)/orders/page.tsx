@@ -4,7 +4,7 @@ import { Suspense } from "react"
 
 import type { OrderSummaryDTO } from "@effy/shared-types"
 
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
 import { Display } from "@/components/storefront/kit"
@@ -34,7 +34,7 @@ async function OrdersList() {
   let orders: OrderSummaryDTO[] = []
   if (session?.accessToken) {
     try {
-      orders = await coreApi(session.accessToken).get<OrderSummaryDTO[]>("/v1/orders", uncached())
+      orders = await edgeApi(session).get<OrderSummaryDTO[]>("/commerce/v1/orders", uncached())
     } catch {
       orders = []
     }

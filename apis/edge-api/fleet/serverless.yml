@@ -1,4 +1,4 @@
-# edge-fleet — Effy cold-path fleet service (056-driver-management).
+# edge-fleet — Effy fleet service (056-driver-management).
 #
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/CORS/
 # authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live under

@@ -1,0 +1,21 @@
+{
+  "name": "@effy/edge-ops",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy operator tools (070-retire-core-api) — run BY HAND from a workstation through `make`, never deployed: bootstrap or delete a back-office admin, load the locality reference data. Not a service: no serverless.yml, no routes.",
+  "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.700.0",
+    "@effy/edge-shared": "workspace:*",
+    "pg": "8.22.0"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12.0.4",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

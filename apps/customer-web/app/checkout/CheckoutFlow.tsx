@@ -47,10 +47,10 @@ type Step = "review" | "paying"
  *
  *   review (address)  →  delivery (per-package options)  →  paying (Stripe Payment Element)
  *
- * After the customer picks an address we QUOTE the hot path (`/v1/checkout/quote`) for the anonymous
+ * After the customer picks an address we QUOTE the server (`/commerce/v1/checkout/quote`) for the anonymous
  * per-package options; the delivery step prices them client-side for display only. At placement we send
  * the captured `quoteId` + the customer's per-package `selections` + the confirmed `excludedPackageKeys`
- * to `/v1/checkout/intent`. The server owns every fee (SC-004). A 409 means the captured quote is stale
+ * to `/commerce/v1/checkout/intent`. The server owns every fee (SC-004). A 409 means the captured quote is stale
  * (expired, or a package/rate changed) — we RE-QUOTE and re-show the options, never blind-retry (FR-011a).
  *
  * 023 reconciles the review step to the 022 Address Book: the customer's saved addresses drive a picker

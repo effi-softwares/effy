@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 type Ctx = { params: Promise<{ listId: string }> }
 
@@ -6,11 +6,11 @@ type Ctx = { params: Promise<{ listId: string }> }
 export async function PATCH(req: Request, { params }: Ctx) {
   const { listId } = await params
   const body = await req.json().catch(() => ({}))
-  return proxyToCore((c) => c.patch(`/v1/lists/${encodeURIComponent(listId)}`, body))
+  return proxyToEdge((c) => c.patch(`/commerce/v1/lists/${encodeURIComponent(listId)}`, body))
 }
 
 /** Delete a list. Products that are also in another list stay there. */
 export async function DELETE(_req: Request, { params }: Ctx) {
   const { listId } = await params
-  return proxyToCore((c) => c.delete(`/v1/lists/${encodeURIComponent(listId)}`))
+  return proxyToEdge((c) => c.delete(`/commerce/v1/lists/${encodeURIComponent(listId)}`))
 }

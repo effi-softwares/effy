@@ -5,7 +5,7 @@ package com.effyshopping.customer.mobile.features.deliveryinstructions.domain
  * short note. Shared by checkout, the receipt and the address book.
  *
  * ⚠ THE RULE IS THE SERVER'S. What is valid — how whitespace collapses, what counts as blank — is
- * `normaliseDeliveryInstructions` in `packages/shared-types`, mirrored by the Go hot path and pinned
+ * `normaliseDeliveryInstructions` in `packages/shared-types`, applied again by the server and pinned
  * to it by a shared fixture. This app does NOT carry a third copy of that rule: it clamps typing to
  * the limit so the counter can stop at zero, sends what was typed, and shows what the server stored.
  * The one thing duplicated here is the NUMBER ([NOTE_MAX]), which `DeliveryInstructionsTest` pins.

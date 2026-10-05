@@ -11,7 +11,7 @@ import { NOT_FOUND, VALIDATION_FAILED } from "../lib/problems";
  * POST /orders/v1/orders/{orderId}/proposals/{orderItemId}/dismiss — a human says this refund is not
  * owed (055 FR-004b).
  *
- * ⚠ NO MONEY MOVES, which is why it is here and not in `core-api`. Issuing needs the payment secret;
+ * ⚠ NO MONEY MOVES. Issuing a refund is the route beside this one and calls the payment provider;
  * dismissing needs only a record of the judgement.
  *
  * ⚠ WRITE GATE: admin|manager, the SAME gate as issuing (FR-019). Dismissing looks like the harmless

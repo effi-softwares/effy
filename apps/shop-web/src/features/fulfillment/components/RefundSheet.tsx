@@ -155,7 +155,7 @@ export function RefundSheet({
       </SheetField>
 
       {/* ⚠ OFF by default, and the default is the honest one — a shop refunding an unusable item has
-          nothing to put back. Honoured by core-api since 057 A3 (it used to be ignored). */}
+          nothing to put back. Honoured by the server since 057 A3 (it used to be ignored). */}
       <SheetToggleRow
         title="Return items to stock"
         detail="Only if you still have them and they can be sold."

@@ -31,7 +31,7 @@ export type FulfillmentStatus =
    */
   | "unfulfillable"
   /**
-   * ⚠ 055 US2 — set by CANCELLATION, never by a shop. It is written by `core-api` when an order is
+   * ⚠ 055 US2 — set by CANCELLATION, never by a shop. It is written by the platform's cancellation (`@effy/edge-shared/payments`) when an order is
    * called off, and it is deliberately a different state from `unfulfillable`: the shop did not fail
    * to supply anything. Conflating them would tell a shop it failed at something nobody wanted, and
    * would make shop-reliability reporting count cancellations as shop failures.
@@ -46,7 +46,7 @@ export type FulfillmentStatus =
  * hand-written beside the union, adding `unfulfillable` to the type left the route still REJECTING
  * it. Deriving one from the other makes that impossible.
  *
- * ⚠ `withdrawn` is deliberately absent and must never be added: it is written by `core-api` when an
+ * ⚠ `withdrawn` is deliberately absent and must never be added: it is written by the platform's cancellation when an
  * ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.
  */
 export const REQUESTABLE_TRANSITIONS = ["picking", "ready_for_pickup", "unfulfillable"] as const;
@@ -147,7 +147,7 @@ export interface FulfillmentItem {
 /** The pick screen. Contains no order-level total — that would leak other shops' lines. */
 export interface FulfillmentDetail {
   id: string;
-  /** 057 — the order's id, for the shop refund route on core-api. See the DTO for why. */
+  /** 057 — the order's id, for the shop refund route. See the DTO for why. */
   orderId: string;
   orderNumber: string;
   placedAt: Date;

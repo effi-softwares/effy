@@ -162,7 +162,7 @@ export interface PaymentGateway {
   /** Re-fetch an intent's authoritative status. */
   retrievePaymentIntent(intentId: string): Promise<PaymentIntent>;
   /** Verify the provider signature over the RAW body and return the event. */
-  constructWebhookEvent(rawBody: string, signatureHeader: string): Promise<WebhookEvent>;
+  constructWebhookEvent(rawBody: string | Buffer, signatureHeader: string): Promise<WebhookEvent>;
 
   /**
    * Return money for a payment, in whole or in part.

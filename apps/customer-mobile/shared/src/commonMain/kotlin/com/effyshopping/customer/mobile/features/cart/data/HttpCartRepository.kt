@@ -44,22 +44,24 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * The cart over the CORE api (the hot path — the routing law, 011 FR-028).
+ * The cart over the `commerce` service (070) — the platform's one backend. Until 070 these were `v1/…`
+ * routes on a second, always-on backend; the paths moved under the service prefix and the wire
+ * shapes did not change.
  *
  * Every method maps the wire DTO to the domain explicitly (Principle VI: wire shapes never leak past the
  * data layer). Every mutation returns the COMPLETE re-priced cart, which is why none of these methods
  * returns Unit — the platform's answer IS the new truth, and the mirror adopts it by revision.
  *
- * ⚠ 019's `replace` (PUT /v1/cart) is gone. See [CartRepository] for why its absence is load-bearing.
+ * ⚠ 019's `replace` (PUT cart) is gone. See [CartRepository] for why its absence is load-bearing.
  */
-class HttpCartRepository(private val core: HttpClient) : CartRepository {
+class HttpCartRepository(private val edge: HttpClient) : CartRepository {
 
     override suspend fun get(): CartSnapshot = request {
-        core.get("v1/cart").ensureSuccess().body<CartDTO>().toDomain()
+        edge.get("commerce/v1/cart").ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun add(productId: String, quantity: Int, changeId: String): CartSnapshot = request {
-        core.post("v1/cart/items") {
+        edge.post("commerce/v1/cart/items") {
             setBody(
                 AddToCartRequest(
                     productID = productId,
@@ -71,29 +73,29 @@ class HttpCartRepository(private val core: HttpClient) : CartRepository {
     }
 
     override suspend fun setQuantity(productId: String, quantity: Int, changeId: String): CartSnapshot = request {
-        core.patch("v1/cart/items/$productId") {
+        edge.patch("commerce/v1/cart/items/$productId") {
             setBody(UpdateCartLineRequest(quantity = quantity.toLong(), changeID = changeId))
         }.ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun remove(productId: String, changeId: String): CartSnapshot = request {
-        core.delete("v1/cart/items/$productId") { parameter("changeId", changeId) }
+        edge.delete("commerce/v1/cart/items/$productId") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun clear(changeId: String): CartSnapshot = request {
-        core.delete("v1/cart") { parameter("changeId", changeId) }
+        edge.delete("commerce/v1/cart") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun merge(lines: List<PendingLine>, changeId: String): CartSnapshot = request {
-        core.post("v1/cart/merge") {
+        edge.post("commerce/v1/cart/merge") {
             setBody(MergeCartRequest(lines = lines.map { it.toInput() }, changeID = changeId))
         }.ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun reorder(orderId: String, changeId: String): ReorderOutcome = request {
-        val dto = core.post("v1/cart/reorder") {
+        val dto = edge.post("commerce/v1/cart/reorder") {
             setBody(ReorderRequest(orderID = orderId, changeID = changeId))
         }.ensureSuccess().body<ReorderResultDTO>()
         ReorderOutcome(
@@ -105,37 +107,37 @@ class HttpCartRepository(private val core: HttpClient) : CartRepository {
     }
 
     override suspend fun setAside(productId: String, changeId: String): CartSnapshot = request {
-        core.post("v1/cart/items/$productId/set-aside") { parameter("changeId", changeId) }
+        edge.post("commerce/v1/cart/items/$productId/set-aside") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun restoreSaved(productId: String, changeId: String): CartSnapshot = request {
-        core.post("v1/cart/saved/$productId/restore") { parameter("changeId", changeId) }
+        edge.post("commerce/v1/cart/saved/$productId/restore") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun deleteSaved(productId: String, changeId: String): CartSnapshot = request {
-        core.delete("v1/cart/saved/$productId") { parameter("changeId", changeId) }
+        edge.delete("commerce/v1/cart/saved/$productId") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun applyPromo(code: String): CartSnapshot = request {
-        core.post("v1/cart/promo") { setBody(ApplyPromoRequest(code = code)) }
+        edge.post("commerce/v1/cart/promo") { setBody(ApplyPromoRequest(code = code)) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun removePromo(): CartSnapshot = request {
-        core.delete("v1/cart/promo").ensureSuccess().body<CartDTO>().toDomain()
+        edge.delete("commerce/v1/cart/promo").ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun preview(lines: List<PendingLine>): CartSnapshot = request {
-        core.post("v1/cart/preview") {
+        edge.post("commerce/v1/cart/preview") {
             setBody(CartPreviewRequest(lines = lines.map { it.toInput() }))
         }.ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun policy(): CartPolicy = request {
-        core.get("v1/cart/policy").ensureSuccess().body<CartPolicyDTO>().let {
+        edge.get("commerce/v1/cart/policy").ensureSuccess().body<CartPolicyDTO>().let {
             CartPolicy(
                 minimumSubtotalAmount = it.minimumSubtotalAmount,
                 currency = it.currency,

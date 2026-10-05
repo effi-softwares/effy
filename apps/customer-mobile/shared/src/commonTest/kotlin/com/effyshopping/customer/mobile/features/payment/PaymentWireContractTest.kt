@@ -13,8 +13,12 @@ import kotlin.test.assertTrue
 /**
  * The Kotlin half of the 051 payment wire contract.
  *
- * ⚠ The literals below are duplicated BYTE-FOR-BYTE from the Go half at
- * apis/core-api/internal/features/checkout/payment_wire_contract_test.go. Neither side generates or
+ * ⚠ THE BACKEND HALF READS THESE LITERALS OUT OF THIS FILE (070). It used to be a second test, in a
+ * second language, holding a hand-made copy kept in step by comments. Now `apis/edge-api/commerce/src/wire.contract.test.ts` parses this
+ * source, takes each `const val`, and compares it with what the real mapper produces — so there is
+ * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
+ *
+ * (Before 070 the backend half was apis/core-api/…/checkout/payment_wire_contract_test.go.) Neither side generates or
  * imports the fixture — a shared literal moves WITH a bug, while two hand-kept copies make a
  * divergence show up as a failure. That is the 028 pattern, and it was proved there by breaking it
  * two ways.
@@ -29,7 +33,7 @@ class PaymentWireContractTest {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     companion object {
-        // Byte-identical to paymentMethodWire in payment_wire_contract_test.go.
+        // Read by the backend's wire.contract.test.ts.
         const val PAYMENT_METHOD =
             """{"id":"pm_123","brand":"visa","last4":"4242","expMonth":4,"expYear":2028,"isDefault":true,"usable":true}"""
 

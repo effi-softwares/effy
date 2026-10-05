@@ -17,15 +17,12 @@ object AppConfig {
     val cognitoAppClientId: String get() = BuildKonfig.COGNITO_APP_CLIENT_ID
     val cognitoRegion: String get() = BuildKonfig.COGNITO_REGION
 
-    /** Account / profile → the cold path (`edge-api/customer`). Where every account route in this app goes. */
+    /** The backend gateway. Every route this app calls is behind it (storefront, commerce, customer). */
     val edgeApiBaseUrl: String get() = BuildKonfig.EDGE_API_BASE_URL
-
-    /** Commerce → the hot path (`core-api`). Nothing to call yet, but the routing law is structural (FR-036). */
-    val coreApiBaseUrl: String get() = BuildKonfig.CORE_API_BASE_URL
 
     /**
      * The Stripe PUBLISHABLE key (`pk_…`, 019 US3/R3) — a NAME, not a secret: it only tokenizes cards and
-     * ships in the client by design (the `sk_…` secret never leaves core-api). The checkout flow presents
+     * ships in the client by design (the `sk_…` secret never leaves the backend). The checkout flow presents
      * the PaymentSheet with THIS key + the server's per-order `clientSecret`; the client carries its own
      * rather than depending on the backend echo (which config.go marks a mere convenience).
      */

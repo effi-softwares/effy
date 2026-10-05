@@ -5,16 +5,17 @@ import { ServerApiClient } from "@effy/api-client"
 import { edgeApiBaseUrl } from "@/lib/config"
 
 /**
- * The COLD path (`edge-api`, serverless). THE ROUTING LAW (FR-028):
+ * The backend: one gateway, one service per audience and domain (constitution v3, Principle III).
+ * The path's first segment names the service:
  *
- *     customer profile · account management   →   HERE
- *     commerce (product/cart/order/payment)   →   NOT HERE. Use lib/api/core.ts.
+ *     /storefront/v1/…   the public catalogue — no credential (`edgeApiPublic`)
+ *     /commerce/v1/…     cart, checkout, payment, a shopper's own orders
+ *     /customer/v1/…     profile and account management
  *
- * Low-frequency account CRUD is exactly what cheap serverless is for. Latency-sensitive
- * commerce traffic is not — putting it here would be a Principle III violation, and it is
- * forbidden without a justified, recorded exception in that feature's plan.
+ * Until 070 commerce went to a second, always-on backend through its own client; that backend and
+ * that client are gone. Which service a new route belongs to: docs/api/path-assignment.md.
  *
- * Everything reached through this client is PER-CUSTOMER and therefore NEVER cached.
+ * Everything reached through `edgeApi(session)` is PER-CUSTOMER and therefore NEVER cached.
  */
 /**
  * ⚠ Takes the whole SESSION, not a bare token — because the privileged account routes need TWO.

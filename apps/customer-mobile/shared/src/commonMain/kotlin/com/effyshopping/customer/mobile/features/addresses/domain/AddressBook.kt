@@ -6,7 +6,7 @@ import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.Ins
 /**
  * The address book domain (022). A first-class account capability to view / add / edit / set-default /
  * delete the customer's saved delivery addresses — over the SAME model checkout already uses (019,
- * `/v1/addresses` on the hot path). Commerce → core-api; every call is customer-scoped from the session
+ * `/customer/v1/addresses`). Every call is customer-scoped from the session
  * token (the client never sends an identity, FR-020).
  *
  * Distinct from the checkout feature's slim `Address`/`AddressRepository` (that one exists only to pick

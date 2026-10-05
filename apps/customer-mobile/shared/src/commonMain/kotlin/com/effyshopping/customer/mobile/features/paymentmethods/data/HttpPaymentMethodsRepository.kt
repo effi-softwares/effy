@@ -16,20 +16,15 @@ import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 
 /**
- * Payment methods over the HOT path (051 US6).
+ * Payment methods over the commerce service (051 US6; moved from the retired Go backend by 070).
  *
- * ⚠ HOT PATH, unlike the address book beside it in the UI. 011's routing law puts *payment* on the hot
- * path, and the provider secret's custody boundary settles it: listing a card is a provider call, so a
- * cold-path route would need a second copy of that secret (research R9).
- *
- * ⚠ The ACCESS token is the bearer here — `core` is built with `BearerToken.Core`. Sending the id token
- * to the hot path 401s every request, which is the defect that silently broke every mobile cart write
- * from 019 until 027 (research R12a).
+ * ⚠ They live with checkout, not with the address book beside them in the UI: listing a card is a
+ * call to the payment provider, and the provider secret has one custodian.
  */
-class HttpPaymentMethodsRepository(private val core: HttpClient) : PaymentMethodsRepository {
+class HttpPaymentMethodsRepository(private val edge: HttpClient) : PaymentMethodsRepository {
 
     override suspend fun list(): List<KeptCard> = request {
-        core.get("v1/payment-methods")
+        edge.get("commerce/v1/payment-methods")
             .ensureSuccess()
             .body<ListPaymentMethodsResponse>()
             .paymentMethods
@@ -42,7 +37,7 @@ class HttpPaymentMethodsRepository(private val core: HttpClient) : PaymentMethod
             // never trusted (FR-026). A 404 means "not yours or not there" — deliberately the same
             // answer, so the route cannot be used as an oracle for which ids exist. It is also benign
             // from the shopper's point of view: the card is gone either way.
-            val response = core.delete("v1/payment-methods/$id")
+            val response = edge.delete("commerce/v1/payment-methods/$id")
             when (response.status.value) {
                 404 -> Unit
                 else -> { response.ensureSuccess(); Unit }

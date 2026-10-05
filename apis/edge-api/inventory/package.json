@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path inventory service (054-product-inventory) — attaches to the shared HTTP API; routes under /inventory/. Shop stock management and the back-office assisted path, one domain behind two authorizers.",
+  "description": "Effy inventory service (054-product-inventory) — attaches to the shared HTTP API; routes under /inventory/. Shop stock management and the back-office assisted path, one domain behind two authorizers.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@effy/edge-shared": "workspace:*",

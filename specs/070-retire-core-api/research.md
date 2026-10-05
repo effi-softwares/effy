@@ -42,6 +42,11 @@ needed); raising the per-container pool above one connection (multiplies connect
 - The three public routes in `commerce` follow the existing pattern of omitting the authorizer per
   route (046's public feedback route).
 
+**Measured (T021, 2026-10-05)**: `serverless package` gives exactly 5 resources per route (log group,
+function, permission, integration, route) plus 3 per service. `storefront` packages to **53** with
+its 10 functions. `commerce` projects to about **205** at 40 functions plus one schedule — well
+under the 450 threshold, so saved items and lists stay in `commerce` and no third service is needed.
+
 **Alternatives rejected**: one service for everything (mixes four audiences; staff money routes
 would share the shopper connection limit); a separate `payments` service for the webhook and all
 refunds (splits payment finalisation from checkout, which call the same code); adding to `customer`

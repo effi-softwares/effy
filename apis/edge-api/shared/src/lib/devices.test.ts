@@ -48,7 +48,7 @@ describe("registerDevice — validation + idempotent upsert (SC-009)", () => {
   });
 
   // ⚠ CHANGED BY 059, AND THE CHANGE IS THE POINT. This test used `platform: "web"` as its example
-  // of an INVALID value. That rejection is the defect 059 fixes: since 050 core-api has enqueued a
+  // of an INVALID value. That rejection is the defect 059 fixes: since 050 payment finalisation has enqueued a
   // `shop_new_order` intent per active staff member of every fulfilling shop, the worker resolved
   // those to `device_token` rows, and this line is why a browser could never be one — so every
   // intent was recorded, attempted and discarded as "nobody to send to", for a shop audience that

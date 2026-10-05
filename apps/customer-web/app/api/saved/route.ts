@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * The saved list with verdicts (033).
@@ -11,5 +11,5 @@ import { proxyToCore } from "@/lib/api/proxy"
 export async function GET(req: Request) {
   const postcode = new URL(req.url).searchParams.get("postcode")
   const qs = postcode ? `?postcode=${encodeURIComponent(postcode)}` : ""
-  return proxyToCore((c) => c.get(`/v1/saved${qs}`))
+  return proxyToEdge((c) => c.get(`/commerce/v1/saved${qs}`))
 }

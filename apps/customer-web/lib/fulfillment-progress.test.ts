@@ -18,8 +18,8 @@ const portion = (
  * ⚠ THE STAGE CASES THAT USED TO LIVE HERE ARE GONE, DELIBERATELY (052 FR-008).
  *
  * They tested a client-side four-value rollup that duplicated, in TypeScript, the rule the server now
- * applies in `apis/core-api/internal/features/orders/stage.go`. That rule is still tested — harder,
- * with its own negative proof — in `stage_test.go`. Keeping a second copy here would mean two
+ * applies (`stageFor`, in the backend's shared library). That rule is still tested — harder, with
+ * its own negative proof — beside it. Keeping a second copy here would mean two
  * implementations of one rule with two test suites agreeing with each other and possibly with nothing
  * else, which is exactly 029's and 033's failure mode.
  *

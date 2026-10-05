@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { cached, coreApi } from "@/lib/api/core"
+import { cached, edgeApiPublic } from "@/lib/api/edge"
 
 /**
  * The platform's order rules — the minimum spend and the two cart ceilings (027 FR-053/FR-037/FR-038).
@@ -11,7 +11,7 @@ import { cached, coreApi } from "@/lib/api/core"
 export async function GET() {
   try {
     return NextResponse.json(
-      await coreApi().get("/v1/cart/policy", cached({ tags: ["order-policy"], revalidate: 300 })),
+      await edgeApiPublic().get("/commerce/v1/cart/policy", cached({ tags: ["order-policy"], revalidate: 300 })),
     )
   } catch {
     return NextResponse.json({ error: "unavailable" }, { status: 502 })

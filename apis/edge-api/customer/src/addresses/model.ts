@@ -1,11 +1,9 @@
 import type { AddressDTO, HandoverPreference } from "@effy/shared-types";
 
 /**
- * The address book — customer profile management on the COLD path (edge-api/customer), per the
- * routing law (011 FR-028: customer profile/account → cold path). The address CRUD was originally
- * built on the hot path alongside 019's checkout; 022 moved the *management* surface here, where
- * customer-profile capability belongs. Checkout still reads `public.customer_address` directly for
- * its order snapshot — that is checkout data access on the hot path, not an address-book API.
+ * The address book — customer profile management, which is this service's job (011 FR-028).
+ * Checkout (`edge-api/commerce`) reads `public.customer_address` directly for its order snapshot —
+ * that is checkout reading one row it needs, not a second address-book API.
  *
  * Raw SQL, no ORM (Principle VI). The row is a wire shape and never leaks past this layer.
  */

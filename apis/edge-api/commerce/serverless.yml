@@ -128,3 +128,440 @@ functions:
       - httpApi:
           method: GET
           path: /commerce/readyz
+
+  # ── Cart and promotional codes (070 US2) ─────────────────────────────────────────────────────────
+
+  cartV1:
+    handler: src/functions/cart-v1-get.handler
+    description: The shopper's priced cart — lines, set-aside lines, totals, notices, applied promotion, checkout state.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/cart
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartClearV1:
+    handler: src/functions/cart-v1-delete.handler
+    description: Empty the payable cart; set-aside lines survive.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/cart
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartMergeV1:
+    handler: src/functions/cart-merge-v1-post.handler
+    description: Sign-in adoption — union a device cart into the account cart with the MAXIMUM quantity.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/merge
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartItemsAddV1:
+    handler: src/functions/cart-items-v1-post.handler
+    description: Add to cart (increment). The only non-idempotent cart write — changeId required.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/items
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartItemSetV1:
+    handler: src/functions/cart-item-v1-patch.handler
+    description: Set an ABSOLUTE line quantity; zero or less removes the line.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /commerce/v1/cart/items/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartItemRemoveV1:
+    handler: src/functions/cart-item-v1-delete.handler
+    description: Remove a cart line.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/cart/items/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartReorderV1:
+    handler: src/functions/cart-reorder-v1-post.handler
+    description: Put a past order back in the cart at current prices; anything skipped is named.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/reorder
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartItemSetAsideV1:
+    handler: src/functions/cart-item-set-aside-v1-post.handler
+    description: Move a cart line to saved-for-later.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/items/{productId}/set-aside
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartSavedRestoreV1:
+    handler: src/functions/cart-saved-restore-v1-post.handler
+    description: Move a saved-for-later line back into the payable cart.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/saved/{productId}/restore
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartSavedDeleteV1:
+    handler: src/functions/cart-saved-v1-delete.handler
+    description: Drop a saved-for-later line.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/cart/saved/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartPromoApplyV1:
+    handler: src/functions/cart-promo-v1-post.handler
+    description: Apply a promotional code; a refusal names its reason (routed for the first time by 070).
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/promo
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartPromoRemoveV1:
+    handler: src/functions/cart-promo-v1-delete.handler
+    description: Clear the applied promotional code.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/cart/promo
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  cartPreviewV1:
+    handler: src/functions/cart-preview-v1-post.handler
+    description: PUBLIC — re-price a guest's device cart with notices; writes nothing.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/cart/preview
+
+  cartPolicyV1:
+    handler: src/functions/cart-policy-v1-get.handler
+    description: PUBLIC — the minimum spend and cart ceilings, the same for everyone.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/cart/policy
+
+  # ── Saved items and named lists (070 US2) ────────────────────────────────────────────────────────
+
+  savedIdsV1:
+    handler: src/functions/saved-ids-v1-get.handler
+    description: Which products the shopper has saved, and which are in a named list — fills every heart on a screen.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/saved/ids
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  savedV1:
+    handler: src/functions/saved-v1-get.handler
+    description: The default list (Saved), newest first.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/saved
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  savedItemPutV1:
+    handler: src/functions/saved-item-v1-put.handler
+    description: Save a product. Idempotent; refuses at the cap rather than evicting.
+    events:
+      - httpApi:
+          method: PUT
+          path: /commerce/v1/saved/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  savedItemDeleteV1:
+    handler: src/functions/saved-item-v1-delete.handler
+    description: Un-save a product. 204 when absent; refused when it is in a named list.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/saved/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  savedMergeV1:
+    handler: src/functions/saved-merge-v1-post.handler
+    description: Sign-in adoption — fold a device's guest list into the account.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/saved/merge
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  savedAddToCartV1:
+    handler: src/functions/saved-add-to-cart-v1-post.handler
+    description: Add every purchasable item of Saved to the cart; skipped items are named with a reason.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/saved/add-to-cart
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listsV1:
+    handler: src/functions/lists-v1-get.handler
+    description: Every list the shopper has, default first; with productId, whether each contains it.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/lists
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listsCreateV1:
+    handler: src/functions/lists-v1-post.handler
+    description: Create a named list, optionally placing one product in it at once.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/lists
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listRenameV1:
+    handler: src/functions/list-v1-patch.handler
+    description: Rename a named list. The default list cannot be renamed.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /commerce/v1/lists/{listId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listDeleteV1:
+    handler: src/functions/list-v1-delete.handler
+    description: Delete a named list and un-save whatever it alone held. Idempotent.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/lists/{listId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listItemsV1:
+    handler: src/functions/list-items-v1-get.handler
+    description: One list's items, newest-added first.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/lists/{listId}/items
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listEntryPutV1:
+    handler: src/functions/list-entry-v1-put.handler
+    description: Place a product in a list. Idempotent.
+    events:
+      - httpApi:
+          method: PUT
+          path: /commerce/v1/lists/{listId}/entries/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listEntryDeleteV1:
+    handler: src/functions/list-entry-v1-delete.handler
+    description: Take a product out of one list; un-save it if that was its last.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/lists/{listId}/entries/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  listAddToCartV1:
+    handler: src/functions/list-add-to-cart-v1-post.handler
+    description: Add every purchasable item of one list to the cart.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/lists/{listId}/add-to-cart
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ── Checkout, payment and the provider webhook (070 US3) ─────────────────────────────────────────
+  #
+  # timeout 25 on every function that calls the payment provider (research R8).
+
+  checkoutQuoteV1:
+    handler: src/functions/checkout-quote-v1-post.handler
+    description: Delivery preview before payment — packages, fees, open same-day windows, available standard days.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/checkout/quote
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  checkoutIntentV1:
+    handler: src/functions/checkout-intent-v1-post.handler
+    description: Compute the charge, write the pending order, hold the delivery place, create the payment intent.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/checkout/intent
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  checkoutConfirmV1:
+    handler: src/functions/checkout-confirm-v1-post.handler
+    description: The shopper's return from the provider — re-read the intent and settle the order.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/checkout/confirm
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  paymentMethodsV1:
+    handler: src/functions/payment-methods-v1-get.handler
+    description: The shopper's kept cards, read live from the provider. A provider failure is never an empty list.
+    timeout: 25
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/payment-methods
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  paymentMethodDeleteV1:
+    handler: src/functions/payment-method-v1-delete.handler
+    description: Remove a kept card. 404 for both no-such-card and not-yours.
+    timeout: 25
+    events:
+      - httpApi:
+          method: DELETE
+          path: /commerce/v1/payment-methods/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  stripeWebhookV1:
+    handler: src/functions/stripe-webhook-v1-post.handler
+    description: PUBLIC — payment provider notifications, authenticated by the provider's signature over the raw body.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/stripe/webhook
+
+  # ── The shopper's order history and receipt (070 US3) ────────────────────────────────────────────
+
+  ordersV1:
+    handler: src/functions/orders-v1-get.handler
+    description: The shopper's order history, newest first.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/orders
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  orderV1:
+    handler: src/functions/order-v1-get.handler
+    description: One order's receipt. 404 for both no-such-order and not-yours.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/orders/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ── Cancellation, refund requests and the refund reconciler (070 US4) ────────────────────────────
+
+  orderCancelV1:
+    handler: src/functions/order-cancel-v1-post.handler
+    description: A shopper cancels their own order before a shop starts it, and is refunded in full.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/orders/{id}/cancel
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  orderRefundRequestV1:
+    handler: src/functions/order-refund-request-v1-post.handler
+    description: A shopper asks for a refund on their own order. Moves no money; a person decides it.
+    events:
+      - httpApi:
+          method: POST
+          path: /commerce/v1/orders/{id}/refund-requests
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ⚠ NOT A ROUTE. Resolves refunds whose submission to the provider never got an answer: asks the
+  # provider whether each exists, records it if so, and otherwise submits it under its stored key.
+  refundReconcile:
+    handler: src/functions/refund-reconcile-scheduled.handler
+    description: Every 5 minutes — resolve refunds left uncertain by an unanswered provider call.
+    timeout: 60
+    events:
+      - schedule:
+          rate: rate(5 minutes)

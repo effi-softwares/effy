@@ -19,7 +19,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
 
-vi.mock("@effy/edge-shared", () => ({
+// ⚠ The REAL library, with only its two database entry points pointed at the test pool. The service
+// under test takes `stageFor` from it (070), and a mock that replaced the whole module would leave
+// that undefined — the test would fail on the mock, not on the code.
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
 }));

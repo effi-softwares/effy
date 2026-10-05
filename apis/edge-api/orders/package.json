@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path orders service (053-order-lifecycle-completion) — attaches to the shared HTTP API; routes under /orders/. Back-office order console: find/read an order, record a carrier handover, record an arrival.",
+  "description": "Effy orders service (053-order-lifecycle-completion) — attaches to the shared HTTP API; routes under /orders/. Back-office order console: find/read an order, record a carrier handover, record an arrival.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@effy/edge-shared": "workspace:*",

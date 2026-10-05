@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * The idempotent confirm fallback (019 R4), reachable from the client (051 FR-042).
@@ -12,5 +12,5 @@ import { proxyToCore } from "@/lib/api/proxy"
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  return proxyToCore((c) => c.post("/v1/checkout/confirm", body))
+  return proxyToEdge((c) => c.post("/commerce/v1/checkout/confirm", body))
 }

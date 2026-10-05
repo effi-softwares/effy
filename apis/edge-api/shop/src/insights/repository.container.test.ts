@@ -263,7 +263,7 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
     });
 
     /**
-     * ⚠ A line written before 067 — or by a core-api older than it — has NO shop price. It reads as
+     * ⚠ A line written before 067 — or by a backend older than it — has NO shop price. It reads as
      * the customer price, so nothing a shop has already been shown changes.
      */
     it("⚠ a line with no shop price reads as its customer price", async () => {

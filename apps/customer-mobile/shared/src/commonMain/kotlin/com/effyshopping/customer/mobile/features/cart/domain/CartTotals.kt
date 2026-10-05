@@ -1,7 +1,7 @@
 package com.effyshopping.customer.mobile.features.cart.domain
 
 /**
- * Client-side cart totals for DISPLAY, integer-cents math mirroring core-api's money/pricing.
+ * Client-side cart totals for DISPLAY, integer-cents math mirroring the server's money rules.
  *
  * 021: the flat $5 delivery fee is GONE (FR-024). Delivery is now geographic + per-package and is only
  * known once an address is chosen at the delivery step, from the server quote — so the cart shows the

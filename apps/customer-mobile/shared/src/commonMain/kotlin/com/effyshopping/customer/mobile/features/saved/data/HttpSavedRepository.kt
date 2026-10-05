@@ -54,16 +54,18 @@ import kotlinx.io.IOException
 import kotlinx.serialization.Serializable
 
 /**
- * Saved items over the CORE api (the hot path — the routing law, 011 FR-028).
+ * Saved items over the `commerce` service (070) — the platform's one backend. Until 070 these were `v1/…`
+ * routes on a second, always-on backend; the paths moved under the service prefix and the wire
+ * shapes did not change.
  *
  * Every method maps the wire DTO to the domain explicitly (Principle VI: wire shapes never leak past
  * the data layer).
  */
-class HttpSavedRepository(private val core: HttpClient) :
+class HttpSavedRepository(private val edge: HttpClient) :
     SavedRepository, SavedMergeRepository, SavedCartRepository, ListRepository {
 
     override suspend fun membership(): SavedMembership = request {
-        val dto = core.get("v1/saved/ids").ensureSuccess().body<SavedMembershipDTO>()
+        val dto = edge.get("commerce/v1/saved/ids").ensureSuccess().body<SavedMembershipDTO>()
         SavedMembership(
             productIds = dto.productIDS.toSet(),
             // Absent from a backend older than 068; empty is the safe reading (the platform refuses
@@ -73,18 +75,18 @@ class HttpSavedRepository(private val core: HttpClient) :
     }
 
     /**
-     * ⚠ "Saved" still reads `v1/saved`, not `v1/lists/default/items`. They are the same list, and the
+     * ⚠ "Saved" still reads `commerce/v1/saved`, not `commerce/v1/lists/default/items`. They are the same list, and the
      * older route also answers on a backend from before 068 — so a stale backend costs a shopper
      * their named lists, never their saved items.
      */
     override suspend fun list(listId: String): List<SavedItem> = request {
-        val path = if (listId == DEFAULT_LIST_ID) "v1/saved" else "v1/lists/$listId/items"
-        core.get(path).ensureListSuccess().body<List<SavedItemDTO>>().map { it.toDomain() }
+        val path = if (listId == DEFAULT_LIST_ID) "commerce/v1/saved" else "commerce/v1/lists/$listId/items"
+        edge.get(path).ensureListSuccess().body<List<SavedItemDTO>>().map { it.toDomain() }
     }
 
     override suspend fun save(productId: String, restoreSavedAt: String?) {
         request {
-            core.put("v1/saved/$productId") {
+            edge.put("commerce/v1/saved/$productId") {
                 if (restoreSavedAt != null) {
                     contentType(ContentType.Application.Json)
                     setBody(SaveBody(restoreSavedAt))
@@ -94,11 +96,11 @@ class HttpSavedRepository(private val core: HttpClient) :
     }
 
     override suspend fun remove(productId: String) {
-        request { core.delete("v1/saved/$productId").ensureListSuccess() }
+        request { edge.delete("commerce/v1/saved/$productId").ensureListSuccess() }
     }
 
     override suspend fun merge(items: List<SavedGuestEntry>): SavedMergeOutcome = request {
-        val dto = core.post("v1/saved/merge") {
+        val dto = edge.post("commerce/v1/saved/merge") {
             contentType(ContentType.Application.Json)
             setBody(
                 SavedMergeRequest(
@@ -125,8 +127,8 @@ class HttpSavedRepository(private val core: HttpClient) :
     }
 
     override suspend fun addAllToCart(listId: String, changeId: String): SavedAddToCartOutcome = request {
-        val path = if (listId == DEFAULT_LIST_ID) "v1/saved/add-to-cart" else "v1/lists/$listId/add-to-cart"
-        val dto = core.post(path) {
+        val path = if (listId == DEFAULT_LIST_ID) "commerce/v1/saved/add-to-cart" else "commerce/v1/lists/$listId/add-to-cart"
+        val dto = edge.post(path) {
             contentType(ContentType.Application.Json)
             setBody(AddToCartBody(changeId))
         }.ensureListSuccess().body<SavedAddToCartResultDTO>()
@@ -140,31 +142,31 @@ class HttpSavedRepository(private val core: HttpClient) :
     /* ── 068: lists ──────────────────────────────────────────────────────────────────────────── */
 
     override suspend fun lists(productId: String?): List<SavedList> = request {
-        core.get("v1/lists") { if (productId != null) parameter("productId", productId) }
+        edge.get("commerce/v1/lists") { if (productId != null) parameter("productId", productId) }
             .ensureListSuccess().body<List<SavedListDTO>>().map { it.toDomain() }
     }
 
     override suspend fun create(name: String, productId: String?): SavedList = request {
-        core.post("v1/lists") {
+        edge.post("commerce/v1/lists") {
             contentType(ContentType.Application.Json)
             setBody(SavedListCreateRequest(name = name, productID = productId))
         }.ensureListSuccess().body<SavedListDTO>().toDomain()
     }
 
     override suspend fun rename(listId: String, name: String): SavedList = request {
-        core.patch("v1/lists/$listId") {
+        edge.patch("commerce/v1/lists/$listId") {
             contentType(ContentType.Application.Json)
             setBody(SavedListRenameRequest(name))
         }.ensureListSuccess().body<SavedListDTO>().toDomain()
     }
 
     override suspend fun delete(listId: String) {
-        request { core.delete("v1/lists/$listId").ensureListSuccess() }
+        request { edge.delete("commerce/v1/lists/$listId").ensureListSuccess() }
     }
 
     override suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String?) {
         request {
-            core.put("v1/lists/$listId/entries/$productId") {
+            edge.put("commerce/v1/lists/$listId/entries/$productId") {
                 if (restoreAddedAt != null) {
                     contentType(ContentType.Application.Json)
                     setBody(SavedListEntryRequest(restoreAddedAt))
@@ -174,7 +176,7 @@ class HttpSavedRepository(private val core: HttpClient) :
     }
 
     override suspend fun removeEntry(listId: String, productId: String) {
-        request { core.delete("v1/lists/$listId/entries/$productId").ensureListSuccess() }
+        request { edge.delete("commerce/v1/lists/$listId/entries/$productId").ensureListSuccess() }
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

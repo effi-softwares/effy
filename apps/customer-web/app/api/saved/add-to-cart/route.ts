@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * Add every purchasable saved item to the cart (033 FR-051).
@@ -8,5 +8,5 @@ import { proxyToCore } from "@/lib/api/proxy"
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
-  return proxyToCore((c) => c.post("/v1/saved/add-to-cart", body))
+  return proxyToEdge((c) => c.post("/commerce/v1/saved/add-to-cart", body))
 }

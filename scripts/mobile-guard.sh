@@ -51,7 +51,7 @@ for REL in $APPS; do
     KEYS="$(awk '/val requiredKeys/{f=1} f{print} /\)/{if(f)f=0}' "$GRADLE" \
             | grep -oE '"[A-Z0-9_]+"' | tr -d '"' || true)"
     # STRIPE_PUBLISHABLE_KEY is the ONE allowed `_KEY`-named value: a Stripe publishable key (pk_…) is
-    # designed to ship in clients and authorizes nothing (the sk_… secret stays in core-api — 019 R3).
+    # designed to ship in clients and authorizes nothing (the sk_… secret stays in the backend — 019 R3).
     BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' \
             | grep -vxE 'STRIPE_PUBLISHABLE_KEY' || true)"
     if [ -n "$BAD" ]; then

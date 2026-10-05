@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * The membership read (033) — the shopper's whole set of saved product ids.
@@ -11,5 +11,5 @@ import { proxyToCore } from "@/lib/api/proxy"
  * to its device-local mirror rather than treating it as a failure.
  */
 export async function GET() {
-  return proxyToCore((c) => c.get("/v1/saved/ids"))
+  return proxyToEdge((c) => c.get("/commerce/v1/saved/ids"))
 }

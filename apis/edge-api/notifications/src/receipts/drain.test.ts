@@ -7,7 +7,7 @@ import { drainReceiptsOnce, type PendingReceipt, type ReceiptDrainDeps } from ".
  *
  * ⚠ WHAT THESE CANNOT PROVE, and what does: the EXACTLY-ONCE guarantee is not in this file. It is a
  * partial unique index, proven against a real engine in
- * `apis/core-api/internal/features/checkout/receipt_dispatch_container_test.go`. A fake would accept
+ * the payment finalisation's own real-database suite (`commerce/src/checkout/checkout.container.test.ts`). A fake would accept
  * two inserts and tell you nothing. These tests cover what IS a decision here — what to do with a
  * claimed row.
  */

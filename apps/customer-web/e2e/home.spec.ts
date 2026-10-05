@@ -124,7 +124,7 @@ test.describe("category shortcuts (US2, SC-002)", () => {
     await first.click()
 
     // ⚠ `waitForURL`, not `expect(page).toHaveURL`, and with a generous budget: the destination is a
-    // dynamic search page that queries core-api, and under four parallel workers it routinely takes
+    // dynamic search page that queries the backend, and under four parallel workers it routinely takes
     // longer than the 5s default assertion timeout. That is load, not a defect — but it fails
     // identically, which is how a green suite starts getting ignored.
     await page.waitForURL(new RegExp(href!.replace(/[?&=]/g, "\\$&")), { timeout: 30_000 })
@@ -164,7 +164,7 @@ test.describe("category shortcuts (US2, SC-002)", () => {
         .filter((c) => c.productCount > 0)
         .map((c) => c.key),
     )
-    test.skip(stocked.size === 0, "core-api not reachable")
+    test.skip(stocked.size === 0, "backend not reachable")
 
     for (const link of links) {
       const href = await link.getAttribute("href")

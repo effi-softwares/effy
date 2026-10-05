@@ -44,7 +44,7 @@ function jsonRes(body: unknown, ok = true, status = 200) {
   return { ok, status, json: async () => body } as Response
 }
 
-// Capture the request bodies the flow sends to the hot path.
+// Capture the request bodies the flow sends to the server.
 let intentBodies: Array<Record<string, unknown>>
 let addressWrites: number
 let addressPatches: Array<{ id: string; body: Record<string, unknown> }>

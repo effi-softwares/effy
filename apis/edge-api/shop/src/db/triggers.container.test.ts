@@ -8,11 +8,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 /**
  * The triggers, against real PostgreSQL and THE REAL MIGRATIONS (058).
  *
- * ⚠ WHY THIS CANNOT BE A UNIT TEST. The two properties the whole design rests on are properties of
- * PostgreSQL, not of our code: a NOTIFY is delivered **only if the transaction commits**, and the
- * dirty mark lands **in the same transaction as the change it describes**. Mocking either would
- * assert that our fixture agrees with our belief — 027 R13's failure mode. The one way to know is to
- * roll a transaction back and watch nothing arrive.
+ * ⚠ WHY THIS CANNOT BE A UNIT TEST. The property the design rests on is a property of PostgreSQL,
+ * not of our code: the dirty mark lands **in the same transaction as the change it describes**.
+ * Mocking it would assert that our fixture agrees with our belief — 027 R13's failure mode. The one
+ * way to know is to roll a transaction back and watch nothing remain.
+ *
+ * ⚠ 070 WITHDREW THE OTHER HALF. These triggers also used to NOTIFY open consoles; the stream that
+ * relayed it went with the always-on backend, and migration `drop_shop_ops_poke` removed the
+ * notification. A listener is still attached here — to prove that nothing is sent any more.
  */
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -38,7 +41,7 @@ const SHOP = "33333333-3333-4333-8333-333333333333";
 describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", () => {
   let container: StartedPostgreSqlContainer;
   let pool: Pool;
-  /** A dedicated LISTENer, exactly as core-api holds one (contracts/shop-live-stream). */
+  /** A LISTENer on the retired channel. It must hear nothing (070). */
   let listener: Client;
   let heard: string[] = [];
 
@@ -118,7 +121,7 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     return { orderId, fulfillmentId: f.rows[0]!.id };
   }
 
-  it("a committed refund marks exactly one bucket and pokes the shop", async () => {
+  it("a committed refund marks exactly one bucket — and notifies nobody", async () => {
     const { orderId } = await paidOrder("EFY-T1");
     await forgetFixtureWork();
     await pool.query(
@@ -131,10 +134,10 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     const dirty = await pool.query(`SELECT shop_id, bucket_start FROM public.insights_dirty`);
     expect(dirty.rowCount).toBe(1);
     expect(dirty.rows[0]!.shop_id).toBe(SHOP);
-    expect(heard).toContain(SHOP);
+    expect(heard, "the shop_ops notification was withdrawn by 070").toEqual([]);
   });
 
-  it("⚠ a ROLLED-BACK refund leaves no dirty mark and sends no poke", async () => {
+  it("⚠ a ROLLED-BACK refund leaves no dirty mark", async () => {
     const { orderId } = await paidOrder("EFY-T2");
     await forgetFixtureWork();
     const client = await pool.connect();
@@ -153,10 +156,9 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
 
     const dirty = await pool.query(`SELECT 1 FROM public.insights_dirty`);
     expect(dirty.rowCount, "a rolled-back change must leave no work behind").toBe(0);
-    expect(heard, "NOTIFY is delivered only on commit — this is the whole reason it is a trigger").toEqual([]);
   });
 
-  it("many changes in ONE transaction collapse to a single poke", async () => {
+  it("pick progress — the busiest write a shop makes — sends nothing and marks nothing", async () => {
     const { fulfillmentId, orderId } = await paidOrder("EFY-T3");
     const item = await pool.query<{ id: string }>(
       `SELECT id FROM public.order_item WHERE order_id = $1`,
@@ -183,10 +185,17 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     }
     await settle();
 
-    expect(
-      heard.filter((p) => p === SHOP).length,
-      "identical payloads in one transaction collapse — a 20-line pick must wake a console once",
-    ).toBe(1);
+    // Before 070 this woke every open console. With no listener it would be work on the hottest
+    // write path to tell nobody anything.
+    expect(heard).toEqual([]);
+    expect((await pool.query(`SELECT 1 FROM public.insights_dirty`)).rowCount).toBe(0);
+
+    // The function the triggers called is gone, not merely unused.
+    const poke = await pool.query(`SELECT 1 FROM pg_proc WHERE proname = 'shop_ops_poke'`);
+    expect(poke.rowCount).toBe(0);
+    // And every trigger 058 created is still attached: only the notification was removed.
+    const triggers = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM pg_trigger WHERE tgname LIKE 'shop_ops_%' AND NOT tgisinternal`);
+    expect(Number(triggers.rows[0]!.n)).toBe(10);
   });
 
   it("the first mark's marked_at survives later marks, so backlog age is the real lag", async () => {

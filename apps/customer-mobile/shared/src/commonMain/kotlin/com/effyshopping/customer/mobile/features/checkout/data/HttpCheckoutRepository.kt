@@ -28,13 +28,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * Checkout / orders / addresses over the CORE api (019 US3). All are customer-authorized (the two-token
- * plugin adds the session). Transport failures become AppError.Network (the 013 pattern).
+ * Checkout and orders over the commerce service (019 US3; moved from the retired Go backend by 070).
+ * All are customer-authorized (the client's auth plugin adds the session). Transport failures become AppError.Network (the 013 pattern).
  */
-class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository, OrdersRepository {
+class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository, OrdersRepository {
 
     override suspend fun createIntent(order: PlaceOrder): CheckoutIntent = request {
-        val response = core.post("v1/checkout/intent") { setBody(order.toRequest()) }
+        val response = edge.post("commerce/v1/checkout/intent") { setBody(order.toRequest()) }
         // 069 — a 409 carrying one of the three delivery-choice codes is a NAMED refusal with the
         // options as they stand now. ⚠ Read BEFORE the generic mapping, which turns every 409 into an
         // unrelated account error; a 409 that is not one of ours still falls through to it.
@@ -45,22 +45,22 @@ class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository,
     }
 
     override suspend fun confirm(orderId: String): Boolean = request {
-        core.post("v1/checkout/confirm") {
+        edge.post("commerce/v1/checkout/confirm") {
             setBody(mapOf("orderId" to orderId))
         }.ensureSuccess().body<ConfirmResponse>().paid
     }
 
     override suspend fun quote(addressId: String): DeliveryQuote = request {
-        core.post("v1/checkout/quote") { setBody(mapOf("addressId" to addressId)) }
+        edge.post("commerce/v1/checkout/quote") { setBody(mapOf("addressId" to addressId)) }
             .ensureSuccess().body<DeliveryQuoteDTO>().toDomain()
     }
 
     override suspend fun get(orderId: String): Receipt = request {
-        core.get("v1/orders/$orderId").ensureSuccess().body<OrderDTO>().toReceipt()
+        edge.get("commerce/v1/orders/$orderId").ensureSuccess().body<OrderDTO>().toReceipt()
     }
 
     override suspend fun list(): List<OrderSummary> = request {
-        core.get("v1/orders").ensureSuccess().body<List<OrderSummaryDTO>>().map { it.toDomain() }
+        edge.get("commerce/v1/orders").ensureSuccess().body<List<OrderSummaryDTO>>().map { it.toDomain() }
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

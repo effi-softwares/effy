@@ -1,35 +1,32 @@
-# `infra/observability/` — alerting rules, ahead of the stack that will run them
+# `infra/observability/` — where the platform's alarms actually are
 
-⚠ **NOTHING IN THIS DIRECTORY IS DEPLOYED, AND NOTHING LOADS IT YET.**
+**Alarms live in Terraform**, beside the infrastructure they watch, and are delivered to the alerts
+topic (`aws_sns_topic.alerts`, `infra/envs/<env>/alerts.tf`) whose subscriber is the operator's
+approved operational mailbox.
 
-## What is actually true today
+| File | Watches |
+|---|---|
+| `infra/envs/<env>/commerce-alarms.tf` | delivery quotes, stock at checkout, refunds (submission, bank rejection, stuck), same-day slots over capacity, payment-provider notifications |
+| `infra/envs/<env>/dispatch.tf` | wave planning and custody |
+| `infra/envs/<env>/catalog-review.tf` | products waiting on review |
+| `infra/envs/<env>/dns.tf` | certificates and mail deliverability |
+| each service's `serverless.yml` (`resources:`) | that service's own health probe and function errors |
 
-[ARCHITECTURE.md](../../ARCHITECTURE.md) describes Prometheus and Grafana running self-hosted on
-ECS/Fargate, scraping the hot path's `/metrics` endpoint and driving dashboards and alerts.
+Metrics are **CloudWatch metrics**. Backend services emit them in embedded metric format through one
+helper (`apis/edge-api/shared/src/lib/metrics.ts`); nothing is scraped and nothing runs to collect them.
 
-**That stack does not exist.** There is no Prometheus module, no Grafana module, and no scrape
-config anywhere in `infra/`. `apis/core-api` genuinely exposes `/metrics` in Prometheus exposition
-format — but nothing reads it, and `core-api` has no cloud deployment either, so today the endpoint
-is reachable only from a laptop.
+## What used to be here, and why it is gone
 
-⚠ **This is a pre-existing platform gap, not one feature 032 introduced.** It is recorded here rather
-than in a slice's notes because it will otherwise be rediscovered by every future feature that adds
-a counter and then looks for somewhere to alert on it.
+Until feature 070 this directory held four Prometheus alerting-rule files (`alerts/032…`, `054…`,
+`055…`, `069…`) and a README explaining that **nothing loaded them**: the platform's documents
+described a Prometheus + Grafana stack self-hosted on ECS, and that stack was never built. The
+rules were specification, not monitoring — every threshold in them was documentation.
 
-## Why the rules are committed anyway
+070 retired the always-on backend those rules were written against and replaced them with the
+alarms in `commerce-alarms.tf`, which run. The constitution (v3.0.0, Principle VII) now names
+CloudWatch metrics and alarms as the standard.
 
-An alert nobody wrote down is an alert nobody will write. These files are the **specification** of
-what must fire, in the format the eventual stack consumes, so that standing the stack up is a wiring
-task rather than an archaeology task. They are reviewable now; they are inert now.
-
-⚠ **Do not read a file here as evidence that anything is being watched.** Until an observability
-slice provisions Prometheus and points it at these rules, every threshold below is documentation.
-
-## Files
-
-| File | Feature | Status |
-|---|---|---|
-| `alerts/032-delivery-pricing.yml` | 032 — delivery pricing & same-day | ⚠ written, not loaded |
-| `alerts/054-product-inventory.yml` | 054 — product inventory (oversell) | ⚠ written, not loaded |
-| `alerts/055-refunds-cancellation.yml` | 055 — refunds failing, and refunds that never settle | ⚠ written, not loaded |
-| `alerts/069-delivery-slots.yml` | 069 — a same-day slot booked over capacity; slots refusing or silent | ⚠ written, not loaded |
+⚠ **Adding a counter is not adding an alarm.** A metric nobody alarms on is a number in a console
+nobody is looking at. When a feature adds a signal that should reach a person, it adds the alarm in
+the same change — and proves delivery once (`aws cloudwatch set-alarm-state`), because an alarm
+with a dead notification path is the defect 037 was written to fix.

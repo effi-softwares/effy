@@ -1,4 +1,4 @@
-# `@effy/edge-shop` — cold-path shop service (004 A3)
+# `@effy/edge-shop` — shop service (004 A3)
 
 An independently deployable Serverless service that **attaches to the Terraform-owned shared HTTP
 API** (`provider.httpApi.id` from SSM — see [docs/api/shared-gateway.md](../../../docs/api/shared-gateway.md)).

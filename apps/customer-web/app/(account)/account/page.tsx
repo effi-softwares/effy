@@ -9,8 +9,7 @@ import type { AddressDTO, PaymentMethodDTO } from "@effy/shared-types"
 
 import { AddressList } from "@/app/(account)/addresses/_components/AddressList"
 import { Avatar } from "@/components/Avatar"
-import { coreApi, uncached } from "@/lib/api/core"
-import { edgeApi } from "@/lib/api/edge"
+import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { AccountTabsProvider, SectionNav, TabContent } from "./AccountTabs"
 import { EmailDeliveryNotice } from "./EmailDeliveryNotice"
@@ -168,10 +167,8 @@ async function AddressBook() {
 /**
  * Payment methods (051 US6) — the cards a shopper chose to keep.
  *
- * ⚠ HOT PATH, unlike the address book above it. That is not an inconsistency: 011's routing law puts
- * *payment* on the hot path, and the provider secret's custody boundary settles it — listing a card is
- * a provider call, and a cold-path route would need a second copy of that secret (research R9). Two
- * neighbouring tabs, two paths, for the reason the doctrine gives.
+ * ⚠ Served by the commerce service, unlike the address book above it (the customer service):
+ * listing a card is a call to the payment provider, so it lives with checkout.
  *
  * ⚠ A FAILED READ IS NOT AN EMPTY LIST. Falling back to `[]` here would tell a shopper with saved cards
  * that they have none — a false statement about their own account, and exactly the FR-036 failure mode.
@@ -183,8 +180,8 @@ async function PaymentMethods() {
   let loadFailed = false
   if (session?.accessToken) {
     try {
-      const res = await coreApi(session.accessToken).get<{ paymentMethods: PaymentMethodDTO[] }>(
-        "/v1/payment-methods",
+      const res = await edgeApi(session).get<{ paymentMethods: PaymentMethodDTO[] }>(
+        "/commerce/v1/payment-methods",
         uncached(),
       )
       cards = res.paymentMethods ?? []

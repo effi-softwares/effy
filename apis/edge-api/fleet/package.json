@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path fleet service (056-driver-management) — attaches to the shared HTTP API; routes under /fleet/. Back-office driver register, profile, lifecycle, duty, exceptions, stranded work, history and readiness. One audience, one authorizer.",
+  "description": "Effy fleet service (056-driver-management) — attaches to the shared HTTP API; routes under /fleet/. Back-office driver register, profile, lifecycle, duty, exceptions, stranded work, history and readiness. One audience, one authorizer.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.700.0",

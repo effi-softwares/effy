@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * Fold the device cart into the account cart at sign-in (027 FR-011/FR-012).
@@ -9,5 +9,5 @@ import { proxyToCore } from "@/lib/api/proxy"
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({ lines: [] }))
-  return proxyToCore((c) => c.post("/v1/cart/merge", body))
+  return proxyToEdge((c) => c.post("/commerce/v1/cart/merge", body))
 }

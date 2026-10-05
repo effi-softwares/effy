@@ -2,7 +2,7 @@ import "server-only"
 
 import { DEFAULT_LIST_ID, type SavedItemDTO, type SavedListDTO } from "@effy/shared-types"
 
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApi, perCustomer } from "@/lib/api/edge"
 
 /**
  * One list's page data (068): every list for the tab row, and this list's products.
@@ -14,14 +14,18 @@ import { coreApi, uncached } from "@/lib/api/core"
  * the next load repairs it. The tab row falls back to "Saved" alone so the page still has a home.
  */
 export async function readList(
-  accessToken: string | null | undefined,
+  session: { idToken: string; accessToken?: string | null } | null | undefined,
   listId: string,
 ): Promise<{ lists: SavedListDTO[]; items: SavedItemDTO[] | null }> {
-  const api = coreApi(accessToken)
+  // No session: the shopper sees the empty default list, exactly as a failed read would show.
+  if (!session?.idToken) {
+    return { lists: [{ id: DEFAULT_LIST_ID, isDefault: true, name: null, count: 0, onlyHereCount: 0 }], items: [] }
+  }
+  const api = edgeApi(session)
   const [lists, items] = await Promise.all([
-    api.get<SavedListDTO[]>("/v1/lists", uncached()).catch(() => null),
+    api.get<SavedListDTO[]>("/commerce/v1/lists", perCustomer).catch(() => null),
     api
-      .get<SavedItemDTO[]>(`/v1/lists/${encodeURIComponent(listId)}/items`, uncached())
+      .get<SavedItemDTO[]>(`/commerce/v1/lists/${encodeURIComponent(listId)}/items`, perCustomer)
       .catch((err: { status?: number }) => (err?.status === 404 ? null : ([] as SavedItemDTO[]))),
   ])
   return {

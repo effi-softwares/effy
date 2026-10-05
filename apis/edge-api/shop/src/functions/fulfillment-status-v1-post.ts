@@ -37,7 +37,7 @@ export const handler = async (
   // (FR-011a), the second belongs to the dev-only pickup stub alone (FR-030).
   //
   // ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion previously
-  // lacked. `withdrawn` is NOT requestable and must never become so: it is written by `core-api` when
+  // lacked. `withdrawn` is NOT requestable and must never become so: it is written by the platform's cancellation when
   // an ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.
   const to = parsed.value.to;
   if (typeof to !== "string" || !REQUESTABLE.includes(to)) {

@@ -1,4 +1,4 @@
-// The platform's two probes, for EVERY cold-path service (constitution Principle II — this is
+// The platform's two probes, for EVERY backend service (constitution Principle II — this is
 // cross-cutting, so it lives here once rather than being copy-pasted into each service).
 //
 // WHY TWO, NOT ONE. They answer different questions, and conflating them makes both useless:

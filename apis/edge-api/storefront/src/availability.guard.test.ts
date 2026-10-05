@@ -17,7 +17,7 @@ import { expect, it } from "vitest";
  * deliberate LISTING filter, say so with an `availability-exempt: <table> — <why>` comment within
  * the eight lines above it. The marker is the record that someone decided.
  *
- * Ported from the retired Go backend's `platform/availability/guard_test.go` (070).
+ * In place since 054; re-homed here by 070.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));

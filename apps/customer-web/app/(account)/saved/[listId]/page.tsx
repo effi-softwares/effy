@@ -42,7 +42,7 @@ async function List({ params }: { params: Promise<{ listId: string }> }) {
 
   await requireCustomer(`/saved/${listId}`)
   const session = await getSession()
-  const { lists, items } = await readList(session?.accessToken, listId)
+  const { lists, items } = await readList(session, listId)
 
   // Deleted on another device, or never this shopper's: back to the list that always exists.
   const list = lists.find((l) => l.id === listId)

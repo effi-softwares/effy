@@ -1,10 +1,9 @@
 /**
  * The refund side of an order, read for back-office (055).
  *
- * ⚠ READS ONLY. Money is issued by `core-api`, because the payment secret lives there and nowhere else
- * (019 SC-012, 055 research R1). This service is where the order console already lives (053), so it is
- * where the console *reads* — the console calls two hosts, which is the honest consequence of "money
- * lives where the secret lives".
+ * ⚠ READS ONLY, plus the one judgement that moves no money (dismissing a proposal). Issuing a
+ * refund is NOT written here: the rules are `@effy/edge-shared/payments`, which this service's
+ * refund routes call (070). Nothing in this file may grow a second definition of a refund.
  *
  * ⚠ READ IS OPEN TO ANY ACTIVE STAFF INCLUDING `csa` (FR-020). They are the ones being asked about it,
  * and until 053 they could not see a single order they were being asked about.
@@ -145,7 +144,7 @@ export async function refundRequestItems(requestId: string): Promise<RefundReque
  * stored proposal goes stale when a picker corrects a shortfall. A dismissal is the one fact the
  * derivation cannot hold: it is a judgement a person made, not a consequence of other rows.
  *
- * ⚠ NO MONEY MOVES HERE, which is why this lives on the cold path while issuing lives in `core-api`.
+ * ⚠ NO MONEY MOVES HERE.
  * It records that a human looked and said no — and it records WHO and WHY, because the alternative is
  * a shortfall that silently stops being owed with nobody accountable for the decision.
  *

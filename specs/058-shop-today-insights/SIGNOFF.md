@@ -1,5 +1,16 @@
 # Sign-off: 058-shop-today-insights — Shop Console: Today & Insights
 
+> **2026-10-05 — the live-update promise is WITHDRAWN by feature 070.** The under-ten-seconds
+> freshness target (SC-002) and the live stream that served it (`GET /v1/shop/live`, the `shop_ops`
+> database notification, the console's `useShopLive` hook and `web-kit`'s stream reader) are removed.
+> The stream needed a connection held open on the always-on backend, and 070 retires that backend;
+> the operator chose to drop the stream rather than rebuild it (070 spec, Clarifications 2026-10-04).
+> **Today now refreshes every 30 seconds**, by the same re-read that was this feature's fallback.
+> Everything else here stands: the snapshot, the attention list, Insights and its rollups, and every
+> trigger that marks a bucket for recomputation. A cheaper way to be fresher is deferred, not designed.
+> Sections below that describe the stream are history, left as written.
+
+
 **Date**: 2026-09-14 · **Status**: 🚧 **CODE-COMPLETE + MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED,
 NOT WALKED BY A PERSON.**
 

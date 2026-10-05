@@ -2,7 +2,6 @@ package com.effyshopping.customer.mobile.app
 
 import com.effyshopping.customer.mobile.core.auth.AuthDriver
 import com.effyshopping.customer.mobile.core.config.AppConfig
-import com.effyshopping.customer.mobile.core.http.BearerToken
 import com.effyshopping.customer.mobile.core.http.createHttpClient
 import com.effyshopping.customer.mobile.core.observability.AnalyticsDriver
 import com.effyshopping.customer.mobile.core.observability.ConsentState
@@ -147,34 +146,22 @@ class AppContainer(
     debugLogging: Boolean = false,
 ) {
     // ── data ──────────────────────────────────────────────────────────────────────────────────────
-    // One client per base URL (the routing law). Only edge has endpoints today; core is built so the
-    // law is structural. Both carry the two-token protocol, sourced from the driver's current session.
+    // ONE client: every backend service is behind one gateway, and the path's first segment names
+    // the service (storefront/…, commerce/…, customer/…). It carries the two-token protocol, sourced
+    // from the driver's current session; a guest sends no auth, which is right for public routes.
     private val edgeClient by lazy {
         createHttpClient(
             AppConfig.edgeApiBaseUrl,
             sessionProvider = { authDriver.currentSession() },
-            bearer = BearerToken.Edge,
-            debug = debugLogging,
-        )
-    }
-    // Commerce → the hot path (core-api), the routing law (019). Public reads send no auth when a guest;
-    // the two-token plugin adds headers only for a signed-in session (harmless on public routes).
-    private val coreClient by lazy {
-        createHttpClient(
-            AppConfig.coreApiBaseUrl,
-            sessionProvider = { authDriver.currentSession() },
-            // ⚠ The hot path verifies an ACCESS token. Sending the ID token here 401s every request —
-            // which is exactly what happened from 019 until 027 (research R12).
-            bearer = BearerToken.Core,
             debug = debugLogging,
         )
     }
     private val customers: CustomerRepository by lazy { HttpCustomerRepository(edgeClient) }
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(edgeClient) }
-    private val checkoutRepo by lazy { HttpCheckoutRepository(coreClient) }
-    // The address book (022) — customer profile management → the COLD path (edge-api/customer,
-    // `/customer/v1/addresses`), per the routing law (011 FR-028). A full-CRUD repo, distinct from
-    // checkout's slim pick-an-address `AddressRepository` (which stays on the hot path).
+    private val checkoutRepo by lazy { HttpCheckoutRepository(edgeClient) }
+    // The address book (022) — customer profile management, on the customer service
+    // (`/customer/v1/addresses`, 011 FR-028). A full-CRUD repo, distinct from checkout's slim
+    // pick-an-address `AddressRepository`.
     private val addressBookRepo: AddressRepository by lazy { HttpAddressRepository(edgeClient) }
 
     // The cart mirror — ONE instance so the badge, the cart screen and checkout all read the same state.
@@ -191,8 +178,8 @@ class AppContainer(
 
     val cart: CartStore by lazy { CartStore(CartLocalStore(preferences), appScope) }
 
-    private val cartRepository: CartRepository by lazy { HttpCartRepository(coreClient) }
-    private val savedHttp: HttpSavedRepository by lazy { HttpSavedRepository(coreClient) }
+    private val cartRepository: CartRepository by lazy { HttpCartRepository(edgeClient) }
+    private val savedHttp: HttpSavedRepository by lazy { HttpSavedRepository(edgeClient) }
     private val savedRepository: SavedRepository get() = savedHttp
 
     /**
@@ -221,7 +208,7 @@ class AppContainer(
     val startPasswordReset by lazy { StartPasswordReset(authDriver) }
     val confirmPasswordReset by lazy { ConfirmPasswordReset(customers) }
 
-    // Catalog (019 US1/US2) — the customer storefront reads on the hot path.
+    // Catalog (019 US1/US2) — the customer storefront reads.
     val getHome by lazy { GetHome(catalog) }
     val getCategories by lazy { GetCategories(catalog) }
     val getProductDetail by lazy { GetProductDetail(catalog) }
@@ -326,24 +313,23 @@ class AppContainer(
     val resendReceipt: ResendReceipt by lazy { HttpReceiptResendRepository(edgeClient) }
 
     /**
-     * 055 US2 — cancel an order. ⚠ HOT PATH (`coreClient`), unlike the resend above it: cancelling
-     * MOVES MONEY, and the payment secret lives in `core-api` and nowhere else (019 SC-012).
+     * 055 US2 — cancel an order. ⚠ Cancelling MOVES MONEY (it is a full refund); it lives with
+     * checkout on the commerce service.
      */
-    val cancelOrder: CancelOrder by lazy { HttpCancelOrderRepository(coreClient) }
+    val cancelOrder: CancelOrder by lazy { HttpCancelOrderRepository(edgeClient) }
 
     /**
-     * 055 US3 — ask for a refund. ⚠ HOT PATH beside the cancel route, because the DECIDING lives
-     * there. It moves no money: it records an ask that a person answers.
+     * 055 US3 — ask for a refund. It moves no money: it records an ask that a person answers.
      */
-    val requestRefund: RequestRefund by lazy { HttpRefundRequestRepository(coreClient) }
+    val requestRefund: RequestRefund by lazy { HttpRefundRequestRepository(edgeClient) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 
     // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.
     val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
 
-    // 051 US6 — payment methods. ⚠ HOT path, unlike the address book above: 011's routing law puts
-    // *payment* there, and a cold-path route would need a second copy of the provider secret (R9).
-    private val paymentMethodsRepo by lazy { HttpPaymentMethodsRepository(coreClient) }
+    // 051 US6 — payment methods, on the commerce service with checkout (070): listing a card is a
+    // provider call, and the provider secret has one custodian.
+    private val paymentMethodsRepo by lazy { HttpPaymentMethodsRepository(edgeClient) }
     val listPaymentMethods by lazy { ListPaymentMethods(paymentMethodsRepo) }
     val removePaymentMethod by lazy { RemovePaymentMethod(paymentMethodsRepo) }
 

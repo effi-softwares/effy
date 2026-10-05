@@ -1,4 +1,4 @@
-// Device push-token registration — shared by every cold-path service that registers a mobile device
+// Device push-token registration — shared by every backend service that registers a mobile device
 // (edge-customer, edge-shop, edge-driver), and read by the notifications worker.
 //
 // ── Principle II ────────────────────────────────────────────────────────────────────────────────
@@ -27,7 +27,7 @@ export type DeviceAudience = "customer" | "shop" | "driver";
  * Where a push address lives.
  *
  * ⚠ 059 ADDED `"web"`, and that one value is the whole of what stood between a paid order and the
- * shop being told about it. Since 050 core-api has enqueued a `shop_new_order` intent per active
+ * shop being told about it. Since 050 payment finalisation has enqueued a `shop_new_order` intent per active
  * staff member of every fulfilling shop; the worker resolves those to `device_token` rows; and a
  * browser could not be one. Every intent was recorded, attempted and discarded as "nobody to send
  * to". The shop audience works in a WEB console.

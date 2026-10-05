@@ -1,4 +1,4 @@
-# edge-auth — Effy cold-path AUTH service (035-six-digit-otp).
+# edge-auth — Effy AUTH service (035-six-digit-otp).
 #
 # ⚠ THIS SERVICE HOSTS NO HTTP ROUTE. Every function below is a COGNITO LAMBDA TRIGGER, invoked
 # synchronously by the user pool — never by the shared HTTP API. That is why there is no

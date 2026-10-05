@@ -1,6 +1,6 @@
 /**
- * Client-side cart totals for DISPLAY. Integer-cents math (never floats) mirroring core-api's `money`
- * package. This is a display approximation for the guest cart review — the SERVER computes the
+ * Client-side cart totals for DISPLAY. Integer-cents math (never floats) mirroring the backend's money
+ * module. This is a display approximation for the guest cart review — the SERVER computes the
  * authoritative amount at checkout, and the charge is always the server's.
  *
  * 021: there is NO client-side delivery fee any more. Delivery is per-package, geographic, and needs

@@ -1,4 +1,4 @@
-# edge-admin — Effy cold-path back-office/admin service (004-backend-bootstrap A3; hosts the
+# edge-admin — Effy back-office/admin service (004-backend-bootstrap A3; hosts the
 # 005 back-office console's endpoints). Attaches to the Terraform-owned shared HTTP API
 # (shared-gateway.contract.md): NO API/stage/CORS/authorizers here. Routes live under /admin/.
 service: effy-edge-admin
@@ -323,7 +323,7 @@ functions:
 
   # ── Promotional codes & order rules (027 US10). Back-office authorizer; read = any active staff
   #    (support answers "is this code live?"), mutate = admin/manager. Every mutation audits.
-  #    ⚠ The codes themselves are DECIDED on the hot path (core-api) at apply and at intent time —
+  #    ⚠ The codes themselves are DECIDED by the commerce service at apply and at intent time —
   #    this surface only defines them. Two paths, one capability, exactly Principle III. ──
   promotionsListV1:
     handler: src/functions/promotions-list-v1-get.handler

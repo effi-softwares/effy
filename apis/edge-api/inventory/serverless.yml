@@ -1,4 +1,4 @@
-# edge-inventory — Effy cold-path inventory service (054-product-inventory).
+# edge-inventory — Effy inventory service (054-product-inventory).
 #
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live

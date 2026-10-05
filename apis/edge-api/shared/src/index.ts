@@ -1,5 +1,5 @@
 // @effy/edge-shared — the cross-cutting edge library + contracts, single source of truth for
-// every cold-path service (constitution Principle II). No domain logic here.
+// every backend service (constitution Principle II). No domain logic here.
 export * from "./lib/db";
 export * from "./lib/secrets";
 export * from "./lib/logger";
@@ -36,8 +36,8 @@ export * from "./lib/driver-coverage";
 // the driver app (edge-driver). Two surfaces rendering one round in two orders is a divergence in
 // which nothing fails, so the rule is shared before a second copy can exist.
 export * from "./lib/round-ordering";
-// 063: when collection must be finished. ⚠ A DELIBERATE DUPLICATE of core-api's SameDayCutoff — the
-// runtimes cannot share code — pinned by a cross-language contract test with DST fixtures.
+// 063: when collection must be finished, and (070) the platform's one home of operating-zone
+// arithmetic — pinned by a fixture test whose DST rows are the point.
 export * from "./lib/collection-deadline";
 // 064: the S3 prefix delivery proof is written under. ⚠ Shared because the Terraform lifecycle rule
 // that archives proof is scoped to it — a disagreement archives the product catalogue or nothing,
@@ -53,8 +53,8 @@ export * from "./lib/custody";
 // 063: may this driver do this work. Read by the wave planner (to choose) and by the dispatcher's
 // reassign route (to refuse). If they disagreed, a dispatcher could do what the planner would not.
 export * from "./lib/driver-eligibility";
-// 070 — the shopper-facing services (storefront, commerce). Promoted from core-api's platform layer
-// when the Go backend was retired: one money parser, one "is it purchasable" rule, one customer
+// 070 — the shopper-facing services (storefront, commerce). Written once, here,
+// when the second backend was retired: one money parser, one "is it purchasable" rule, one customer
 // gate, one metric emitter, one overload answer.
 export * from "./lib/money";
 export * from "./lib/availability";

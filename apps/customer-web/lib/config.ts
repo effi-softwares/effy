@@ -1,10 +1,9 @@
 /**
  * Surface configuration.
  *
- * FR-029: every backend address is CONFIGURATION, never a literal. The hot path (`core-api`)
- * runs in local Docker today and will move to deployed compute in its own later slice; when it
- * does, that slice must be able to repoint this surface with an env change and **no code edit**.
- * If you find yourself typing an http:// literal into a component, this is the file you wanted.
+ * FR-029: every backend address is CONFIGURATION, never a literal — an environment is repointed
+ * with an env change and **no code edit**. If you find yourself typing an http:// literal into a
+ * component, this is the file you wanted.
  */
 
 function required(name: string, value: string | undefined): string {
@@ -24,20 +23,7 @@ export function siteUrl(): string {
 }
 
 /**
- * The HOT path (`core-api`, Go). The routing law (FR-028): product, catalog, search, cart,
- * order and payment are served from here — latency-sensitive customer traffic.
- *
- * LOCAL-ONLY this slice: core-api has no cloud deployment (operator decision 2026-07-14).
- */
-export function coreApiBaseUrl(): string {
-  return required(
-    "NEXT_PUBLIC_CORE_API_BASE_URL",
-    process.env.NEXT_PUBLIC_CORE_API_BASE_URL,
-  ).replace(/\/$/, "")
-}
-
-/**
- * The COLD path (`edge-api`, serverless). Customer profile / account management only.
+ * The backend gateway. Every service this storefront calls is behind it (see lib/api/edge.ts).
  *
  * ⚠ IT CARRIES THE `NEXT_PUBLIC_` PREFIX, AND IT DID NOT USED TO. It was `EDGE_API_BASE_URL`,
  * server-only by design — and that is precisely why every signed-in customer on dev landed on
@@ -56,8 +42,6 @@ export function coreApiBaseUrl(): string {
  * *and* access tokens (see lib/api/edge.ts), which must never leave the server, so every caller in
  * this app stays server-side. What changed is the prefix — not the boundary. The boundary now
  * rests on review rather than on the address being unguessable, so keep it where it belongs.
- *
- * No commerce feature may be placed here (FR-028).
  */
 export function edgeApiBaseUrl(): string {
   return required(
@@ -105,8 +89,8 @@ export function telemetryEnabled(): boolean {
 
 /**
  * Stripe (019 checkout). The PUBLISHABLE key is browser-safe — it is a NAME, not a secret (research
- * R3): it can only confirm an intent core-api already authorized. The SECRET key lives ONLY in
- * core-api and never appears here. Test-mode (`pk_test_…`) in dev.
+ * R3): it can only confirm an intent the backend already authorized. The SECRET key lives ONLY in
+ * the backend's secret store and never appears here. Test-mode (`pk_test_…`) in dev.
  */
 export function stripeConfig() {
   return {

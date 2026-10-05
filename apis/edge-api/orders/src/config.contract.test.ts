@@ -50,6 +50,9 @@ const AUTHED = [
   "fulfillmentHandoffV1",
   "fulfillmentArrivalV1",
   "refundProposalDismissV1",
+  "orderRefundV1",
+  "orderCancelV1",
+  "refundRequestDeclineV1",
 ] as const;
 
 /** Public by design — liveness/readiness probes touch no customer data. */
@@ -63,6 +66,22 @@ describe("orders service deployment contract", () => {
     const required = ["DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN"];
     const missing = required.filter((k) => !declared.has(k));
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("can reach the payment provider — and holds the secret key ONLY, never the webhook secret (070)", () => {
+    // Back-office refunds are issued here. A function that calls the provider with no ARN to read
+    // fails on its first refund, in production, with every test green.
+    expect(declared.has("STRIPE_SECRET_KEY_ARN")).toBe(true);
+    expect(yaml).toMatch(/Resource:\s*\n\s+- \$\{ssm:\/effy\/\$\{sls:stage\}\/db\/master_secret_arn\}\s*\n\s+- \$\{ssm:\/effy\/\$\{sls:stage\}\/stripe\/secret_key_arn\}/);
+    // This service verifies no webhook. Granting it the signing secret would be access nothing uses.
+    expect(yaml).not.toContain("webhook_secret");
+    expect(declared.has("STRIPE_WEBHOOK_SECRET_ARN")).toBe(false);
+    // The value itself never appears in configuration.
+    expect(yaml).not.toMatch(/sk_(test|live)_/);
+  });
+
+  it("gives the two functions that call the provider room to finish (research R8)", () => {
+    for (const fn of ["orderRefundV1", "orderCancelV1"]) expect(blockFor(fn), fn).toMatch(/^ {4}timeout: 25$/m);
   });
 
   it("attaches to the shared HTTP API rather than creating one", () => {

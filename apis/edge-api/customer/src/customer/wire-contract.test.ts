@@ -17,7 +17,7 @@ import type { CustomerRow } from "./model"
  * `1.0`, Go refused it into an `int`, and every unit test on both sides passed because the fakes
  * spoke the same language at both ends and never crossed the wire.
  *
- * Feature 028 built the first such test (`wire_contract_test.go` + `BannerWireContractTest.kt`) and
+ * Feature 028 built the first such test (a backend test + `BannerWireContractTest.kt`) and
  * proved it by breaking it two ways. This is the same shape for the customer record, which 034 has
  * just widened with two new fields.
  */

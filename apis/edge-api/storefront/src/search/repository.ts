@@ -9,8 +9,8 @@ import { binder, cursorPredicate, filters, orderClause, TRIGRAM_EXPR, type Searc
  * CardRow plus the relevance score.
  *
  * ⚠ CardRow is EXTENDED, never restated. `searchCards` selects CARD_COLUMNS verbatim and appends
- * one score column, so its result set IS CardRow's plus `score` by construction. The Go original
- * once restated the fields, missed one, and every search then failed at runtime.
+ * one score column, so its result set IS CardRow's plus `score` by construction. An earlier version
+ * restated the fields, missed one, and every search then failed at runtime.
  */
 export interface SearchRow extends CardRow {
   score: number;

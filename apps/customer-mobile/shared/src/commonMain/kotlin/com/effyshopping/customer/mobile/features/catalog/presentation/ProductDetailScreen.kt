@@ -91,7 +91,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 /**
  * Product detail (019 US2). Gallery placeholder, price + sale, description, and attributes as SECTIONED
  * DETAIL ROWS (never cards — DOCTRINE-2). Add-to-cart writes to the device-local guest cart; Save gates
- * a guest through deferred sign-in ([onRequireSignIn]) then favorites via the hot path.
+ * a guest through deferred sign-in ([onRequireSignIn]) then favorites via the commerce service.
  */
 @Composable
 fun ProductDetailScreen(

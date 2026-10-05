@@ -12,9 +12,12 @@ import kotlin.test.assertTrue
 /**
  * The Kotlin half of the delivery wire contract (047, research R14).
  *
- * ⚠ The literals below are duplicated BYTE-FOR-BYTE from the Go halves at
- * apis/core-api/internal/features/storefront/delivery_wire_contract_test.go (serviceability) and
- * apis/core-api/internal/features/checkout/delivery_wire_contract_test.go (the quote). Neither side
+ * ⚠ THE BACKEND HALF READS THESE LITERALS OUT OF THIS FILE (070). It used to be a second test, in a
+ * second language, holding a hand-made copy kept in step by comments. Now `apis/edge-api/commerce/src/wire.contract.test.ts` parses this
+ * source, takes each `const val`, and compares it with what the real mapper produces — so there is
+ * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
+ *
+ * (Before 070 the backend halves were two Go tests under apis/core-api.) Neither side
  * generates or imports the fixture — a shared literal moves WITH a bug; two hand-kept copies make a
  * divergence show up as a failure.
  *
@@ -27,27 +30,28 @@ class DeliveryWireContractTest {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     companion object {
-        // Byte-identical to serviceabilityWire in storefront/delivery_wire_contract_test.go.
+        // What GET /storefront/v1/serviceability answers.
         const val SERVICEABILITY_WIRE = """{"postcode":"3121","serviced":true}"""
 
-        // Byte-identical to deliveryQuoteWire in checkout/delivery_wire_contract_test.go.
+        // Read by the backend's wire.contract.test.ts. ⚠ The per-option promise dates here are a
+        // DECODE case only: the platform has sent them as null since 069.
         const val DELIVERY_QUOTE_WIRE =
             """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":"2026-08-24T13:00:00+10:00","packages":[{"shopRef":"pkg-1","options":[{"method":"standard","feeAmount":"6.00","promisedFrom":null,"promisedTo":null},{"method":"same_day","feeAmount":"11.00","promisedFrom":"2026-08-24","promisedTo":"2026-08-24"}]}],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00"}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"},{"date":"2026-08-26"}]}"""
 
-        // Byte-identical to deliveryQuoteNoSameDayWire in checkout/delivery_wire_contract_test.go (069).
+        // Read by the backend's wire.contract.test.ts, byte for byte (069).
         const val DELIVERY_QUOTE_NO_SAME_DAY_WIRE =
             """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[],"sameDayUnavailableReason":"slots_closed","standardDays":[{"date":"2026-08-25"}]}"""
     }
 
     @Test
-    fun `Kotlin decodes Go's serviceability bytes`() {
+    fun `Kotlin decodes the server's serviceability bytes`() {
         val dto = json.decodeFromString<ServiceabilityDTO>(SERVICEABILITY_WIRE)
         assertEquals("3121", dto.postcode)
         assertTrue(dto.serviced)
     }
 
     @Test
-    fun `Kotlin decodes Go's delivery-quote bytes - with the fee as a String`() {
+    fun `Kotlin decodes the server's delivery-quote bytes - with the fee as a String`() {
         val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
 
         assertEquals("3121", dto.postcode)
@@ -75,7 +79,7 @@ class DeliveryWireContractTest {
     @Test
     fun `an unserviced quote carries no packages`() {
         val dto = json.decodeFromString<DeliveryQuoteDTO>(
-            // Byte-identical to deliveryQuoteUnservicedWire in checkout/delivery_wire_contract_test.go.
+            // What the quote mapper emits for an address Effy does not serve.
             """{"postcode":"3999","serviced":false,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"","sameDaySlots":[],"sameDayUnavailableReason":null,"standardDays":[]}""",
         )
         assertFalse(dto.serviced)
@@ -85,7 +89,7 @@ class DeliveryWireContractTest {
     // ── 069: slots and days ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `Kotlin decodes the slots and days Go emits`() {
+    fun `Kotlin decodes the slots and days the server emits`() {
         val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
 
         val slot = dto.sameDaySlots.single()

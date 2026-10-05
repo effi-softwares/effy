@@ -108,8 +108,17 @@ Staff routes keep the distinction: **503** when the staff or shop record could n
 | 5 | Product detail, malformed id | 503 | 404 |
 | 6 | Product listing, malformed price bound | 503 | 400 `invalid_price` (as facets already answer) |
 | 6a | Product hydration by `ids=`, an id that is not a uuid | 503 (the whole rail failed) | that id is dropped; the rest are returned |
+| 6b | Applying a promo to a cart holding more of a product than is in stock | the code's minimum was judged on the full asked quantity | judged on the quantity that can be supplied — the same payable subtotal the cart displays and checkout charges |
+| 6c | Any cart write with a `changeId` that is not a uuid | 500 (the column is a uuid) | 400 validation |
+| 6d | Starting payment with a cart that has nothing purchasable | a zero-amount request reached the payment provider and came back as an unexplained 500 | 400 "your cart has no items available to purchase"; nothing written, the provider never called |
+| 6e | Two shoppers paying at the same moment for the last unit of a product | stock stopped at zero, but neither order's pick line was flagged short — the shop found out at the shelf | stock stops at zero **and** the second order's pick line is flagged short when it is created |
+| 6f | The delivery quote's `expiresAt` | an instant written in UTC (`…Z`) | the same instant written with the Melbourne offset (`…+10:00` / `+11:00`), like every other time in that document |
 | 7 | Any shopper route when the shopper connection limit is reached | n/a | 503 `unavailable`, with `Retry-After` |
 | 8 | Refund left uncertain | stayed `submitting` indefinitely | resolved automatically within 15 minutes; the immediate response still says `stalled: true` |
+| 8a | A refund left uncertain, on an order that has since been refunded another way | n/a (nothing looked again) | closed as `refused` by the platform, with a reason saying it was not sent — sending it would return more than was paid |
+| 8c | Two refunds on one order issued at the same instant, together worth more than was paid | both passed the platform's own check; only the payment provider refusing the second prevented an over-refund | the second is refused by the platform, stating what remains — a refund still on its way to the provider already counts |
+| 8d | Issuing another refund within a minute of one that got no answer from the provider | allowed at once (the unanswered one did not count) | the unanswered one counts for 60 seconds, then stops; the reconciler resolves it |
+| 8b | A refund, cancellation or refund request naming an id that is not an id | 500 | 404, the same answer as an order that does not exist |
 
 ## 4. Carried over unchanged, including known gaps
 

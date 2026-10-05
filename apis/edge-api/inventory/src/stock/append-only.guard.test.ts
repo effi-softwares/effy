@@ -25,7 +25,10 @@ const SEARCH_ROOTS = [
   "apis/edge-api/inventory/src",
   "apis/edge-api/shop/src",
   "apis/edge-api/admin/src",
-  "apis/core-api/internal",
+  // 070: payment finalisation and refund stock returns write movements from here now.
+  "apis/edge-api/shared/src",
+  "apis/edge-api/commerce/src",
+  "apis/edge-api/orders/src",
 ];
 
 const MUTATION = /\b(UPDATE|DELETE\s+FROM|TRUNCATE)\s+(public\.)?stock_movement\b/i;
@@ -42,7 +45,7 @@ function* sourceFiles(dir: string): Generator<string> {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       yield* sourceFiles(full);
-    } else if (/\.(ts|go)$/.test(entry) && !/\.test\.ts$|_test\.go$/.test(entry)) {
+    } else if (/\.ts$/.test(entry) && !/\.test\.ts$/.test(entry)) {
       yield full;
     }
   }

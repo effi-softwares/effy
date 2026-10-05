@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path catalog service (067-product-approval-margin) — attaches to the shared HTTP API; routes under /catalog/. Back-office product review: the queue of new products and pending changes, approve / send back, and Effy's margin. One audience, one authorizer.",
+  "description": "Effy catalog service (067-product-approval-margin) — attaches to the shared HTTP API; routes under /catalog/. Back-office product review: the queue of new products and pending changes, approve / send back, and Effy's margin. One audience, one authorizer.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@effy/edge-shared": "workspace:*",

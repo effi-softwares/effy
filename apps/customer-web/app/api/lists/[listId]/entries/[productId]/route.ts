@@ -1,9 +1,9 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 type Ctx = { params: Promise<{ listId: string; productId: string }> }
 
 const path = (listId: string, productId: string) =>
-  `/v1/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(productId)}`
+  `/commerce/v1/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(productId)}`
 
 /**
  * Place a product in a list (068). Idempotent.
@@ -14,11 +14,11 @@ const path = (listId: string, productId: string) =>
 export async function PUT(req: Request, { params }: Ctx) {
   const { listId, productId } = await params
   const body = await req.json().catch(() => ({}))
-  return proxyToCore((c) => c.put(path(listId, productId), body))
+  return proxyToEdge((c) => c.put(path(listId, productId), body))
 }
 
 /** Take a product out of THIS list only. Never refused: the shopper named the list. */
 export async function DELETE(_req: Request, { params }: Ctx) {
   const { listId, productId } = await params
-  return proxyToCore((c) => c.delete(path(listId, productId)))
+  return proxyToEdge((c) => c.delete(path(listId, productId)))
 }

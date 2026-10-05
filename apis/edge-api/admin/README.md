@@ -1,4 +1,4 @@
-# `@effy/edge-admin` — cold-path admin service (004 A3)
+# `@effy/edge-admin` — admin service (004 A3)
 
 An independently deployable Serverless service that **attaches to the Terraform-owned shared HTTP
 API** (`provider.httpApi.id` from SSM — see [docs/api/shared-gateway.md](../../../docs/api/shared-gateway.md)).

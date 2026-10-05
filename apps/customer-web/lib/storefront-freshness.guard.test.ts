@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest"
  * pass adds `cached({ tags: ["catalog"], revalidate: 3600 })` to a listing read, and sold-out
  * products silently look buyable for an hour. Nothing would fail. Nothing would look wrong.
  *
- * ⚠ `customer-mobile` needs no equivalent: it calls core-api directly with no cache layer at all.
+ * ⚠ `customer-mobile` needs no equivalent: it calls the backend directly with no cache layer at all.
  * Recorded here so the omission is a decision rather than something nobody thought about.
  */
 

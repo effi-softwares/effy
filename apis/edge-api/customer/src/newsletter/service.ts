@@ -17,7 +17,7 @@ import { confirmSubscriber, upsertSubscriber } from "./repo"
  * needs — DB access, `ses:SendEmail` scoped to this environment's identity AND configuration set, the
  * full `MAIL_*` environment email-kit reads, and a public-route precedent in `healthz`/`readyz`.
  * Standing up a whole deployable for one endpoint would duplicate all of it. It is NOT commerce, so
- * the hot-path routing law (011 FR-028) is not engaged.
+ * 011's routing rule (FR-028) is not engaged.
  */
 
 /** Defaults; overridable by env so neither number is a literal buried in a query. */

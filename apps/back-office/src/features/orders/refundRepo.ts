@@ -1,19 +1,14 @@
 import type { IssueRefundRequest } from "@effy/shared-types";
 
-import { api, coreApi } from "@/lib/api";
+import { api } from "@/lib/api";
 
 /**
  * Issuing a refund (055 US1).
  *
- * ⚠ THIS IS THE ONE PLACE IN THIS CONSOLE THAT CALLS `core-api` RATHER THAN THE GATEWAY, and the
- * reason is not architectural taste: the payment secret lives in `core-api` and nowhere else
- * (019 SC-012). Reading the order — including its refunds — still comes from `edge-api/orders`, where
- * 053 built the console's read path.
- *
- * ⚠ The rejected alternatives are worth knowing, because "two hosts" looks like an accident: routing
- * refunds through the cold path would have meant either duplicating the platform's most dangerous
- * secret into a Lambda, or forwarding an operator's token between services — which is the
- * auth-brokering Principle IV forbids by name (research R1).
+ * Every call here goes to the console's own `orders` service on the gateway. Until 070 issuing and
+ * declining were the one exception — they went to a separate Go backend, because it alone held the
+ * payment secret. That backend is retired; the refund rules are the platform's shared payments
+ * module, which the `orders` service calls directly.
  */
 
 export interface IssueRefundResponse {
@@ -28,15 +23,13 @@ export function issueRefund(
   orderId: string,
   body: IssueRefundRequest,
 ): Promise<IssueRefundResponse> {
-  return coreApi.post<IssueRefundResponse>(`/v1/admin/orders/${orderId}/refunds`, body);
+  return api.post<IssueRefundResponse>(`/orders/v1/orders/${orderId}/refunds`, body);
 }
 
 /**
  * Dismiss a proposed refund.
  *
- * ⚠ THE GATEWAY, not `core-api` — no money moves, so it belongs with the rest of the console's order
- * reads and writes. Issuing is the exception, and it is an exception for one reason only: the payment
- * secret lives in `core-api` and nowhere else.
+ * No money moves: this records a person's judgement that a shortfall is not owed.
  */
 export function dismissProposal(
   orderId: string,
@@ -53,14 +46,13 @@ export function dismissProposal(
 /**
  * Decline a customer's refund request (055 FR-005r2).
  *
- * ⚠ `core-api`, not the gateway — even though NO MONEY MOVES. The decision belongs beside the one to
- * pay: both close the same request, and splitting them across two services would mean two places that
- * must agree about which request is still open.
+ * No money moves, and it sits beside the decision to pay on purpose: both close the same request,
+ * so one service decides which request is still open.
  *
  * ⚠ A note is required by the UI, not by the wire. Telling a customer they are not owed money they
  * believe they are owed is as consequential as paying them, and it is the decision nobody comes back
  * to check.
  */
 export function declineRefundRequest(requestId: string, note: string): Promise<{ status: string }> {
-  return coreApi.post<{ status: string }>(`/v1/admin/refund-requests/${requestId}/decline`, { note });
+  return api.post<{ status: string }>(`/orders/v1/refund-requests/${requestId}/decline`, { note });
 }

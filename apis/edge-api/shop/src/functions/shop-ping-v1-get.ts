@@ -1,6 +1,6 @@
 // GET /shop/v1/ping — the shop/operator identity-enforcement proving route (shop pool). The
 // shared gateway's shop JWT authorizer has AUTHENTICATED the caller (a cross-pool token never
-// reaches here — Principle IV); this echoes the verified identity, proving the second cold-path
+// reaches here — Principle IV); this echoes the verified identity, proving the second backend
 // service and its per-pool authorizer wiring end to end.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 

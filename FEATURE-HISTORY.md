@@ -4,6 +4,78 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**070-retire-core-api — One Backend: Retire the Always-On Shopper Service.** 🚧 **87/102 tasks —
+CODE-COMPLETE UP TO THE CUT-OVER AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
+PERSON. `core-api` IS UNTOUCHED AND STILL SERVING; nothing in the tree destroys anything.** Sign-off
+and the operator's next steps: [specs/070-retire-core-api/SIGNOFF.md](specs/070-retire-core-api/SIGNOFF.md).
+Route map and every deliberate behaviour change:
+[contracts/api-migration.md](specs/070-retire-core-api/contracts/api-migration.md).
+
+Every route the Go backend served (52) now has a home in the serverless backend, so the container
+service, load balancer and image registry can be destroyed. Operator decisions, settled first: **one
+cut-over with no fallback** (pre-launch — bugs are fixed forward); build and deploy first, destroy
+after the apps are switched; the shop console's **live stream is dropped**, not rebuilt.
+- **Two new services.** `storefront` (public catalogue, 8 routes) and `commerce` (cart, saved items
+  and lists, promo, checkout, payment, the provider webhook, a shopper's orders, cancellation,
+  refund requests — 40 routes and one schedule). Staff refunds went to the services that already
+  owned those audiences: `orders` (back-office) and `shop` (shop manager).
+- ⚠ **MONEY LOGIC LIVES ONCE: `@effy/edge-shared/payments`.** Payment finalisation, refunds,
+  cancellation, the provider port. Three services call it; none re-implements it. It is NOT
+  re-exported from the library's main entry, so only functions that import it bundle the provider SDK.
+- ⚠ **SHOPPER SERVICES CONNECT AS `effy_shopper`, A ROLE WITH `CONNECTION LIMIT 40`.** Function
+  concurrency is uncapped and the database takes ~85 connections. At the limit the DATABASE refuses
+  (SQLSTATE 53300) and the route answers a retryable 503; staff, shop and driver services use a
+  different role and are untouched. ⚠ No password in the migration: `make db-shopper-role` sets it.
+- ⚠ **THE WEBHOOK COULD LOSE EVENTS, AND NOW CANNOT.** The old handler recorded "seen" first and
+  processed second, so a transient failure left the event marked and the provider's retry was thrown
+  away as a duplicate. The insert into `stripe_event` is now the FIRST statement of the SAME
+  transaction as the handling. Invalid signature → 400; handling failure → rollback and 5xx.
+- ⚠ **REFUNDS LEFT UNCERTAIN ARE RESOLVED.** A submission the provider never answered stayed
+  `submitting` for ever. `refundReconcile` (every 5 min) asks the provider whether it exists, records
+  it if so, and otherwise sends it under the key stored on the row — never a new one.
+- ⚠ **PROMO CODES WORK.** Both clients called `POST`/`DELETE /v1/cart/promo`; no such route existed.
+- ⚠ **FOUR DEFECTS THE OLD BACKEND HAD, FOUND BY THE REAL-DATABASE TESTS.** (1) An empty cart
+  reached the provider as a zero amount → 500. (2) Two shoppers paying at once for the last unit:
+  stock stopped at zero but NEITHER order was flagged short — the shelf was read before it was
+  locked. (3) **Two refunds issued at the same instant could each pass the ceiling**: a refund is
+  recorded, committed, and only then sent, and in that window it was not counted. Only the provider
+  refusing the second stood in the way. It now counts while in flight (60 s). ⚠ The test for it
+  failed ONE RUN IN FOUR before the fix — it was nearly dismissed as flaky. (4) A stalled refund
+  retried after the order was refunded another way would have exceeded what was paid.
+- ⚠ **THE LIVE STREAM IS GONE, AND SO IS ITS PROMISE.** `GET /v1/shop/live`, `useShopLive`,
+  `web-kit`'s stream reader and `shop_ops_poke` (migration `20261005075916`) are removed. Today
+  re-reads every 30 s; 058's under-ten-seconds target is withdrawn and recorded in its sign-off.
+  ⚠ Every 058 trigger is KEPT — three are now empty hooks — because the triggers are the list of
+  changes a shop's screens depend on, which is what any replacement will need.
+- ⚠ **THE "135 ms" PREMISE WAS A LAPTOP MEASUREMENT.** Principle III's two-path split rested on a
+  latency figure taken from a workstation to Sydney, never in-region. Constitution **v3.0.0**
+  replaces it with *Single Serverless Backend*; a plan may not introduce always-on compute.
+- ⚠ **PROMETHEUS + GRAFANA WERE DOCUMENTED FOR MONTHS AND NEVER BUILT.** Four alerting files in
+  `infra/observability/alerts/` were loaded by nothing. They are replaced by seven CloudWatch alarms
+  in `infra/envs/dev/commerce-alarms.tf`, and `alarms.contract.test.ts` fails if an alarm watches a
+  metric name or dimension value the code does not emit. ⚠ Money metrics all go to ONE namespace
+  (`Effy/Commerce`) whichever service emitted them — an alarm per service would watch one of three.
+- ⚠ **MIRRORED RULES ARE NOW ONE RULE.** The customer's progress word (`stageFor`), the refund
+  ceiling's status set and the collection deadline were each written twice, in two languages, kept
+  honest by tests that read the other side's source. Each now has one implementation.
+- ⚠ **WIRE CONTRACTS HAVE ONE COPY.** The mobile app's contract tests each had a Go twin holding a
+  hand-duplicated fixture. The backend tests now READ the literal out of the Kotlin file
+  (`@effy/edge-shared/testing`) and compare it with the real mapper's output.
+- **New guards.** `schema-drift.guard.test.ts` (no service names a dropped column — proven by
+  re-introducing 051's `display_name` bug), `functions.guard.test.ts` (every signed-in commerce
+  route resolves the platform's own customer record; every function answers overload), the
+  append-only guard re-pointed with a "one writer" assertion, the trigger guard now forbids notifying.
+- **Operator tools** moved to `apis/edge-api/ops` (TypeScript, run through the same `make` targets).
+- **Deferred, on purpose:** the order-placed record is still written and not delivered; abandoned
+  unpaid orders are still not swept (their window holds lapse on their own).
+- ⚠ **OPERATOR STEPS OPEN** (SIGNOFF.md has the commands): apply the alarms; deploy `storefront`,
+  `commerce`, `orders`, `shop`; add the new webhook endpoint and its secret; release the four
+  clients; one paid test order; disable the old endpoint; `make db-up` for migration B. ⚠ **The
+  teardown is not written yet and must not be until the switch is recorded** — until then every
+  `make apply` is additive. `apis/core-api/` is deleted last, after the walk.
+- ⚠ **PRE-EXISTING, NOT FIXED:** two `shop` real-database tests fail with or without 070; and
+  `scripts/check-no-telemetry-pii.sh` exits 1 on the notifications worker's `email` channel name.
+
 **069-delivery-slots-dates — Delivery Time Slots & Standard Delivery Date.** 🚧 **81/82 tasks —
 CODE-COMPLETE AND MACHINE-VERIFIED across the migration, the hot path, four cold-path services, both
 customer surfaces, back-office and the driver app. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A

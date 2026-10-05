@@ -17,63 +17,20 @@ import type {
   RefundRequestDTO,
 } from "@effy/shared-types";
 
+import { COUNTED_REFUND_STATUSES, stageFor } from "@effy/edge-shared";
+
 import { judgePromise } from "./promise";
 import * as refundRepo from "./refunds";
 import * as repo from "./repository";
-
-/**
- * Which refund statuses count against the amount already refunded.
- *
- * ⚠ THIS SET IS THE AUTHORITY'S, NOT OURS. `core-api`'s `refundedCents` decides it, inside the row
- * lock, and that is the only decision that can refuse a refund. Everything computed here is a
- * DISPLAY of that rule, so if the two sets drift the console shows staff a ceiling the server will
- * not honour — and they would discover it by having a refund refused for a reason the screen said
- * was impossible. A drift guard in `service.test.ts` reads the Go constant and fails if they differ,
- * the same mechanism 053 built for `stage.go`.
- *
- * ⚠ `submitting` is out because no money is on its way yet; `failed` is IN because it is money the
- * platform attempted to return and staff must resolve — freeing the ceiling would let a bouncing
- * retry refund an order repeatedly.
- */
-export const COUNTED_REFUND_STATUSES: readonly string[] = ["submitted", "succeeded", "failed"];
 
 /** Page size. Capped so a mistyped `limit` cannot ask for the whole table. */
 export const MAX_LIMIT = 100;
 export const DEFAULT_LIMIT = 25;
 
-/**
- * The customer-facing progress word.
- *
- * ⚠ THIS MIRRORS `core-api`'s `orders/stage.go` AND MUST NOT DIVERGE FROM IT. The console shows an
- * operator what the CUSTOMER is currently being told, so a second opinion here would mean staff
- * reassuring someone about a status the shopper cannot see — 033's `available` flag and 029's banner
- * target, where one name meant two things and the disagreement was silent because both sides still
- * rendered something.
- *
- * It is a ROLLUP, NOT A MAX: the order is only as far along as its LEAST advanced package.
- * `ready_for_pickup` scores 1 — packed and waiting at the shop is NOT departed (053 FR-016).
- */
-const RANK: Record<string, number> = {
-  pending: 0,
-  received: 1,
-  picking: 1,
-  ready_for_pickup: 1,
-  collected: 2,
-  delivered: 3,
-};
-const STAGE_BY_RANK: OrderStage[] = ["confirmed", "packing", "on_the_way", "delivered"];
-
-export function stageFor(statuses: readonly string[]): OrderStage {
-  if (statuses.length === 0) return "confirmed";
-  let least = 3;
-  for (const s of statuses) {
-    // An unrecognised status scores 0 — a future status this build has never heard of must not be
-    // able to advance anyone's view of an order.
-    const r = RANK[s] ?? 0;
-    if (r < least) least = r;
-  }
-  return STAGE_BY_RANK[least]!;
-}
+// ⚠ The customer-facing progress word and the refund ceiling's status set are NOT defined here.
+// They are the shared library's (`order-completion.ts`): the same function the shopper's own order
+// page calls, so the console cannot show staff a different word from the one the shopper sees.
+export { COUNTED_REFUND_STATUSES, stageFor };
 
 /**
  * What the order is waiting on — the console's work queue.

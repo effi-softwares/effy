@@ -128,3 +128,28 @@ export interface Queryable {
 
 /** The module pool as a `Queryable`. */
 export const pooled: Queryable = { query };
+
+/** Runs `fn` inside one transaction on one connection: COMMIT on return, ROLLBACK on throw. */
+export type Transactor = <T>(fn: (tx: Queryable) => Promise<T>) => Promise<T>;
+
+/**
+ * A `Transactor` over a specific pool. The module pool's is `withTransaction`; this exists so a
+ * repository under a real-database test runs its transactions against the test's own database
+ * rather than the module pool it cannot configure.
+ */
+export function transactorFor(pool: pg.Pool): Transactor {
+  return async (fn) => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const result = await fn(client);
+      await client.query("COMMIT");
+      return result;
+    } catch (err) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
+  };
+}

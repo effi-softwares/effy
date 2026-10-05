@@ -48,14 +48,10 @@ export interface BlockingOrderRow {
 /**
  * Orders that block closure, with the facts FR-042 requires the customer to be told.
  *
- * ⚠ THIS READS A HOT-PATH-OWNED TABLE FROM THE COLD PATH — a recorded Principle III exception
- * (plan.md § Complexity Tracking, research R2). The read is one narrow, owned predicate; it projects
- * no order data into the account domain.
- *
- * ⚠ THE ORIGINAL REASON RECORDED HERE IS NO LONGER TRUE, corrected by 053 (research R2). It said
- * calling `core-api` was rejected because it "HAS NO CLOUD DEPLOY (local-Docker-only by platform
- * decision)". That has been false since 040 — `core-api` is deployed and live. The exception may
- * still be the right call on the grounds above; it should not be cited as precedent on the old one.
+ * ⚠ THIS READS THE ORDERS TABLE FROM THE ACCOUNT SERVICE — a table `commerce` owns. It is one
+ * narrow, owned predicate ("does this customer have an order that blocks closure?") and it projects
+ * no order data into the account domain. When this was written it crossed two backends and was a
+ * recorded exception; with one backend (070) it is an ordinary read, kept narrow for the same reason.
  *
  * ⚠ `clears_at` is computed IN SQL and is NEVER NULL — FR-042 forbids a block that cannot state its
  * own end, and the DTO's non-nullable field makes such a blocker unrepresentable.

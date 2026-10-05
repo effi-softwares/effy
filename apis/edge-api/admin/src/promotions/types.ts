@@ -1,8 +1,8 @@
 // Domain types for promotions & order rules management (027 US10). Money is a decimal string here, as
-// everywhere on the wire; the hot path converts to integer cents when it computes a discount.
+// everywhere on the wire; the commerce service converts to integer cents when it computes a discount.
 //
 // ⚠ These are the OPERATOR's view. The customer half of a promotional code — applying it, and the
-// discount — lives on the hot path, because that is latency-sensitive customer traffic (Principle III).
+// discount — lives in the commerce service, with the cart and the charge it applies to.
 
 export type PromoKind = "percentage" | "fixed";
 export const PROMO_KINDS: readonly PromoKind[] = ["percentage", "fixed"];

@@ -9,7 +9,7 @@ import { useState } from "react"
  * A client island on an otherwise server-rendered page — the order detail is a request-time server read
  * and stays that way; only this needs to be interactive.
  *
- * ⚠ IT IS RENDERED ONLY WHEN THE SERVER SAYS SO. `cancellable` is derived in `core-api` from the shop
+ * ⚠ IT IS RENDERED ONLY WHEN THE SERVER SAYS SO. `cancellable` is derived on the server from the shop
  * portions and put on the wire; this component never works it out from `stage` or `fulfillments`. That
  * is the `summarizeFulfillment` mistake 052 deleted — two implementations of one rule, diverging
  * silently because both still render something. Here the cost is a shopper offered a button that

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path driver service (049-driver-mobile-app) \u2014 attaches to the shared HTTP API; routes under /driver/.",
+  "description": "Effy driver service (049-driver-mobile-app) \u2014 attaches to the shared HTTP API; routes under /driver/.",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

@@ -1,4 +1,4 @@
-# edge-orders — Effy cold-path orders service (053-order-lifecycle-completion).
+# edge-orders — Effy orders service (053-order-lifecycle-completion).
 #
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
@@ -57,12 +57,18 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # 070 — back-office refunds and cancellation are issued HERE now. ⚠ The ARN, never the secret:
+    # the value is fetched at runtime through the secrets extension. ⚠ The SECRET KEY ONLY — this
+    # service verifies no webhook, so it is not granted the webhook signing secret.
+    STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
-          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+          Resource:
+            - ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+            - ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
@@ -130,6 +136,45 @@ functions:
       - httpApi:
           method: POST
           path: /orders/v1/orders/{orderId}/proposals/{orderItemId}/dismiss
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── 070: money. Until 070 these three ran on the Go backend, because it alone held the payment
+  #    secret. The rules are @effy/edge-shared/payments; these are the back-office's routes into them.
+  #    timeout 25 on the two that call the payment provider (research R8).
+
+  orderRefundV1:
+    handler: src/functions/order-refund-v1-post.handler
+    description: Back-office — issue a refund (item-derived or goodwill). Recorded under the ceiling lock, then submitted. Write = admin|manager.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/orders/{orderId}/refunds
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  orderCancelV1:
+    handler: src/functions/order-cancel-v1-post.handler
+    description: Back-office — cancel an order that has not left the shop and refund what remains. Write = admin|manager.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/orders/{orderId}/cancel
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  refundRequestDeclineV1:
+    handler: src/functions/refund-request-decline-v1-post.handler
+    description: Back-office — decline a customer's refund request. No money moves; write = admin|manager, the same gate as issuing.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/refund-requests/{requestId}/decline
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

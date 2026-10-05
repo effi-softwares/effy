@@ -5,7 +5,7 @@
  * sum (the CUSTOMER price). This is the one place that arithmetic is written.
  *
  * ⚠ ONE HOME (Principle II). The approval, the margin editor and the reviewer's "this will sell at"
- * preview all call this. The hot path never computes a margin at all — it reads `price_amount`,
+ * preview all call this. Checkout never computes a margin at all — it reads `price_amount`,
  * which an approval wrote from here — so there is no Go mirror to keep in step.
  *
  * ⚠ INTEGER CENTS THROUGHOUT. A percentage of a price is the classic place a float turns 12.00 into

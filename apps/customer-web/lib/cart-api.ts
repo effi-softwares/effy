@@ -8,7 +8,7 @@
  * guest bytes for machinery this file does not need. It is the same reasoning that kept `cart-store.ts`
  * on `useSyncExternalStore`.
  *
- * Everything here goes through a Next route handler, never to `core-api` directly, so the session is read
+ * Everything here goes through a Next route handler, never to the backend directly, so the session is read
  * SERVER-side and no client module ever imports `aws-amplify` — which is what keeps the storefront's
  * quarantine guard green (011 FR-006 / D11).
  *

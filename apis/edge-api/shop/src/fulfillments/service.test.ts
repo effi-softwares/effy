@@ -303,7 +303,7 @@ describe("unfulfillable (055 US6)", () => {
     expect(transitionRepo).not.toHaveBeenCalled();
   });
 
-  // ⚠ `withdrawn` is a CANCELLATION, written by core-api, and a shop must never be able to leave it —
+  // ⚠ `withdrawn` is a CANCELLATION, written when an order is cancelled, and a shop must never be able to leave it —
   // nor to claim it. Asserting it would be a shop claiming a customer cancelled.
   it("cannot be left once withdrawn by a cancellation", async () => {
     readStatus.mockResolvedValue("withdrawn" as never);

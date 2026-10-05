@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path shared library — db/secrets/logger/http/claims/validate + the RFC 9457 error contract. Single source of truth for every edge service (Principle II). Exports TS source.",
+  "description": "Effy backend shared library — db/secrets/logger/http/claims/validate + the RFC 9457 error contract. Single source of truth for every edge service (Principle II). Exports TS source.",
   "exports": {
     ".": "./src/index.ts",
     "./delivery": "./src/delivery/index.ts",
     "./cart-policy": "./src/cart-policy/index.ts",
-    "./payments": "./src/payments/index.ts"
+    "./payments": "./src/payments/index.ts",
+    "./testing": "./src/testing/kotlin-fixture.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

@@ -15,13 +15,11 @@ import kotlinx.serialization.Serializable
 /**
  * Raise a refund request (055 US3).
  *
- * ⚠ HOT PATH (`core`), beside the cancel route, because the DECIDING lives there — the refund path
- * and its gate. Splitting the ask from the answer across two services would mean two places that must
- * agree about which request is still open.
+ * On the commerce service, beside the cancel route (moved from the retired Go backend by 070).
  *
  * ⚠ IT MOVES NO MONEY. The 201 means the ask was recorded, never that a refund is coming.
  */
-class HttpRefundRequestRepository(private val core: HttpClient) : RequestRefund {
+class HttpRefundRequestRepository(private val edge: HttpClient) : RequestRefund {
 
     @Serializable
     private data class Item(val orderItemId: String, val quantity: Int)
@@ -30,7 +28,7 @@ class HttpRefundRequestRepository(private val core: HttpClient) : RequestRefund 
     private data class Body(val message: String, val items: List<Item>)
 
     override suspend fun invoke(orderId: String, input: RefundRequestInput): RefundRequestResult = try {
-        val response = core.post("v1/orders/$orderId/refund-requests") {
+        val response = edge.post("commerce/v1/orders/$orderId/refund-requests") {
             contentType(ContentType.Application.Json)
             setBody(Body(input.message, input.items.map { Item(it.orderItemId, it.quantity) }))
         }

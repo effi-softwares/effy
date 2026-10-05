@@ -17,8 +17,12 @@ import kotlin.test.assertTrue
 /**
  * The Kotlin half of the saved-items wire contract (033).
  *
- * ⚠ SAVED_ITEM_WIRE_JSON below is duplicated BYTE-FOR-BYTE from the Go half at
- * apis/core-api/internal/features/saveditems/wire_contract_test.go. Neither side generates it and
+ * ⚠ THE BACKEND HALF READS THESE LITERALS OUT OF THIS FILE (070). It used to be a second test, in a
+ * second language, holding a hand-made copy kept in step by comments. Now `apis/edge-api/commerce/src/wire.contract.test.ts` parses this
+ * source, takes each `const val`, and compares it with what the real mapper produces — so there is
+ * one copy. Renaming a constant here breaks that test on purpose: rename it there too.
+ *
+ * (Before 070 the backend half was apis/core-api/…/saveditems/wire_contract_test.go.) Neither side generates it and
  * neither imports it — that is the point. A shared fixture moves WITH the bug; two hand-maintained
  * copies make a divergence show up as a failure instead of as agreement.
  *
@@ -32,28 +36,28 @@ class SavedWireContractTest {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     companion object {
-        // ⚠ Byte-identical to SAVED_ITEM_WIRE_JSON in wire_contract_test.go. If you change one,
+        // ⚠ Read by the backend's wire.contract.test.ts (see the header). If you change it,
         // change the other in the same commit.
         const val SAVED_ITEM_WIRE_JSON =
             """{"id":"9f2c1d4e-0000-0000-0000-000000000001","name":"Free Range Eggs 12pk","brand":"Effy","imageUrl":"https://media.example/eggs.jpg","priceAmount":"6.50","currency":"AUD","compareAtAmount":"8.00","badges":["on_sale"],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"8.00","priceDropped":true,"verdict":"purchasable","categoryKey":"dairy-eggs"}"""
 
         // ⚠ 068 added `namedProductIds`. Byte-identical to SAVED_MEMBERSHIP_WIRE_JSON in
-        // wire_contract_test.go.
+        // the backend's wire.contract.test.ts.
         const val SAVED_MEMBERSHIP_WIRE_JSON =
             """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001","1a7b0000-0000-0000-0000-000000000002"],"count":2,"namedProductIds":["9f2c1d4e-0000-0000-0000-000000000001"]}"""
 
-        // What a core-api from BEFORE 068 emits (SAVED_MEMBERSHIP_PRE_068_WIRE_JSON in Go). This
+        // What a backend from BEFORE 068 emitted. This
         // build can be pointed at a stale backend and must still decode it.
         const val SAVED_MEMBERSHIP_PRE_068_WIRE_JSON =
             """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001"],"count":1}"""
 
-        // Byte-identical to SAVED_LISTS_WIRE_JSON in wire_contract_test.go.
+        // Read by the backend's wire.contract.test.ts.
         const val SAVED_LISTS_WIRE_JSON =
             """[{"id":"default","isDefault":true,"name":null,"count":12,"onlyHereCount":9},{"id":"5d1e0000-0000-0000-0000-000000000005","isDefault":false,"name":"Weekly Items","count":5,"onlyHereCount":2,"containsProduct":true}]"""
     }
 
     @Test
-    fun `Kotlin decodes Go's exact bytes`() {
+    fun `Kotlin decodes the server's exact bytes`() {
         val dto = json.decodeFromString<SavedItemDTO>(SAVED_ITEM_WIRE_JSON)
 
         assertEquals("9f2c1d4e-0000-0000-0000-000000000001", dto.id)
@@ -102,7 +106,7 @@ class SavedWireContractTest {
     }
 
     @Test
-    fun `Kotlin decodes the membership payload Go sends`() {
+    fun `Kotlin decodes the membership payload the server sends`() {
         val dto = json.decodeFromString<SavedMembershipDTO>(SAVED_MEMBERSHIP_WIRE_JSON)
         assertEquals(2L, dto.count)
         assertEquals(2, dto.productIDS.size)
@@ -121,7 +125,7 @@ class SavedWireContractTest {
     }
 
     @Test
-    fun `Kotlin decodes the lists Go sends`() {
+    fun `Kotlin decodes the lists the server sends`() {
         val lists = json.decodeFromString<List<SavedListDTO>>(SAVED_LISTS_WIRE_JSON)
         assertEquals(2, lists.size)
 

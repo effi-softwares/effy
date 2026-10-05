@@ -84,7 +84,7 @@ class ToggleSaved(
  *
  * ⚠ Smaller than the account cap because a device-held list has no account behind it. Reaching it
  * REFUSES the save; nothing already saved is ever evicted to make room (FR-047). Mirrors
- * `saveditems.GuestCap` on the hot path.
+ * the saved-items guest cap on the server.
  */
 const val GUEST_CAP = 50
 

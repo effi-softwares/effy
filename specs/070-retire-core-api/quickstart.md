@@ -100,7 +100,10 @@ The teardown change is **authored only now** (tasks T091–T093), after Stage 3 
 11. **OPERATOR** — `make plan ENV=dev`; confirm the plan destroys **only** the resources in
     [migration-inventory.md §7 "Destroy"](migration-inventory.md) and touches none in "Keep";
     then `make apply ENV=dev`.
-12. **OPERATOR** — `make db-up ENV=dev` → migration B.
+12. **OPERATOR** — `make db-up ENV=dev` → migration B (`drop_shop_ops_poke`). It may be applied any
+    time after the consoles are released in Stage 3 — it does not depend on the teardown. Applied
+    before that, a console still open on the old build stops being told to refresh and falls back to
+    a two-minute re-read: harmless, avoidable.
 13. Check:
     - `core-api.dev.effyshopping.com` no longer resolves
     - the environment lists no container service, load balancer or image registry
@@ -141,6 +144,9 @@ and re-walked.
 | 100 webhook deliveries with injected faults, duplicates, reordering | 100% handled (SC-009) |
 | Simultaneous refunds on one order; a deliberately stalled refund | never over ceiling; resolved < 15 min (SC-010) |
 | Shopper traffic at overload while staff requests run | 100% of the staff requests succeed (SC-013) |
+
+The scripted rows (SC-008, SC-009, SC-010, SC-013, and SC-006 as a by-product) are the harness in
+[`scripts/verify-070/README.md`](../../scripts/verify-070/README.md).
 
 If SC-004, SC-006 or SC-007 cannot be met, stop and return to the operator (spec Assumptions).
 

@@ -12,7 +12,7 @@ import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { ActionLink } from "@/components/storefront/actions"
 import { Display } from "@/components/storefront/kit"
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { ClearCart } from "./ClearCart"
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
 
 /**
  * The receipt (019 US3, redesigned by 052 US1). Reads the WEBHOOK-AUTHORITATIVE order state from the
- * hot path (R4) — never the browser payment result. ONE Effy order itemized by product, with NO shop
+ * server (R4) — never the browser payment result. ONE Effy order itemized by product, with NO shop
  * identity (FR-029/FR-009). Gated + request-time, so it lives inside <Suspense>.
  */
 type ReturnParams = {
@@ -75,12 +75,12 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
     // before another checkout can start, on both the inline-success and 3DS-redirect return paths.
     // Best-effort: on failure the webhook remains the backstop and the receipt shows "confirming".
     try {
-      await coreApi(session.accessToken).post(`/v1/checkout/confirm`, { orderId: order }, uncached())
+      await edgeApi(session).post(`/commerce/v1/checkout/confirm`, { orderId: order }, uncached())
     } catch {
       // ignore — webhook backstop
     }
     try {
-      dto = await coreApi(session.accessToken).get<OrderDTO>(`/v1/orders/${order}`, uncached())
+      dto = await edgeApi(session).get<OrderDTO>(`/commerce/v1/orders/${order}`, uncached())
     } catch {
       dto = null
     }

@@ -1,4 +1,4 @@
-// Direct-to-S3 presigned upload/read, shared by every cold-path service that stores images.
+// Direct-to-S3 presigned upload/read, shared by every backend service that stores images.
 //
 // Bytes never pass through Lambda: the service mints a presigned PUT url the client uploads to,
 // records the object key, and mints short-lived presigned GET urls on read. The bucket is private;
@@ -135,6 +135,21 @@ export async function presignRead(storageKey: string): Promise<string> {
   return getSignedUrl(client(), new GetObjectCommand({ Bucket: bucket(), Key: storageKey }), {
     expiresIn: READ_URL_TTL,
   });
+}
+
+/**
+ * A presigned read URL for an image, or null — when there is no key, or it cannot be signed.
+ *
+ * For shopper-facing reads (070): a product, cart or order line with a missing or unsignable image
+ * renders without one. It must never fail the read around it.
+ */
+export async function imageUrlOrNull(storageKey: string | null | undefined): Promise<string | null> {
+  if (!storageKey) return null;
+  try {
+    return await presignRead(storageKey);
+  } catch {
+    return null;
+  }
 }
 
 // crypto.randomUUID is available on the Lambda Node 22 runtime; avoids Math.random collisions.

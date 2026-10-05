@@ -1,6 +1,6 @@
 // Service for the delivery fee-plan + ring config (047). Validation + orchestration; no SQL, no HTTP.
-// ⚠ This surface VALIDATES a plan but never computes a customer fee — the fee engine's one home is the
-// Go hot path. The value here is the activation completeness gate (FR-051/SC-016) and the a≥b / step
+// ⚠ This surface VALIDATES a plan but never computes a customer fee — the fee engine's one home is
+// `@effy/edge-shared/delivery`. The value here is the activation completeness gate (FR-051/SC-016) and the a≥b / step
 // invariants surfaced as friendly field errors before they ever reach a DB CHECK.
 import * as repo from "./repository";
 import { haversineKm, ringForDistance } from "./suggest";

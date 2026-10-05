@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path customer service (011) \u2014 attaches to the shared HTTP API; routes under /customer/. Profile & account management ONLY: commerce belongs to the hot path (FR-028). Also hosts the Cognito pre-sign-up account-linking trigger.",
+  "description": "Effy customer service (011) \u2014 attaches to the shared HTTP API; routes under /customer/. Profile & account management ONLY: the catalogue is `storefront`, cart/checkout/orders are `commerce` (FR-028). Also hosts the Cognito pre-sign-up account-linking trigger.",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

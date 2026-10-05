@@ -270,7 +270,7 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
       expect(o!.refunds[0]!.lines[0]!.productName).toBe("Milk");
     });
 
-    // ⚠ THE SET MUST MATCH `core-api`'s `refundedCents` OR THE CONSOLE LIES ABOUT THE CEILING.
+    // ⚠ THE SET MUST MATCH THE ONE REFUNDS ARE ISSUED AGAINST (`COUNTED_REFUND_STATUSES`) OR THE CONSOLE LIES ABOUT THE CEILING.
     it("counts `failed` against the ceiling but never `submitting` or `refused`", async () => {
       await issue("10.00", "failed", 1);
       await issue("5.00", "submitting");

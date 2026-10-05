@@ -1,128 +1,32 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
+import * as shared from "@effy/edge-shared";
 import { describe, expect, it } from "vitest";
 
 import { COUNTED_REFUND_STATUSES, stageFor } from "./service";
 
 /**
- * ⚠ THIS FILE EXISTS BECAUSE `stageFor` IS A SECOND IMPLEMENTATION OF A RULE, AND THAT IS A HAZARD.
+ * The console shows an operator the word the CUSTOMER is currently being shown, and a refund ceiling
+ * the server will actually honour.
  *
- * The authority is `apis/core-api/internal/features/orders/stage.go` — it computes the word the
- * CUSTOMER sees, and 052 deleted customer-web's `summarizeFulfillment` specifically to stop a second
- * implementation existing. The console needs the same word for a different reason: to show an
- * operator what the shopper is currently being told, so support does not reassure someone about a
- * status they cannot see.
+ * ⚠ UNTIL 070 BOTH WERE SECOND IMPLEMENTATIONS of rules owned by the Go backend, and this file kept
+ * them honest by READING THE GO SOURCE and comparing. That backend is retired. The rules now live
+ * once, in the shared library, where their behaviour is tested (`order-completion.test.ts`).
  *
- * Calling `core-api` for it was rejected in research R1 (an operator console has no business on the
- * hot path, and it would import back-office concerns there). So the rule is mirrored — and mirrored
- * rules drift silently, because both sides keep returning *something*. 029's banner target and 033's
- * `available` flag are both this failure.
- *
- * The guard is therefore not "test the TypeScript". It is: READ THE GO SOURCE AND COMPARE. If
- * someone changes the rank map on either side without the other, this fails and names the mismatch.
+ * What is left to guard here is the thing that would bring the hazard back: this service growing
+ * its OWN copy again. So the assertion is identity, not behaviour — a local re-implementation that
+ * happened to agree today would still fail.
  */
-
-const here = dirname(fileURLToPath(import.meta.url));
-const STAGE_GO = resolve(here, "../../../../core-api/internal/features/orders/stage.go");
-
-/** The rank map as Go actually declares it, parsed from the source of truth. */
-function goRankMap(): Record<string, number> {
-  const src = readFileSync(STAGE_GO, "utf8");
-  const block = /var rank = map\[string\]int\{([\s\S]*?)\}/.exec(src);
-  if (!block) throw new Error(`could not find the rank map in ${STAGE_GO}`);
-  const out: Record<string, number> = {};
-  for (const line of block[1]!.split("\n")) {
-    const m = /^\s*"([a-z_]+)":\s*(\d+),/.exec(line);
-    if (m) out[m[1]!] = Number(m[2]);
-  }
-  return out;
-}
-
-/** The stage each rank maps to, per Go's own switch. */
-const STAGE_BY_RANK = ["confirmed", "packing", "on_the_way", "delivered"] as const;
-
-describe("stageFor mirrors core-api's stage.go", () => {
-  const go = goRankMap();
-
-  it("parsed a non-trivial map out of the Go source", () => {
-    // Guards the guard: a regex that silently matches nothing would make every assertion below
-    // vacuously true — 029's "the test was watching it happen" failure.
-    expect(Object.keys(go).length).toBeGreaterThanOrEqual(6);
-    expect(go).toHaveProperty("ready_for_pickup");
+describe("the console's order rules are the shared ones, not a copy", () => {
+  it("stageFor is the function the shopper's own order page calls", () => {
+    expect(stageFor).toBe(shared.stageFor);
   });
 
-  it("agrees with Go on EVERY status Go knows", () => {
-    for (const [status, rank] of Object.entries(go)) {
-      expect(stageFor([status]), `status "${status}" disagrees with stage.go`).toBe(
-        STAGE_BY_RANK[rank],
-      );
-    }
+  it("the refund ceiling's status set is the one refunds are issued against", () => {
+    expect(COUNTED_REFUND_STATUSES).toBe(shared.COUNTED_REFUND_STATUSES);
   });
 
-  it("holds 053's correction: ready_for_pickup is packing, not on the way", () => {
-    // Pinned on BOTH sides. Go's own stage_test.go pins it there; this pins that the console agrees,
-    // so an operator is never told the shopper sees "on the way" while they see "packing".
-    expect(go["ready_for_pickup"]).toBe(1);
-    expect(stageFor(["ready_for_pickup"])).toBe("packing");
-    expect(stageFor(["collected"])).toBe("on_the_way");
-  });
-});
-
-describe("stageFor", () => {
-  it("is a rollup, not a max", () => {
-    // The order is only as far along as its LEAST advanced package. A max would tell a shopper their
-    // shopping is on the doorstep while half of it is still being picked.
+  it("still says what an operator needs it to say", () => {
     expect(stageFor(["delivered", "picking"])).toBe("packing");
-    expect(stageFor(["delivered", "pending"])).toBe("confirmed");
-    expect(stageFor(["delivered", "delivered"])).toBe("delivered");
-  });
-
-  it("treats an order with no packages as confirmed", () => {
-    expect(stageFor([])).toBe("confirmed");
-  });
-
-  it("never lets an unknown status advance the order", () => {
-    expect(stageFor(["teleported"])).toBe("confirmed");
-    expect(stageFor(["delivered", "teleported"])).toBe("confirmed");
-  });
-});
-
-/**
- * ⚠ THE SECOND GO CONSTANT THIS SERVICE MIRRORS (055).
- *
- * `refundedAmount`/`refundableAmount` are a DISPLAY of a rule that `core-api` enforces inside a row
- * lock. If the two status sets drift, the console shows staff a ceiling the server will not honour —
- * and they would find out by having a refund refused for a reason the screen said was impossible.
- * Same mechanism as the stage guard above: read the Go source, compare, fail naming the mismatch.
- */
-describe("COUNTED_REFUND_STATUSES mirrors core-api's refundedCents", () => {
-  const REFUNDS_GO = resolve(
-    here,
-    "../../../../core-api/internal/features/refunds/repository.go",
-  );
-
-  function goCountedStatuses(): string[] {
-    const src = readFileSync(REFUNDS_GO, "utf8");
-    const block = /const refundedCents = `([\s\S]*?)`/.exec(src);
-    if (!block) throw new Error(`could not find refundedCents in ${REFUNDS_GO}`);
-    const inClause = /r\.status IN \(([^)]*)\)/.exec(block[1]!);
-    if (!inClause) throw new Error("refundedCents no longer filters on r.status IN (...)");
-    return [...inClause[1]!.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]!).sort();
-  }
-
-  it("counts exactly the statuses the authority counts", () => {
-    expect(
-      [...COUNTED_REFUND_STATUSES].sort(),
-      "the console's ceiling disagrees with the one core-api enforces",
-    ).toEqual(goCountedStatuses());
-  });
-
-  it("never counts an unsettled attempt", () => {
-    // Stated separately from the set comparison: if someone changes BOTH sides to include
-    // `submitting`, the guard above still passes and this one still fails. A failed attempt to
-    // return money must not hold the ceiling down.
+    expect(stageFor(["ready_for_pickup"])).toBe("packing");
     expect(COUNTED_REFUND_STATUSES).not.toContain("submitting");
     expect(COUNTED_REFUND_STATUSES).not.toContain("refused");
   });

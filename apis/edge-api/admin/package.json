@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path admin service (004-backend-bootstrap A3) — attaches to the shared HTTP API; routes under /admin/.",
+  "description": "Effy admin service (004-backend-bootstrap A3) — attaches to the shared HTTP API; routes under /admin/.",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

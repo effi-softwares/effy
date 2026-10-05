@@ -287,7 +287,7 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "create-first-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" BACK_OFFICE_POOL_ID="$$POOL_ID" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
-		sh -c 'cd $(CORE_DIR) && go run ./cmd/create-first-admin --email "$(EMAIL)" --name "$(NAME)"'
+		pnpm --filter @effy/edge-ops exec tsx src/create-first-admin.ts --email "$(EMAIL)" --name "$(NAME)"
 
 
 
@@ -295,7 +295,7 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 load-localities: ## OPERATOR: load the AU locality reference dataset into public.locality (ENV=dev [CSVREL=path]) — specs/047
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AWS_PROFILE=$(AWS_PROFILE) \
-		sh -c 'cd $(CORE_DIR) && go run ./cmd/load-localities --csv "$(CURDIR)/$(or $(CSVREL),db/reference/au-localities.csv)"'
+		pnpm --filter @effy/edge-ops exec tsx src/load-localities.ts --csv "$(CURDIR)/$(or $(CSVREL),db/reference/au-localities.csv)"
 
 delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=dev [FORCE=1]) — irreversible — specs/006
 	@test -n "$(EMAIL)" || { echo 'usage: make delete-admin EMAIL=jane@effy.test ENV=dev [FORCE=1]'; exit 1; }
@@ -304,7 +304,7 @@ delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=d
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "delete-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" BACK_OFFICE_POOL_ID="$$POOL_ID" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
-		sh -c 'cd $(CORE_DIR) && go run ./cmd/delete-admin --email "$(EMAIL)" $(if $(FORCE),--force,)'
+		pnpm --filter @effy/edge-ops exec tsx src/delete-admin.ts --email "$(EMAIL)" $(if $(FORCE),--force,)
 
 edge-install: ## Install the JS/TS workspace dependencies (pnpm)
 	@pnpm install

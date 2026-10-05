@@ -14,19 +14,20 @@ import kotlin.test.assertTrue
 /**
  * ── THE CROSS-LANGUAGE WIRE CONTRACT (028) ──────────────────────────────────────────────────────
  *
- * The Kotlin half of `wire_contract_test.go`. 027's post-mortem named this exact test as the
+ * The mobile half of the banner wire contract (the backend half is
+ * apis/edge-api/storefront/src/wire.contract.test.ts, which READS the literal below out of this file). 027's post-mortem named this exact test as the
  * strongest thing it could hand forward, and did not build it:
  *
  *   > Kotlin serialised quantities as `Double`, so the wire carried `1.0`; Go's `encoding/json`
  *   > refuses `1.0` into an `int`. **Every unit test passed throughout**, because the fakes spoke
  *   > Kotlin at both ends and never crossed the wire.
  *
- * ⚠ [BANNER_WIRE_JSON] is duplicated **verbatim** from the Go test, by hand, on purpose. Neither side
- * generates it and neither imports it. That is what makes it a contract: if Go starts emitting a
+ * ⚠ [BANNER_WIRE_JSON] is the ONE copy (070): the backend test parses this file for it. That is what
+ * makes it a contract: if the server starts emitting a
  * float, or the generated Kotlin starts expecting one, exactly ONE of these two files goes red — and
  * it does so on a laptop rather than on a device three weeks later.
  *
- * If you change this literal, change it in BOTH files or the test is worthless.
+ * If you change this literal, the backend test compares against the new one at once.
  */
 private const val BANNER_WIRE_JSON =
     """{"key":"3f2a","title":"20% off your first order","subtitle":"Stock up",""" +
@@ -40,7 +41,7 @@ class BannerWireContractTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `Kotlin can read the exact bytes Go emits`() {
+    fun `Kotlin can read the exact bytes the server emits`() {
         val dto = json.decodeFromString<BannerDTO>(BANNER_WIRE_JSON)
 
         assertEquals("3f2a", dto.key)
@@ -57,7 +58,7 @@ class BannerWireContractTest {
     }
 
     @Test
-    fun `Kotlin emits an integer position that Go can read back`() {
+    fun `Kotlin emits an integer position that the server can read back`() {
         // ⚠ THE 027 DEFECT, IN REVERSE. The failure mode was Kotlin WRITING `1.0` where Go wanted an
         // int. `WireInt` / `@asType integer` makes the generated field a Long so it cannot; this
         // asserts the bytes rather than trusting the annotation.

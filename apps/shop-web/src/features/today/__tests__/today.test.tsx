@@ -16,17 +16,6 @@ vi.mock("../repo", () => ({ getToday, getTeamActivity: vi.fn() }))
 const getInsights = vi.hoisted(() => vi.fn())
 vi.mock("@/features/insights/repo", () => ({ getInsights }))
 
-// ⚠ The live stream is stubbed here so THIS file tests the screen, not the transport. Its own
-// behaviour — reconnect, backoff, stall, cleanup — is tested where it lives
-// (`packages/web-kit/src/runtime/live.test.ts`), and the wiring between them in `live.test.tsx`.
-// Left real, it would open sockets from jsdom and leave reconnect timers running between tests.
-const openLiveStream = vi.hoisted(() => vi.fn(() => () => {}))
-vi.mock("@effy/web-kit", async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  openLiveStream,
-  getAccessToken: async () => "test-token",
-}))
-
 import type { ShopTodayDTO } from "@effy/shared-types"
 
 import { attentionHref, attentionRow, openItemCount, unitsToPack } from "../model"

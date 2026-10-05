@@ -1,4 +1,4 @@
-# edge-shop — Effy cold-path shop/operator service (004-backend-bootstrap, amendment A3).
+# edge-shop — Effy shop/operator service (004-backend-bootstrap, amendment A3).
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
 # under /shop/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
@@ -48,12 +48,18 @@ provider:
     # mechanism rather than a second one (FR-019). Resolved from the auth contract at deploy time,
     # never hard-coded. Without it every invite fails at runtime with a pool-id error.
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
+    # 070 — a shop manager's refund of their own portion is issued HERE now (it ran on the Go
+    # backend, which alone held the payment secret). ⚠ The ARN, never the secret; and the SECRET
+    # KEY ONLY — this service verifies no webhook.
+    STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
-          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+          Resource:
+            - ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+            - ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
         # Product media (016): read/write objects in the product-media bucket only. Scoped to the
         # bucket's object ARN — never a wildcard. Presigned URLs inherit this identity's authority.
         - Effect: Allow
@@ -678,6 +684,19 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # 070 — moved here from the Go backend. The refund rules are @effy/edge-shared/payments; this is
+  # the shop manager's route into them. timeout 25: it calls the payment provider (research R8).
+  orderRefundV1:
+    handler: src/functions/order-refund-v1-post.handler
+    description: Shop manager — refund lines in this shop's own portion of an order. Record-gated (active manager, active shop, shop is on the order).
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/orders/{orderId}/refunds
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
 resources:
   Resources:

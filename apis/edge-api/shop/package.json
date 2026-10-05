@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path shop service (004-backend-bootstrap A3) — attaches to the shared HTTP API; routes under /shop/.",
+  "description": "Effy shop service (004-backend-bootstrap A3) — attaches to the shared HTTP API; routes under /shop/.",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

@@ -86,7 +86,7 @@ SELECT $1::uuid,
   FROM unnest($2::timestamptz[]) AS b(bucket_start)
   LEFT JOIN LATERAL (
     -- ⚠ 067: a shop's sales are what the SHOP is owed — its own prices — not what customers paid.
-    -- NULL shop columns (a line written before 067, or by an older core-api) mean "the same".
+    -- NULL shop columns (a line written before 067, or by an older backend) mean "the same".
     SELECT SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount)) AS gross,
            SUM(oi.quantity)::int        AS units,
            COUNT(DISTINCT sf.id)::int   AS orders

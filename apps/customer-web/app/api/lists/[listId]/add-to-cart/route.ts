@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * Add every purchasable product in ONE list to the cart (068 FR-028) — the weekly-shop action.
@@ -9,5 +9,5 @@ import { proxyToCore } from "@/lib/api/proxy"
 export async function POST(req: Request, { params }: { params: Promise<{ listId: string }> }) {
   const { listId } = await params
   const body = await req.json().catch(() => ({}))
-  return proxyToCore((c) => c.post(`/v1/lists/${encodeURIComponent(listId)}/add-to-cart`, body))
+  return proxyToEdge((c) => c.post(`/commerce/v1/lists/${encodeURIComponent(listId)}/add-to-cart`, body))
 }

@@ -1,4 +1,4 @@
-# edge-driver — Effy cold-path driver service (049-driver-mobile-app).
+# edge-driver — Effy driver service (049-driver-mobile-app).
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
 # under /driver/. Authenticated routes use the Terraform-owned DRIVER JWT authorizer (by id from

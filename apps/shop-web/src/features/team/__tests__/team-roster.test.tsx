@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { ShopTeamMemberDTO } from "@effy/shared-types"
 
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() }))
-vi.mock("@/lib/api", () => ({ api, coreApi: api }))
+vi.mock("@/lib/api", () => ({ api }))
 
 const sessionQuery = vi.hoisted(() => ({ queryKey: ["session"], queryFn: vi.fn() }))
 vi.mock("@/features/auth/queries", () => ({ sessionQuery }))

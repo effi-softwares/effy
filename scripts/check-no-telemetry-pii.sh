@@ -16,7 +16,7 @@ cd "$(dirname "$0")/.."
 FILES=(
   packages/shared-types/src/device.ts
   apis/edge-api/shared/src/lib/devices.ts
-  apis/core-api/internal/features/notifications/producer.go
+  apis/edge-api/shared/src/payments/outbox.ts
   apis/edge-api/notifications/src/worker/copy.ts
   apis/edge-api/notifications/src/fcm/sender.ts
   apis/edge-api/notifications/src/worker/drain.ts

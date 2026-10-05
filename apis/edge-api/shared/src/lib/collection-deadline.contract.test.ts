@@ -1,21 +1,17 @@
 import { describe, expect, it } from "vitest";
 
+import { melbourneDate, sameDayCutoff } from "../delivery/sameday";
 import { collectionDeadline, endOfLocalDay, runsDueForPlanning, wavePlanningTime } from "./collection-deadline";
 
 /**
- * ⚠⚠ THE CROSS-LANGUAGE CONTRACT. This file and
- * `apis/core-api/internal/platform/delivery/deadline_contract_test.go` consume BYTE-IDENTICAL
- * fixtures, duplicated by hand.
+ * ⚠ THE DST FIXTURES. Two rules read one clock — when same-day ordering closes (checkout) and when
+ * collection must be finished (the wave planner) — and both resolve a Melbourne wall-clock run time
+ * to an instant through `collection-deadline.ts`.
  *
- * It is the entire justification for `collection-deadline.ts` existing at all. The rule is written
- * twice — once in Go for checkout, once in TypeScript for the planner — because the runtimes cannot
- * share code (research R2). 054 spent a whole slice deleting a rule written in 14 places; this one is
- * written in two ON PURPOSE, and is only defensible while these fixtures agree.
- *
- * ⚠ IF YOU WEAKEN THIS TEST, THE DUPLICATE IS NO LONGER JUSTIFIED. Delete one implementation instead.
- *
- * Precedent: 028 closed 027's biggest carry-forward exactly this way — a Go test and a Kotlin test
- * sharing one hand-duplicated JSON literal, proven by breaking it two ways.
+ * Until 070 the checkout half was written in a second language on a second backend, and this file
+ * was one side of a hand-duplicated fixture set that kept the two honest. There is one
+ * implementation now, so the fixtures pin IT — and, below, the real checkout function is called
+ * and held to them, rather than a formula restated in the test.
  *
  * ⚠ THE DST ROWS ARE THE POINT. 058 found two real calendar bugs that only DST tests caught,
  * including one that silently skipped an entire trading hour. Melbourne 2026: DST ENDS Sun 5 April
@@ -23,7 +19,7 @@ import { collectionDeadline, endOfLocalDay, runsDueForPlanning, wavePlanningTime
  * happens).
  */
 
-// ─── FIXTURES — keep byte-identical with the Go side ──────────────────────────────────────────────
+// ─── FIXTURES — unchanged since 063; do not "tidy" an expected instant ────────────────────────────
 const FIXTURES: ReadonlyArray<{
   name: string;
   onDate: string;
@@ -102,27 +98,45 @@ const FIXTURES: ReadonlyArray<{
 // ─── END FIXTURES ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * ⚠⚠ WHAT THIS CONTRACT PINS CHANGED ON 2026-09-30, AND THE FIXTURES DID NOT.
+ * ⚠ WHAT THIS PINS, AND WHAT IT ONCE WRONGLY PINNED. Before 2026-09-30 it asserted that collection
+ * must finish at the very instant same-day ordering closes. That WAS the bug: it left a shop zero
+ * time to pick and let a shopper buy "same-day" for a package that could only be collected
+ * tomorrow. A test that pins a defect turns it into something a later reader is told not to touch.
  *
- * It used to assert `collectionDeadline(run, buffer) == SameDayCutoff(run, buffer)` — that collection
- * must finish at the very instant same-day ordering closes. That WAS the bug: it left a shop zero time
- * to pick, made the configured run time meaningless, and let a shopper buy "same-day" for a package that
- * could only be collected tomorrow. A contract test that pins a defect is worse than none, because it
- * turns the defect into something a later reader is told not to touch.
+ * The relationship the two rules are supposed to have:
  *
- * It now pins the relationship the two halves are supposed to have:
- *
- *     Go's checkout cutoff  ==  the planner's collection deadline  −  the prep buffer
+ *     checkout's cutoff  ==  the planner's collection deadline  −  the prep buffer
  *
  * i.e. a shop always gets exactly the configured buffer between ordering closing and the driver
- * arriving. The fixtures are byte-identical to the Go side and unchanged, so the DST-sensitive part —
- * resolving a Melbourne wall-clock run time to an instant — is still proven identical in both runtimes.
+ * arriving.
  */
-describe("checkout cutoff == collection deadline − prep buffer — cross-language contract", () => {
+describe("checkout cutoff == collection deadline − prep buffer", () => {
   it.each(FIXTURES)("$name", ({ onDate, runHour, runMinute, bufferMin, expect: want }) => {
     const deadline = collectionDeadline({ hour: runHour, minute: runMinute }, new Date(onDate));
     const cutoff = new Date(deadline.getTime() - bufferMin * 60_000);
     expect(cutoff.toISOString()).toBe(want);
+  });
+
+  /**
+   * ⚠ THE REAL CHECKOUT FUNCTION, not the formula above. Asked a moment before the expected
+   * cutoff it must answer exactly that instant; asked a moment after, that run is gone.
+   */
+  it.each(FIXTURES)("checkout's own sameDayCutoff agrees: $name", ({ runHour, runMinute, bufferMin, expect: want }) => {
+    const run = [{ hour: runHour, minute: runMinute }];
+    const at = new Date(want).getTime();
+    // ⚠ A buffer longer than the time since midnight puts the cutoff on the PREVIOUS local day. Such
+    // a run can never be ordered for on its own day, and checkout says so by offering nothing —
+    // it does not reach back and sell tomorrow's run as "same-day".
+    if (melbourneDate(new Date(at)) !== melbourneDate(new Date(at + bufferMin * 60_000))) {
+      expect(sameDayCutoff(new Date(at - 1000), run, bufferMin)).toBeNull();
+      expect(sameDayCutoff(new Date(at + bufferMin * 60_000 - 1000), run, bufferMin)).toBeNull();
+      return;
+    }
+    expect(sameDayCutoff(new Date(at - 1000), run, bufferMin)?.toISOString()).toBe(want);
+    expect(sameDayCutoff(new Date(at), run, bufferMin)?.toISOString()).toBe(want); // the cutoff instant itself is still in time
+    const after = sameDayCutoff(new Date(at + 1000), run, bufferMin);
+    // Either nothing can be made today, or the answer is a LATER day's cutoff — never this one.
+    if (after) expect(after.getTime()).toBeGreaterThan(at);
   });
 
   it("covers both DST transitions — a fixture set without them proves nothing", () => {

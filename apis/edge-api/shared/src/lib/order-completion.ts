@@ -16,8 +16,8 @@
 // package has arrived, and FR-020 that the customer is told exactly once. Both were being broken by
 // the same line.
 //
-// The rule here is a ROLLUP, NOT A MAX — the same rule `core-api`'s `orders/stage.go` applies to the
-// customer's progress word, for the same reason: a customer has not received their order until all
+// The rule here is a ROLLUP, NOT A MAX — the same rule `stageFor` (below) applies to the customer's
+// progress word, for the same reason: a customer has not received their order until all
 // of it has arrived.
 
 import type pg from "pg";
@@ -81,3 +81,110 @@ export async function enqueueOrderDeliveredIfComplete(
   );
   return true;
 }
+
+// ── What the customer is told about an order (052, 053, 055) ─────────────────────────────────────
+//
+// ⚠ ONE IMPLEMENTATION, TWO READERS (070). The shopper's own order page (`edge-api/commerce`) and the
+// back-office console (`edge-api/orders`) both show this word — the console so that support never
+// reassures someone about a status they cannot see. One function serves both, so they cannot differ.
+
+export type CustomerOrderStage = "confirmed" | "packing" | "on_the_way" | "delivered";
+
+/**
+ * Where each package status sits on the customer's journey.
+ *
+ * ⚠ `ready_for_pickup` SCORES 1, NOT 2 (053 FR-016). Under hub-and-spoke it means packed and sitting
+ * on a shelf at the shop, waiting for the next collection round — which can be the following day.
+ * It has not left, and "on the way" is a claim the business has not earned. `collected` is 2: a
+ * driver has it and the shop does not.
+ */
+const STAGE_RANK: Record<string, number> = {
+  pending: 0,
+  received: 1,
+  picking: 1,
+  ready_for_pickup: 1,
+  collected: 2,
+  delivered: 3,
+};
+const STAGE_BY_RANK: readonly CustomerOrderStage[] = ["confirmed", "packing", "on_the_way", "delivered"];
+
+/**
+ * Collapse every package's status into the ONE word the customer is shown.
+ *
+ * ⚠ A ROLLUP, NOT A MAX: the order is only as far along as its LEAST advanced package. One package
+ * delivered and one still being picked is `packing` — `delivered` would tell someone their shopping
+ * is on the doorstep while half of it is on a shelf.
+ *
+ * It discloses no fulfilment structure: how many packages there are, and each one's state, never
+ * leave this function.
+ */
+export function stageFor(statuses: readonly string[]): CustomerOrderStage {
+  if (statuses.length === 0) return "confirmed"; // paid, nothing has moved
+  let least = 3;
+  for (const s of statuses) {
+    // An unrecognised status scores 0: a status this build has never heard of must not be able to
+    // advance anyone's view of an order.
+    least = Math.min(least, STAGE_RANK[s] ?? 0);
+  }
+  return STAGE_BY_RANK[least]!;
+}
+
+/**
+ * May the SHOPPER still cancel this order themselves? (055 FR-012)
+ *
+ * ⚠ ADVISORY, NOT THE GATE. The cancel itself re-decides this under the order's row lock, because a
+ * shop can begin picking between the read and the tap. This exists so the control is not offered
+ * when it obviously cannot work.
+ *
+ * ⚠ The window closes when ANY shop begins, not when all have: a two-shop order where one has
+ * started picking is already partly real work.
+ */
+export function customerCancellable(orderStatus: string, statuses: readonly string[]): boolean {
+  // An unpaid order has no money to return; a cancelled one is already cancelled.
+  if (orderStatus !== "paid") return false;
+  // Paid and not yet fanned out is the most cancellable an order ever is.
+  return statuses.every((s) => s === "pending");
+}
+
+// ── Refund states, as two different questions ────────────────────────────────────────────────────
+
+/**
+ * Which SETTLED-ENOUGH refunds count against what may still be refunded — what a console DISPLAYS
+ * as "refunded so far".
+ *
+ * ⚠ `submitting` is OUT: no money is on its way yet. ⚠ `failed` is IN: it is money the platform
+ * attempted to return and staff must resolve — freeing the ceiling would let a bouncing retry
+ * refund an order repeatedly.
+ *
+ * ⚠ The ceiling a refund is actually ISSUED against (`payments/refunds/repository.ts`) is this set
+ * PLUS a refund that is in flight at that very moment. That extra term exists for a few seconds at
+ * a time and is deliberately not shown: a console that counted it would flicker the remaining
+ * amount on every refund, and would be wrong the instant it settled either way.
+ */
+export const COUNTED_REFUND_STATUSES: readonly string[] = ["submitted", "succeeded", "failed"];
+
+export type CustomerRefundState = "on_its_way" | "completed" | "there_was_a_problem";
+
+/**
+ * A refund's state as the SHOPPER reads it: five internal states become three.
+ *
+ * ⚠ `failed` and `refused` both read "there was a problem", deliberately without saying what: the
+ * provider's reason is staff information a shopper cannot act on.
+ * ⚠ AN UNKNOWN STATE READS "ON ITS WAY", NEVER "COMPLETED". A state this build has never heard of
+ * must not tell a shopper their money has arrived — the one claim that stops them looking for it.
+ */
+export function customerRefundState(internal: string): CustomerRefundState {
+  if (internal === "succeeded") return "completed";
+  if (internal === "failed" || internal === "refused") return "there_was_a_problem";
+  return "on_its_way";
+}
+
+/**
+ * Does this refund count toward "what you have been refunded", on the shopper's own order page?
+ *
+ * ⚠ NOT THE CEILING'S RULE, and the difference is `failed`. The ceiling counts a failed refund so
+ * staff must resolve it; the shopper's total must NOT, because that money did not reach them.
+ * `submitting` is out of both: asked for and unconfirmed has not left.
+ */
+export const countsAsRefundedToCustomer = (internal: string): boolean =>
+  internal !== "submitting" && customerRefundState(internal) !== "there_was_a_problem";

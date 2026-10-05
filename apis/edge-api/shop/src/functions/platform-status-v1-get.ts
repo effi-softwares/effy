@@ -1,6 +1,6 @@
 // GET /v1/platform/status — public proving read: the complete three-layer traversal
 // (handler → service → repository) to the dev database. v1 wire shape: flat
-// (contracts/edge-api.contract.md; identical to core-api's v1).
+// (contracts/edge-api.contract.md).
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import { internal, json, preamble } from "@effy/edge-shared";

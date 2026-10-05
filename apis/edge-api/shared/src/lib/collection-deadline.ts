@@ -1,10 +1,9 @@
 // Wall-clock time in the platform's operating zone — the ONE file that does zone arithmetic.
 //
-// It began (063) as the wave planner's "when must collection for a run be complete?", written as a
-// deliberate duplicate of the Go checkout rule because the two runtimes could not share code. 070
-// retired the Go backend, so the checkout question (`delivery/sameday.ts`), the slot rules
-// (`delivery/slots.ts`) and the standard-day rule (`delivery/standard-days.ts`) now build their
-// instants HERE too, from `instantAtLocalTime`. There is no second implementation left to drift.
+// It began (063) as the wave planner's "when must collection for a run be complete?". Since 070 the
+// checkout question (`delivery/sameday.ts`), the slot rules (`delivery/slots.ts`) and the
+// standard-day rule (`delivery/standard-days.ts`) build their instants HERE too, from
+// `instantAtLocalTime`. There is one implementation.
 //
 // ⚠ DST IS NOT A DETAIL HERE. 058 found TWO real calendar bugs that only DST tests caught, including
 // one that silently skipped an entire trading hour — both from rebuilding an instant out of wall-clock
@@ -27,7 +26,7 @@ export interface CollectionRun {
  * point is to be right on the two days a year the offset changes. Node ships full ICU on the Lambda
  * runtimes this package targets.
  */
-function zoneOffsetMinutes(at: Date): number {
+export function zoneOffsetMinutes(at: Date): number {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: OPERATING_TZ,
     hour12: false,
@@ -218,4 +217,18 @@ export function nextPlanningTime(
     .filter((d) => d.getTime() >= now.getTime())
     .sort((a, b) => a.getTime() - b.getTime());
   return candidates[0] ?? null;
+}
+
+/**
+ * An instant as an RFC 3339 timestamp IN THE OPERATING ZONE — `2026-08-24T17:00:00+10:00`.
+ *
+ * Delivery windows, cut-offs and hold expiries are sent to clients this way so that a shopper is
+ * shown Effy's working day, whatever zone their device is set to: the offset travels with the time.
+ */
+export function operatingStamp(at: Date): string {
+  const offset = zoneOffsetMinutes(at);
+  const local = new Date(at.getTime() + offset * 60_000).toISOString().slice(0, 19);
+  const sign = offset < 0 ? "-" : "+";
+  const abs = Math.abs(offset);
+  return `${local}${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
 }

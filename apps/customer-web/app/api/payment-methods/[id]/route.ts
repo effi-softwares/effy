@@ -1,4 +1,4 @@
-import { proxyToCore } from "@/lib/api/proxy"
+import { proxyToEdge } from "@/lib/api/proxy"
 
 /**
  * Remove a kept card (051 FR-024).
@@ -10,5 +10,5 @@ import { proxyToCore } from "@/lib/api/proxy"
  */
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  return proxyToCore((c) => c.delete(`/v1/payment-methods/${encodeURIComponent(id)}`))
+  return proxyToEdge((c) => c.delete(`/commerce/v1/payment-methods/${encodeURIComponent(id)}`))
 }

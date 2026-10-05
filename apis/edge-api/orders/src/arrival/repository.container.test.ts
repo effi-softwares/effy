@@ -297,7 +297,7 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
   /**
    * ⚠ FR-007 — a rollup, not a max. This is the mixed order: one shop same-day, one standard. The
    * customer has not received their order until ALL of it has arrived, and must not be told
-   * otherwise. The same rule `orders/stage.go` applies to the progress word.
+   * otherwise. The same rule `stageFor` applies to the progress word.
    */
   it("does not finish a mixed order until EVERY package has arrived", async () => {
     const { packages } = await seedOrder(["standard", "standard"]);
