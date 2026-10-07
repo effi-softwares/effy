@@ -23,7 +23,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  *
  * "HH:MM" strings compare correctly as text, so no time is parsed here — and none is rebuilt.
  */
-export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTime: unknown; capacity: unknown }): FieldError[] {
+export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTime: unknown; capacity?: unknown }): FieldError[] {
   const errors: FieldError[] = [];
   const time = (value: unknown, field: string, label: string): value is string => {
     if (typeof value === "string" && HHMM.test(value)) return true;
@@ -41,8 +41,10 @@ export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTi
   if (start && cutoff && (v.cutoffTime as string) > (v.startTime as string)) {
     errors.push({ field: "cutoffTime", message: "the cutoff cannot be after the slot starts" });
   }
-  if (typeof v.capacity !== "number" || !Number.isInteger(v.capacity) || v.capacity < 1) {
-    errors.push({ field: "capacity", message: "capacity must be a whole number of at least 1" });
+  // ⚠ No capacity IS a valid answer, and the default: the slot has no limit. Only a limit that was
+  // given has to be a usable one.
+  if (v.capacity != null && (typeof v.capacity !== "number" || !Number.isInteger(v.capacity) || v.capacity < 1)) {
+    errors.push({ field: "capacity", message: "a capacity limit must be a whole number of at least 1" });
   }
   return errors;
 }
@@ -60,13 +62,14 @@ export async function createSlot(body: DeliverySlotInput, actorSub: string, scop
   const problems = slotProblems(body ?? {});
   if (problems.length > 0) throw validationError("check the slot's times and capacity", problems);
 
+  const capacity = body.capacity ?? null;
   let id: string;
   try {
-    id = await repo.insertSlot(body, actorSub, (tx, slotId) =>
+    id = await repo.insertSlot({ ...body, capacity }, actorSub, (tx, slotId) =>
       recordAudit(
         {
           actorSub, action: "delivery_slot.created", targetType: "delivery_slot", driverId: slotId,
-          detail: { startTime: body.startTime, endTime: body.endTime, cutoffTime: body.cutoffTime, capacity: body.capacity },
+          detail: { startTime: body.startTime, endTime: body.endTime, cutoffTime: body.cutoffTime, capacity },
         },
         tx,
       ),
@@ -96,7 +99,8 @@ export async function updateSlot(id: string, patch: DeliverySlotPatch, actorSub:
           startTime: patch.startTime ?? current.startTime,
           endTime: patch.endTime ?? current.endTime,
           cutoffTime: patch.cutoffTime ?? current.cutoffTime,
-          capacity: patch.capacity ?? current.capacity,
+          // ⚠ `null` is a VALUE here — it removes the limit — so only an absent key keeps the old one.
+          capacity: patch.capacity === undefined ? current.capacity : patch.capacity,
           status: patch.status ?? current.status,
         };
         const problems = slotProblems(next);

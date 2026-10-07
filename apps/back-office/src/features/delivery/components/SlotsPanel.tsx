@@ -24,6 +24,9 @@ import { slotsQuery, useCreateSlot, usePatchSlot } from "../queries";
  * on the row it describes.
  *
  * ⚠ There is no delete. A slot is switched off, because placed orders reference it.
+ *
+ * ⚠ NO LIMIT IS THE DEFAULT. A slot takes every order until its cutoff unless an operator types a
+ * limit; `capacity: null` is that state, and an empty field is how it is written.
  */
 export function SlotsPanel({ canManage }: { canManage: boolean }) {
   const slots = useQuery(slotsQuery());
@@ -60,10 +63,17 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       header: "Booked today",
       cell: ({ row }) => {
         const s = row.original;
-        const full = s.bookedToday >= s.capacity;
+        const full = s.capacity !== null && s.bookedToday >= s.capacity;
         return (
           <span className="tabular-nums">
-            {s.bookedToday} of {s.capacity}
+            {s.capacity === null ? (
+              <>
+                {s.bookedToday}
+                <span className="ml-2 text-muted-foreground">No limit</span>
+              </>
+            ) : (
+              `${s.bookedToday} of ${s.capacity}`
+            )}
             {full ? <span className="ml-2 text-muted-foreground">Full</span> : null}
             {s.overCapacityToday > 0 ? (
               // ⚠ Said in words, and never by colour alone. A late payer was honoured above the
@@ -113,8 +123,8 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       <div className="flex items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           The time windows a customer can choose for same-day delivery (Australia/Melbourne). A slot is
-          offered until its “order by” time, while it has room, and while a collection run can still
-          bring the goods to the hub before it starts. Changes apply to the next checkout; orders
+          offered until its “order by” time and while a collection run can still bring the goods to the
+          hub before it starts. A slot has no limit on deliveries unless you set one. Changes apply to the next checkout; orders
           already placed keep the window they were sold.
         </p>
         {canManage ? (
@@ -153,7 +163,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
   const [startTime, setStartTime] = useState(slot?.startTime ?? "");
   const [endTime, setEndTime] = useState(slot?.endTime ?? "");
   const [cutoffTime, setCutoffTime] = useState(slot?.cutoffTime ?? "");
-  const [capacity, setCapacity] = useState(slot ? String(slot.capacity) : "");
+  const [capacity, setCapacity] = useState(slot?.capacity != null ? String(slot.capacity) : "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const pending = create.isPending || patch.isPending;
@@ -166,7 +176,8 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       cutoffTime: cutoffTime.trim(),
-      capacity: Number(capacity),
+      // ⚠ Empty is "no limit", sent as null — on an edit that is what REMOVES a limit.
+      capacity: capacity.trim() === "" ? null : Number(capacity),
     };
     try {
       if (slot) await patch.mutateAsync({ slotId: slot.id, body });
@@ -216,9 +227,12 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
           </div>
           <div className="grid grid-cols-2 gap-3">
             {field("cutoffTime", "Order by (HH:MM)", cutoffTime, setCutoffTime, "15:00")}
-            {field("capacity", "Deliveries it can take", capacity, setCapacity, "20", { inputMode: "numeric" })}
+            {field("capacity", "Delivery limit (optional)", capacity, setCapacity, "No limit", { inputMode: "numeric" })}
           </div>
-          {slot && Number(capacity) < slot.bookedToday ? (
+          <p className="text-sm text-muted-foreground">
+            Leave the limit empty to take every order placed before the cutoff.
+          </p>
+          {slot && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">
               {slot.bookedToday} deliveries are already booked today. They keep their place; the slot
               takes no more until it is below this number.

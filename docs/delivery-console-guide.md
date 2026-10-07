@@ -220,13 +220,13 @@ The windows a customer can choose for **same-day** delivery, like "5 pm – 7 pm
 |---|---|
 | **Starts / Ends** | The window the customer is told, in Melbourne time (24-hour, HH:MM). |
 | **Order by** | The slot's cutoff. After this it can no longer be chosen. It cannot be later than the start. |
-| **Deliveries it can take** | The slot's capacity. One customer order to one address counts as **one**, however many packages it has. |
+| **Delivery limit (optional)** | Leave it empty and the slot has **no limit**: it takes every order placed before its cutoff. Enter a number to cap it; clear the field later to remove the cap. One customer order to one address counts as **one**, however many packages it has. |
 | **Booked today** | Confirmed orders plus customers currently at the payment step. Updates every 30 seconds. |
 
 **A slot is offered only when all three hold:**
 
 1. its **order by** time has not passed;
-2. it has **room**;
+2. it has **room** — always true for a slot with no limit;
 3. a **collection run** can still bring the goods to the hub before it starts — that is, a run the
    customer can still make (`now ≤ run − prep buffer`) that also satisfies
    `run + hub turnaround ≤ slot start`.
@@ -243,12 +243,12 @@ they are choosing, they are told and asked to choose again — **nothing is char
 chosen for them**.
 
 **Changing a slot never changes a placed order.** Edit the times, lower the capacity or switch it
-off: orders already placed keep the window they were sold. Lowering capacity below what is booked
+off: orders already placed keep the window they were sold. Lowering a limit below what is booked
 keeps those bookings and simply takes no more.
 
 **There is no delete.** Placed orders refer to the slot, so it is switched off instead.
 
-**"N over capacity".** A customer who pays *after* their hold ended, into a slot that has since
+**"N over capacity"** (only on a slot with a limit). A customer who pays *after* their hold ended, into a slot that has since
 filled, keeps the window they chose — they have paid for it. The slot's row then says how many such
 orders it has. Check whether that evening's round can carry the extra drop.
 > ⚠ **Nothing alerts you to this yet.** The alert rule is written but the monitoring stack that would

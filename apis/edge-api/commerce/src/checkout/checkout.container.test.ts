@@ -398,6 +398,19 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(gateway.created()).toBe(3); // nothing to pay for a place that was not held
   });
 
+  it("⚠ a slot with NO limit holds a place for everyone, and a late payer into it is never over capacity", async () => {
+    await pool.query(`UPDATE public.delivery_slot SET capacity = NULL WHERE id = $1`, [slotId]);
+    const shoppers = await Promise.all(Array.from({ length: 20 }, () => shopper({ Milk: 1 })));
+    const results = await Promise.allSettled(shoppers.map((s) => svc.createIntent(s.customerId, sameDay(s.addressId), new Date())));
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(20);
+    expect(await bookedToday()).toBe(20);
+
+    const late = await shopper({ Milk: 1 });
+    const r = await svc.createIntent(late.customerId, sameDay(late.addressId), new Date());
+    await pool.query(`UPDATE public.delivery_slot_booking SET held_until = now() - interval '1 minute' WHERE order_id = $1`, [r.orderId]);
+    expect(await pay(r.orderId)).toMatchObject({ slotConfirmed: true, slotOverCapacity: false });
+  });
+
   it("a refused hold writes nothing and leaves the order's previous capture intact", async () => {
     const s = await shopper({ Milk: 1 });
     const r = await svc.createIntent(s.customerId, input(s.addressId), new Date()); // standard

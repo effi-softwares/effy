@@ -31,7 +31,7 @@ const SLOT_FIELD_COPY: Record<string, string> = {
   startTime: "Enter the start as a time of day, like 17:00.",
   endTime: "The slot must end after it starts.",
   cutoffTime: "The cutoff can't be after the slot starts.",
-  capacity: "Capacity must be a whole number of at least 1.",
+  capacity: "A limit must be a whole number of at least 1, or left empty for no limit.",
   status: "Choose active or off.",
   lookaheadDays: "Customers can be offered between 1 and 30 days.",
   noDeliveryWeekdays: "At least one day of the week must have delivery.",

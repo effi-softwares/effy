@@ -37,7 +37,7 @@ the Delivery console and a list under Orders.
 | Capability | admin | manager | csa |
 |---|---|---|---|
 | See same-day slots and how full each is today | ✅ | ✅ | ✅ |
-| Create a slot, change its times or capacity, switch it off or on | ✅ | ✅ | ❌ |
+| Create a slot, change its times, set or remove its delivery limit (none by default), switch it off or on | ✅ | ✅ | ❌ |
 | See the standard-delivery calendar and the three timings | ✅ | ✅ | ✅ |
 | Change the look-ahead, the weekdays with no delivery and the timings | ✅ | ✅ | ❌ |
 | Close or reopen a single date | ✅ | ✅ | ❌ |

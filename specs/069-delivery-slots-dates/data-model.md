@@ -14,7 +14,7 @@ A daily same-day delivery window the back-office defines (FR-036).
 | `start_time` | `time` | Melbourne wall-clock, like `delivery_collection_run.run_time` |
 | `end_time` | `time` | `CHECK (end_time > start_time)` |
 | `cutoff_time` | `time` | `CHECK (cutoff_time <= start_time)` |
-| `capacity` | int | `CHECK (capacity >= 1)` |
+| `capacity` | int, nullable | `CHECK (capacity >= 1)`; **NULL = no limit, the default** (FR-008a, migration `20261007044315`) |
 | `status` | text | `active` \| `disabled`, default `active` |
 | `updated_by` | text | staff subject |
 | `created_at`, `updated_at` | timestamptz | |

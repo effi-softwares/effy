@@ -152,11 +152,12 @@ export interface DeliverySlotDTO {
   startTime: string;
   endTime: string;
   cutoffTime: string;
-  capacity: number;
+  /** How many deliveries the slot takes per day. ⚠ `null` = no limit, which is the default. */
+  capacity: number | null;
   status: RingStatus;
   /** Confirmed bookings plus holds that have not lapsed, for today (Melbourne). */
   bookedToday: number;
-  /** Late payers honoured above capacity today (FR-009b). Normally zero. */
+  /** Late payers honoured above capacity today (FR-009b). Normally zero; always zero with no limit. */
   overCapacityToday: number;
   updatedAt: string;
 }
@@ -165,7 +166,8 @@ export interface DeliverySlotInput {
   startTime: string;
   endTime: string;
   cutoffTime: string;
-  capacity: number;
+  /** Omitted or `null` = no limit. In a PATCH, `null` removes a limit and an absent key keeps it. */
+  capacity?: number | null;
 }
 
 /** PATCH: any of the four, and/or the status. A slot is never deleted. */

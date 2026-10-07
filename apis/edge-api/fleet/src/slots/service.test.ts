@@ -22,10 +22,16 @@ describe("slotProblems", () => {
     expect(fields({ cutoffTime: "17:01" })).toEqual(["cutoffTime"]);
   });
 
-  it("refuses a capacity that is not a whole number of at least one", () => {
-    for (const capacity of [0, -1, 1.5, "2", null, undefined, Number.NaN]) {
+  it("refuses a capacity limit that is not a whole number of at least one", () => {
+    for (const capacity of [0, -1, 1.5, "2", Number.NaN]) {
       expect(fields({ capacity }), String(capacity)).toEqual(["capacity"]);
     }
+  });
+
+  it("⚠ accepts a slot with NO capacity — no limit is the default", () => {
+    expect(fields({ capacity: null })).toEqual([]);
+    expect(fields({ capacity: undefined })).toEqual([]);
+    expect(slotProblems({ startTime: "17:00", endTime: "19:00", cutoffTime: "15:00" })).toEqual([]);
   });
 
   it("refuses anything that is not a time of day, without also reporting an ordering problem", () => {

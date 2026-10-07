@@ -77,17 +77,19 @@ WHERE order_id = $1 AND state = 'held'`,
   ).rows[0];
   if (!held) return { confirmed: false, overCapacity: false }; // no same-day package
 
-  const capacity = (
-    await tx.query<{ capacity: number }>(`SELECT capacity FROM public.delivery_slot WHERE id = $1 FOR UPDATE`, [held.slot_id])
-  ).rows[0]?.capacity;
-  if (capacity === undefined) throw new Error("finalize: booked slot no longer exists");
+  const slot = (
+    await tx.query<{ capacity: number | null }>(`SELECT capacity FROM public.delivery_slot WHERE id = $1 FOR UPDATE`, [held.slot_id])
+  ).rows[0];
+  if (!slot) throw new Error("finalize: booked slot no longer exists");
+  // null = the slot has no limit, so nobody can be over it.
+  const capacity = slot.capacity;
 
   const live = (
     await tx.query<{ live: boolean }>(`SELECT held_until > now() AS live FROM public.delivery_slot_booking WHERE order_id = $1`, [orderId])
   ).rows[0]?.live === true;
 
   let overCapacity = false;
-  if (!live) {
+  if (!live && capacity !== null) {
     // The lapsed hold is not in this count (it stopped counting when it lapsed), so this is
     // everyone ELSE who now has a place.
     overCapacity = ((await slotLoad(tx, held.delivery_date)).get(held.slot_id) ?? 0) >= capacity;

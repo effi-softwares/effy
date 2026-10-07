@@ -136,13 +136,14 @@ interface DeliverySlotDTO {
   startTime: string;     // "17:00"
   endTime: string;       // "19:00"
   cutoffTime: string;    // "15:00"
-  capacity: number;
+  capacity: number | null;  // null = no limit (the default, FR-008a)
   status: "active" | "disabled";
   bookedToday: number;   // confirmed + live holds
   overCapacityToday: number;
   updatedAt: string;
 }
-type DeliverySlotInput = Pick<DeliverySlotDTO, "startTime" | "endTime" | "cutoffTime" | "capacity">;
+type DeliverySlotInput = Pick<DeliverySlotDTO, "startTime" | "endTime" | "cutoffTime"> & { capacity?: number | null };
+// On create: omitted or null = no limit. On PATCH: null removes a limit, an absent key keeps it.
 
 interface DeliveryDaysDTO {
   lookaheadDays: number;
@@ -154,7 +155,7 @@ interface DeliveryDaysDTO {
 }
 ```
 
-Refusals (`422`, named field): end not after start; cutoff after start; capacity below 1;
+Refusals (`422`, named field): end not after start; cutoff after start; a capacity that was given and is below 1;
 duplicate window; all seven weekdays excluded; look-ahead outside 1–30. There is no delete route
 for a slot.
 

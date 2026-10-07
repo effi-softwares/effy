@@ -82,7 +82,10 @@ surfaces, and that the fee charged is the fee shown beside the slot.
 
 ### User Story 2 - A full slot is not sold again (Priority: P1)
 
-Each slot has a capacity. Once that many deliveries are booked into it, the next customer is not
+⚠ **Amended 2026-10-07 (operator direction): a slot has NO limit unless the back-office sets
+one.** Everything in this story applies to a slot that was given a limit.
+
+A slot may have a capacity. Once that many deliveries are booked into it, the next customer is not
 offered it. If a slot fills or passes its cutoff while a customer is still at checkout, they are
 told and asked to choose again before any money is taken. Once they proceed to payment, their
 place is held for a short time so that paying cannot lose it.
@@ -329,6 +332,9 @@ warning on one whose day can no longer be met.
 
 - **FR-008**: A slot MUST NOT accept more deliveries than its capacity. One customer order
   delivered to one address counts as one delivery, whatever the number of packages.
+- **FR-008a** *(amended 2026-10-07)*: A slot MUST have no limit on deliveries by default. A slot
+  with no limit never fills: it is closed only by its cutoff and by collection. A back-office
+  admin MUST be able to set a limit on a slot, change it, and remove it again.
 - **FR-009**: The slot's availability MUST be re-checked when the customer proceeds to payment.
   If it has filled or passed its cutoff, the customer MUST NOT be charged, MUST be told the slot
   is no longer available, and MUST be asked to choose again.
@@ -399,9 +405,9 @@ warning on one whose day can no longer be met.
 **Back-office: slots**
 
 - **FR-036**: A back-office admin MUST be able to create, change and switch off same-day slots.
-  Each slot has a start time, an end time, a cutoff and a capacity.
+  Each slot has a start time, an end time, a cutoff and, optionally, a capacity (FR-008a).
 - **FR-037**: A slot MUST be refused if its end is not after its start, its cutoff is after its
-  start, or its capacity is not a whole number of at least one.
+  start, or a capacity was given that is not a whole number of at least one.
 - **FR-038**: The admin MUST be able to see, for each of today's slots, how many deliveries are
   booked against its capacity.
 - **FR-039**: Only the back-office roles that manage delivery configuration today (admin and
@@ -439,7 +445,8 @@ warning on one whose day can no longer be met.
 ### Key Entities *(include if feature involves data)*
 
 - **Delivery slot**: a same-day delivery window the back-office defines. Has a start time, an end
-  time, a cutoff after which it cannot be chosen, a capacity in deliveries, and an on/off status.
+  time, a cutoff after which it cannot be chosen, an optional capacity in deliveries (none means
+  no limit), and an on/off status.
 - **Slot booking**: one order's place in one slot on one day. Held when the customer proceeds to
   payment and confirmed when payment completes. Counts once toward capacity however many packages
   the order has. Freed if the hold ends unpaid or the order is cancelled before delivery.
@@ -498,7 +505,8 @@ warning on one whose day can no longer be met.
   being offered.
 - **Slots repeat every delivery day.** A slot is a daily window, not a one-off. Different slots
   for different weekdays are a later change.
-- **Capacity is counted in deliveries**, one per order per address, and applies across all zones.
+- **Capacity is optional, and absent by default** (amended 2026-10-07). Where one is set it is
+  counted in deliveries, one per order per address, and applies across all zones.
   Per-zone or per-vehicle capacity is a later change.
 - **A place in a slot is held when the customer proceeds to payment**, not while they browse. A
   customer can therefore lose a slot they were looking at, which is why US2 exists. The hold

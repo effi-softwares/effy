@@ -11,7 +11,7 @@ interface SlotRow {
   start_time: string;
   end_time: string;
   cutoff_time: string;
-  capacity: number;
+  capacity: number | null;
   status: "active" | "disabled";
   updated_at: Date;
   booked_today: number;
@@ -46,7 +46,8 @@ export interface SlotValues {
   startTime: string;
   endTime: string;
   cutoffTime: string;
-  capacity: number;
+  /** null = no limit. */
+  capacity: number | null;
   status: "active" | "disabled";
 }
 
@@ -90,7 +91,7 @@ export async function updateSlot(
 ): Promise<boolean> {
   return withTransaction(async (tx) => {
     const cur = await tx.query<{
-      start_time: string; end_time: string; cutoff_time: string; capacity: number; status: "active" | "disabled";
+      start_time: string; end_time: string; cutoff_time: string; capacity: number | null; status: "active" | "disabled";
     }>(SLOT_FOR_UPDATE, [id]);
     const row = cur.rows[0];
     if (!row) return false;

@@ -30,6 +30,13 @@ describe("judgeSlot", () => {
     expect(judgeSlot(now, evening, booked, runs, buffer, turnaround).verdict).toBe(want);
   });
 
+  it("⚠ a slot with no limit never fills, and is still closed by its cutoff and the runs", () => {
+    const unlimited: Slot = { ...evening, capacity: null };
+    expect(judgeSlot(at(10, 0), unlimited, 10_000, oneRun, 60, 60).verdict).toBe("open");
+    expect(judgeSlot(at(15, 1), unlimited, 0, run(16, 30), 0, 0).verdict).toBe("cutoff");
+    expect(judgeSlot(at(13, 1), unlimited, 0, oneRun, 60, 60).verdict).toBe("uncollectable");
+  });
+
   it("reports the window as instants and the EFFECTIVE cutoff", () => {
     const j = judgeSlot(at(10, 0), evening, 0, oneRun, 60, 60);
     if (j.verdict !== "open") throw new Error(`verdict ${j.verdict}`);

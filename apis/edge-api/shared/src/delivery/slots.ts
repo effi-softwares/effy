@@ -11,13 +11,16 @@ export interface Clock {
 /**
  * A same-day delivery window as back-office defined it (069): wall-clock times in
  * Australia/Melbourne, a cutoff after which it cannot be chosen, and how many deliveries it takes.
+ *
+ * ⚠ `capacity: null` IS NO LIMIT, and it is the default: a slot fills only where the back-office
+ * set a number.
  */
 export interface Slot {
   id: string;
   start: Clock;
   end: Clock;
   cutoff: Clock;
-  capacity: number;
+  capacity: number | null;
 }
 
 /**
@@ -56,7 +59,7 @@ export type SlotVerdict = "open" | "cutoff" | "full" | "uncollectable";
  *  1. its own cutoff has not passed;
  *  2. a collection run is still makeable (now ≤ run − prep buffer, the 047 rule) AND that run
  *     reaches the hub in time to go out for it (run + turnaround ≤ slot start);
- *  3. it has capacity left.
+ *  3. it has capacity left — always true for a slot with no limit.
  *
  * ⚠ ORDER MATTERS FOR THE REASON, NOT THE RESULT: a slot that is both full and past cutoff reports
  * the cutoff, because "it has closed" stays true and "it is full" might not.
@@ -87,7 +90,7 @@ export function judgeSlot(
     if (!lastOrder || orderBy.getTime() > lastOrder.getTime()) lastOrder = orderBy;
   }
   if (!lastOrder) return { verdict: "uncollectable" };
-  if (booked >= slot.capacity) return { verdict: "full" };
+  if (slot.capacity !== null && booked >= slot.capacity) return { verdict: "full" };
 
   return {
     verdict: "open",
@@ -181,7 +184,7 @@ interface SlotRow {
   end_minute: number;
   cutoff_hour: number;
   cutoff_minute: number;
-  capacity: number;
+  capacity: number | null;
 }
 
 const toSlot = (r: SlotRow): Slot => ({

@@ -148,6 +148,22 @@ d("069 — same-day delivery slots", () => {
     expect(audit[0]!.detail).toMatchObject(EVENING);
   });
 
+  it("⚠ a slot created with no capacity has NO limit, and a limit can be set and removed again", async () => {
+    const { capacity: _none, ...window } = EVENING;
+    const slot = await createSlot(window, ACTOR, scope);
+    expect(slot.capacity).toBeNull();
+    expect((await audits("delivery_slot.created"))[0]!.detail).toMatchObject({ capacity: null });
+
+    expect((await updateSlot(slot.id, { capacity: 4 }, ACTOR, scope)).capacity).toBe(4);
+    // An absent key keeps the limit; null removes it.
+    expect((await updateSlot(slot.id, { cutoffTime: "14:00" }, ACTOR, scope)).capacity).toBe(4);
+    expect((await updateSlot(slot.id, { capacity: null }, ACTOR, scope)).capacity).toBeNull();
+
+    const changes = (await audits("delivery_slot.updated")).map((a) => (a.detail as { changed: { capacity?: unknown } }).changed.capacity);
+    expect(changes).toContainEqual({ from: null, to: 4 });
+    expect(changes).toContainEqual({ from: 4, to: null });
+  });
+
   it("lists earliest first", async () => {
     await createSlot({ startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: 2 }, ACTOR, scope);
     await createSlot(EVENING, ACTOR, scope);
