@@ -83,9 +83,9 @@ New mutating routes must satisfy `EA/shared/src/live/change-map.guard.test.ts`.
 - [X] T027 Run every check in [quickstart.md](quickstart.md); break each S/M proof once and record it
 - [X] T028 Documents: 073 entry in `FEATURE-HISTORY.md` and `CLAUDE.md` list; update the 072 paragraph in `CLAUDE.md` (lock removed); §073 in `docs/audiences/driver-capabilities.md`
 - [X] T029 Write `specs/073-order-dispatch-control/SIGNOFF.md`
-- [ ] T030 **OPERATOR** `make db-up ENV=dev`
-- [ ] T031 **OPERATOR** `make edge-deploy` for `fleet`, `orders`, `shop`, `driver`
-- [ ] T032 **OPERATOR** deploy back-office and shop-web; build and install the driver app
+- [X] T030 **OPERATOR** `make db-up ENV=dev`
+- [X] T031 **OPERATOR** `make edge-deploy` for `fleet`, `orders`, `shop`, `driver`
+- [X] T032 **OPERATOR** deploy back-office and shop-web; build and install the driver app
 - [ ] T033 **OPERATOR** walks V1–V8; V1 first
 
 ---

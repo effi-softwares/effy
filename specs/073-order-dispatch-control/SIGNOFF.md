@@ -1,7 +1,8 @@
 # Sign-off: 073 — Simple Order Status & Driver Assignment in Orders
 
-**Status (2026-10-07)**: code-complete and machine-verified. **Not deployed, not committed, not
-walked.** 29/33 tasks; the four open are the operator's.
+**Status (2026-10-07)**: **deployed to dev** at `348e7658` — migration applied (both columns present),
+`fleet`, `orders`, `shop`, `driver` deployed, back-office and shop-web built from that commit; the lock
+routes are gone and the assign route exists. 32/33 tasks; **the walks (T033) remain.**
 
 ## What changed
 
