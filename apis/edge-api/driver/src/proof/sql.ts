@@ -54,7 +54,13 @@ export const DROP_PACKAGES = `
          rp.shop_fulfillment_id AS shop_fulfillment_id
     FROM public.round_package rp
    WHERE rp.stop_id = $1
-     AND rp.state = 'picked_up'
+     -- ⚠ 'assigned' IS WHAT A DELIVERY ROUND'S PACKAGES ARE (fixed 2026-10-07). This read only
+     -- 'picked_up' — the 049 model, where a driver scanned each package out of the hub. The planner
+     -- puts a delivery package on a round as 'assigned' and nothing at the hub ever changes that, so
+     -- every proof matched ZERO packages: the proof and the 'done' stop were written, and the package,
+     -- the shop's status and the arrival were not — the order stayed "on the way" for ever. Found live
+     -- on EFY-GNYQ58. The tests seeded 'picked_up', a state the planner never writes, and passed.
+     AND rp.state IN ('assigned', 'picked_up')
 `;
 
 export const MARK_PACKAGE_DELIVERED = `

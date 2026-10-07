@@ -118,8 +118,11 @@ async function seedOrder(methods: Array<"same_day" | "standard">) {
       // ⚠ Only the same-day package is on the drop. A standard package's driver-side work ended at
       // the hub (063 FR-024) — it is in a carrier's hands and this driver cannot deliver it.
       await pool.query(
+        // ⚠ 'assigned' — what the planner writes on a delivery round, and all it ever writes. This
+        // seeded 'picked_up', which no delivery package is ever in, and so proved a proof route that
+        // marked nothing delivered in production (EFY-GNYQ58).
         `INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state)
-         VALUES ($1, $2, 'picked_up')`,
+         VALUES ($1, $2, 'assigned')`,
         [dropId, sf.rows[0]!.id],
       );
     }
@@ -406,7 +409,8 @@ d("064 — proof IS the delivery completion", () => {
     it("⚠ the package stays in the driver's custody (FR-011)", async () => {
       await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
       const rp = await pool.query("SELECT state FROM public.round_package WHERE stop_id = $1", [dropId]);
-      expect(rp.rows[0].state).toBe("picked_up");
+      // Unchanged — still on the driver's round, never delivered and never released.
+      expect(rp.rows[0].state).toBe("assigned");
     });
 
     it("records several attempts for one drop", async () => {
