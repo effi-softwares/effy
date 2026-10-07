@@ -1,7 +1,8 @@
 # Sign-off: 072 — Immediate Driver Work Assignment
 
-**Status (2026-10-07)**: code-complete and machine-verified. **Not deployed, not committed, not looked
-at by a person.** 42/48 tasks; the six open are the operator's.
+**Status (2026-10-07)**: **deployed to dev** (migration, driver, driver app, fleet, alarms). 47/48 tasks;
+the walks (T048) remain. First live pass after the fleet deploy: released 2 packages, assigned 2;
+`dispatch-unassigned-past-opening` is OK and the two retired alarms are gone.
 
 ## What changed
 

@@ -129,11 +129,11 @@ current reason (C13).
 - [X] T040 Run every machine check in [quickstart.md](quickstart.md) and record the counts; for each of C1–C16 record the one-line break that made it fail
 - [X] T041 Documents: add the 072 entry at the top of `FEATURE-HISTORY.md` and to the list in `CLAUDE.md`; rewrite the hub-and-spoke paragraph in `CLAUDE.md` where it says the delivery wave is planned per window and collection runs gate planning; add §072 to `docs/audiences/driver-capabilities.md`; correct 063's entry where it claims FR-035 was built
 - [X] T042 Write `specs/072-immediate-driver-assignment/SIGNOFF.md`: what was verified by machine, what was not looked at by a person, and the operator steps below in order
-- [ ] T043 **OPERATOR** `make db-up ENV=dev`
-- [ ] T044 **OPERATOR** `make edge-deploy SERVICE=driver ENV=dev` — ⚠ before `fleet`
-- [ ] T045 **OPERATOR** build and install the driver app
-- [ ] T046 **OPERATOR** `make edge-deploy SERVICE=fleet ENV=dev`
-- [ ] T047 **OPERATOR** `make apply ENV=dev` (the alarm), and let the back-office pipeline deploy
+- [X] T043 **OPERATOR** `make db-up ENV=dev`
+- [X] T044 **OPERATOR** `make edge-deploy SERVICE=driver ENV=dev` — ⚠ before `fleet`
+- [X] T045 **OPERATOR** build and install the driver app
+- [X] T046 **OPERATOR** `make edge-deploy SERVICE=fleet ENV=dev`
+- [X] T047 **OPERATOR** `make apply ENV=dev` (the alarm), and let the back-office pipeline deploy
 - [ ] T048 **OPERATOR** walks W1–W9 in [quickstart.md](quickstart.md); W7 first
 
 ---
