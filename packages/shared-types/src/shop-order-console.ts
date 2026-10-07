@@ -24,6 +24,7 @@
 import type { WireInt } from "./cart"
 import type { RefundActorKind, RefundReason, RefundStatus } from "./refund"
 import type { FulfillmentDeliveryDTO, FulfillmentStatus } from "./shop-order"
+import type { PackageStatusView } from "./package-status"
 
 // ── The list ────────────────────────────────────────────────────────────────────────────────────
 
@@ -96,6 +97,12 @@ export interface ShopOrderRowDTO {
   customerName: string
   placedAt: string
   status: FulfillmentStatus
+  /**
+   * 073 — where the package really is, in the words every staff screen uses. ⚠ `status` above is the
+   * shop's own step and stops at `collected`; this carries it on — At hub, Out for delivery, With
+   * carrier, Delivered — so a shop can answer "has it gone?". `driverName` is ALWAYS null here.
+   */
+  statusView: PackageStatusView
   /** This shop's units on the order. */
   itemCount: WireInt
   gatheredCount: WireInt
@@ -208,6 +215,8 @@ export interface ShopOrderDetailDTO {
   orderNumber: string
   placedAt: string
   status: FulfillmentStatus
+  /** 073 — see `ShopOrderRowDTO.statusView`. Never carries a driver's name. */
+  statusView: PackageStatusView
   stateChangedAt: string
   readyBy: string
   deliveryMethod: "same_day" | "standard" | null

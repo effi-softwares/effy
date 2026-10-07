@@ -61,7 +61,8 @@ afterEach(() => {
 describe("the summary bar", () => {
   it("shows the total, the pills and 'placed · channel'", async () => {
     open(orderDetail({ atRisk: true, payment: { ...orderDetail().payment, state: "partially_refunded" } }));
-    expect(await screen.findByText("Picking")).toBeInTheDocument();
+    // 073 — the pill is the shared status ("Preparing" covers new, received and picking).
+    expect(await screen.findByText("Preparing")).toBeInTheDocument();
     expect(screen.getAllByText("Partially refunded").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("At risk")).toBeInTheDocument();
     expect(screen.getByText(/ · Online store$/)).toBeInTheDocument();

@@ -1,29 +1,21 @@
-import { createRoute } from "@tanstack/react-router";
-
-import { DispatchDayScreen } from "@/features/dispatch/DispatchDayScreen";
-import { RoundDetailScreen } from "@/features/dispatch/RoundDetailScreen";
+import { createRoute, redirect } from "@tanstack/react-router";
 
 import { appRoute } from "./app";
 
-// The dispatcher console (063). Both routes nest under the protected app shell (appRoute), so the
-// session guard runs first.
-//
-// Read access is open to every signed-in back-office role INCLUDING csa — seeing what is stuck is
-// not the same as changing it, and a CSA is exactly who is asked "where is that order". Mutating
-// controls are hidden in the screens and independently enforced by edge-fleet per route.
+// ⚠ 073 — THE DISPATCH PAGE MOVED INTO ORDERS (the Assignments tab). These two routes exist only so
+// a bookmark or an old link still lands somewhere useful; nothing renders here.
 export const dispatchIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "dispatch",
-  component: DispatchDayScreen,
+  beforeLoad: () => {
+    throw redirect({ to: "/orders/assignments" });
+  },
 });
 
 export const dispatchRoundRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "dispatch/rounds/$roundId",
-  component: DispatchRoundRouteComponent,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/orders/assignments/rounds/$roundId", params: { roundId: params.roundId } });
+  },
 });
-
-function DispatchRoundRouteComponent() {
-  const { roundId } = dispatchRoundRoute.useParams();
-  return <RoundDetailScreen roundId={roundId} />;
-}

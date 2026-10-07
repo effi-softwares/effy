@@ -27,7 +27,7 @@ export interface AssignInput {
   opensAt?: Date | null;
   /** 072 — the delivery window being planned. Null for collection and for windowless delivery. */
   windowStartAt?: Date | null;
-  /** 072 — the unlocked rounds that already exist for this run or window, oldest first. */
+  /** 072 — the rounds that already exist for this run or window, oldest first. */
   rounds?: readonly BucketRound[];
 }
 
@@ -141,6 +141,7 @@ export function planWave(input: AssignInput): WavePlan {
   const additions = new Map<string, PlannablePackage[]>();
   const unassigned: PlannablePackage[] = [];
   const exclusions: PlannedExclusion[] = [];
+  const notes = new Map<string, string>();
 
   const place = (r: Running, pkg: PlannablePackage) => {
     take(r, pkg);
@@ -174,6 +175,12 @@ export function planWave(input: AssignInput): WavePlan {
       const reasons = reasonsFor(visiting, pkg);
       if (reasons.length === 0) {
         place(visiting, pkg);
+        notes.set(
+          pkg.packageId,
+          kind === "collection"
+            ? "Auto-assigned — this driver is already collecting at this shop"
+            : "Auto-assigned — this driver is already delivering to this address",
+        );
         continue;
       }
       // ⚠ FR-004c — it does NOT quietly go on the round anyway. It is placed like any other
@@ -196,12 +203,11 @@ export function planWave(input: AssignInput): WavePlan {
       }
     }
 
-    const winner = pickByLoad(
-      eligible.map((r) => ({
-        driverId: r.candidate.driverId,
-        packagesAssignedToday: loadOf(r.candidate.driverId),
-      })),
-    );
+    const loads = eligible.map((r) => ({
+      driverId: r.candidate.driverId,
+      packagesAssignedToday: loadOf(r.candidate.driverId),
+    }));
+    const winner = pickByLoad(loads);
 
     if (winner === null) {
       unassigned.push(pkg);
@@ -218,6 +224,13 @@ export function planWave(input: AssignInput): WavePlan {
     }
 
     place(target.get(winner.driverId)!, pkg);
+    // ⚠ 073 — THE RULE IN WORDS A DRIVER COULD BE TOLD (063 FR-014a). No score, no formula.
+    notes.set(
+      pkg.packageId,
+      loads.length === 1
+        ? "Auto-assigned — the only driver who could take it"
+        : `Auto-assigned — fewest packages today (${winner.packagesAssignedToday})`,
+    );
   }
 
   return {
@@ -228,6 +241,7 @@ export function planWave(input: AssignInput): WavePlan {
     assignments,
     additions,
     unassigned,
+    notes,
     exclusions,
     considered: packages.length,
   };

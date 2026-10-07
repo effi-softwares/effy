@@ -62,8 +62,7 @@ export interface PlannedExclusion {
 /**
  * A round that already exists for the run or window being planned (072).
  *
- * ⚠ ONLY UNLOCKED ROUNDS ARE EVER LOADED INTO THIS SHAPE. A round a dispatcher locked is a person's
- * decision; the planner is never shown it and so cannot add to it (FR-019).
+ * (073 removed the round lock, so every unfinished round for the run or window is loaded.)
  */
 export interface BucketRound {
   roundId: string;
@@ -88,6 +87,13 @@ export interface WavePlan {
   /** 072 — roundId → packages added to a round that already exists. */
   additions: Map<string, PlannablePackage[]>;
   unassigned: PlannablePackage[];
+  /**
+   * 073 — packageId → one line on how it was placed, in plain words ("Auto-assigned — fewest packages
+   * today (2)"). Written once onto the assignment; back-office shows it beside the driver.
+   */
+  notes: Map<string, string>;
+  /** 073 — set when a PERSON made this plan (Assign to…); written onto each row it places. */
+  assignedBySub?: string | null;
   /** ⚠ Only for packages in `unassigned` — a reason is a fact about work nobody has. */
   exclusions: PlannedExclusion[];
   considered: number;

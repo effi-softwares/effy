@@ -112,8 +112,6 @@ export interface RoundDTO {
    * that never grows.
    */
   changedNote: string | null;
-  /** Non-null when a person has decided this assignment and the engine must not touch it (FR-032). */
-  lockedBy: string | null;
   stops: StopDTO[];
 }
 
@@ -153,19 +151,6 @@ export interface UnassignedWorkDTO {
   targetAt: string | null;
 }
 
-/** What a planning pass did, so its decisions are explainable afterwards (FR-006). */
-export interface WaveSummaryDTO {
-  id: string;
-  kind: RoundKind;
-  plannedFor: string;
-  trigger: "schedule" | "manual";
-  startedAt: string;
-  finishedAt: string | null;
-  packagesConsidered: WireInt;
-  packagesAssigned: WireInt;
-  /** ⚠ The number that matters — considered 40, assigned 0 is the silent failure worth alarming on. */
-  packagesUnassigned: WireInt;
-}
 
 /** One driver's line in the dispatcher's day view. */
 export interface DispatchRoundSummaryDTO {
@@ -182,7 +167,6 @@ export interface DispatchRoundSummaryDTO {
 export interface DispatchDayDTO {
   rounds: DispatchRoundSummaryDTO[];
   unassigned: UnassignedWorkDTO[];
-  waves: WaveSummaryDTO[];
 }
 
 /** Moving a round to a different driver (FR-029). */

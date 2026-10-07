@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 import { ItemsAndFulfilment } from "./components/ItemsAndFulfilment";
 import { OrderActivitySheet } from "./components/OrderActivitySheet";
 import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags";
-import { OrderStatusPill, PaymentPill } from "./components/OrderPill";
+import { PackageStatusPill } from "@effy/web-kit/console";
+import { PaymentPill } from "./components/OrderPill";
 import { RefundSheet } from "./components/RefundSheet";
 import { CantSupplyDialog, StateActions } from "./components/StateControl";
 import { canDeclareUnfulfillable } from "./model";
@@ -97,7 +98,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <span className="text-base font-semibold tracking-[-.02em] tabular-nums">
               {formatMoney(detail.money.total, currency)}
             </span>
-            <OrderStatusPill status={detail.status} />
+            <PackageStatusPill view={detail.statusView} />
             <PaymentPill state={detail.payment.state} />
             {/* ⚠ WARNING, NOT DESTRUCTIVE. "At risk" means this order is ageing toward a cut-off —
                 the design's waiting/at-risk tone. Destructive is reserved for something that has

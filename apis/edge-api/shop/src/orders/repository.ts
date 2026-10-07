@@ -8,7 +8,8 @@
 // ⚠ NOTHING CLIENT-SUPPLIED IS EVER SPLICED INTO SQL TEXT. The sort column and direction are looked up
 // in a fixed map below; every value is a bind parameter.
 
-import { presignRead, query, withTransaction } from "@effy/edge-shared";
+import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
+import { STATUS_WORD, type PackageStatusView } from "@effy/shared-types";
 
 import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
 import {
@@ -185,6 +186,20 @@ function likePattern(q: string): string | null {
   return `%${trimmed.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
+/** ⚠ Through `query`, so the container tests' database is the one asked. */
+const db: Queryable = { query: (text, values) => query(text, values) };
+
+/** A package's status when the shared read has nothing for it — never claims progress it cannot see. */
+const fallbackView = (): PackageStatusView => ({ status: "preparing", word: STATUS_WORD.preparing, detail: null, driverName: null });
+
+/**
+ * 073 — where each of this shop's packages really is, for the SHOP: through the one shared derivation,
+ * with driver names stripped (`audience: "shop"`).
+ */
+async function shopStatuses(ids: readonly string[]): Promise<Map<string, PackageStatusView>> {
+  return packageStatuses(db, ids, "shop");
+}
+
 export async function listOrders(shopId: string, q: OrderListQuery): Promise<OrderList> {
   const filterArgs = [shopId, likePattern(q.q), q.attention, q.payment, q.method, q.range];
   const direction = q.dir === "asc" ? "ASC" : "DESC";
@@ -213,8 +228,9 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
     byTab.all += Number(r.n);
   }
 
+  const statuses = await shopStatuses(page.rows.map((r) => r.id));
   return {
-    items: page.rows.map(toRow),
+    items: page.rows.map((r) => ({ ...toRow(r), statusView: statuses.get(r.id) ?? fallbackView() })),
     // ⚠ Past the last page the window function has no rows to ride on, so the total falls back to the
     // tab's count rather than claiming zero matches exist.
     total: page.rows[0] ? Number(page.rows[0].full_count) : byTab[q.tab],
@@ -224,7 +240,7 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
   };
 }
 
-function toRow(r: RowRecord): OrderRow {
+function toRow(r: RowRecord): Omit<OrderRow, "statusView"> {
   return {
     id: r.id,
     orderNumber: r.order_number,
@@ -420,12 +436,15 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   const total = cents(row.grand_total_amount);
   const refunded = cents(row.refunded);
 
+  // 073 — where it really is, for the shop: never a driver's name.
+  const statusView = (await shopStatuses([fulfillmentId])).get(fulfillmentId) ?? fallbackView();
   return {
     id: row.id,
     orderId: row.order_id,
     orderNumber: row.order_number,
     placedAt: row.placed_at,
     status: row.status,
+    statusView,
     stateChangedAt: row.state_changed_at,
     readyBy: new Date(row.placed_at.getTime() + DEFAULT_READY_WINDOW_MS),
     deliveryMethod: row.delivery_method,

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { OrderPackage } from "./model";
-import { nextActionFor, packagePositionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor } from "./model";
+import { nextActionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor } from "./model";
 
 const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
+  statusView: null,
+  collect: null,
+  deliver: null,
   fulfillmentId: "f1",
   shopId: "s1",
   shopName: "Shop One",
@@ -72,29 +75,9 @@ describe("nextActionFor — which control the operator is offered", () => {
   });
 });
 
-describe("packagePositionFor — what the operator reads", () => {
-  it("distinguishes packed-at-shop from left-the-shop", () => {
-    // ⚠ The distinction 053 corrected for the customer, mirrored for the operator: `ready_for_pickup`
-    // is waiting on a shelf, not departed.
-    expect(packagePositionFor(pkg({ status: "ready_for_pickup" }))).toBe("Packed at shop");
-    expect(packagePositionFor(pkg({ status: "collected" }))).toBe("At hub");
-  });
-
-  it("says a same-day collected package is out for delivery, not at a hub", () => {
-    expect(packagePositionFor(pkg({ status: "collected", deliveryMethod: "same_day" }))).toBe(
-      "Out for delivery",
-    );
-  });
-
-  it("reads the same whether or not a carrier reference was recorded (FR-003)", () => {
-    expect(packagePositionFor(pkg({ handoff: handoff(null) }))).toBe("With carrier");
-    expect(packagePositionFor(pkg({ handoff: handoff("ABC123") }))).toBe("With carrier");
-  });
-
-  it("says Arrived once it has", () => {
-    expect(packagePositionFor(pkg({ handoff: handoff(), arrival: arrival() }))).toBe("Arrived");
-  });
-});
+// 073 — `packagePositionFor` is gone. It guessed position from the shop's status and said "At hub"
+// the moment a driver picked a package up; the status is now derived on the server and pinned by
+// `apis/edge-api/shared/src/status/status.test.ts` and the orders service's status container test.
 
 describe("069 — what a package was promised", () => {
   it("says a standard package's day, and a same-day package's day and window", () => {

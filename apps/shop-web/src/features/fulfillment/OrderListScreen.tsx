@@ -23,7 +23,8 @@ import { useNow } from "@/features/today/useNow"
 
 import { BulkActions } from "./components/BulkActions"
 import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
-import { OrderStatusPill, paymentTextClass } from "./components/OrderPill"
+import { PackageStatusPill } from "@effy/web-kit/console"
+import { paymentTextClass } from "./components/OrderPill"
 import {
   activeFilterCount,
   formatMoney,
@@ -342,7 +343,8 @@ export function OrderListScreen({
                         {formatPlacedShort(o.placedAt)}
                       </td>
                       <td className="px-3.5 py-3">
-                        <OrderStatusPill status={o.status} />
+                        {/* 073 — where it really is, past Collected; the shared words. */}
+                        <PackageStatusPill view={o.statusView} showDetail={false} />
                       </td>
                       <td className={cn("px-3.5 py-3 text-[12.5px] font-medium whitespace-nowrap", paymentTextClass(o.payment))}>
                         {PAYMENT_LABEL[o.payment]}

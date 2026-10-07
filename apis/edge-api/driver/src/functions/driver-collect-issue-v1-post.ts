@@ -1,6 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import { announceRoundProgress } from "../work/announce";
+import { announceStop } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { CollectionIssueRequest } from "@effy/shared-types";
@@ -37,7 +37,7 @@ export const handler = async (
   try {
     await reportIssue(runId, stopId, guard.driver.id, body.shopFulfillmentId, body.note);
     // 071 — committed; tell the screens that show it.
-    await announceRoundProgress();
+    await announceStop(stopId); // 073 — the shop sees it too
     return json(200, { status: "recorded" }, guard.scope);
   } catch (err) {
     // 072 — the round has not opened. Nothing was written; the answer says when it will.

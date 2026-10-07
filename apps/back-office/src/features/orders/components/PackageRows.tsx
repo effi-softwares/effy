@@ -1,10 +1,13 @@
 import { useState } from "react";
 
+import type { OrderAssignment } from "@effy/shared-types";
+import { AssignmentLine } from "./AssignmentLine";
+import { PackageStatusPill } from "@effy/web-kit/console";
 import { Button, Input } from "@effy/design-system/ui";
 
 import type { OrderPackage } from "../model";
 import {
-  nextActionFor, packagePositionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
+  nextActionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
   formatDeliveryDay,
 } from "../model";
 
@@ -23,7 +26,15 @@ function formatDate(iso: string | null | undefined): string {
   );
 }
 
+/** 073 — the Assign to… / Unassign controls for one stage of one package; absent for a CSA. */
+export type AssignmentActions = (
+  pkg: OrderPackage,
+  stage: "collection" | "delivery",
+  assignment: OrderAssignment,
+) => React.ReactNode;
+
 interface Props {
+  renderActions?: AssignmentActions;
   packages: OrderPackage[];
   canRecord: boolean;
   busy: boolean;
@@ -31,7 +42,7 @@ interface Props {
   onArrival(fulfillmentId: string): void;
 }
 
-export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival }: Props) {
+export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions }: Props) {
   return (
     <div className="divide-y rounded-lg border">
       {packages.map((pkg) => (
@@ -42,6 +53,7 @@ export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival }:
           busy={busy}
           onHandoff={onHandoff}
           onArrival={onArrival}
+          renderActions={renderActions}
         />
       ))}
       {packages.length === 0 ? (
@@ -59,7 +71,9 @@ function PackageRow({
   busy,
   onHandoff,
   onArrival,
+  renderActions,
 }: {
+  renderActions?: AssignmentActions;
   pkg: OrderPackage;
   canRecord: boolean;
   busy: boolean;
@@ -82,8 +96,22 @@ function PackageRow({
             {pkg.deliveryMethod === "same_day" ? "Same-day" : "Standard"}
           </p>
         </div>
-        <p className="text-sm font-medium">{packagePositionFor(pkg)}</p>
+        {/* 073 — where it REALLY is, from the shared derivation; the old guess from the shop's status
+            said "At hub" the moment a driver picked a package up. */}
+        {pkg.statusView ? <PackageStatusPill view={pkg.statusView} /> : null}
       </div>
+
+      {/* 073 — who has it. One line per stage; nothing when the stage has nothing to say yet. */}
+      {pkg.collect || pkg.deliver ? (
+        <div className="space-y-2 rounded-md bg-muted/40 p-3">
+          {pkg.collect ? (
+            <AssignmentLine label="Collect" assignment={pkg.collect} actions={renderActions?.(pkg, "collection", pkg.collect)} />
+          ) : null}
+          {pkg.deliver ? (
+            <AssignmentLine label="Deliver" assignment={pkg.deliver} actions={renderActions?.(pkg, "delivery", pkg.deliver)} />
+          ) : null}
+        </div>
+      ) : null}
 
       {/*
         069 — what the customer was promised. ⚠ Rendered ONLY when there is a promise: an order placed

@@ -43,6 +43,12 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   and the driver service refuses every action (409 `round_not_open`). ⚠ The opening time is derived
   by `public.round_opens_at` only — never stored, never recomputed elsewhere. Off-duty drivers' uncollected
   work returns to the pool on the next pass.
+- **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out
+  for delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the
+  dispatch rows, never from `shop_fulfillment.status` alone (which stops at `collected` by design), and
+  shown only through `STATUS_WORD` / `PackageStatusPill`. Back-office can **Assign to…** (also how a
+  package is moved) or **Unassign**; area clearance and "may run late" are a person's call, the rest are
+  refused. ⚠ The round lock is gone (`locked_by_sub` unused, to be dropped).
 
 ## Platform shape (the vision)
 The full platform is **six client surfaces + one backend + DB migrations + infrastructure**. The
@@ -398,6 +404,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **073-order-dispatch-control** — Simple Order Status & Driver Assignment in Orders
 - **072-immediate-driver-assignment** — Immediate Driver Work Assignment (assign early, open on time)
 - **071-live-updates** — Live Updates Without Polling (all six apps)
 - **070-retire-core-api** — One Backend: Retire the Always-On Shopper Service
@@ -448,5 +455,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/072-immediate-driver-assignment/plan.md
+at specs/073-order-dispatch-control/plan.md
 <!-- SPECKIT END -->

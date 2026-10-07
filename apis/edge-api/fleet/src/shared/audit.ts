@@ -45,7 +45,9 @@ export type DispatchAuditAction =
   | "dispatch.unassign"
   | "dispatch.reorder"
   | "dispatch.lock"
-  | "dispatch.unlock"
+  | "dispatch.unlock" // 073 — no longer written; kept so earlier audit rows still type
+  | "dispatch.manual_assign"
+  | "dispatch.manual_unassign"
   // ⚠ 064 — closing a delivery exception. It is an assertion about the physical world (the package
   // came back, or was re-delivered, or was written off) that no query can verify, so who said it and
   // when is the only record there will ever be.

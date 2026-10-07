@@ -126,7 +126,10 @@ describe("fleet deployment contract — serverless.yml declares what the service
       "/fleet/v1/dispatch/rounds/{id}/reassign",
       "/fleet/v1/dispatch/rounds/{id}/unassign",
       "/fleet/v1/dispatch/rounds/{id}/reorder",
-      "/fleet/v1/dispatch/rounds/{id}/lock",
+      // 073 — the round lock is gone; Assign to… and Unassign replace it.
+      "/fleet/v1/dispatch/packages/{packageId}/drivers",
+      "/fleet/v1/dispatch/packages/{packageId}/assign",
+      "/fleet/v1/dispatch/packages/{packageId}/unassign",
     ]) {
       expect(yaml, `${path} is called by the console but not declared`).toContain(`path: ${path}`);
     }

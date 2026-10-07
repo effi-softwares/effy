@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { OrdersTabs } from "./OrdersTabs";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -82,6 +83,7 @@ export function HandoverListScreen() {
           carrier early enough to make it. Open an order to record its handover.
         </p>
       </div>
+      <OrdersTabs />
 
       <Tabs value={due} onValueChange={(v) => setDue(v as HandoverDueFilter)}>
         <TabsList>

@@ -47,12 +47,63 @@ export async function announceDelivered(dropId: string): Promise<void> {
   await announceMoves(await movedAt(dropId, "delivered", "collected"), { also: [DISPATCH] });
 }
 
+
 /**
- * Something operations' dispatch and order consoles show changed, and no package changed status:
- * a package reported unavailable, a hub check-in, a drop marked en route or failed.
+ * A collection round was checked in at the hub: its packages are now AT HUB (073).
+ *
+ * ⚠ THE SHOPS ARE TOLD. Until 073 this went to back-office only (the since-removed `announceRoundProgress`),
+ * and every shop console whose packages had just arrived went on showing them as it last read them.
+ * A shop's view of a package now carries on past "Collected" (At hub → Out for delivery / With
+ * carrier → Delivered), so the shop is told when it moves — each shop whose packages were on the
+ * round, and nobody else's. The customer is NOT told: their one-word stage is the same before and
+ * after a check-in (`customerViewChanged`), and an update that changes nothing is noise.
  */
-export async function announceRoundProgress(): Promise<void> {
-  await announce([DISPATCH, { scope: "ops", kind: "orders" }]);
+export async function announceCheckedIn(roundId: string): Promise<void> {
+  let shopIds: string[] = [];
+  try {
+    const { rows } = await query<{ shop_id: string }>(
+      `SELECT DISTINCT sf.shop_id::text AS shop_id
+         FROM public.round_package rp
+         JOIN public.round_stop rs ON rs.id = rp.stop_id
+         JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
+        WHERE rs.round_id = $1`,
+      [roundId],
+    );
+    shopIds = rows.map((r) => r.shop_id);
+  } catch {
+    // the back-office updates below still go; a shop's console catches up on its next read
+  }
+  await announce([
+    DISPATCH,
+    { scope: "ops", kind: "orders" },
+    ...shopIds.map((shopId) => ({ scope: "shop" as const, shopId, kind: "orders" as const })),
+  ]);
+}
+
+/**
+ * Something happened at one stop that changes what a SHOP sees (073): a drop started (Out for
+ * delivery), a delivery attempt failed (Problem), or a package could not be collected (Problem).
+ * Tells the shops whose packages are at that stop, back-office's order and dispatch screens.
+ */
+export async function announceStop(stopId: string): Promise<void> {
+  let shopIds: string[] = [];
+  try {
+    const { rows } = await query<{ shop_id: string }>(
+      `SELECT DISTINCT sf.shop_id::text AS shop_id
+         FROM public.round_package rp
+         JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
+        WHERE rp.stop_id = $1`,
+      [stopId],
+    );
+    shopIds = rows.map((r) => r.shop_id);
+  } catch {
+    // back-office still hears; a shop's console catches up on its next read
+  }
+  await announce([
+    DISPATCH,
+    { scope: "ops", kind: "orders" },
+    ...shopIds.map((shopId) => ({ scope: "shop" as const, shopId, kind: "orders" as const })),
+  ]);
 }
 
 /** A driver went on or off duty — the dispatcher's roster. */

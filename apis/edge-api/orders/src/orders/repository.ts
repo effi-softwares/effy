@@ -33,12 +33,16 @@ export interface OrderSummaryRow {
   grand_total_amount: string;
   currency: string;
   statuses: string[];
+  /** 073 — every package's id, so the list can show where each one is in one more query. */
+  package_ids: string[];
 }
 
 export interface ListParams {
   q?: string;
   status?: string;
   awaiting?: OrderAwaiting;
+  /** 073 — only orders with a package waiting for a driver that nobody has. */
+  needsDriver?: boolean;
   cursor?: string;
   limit: number;
 }
@@ -69,6 +73,24 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
   if (params.cursor) {
     args.push(params.cursor);
     where.push(`o.created_at < $${args.length}::timestamptz`);
+  }
+
+  // 073 — "Needs a driver": a package ready at a shop with no collection driver, or a same-day package
+  // at the hub with no delivery driver. The same two conditions the assignment read shows as
+  // "Unassigned", so the filter and the column cannot disagree.
+  if (params.needsDriver) {
+    where.push(`EXISTS (
+      SELECT 1 FROM public.shop_fulfillment sf
+       WHERE sf.order_id = o.id
+         AND NOT EXISTS (SELECT 1 FROM public.round_package rp
+                          WHERE rp.shop_fulfillment_id = sf.id AND rp.state = 'assigned')
+         AND (sf.status = 'ready_for_pickup'
+              OR (sf.status = 'collected' AND sf.delivery_method = 'same_day'
+                  AND EXISTS (SELECT 1 FROM public.round_package crp
+                                JOIN public.round_stop crs ON crs.id = crp.stop_id
+                                JOIN public.hub_checkin hc ON hc.round_id = crs.round_id
+                               WHERE crp.shop_fulfillment_id = sf.id AND crp.state = 'picked_up')))
+    )`);
   }
 
   // The awaiting filter, expressed against the same derived counts the projection reports, so the
@@ -114,7 +136,8 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             COALESCE(p.package_count, 0)     AS package_count,
             COALESCE(p.awaiting_handover, 0) AS awaiting_handover,
             COALESCE(p.awaiting_arrival, 0)  AS awaiting_arrival,
-            COALESCE(p.statuses, ARRAY[]::text[]) AS statuses
+            COALESCE(p.statuses, ARRAY[]::text[]) AS statuses,
+            COALESCE(p.package_ids, ARRAY[]::text[]) AS package_ids
        FROM public."order" o
        JOIN public.customer c ON c.id = o.customer_id
   LEFT JOIN LATERAL (
@@ -125,7 +148,8 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
                        AND h.id IS NULL
                    )::int AS awaiting_handover,
                    count(*) FILTER (WHERE pa.id IS NULL)::int AS awaiting_arrival,
-                   array_agg(sf.status ORDER BY sf.status) AS statuses
+                   array_agg(sf.status ORDER BY sf.status) AS statuses,
+                   array_agg(sf.id::text ORDER BY sf.id) AS package_ids
               FROM public.shop_fulfillment sf
          LEFT JOIN public.order_package_delivery opd
                 ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id

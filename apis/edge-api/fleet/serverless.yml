@@ -530,24 +530,35 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
-  dispatchLockV1:
-    handler: src/functions/dispatch-lock-v1-post.handler
-    description: 063 — mark an assignment as a person's decision; the planner must leave it alone (FR-032).
+  assignmentDriversV1:
+    handler: src/functions/assignment-drivers-v1-get.handler
+    description: 073 — who can take this package (fine / concern / cannot), for "Assign to…".
     events:
       - httpApi:
-          method: POST
-          path: /fleet/v1/dispatch/rounds/{id}/lock
+          method: GET
+          path: /fleet/v1/dispatch/packages/{packageId}/drivers
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
-  dispatchUnlockV1:
-    handler: src/functions/dispatch-unlock-v1-delete.handler
-    description: 063 — release a lock back to the engine.
+  assignmentAssignV1:
+    handler: src/functions/assignment-assign-v1-post.handler
+    description: 073 — give a package to a driver by hand (or move it). Refuses what a driver cannot do.
     events:
       - httpApi:
-          method: DELETE
-          path: /fleet/v1/dispatch/rounds/{id}/lock
+          method: POST
+          path: /fleet/v1/dispatch/packages/{packageId}/assign
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  assignmentUnassignV1:
+    handler: src/functions/assignment-unassign-v1-post.handler
+    description: 073 — hand an uncollected package back to auto-assign.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/packages/{packageId}/unassign
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

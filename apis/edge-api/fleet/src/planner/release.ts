@@ -78,9 +78,6 @@ async function releaseRound(
  * collection run that no longer exists. Released packages are simply unassigned again; the rest of
  * the same pass reconsiders them.
  *
- * ⚠ LOCKED ROUNDS ARE NEVER TOUCHED (FR-019) — both queries exclude them. A dispatcher who decided a
- * round owns that decision, including when the driver they chose has gone home.
- *
  * ⚠ A DELIVERY ROUND UNDER WAY IS NEVER TOUCHED EITHER. Its packages read `assigned` until they are
  * delivered, but they left the hub in a van; releasing them would send a second driver to the hub
  * for goods that are not there.

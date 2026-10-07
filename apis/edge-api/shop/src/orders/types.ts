@@ -11,6 +11,7 @@
 // gate()), and nothing names the order's second address — the no-second-address guard reads this
 // directory too (023 FR-018).
 
+import type { PackageStatusView } from "@effy/shared-types";
 import type { FulfillmentDelivery, FulfillmentStatus } from "../fulfillments/types";
 
 export type OrderTab =
@@ -74,6 +75,8 @@ export interface OrderRow {
   customerName: string;
   placedAt: Date;
   status: FulfillmentStatus;
+  /** 073 — where the package really is; shop audience, so never a driver's name. */
+  statusView: PackageStatusView;
   itemCount: number;
   gatheredCount: number;
   unavailableCount: number;
@@ -133,6 +136,8 @@ export interface OrderDetail {
   orderNumber: string;
   placedAt: Date;
   status: FulfillmentStatus;
+  /** 073 — see `OrderRow.statusView`. */
+  statusView: PackageStatusView;
   stateChangedAt: Date;
   readyBy: Date;
   deliveryMethod: "same_day" | "standard" | null;

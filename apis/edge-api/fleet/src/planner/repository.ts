@@ -86,13 +86,13 @@ function mapPackage(r: GatherRow): PlannablePackage {
   };
 }
 
-export async function gatherCollectionWork(db: Queryable = pooled): Promise<PlannablePackage[]> {
-  const res = await db.query<GatherRow>(GATHER_COLLECTION);
+export async function gatherCollectionWork(db: Queryable = pooled, onlyPackageId: string | null = null): Promise<PlannablePackage[]> {
+  const res = await db.query<GatherRow>(GATHER_COLLECTION, [onlyPackageId]);
   return res.rows.map(mapPackage);
 }
 
-export async function gatherDeliveryWork(db: Queryable = pooled): Promise<PlannablePackage[]> {
-  const res = await db.query<GatherRow>(GATHER_DELIVERY);
+export async function gatherDeliveryWork(db: Queryable = pooled, onlyPackageId: string | null = null): Promise<PlannablePackage[]> {
+  const res = await db.query<GatherRow>(GATHER_DELIVERY, [onlyPackageId]);
   return res.rows.map(mapPackage);
 }
 
@@ -177,7 +177,7 @@ export async function roundOpensAt(
   return res.rows[0]?.opens_at ?? null;
 }
 
-/** The unlocked rounds that already exist for one run or window, oldest first (072, research R4). */
+/** The rounds that already exist for one run or window, oldest first (072, research R4). */
 export async function loadBucketRounds(
   db: Queryable,
   kind: "collection" | "delivery",
@@ -270,11 +270,11 @@ export async function commitWave(
 
   const insertPackage = async (stopId: string, p: PlannablePackage): Promise<boolean> => {
     const ins = await tx.query(
-      `INSERT INTO public.round_package (stop_id, shop_fulfillment_id)
-       VALUES ($1, $2)
+      `INSERT INTO public.round_package (stop_id, shop_fulfillment_id, assigned_note, assigned_by_sub)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT (shop_fulfillment_id) WHERE state = 'assigned' DO NOTHING
        RETURNING id`,
-      [stopId, p.packageId],
+      [stopId, p.packageId, plan.notes.get(p.packageId) ?? null, plan.assignedBySub ?? null],
     );
     return (ins.rowCount ?? 0) > 0;
   };
@@ -329,11 +329,11 @@ export async function commitWave(
 
   // ── Rounds that already exist (072) ──────────────────────────────────────────────────────────
   for (const [roundId, packages] of plan.additions) {
-    // ⚠ Re-read under the pass's transaction and REFUSED IF LOCKED OR FINISHED. The plan was made
-    // from a read a moment ago; a dispatcher may have locked the round since (FR-019).
+    // ⚠ Re-read under the pass's transaction and REFUSED IF FINISHED. The plan was made from a read a
+    // moment ago; the round may have been completed or cancelled since.
     const cur = await tx.query<{ driver_id: string; status: string }>(
       `SELECT driver_id, status FROM public.driver_round
-        WHERE id = $1 AND locked_by_sub IS NULL AND status IN ('planned', 'in_progress')
+        WHERE id = $1 AND status IN ('planned', 'in_progress')
         FOR UPDATE`,
       [roundId],
     );

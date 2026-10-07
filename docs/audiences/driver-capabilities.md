@@ -368,3 +368,9 @@ Spec: [specs/072-immediate-driver-assignment/](../../specs/072-immediate-driver-
 ⚠ **The server decides whether a round is open** and sends no opening time once it is, so a phone
 with a wrong clock cannot lock an open round.
 
+## §073 — Shared package status; manual assignment (2026-10-07)
+
+No driver-app change. Its work changes when back-office uses **Assign to…** or **Unassign**, and the
+app hears it through the existing live channel (`work`). The same nine status words are used by the
+shop console and back-office; the app's own stop and drop words already match them.
+

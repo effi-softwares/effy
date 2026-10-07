@@ -10,8 +10,9 @@ const listHandovers = vi.hoisted(() => vi.fn());
 vi.mock("./repo", async () => ({ ...(await vi.importActual<object>("./repo")), listHandovers }));
 // The order link needs a router; the list's behaviour does not.
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, params }: { children: ReactNode; params: { orderId: string } }) => (
-    <a href={`/orders/${params.orderId}`}>{children}</a>
+  // 073 — the Orders tabs are plain links with no params.
+  Link: ({ children, params, to }: { children: ReactNode; params?: { orderId: string }; to: string }) => (
+    <a href={params ? `/orders/${params.orderId}` : to}>{children}</a>
   ),
 }));
 

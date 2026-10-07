@@ -32,8 +32,6 @@ export function mapDispatchError(
         return problem(404, "not_found", "Not found", err.detail, scope);
       case "stale":
         return problem(409, "conflict", "Changed by someone else", err.detail, scope);
-      case "locked":
-        return problem(409, "conflict", "Locked", err.detail, scope);
       case "invalid":
         return problem(400, "invalid_request", "Invalid", err.detail, scope);
       case "ineligible": {

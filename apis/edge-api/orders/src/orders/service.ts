@@ -17,10 +17,12 @@ import type {
   RefundRequestDTO,
 } from "@effy/shared-types";
 
-import { COUNTED_REFUND_STATUSES, stageFor } from "@effy/edge-shared";
+import { COUNTED_REFUND_STATUSES, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
+import { leastAdvanced, type OrderAssignment, type PackageStatusView } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
 import * as refundRepo from "./refunds";
+import { assignmentsFor } from "./assignments";
 import * as repo from "./repository";
 
 /** Page size. Capped so a mistyped `limit` cannot ask for the whole table. */
@@ -47,8 +49,38 @@ function awaitingFor(handover: number, arrival: number, unfulfillable = 0): Orde
   return null;
 }
 
-export function toSummary(row: repo.OrderSummaryRow): AdminOrderSummaryDTO {
+/**
+ * 073 — where each package is, read through the ONE shared derivation. ⚠ Through `query`, so the
+ * container tests' database is the one asked.
+ */
+const db: Queryable = { query: (text, values) => query(text, values) };
+
+type Assignments = Awaited<ReturnType<typeof assignmentsFor>>;
+
+export function toSummary(
+  row: repo.OrderSummaryRow,
+  statuses: ReadonlyMap<string, PackageStatusView> = new Map(),
+  assignments: Assignments = new Map(),
+): AdminOrderSummaryDTO {
+  const ids = row.package_ids ?? [];
+  const views = ids.flatMap((id) => {
+    const v = statuses.get(id);
+    return v ? [v] : [];
+  });
+  const names = (pick: "collect" | "deliver") => [
+    ...new Set(ids.flatMap((id) => {
+      const n = assignments.get(id)?.[pick]?.driver?.name;
+      return n ? [n] : [];
+    })),
+  ];
   return {
+    drivers: { collect: names("collect"), deliver: names("deliver") },
+    needsDriver: ids.some((id) => {
+      const a = assignments.get(id);
+      return a?.collect?.assignmentId === null || a?.deliver?.assignmentId === null;
+    }),
+    // 073 — the least advanced package's status, in the words every staff screen uses.
+    statusView: leastAdvanced(views),
     id: row.id,
     orderNumber: row.order_number,
     status: row.status as OrderStatus,
@@ -77,11 +109,17 @@ export async function listOrders(params: repo.ListParams): Promise<{
     rows.length > params.limit && page.length > 0
       ? page[page.length - 1]!.created_at.toISOString()
       : null;
-  return { items: page.map(toSummary), nextCursor };
+  const ids = page.flatMap((r) => r.package_ids ?? []);
+  const [statuses, assignments] = await Promise.all([packageStatuses(db, ids), assignmentsFor(ids)]);
+  return { items: page.map((r) => toSummary(r, statuses, assignments)), nextCursor };
 }
 
 /** Exported so the promise fields can be proven against the real schema without the whole order read. */
-export function toPackage(row: repo.PackageRow): AdminOrderPackageDTO {
+export function toPackage(
+  row: repo.PackageRow,
+  statusView: PackageStatusView | null = null,
+  assignment: { collect: OrderAssignment | null; deliver: OrderAssignment | null } = { collect: null, deliver: null },
+): AdminOrderPackageDTO {
   // 069 — what it was promised and whether that is being kept. Derived, never stored.
   const verdict = judgePromise({
     method: row.method,
@@ -94,6 +132,11 @@ export function toPackage(row: repo.PackageRow): AdminOrderPackageDTO {
     carrierLeadDays: row.carrier_lead_days,
   });
   return {
+    // 073 — where it really is. ⚠ Not derived from `status` below: that is the SHOP's status, which
+    // stops at `collected` by design. Null only where the read was not asked for it.
+    statusView,
+    collect: assignment.collect,
+    deliver: assignment.deliver,
     promisedDate: row.promised_date,
     window:
       row.window_start && row.window_end
@@ -184,7 +227,11 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   // read yet. It costs one round trip on the rare order that HAS an open request, and none otherwise.
   const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
-  const packages = packageRows.map(toPackage);
+  const pkgIds = packageRows.map((p) => p.fulfillment_id);
+  const [statusById, assignmentById] = await Promise.all([packageStatuses(db, pkgIds), assignmentsFor(pkgIds)]);
+  const packages = packageRows.map((p) =>
+    toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id)),
+  );
   const statuses = packageRows.map((p) => p.status);
   const awaitingHandover = packageRows.filter(
     (p) => p.status === "collected" && (p.method ?? "standard") === "standard" && !p.handoff_at,

@@ -45,32 +45,10 @@ export function TonePill({ tone, children }: { tone: Tone; children: ReactNode }
   )
 }
 
-/** Operator words for each state — the design's "Awaiting pick / Packed / Shipped…" in Effy's model. */
-export const ORDER_STATUS_LABEL: Record<FulfillmentStatus, string> = {
-  pending: "Awaiting pick",
-  received: "Awaiting pick",
-  picking: "Picking",
-  ready_for_pickup: "Ready for pickup",
-  collected: "Collected",
-  delivered: "Delivered",
-  unfulfillable: "Can't supply",
-  withdrawn: "Cancelled",
-}
-
-const STATUS_TONE: Record<FulfillmentStatus, Tone> = {
-  pending: "warn",
-  received: "warn",
-  picking: "warn",
-  ready_for_pickup: "info",
-  collected: "pos",
-  delivered: "pos",
-  unfulfillable: "neg",
-  withdrawn: "neg",
-}
-
-export function OrderStatusPill({ status }: { status: FulfillmentStatus }) {
-  return <TonePill tone={STATUS_TONE[status]}>{ORDER_STATUS_LABEL[status]}</TonePill>
-}
+// ⚠ 073 — `ORDER_STATUS_LABEL` and `OrderStatusPill` STOOD HERE. They named the shop's own status,
+// which stops at "Collected", so a shop never saw its package reach the hub or the customer. The pill
+// is now `PackageStatusPill` (web-kit), reading the server's one derived status in the words every
+// staff screen uses.
 
 const PAYMENT_TONE: Record<OrderRow["payment"], Tone> = {
   paid: "pos",

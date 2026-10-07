@@ -26,3 +26,4 @@ export * from "./MobileNavBar";
 // 071-live-updates — screens re-read when the platform says something changed; no data timers.
 export { LiveProvider, useLiveStatus, type LiveProviderProps, type LiveStatusValue } from "../live/LiveProvider";
 export { LiveStatus } from "./LiveStatus";
+export { PackageStatusPill } from "./PackageStatusPill";

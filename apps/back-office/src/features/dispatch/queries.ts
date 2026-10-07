@@ -42,8 +42,3 @@ export const useUnassignRound = (id: string) =>
 export const useReorderStops = (id: string) =>
   useDispatchMutation<ReorderStopsInput>((body) => repo.reorder(id, body));
 
-export const useLockRound = (id: string) =>
-  useDispatchMutation<string>((expectedUpdatedAt) => repo.lock(id, expectedUpdatedAt));
-
-export const useUnlockRound = (id: string) =>
-  useDispatchMutation<string>((expectedUpdatedAt) => repo.unlock(id, expectedUpdatedAt));

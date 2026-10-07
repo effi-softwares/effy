@@ -19,7 +19,6 @@ import { loadCandidates, loadSchedule } from "../planner/repository";
 import { recordAudit, type DispatchAuditAction } from "../shared/audit";
 import {
   DAY_ROUNDS,
-  RECENT_WAVES,
   ROUND_DETAIL_STOPS,
   ROUND_FOR_UPDATE,
   ROUND_WORK,
@@ -28,7 +27,7 @@ import {
 
 export class DispatchError extends Error {
   constructor(
-    readonly kind: "not_found" | "stale" | "ineligible" | "locked" | "invalid",
+    readonly kind: "not_found" | "stale" | "ineligible" | "invalid",
     readonly detail: string,
     readonly reasons: ExclusionReason[] = [],
   ) {
@@ -38,10 +37,9 @@ export class DispatchError extends Error {
 }
 
 export async function readDay() {
-  const [rounds, unassigned, waves, schedule] = await Promise.all([
+  const [rounds, unassigned, schedule] = await Promise.all([
     query<any>(DAY_ROUNDS),
     query<any>(UNASSIGNED_WORK),
-    query<any>(RECENT_WAVES),
     loadSchedule(),
   ]);
 
@@ -67,7 +65,6 @@ export async function readDay() {
         // say "opened at" if it ever wants to, and judged against the clock there.
         opensAt: r.opens_at ? (r.opens_at as Date).toISOString() : null,
         changedNote: r.changed_note,
-        lockedBy: r.locked_by_sub,
         stops: [],
       },
       driverId: r.driver_id,
@@ -90,17 +87,6 @@ export async function readDay() {
       stage: u.stage,
       targetAt: targetOf(u),
     })),
-    waves: waves.rows.map((w) => ({
-      id: w.id,
-      kind: w.kind,
-      plannedFor: w.planned_for.toISOString(),
-      trigger: w.trigger,
-      startedAt: w.started_at.toISOString(),
-      finishedAt: w.finished_at ? w.finished_at.toISOString() : null,
-      packagesConsidered: Number(w.packages_considered),
-      packagesAssigned: Number(w.packages_assigned),
-      packagesUnassigned: Number(w.packages_unassigned),
-    })),
   };
 }
 
@@ -116,7 +102,6 @@ export async function readRound(roundId: string) {
     kind: r.kind,
     status: r.status,
     driverId: r.driver_id,
-    lockedBy: r.locked_by_sub,
     updatedAt: r.updated_at,
     deadlineAt: (r.deadline_at as Date).toISOString(),
     opensAt: r.opens_at ? (r.opens_at as Date).toISOString() : null,
@@ -310,28 +295,6 @@ export async function reorder(
   });
 }
 
-/** Mark an assignment as a person's decision (FR-032), or release it. */
-export async function setLock(
-  roundId: string,
-  locked: boolean,
-  expectedUpdatedAt: string,
-  actorSub: string,
-): Promise<void> {
-  await withTransaction(async (tx: any) => {
-    const cur = await tx.query(ROUND_FOR_UPDATE, [roundId]);
-    const r = cur.rows[0];
-    if (!r) throw new DispatchError("not_found", "That round does not exist.");
-    assertFresh(r.updated_at, expectedUpdatedAt);
-
-    await tx.query(
-      locked
-        ? `UPDATE public.driver_round SET locked_by_sub = $2, locked_at = now(), updated_at = now() WHERE id = $1`
-        : `UPDATE public.driver_round SET locked_by_sub = NULL, locked_at = NULL, updated_at = now() WHERE id = $1`,
-      locked ? [roundId, actorSub] : [roundId],
-    );
-    await audit(tx, actorSub, locked ? "dispatch.lock" : "dispatch.unlock", roundId, {});
-  });
-}
 
 /**
  * ⚠ Every manual change is recorded — who and when (FR-033).

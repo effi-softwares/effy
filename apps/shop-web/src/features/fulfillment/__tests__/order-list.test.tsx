@@ -249,7 +249,7 @@ describe("the Orders list (057 A3)", () => {
     })
 
     /** Opening it IS the acknowledgement (020 FR-011a) — `received` is the proof a person saw it. */
-    it("leaves an opened order untinted, though its status pill still reads Awaiting pick", async () => {
+    it("leaves an opened order untinted, though its status pill still reads Preparing (073 words)", async () => {
       listOrders.mockResolvedValue(
         orderList([orderRow({ customerName: "Seen Already", placedAt: minutesAgo(45), status: "received" })]),
       )
@@ -258,7 +258,7 @@ describe("the Orders list (057 A3)", () => {
       const row = rowOf("Seen Already").className
       expect(row).not.toContain("bg-success-soft")
       expect(row).not.toContain("bg-warning-soft")
-      expect(table().getByText("Awaiting pick")).toBeInTheDocument()
+      expect(table().getByText("Preparing")).toBeInTheDocument()
       expect(table().queryByText("Not opened")).not.toBeInTheDocument()
     })
 

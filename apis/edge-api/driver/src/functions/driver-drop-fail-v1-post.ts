@@ -1,6 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import { announceRoundProgress } from "../work/announce";
+import { announceStop } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { DropFailRequest, DropFailResponse } from "@effy/shared-types";
@@ -42,7 +42,7 @@ export const handler = async (
   try {
     const result = await submitFailure(dropId, guard.driver.id, body);
     // 071 — committed; tell the screens that show it.
-    await announceRoundProgress();
+    await announceStop(dropId); // 073 — the shop sees it too
 
     // ⚠ THE REASON IS LOGGED, THE NOTE IS NOT. The mix of reasons is what makes the exception list
     // reportable in aggregate; the note is free text a driver typed at a doorstep and may name a

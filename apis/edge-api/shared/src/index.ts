@@ -61,3 +61,4 @@ export * from "./lib/availability";
 export * from "./lib/customer-identity";
 export * from "./lib/metrics";
 export * from "./lib/shopper-handler";
+export * from "./status";

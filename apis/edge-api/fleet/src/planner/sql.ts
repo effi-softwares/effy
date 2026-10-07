@@ -53,11 +53,14 @@ export const GATHER_COLLECTION = `
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE sf.status = 'ready_for_pickup'
-     AND NOT EXISTS (
+     -- 073 — $1, when given, asks about ONE package and includes it even while it is assigned (the
+     -- driver list for "Assign to…" is asked about a package somebody already has). NULL = the pass.
+     AND ($1::uuid IS NULL OR sf.id = $1::uuid)
+     AND ($1::uuid IS NOT NULL OR NOT EXISTS (
            SELECT 1
              FROM public.round_package rp
             WHERE rp.shop_fulfillment_id = sf.id AND rp.state = 'assigned'
-         )
+         ))
    GROUP BY sf.id, o.order_number, sf.shop_id, s.name, s.address_line1, s.address_line2,
             s.suburb, s.postcode, s.state, sf.delivery_method, z.id, z.name, sf.state_changed_at
    ORDER BY sf.state_changed_at ASC
@@ -147,11 +150,13 @@ export const GATHER_DELIVERY = `
      -- so the NOT EXISTS below passes and the next pass puts it on a new delivery round. Proof moves
      -- the fulfillment 'collected' -> 'delivered' (064), which is the fact this reads.
      AND sf.status = 'collected'
-     AND NOT EXISTS (
+     -- 073 — see GATHER_COLLECTION: $1 asks about one package, assigned or not.
+     AND ($1::uuid IS NULL OR sf.id = $1::uuid)
+     AND ($1::uuid IS NOT NULL OR NOT EXISTS (
            SELECT 1
              FROM public.round_package open_rp
             WHERE open_rp.shop_fulfillment_id = sf.id AND open_rp.state = 'assigned'
-         )
+         ))
    GROUP BY sf.id, o.order_number, sf.shop_id, s.name, o.id, o.delivery_address,
             z.id, z.name, hc.checked_in_at, opd.window_start, opd.window_end
    ORDER BY hc.checked_in_at ASC
@@ -226,15 +231,15 @@ export const PLANNER_SETTINGS = `
 `;
 
 /**
- * The unlocked rounds that already exist for one run or one delivery window (072) — one row per
+ * The rounds that already exist for one run or one delivery window (072) — one row per
  * stop, oldest round first.
  *
  * ⚠ THE BUCKET IS (kind, deadline_at, window_start_at). For a collection round `deadline_at` IS the
  * run's instant, so no run reference is stored or needed. `IS NOT DISTINCT FROM` because a windowless
  * delivery round has NULL there and must still match itself.
  *
- * ⚠ LOCKED ROUNDS ARE STRUCTURALLY ABSENT (FR-019). The planner cannot add to a round it is never
- * shown — stronger than loading it and remembering to skip it.
+ * ⚠ 073 REMOVED THE ROUND LOCK. Since 072 the planner never moves assigned work, so the lock only
+ * stopped it ADDING to a round; a person who wants a package somewhere puts it there by hand.
  *
  * ⚠ THE WEIGHT EXPRESSION IS THE GATHER'S, VERBATIM. A round's weight must be the sum of what the
  * gather said each package weighed, or the capacity gate compares two different quantities.
@@ -266,7 +271,6 @@ export const BUCKET_ROUNDS = `
      AND dr.deadline_at = $2
      AND dr.window_start_at IS NOT DISTINCT FROM $3
      AND dr.status IN ('planned', 'in_progress')
-     AND dr.locked_by_sub IS NULL
    ORDER BY dr.created_at ASC, dr.id ASC, rs.id ASC
 `;
 
@@ -286,7 +290,7 @@ export const TRY_PASS_LOCK = `SELECT pg_try_advisory_xact_lock(72063001) AS lock
 // ── Returning work nobody can do (072, research R10) ──────────────────────────────────────────────
 
 /**
- * Unlocked, unfinished rounds held by a driver who cannot work them: no open duty session, or not
+ * Unfinished rounds held by a driver who cannot work them: no open duty session, or not
  * active. ⚠ 063 FR-035 required this and nothing implemented it; with rounds assigned hours ahead it
  * is the difference between a driver going home and a driver going home with tomorrow's run.
  */
@@ -295,18 +299,17 @@ export const UNWORKABLE_ROUNDS = `
     FROM public.driver_round dr
     JOIN public.driver d ON d.id = dr.driver_id
    WHERE dr.status IN ('planned', 'in_progress')
-     AND dr.locked_by_sub IS NULL
      AND (d.status <> 'active'
           OR NOT EXISTS (SELECT 1 FROM public.driver_duty_session ds
                           WHERE ds.driver_id = d.id AND ds.ended_at IS NULL))
    ORDER BY dr.created_at
 `;
 
-/** Not-yet-begun, unlocked collection rounds — checked against the schedule as it now stands. */
+/** Not-yet-begun collection rounds — checked against the schedule as it now stands. */
 export const PLANNED_COLLECTION_ROUNDS = `
   SELECT dr.id, dr.driver_id, dr.deadline_at
     FROM public.driver_round dr
-   WHERE dr.kind = 'collection' AND dr.status = 'planned' AND dr.locked_by_sub IS NULL
+   WHERE dr.kind = 'collection' AND dr.status = 'planned'
 `;
 
 /**

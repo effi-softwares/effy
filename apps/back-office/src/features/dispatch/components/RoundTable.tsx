@@ -42,7 +42,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
         {rounds.map((r) => (
           <tr key={r.round.id}>
             <td className="px-3 py-2">
-              <Link to="/dispatch/rounds/$roundId" params={{ roundId: r.round.id }} className="underline">
+              <Link to="/orders/assignments/rounds/$roundId" params={{ roundId: r.round.id }} className="underline">
                 {r.driverName}
               </Link>
             </td>
@@ -58,8 +58,7 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
                   nothing writes to it (027's counted-not-stored rule). */}
               {r.isLate ? (
                 <span className="text-destructive">Late</span>
-              ) : r.round.lockedBy ? (
-                <span className="text-muted-foreground">Locked by a person</span>
+
               ) : (
                 <span className="text-muted-foreground">{r.round.status.replace("_", " ")}</span>
               )}

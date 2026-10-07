@@ -8,7 +8,7 @@
 /** Every round today, with who holds it and how much is left. */
 export const DAY_ROUNDS = `
   SELECT dr.id, dr.kind, dr.status, dr.deadline_at, dr.changed_note,
-         dr.locked_by_sub, dr.locked_at, dr.updated_at,
+         dr.updated_at,
          -- 072 — when the round opens to its driver. ⚠ The database's ONE definition; the driver
          -- service's action gate calls the same function, so this screen cannot disagree with it.
          public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
@@ -120,19 +120,6 @@ export const UNASSIGNED_WORK = `
    ORDER BY ready_since ASC
 `;
 
-/**
- * Recent planning passes that CHANGED something — what ran and what it decided (FR-006).
- * ⚠ Since 072 a pass that assigned nothing writes no row, so this is a list of decisions, not ticks.
- */
-export const RECENT_WAVES = `
-  SELECT id, kind, planned_for, trigger, started_at, finished_at,
-         packages_considered::text AS packages_considered,
-         packages_assigned::text   AS packages_assigned,
-         packages_unassigned::text AS packages_unassigned
-    FROM public.dispatch_wave
-   ORDER BY started_at DESC
-   LIMIT 20
-`;
 
 /**
  * ⚠ Read WITH the concurrency token, and it must carry MICROSECONDS.
@@ -143,7 +130,7 @@ export const RECENT_WAVES = `
  * so 063 does not re-find it. `to_char(...US)` is what keeps the precision on the wire.
  */
 export const ROUND_FOR_UPDATE = `
-  SELECT dr.id, dr.driver_id, dr.kind, dr.status, dr.locked_by_sub, dr.deadline_at,
+  SELECT dr.id, dr.driver_id, dr.kind, dr.status, dr.deadline_at,
          public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
          to_char(dr.updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS updated_at
     FROM public.driver_round dr

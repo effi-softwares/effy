@@ -44,6 +44,7 @@ vi.mock("@effy/edge-shared", async () => {
 
 import * as repo from "./repository";
 import * as svc from "../dispatch/service";
+import * as manual from "../assignments/service";
 import { planWave } from "./assign";
 import { runPass } from "./service";
 import type { PlannablePackage, PlannerCandidate } from "./types";
@@ -849,7 +850,7 @@ describe("072 — work is assigned the moment a driver can take it", () => {
 
   async function rounds() {
     return (await q(
-      `SELECT dr.id, dr.driver_id, dr.status, dr.deadline_at, dr.locked_by_sub,
+      `SELECT dr.id, dr.driver_id, dr.status, dr.deadline_at,
               public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens_at,
               (SELECT count(*)::int FROM public.round_stop rs WHERE rs.round_id = dr.id AND rs.kind = 'shop_pickup') AS shop_stops,
               (SELECT count(*)::int FROM public.round_stop rs WHERE rs.round_id = dr.id AND rs.kind = 'hub_checkin') AS hub_stops,
@@ -857,7 +858,7 @@ describe("072 — work is assigned the moment a driver can take it", () => {
                 WHERE rs.round_id = dr.id) AS packages
          FROM public.driver_round dr ORDER BY dr.created_at, dr.id`,
     )).rows as Array<{
-      id: string; driver_id: string; status: string; deadline_at: Date; locked_by_sub: string | null;
+      id: string; driver_id: string; status: string; deadline_at: Date;
       opens_at: Date | null; shop_stops: number; hub_stops: number; packages: number;
     }>;
   }
@@ -914,6 +915,16 @@ describe("072 — work is assigned the moment a driver can take it", () => {
     expect(all[0]!.shop_stops).toBe(3);
     const ex = await q(`SELECT reason, kind FROM public.assignment_exclusion`);
     expect(ex.rows).toEqual([{ reason: "cannot_meet_deadline", kind: "collection" }]);
+  });
+
+  // M1 (073) — every assignment says how it was made, written once on the row.
+  it("M1 — the planner writes a one-line note on every assignment", async () => {
+    await seedRun(180);
+    await world();
+    await makeReadyPackage(await makeShop("Shop One", "S1"));
+    await runPass();
+    const r = await q(`SELECT assigned_note, assigned_by_sub FROM public.round_package`);
+    expect(r.rows).toEqual([{ assigned_note: "Auto-assigned — the only driver who could take it", assigned_by_sub: null }]);
   });
 
   it("C4b — and so is the vehicle's payload", async () => {
@@ -1049,35 +1060,20 @@ describe("072 — work is assigned the moment a driver can take it", () => {
     expect((await q(`SELECT 1 FROM public.assignment_exclusion WHERE shop_fulfillment_id = $1`, [waiting])).rowCount).toBeGreaterThan(0);
   });
 
-  // ⚠ C11 / FR-019 — a locked round is a person's decision. The engine does nothing to it at all.
-  it("⚠ C11 — a locked round is neither added to, nor released, nor cancelled", async () => {
-    const first = await seedRun(120);
-    await seedRun(300);
-    const { drivers } = await world();
-    const shop = await makeShop("Shop One", "S1");
-    await makeReadyPackage(shop);
+  // ⚠ 073 — THE ROUND LOCK IS GONE. What it protected was a person's decision; since 072 the planner
+  // never moves assigned work, so a hand-placed package stays put without one. (072's C11 asserted
+  // the lock and was removed with it.)
+  it("C11 — work already assigned is never moved by later passes", async () => {
+    await seedRun(180);
+    const { drivers } = await world(["ada", "bea"]);
+    await makeReadyPackage(await makeShop("Shop One", "S1"));
     await runPass();
     const [before] = await rounds();
-    await q(`UPDATE public.driver_round SET locked_by_sub = 'staff-1', locked_at = now()`);
-
-    // Not added to: more work at the SAME shop starts another round instead.
-    await makeReadyPackage(shop);
-    await runPass();
-    let all = await rounds();
-    expect(all.map((r) => r.packages)).toEqual([1, 1]);
-    expect(all[0]!.locked_by_sub).toBe("staff-1");
-
-    // Not released: its driver goes off duty and the locked round stays exactly as it was.
-    await offDuty(drivers[0]!);
-    await runPass();
-    all = await rounds();
-    expect(all[0]).toMatchObject({ id: before!.id, status: "planned", packages: 1, driver_id: drivers[0] });
-    expect(all[1]!.status, "the unlocked one IS returned").toBe("cancelled");
-
-    // Not cancelled: its run is deleted and it still stands.
-    await q(`DELETE FROM public.delivery_collection_run WHERE run_time = ($1::timestamptz AT TIME ZONE 'Australia/Melbourne')::time`, [first]);
-    await runPass();
-    expect((await rounds())[0]).toMatchObject({ id: before!.id, status: "planned", packages: 1 });
+    for (let i = 0; i < 3; i += 1) await runPass();
+    const after = await rounds();
+    expect(after).toHaveLength(1);
+    expect(after[0]).toMatchObject({ id: before!.id, driver_id: before!.driver_id, packages: 1 });
+    expect(drivers).toContain(before!.driver_id);
   });
 
   // ⚠ C12 / FR-014 — a round not yet begun follows the schedule as it now stands.
@@ -1187,6 +1183,121 @@ describe("072 — work is assigned the moment a driver can take it", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// 073 — Assign to… and Unassign: a person's two actions. Nested for the shared container.
+describe("073 — Assign to… and Unassign", () => {
+  beforeEach(async () => {
+    await q(`TRUNCATE public.delivery_collection_run, public.delivery_settings, public.assignment_exclusion,
+                      public.hub_checkin, public.round_package, public.round_stop, public.driver_round,
+                      public.dispatch_wave, public.driver_zone_capability, public.vehicle_holding,
+                      public.vehicle, public.driver_duty_session, public.driver, public.shop_fulfillment,
+                      public."order", public.customer, public.delivery_zone_postcode,
+                      public.delivery_zone, public.shop CASCADE`);
+    await q(`DELETE FROM admin.audit_log`);
+    await q(`INSERT INTO admin.staff (cognito_sub, email, name) VALUES ('staff-ann', 'ann@effyshopping.com', 'Ann')
+             ON CONFLICT (cognito_sub) DO NOTHING`);
+  });
+
+  const placed = async () =>
+    (await q(`SELECT rp.id, rp.assigned_note, rp.assigned_by_sub, dr.driver_id, dr.status AS round_status
+                FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+                JOIN public.driver_round dr ON dr.id = rs.round_id WHERE rp.state = 'assigned'`)).rows;
+
+  async function setup() {
+    await seedRun(180);
+    const zone = await makeZone("Inner North", "3065");
+    const ada = await makeDriver("ada");
+    const ben = await makeDriver("ben");
+    await clear(ada, "collection", "standard", zone);
+    await clear(ben, "collection", "standard", zone);
+    const pkg = await makeReadyPackage(await makeShop("Shop One", "S1"));
+    return { zone, ada, ben, pkg };
+  }
+
+  // M2 — assign an unassigned package; move it; unassign it.
+  it("M2 — assigns a package nobody has, records who, and the planner leaves it there", async () => {
+    const { ben, pkg } = await setup();
+    const out = await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+    expect(out).toEqual({ message: "Assigned to ben", driverIds: [ben] });
+    expect(await placed()).toMatchObject([{ driver_id: ben, assigned_note: "Assigned by Ann", assigned_by_sub: "staff-ann" }]);
+
+    await runPass();
+    expect((await placed()).map((r) => r.driver_id)).toEqual([ben]);
+  });
+
+  it("M2 — moves a package from one driver to another; both are told; the empty round is cancelled", async () => {
+    const { ada, ben, pkg } = await setup();
+    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+    const [first] = await placed();
+
+    const out = await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: first!.id, acceptConcerns: false, actorSub: "staff-ann" });
+    expect(out.driverIds.sort()).toEqual([ada, ben].sort());
+    expect((await placed()).map((r) => r.driver_id)).toEqual([ben]);
+    const adaRound = await q(`SELECT status FROM public.driver_round WHERE driver_id = $1`, [ada]);
+    expect(adaRound.rows.map((r) => r.status)).toEqual(["cancelled"]);
+  });
+
+  it("M2 — unassign hands it back, and the next pass assigns it again", async () => {
+    const { ada, pkg } = await setup();
+    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+    const [row] = await placed();
+    const out = await manual.unassign({ packageId: pkg, stage: "collection", expectedAssignmentId: row!.id, actorSub: "staff-ann" });
+    expect(out.message).toBe("Unassigned — auto-assign will pick it up within 5 minutes");
+    expect(await placed()).toEqual([]);
+    await runPass();
+    expect(await placed()).toHaveLength(1);
+  });
+
+  // M3 — cannot vs concern.
+  it("M3 — a driver who cannot take it is refused in one line, and nothing moves", async () => {
+    const { ben, pkg } = await setup();
+    await q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1`, [ben]);
+    await expect(
+      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: true, actorSub: "staff-ann" }),
+    ).rejects.toMatchObject({ kind: "cannot_take", detail: "ben can't take it — off duty." });
+    expect(await placed()).toEqual([]);
+  });
+
+  it("M3 — a concern needs a confirm, then succeeds and says what was accepted", async () => {
+    const { zone, ben, pkg } = await setup();
+    await q(`DELETE FROM public.driver_zone_capability WHERE driver_id = $1 AND zone_id = $2`, [ben, zone]);
+    await expect(
+      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
+    ).rejects.toMatchObject({ kind: "needs_confirm", detail: "Not cleared for this area. Assign anyway?" });
+
+    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: true, actorSub: "staff-ann" });
+    expect(await placed()).toMatchObject([{ driver_id: ben, assigned_note: "Assigned by Ann — accepted: not cleared for this area" }]);
+  });
+
+  it("M3 — the driver list puts fine first and says why for the rest", async () => {
+    const { ada, ben, pkg } = await setup();
+    await q(`UPDATE public.driver_duty_session SET ended_at = now() WHERE driver_id = $1`, [ben]);
+    const list = await manual.driversFor(pkg, "collection");
+    expect(list.map((d) => [d.driverId, d.fit])).toEqual([[ada, "fine"], [ben, "cannot"]]);
+    expect(list[1]!.notes).toEqual(["Off duty"]);
+  });
+
+  // M4 — collected, stale.
+  it("M4 — a collected package cannot be moved or unassigned", async () => {
+    const { ada, ben, pkg } = await setup();
+    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+    await q(`UPDATE public.round_package SET state = 'picked_up', settled_at = now()`);
+    await q(`UPDATE public.shop_fulfillment SET status = 'collected'`);
+    await expect(
+      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
+    ).rejects.toMatchObject({ kind: "collected", detail: "It's already in ada's van." });
+  });
+
+  it("M4 — a stale token is refused and nothing changes", async () => {
+    const { ada, ben, pkg } = await setup();
+    await manual.assignTo({ packageId: pkg, stage: "collection", driverId: ada, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" });
+    await expect(
+      manual.assignTo({ packageId: pkg, stage: "collection", driverId: ben, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" }),
+    ).rejects.toMatchObject({ kind: "changed" });
+    expect((await placed()).map((r) => r.driver_id)).toEqual([ada]);
+  });
+});
+
 describe("dispatcher overrides against real PostgreSQL", () => {
 
   /** A planned round with one driver, ready to be overridden. */
@@ -1211,28 +1322,6 @@ describe("dispatcher overrides against real PostgreSQL", () => {
     );
     return r.rows[0].t;
   }
-
-  // ⚠ FR-032 / SC-006 — a locked decision must survive the engine.
-  it("C6 — a locked round is untouched by the next planning pass", async () => {
-    const { roundId, holder } = await aPlannedRound();
-    await svc.setLock(roundId, true, await token(roundId), "staff-1");
-
-    // More work at the same shop: without the lock this would join the round (FR-004a).
-    const shopId = (await q(`SELECT shop_id FROM public.round_stop WHERE round_id = $1`, [roundId])).rows[0].shop_id;
-    await makeReadyPackage(shopId);
-    await runWave();
-
-    const after = await q(`SELECT driver_id, locked_by_sub FROM public.driver_round WHERE id = $1`, [roundId]);
-    expect(after.rows[0].driver_id, "the holder must not change").toBe(holder);
-    expect(after.rows[0].locked_by_sub).toBe("staff-1");
-
-    const joined = await q(
-      `SELECT count(*)::int AS n FROM public.round_package rp
-         JOIN public.round_stop rs ON rs.id = rp.stop_id WHERE rs.round_id = $1`,
-      [roundId],
-    );
-    expect(joined.rows[0].n, "nothing may be added to a locked round").toBe(1);
-  });
 
   // ⚠ FR-034 / SC-005 — a person may override a preference, never a fact.
   it("C7 — reassigning to an ineligible driver is refused, naming the condition", async () => {
@@ -1362,8 +1451,6 @@ describe("dispatcher overrides against real PostgreSQL", () => {
 
     const stopIds = (await q(`SELECT id FROM public.round_stop WHERE round_id = $1 ORDER BY id`, [roundId])).rows.map((r) => r.id);
     await svc.reorder(roundId, stopIds.reverse(), await token(roundId), "staff-1");
-    await svc.setLock(roundId, true, await token(roundId), "staff-1");
-    await svc.setLock(roundId, false, await token(roundId), "staff-1");
     await svc.reassign(roundId, other, await token(roundId), "staff-1");
     await svc.unassign(roundId, await token(roundId), "staff-1");
 

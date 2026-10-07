@@ -30,6 +30,7 @@ import type {
 import type { WireInt } from "./cart";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryWindow } from "./delivery-window";
+import type { PackageStatusView } from "./package-status";
 
 /** How an arrival came to be known (spec FR-008; `public.package_arrival.source`). */
 export type ArrivalSource = "driver_proof" | "staff_recorded" | "carrier_signal";
@@ -73,10 +74,28 @@ export interface AdminOrderSummaryDTO {
   currency: string;
   /** Null when nothing is outstanding — i.e. the order is finished. */
   awaiting: OrderAwaiting | null;
+  /**
+   * 073 — where the order is, in staff words: its least advanced package (a Problem anywhere wins).
+   * Null for an order with no packages yet.
+   */
+  statusView: PackageStatusView | null;
+  /** 073 — the drivers collecting and delivering this order's packages, by name, without repeats. */
+  drivers: { collect: string[]; deliver: string[] };
+  /** 073 — some package is waiting for a driver and nobody has it. */
+  needsDriver: boolean;
 }
 
 /** One shop's portion of an order, as an operator sees it. */
 export interface AdminOrderPackageDTO {
+  /**
+   * 073 — where this package really is: derived from collection, hub check-in, delivery and
+   * carrier records, not from `status` (the shop's own status, which stops at `collected`).
+   */
+  statusView: PackageStatusView | null;
+  /** 073 — who is collecting it; null when it is not yet (or no longer) a collection matter. */
+  collect: OrderAssignment | null;
+  /** 073 — who is delivering it (same-day only); null for standard, or before it reaches the hub. */
+  deliver: OrderAssignment | null;
   fulfillmentId: string;
   /** ⚠ Present here and ONLY here. Never on a customer-facing contract (FR-021). */
   shopId: string;
@@ -306,3 +325,24 @@ export interface AdminOrderListResponse {
   items: AdminOrderSummaryDTO[];
   nextCursor: string | null;
 }
+
+/**
+ * 073 — who has one package for one stage (collection or delivery), and how it got there.
+ *
+ * `assignmentId` is the concurrency token the manual actions send back: the current assignment, or
+ * null when nobody has it. `movable` is false once the goods are in a van.
+ */
+export interface OrderAssignment {
+  assignmentId: string | null;
+  driver: { id: string; name: string } | null;
+  /** When the round opens, if it has not yet; null otherwise. */
+  opensAt: string | null;
+  dueAt: string | null;
+  roundId: string | null;
+  /** One line: "Auto-assigned — fewest packages today (2)" or "Assigned by Ann". */
+  how: string | null;
+  /** One line, only when nobody has it: "No driver is on duty". */
+  unassignedReason: string | null;
+  movable: boolean;
+}
+

@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { canDispatch } from "./access";
+import { useSessionRoles } from "@/features/auth/useSessionRoles";
+import { AssignmentActions } from "@/features/assign/AssignmentActions";
+import { OrdersTabs } from "@/features/orders/OrdersTabs";
+
 import { RoundTable } from "./components/RoundTable";
 import { UnassignedPanel } from "./components/UnassignedPanel";
 import { dispatchDayQuery } from "./queries";
@@ -17,6 +22,7 @@ import { dispatchDayQuery } from "./queries";
  */
 export function DispatchDayScreen() {
   const { data, isPending, isError, refetch } = useQuery(dispatchDayQuery());
+  const mayAssign = canDispatch(useSessionRoles());
 
   if (isPending) {
     return <p className="p-6 text-sm text-muted-foreground">Loading today's work…</p>;
@@ -36,15 +42,31 @@ export function DispatchDayScreen() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <header>
-        <h1 className="text-lg font-medium">Dispatch</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Who holds what, when each round opens, and anything nobody can take.
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-xl font-semibold">Orders</h1>
+        <p className="text-muted-foreground">
+          Who has what, when each round opens, and anything that needs a driver. Auto-assign runs every
+          5 minutes.
         </p>
       </header>
+      <OrdersTabs />
 
-      <UnassignedPanel items={data.unassigned} />
+      <UnassignedPanel
+        items={data.unassigned}
+        renderAssign={
+          mayAssign
+            ? (item) => (
+                <AssignmentActions
+                  packageId={item.packageId}
+                  stage={item.stage}
+                  assignment={{ assignmentId: null, driver: null, opensAt: null, dueAt: null, roundId: null, how: null, unassignedReason: null, movable: true }}
+                  title={`${item.orderNumber} · ${item.shopName}`}
+                />
+              )
+            : undefined
+        }
+      />
 
       <section aria-labelledby="rounds-heading">
         <h2 id="rounds-heading" className="text-base font-medium">
@@ -55,37 +77,6 @@ export function DispatchDayScreen() {
         </div>
       </section>
 
-      <section aria-labelledby="waves-heading">
-        <h2 id="waves-heading" className="text-base font-medium">
-          Assignments made
-        </h2>
-        {/* ⚠ FR-006 — what ran and what it decided. Without this, "why did nobody get this package?"
-            is unanswerable an hour later. */}
-        <ul className="mt-3 divide-y divide-border text-sm">
-          {data.waves.length === 0 ? (
-            <li className="py-3 text-muted-foreground">Nothing has been assigned recently.</li>
-          ) : (
-            data.waves.map((w) => (
-              <li key={w.id} className="flex items-baseline justify-between gap-4 py-2">
-                <span>
-                  {w.kind === "collection" ? "Collection" : "Same-day delivery"}
-                  <span className="ml-2 text-muted-foreground">
-                    {new Date(w.startedAt).toLocaleTimeString("en-AU", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      timeZone: "Australia/Melbourne",
-                    })}
-                  </span>
-                </span>
-                <span className="text-muted-foreground">
-                  {w.packagesAssigned} of {w.packagesConsidered} placed
-                  {w.packagesUnassigned > 0 ? ` · ${w.packagesUnassigned} not placed` : ""}
-                </span>
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
     </div>
   );
 }

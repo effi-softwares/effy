@@ -39,20 +39,8 @@ export type {
   TransitionRequest,
 };
 
-/** Human label for each state — the raw enum is a wire value, not operator copy. */
-export const STATUS_LABEL: Record<FulfillmentStatus, string> = {
-  pending: "New",
-  received: "Received",
-  picking: "Picking",
-  ready_for_pickup: "Ready for pickup",
-  collected: "Collected",
-  delivered: "Delivered",
-  // ⚠ 055 US6 — the shop's own words for its own decision.
-  unfulfillable: "Can't supply",
-  // ⚠ 055 US2 — NOT the shop's doing. The order was cancelled; they did not fail at anything, and a
-  // label implying otherwise would be wrong on the screen the shop is judged by.
-  withdrawn: "Order cancelled",
-};
+// ⚠ 073 — `STATUS_LABEL` stood here (one of four maps from the shop's status to words); replaced by the
+// shared `STATUS_WORD` via `PackageStatusPill`.
 
 /**
  * Whether the operator may declare this portion unsuppliable (055 US6, FR-031).

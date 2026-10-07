@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 
+import { Badge } from "@effy/design-system/ui";
+import { OrdersTabs } from "./OrdersTabs";
+import { PackageStatusPill } from "@effy/web-kit/console";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -19,6 +22,7 @@ import { AWAITING_LABEL, STAGE_LABEL, type OrderSummary } from "./model";
 import { ordersListQuery } from "./queries";
 
 const ALL = "all";
+const NEEDS_DRIVER = "needs_driver";
 
 /**
  * The back-office order register (053 US1).
@@ -65,6 +69,20 @@ const columns: ColumnDef<OrderSummary>[] = [
     cell: ({ row }) => <span className="tabular-nums">{formatDate(row.original.placedAt)}</span>,
   },
   {
+    id: "status",
+    header: "Status",
+    // 073 — where the order really is, in the words every staff screen uses (its least advanced
+    // package; a Problem anywhere wins).
+    cell: ({ row }) =>
+      row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} /> : "—",
+  },
+  {
+    id: "driver",
+    header: "Driver",
+    // 073 — who has it: "Ada → Ben" (collect → deliver), or "Needs a driver".
+    cell: ({ row }) => <DriverCell order={row.original} />,
+  },
+  {
     accessorKey: "stage",
     header: "Customer sees",
     // ⚠ SERVER-DERIVED, and labelled as what the CUSTOMER sees rather than as an internal status.
@@ -108,7 +126,9 @@ export function OrdersListScreen() {
   const params = useMemo(
     () => ({
       q: search.trim() || undefined,
-      awaiting: awaiting === ALL ? undefined : (awaiting as "handover" | "arrival"),
+      awaiting: awaiting === ALL || awaiting === NEEDS_DRIVER ? undefined : (awaiting as "handover" | "arrival"),
+      // 073 — orders with a package nobody is collecting or delivering.
+      needsDriver: awaiting === NEEDS_DRIVER ? true : undefined,
       cursor: cursors[cursors.length - 1],
     }),
     [search, awaiting, cursors],
@@ -121,13 +141,10 @@ export function OrdersListScreen() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">Orders</h1>
         <p className="text-muted-foreground">
-          Every paid order, what stage the customer sees, and what it is waiting on.{" "}
-          {/* 069 — the day-by-day view of what has to leave the hub. */}
-          <Link to="/orders/handover" className="font-medium text-primary hover:underline">
-            Carrier handover
-          </Link>
+          Every paid order, where it is, and who has it.
         </p>
       </div>
+      <OrdersTabs />
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
@@ -151,6 +168,7 @@ export function OrdersListScreen() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All orders</SelectItem>
+            <SelectItem value={NEEDS_DRIVER}>Needs a driver</SelectItem>
             {/* The operator's work queue — derived from what is missing, never a stored state. */}
             <SelectItem value="handover">Needs handover</SelectItem>
             <SelectItem value="arrival">Awaiting arrival</SelectItem>
@@ -201,3 +219,17 @@ export function OrdersListScreen() {
     </div>
   );
 }
+
+/** "Ada → Ben", "Ada", or a warning word when a package has nobody (073). */
+function DriverCell({ order }: { order: OrderSummary }) {
+  const { collect, deliver } = order.drivers;
+  const names = [collect.join(", "), deliver.join(", ")].filter((s) => s !== "");
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2 text-sm">
+      {names.length > 0 ? <span>{names.join(" → ")}</span> : null}
+      {order.needsDriver ? <Badge variant="warning">Needs a driver</Badge> : null}
+      {names.length === 0 && !order.needsDriver ? <span className="text-muted-foreground">—</span> : null}
+    </span>
+  );
+}
+

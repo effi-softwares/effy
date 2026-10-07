@@ -23,22 +23,18 @@ import { REASON_TEXT } from "./model";
  * beside this file asserts the named reasons actually arrive.
  */
 
-export type DispatchAction = "reassign" | "unassign" | "reorder" | "lock" | "unlock";
+export type DispatchAction = "reassign" | "unassign" | "reorder";
 
 const FORBIDDEN: Record<DispatchAction, string> = {
   reassign: "You do not have permission to move a round to another driver.",
   unassign: "You do not have permission to take work back from a driver.",
   reorder: "You do not have permission to change a round's order.",
-  lock: "You do not have permission to lock an assignment.",
-  unlock: "You do not have permission to release a lock.",
 };
 
 const STALE: Record<DispatchAction, string> = {
   reassign: "Somebody else changed this round while you were looking at it. Reload and try again.",
   unassign: "Somebody else changed this round while you were looking at it. Reload and try again.",
   reorder: "Somebody else changed this round while you were looking at it. Reload and try again.",
-  lock: "Somebody else changed this round while you were looking at it. Reload and try again.",
-  unlock: "Somebody else changed this round while you were looking at it. Reload and try again.",
 };
 
 export function dispatchActionError(err: unknown, action: DispatchAction): string {

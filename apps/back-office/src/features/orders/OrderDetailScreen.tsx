@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { canDispatch } from "@/features/dispatch/access";
+import { AssignmentActions } from "@/features/assign/AssignmentActions";
 import { useQuery } from "@tanstack/react-query";
 
 import { ErrorState } from "@effy/web-kit/console";
@@ -61,6 +63,7 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
   const canRecord = canRecordOrderProgress(roles);
+  const mayAssign = canDispatch(roles);
 
   const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(orderId));
   const handoff = useRecordHandoff(orderId);
@@ -132,6 +135,19 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
           busy={busy}
           onHandoff={onHandoff}
           onArrival={onArrival}
+          // 073 — "Assign to…" / "Unassign". Absent for a CSA; the fleet service refuses them anyway.
+          renderActions={
+            mayAssign
+              ? (pkg, stage, assignment) => (
+                  <AssignmentActions
+                    packageId={pkg.fulfillmentId}
+                    stage={stage}
+                    assignment={assignment}
+                    title={`${order.orderNumber} · ${pkg.shopName} · ${stage === "collection" ? "collection" : "delivery"}`}
+                  />
+                )
+              : undefined
+          }
         />
         {!canRecord ? (
           <p className="text-sm text-muted-foreground">

@@ -13,14 +13,21 @@ import { describeReasons, waitingFor } from "../model";
  * ⚠ It is a LIST, not cards (Principle V). Each row is a package with a reason; a card grid would
  * make eight stuck packages look like a dashboard rather than a queue of things to fix.
  */
-export function UnassignedPanel({ items }: { items: UnassignedWorkDTO[] }) {
+export function UnassignedPanel({
+  items,
+  renderAssign,
+}: {
+  items: UnassignedWorkDTO[];
+  /** 073 — "Assign to…" for a manager or admin; absent for a CSA. */
+  renderAssign?: (item: UnassignedWorkDTO) => React.ReactNode;
+}) {
   if (items.length === 0) {
     // ⚠ A STATED FACT, not blank space. "Nothing is stuck" is information; an empty region is
     // indistinguishable from a screen that failed to load.
     return (
       <section aria-labelledby="unassigned-heading" className="border-b border-border pb-6">
         <h2 id="unassigned-heading" className="text-base font-medium">
-          Nothing needs attention
+          Nothing needs a driver
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Every package ready at a shop or waiting at the hub has been given to a driver.
@@ -32,7 +39,7 @@ export function UnassignedPanel({ items }: { items: UnassignedWorkDTO[] }) {
   return (
     <section aria-labelledby="unassigned-heading" className="border-b border-border pb-6">
       <h2 id="unassigned-heading" className="text-base font-medium">
-        Needs attention
+        Needs a driver
         <span className="ml-2 text-sm font-normal text-muted-foreground">
           {items.length} {items.length === 1 ? "package" : "packages"} with no driver
         </span>
@@ -53,9 +60,12 @@ export function UnassignedPanel({ items }: { items: UnassignedWorkDTO[] }) {
                   tomorrow's run is not the same problem as one whose run opens in ten minutes. */}
               <p className="mt-0.5 text-sm text-muted-foreground">{waitingFor(item, new Date())}</p>
             </div>
-            <div className="shrink-0 text-right text-sm text-muted-foreground">
-              <p>{item.zoneName ?? "No zone"}</p>
-              <p>{item.method === "same_day" ? "Same-day" : "Standard"}</p>
+            <div className="flex shrink-0 items-start gap-4">
+              <div className="text-right text-sm text-muted-foreground">
+                <p>{item.zoneName ?? "No zone"}</p>
+                <p>{item.method === "same_day" ? "Same-day" : "Standard"}</p>
+              </div>
+              {renderAssign?.(item)}
             </div>
           </li>
         ))}

@@ -44,7 +44,7 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
 
   it("says so when nothing is stuck, rather than showing blank space", () => {
     render(<UnassignedPanel items={[]} />);
-    expect(screen.getByText("Nothing needs attention")).toBeInTheDocument();
+    expect(screen.getByText("Nothing needs a driver")).toBeInTheDocument();
   });
 
   it("counts the packages needing attention", () => {
@@ -56,7 +56,7 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
   // heading ELEMENT proves the section rendered, not that the words appear somewhere.
   it("renders as a labelled section, not loose text", () => {
     render(<UnassignedPanel items={[item()]} />);
-    const heading = screen.getByRole("heading", { name: /Needs attention/ });
+    const heading = screen.getByRole("heading", { name: /Needs a driver/ });
     expect(heading).toBeInTheDocument();
   });
 

@@ -1,6 +1,6 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import { announceRoundProgress } from "../work/announce";
+import { announceCheckedIn } from "../work/announce";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem } from "@effy/edge-shared";
 import type { HubCheckinRequest } from "@effy/shared-types";
@@ -36,8 +36,8 @@ export const handler = async (
 
   try {
     const checkedIn = await hubCheckin(body.runId, guard.driver.id);
-    // 071 — committed; the dispatcher and the order console see the round arrive.
-    await announceRoundProgress();
+    // 071/073 — committed; back-office AND every shop whose packages arrived see them "At hub".
+    await announceCheckedIn(body.runId);
     return json(200, checkedIn, guard.scope);
   } catch (err) {
     // 072 — the round has not opened. Nothing was written; the answer says when it will.

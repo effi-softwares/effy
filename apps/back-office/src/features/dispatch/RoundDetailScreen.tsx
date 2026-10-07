@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { canDispatch } from "./access";
-import { LockControl } from "./components/LockControl";
 import { ReassignDialog } from "./components/ReassignDialog";
 import { ReorderControl } from "./components/ReorderControl";
 import type { DeliveryWindow } from "@effy/shared-types";
@@ -16,7 +15,6 @@ interface RoundDetail {
   kind: string;
   status: string;
   driverId: string;
-  lockedBy: string | null;
   updatedAt: string;
   /** 072 — when the round must be finished. */
   deadlineAt: string;
@@ -68,7 +66,6 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {round.status.replace("_", " ")}
-          {round.lockedBy ? " · locked by a person, the planner will leave it alone" : ""}
         </p>
         {/* 072 — a round is assigned hours before it can be worked. Its driver can read it and
             cannot act on it until it opens; every control below works either way. */}
@@ -89,11 +86,6 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               currentDriverName={holder}
               expectedUpdatedAt={round.updatedAt}
               drivers={drivers.filter((d) => d.driverId !== round.driverId)}
-            />
-            <LockControl
-              roundId={round.id}
-              lockedBy={round.lockedBy}
-              expectedUpdatedAt={round.updatedAt}
             />
           </div>
         ) : null}

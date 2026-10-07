@@ -28,6 +28,8 @@ export * from "./feedback";
 export * from "./delivery";
 // 069-delivery-slots-dates — the same-day window and the one wording every surface uses for it
 export * from "./delivery-window";
+// 073 — where a package is, in nine words, shared by every staff screen.
+export * from "./package-status";
 export * from "./delivery-admin";
 // 049-driver-mobile-app
 export * from "./driver";

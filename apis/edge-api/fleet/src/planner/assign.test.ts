@@ -327,3 +327,29 @@ describe("planWave — determinism (FR-014, SC-007)", () => {
     expect(a.assignments.get("amy")?.map((p) => p.packageId)).toEqual(b.assignments.get("amy")?.map((p) => p.packageId));
   });
 });
+
+describe("planWave — how it was assigned, in one line (073)", () => {
+  it("names the rule when it chose between drivers", () => {
+    const out = plan({
+      candidates: [driver({ driverId: "busy", packagesAssignedToday: 5 }), driver({ driverId: "free", packagesAssignedToday: 2 })],
+    });
+    expect(out.notes.get("p1")).toBe("Auto-assigned — fewest packages today (2)");
+  });
+
+  it("says when there was nobody else", () => {
+    expect(plan().notes.get("p1")).toBe("Auto-assigned — the only driver who could take it");
+  });
+
+  it("says when it joined a driver already going to the shop", () => {
+    const out = plan({
+      rounds: [round({ roundId: "r1", driverId: "d1", stops: [{ key: "shop-1", outstanding: true }] })],
+    });
+    expect(out.notes.get("p1")).toBe("Auto-assigned — this driver is already collecting at this shop");
+  });
+
+  it("writes no line for a package nobody took", () => {
+    const out = plan({ packages: [pkg({ packageId: "p1", zoneId: "zone-9" })] });
+    expect(out.notes.has("p1")).toBe(false);
+  });
+});
+

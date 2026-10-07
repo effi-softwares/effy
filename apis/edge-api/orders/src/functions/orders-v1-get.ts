@@ -40,6 +40,8 @@ export const handler = async (
       q: qs.q?.trim() || undefined,
       status: qs.status || undefined,
       awaiting,
+      // 073 — "Needs a driver".
+      needsDriver: qs.needsDriver === "true",
       cursor: qs.cursor || undefined,
       limit,
     });

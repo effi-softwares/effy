@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { Toaster } from "@effy/design-system/ui";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 
 import { DevTools } from "@/components/DevTools";
@@ -18,6 +19,8 @@ function RootComponent() {
   return (
     <>
       <Outlet />
+      {/* 073 — every action ends with one line saying what happened. */}
+      <Toaster position="bottom-right" />
       {import.meta.env.DEV ? <DevTools /> : null}
     </>
   );

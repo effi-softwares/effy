@@ -3,6 +3,8 @@ import { createRoute } from "@tanstack/react-router";
 import { HandoverListScreen } from "@/features/orders/HandoverListScreen";
 import { OrderDetailScreen } from "@/features/orders/OrderDetailScreen";
 import { OrdersListScreen } from "@/features/orders/OrdersListScreen";
+import { DispatchDayScreen } from "@/features/dispatch/DispatchDayScreen";
+import { RoundDetailScreen } from "@/features/dispatch/RoundDetailScreen";
 
 import { appRoute } from "./app";
 
@@ -23,6 +25,24 @@ export const ordersHandoverRoute = createRoute({
   path: "orders/handover",
   component: HandoverListScreen,
 });
+
+// 073 — the dispatcher's view lives inside Orders now, as the Assignments tab.
+export const ordersAssignmentsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "orders/assignments",
+  component: DispatchDayScreen,
+});
+
+export const ordersAssignmentRoundRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "orders/assignments/rounds/$roundId",
+  component: AssignmentRoundRouteComponent,
+});
+
+function AssignmentRoundRouteComponent() {
+  const { roundId } = ordersAssignmentRoundRoute.useParams();
+  return <RoundDetailScreen roundId={roundId} />;
+}
 
 export const orderDetailRoute = createRoute({
   getParentRoute: () => appRoute,

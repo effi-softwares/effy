@@ -4,6 +4,34 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**073-order-dispatch-control — Simple Order Status & Driver Assignment in Orders.** 🚧 **CODE-COMPLETE
+AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-07).** Simplified mid-plan on
+operator direction ("simpler is better"). Sign-off:
+[specs/073-order-dispatch-control/SIGNOFF.md](specs/073-order-dispatch-control/SIGNOFF.md).
+- ⚠ **THE DEFECT: STATUS WAS GUESSED FROM THE SHOP'S STATUS ALONE.** Checked against live dev data — the
+  records were right. Back-office said "At hub" (standard) / "Out for delivery" (same-day) the moment a
+  driver picked a package up; hub check-in changed nothing anywhere; the shop console stopped at
+  "Collected"; hub check-in told no shop. Now ONE derived status in nine words
+  (`@effy/edge-shared` `packageStatus`, `@effy/shared-types` `STATUS_WORD`), read by orders and shop,
+  shown by one `PackageStatusPill`; four app-local label maps deleted; `package-status.guard.test.ts`
+  keeps them out. Hub check-in, drop started/failed and not-collected now announce to the shops.
+- **Who has it**: Driver column + "Needs a driver" filter; each package shows Collect / Deliver lines
+  with a one-line "how" (`round_package.assigned_note`, written once — by the planner in plain words,
+  or "Assigned by Ann").
+- **Manual**: "Assign to…" (also the way to move) and "Unassign", with drivers grouped Fine / Concern
+  (not cleared for the area, may run late — a person may accept) / Can't take it (refused by the
+  server). Built on the planner's own gather, rule and `commitWave` — no second placement path. Every
+  action ends with a one-line toast.
+- **Removed**: the round lock (since 072 the planner never moves assigned work), the planning-passes
+  list, the Dispatch nav item (now Orders → Assignments; old links redirect), the word "wave".
+- **Verified**: typecheck clean; edge-shared 586, fleet 288, driver 177, back-office 294, shop-web 450,
+  shared-types 71 — all with real-database tests; 8 negative proofs + the guard each broken once.
+  **Three failures pre-date 073** and fail without its changes: orders `recordArrival` concurrency
+  (intermittent), shop "pages with a total order", shop attention "resolves recipients" (`column "id"
+  does not exist`).
+- **⚠ Open**: `make db-up` (additive); deploy `fleet`, `orders`, `shop`, `driver` (any order); back-office
+  and shop-web. `driver_round.locked_by_sub` is now unused — drop it in a later migration. Walk V1 first.
+
 **072-immediate-driver-assignment — Immediate Driver Work Assignment.** 🚧 **CODE-COMPLETE AND
 MACHINE-VERIFIED across the migration, both edge services, the driver app, the console and the
 infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON (2026-10-07).** Sign-off:

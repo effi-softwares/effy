@@ -20,6 +20,8 @@ export interface OrderListParams {
   q?: string;
   status?: string;
   awaiting?: OrderAwaiting;
+  /** 073 — only orders with a package nobody is collecting or delivering. */
+  needsDriver?: boolean;
   cursor?: string;
 }
 
@@ -80,27 +82,6 @@ export function nextActionFor(pkg: OrderPackage): PackageAction {
   return pkg.handoff ? "arrival" : "handoff";
 }
 
-/**
- * How a package's position reads to an operator.
- *
- * ⚠ "Handed to carrier" is a COMPLETE state whether or not a reference was recorded (FR-003). Effy
- * has no carrier contract, so most handovers genuinely have none, and the label must not hint at
- * something missing — no "(no reference)", no ellipsis, no warning glyph.
- */
-export function packagePositionFor(pkg: OrderPackage): string {
-  if (pkg.arrival) return "Arrived";
-  if (pkg.handoff) return "With carrier";
-  if (pkg.status === "collected") return pkg.deliveryMethod === "same_day" ? "Out for delivery" : "At hub";
-  if (pkg.status === "ready_for_pickup") return "Packed at shop";
-  if (pkg.status === "picking") return "Being picked";
-  if (pkg.status === "received") return "Received by shop";
-  // ⚠ 055 — two states the shop can no longer act on, and they are DIFFERENT FACTS. `unfulfillable`
-  // is the shop saying it cannot supply; `withdrawn` is the order having been cancelled, which was
-  // never the shop's doing. One label for both would misattribute a cancellation as a shop failure.
-  if (pkg.status === "unfulfillable") return "Shop can't supply";
-  if (pkg.status === "withdrawn") return "Cancelled";
-  return "Awaiting shop";
-}
 
 export const AWAITING_LABEL: Record<OrderAwaiting, string> = {
   // ⚠ 055 US6 — a shop said it cannot supply its portion and nobody has decided what to do. It is
