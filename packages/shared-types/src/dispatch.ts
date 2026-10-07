@@ -102,6 +102,11 @@ export interface RoundDTO {
   status: RoundStatus;
   deadlineAt: string;
   /**
+   * 072 — when the round opens to its driver; `null` = open. Derived by the database from the
+   * round's deadline (or its delivery window) and the configured lead — never stored.
+   */
+  opensAt: string | null;
+  /**
    * ⚠ Set when a wave added work to a round already under way (FR-004b). The driver must be TOLD the
    * round changed — a round that grows silently underneath somebody working it is worse than one
    * that never grows.
@@ -139,6 +144,13 @@ export interface UnassignedWorkDTO {
    * named driver failing a named condition.
    */
   reasons: ExclusionReasonDTO[];
+  /** 072 — where the package is waiting: at a shop to be collected, or at the hub to be delivered. */
+  stage: "collection" | "delivery";
+  /**
+   * 072 — what it is waiting for: the collection run it belongs to, or the end of its delivery
+   * window. `null` when no collection run is configured.
+   */
+  targetAt: string | null;
 }
 
 /** What a planning pass did, so its decisions are explainable afterwards (FR-006). */

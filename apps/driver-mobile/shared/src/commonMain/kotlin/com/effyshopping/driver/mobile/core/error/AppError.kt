@@ -23,6 +23,17 @@ sealed interface AppError {
      */
     data object Conflict : AppError
 
+    /**
+     * 072 — the driver acted on a round before it opened. The platform refused and wrote nothing.
+     * [opening] says when it will open, in the server's words; null only if the answer could not be
+     * read, in which case the screen still says "not yet" rather than something generic.
+     *
+     * ⚠ DISTINCT FROM [Conflict] ON PURPOSE. Both are a 409, and [Conflict]'s message is "Someone
+     * else just changed this. Pull to refresh" — which would send a driver pulling to refresh at a
+     * round that is simply not open, for as long as they cared to try.
+     */
+    data class NotOpenYet(val opening: com.effyshopping.driver.mobile.core.opening.Opening?) : AppError
+
     /** Throttled. [retryAfterSeconds] is shown; explain the wait, never loop (FR-012). */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 

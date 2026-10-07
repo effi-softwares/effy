@@ -8,7 +8,7 @@ import { ReassignDialog } from "./components/ReassignDialog";
 import { ReorderControl } from "./components/ReorderControl";
 import type { DeliveryWindow } from "@effy/shared-types";
 
-import { WINDOW_STATE_LABEL, windowNoteFor } from "./model";
+import { WINDOW_STATE_LABEL, momentText, roundOpenState, windowNoteFor } from "./model";
 import { dispatchDayQuery, dispatchRoundQuery } from "./queries";
 
 interface RoundDetail {
@@ -18,6 +18,10 @@ interface RoundDetail {
   driverId: string;
   lockedBy: string | null;
   updatedAt: string;
+  /** 072 — when the round must be finished. */
+  deadlineAt: string;
+  /** 072 — when it opens to its driver; null = no opening time (a delivery with no window). */
+  opensAt: string | null;
   stops: Array<{
     stopId: string;
     seq: number | null;
@@ -53,6 +57,8 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
   const mayChange = canDispatch(roles);
   const drivers = (day.data?.rounds ?? []).map((r) => ({ driverId: r.driverId, driverName: r.driverName }));
   const holder = drivers.find((d) => d.driverId === round.driverId)?.driverName ?? "This driver";
+  const now = new Date();
+  const opening = roundOpenState(round, now);
 
   return (
     <div className="space-y-6 p-6">
@@ -64,6 +70,17 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
           {round.status.replace("_", " ")}
           {round.lockedBy ? " · locked by a person, the planner will leave it alone" : ""}
         </p>
+        {/* 072 — a round is assigned hours before it can be worked. Its driver can read it and
+            cannot act on it until it opens; every control below works either way. */}
+        {opening.text ? (
+          <p className="mt-1 text-sm tabular-nums">
+            {opening.text}
+            <span className="ml-2 text-muted-foreground">· due {momentText(round.deadlineAt, now)}</span>
+            {opening.open ? null : (
+              <span className="ml-2 text-muted-foreground">· the driver can see it but cannot start it yet</span>
+            )}
+          </p>
+        ) : null}
 
         {mayChange ? (
           <div className="mt-4 flex flex-wrap items-start gap-3">

@@ -425,13 +425,15 @@ functions:
 
   planWavesScheduled:
     handler: src/functions/plan-waves-scheduled.handler
-    # ⚠ It wakes every 5 minutes and PLANS RARELY — a wave happens only when a collection run reaches
-    # run_time − prep_buffer − planning_lead. The tick is not the wave; the collection schedule is.
+    # ⚠ EVERY TICK ASSIGNS (072). Until 072 this woke every 5 minutes and planned rarely — only once a
+    # collection run was within its lead time. It now gives every package a driver can take to a
+    # driver on every pass; what a driver may not do early is decided by the round's opening time, in
+    # the driver service. The rate is unchanged.
     # (Kept as a comment: Lambda's Description property is capped at 256 characters, and a 328-char
     # one fails CloudFormation EARLY VALIDATION with no hint as to which property is wrong.)
     description: >-
-      063 — the wave planner. Turns ready packages into collection rounds, and same-day packages at the
-      hub into delivery rounds.
+      063/072 — the planner. Every pass gives ready packages to drivers as collection rounds, and
+      same-day packages at the hub as delivery rounds.
     timeout: 60
     events:
       - schedule: rate(5 minutes)

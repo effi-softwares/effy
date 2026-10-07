@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.delivery.data
 
+import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow
 import com.effyshopping.driver.mobile.contract.HandoverPreference
 import com.effyshopping.driver.mobile.contract.DeliveryDropDTO
@@ -167,6 +168,8 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
             window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
         )
     },
+    opening = opening.toOpening(),
+    dueLabel = dueLabel,
 )
 
 private fun DeliveryDropDTO.toDomain() = Drop(
@@ -185,4 +188,5 @@ private fun DeliveryDropDTO.toDomain() = Drop(
         null -> null
     },
     window = DeliveryWindow.of(window, deliveryWindow?.startAt, deliveryWindow?.endAt),
+    opening = opening.toOpening(),
 )

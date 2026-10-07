@@ -31,15 +31,25 @@ export const GATHER_COLLECTION = `
          sf.state_changed_at                     AS ready_since,
          COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint                    AS item_count,
-         bool_or(ad.key = 'storage' AND pav.value_text = 'chilled') AS requires_chilled,
-         bool_or(ad.key = 'storage' AND pav.value_text = 'frozen')  AS requires_frozen
+         COALESCE(bool_or(st.chilled), false) AS requires_chilled,
+         COALESCE(bool_or(st.frozen),  false) AS requires_frozen
     FROM public.shop_fulfillment sf
     JOIN public."order"        o  ON o.id = sf.order_id
     JOIN public.shop           s  ON s.id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
-    LEFT JOIN public.product_attribute_value pav ON pav.product_id = p.id
-    LEFT JOIN public.attribute_definition    ad  ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
+    -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
+    -- attribute value a product has and then test which one was 'storage'; a product with five
+    -- attribute values therefore contributed its weight FIVE TIMES to the SUM above, and the capacity
+    -- gate judged a van against a multiple of what it was carrying. Unseen while the fixtures had no
+    -- order lines at all. The lateral yields exactly one row per line.
+    LEFT JOIN LATERAL (
+      SELECT bool_or(pav.value_text = 'chilled') AS chilled,
+             bool_or(pav.value_text = 'frozen')  AS frozen
+        FROM public.product_attribute_value pav
+        JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
+       WHERE pav.product_id = p.id
+    ) st ON TRUE
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE sf.status = 'ready_for_pickup'
@@ -104,8 +114,8 @@ export const GATHER_DELIVERY = `
          opd.window_end              AS window_end,
          COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint        AS item_count,
-         bool_or(ad.key = 'storage' AND pav.value_text = 'chilled') AS requires_chilled,
-         bool_or(ad.key = 'storage' AND pav.value_text = 'frozen')  AS requires_frozen
+         COALESCE(bool_or(st.chilled), false) AS requires_chilled,
+         COALESCE(bool_or(st.frozen),  false) AS requires_frozen
     FROM public.round_package rp
     JOIN public.round_stop     rs ON rs.id = rp.stop_id
     JOIN public.driver_round   dr ON dr.id = rs.round_id AND dr.kind = 'collection'
@@ -116,12 +126,27 @@ export const GATHER_DELIVERY = `
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
-    LEFT JOIN public.product_attribute_value pav ON pav.product_id = p.id
-    LEFT JOIN public.attribute_definition    ad  ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
+    -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
+    -- attribute value a product has and then test which one was 'storage'; a product with five
+    -- attribute values therefore contributed its weight FIVE TIMES to the SUM above, and the capacity
+    -- gate judged a van against a multiple of what it was carrying. Unseen while the fixtures had no
+    -- order lines at all. The lateral yields exactly one row per line.
+    LEFT JOIN LATERAL (
+      SELECT bool_or(pav.value_text = 'chilled') AS chilled,
+             bool_or(pav.value_text = 'frozen')  AS frozen
+        FROM public.product_attribute_value pav
+        JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = 'storage'
+       WHERE pav.product_id = p.id
+    ) st ON TRUE
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE rp.state = 'picked_up'
      AND sf.delivery_method = 'same_day'
+     -- ⚠ 072 — STILL TO BE DELIVERED. Without this a package that HAS been delivered matches again:
+     -- its collection row is 'picked_up' for ever and its delivery row is 'delivered', not 'assigned',
+     -- so the NOT EXISTS below passes and the next pass puts it on a new delivery round. Proof moves
+     -- the fulfillment 'collected' -> 'delivered' (064), which is the fact this reads.
+     AND sf.status = 'collected'
      AND NOT EXISTS (
            SELECT 1
              FROM public.round_package open_rp
@@ -201,21 +226,111 @@ export const PLANNER_SETTINGS = `
 `;
 
 /**
- * A round already under way that this shop's stop is still outstanding on — the FR-004a target.
+ * The unlocked rounds that already exist for one run or one delivery window (072) — one row per
+ * stop, oldest round first.
  *
- * ⚠ A LATE PACKAGE JOINS ONLY WHERE THE WORK IS STILL TO DO. If the driver has already been to that
- * shop, adding the package would put it on a round that will never return there, and it would look
- * assigned while nobody is going to collect it — worse than waiting for the next wave.
+ * ⚠ THE BUCKET IS (kind, deadline_at, window_start_at). For a collection round `deadline_at` IS the
+ * run's instant, so no run reference is stored or needed. `IS NOT DISTINCT FROM` because a windowless
+ * delivery round has NULL there and must still match itself.
+ *
+ * ⚠ LOCKED ROUNDS ARE STRUCTURALLY ABSENT (FR-019). The planner cannot add to a round it is never
+ * shown — stronger than loading it and remembering to skip it.
+ *
+ * ⚠ THE WEIGHT EXPRESSION IS THE GATHER'S, VERBATIM. A round's weight must be the sum of what the
+ * gather said each package weighed, or the capacity gate compares two different quantities.
+ *
+ * ⚠ A LATE PACKAGE JOINS ONLY WHERE THE WORK IS STILL TO DO (063). `outstanding` names the FINISHED
+ * states, not the open ones (2026-09-30), so a future in-progress stop state stays joinable without
+ * anyone remembering to add it here.
  */
-export const OPEN_STOP_FOR_SHOP = `
-  SELECT rs.id AS stop_id, dr.id AS round_id, dr.driver_id, dr.deadline_at, dr.locked_by_sub
-    FROM public.round_stop   rs
-    JOIN public.driver_round dr ON dr.id = rs.round_id
-   WHERE dr.kind = 'collection'
+export const BUCKET_ROUNDS = `
+  SELECT dr.id          AS round_id,
+         dr.driver_id   AS driver_id,
+         dr.status      AS status,
+         rs.id          AS stop_id,
+         rs.kind        AS stop_kind,
+         rs.shop_id     AS shop_id,
+         rs.order_id    AS order_id,
+         (rs.status NOT IN ('done', 'skipped')) AS outstanding,
+         COALESCE((
+           SELECT SUM(oi.quantity * p.weight_grams)
+             FROM public.round_package rp
+             JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
+             JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
+             JOIN public.product    p  ON p.id = oi.product_id
+            WHERE rp.stop_id = rs.id AND rp.state IN ('assigned', 'picked_up')
+         ), 0)::bigint  AS stop_weight_grams
+    FROM public.driver_round dr
+    LEFT JOIN public.round_stop rs ON rs.round_id = dr.id
+   WHERE dr.kind = $1
+     AND dr.deadline_at = $2
+     AND dr.window_start_at IS NOT DISTINCT FROM $3
      AND dr.status IN ('planned', 'in_progress')
-     AND rs.kind = 'shop_pickup'
-     AND rs.shop_id = $1
-     AND rs.status NOT IN ('done', 'skipped')  -- ⚠ finished states named, not open ones (2026-09-30)
-   ORDER BY dr.created_at ASC
-   LIMIT 1
+     AND dr.locked_by_sub IS NULL
+   ORDER BY dr.created_at ASC, dr.id ASC, rs.id ASC
 `;
+
+/** When a round for this run or window opens — the database's one definition (072, research R3). */
+export const ROUND_OPENS_AT = `
+  SELECT public.round_opens_at($1::text, $2::timestamptz, $3::timestamptz) AS opens_at
+`;
+
+/**
+ * ⚠ ONE PASS AT A TIME (072, research R4). Find-then-create a driver's round is a check-then-write,
+ * and a check-then-write has never been a guarantee (039, 052, 054). A transaction-scoped advisory
+ * lock makes the whole pass exclusive without a unique index on the bucket — which would refuse a
+ * dispatcher moving a round to a driver who already holds one for the same run.
+ */
+export const TRY_PASS_LOCK = `SELECT pg_try_advisory_xact_lock(72063001) AS locked`;
+
+// ── Returning work nobody can do (072, research R10) ──────────────────────────────────────────────
+
+/**
+ * Unlocked, unfinished rounds held by a driver who cannot work them: no open duty session, or not
+ * active. ⚠ 063 FR-035 required this and nothing implemented it; with rounds assigned hours ahead it
+ * is the difference between a driver going home and a driver going home with tomorrow's run.
+ */
+export const UNWORKABLE_ROUNDS = `
+  SELECT dr.id, dr.driver_id, dr.kind, dr.status
+    FROM public.driver_round dr
+    JOIN public.driver d ON d.id = dr.driver_id
+   WHERE dr.status IN ('planned', 'in_progress')
+     AND dr.locked_by_sub IS NULL
+     AND (d.status <> 'active'
+          OR NOT EXISTS (SELECT 1 FROM public.driver_duty_session ds
+                          WHERE ds.driver_id = d.id AND ds.ended_at IS NULL))
+   ORDER BY dr.created_at
+`;
+
+/** Not-yet-begun, unlocked collection rounds — checked against the schedule as it now stands. */
+export const PLANNED_COLLECTION_ROUNDS = `
+  SELECT dr.id, dr.driver_id, dr.deadline_at
+    FROM public.driver_round dr
+   WHERE dr.kind = 'collection' AND dr.status = 'planned' AND dr.locked_by_sub IS NULL
+`;
+
+/**
+ * Take back what has NOT been collected.
+ *
+ * ⚠ ONLY `assigned` ROWS, AND ONLY AT STOPS STILL TO BE MADE (FR-034). A `picked_up` package is
+ * physically in a van and no query can know otherwise — 056's stranded-work finding. Releasing it
+ * would tell the planner to send a second driver for goods somebody already has.
+ */
+export const RELEASE_ASSIGNED = `
+  DELETE FROM public.round_package rp
+   USING public.round_stop rs
+   WHERE rs.id = rp.stop_id
+     AND rs.round_id = $1
+     AND rp.state = 'assigned'
+     AND rs.status NOT IN ('done', 'skipped')
+  RETURNING rp.shop_fulfillment_id
+`;
+
+// ── Standing reasons (072, research R9) ───────────────────────────────────────────────────────────
+
+export const STANDING_EXCLUSIONS = `
+  SELECT shop_fulfillment_id, driver_id, reason
+    FROM public.assignment_exclusion
+   WHERE kind = $1
+`;
+

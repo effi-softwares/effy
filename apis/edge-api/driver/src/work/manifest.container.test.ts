@@ -132,7 +132,7 @@ async function makeRound(driverId: string, kind: "collection" | "delivery"): Pro
   );
   return (await one<{ id: string }>(
     `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at)
-     VALUES ($1, $2, $3, now() + interval '6 hours') RETURNING id`,
+     VALUES ($1, $2, $3, now() + interval '30 minutes') RETURNING id`,
     [wave.id, driverId, kind],
   )).id;
 }

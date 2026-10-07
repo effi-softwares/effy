@@ -131,7 +131,7 @@ d("064 — the hub check-in is real work", () => {
     roundId = (
       await pool.query<{ id: string }>(
         `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at)
-         VALUES ($1, $2, 'collection', now() + interval '3 hours') RETURNING id`,
+         VALUES ($1, $2, 'collection', now() + interval '30 minutes') RETURNING id`,
         [waveId, driverId],
       )
     ).rows[0]!.id;

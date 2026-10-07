@@ -68,6 +68,12 @@ export interface EligibilityInput {
   work: WorkUnit;
   now: Date;
   perStopAllowanceMin: number;
+  /**
+   * When the work can be STARTED (072). Omitted means now. A round assigned hours ahead cannot be
+   * worked until it opens, so its finish is estimated from the opening time, never from the moment
+   * it happened to be planned — otherwise early planning would look like extra time to do it in.
+   */
+  startAt?: Date;
 }
 
 /**
@@ -99,6 +105,8 @@ function licenceExpired(driver: CandidateDriver, now: Date): boolean {
  */
 export function eligibilityReasons(input: EligibilityInput): ExclusionReason[] {
   const { driver, work, now, perStopAllowanceMin } = input;
+  // ⚠ Never earlier than now: a round that opened an hour ago still starts from the present.
+  const startAt = input.startAt && input.startAt.getTime() > now.getTime() ? input.startAt : now;
   const reasons: ExclusionReason[] = [];
 
   if (driver.status !== "active") reasons.push("not_employable");
@@ -125,7 +133,7 @@ export function eligibilityReasons(input: EligibilityInput): ExclusionReason[] {
 
   // ⚠ The feasibility estimate has no travel-time input by design (D20), so it is stop count times a
   // configured allowance — and it is SHOWN to the dispatcher rather than silently trusted (R11).
-  const finishBy = new Date(now.getTime() + work.stopCount * perStopAllowanceMin * 60_000);
+  const finishBy = new Date(startAt.getTime() + work.stopCount * perStopAllowanceMin * 60_000);
   const shiftEnd = driver.expectedEndAt ? new Date(driver.expectedEndAt) : null;
   if (finishBy.getTime() > work.deadlineAt.getTime()) {
     reasons.push("cannot_meet_deadline");

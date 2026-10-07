@@ -4,6 +4,46 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**072-immediate-driver-assignment — Immediate Driver Work Assignment.** 🚧 **CODE-COMPLETE AND
+MACHINE-VERIFIED across the migration, both edge services, the driver app, the console and the
+infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON (2026-10-07).** Sign-off:
+[specs/072-immediate-driver-assignment/SIGNOFF.md](specs/072-immediate-driver-assignment/SIGNOFF.md).
+- **What changed**: every 5-minute pass now assigns every package a driver can take, however far off
+  its run or window. First come, first served — nothing rebalances. A round OPENS at its run time (or
+  window start) less `planning_lead_min`; before then it is readable in full and every progressing
+  driver route answers **409 `round_not_open`** (`driver/src/work/open.ts`, guarded by
+  `open.guard.test.ts`). The opening time is **derived, never stored** — `public.round_opens_at` is the
+  only definition. Packages accumulate in one not-yet-begun round per driver per run/window.
+- ⚠ **063 FR-035 WAS NEVER BUILT.** Going off duty returned no work to the pool; tasks T105/T125 were
+  ticked. Harmless while rounds lived 45 minutes; fatal with early assignment. Now the first step of
+  every pass (`planner/release.ts`): uncollected work of off-duty / stood-down drivers, and unbegun
+  rounds whose run was deleted, go back. Collected goods and locked rounds are never touched.
+- ⚠ **THE GATHER WEIGHED A LINE ONCE PER PRODUCT ATTRIBUTE.** It joined every attribute value to find
+  `storage`, so a product with five attributes counted five times toward the capacity gate. Unseen
+  because no fixture had order lines. Now a lateral per line.
+- ⚠ **A DELIVERED PACKAGE WAS RE-GATHERED FOR DELIVERY** — its collection row stays `picked_up` and its
+  delivery row is `delivered`, not `assigned`, so the `NOT EXISTS` passed. Masked by the planning
+  window; the gather now requires `sf.status = 'collected'`.
+- ⚠ **REASSIGN CHECKED A FICTIONAL ROUND** — hard-coded no refrigeration, 8 h, 12 min/stop, first zone
+  only. A dispatcher could put chilled goods in a van that cannot carry them. Now the round's real
+  needs, per zone.
+- ⚠ **`nextRunInstant` FIRST USED `now + 24h` FOR TOMORROW** — on the 23-hour DST day that skips a whole
+  day. Found by its own DST fixture; uses the next local date. The deleted `nextPlanningTime` had the
+  same shape.
+- **Alarms**: `DispatchWaveAssignedNothing` and the persistent-unassigned alarm would fire every night
+  under continuous assignment; replaced by `DispatchUnassignedPastOpening` (unassigned work whose round
+  has already opened). Unassigned reasons are now one standing row per package per stage, written only
+  on change; a `dispatch_wave` row only for a pass that assigned something.
+- **Verified**: `pnpm -r typecheck` clean · edge-shared **503** · edge-fleet **276** (incl. 52 container) ·
+  edge-driver **174** (incl. container) · back-office **294** · driver-mobile `testAndroidHostTest`
+  **71** + iOS main/test compile · `check-no-refresh-timers` OK · `terraform validate`/`fmt`. **Every
+  container proof C1–C16 plus the guard and the two found defects was broken once and failed.**
+- **⚠ Open**: ⚠ **deploy `driver` BEFORE `fleet`** (the reverse of 063) — the lock must exist before work
+  is handed out early. `make db-up` first (additive, safe for the old fleet). `make apply` for the
+  alarm swap. ⚠ **W7 (off duty before opening) is the most important walk.** Nobody has looked at any
+  screen. Three-stop limit per collection round at the default 45-minute lead is unchanged — raise
+  `planning_lead_min` if rounds need more.
+
 **071-live-updates — Live Updates Without Polling.** ⚠ **BUILT FOR ALL SIX APPS; ONLY THE FIRST
 SLICE IS DEPLOYED AND PROVED (2026-10-05).** 51/53 tasks — what remains is the operator's second
 round of deploys and the walk. Sign-off, deploy order and what is still unmeasured:

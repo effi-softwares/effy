@@ -7,6 +7,7 @@
 import { query, withTransaction } from "@effy/edge-shared";
 import type { CollectRequest, HubCheckinResponse } from "@effy/shared-types";
 
+import { assertRoundOpen } from "./open";
 import { NotFoundError } from "./service";
 
 export class ConflictError extends Error {
@@ -56,6 +57,11 @@ export async function collectStop(
       const by = (s: string) => Number(prior.rows.find((r: any) => r.state === s)?.n ?? 0);
       return { collected: by("picked_up"), notAvailable: by("not_available") };
     }
+
+    // 072 — not before the round opens. After the ownership check (so somebody else's round still
+    // answers "not found") and after the retry answer above (a stop already collected was collected
+    // on an open round).
+    await assertRoundOpen(tx, runId);
 
     const rows = await tx.query(
       `SELECT id, shop_fulfillment_id FROM public.round_package WHERE stop_id = $1 AND state = 'assigned'`,
@@ -134,6 +140,9 @@ export async function hubCheckin(
     );
     if (round.rowCount === 0) throw new NotFoundError();
 
+    // 072 — a round that has not opened has collected nothing; there is nothing to check in.
+    await assertRoundOpen(tx, runId);
+
     const counts = await tx.query(
       `SELECT COALESCE(sf.delivery_method, 'standard') AS method,
               rp.state                                 AS state,
@@ -202,6 +211,10 @@ export async function reportIssue(
     [stopId, runId, driverId],
   );
   if ((owns.rowCount ?? 0) === 0) throw new NotFoundError();
+
+  // 072 — "the shop could not supply it" is a thing a driver finds out AT the shop. Before the round
+  // opens it would mark a package unavailable hours before anybody has been to look.
+  await assertRoundOpen({ query: (text, values) => query(text, values) }, runId);
 
   await query(
     `UPDATE public.round_package

@@ -1,6 +1,6 @@
 import type { UnassignedWorkDTO } from "@effy/shared-types";
 
-import { describeReasons } from "../model";
+import { describeReasons, waitingFor } from "../model";
 
 /**
  * Work nobody could take, and why (FR-028, SC-003).
@@ -23,7 +23,7 @@ export function UnassignedPanel({ items }: { items: UnassignedWorkDTO[] }) {
           Nothing needs attention
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Every package that is ready has been given to a driver.
+          Every package ready at a shop or waiting at the hub has been given to a driver.
         </p>
       </section>
     );
@@ -49,6 +49,9 @@ export function UnassignedPanel({ items }: { items: UnassignedWorkDTO[] }) {
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {describeReasons(item.reasons)}
               </p>
+              {/* 072 — where it is and what it is waiting for. A package readied in the evening for
+                  tomorrow's run is not the same problem as one whose run opens in ten minutes. */}
+              <p className="mt-0.5 text-sm text-muted-foreground">{waitingFor(item, new Date())}</p>
             </div>
             <div className="shrink-0 text-right text-sm text-muted-foreground">
               <p>{item.zoneName ?? "No zone"}</p>

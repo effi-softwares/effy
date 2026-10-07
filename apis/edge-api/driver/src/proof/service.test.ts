@@ -7,10 +7,15 @@ vi.mock("./repository", () => ({
 }));
 vi.mock("@effy/edge-shared", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("@effy/edge-shared");
-  return { ...actual, presignUpload: vi.fn(async () => ({ uploadUrl: "u", storageKey: "proof/d/1.jpg" })) };
+  return {
+    ...actual,
+    presignUpload: vi.fn(async () => ({ uploadUrl: "u", storageKey: "proof/d/1.jpg" })),
+    // The round-opening gate's read (072). Empty by default: a drop on an open round.
+    query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+  };
 });
 
-import { PROOF_MEDIA_PREFIX, presignUpload } from "@effy/edge-shared";
+import { PROOF_MEDIA_PREFIX, presignUpload, query } from "@effy/edge-shared";
 
 import { recordFailure, recordProof } from "./repository";
 import { ProofValidationError, presignProof, submitFailure, submitProof } from "./service";
@@ -106,13 +111,30 @@ describe("presignProof", () => {
    * with nothing reporting it.
    */
   it("writes under the shared proof prefix, not a local literal", async () => {
-    await presignProof("d1", { contentType: "image/jpeg", fileSize: 1000, changeId: change });
+    await presignProof("d1", "drv1", { contentType: "image/jpeg", fileSize: 1000, changeId: change });
     expect(presignUpload).toHaveBeenCalledWith(PROOF_MEDIA_PREFIX, "d1", "image/jpeg", 1000);
+  });
+
+  // ⚠ 072 — no upload slot for a delivery that cannot have happened yet.
+  it("refuses, and mints nothing, while the drop's round has not opened", async () => {
+    const opensAt = new Date("2026-10-08T05:15:00Z");
+    vi.mocked(query).mockResolvedValueOnce({ rows: [{ opens_at: opensAt, closed: true }], rowCount: 1 } as never);
+
+    await expect(
+      presignProof("d1", "drv1", { contentType: "image/jpeg", fileSize: 1000, changeId: change }),
+    ).rejects.toMatchObject({ name: "RoundNotOpenError", opensAt: opensAt.toISOString() });
+    expect(presignUpload).not.toHaveBeenCalled();
+  });
+
+  // The gate is scoped to the caller, so somebody else's drop is not an oracle for "this id is real".
+  it("asks about the round only as this driver", async () => {
+    await presignProof("d1", "drv1", { contentType: "image/jpeg", fileSize: 1000, changeId: change });
+    expect(vi.mocked(query).mock.calls[0]![1]).toEqual(["d1", "drv1"]);
   });
 
   it("requires a changeId", async () => {
     await expect(
-      presignProof("d1", { contentType: "image/jpeg", fileSize: 1 } as never),
+      presignProof("d1", "drv1", { contentType: "image/jpeg", fileSize: 1 } as never),
     ).rejects.toMatchObject({ field: "changeId" });
   });
 });

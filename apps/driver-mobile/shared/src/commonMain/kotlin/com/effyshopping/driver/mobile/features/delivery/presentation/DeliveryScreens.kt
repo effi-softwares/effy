@@ -1,5 +1,7 @@
 package com.effyshopping.driver.mobile.features.delivery.presentation
 
+import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
+import com.effyshopping.driver.mobile.core.presentation.OpensLine
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
@@ -102,6 +104,11 @@ fun DeliveryRunScreen(
                             .padding(horizontal = 20.dp),
                     ) {
                         Spacer(Modifier.height(6.dp))
+                        // 072 — the whole run is readable before it opens; this says when it does.
+                        if (run.opening != null) {
+                            OpensLine(run.opening, style = MaterialTheme.typography.bodyLarge)
+                            Spacer(Modifier.height(10.dp))
+                        }
                         Text(
                             "$delivered of $total delivered \u00b7 pull down to refresh",
                             style = MaterialTheme.typography.labelMedium,
@@ -314,6 +321,11 @@ private fun DropDetailBody(
     onNavigate: (String) -> Unit,
     onStart: () -> Unit,
 ) {
+    // 072 — a drop is on the phone from the moment it reaches the hub, hours before its window. It
+    // can be read in full; it cannot be STARTED until its round opens. Re-judged while the screen
+    // is up, so the button comes alive by itself. ⚠ A courtesy: the platform refuses an early start
+    // whatever this says.
+    val open = rememberIsOpen(drop.opening)
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
@@ -361,9 +373,14 @@ private fun DropDetailBody(
                 modifier = Modifier.fillMaxWidth().height(50.dp),
             ) { Text("Navigate \u2197") }
             Spacer(Modifier.height(10.dp))
+            if (!open) {
+                // ⚠ A disabled button with no reason is a dead end. This is the reason (FR-025).
+                OpensLine(drop.opening, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+            }
             Button(
                 onClick = onStart,
-                enabled = !working,
+                enabled = !working && open,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {

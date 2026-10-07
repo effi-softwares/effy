@@ -16,6 +16,7 @@ import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
 import com.effyshopping.driver.mobile.core.offline.withReplay
 import kotlinx.serialization.json.Json
+import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionPackage
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRepository
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
@@ -117,6 +118,8 @@ private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
     stops = stops.map {
         CollectionStop(it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status))
     },
+    opening = opening.toOpening(),
+    dueLabel = dueLabel,
 )
 
 private fun CollectionStopDTO.toDomain() = ShopStop(
@@ -127,4 +130,5 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
         CollectionPackage(p.ref, p.destinationSuburb, method(p.method), p.items.map { it.toDomain() }, p.summary.toDomain())
     },
     status = stopStatus(status),
+    opening = opening.toOpening(),
 )

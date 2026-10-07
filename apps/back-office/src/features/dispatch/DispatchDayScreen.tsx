@@ -40,7 +40,7 @@ export function DispatchDayScreen() {
       <header>
         <h1 className="text-lg font-medium">Dispatch</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          What the planner decided today, and anything it could not place.
+          Who holds what, when each round opens, and anything nobody can take.
         </p>
       </header>
 
@@ -48,7 +48,7 @@ export function DispatchDayScreen() {
 
       <section aria-labelledby="rounds-heading">
         <h2 id="rounds-heading" className="text-base font-medium">
-          Rounds today
+          Rounds
         </h2>
         <div className="mt-3 overflow-x-auto rounded-lg border border-border">
           <RoundTable rounds={data.rounds} />
@@ -57,13 +57,13 @@ export function DispatchDayScreen() {
 
       <section aria-labelledby="waves-heading">
         <h2 id="waves-heading" className="text-base font-medium">
-          Planning passes
+          Assignments made
         </h2>
         {/* ⚠ FR-006 — what ran and what it decided. Without this, "why did nobody get this package?"
             is unanswerable an hour later. */}
         <ul className="mt-3 divide-y divide-border text-sm">
           {data.waves.length === 0 ? (
-            <li className="py-3 text-muted-foreground">No planning pass has run yet today.</li>
+            <li className="py-3 text-muted-foreground">Nothing has been assigned recently.</li>
           ) : (
             data.waves.map((w) => (
               <li key={w.id} className="flex items-baseline justify-between gap-4 py-2">

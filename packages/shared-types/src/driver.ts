@@ -139,6 +139,48 @@ export interface TodayDTO {
   active: TodayItemRef | null;
   upNext: TodayItemRef[];
   remainingCount: WireInt; // stops/drops remaining today — a count, never currency
+  /**
+   * 072 — when the current round OPENS. `null` means it is open (or there is none).
+   *
+   * ⚠ WORK IS NOW GIVEN OUT THE MOMENT A DRIVER CAN TAKE IT, hours before it can be done. A round is
+   * readable from the moment it is assigned and its actions are refused until it opens — by the
+   * platform (a 409 problem of type `round_not_open`, carrying `opensAt` and `opensLabel` as field
+   * issues), not merely hidden by the app.
+   */
+  opening: RoundOpening | null;
+  /** 072 — the current round's deadline. `null` only when there is no current round. */
+  deadlineAt: string | null;
+  /** 072 — the deadline in words, Melbourne time ("2 pm", "tomorrow 11 am"). */
+  dueLabel: string | null;
+  /**
+   * 072 — the driver's OTHER unfinished rounds, soonest first. Until 072 a driver was told about one
+   * round at a time because rounds only existed for the last 45 minutes before they were due.
+   */
+  upcoming: UpcomingRound[];
+}
+
+/**
+ * 072 — when a round opens. ⚠ ONLY EVER SENT FOR A ROUND THAT HAS NOT OPENED: the server decides
+ * "is it open" against its own clock and sends `null` once it is, so a phone whose clock is wrong
+ * cannot show an open round as locked.
+ */
+export interface RoundOpening {
+  /** The instant, ISO 8601 — what the app's clock is compared with to unlock by itself. */
+  at: string;
+  /** The same moment in words, Melbourne time. The app never formats a time. */
+  label: string;
+}
+
+/** 072 — a round the driver holds besides the current one. Readable in full; a count here. */
+export interface UpcomingRound {
+  runId: string;
+  kind: "collection" | "same_day_delivery";
+  /** `null` = open now. */
+  opening: RoundOpening | null;
+  deadlineAt: string;
+  dueLabel: string;
+  stopCount: WireInt; // shops or drops — the hub is not counted
+  packageCount: WireInt;
 }
 
 // ── Phase 1 — collection run ─────────────────────────────────────────────────────────────────────
@@ -178,6 +220,11 @@ export interface DriverCollectionRunDTO {
   runId: string;
   status: string;
   stops: CollectionStopSummary[];
+  /** 072 — when this round opens; `null` = open. */
+  opening: RoundOpening | null;
+  /** 072 — the collection run's time: when collecting must be finished. */
+  deadlineAt: string;
+  dueLabel: string;
 }
 
 export type PackageMethod = "same_day" | "standard";
@@ -238,6 +285,8 @@ export interface CollectionStopDTO {
   address: string | null;
   packages: CollectionPackage[];
   status: CollectionStopStatus;
+  /** 072 — when this stop's round opens; `null` = open. Collecting is refused before then. */
+  opening: RoundOpening | null;
 }
 
 /** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's packages. */
@@ -320,6 +369,11 @@ export interface DeliveryRunDTO {
   runId: string;
   status: string;
   drops: DeliveryDropSummary[];
+  /** 072 — when this round opens; `null` = open (always, for a round with no delivery window). */
+  opening: RoundOpening | null;
+  /** 072 — the end of the delivery window, or the end of the day where there is none. */
+  deadlineAt: string;
+  dueLabel: string;
 }
 
 /**
@@ -369,6 +423,8 @@ export interface DeliveryDropDTO {
   status: DeliveryDropStatus;
   /** 065 — the sum of `packages[].summary`. */
   summary: ClassSummary;
+  /** 072 — when this drop's round opens; `null` = open. Every action on it is refused before then. */
+  opening: RoundOpening | null;
 }
 
 /** POST /driver/v1/delivery/drops/{dropId}/status */

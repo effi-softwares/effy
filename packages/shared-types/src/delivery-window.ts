@@ -102,6 +102,24 @@ function clock(hour: number, minute: number): string {
 }
 
 /** "5 pm – 7 pm", in Melbourne time. */
+/**
+ * A moment in words, in Melbourne time, relative to today (072): "1:15 pm" when it is today,
+ * "tomorrow 11:15 am", otherwise "Thu 9 Oct 11:15 am".
+ *
+ * ⚠ WRITTEN BY THE SERVER FOR THE DRIVER APP, which never formats a time itself — it has no timezone
+ * database, and a second wording is how two screens end up disagreeing about one instant (see
+ * `DeliveryWindow.kt`). The console may call it directly.
+ */
+export function formatMoment(at: Date | string, now: Date): string {
+  const instant = at instanceof Date ? at : new Date(at);
+  const m = melbourne(instant);
+  const time = clock(m.hour, m.minute);
+  const today = melbourneDate(now);
+  if (m.isoDate === today) return time;
+  if (m.isoDate === addDays(today, 1)) return `tomorrow ${time}`;
+  return `${formatDeliveryDay(m.isoDate)} ${time}`;
+}
+
 export function formatDeliveryWindow(window: DeliveryWindow): string {
   const s = melbourne(new Date(window.startAt));
   const e = melbourne(new Date(window.endAt));

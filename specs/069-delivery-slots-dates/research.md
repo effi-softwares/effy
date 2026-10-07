@@ -186,6 +186,11 @@ T001 measures both stacks' packaged resource counts before any route is added.
 
 ## R10. The planner and the window
 
+> ⚠ **"Before that the packages wait at the hub" is SUPERSEDED by [072](../072-immediate-driver-assignment/research.md)**
+> (2026-10-07). The packages are assigned on the next pass after check-in; the ROUND waits instead —
+> visible to its driver and refused until `window_start − planning_lead_min`. Grouping by window and
+> the window's end as the deadline are unchanged.
+
 **Finding.** `planDeliveryWave` plans whatever is at the hub with `deadlineAt = endOfLocalDay`,
 under a comment that says the promise is date-granular. `orderRoundStops` already sorts on a
 `dueAt` field, and the driver service sets it to `null` (`work/service.ts:61`).

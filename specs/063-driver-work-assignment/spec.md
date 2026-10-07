@@ -186,6 +186,9 @@ it, re-plan, and confirm the locked decision survives.
 
 **Planning the wave**
 
+- ⚠ **FR-001 and FR-002 are SUPERSEDED by [072](../072-immediate-driver-assignment/spec.md)** (2026-10-07):
+  work is now assigned on every regular check, the moment a driver can take it, and a round OPENS
+  to its driver at the run time less the lead. The text below is kept as history.
 - **FR-001**: The platform MUST plan work in waves tied to the configured collection schedule, rather
   than continuously scavenging for unassigned work.
 - **FR-002**: The platform MUST plan each wave ahead of its collection run, early enough that an

@@ -1,14 +1,13 @@
-// The wave planner's scheduled entry point (063).
+// The planner's scheduled entry point (063, reshaped by 072).
 //
-// ⚠ IT WAKES OFTEN AND PLANS RARELY. The schedule below fires every few minutes; a wave is planned
-// only when a collection run has actually reached `run_time − prep_buffer − planning_lead`. The
-// COLLECTION SCHEDULE decides when work is created; the cron expression decides only how often we
-// look. That distinction is the whole difference between a wave planner and 049's one-minute
-// scavenger, which had no deadline and therefore no reason to batch (D12).
+// ⚠ EVERY TICK ASSIGNS (072). Until 072 this woke often and planned rarely: a wave ran only inside
+// the lead time before a collection run. The pass now gives every package a driver can take to a
+// driver, on every tick; what a driver may not do early is governed by the round's opening time, in
+// the driver service, not by withholding the work here.
 //
 // ⚠ OVERLAPPING INVOCATIONS MUST BE SAFE. A retry after a timeout is indistinguishable from the next
-// tick, and both can read the same gather result. Exclusivity is the partial unique index
-// `round_package_open_uq`, not this handler's timing (research R6).
+// tick. A pass takes a transaction-scoped advisory lock and a second one does nothing; a package's
+// exclusivity is still the partial unique index `round_package_open_uq` (research R4, 063 R6).
 // ⚠ `ScheduledHandler` AND `logger`, NOT `preamble`. `preamble` reads
 // `event.requestContext.requestId` — it exists to correlate an HTTP request, and an EventBridge
 // event has no `requestContext` at all.
@@ -21,117 +20,84 @@
 // have — a cast asserting a shape the runtime never produces.
 //
 // The notifications drain (050) had the right shape all along; this now matches it.
-import { announceDispatch, driversPlannedSince } from "../lib/live";
+import { announceDispatch } from "../lib/live";
 import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
 
 import { maxCustodyHours } from "../dispatch/custody";
-import { runDuePlanning } from "../planner/service";
+import { passChangedAnything, runPass } from "../planner/service";
+
+/** One EMF record. ⚠ No dimensions: a dimensioned metric is a DIFFERENT metric and the alarm goes blind (059). */
+function emit(metrics: Record<string, number>): void {
+  console.log(
+    JSON.stringify({
+      _aws: {
+        Timestamp: Date.now(),
+        CloudWatchMetrics: [
+          {
+            Namespace: "Effy/Dispatch",
+            Dimensions: [[]],
+            Metrics: Object.keys(metrics).map((Name) => ({ Name, Unit: "Count" })),
+          },
+        ],
+      },
+      ...metrics,
+    }),
+  );
+}
 
 export const handler: ScheduledHandler = async (_event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
   const scope = { log: logger.child({ awsRequestId: context.awsRequestId }) };
-  const passBegan = new Date();
-  const outcomes = await runDuePlanning();
-  // 071 — every wave above has committed. Tell the drivers it gave work to (or changed), and the
-  // dispatch console — but only if a wave actually ran: a pass with nothing due publishes nothing.
-  if (outcomes.length > 0) await announceDispatch(await driversPlannedSince(passBegan));
 
-  // ⚠ 064 — CUSTODY IS MEASURED ON THE SCHEDULE, NOT ON A SCREEN OPENING. Goods sitting in a parked
-  // van are what 056 found could be stranded permanently and invisibly, and an alarm fed by a
-  // dispatcher's page view would be quiet precisely when nobody is looking. This rides along with a
-  // tick that runs regardless. A failure to measure must not take the planner down with it — the
-  // wave matters more than the gauge.
+  const outcome = await runPass();
+
+  // ⚠ ANNOUNCED AFTER THE PASS HAS COMMITTED, AND ONLY IF IT CHANGED SOMETHING (071 FR-004, 072 R9).
+  // The pass runs all day; telling every open screen "something changed" 288 times a day when
+  // nothing had would be a refresh timer with extra steps.
+  if (passChangedAnything(outcome)) await announceDispatch(outcome.driverIds);
+
+  // ⚠ 064 — the held-hours measurement rides on the planner tick because an on-demand custody read
+  // only happens when a dispatcher opens a screen: an alarm fed by that would be silent exactly when
+  // nobody is looking.
   try {
-    const heldHours = await maxCustodyHours();
-    console.log(
-      JSON.stringify({
-        _aws: {
-          Timestamp: Date.now(),
-          CloudWatchMetrics: [
-            {
-              Namespace: "Effy/Dispatch",
-              Dimensions: [[]],
-              Metrics: [{ Name: "DriverPackagesHeldHours", Unit: "Count" }],
-            },
-          ],
-        },
-        DriverPackagesHeldHours: heldHours,
-      }),
-    );
+    emit({ DriverPackagesHeldHours: await maxCustodyHours() });
   } catch (err) {
     scope.log.error({ err }, "dispatch.custody_measure_failed");
   }
 
-  for (const o of outcomes) {
-    if (o.skippedReason !== null) {
-      // ⚠ `nextPlanningAt` rides along on a `no_run_due` skip so the log answers "then when?".
-      // Without it, "no collection run is due for another seven hours" and "the planner is dead"
-      // produce identical output — which is exactly the ambiguity that cost a live investigation.
-      scope.log.info(
-        {
-          kind: o.kind,
-          skipped: o.skippedReason,
-          ...(o.nextPlanningAt ? { nextPlanningAt: o.nextPlanningAt.toISOString() } : {}),
-        },
-        "dispatch.wave_skipped",
-      );
-      continue;
-    }
+  // ⚠ ONE LINE PER PASS, ALWAYS — including a pass that did nothing. "Nothing to do" and "the
+  // planner is dead" must never be the same silence; that cost a live investigation in 063.
+  scope.log.info(
+    {
+      skipped: outcome.skipped,
+      released: outcome.released,
+      reasonsChanged: outcome.reasonsChanged,
+      collection: outcome.collection,
+      delivery: outcome.delivery,
+    },
+    "dispatch.pass",
+  );
+  if (outcome.skipped !== null) return;
 
-    scope.log.info(
-      {
-        kind: o.kind,
-        waveId: o.waveId,
-        considered: o.considered,
-        assigned: o.assigned,
-        unassigned: o.unassigned,
-      },
-      "dispatch.wave_planned",
-    );
+  const assigned = outcome.collection.assigned + outcome.delivery.assigned;
+  const unassigned = outcome.collection.unassigned + outcome.delivery.unassigned;
+  const pastOpening = outcome.collection.unassignedPastOpening + outcome.delivery.unassignedPastOpening;
 
-    // ⚠ THE ALARM TARGET (Principle VII). A wave that considered work and placed NONE of it is the
-    // failure nothing else reports: no shopper sees an error, no driver is told anything is wrong,
-    // and the packages simply do not move. It is emitted as its OWN record rather than as a
-    // dimension on the line above, because a dimensioned metric is a different metric in CloudWatch
-    // and the alarm would go blind (059 found exactly this; 054 before it).
-    if (o.considered > 0 && o.assigned === 0) {
-      scope.log.error(
-        { kind: o.kind, waveId: o.waveId, considered: o.considered },
-        "dispatch.wave_assigned_nothing",
-      );
-    }
-
-    // ⚠ EMF ON STDOUT, ITS OWN RECORD — the 035/050/058 pattern. No SDK call, no metric-filter or
-    // log-group ordering dependency, and crucially NO DIMENSION on an existing metric: a dimensioned
-    // metric is a DIFFERENT metric in CloudWatch, so an alarm on the undimensioned name would go
-    // blind the moment a dimension was added. 059 found exactly that, and 054 before it.
-    console.log(
-      JSON.stringify({
-        _aws: {
-          Timestamp: Date.now(),
-          CloudWatchMetrics: [
-            {
-              Namespace: "Effy/Dispatch",
-              Dimensions: [[]],
-              Metrics: [
-                { Name: "DispatchPackagesConsidered", Unit: "Count" },
-                { Name: "DispatchPackagesAssigned", Unit: "Count" },
-                { Name: "DispatchPackagesUnassigned", Unit: "Count" },
-                { Name: "DispatchWaveAssignedNothing", Unit: "Count" },
-              ],
-            },
-          ],
-        },
-        DispatchPackagesConsidered: o.considered,
-        DispatchPackagesAssigned: o.assigned,
-        DispatchPackagesUnassigned: o.unassigned,
-        // ⚠ THE ALARM TARGET. A wave that considered work and placed none of it is the failure
-        // nothing else reports: no shopper sees an error, no driver is told, the packages just do
-        // not move.
-        DispatchWaveAssignedNothing: o.considered > 0 && o.assigned === 0 ? 1 : 0,
-      }),
-    );
+  if (pastOpening > 0) {
+    scope.log.error({ pastOpening }, "dispatch.unassigned_past_opening");
   }
+
+  // ⚠ 072 — `DispatchWaveAssignedNothing` IS NO LONGER EMITTED. It meant "a wave considered work and
+  // placed none", which was a failure when waves ran just before a run. With a pass every few
+  // minutes all day, one package readied at 20:00 with no driver on duty is that condition until
+  // morning. `DispatchUnassignedPastOpening` is the failure that remains real: the run has opened
+  // and nobody has the package.
+  emit({
+    DispatchPackagesAssigned: assigned,
+    DispatchPackagesUnassigned: unassigned,
+    DispatchPackagesReleased: outcome.released,
+    DispatchUnassignedPastOpening: pastOpening,
+  });
 };

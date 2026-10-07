@@ -145,36 +145,33 @@ export function collectionDeadline(run: CollectionRun, onDate: Date): Date {
 }
 
 /**
- * When the wave for `run` should be planned — `planning_lead` before the run, far enough ahead that an
- * assigned driver can finish before it (FR-002).
+ * The collection run a package made ready at `now` belongs to: the earliest run instant strictly
+ * after `now`, today or tomorrow — or null when no run is configured (072).
  *
- * With the default settings (120-minute prep buffer, 45-minute lead) a 14:00 run closes same-day
- * ordering at 12:00, is planned from 13:15, and must be collected by 14:00 — so a shop has 75 minutes
- * to pick before the first planning pass, and later passes still pick up anything readied after that.
- */
-export function wavePlanningTime(run: CollectionRun, leadMin: number, onDate: Date): Date {
-  return new Date(collectionDeadline(run, onDate).getTime() - leadMin * 60_000);
-}
-
-/**
- * The runs whose wave is due to be planned at `now`.
+ * ⚠ THIS REPLACED A PLANNING WINDOW. Until 072 the planner asked "is a run within its lead time?"
+ * (`runsDueForPlanning`) and assigned nothing outside that window, so a package a shop finished at
+ * 09:00 for a 14:00 run had nobody's name on it until 13:15. The question is now only "which run is
+ * this for?", asked on every pass; WHEN the driver may act is the round's opening time, which the
+ * database derives (`public.round_opens_at`) and this file deliberately does not.
  *
- * ⚠ The scheduled tick is NOT the wave (contracts/routes.md). The function wakes every few minutes and
- * plans only when a run has actually reached its planning time; the collection schedule decides when
- * work is created, not the cron expression. Every tick inside the window plans again, which is how a
- * package readied late still reaches the run (FR-004a).
+ * ⚠ STRICTLY AFTER. A run whose time is exactly now has gone: nothing assigned at that instant can
+ * be collected by it. A package readied a minute before a run still targets that run, fails every
+ * driver's deadline gate, and moves to the next run on the first pass after the run time.
+ *
+ * Looks at today's runs and tomorrow's, because after the day's last run the next one is tomorrow
+ * morning's. Built from `instantAtLocalTime`, so both DST transitions are already handled.
  */
-export function runsDueForPlanning(
-  runs: readonly CollectionRun[],
-  leadMin: number,
-  now: Date,
-): CollectionRun[] {
-  return runs.filter((r) => {
-    const planAt = wavePlanningTime(r, leadMin, now);
-    const deadline = collectionDeadline(r, now);
-    // Due once the planning moment has arrived, and still worth planning until the run itself.
-    return now.getTime() >= planAt.getTime() && now.getTime() <= deadline.getTime();
-  });
+export function nextRunInstant(runs: readonly CollectionRun[], now: Date): Date | null {
+  // ⚠ TOMORROW IS THE NEXT LOCAL DATE, NOT NOW + 24 HOURS. The day the clocks go forward is 23
+  // hours long, so 23:30 plus 24 hours lands on the day AFTER tomorrow and the whole of tomorrow's
+  // schedule is skipped. The function this replaced (`nextPlanningTime`) did exactly that; the DST
+  // fixture in next-run-instant.test.ts is what found it.
+  const { year, month, day } = localDateParts(now);
+  const candidates = [0, 1]
+    .flatMap((offset) => runs.map((r) => instantAtLocalTime(year, month, day + offset, r.hour, r.minute)))
+    .filter((d) => d.getTime() > now.getTime())
+    .sort((x, y) => x.getTime() - y.getTime());
+  return candidates[0] ?? null;
 }
 
 /**
@@ -191,32 +188,6 @@ export function runsDueForPlanning(
 export function endOfLocalDay(at: Date): Date {
   const { year, month, day } = localDateParts(at);
   return new Date(instantAtLocalTime(year, month, day + 1, 0, 0).getTime() - 1000);
-}
-
-/**
- * The next moment a collection wave will be planned, at or after `now` — or null when no run is
- * configured.
- *
- * ⚠ THIS EXISTS BECAUSE ITS ABSENCE MADE A WORKING SYSTEM LOOK BROKEN. `runDuePlanning` loops over
- * the due runs, so when none are due the loop body never executes and collection emits NO LOG LINE
- * AT ALL — every tick showed only the delivery outcome. Fourteen packages sat `ready_for_pickup`
- * overnight and nothing in CloudWatch, the console or the driver app said why, because "not yet" and
- * "nothing happened" are the same silence. The planner now reports the skip AND names this instant,
- * so the answer to "why is nobody coming?" is in the log rather than derivable only by hand.
- *
- * Looks at today's runs and tomorrow's, because at 23:30 the next window is tomorrow morning's.
- */
-export function nextPlanningTime(
-  runs: readonly CollectionRun[],
-  leadMin: number,
-  now: Date,
-): Date | null {
-  const tomorrow = new Date(now.getTime() + 24 * 3600_000);
-  const candidates = [...runs.map((r) => wavePlanningTime(r, leadMin, now)),
-                      ...runs.map((r) => wavePlanningTime(r, leadMin, tomorrow))]
-    .filter((d) => d.getTime() >= now.getTime())
-    .sort((a, b) => a.getTime() - b.getTime());
-  return candidates[0] ?? null;
 }
 
 /**

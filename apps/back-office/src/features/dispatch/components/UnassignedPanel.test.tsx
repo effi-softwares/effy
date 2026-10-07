@@ -14,6 +14,8 @@ function item(over: Partial<UnassignedWorkDTO> = {}): UnassignedWorkDTO {
     method: "standard",
     readySince: "2026-09-21T01:00:00Z",
     reasons: ["not_cleared"],
+    stage: "collection",
+    targetAt: "2026-09-21T04:00:00Z",
     ...over,
   };
 }
@@ -56,5 +58,21 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
     render(<UnassignedPanel items={[item()]} />);
     const heading = screen.getByRole("heading", { name: /Needs attention/ });
     expect(heading).toBeInTheDocument();
+  });
+
+  // 072 — a hub-side package nobody can deliver was not on this screen at all before.
+  it("says where the package is waiting, in words", () => {
+    render(
+      <UnassignedPanel
+        items={[item(), item({ packageId: "p-2", orderNumber: "EFY-HUB1", stage: "delivery", method: "same_day" })]}
+      />,
+    );
+    expect(screen.getByText(/^At the shop · next collection /)).toBeInTheDocument();
+    expect(screen.getByText(/^At the hub · deliver by /)).toBeInTheDocument();
+  });
+
+  it("says so when there is no collection run for a shop-side package to wait for", () => {
+    render(<UnassignedPanel items={[item({ targetAt: null })]} />);
+    expect(screen.getByText("At the shop · no collection run is scheduled")).toBeInTheDocument();
   });
 });

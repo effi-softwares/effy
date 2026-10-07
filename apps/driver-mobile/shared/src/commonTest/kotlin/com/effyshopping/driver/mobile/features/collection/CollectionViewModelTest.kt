@@ -82,4 +82,20 @@ class CollectionViewModelTest {
         assertEquals(9, v.state.value.hubSplit?.sameDayCount)
         assertEquals(14, v.state.value.hubSplit?.standardCount)
     }
+
+    /**
+     * 072 — the platform refused a collect because the round has not opened. The driver is told WHEN
+     * it opens, in the server's words — not "someone else changed this", and not a generic failure.
+     */
+    @Test fun a_collect_before_the_round_opens_says_when_it_opens() = runTest {
+        val opening = com.effyshopping.driver.mobile.core.opening.Opening(1_791_436_500_000L, "4:15 pm")
+        val repo = FakeCollectionRepo(fail = AppError.NotOpenYet(opening))
+        val v = vm(repo)
+        var done = false
+        v.collect("s1") { done = true }
+        assertEquals(false, done)
+        assertNull(repo.collectedStop)
+        assertEquals("This round isn't open yet. Opens 4:15 pm.", v.state.value.message)
+        assertEquals(false, v.state.value.isWorking)
+    }
 }

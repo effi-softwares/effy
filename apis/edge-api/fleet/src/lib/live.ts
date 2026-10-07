@@ -55,22 +55,3 @@ export async function driverOfDutySession(sessionId: string): Promise<string | n
     return null;
   }
 }
-
-/**
- * The drivers whose rounds a planning pass created or changed. The planner's own outcome reports
- * counts, not people, so this asks the rows: any round written since the pass began.
- */
-export async function driversPlannedSince(since: Date): Promise<string[]> {
-  try {
-    const { rows } = await query<{ driver_id: string }>(
-      `SELECT DISTINCT driver_id::text AS driver_id
-         FROM public.driver_round
-        WHERE updated_at >= $1 OR created_at >= $1`,
-      [since.toISOString()],
-    );
-    return rows.map((r) => r.driver_id);
-  } catch (err) {
-    logger.warn({ err }, "live: could not read the drivers a planning pass touched");
-    return [];
-  }
-}

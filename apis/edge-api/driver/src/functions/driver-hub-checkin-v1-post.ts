@@ -8,6 +8,7 @@ import type { HubCheckinRequest } from "@effy/shared-types";
 import { authenticate } from "../driver/guard";
 import { hubCheckin } from "../work/complete";
 import { NotFoundError } from "../work/service";
+import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 
 /**
  * POST /driver/v1/hub/checkin (063, FR-022/FR-023).
@@ -39,6 +40,8 @@ export const handler = async (
     await announceRoundProgress();
     return json(200, checkedIn, guard.scope);
   } catch (err) {
+    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof NotFoundError) {
       return problem(404, "not_found", "Not available", "That run is not available.", guard.scope);
     }

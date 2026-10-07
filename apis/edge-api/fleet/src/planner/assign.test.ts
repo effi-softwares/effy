@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { planWave, type AssignInput } from "./assign";
-import type { PlannablePackage, PlannerCandidate } from "./types";
+import type { BucketRound, PlannablePackage, PlannerCandidate } from "./types";
 
 const NOW = new Date("2026-07-15T02:00:00Z"); // midday Melbourne
 const DEADLINE = new Date("2026-07-15T03:00:00Z"); // 13:00 Melbourne
@@ -51,7 +51,6 @@ function plan(over: Partial<AssignInput> = {}) {
     deadlineAt: DEADLINE,
     now: NOW,
     perStopAllowanceMin: 12,
-    openStops: new Map(),
     ...over,
   });
 }
@@ -157,23 +156,26 @@ describe("planWave — placing work (US1)", () => {
   });
 });
 
+/** A round that already exists for the run being planned. */
+function round(p: Partial<BucketRound> & { roundId: string; driverId: string }): BucketRound {
+  return { status: "planned", weightGrams: 0, stops: [], ...p };
+}
+
 describe("planWave — a package that becomes ready mid-round (FR-004a)", () => {
-  const openStop = new Map([
-    ["shop-1", { stopId: "stop-1", driverId: "d1", deadlineAt: DEADLINE, locked: false }],
-  ]);
+  const underWay = [
+    round({ roundId: "r1", driverId: "d1", status: "in_progress", stops: [{ key: "shop-1", outstanding: true }] }),
+  ];
 
   it("joins the round when that shop's stop is still outstanding", () => {
-    const out = plan({ openStops: openStop });
-    expect(out.lateJoins.get("stop-1")?.map((p) => p.packageId)).toEqual(["p1"]);
+    const out = plan({ rounds: underWay });
+    expect(out.additions.get("r1")?.map((p) => p.packageId)).toEqual(["p1"]);
     expect(out.assignments.size).toBe(0);
   });
 
-  it("does NOT join a round a dispatcher has locked", () => {
-    const locked = new Map([
-      ["shop-1", { stopId: "stop-1", driverId: "d1", deadlineAt: DEADLINE, locked: true }],
-    ]);
-    const out = plan({ openStops: locked });
-    expect(out.lateJoins.size).toBe(0);
+  // ⚠ A locked round is never LOADED (the query excludes it), so the planner is simply not shown it.
+  it("does NOT join a round a dispatcher has locked — it is never shown one", () => {
+    const out = plan({ rounds: [] });
+    expect(out.additions.size).toBe(0);
     expect(out.assignments.has("d1")).toBe(true);
   });
 
@@ -181,16 +183,130 @@ describe("planWave — a package that becomes ready mid-round (FR-004a)", () => 
   it("refuses the late join when it would breach capacity, and records why", () => {
     const out = plan({
       packages: [pkg({ packageId: "heavy", weightGrams: 900_001 })],
-      openStops: openStop,
+      rounds: underWay,
     });
-    expect(out.lateJoins.size).toBe(0);
+    expect(out.additions.size).toBe(0);
     expect(out.exclusions.some((e) => e.reason === "over_capacity")).toBe(true);
   });
 
-  it("waits for the next wave when that shop's stop is already done", () => {
-    const out = plan({ openStops: new Map() });
-    expect(out.lateJoins.size).toBe(0);
+  it("starts a further round when that shop's stop is already done", () => {
+    const done = [
+      round({ roundId: "r1", driverId: "d1", status: "in_progress", stops: [{ key: "shop-1", outstanding: false }] }),
+    ];
+    const out = plan({ rounds: done });
+    expect(out.additions.size).toBe(0);
     expect(out.assignments.has("d1")).toBe(true);
+  });
+
+  // The package is at the hub; a delivery round under way has left it.
+  it("never joins a DELIVERY round that is under way", () => {
+    const out = plan({
+      kind: "delivery",
+      packages: [pkg({ packageId: "p1", method: "same_day", orderId: "order-1" })],
+      candidates: [driver({ driverId: "d1", clearances: [{ function: "delivery", method: "same_day", zoneId: "zone-1" }] })],
+      rounds: [round({ roundId: "r1", driverId: "d1", status: "in_progress", stops: [{ key: "order-1", outstanding: true }] })],
+    });
+    expect(out.additions.size).toBe(0);
+    expect(out.assignments.get("d1")?.map((p) => p.packageId)).toEqual(["p1"]);
+  });
+});
+
+describe("planWave — one round per driver per run (072, US3)", () => {
+  it("adds to the driver's not-yet-begun round instead of starting another", () => {
+    const out = plan({
+      packages: [pkg({ packageId: "p2", shopId: "shop-2" })],
+      rounds: [round({ roundId: "r1", driverId: "d1", stops: [{ key: "shop-1", outstanding: true }] })],
+    });
+    expect(out.additions.get("r1")?.map((p) => p.packageId)).toEqual(["p2"]);
+    expect(out.assignments.size).toBe(0);
+  });
+
+  it("puts a package for a shop already on a planned round on THAT round, whoever is emptier", () => {
+    const out = plan({
+      candidates: [driver({ driverId: "busy", packagesAssignedToday: 9 }), driver({ driverId: "empty" })],
+      rounds: [round({ roundId: "r1", driverId: "busy", stops: [{ key: "shop-1", outstanding: true }] })],
+    });
+    expect(out.additions.get("r1")?.map((p) => p.packageId)).toEqual(["p1"]);
+  });
+
+  // ⚠ FR-017 — capacity is judged over the WHOLE round. Without the seed a van filled across six
+  // passes passes the gate six times.
+  it("counts what the round already weighs", () => {
+    const out = plan({
+      packages: [pkg({ packageId: "p2", shopId: "shop-2", weightGrams: 2000 })],
+      rounds: [round({ roundId: "r1", driverId: "d1", weightGrams: 899_000, stops: [{ key: "shop-1", outstanding: true }] })],
+    });
+    expect(out.additions.size).toBe(0);
+    expect(out.unassigned.map((p) => p.packageId)).toEqual(["p2"]);
+    expect(out.exclusions.map((e) => e.reason)).toContain("over_capacity");
+  });
+
+  // 60 minutes to the deadline at 12 minutes a stop is five stops. The round already has five.
+  it("counts the stops the round already has", () => {
+    const five = ["a", "b", "c", "d", "e"].map((key) => ({ key, outstanding: true }));
+    const out = plan({
+      packages: [pkg({ packageId: "p6", shopId: "shop-6" })],
+      rounds: [round({ roundId: "r1", driverId: "d1", stops: five })],
+    });
+    expect(out.unassigned.map((p) => p.packageId)).toEqual(["p6"]);
+    expect(out.exclusions.map((e) => e.reason)).toContain("cannot_meet_deadline");
+  });
+
+  it("uses the OLDEST planned round when a dispatcher's move left a driver with two", () => {
+    const out = plan({
+      packages: [pkg({ packageId: "p9", shopId: "shop-9" })],
+      rounds: [round({ roundId: "older", driverId: "d1" }), round({ roundId: "newer", driverId: "d1" })],
+    });
+    expect([...out.additions.keys()]).toEqual(["older"]);
+  });
+
+  it("starts a new round for a driver whose only round for the run is under way", () => {
+    const out = plan({
+      packages: [pkg({ packageId: "p2", shopId: "shop-2" })],
+      rounds: [round({ roundId: "r1", driverId: "d1", status: "in_progress", stops: [{ key: "shop-1", outstanding: true }] })],
+    });
+    expect(out.additions.size).toBe(0);
+    expect(out.assignments.get("d1")?.map((p) => p.packageId)).toEqual(["p2"]);
+  });
+
+  it("only records reasons for packages nobody took", () => {
+    // The round visiting shop-1 is full; a second driver takes the package instead.
+    const out = plan({
+      packages: [pkg({ packageId: "p1", weightGrams: 5000 })],
+      candidates: [driver({ driverId: "d1" }), driver({ driverId: "d2" })],
+      rounds: [round({ roundId: "r1", driverId: "d1", weightGrams: 899_000, stops: [{ key: "shop-1", outstanding: true }] })],
+    });
+    expect(out.assignments.get("d2")?.map((p) => p.packageId)).toEqual(["p1"]);
+    expect(out.exclusions).toEqual([]);
+  });
+});
+
+describe("planWave — work that cannot be started yet (072, FR-005)", () => {
+  // A run five hours off that opens 45 minutes before it.
+  const far = new Date(NOW.getTime() + 5 * 3600_000);
+  const opensAt = new Date(far.getTime() - 45 * 60_000);
+  const shops = (n: number) =>
+    Array.from({ length: n }, (_, i) => pkg({ packageId: `p${i}`, shopId: `shop-${i}` }));
+
+  // ⚠ Without `opensAt`, five hours of planning lead looks like five hours of working time: 25 stops.
+  it("allows no more stops than fit between OPENING and the deadline", () => {
+    const out = plan({ packages: shops(5), deadlineAt: far, opensAt });
+    expect(out.assignments.get("d1")).toHaveLength(3); // 45 min ÷ 12 min
+    expect(out.unassigned).toHaveLength(2);
+    expect(out.exclusions.every((e) => e.reason === "cannot_meet_deadline")).toBe(true);
+  });
+
+  it("refuses a driver whose shift ends before the round opens", () => {
+    const leavesFirst = driver({ driverId: "d1", expectedEndAt: new Date(opensAt.getTime() - 60_000).toISOString() });
+    const out = plan({ packages: shops(1), candidates: [leavesFirst], deadlineAt: far, opensAt });
+    expect(out.unassigned).toHaveLength(1);
+    expect(out.exclusions.map((e) => e.reason)).toEqual(["cannot_meet_deadline"]);
+  });
+
+  it("carries the delivery window through to the plan", () => {
+    const windowStartAt = new Date(far.getTime() - 2 * 3600_000);
+    expect(plan({ deadlineAt: far, opensAt, windowStartAt }).windowStartAt).toEqual(windowStartAt);
+    expect(plan().windowStartAt).toBeNull();
   });
 });
 
@@ -199,12 +315,12 @@ describe("planWave — determinism (FR-014, SC-007)", () => {
     const packages = [pkg({ packageId: "p1" }), pkg({ packageId: "p2", shopId: "shop-2" })];
     const a = planWave({
       kind: "collection", packages, plannedFor: NOW, deadlineAt: DEADLINE, now: NOW,
-      perStopAllowanceMin: 12, openStops: new Map(),
+      perStopAllowanceMin: 12,
       candidates: [driver({ driverId: "zoe" }), driver({ driverId: "amy" })],
     });
     const b = planWave({
       kind: "collection", packages, plannedFor: NOW, deadlineAt: DEADLINE, now: NOW,
-      perStopAllowanceMin: 12, openStops: new Map(),
+      perStopAllowanceMin: 12,
       candidates: [driver({ driverId: "amy" }), driver({ driverId: "zoe" })],
     });
     expect([...a.assignments.keys()].sort()).toEqual([...b.assignments.keys()].sort());

@@ -15,6 +15,8 @@ import type {
   DutyResponse,
   TodayDTO,
   TodayItemRef,
+  UpcomingRound,
+  RoundOpening,
   DriverCollectionRunDTO,
   CollectionStopSummary,
   CollectionStopDTO,
@@ -60,6 +62,8 @@ export interface DriverContract {
   dutyResponse: DutyResponse;
   today: TodayDTO;
   todayItem: TodayItemRef;
+  upcomingRound: UpcomingRound;
+  roundOpening: RoundOpening;
   collectionRun: DriverCollectionRunDTO;
   collectionStop: CollectionStopSummary;
   collectionStopDetail: CollectionStopDTO;

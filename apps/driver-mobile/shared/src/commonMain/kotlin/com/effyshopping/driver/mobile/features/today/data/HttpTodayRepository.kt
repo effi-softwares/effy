@@ -1,16 +1,19 @@
 package com.effyshopping.driver.mobile.features.today.data
 
 import com.effyshopping.driver.mobile.contract.DriverPhase
+import com.effyshopping.driver.mobile.contract.DriverRunType
 import com.effyshopping.driver.mobile.contract.TodayDTO
 import com.effyshopping.driver.mobile.contract.TodayItemRef
 import com.effyshopping.driver.mobile.contract.TodayItemRefKind
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
+import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.domain.Today
 import com.effyshopping.driver.mobile.features.today.domain.TodayItem
 import com.effyshopping.driver.mobile.features.today.domain.TodayRepository
+import com.effyshopping.driver.mobile.features.today.domain.UpcomingRound
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -47,6 +50,22 @@ private fun TodayDTO.toDomain(): Today = Today(
     active = active?.toDomain(),
     upNext = upNext.map { it.toDomain() },
     remainingCount = remainingCount.toInt(),
+    opening = opening.toOpening(),
+    dueLabel = dueLabel,
+    upcoming = upcoming.map {
+        UpcomingRound(
+            runId = it.runID,
+            // Exhaustive on purpose: a third kind of round on the wire must fail to compile here.
+            phase = when (it.kind) {
+                DriverRunType.Collection -> Phase.COLLECTION
+                DriverRunType.SameDayDelivery -> Phase.SAME_DAY_DELIVERY
+            },
+            opening = it.opening.toOpening(),
+            dueLabel = it.dueLabel,
+            stopCount = it.stopCount.toInt(),
+            packageCount = it.packageCount.toInt(),
+        )
+    },
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(

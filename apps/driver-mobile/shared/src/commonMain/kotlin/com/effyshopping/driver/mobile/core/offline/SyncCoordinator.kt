@@ -71,6 +71,11 @@ class SyncCoordinator(
                 AppError.Conflict -> Result.Applied
                 // Auth loss: stop trying (the session gate will handle re-auth); keep queued.
                 AppError.Unauthenticated -> Result.Offline
+                // 072 — refused because its round has not opened: EARLY, not wrong. It can only be
+                // here if the phone's clock ran ahead of the server's when the driver acted offline.
+                // Kept, in order, and tried again on the next flush. ⚠ Before 072 named this case it
+                // would have arrived as Conflict and been dropped as "already applied".
+                is AppError.NotOpenYet -> Result.Offline
                 else -> Result.Dead // NotFound / Validation / Forbidden — a definitive refusal.
             }
         } catch (e: IOException) {

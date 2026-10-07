@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------------------------
 # Driver work assignment — 063-driver-work-assignment (Principle VII).
 #
-# Two alarms on the wave planner, routed to the existing alerts SNS topic (alerts.tf). The planner
+# Alarms on the planner, routed to the existing alerts SNS topic (alerts.tf). The planner
 # emits its metrics as CloudWatch EMF on stdout (the 035/050/058 pattern — no SDK call, no
 # metric-filter/log-group ordering dependency), so these are plain alarms on emitted metrics.
 #
@@ -10,43 +10,33 @@
 # ordinary PostgreSQL tables. The whole slice costs one more Lambda invocation every five minutes.
 # ---------------------------------------------------------------------------------------------
 
-# ⚠ THE SILENT FAILURE THIS WHOLE FEATURE CAN HAVE. A wave that considered forty packages and placed
-# none of them looks exactly like a quiet afternoon from every other angle: no shopper sees an error,
-# no driver is told anything is wrong, no request 500s. The packages simply do not move, and the
-# first person to notice is a shop wondering where the van is.
+# ⚠ THE SILENT FAILURE THIS WHOLE FEATURE CAN HAVE: A ROUND HAS OPENED AND NOBODY HAS THE PACKAGE.
 #
-# ⚠ Threshold zero, deliberately — the same reasoning 058 used for reconciliation corrections. There
-# is no healthy baseline for "the engine placed nothing it was given"; one occurrence is the event.
-resource "aws_cloudwatch_metric_alarm" "dispatch_wave_assigned_nothing" {
-  alarm_name          = "${module.shared.name_prefix}-dispatch-wave-assigned-nothing"
-  alarm_description   = "063 — a planning pass considered packages and assigned NONE of them. Nobody is being told: no driver has work and no shopper sees an error. Open the dispatch console's Needs-attention section — every package will carry the reason it could not be placed."
-  namespace           = "Effy/Dispatch"
-  metric_name         = "DispatchWaveAssignedNothing"
-  statistic           = "Sum"
-  period              = 900
-  evaluation_periods  = 1
-  threshold           = 0
-  comparison_operator = "GreaterThanThreshold"
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-  ok_actions          = [aws_sns_topic.alerts.arn]
-}
-
-# ⚠ A STANDING BACKLOG, NOT A MOMENTARY ONE. Some unassigned work is ordinary — a package that became
-# ready thirty seconds ago has not been placed yet, and a zone nobody covers is a staffing decision
-# the console already reports. What is NOT ordinary is the same work going unplaced pass after pass,
-# because that means the exception nobody is managing has become the norm (D15).
+# No shopper sees an error, no driver is told anything is wrong, no request 500s. The package simply
+# does not move, and the first person to notice is a shop wondering where the van is.
 #
-# Sustained over an hour rather than instantaneous, so a single busy wave does not page anybody.
-resource "aws_cloudwatch_metric_alarm" "dispatch_persistent_unassigned" {
-  alarm_name          = "${module.shared.name_prefix}-dispatch-persistent-unassigned"
-  alarm_description   = "063 — packages have gone unassigned across several consecutive planning passes. Something structural is blocking them: nobody cleared for a zone, no vehicle held, or licences lapsed. The dispatch console names the reason per package."
+# ⚠ 072 REPLACED TWO ALARMS WITH THIS ONE, BECAUSE BOTH WOULD NOW FIRE EVERY NIGHT. Until 072 the
+# planner ran only in the 45 minutes before a collection run, so "a pass considered packages and
+# assigned none" (DispatchWaveAssignedNothing) and "packages unassigned for an hour"
+# (DispatchPackagesUnassigned) were both real failures. The planner now assigns on every pass, all
+# day: a package a shop finishes at 20:00, after the last driver has gone home, is unassigned on every
+# pass until morning — and that is ordinary. The failure that remains real is narrower, and the
+# planner counts it directly: unassigned work whose round would ALREADY BE OPEN.
+#
+# Three consecutive five-minute passes, so one pass that lands between a driver clocking off and
+# another clocking on does not page anybody.
+#
+# ⚠ `DispatchPackagesUnassigned` is still emitted, as a per-pass gauge for anyone reading the graph.
+# It carries no alarm, deliberately.
+resource "aws_cloudwatch_metric_alarm" "dispatch_unassigned_past_opening" {
+  alarm_name          = "${module.shared.name_prefix}-dispatch-unassigned-past-opening"
+  alarm_description   = "072 — packages are still unassigned although the round they belong to has already opened: a collection run is under an hour away, or a delivery window is about to start, and no driver has the work. Open the dispatch console's Needs-attention section — every package carries the reason it could not be given to anybody."
   namespace           = "Effy/Dispatch"
-  metric_name         = "DispatchPackagesUnassigned"
-  statistic           = "Sum"
-  period              = 900
-  evaluation_periods  = 4
-  datapoints_to_alarm = 4
+  metric_name         = "DispatchUnassignedPastOpening"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 3
+  datapoints_to_alarm = 3
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
@@ -77,9 +67,10 @@ resource "aws_cloudwatch_metric_alarm" "driver_packages_held_overnight" {
   metric_name = "DriverPackagesHeldHours"
   statistic   = "Maximum"
 
-  # A collection round is planned at most a couple of hours ahead of its run and a same-day round
-  # finishes by end of day, so twelve hours of unbroken custody is not a long round — it is a van
-  # nobody has emptied.
+  # Custody begins when a package is COLLECTED, not when its round is assigned — so 072 assigning
+  # rounds hours ahead changes nothing here. A collection run finishes at its run time and a same-day
+  # round by end of day, so twelve hours of unbroken custody is not a long round — it is a van nobody
+  # has emptied.
   threshold           = 12
   period              = 3600
   evaluation_periods  = 1

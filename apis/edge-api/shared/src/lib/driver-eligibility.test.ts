@@ -118,6 +118,40 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
   });
 });
 
+describe("eligibilityReasons — work that cannot be started yet (072)", () => {
+  // A round for a run four hours off, which opens 45 minutes before it.
+  const deadlineAt = new Date(NOW.getTime() + 4 * 3600_000);
+  const opensAt = new Date(deadlineAt.getTime() - 45 * 60_000);
+
+  it("is unchanged when no start time is given", () => {
+    expect(ask({ work: work({ stopCount: 10, deadlineAt }) })).toEqual([]);
+  });
+
+  // ⚠ The point of the field. Four hours from now fits twenty stops; forty-five minutes fits three.
+  it("judges the finish from when the work OPENS, not from when it was planned", () => {
+    expect(ask({ work: work({ stopCount: 3, deadlineAt }), startAt: opensAt })).toEqual([]);
+    expect(ask({ work: work({ stopCount: 4, deadlineAt }), startAt: opensAt })).toContain("cannot_meet_deadline");
+  });
+
+  it("refuses a driver whose stated finish is before the work opens", () => {
+    const goesHomeFirst = driver({ expectedEndAt: new Date(opensAt.getTime() - 60_000).toISOString() });
+    expect(ask({ driver: goesHomeFirst, work: work({ stopCount: 1, deadlineAt }), startAt: opensAt })).toContain(
+      "cannot_meet_deadline",
+    );
+  });
+
+  it("never starts earlier than now — a round that opened an hour ago starts from the present", () => {
+    const opened = new Date(NOW.getTime() - 3600_000);
+    const tight = work({ stopCount: 3, deadlineAt: new Date(NOW.getTime() + 30 * 60_000) });
+    expect(ask({ work: tight, startAt: opened })).toContain("cannot_meet_deadline");
+  });
+
+  it("still judges the licence at now, not at the opening time", () => {
+    const expiresTonight = driver({ licenceExpiresOn: "2026-09-21" });
+    expect(ask({ driver: expiresTonight, work: work({ stopCount: 1, deadlineAt }), startAt: opensAt })).toEqual([]);
+  });
+});
+
 describe("pickByLoad — choosing between eligible drivers (FR-014)", () => {
   const cand = (driverId: string, packagesAssignedToday: number) => ({ driverId, packagesAssignedToday });
 

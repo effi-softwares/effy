@@ -317,6 +317,8 @@ private fun OnDutyBody(
                 phase = today.phase,
                 item = item,
                 onOpen = { today.activeRunId?.let { onOpenRun(it, today.phase) } },
+                opening = today.opening,
+                dueLabel = today.dueLabel,
             )
         }
 
@@ -326,6 +328,9 @@ private fun OnDutyBody(
             hubName = driver.hub,
             onOpenRun = { today.activeRunId?.let { onOpenRun(it, today.phase) } },
         )
+
+        // 072 — the other rounds this driver holds. Each opens its own run, readable in full.
+        UpcomingRounds(rounds = today.upcoming, onOpenRun = onOpenRun)
 
         state.message?.let {
             Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)

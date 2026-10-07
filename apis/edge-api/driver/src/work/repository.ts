@@ -1,15 +1,17 @@
 // The driver's own work — data layer (063). Rows are mapped to the wire contract here and never leak.
 
 import { query } from "@effy/edge-shared";
+import { formatMoment, type RoundOpening } from "@effy/shared-types";
 
 import {
   COMPLETED_TODAY,
-  CURRENT_ROUND,
-  OWNS_ROUND,
+  OPEN_ROUNDS,
   PACKAGE_ITEMS,
   ROUND_PACKAGES,
   ROUND_STOPS,
+  ROUND_TIMES,
   STOP_PACKAGES,
+  STOP_ROUND_TIMES,
 } from "./sql";
 import type { ManifestRow } from "./manifest";
 
@@ -66,9 +68,55 @@ export function addressLine(parts: ReadonlyArray<string | null>): string | null 
   return line === "" ? null : line;
 }
 
-export async function currentRound(driverId: string): Promise<RoundRow | null> {
-  const res = await query<RoundRow>(CURRENT_ROUND, [driverId]);
-  return res.rows[0] ?? null;
+/** A round with what the driver's home needs to say about it (072). */
+export interface OpenRoundRow extends RoundRow {
+  /** Null once the round is open — decided by the database's clock, never the phone's. */
+  opens_at: Date | null;
+  stop_count: number;
+  package_count: number;
+}
+
+/** Every unfinished round the driver holds, the current one first (072). */
+export async function openRounds(driverId: string): Promise<OpenRoundRow[]> {
+  const res = await query<OpenRoundRow>(OPEN_ROUNDS, [driverId]);
+  return res.rows;
+}
+
+/**
+ * When a round opens, as the wire says it (072): the instant and the same moment in words, or null
+ * once the round is open. ⚠ THE LABEL IS WRITTEN HERE, in Melbourne time — the driver app has no
+ * timezone database and never formats a time (see `DeliveryWindow.kt`).
+ */
+export function openingOf(opensAt: Date | null, now: Date = new Date()): RoundOpening | null {
+  return opensAt ? { at: opensAt.toISOString(), label: formatMoment(opensAt, now) } : null;
+}
+
+export interface RoundTimes {
+  opening: RoundOpening | null;
+  deadlineAt: string;
+  dueLabel: string;
+}
+
+function toTimes(r: { deadline_at: Date; opens_at: Date | null } | undefined): RoundTimes | null {
+  if (!r) return null;
+  const now = new Date();
+  return {
+    opening: openingOf(r.opens_at, now),
+    deadlineAt: r.deadline_at.toISOString(),
+    dueLabel: formatMoment(r.deadline_at, now),
+  };
+}
+
+/** When one of the driver's rounds opens and is due; null when it is not theirs (FR-038). */
+export async function roundTimes(roundId: string, driverId: string): Promise<RoundTimes | null> {
+  const res = await query<{ deadline_at: Date; opens_at: Date | null }>(ROUND_TIMES, [roundId, driverId]);
+  return toTimes(res.rows[0]);
+}
+
+/** The same, from one of the round's stops. */
+export async function stopRoundTimes(stopId: string, driverId: string): Promise<RoundTimes | null> {
+  const res = await query<{ deadline_at: Date; opens_at: Date | null }>(STOP_ROUND_TIMES, [stopId, driverId]);
+  return toTimes(res.rows[0]);
 }
 
 export async function completedToday(driverId: string): Promise<RoundRow[]> {
@@ -97,15 +145,4 @@ export async function packageItems(packageIds: string[]): Promise<ManifestRow[]>
 export async function stopPackageIds(stopId: string, driverId: string): Promise<string[]> {
   const res = await query<{ package_id: string }>(STOP_PACKAGES, [stopId, driverId]);
   return res.rows.map((r) => r.package_id);
-}
-
-/**
- * Does this driver own this round?
- *
- * ⚠ The caller must answer `false` EXACTLY as it answers "no such round" (FR-038). Distinguishing
- * them turns the route into an oracle for which ids exist — 052's byte-identical refusals.
- */
-export async function ownsRound(roundId: string, driverId: string): Promise<boolean> {
-  const res = await query(OWNS_ROUND, [roundId, driverId]);
-  return (res.rowCount ?? 0) > 0;
 }

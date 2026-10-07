@@ -37,6 +37,12 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   the charge) and confirmed at payment. The delivery wave is planned **per window**, to the window's
   end. A standard order's chosen day is honoured **through the carrier**: hub staff hand it over on
   day − carrier lead time. ⚠ The fee does **not** vary by slot or day.
+- **Work is assigned the moment a driver can take it, and OPENS on time (072).** Every 5-minute pass
+  gives ready work to a qualifying driver (first come, first served, no rebalancing). A round opens at
+  its run time — or window start — less `planning_lead_min`; before that the driver sees it in full
+  and the driver service refuses every action (409 `round_not_open`). ⚠ The opening time is derived
+  by `public.round_opens_at` only — never stored, never recomputed elsewhere. Off-duty drivers' uncollected
+  work returns to the pool on the next pass.
 
 ## Platform shape (the vision)
 The full platform is **six client surfaces + one backend + DB migrations + infrastructure**. The
@@ -392,6 +398,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **072-immediate-driver-assignment** — Immediate Driver Work Assignment (assign early, open on time)
 - **071-live-updates** — Live Updates Without Polling (all six apps)
 - **070-retire-core-api** — One Backend: Retire the Always-On Shopper Service
 - **069-delivery-slots-dates** — Delivery Time Slots & Standard Delivery Date
@@ -441,5 +448,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/071-live-updates/plan.md
+at specs/072-immediate-driver-assignment/plan.md
 <!-- SPECKIT END -->

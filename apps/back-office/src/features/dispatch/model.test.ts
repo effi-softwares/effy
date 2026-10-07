@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { ExclusionReasonDTO } from "@effy/shared-types";
 
-import { describeReasons, REASON_TEXT, WINDOW_STATE_LABEL, windowNoteFor } from "./model";
+import {
+  describeReasons,
+  REASON_TEXT,
+  roundOpenState,
+  waitingFor,
+  WINDOW_STATE_LABEL,
+  windowNoteFor,
+} from "./model";
 
 describe("describeReasons", () => {
   it("has a sentence for every reason the contract can produce", () => {
@@ -64,5 +71,63 @@ describe("069 — a drop's delivery window on the dispatcher's round", () => {
     expect(WINDOW_STATE_LABEL.late).toBe("Late");
     expect(WINDOW_STATE_LABEL.upcoming).toBe("");
     expect(WINDOW_STATE_LABEL.finished).toBe("");
+  });
+});
+
+// 2026-10-08, midday Melbourne (AEDT, UTC+11).
+const NOON = new Date("2026-10-08T01:00:00Z");
+
+describe("roundOpenState — has a round opened to its driver? (072)", () => {
+  const planned = (opensAt: string | null) => ({ opensAt, status: "planned" });
+
+  it("says when a round opens, in Melbourne time", () => {
+    expect(roundOpenState(planned("2026-10-08T02:15:00Z"), NOON)).toEqual({ open: false, text: "Opens 1:15 pm" });
+  });
+
+  // A round can be for tomorrow's run now — the day has to be said.
+  it("names the day when it is not today", () => {
+    expect(roundOpenState(planned("2026-10-09T00:15:00Z"), NOON).text).toBe("Opens tomorrow 11:15 am");
+    expect(roundOpenState(planned("2026-10-10T00:15:00Z"), NOON).text).toBe("Opens Sat 10 Oct 11:15 am");
+  });
+
+  it("is open from the opening instant onward", () => {
+    expect(roundOpenState(planned("2026-10-08T01:00:00Z"), NOON)).toEqual({ open: true, text: "Open" });
+    expect(roundOpenState(planned("2026-10-08T00:00:00Z"), NOON)).toEqual({ open: true, text: "Open" });
+  });
+
+  // A delivery round with no window has no opening time at all.
+  it("is open when the round has no opening time", () => {
+    expect(roundOpenState(planned(null), NOON)).toEqual({ open: true, text: "Open" });
+  });
+
+  it("says nothing for a round that is finished or cancelled", () => {
+    expect(roundOpenState({ opensAt: "2026-10-09T00:15:00Z", status: "cancelled" }, NOON).text).toBe("");
+    expect(roundOpenState({ opensAt: null, status: "completed" }, NOON).text).toBe("");
+  });
+});
+
+describe("waitingFor — where an unassigned package is, and what for (072)", () => {
+  it("names the collection run a shop-side package belongs to", () => {
+    expect(waitingFor({ stage: "collection", targetAt: "2026-10-08T03:00:00Z" }, NOON)).toBe(
+      "At the shop · next collection 2 pm",
+    );
+  });
+
+  it("names tomorrow's run after today's last", () => {
+    expect(waitingFor({ stage: "collection", targetAt: "2026-10-09T01:00:00Z" }, NOON)).toBe(
+      "At the shop · next collection tomorrow 12 pm",
+    );
+  });
+
+  it("says when a hub-side package must be delivered by", () => {
+    expect(waitingFor({ stage: "delivery", targetAt: "2026-10-08T08:00:00Z" }, NOON)).toBe(
+      "At the hub · deliver by 7 pm",
+    );
+  });
+
+  it("says so when no collection run is scheduled", () => {
+    expect(waitingFor({ stage: "collection", targetAt: null }, NOON)).toBe(
+      "At the shop · no collection run is scheduled",
+    );
   });
 });

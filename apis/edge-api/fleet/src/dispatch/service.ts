@@ -7,15 +7,24 @@
 
 import {
   eligibilityReasons,
+  endOfLocalDay,
+  nextRunInstant,
   query,
   withTransaction,
   type ExclusionReason,
   orderRoundStops,
 } from "@effy/edge-shared";
 
-import { loadCandidates } from "../planner/repository";
+import { loadCandidates, loadSchedule } from "../planner/repository";
 import { recordAudit, type DispatchAuditAction } from "../shared/audit";
-import { DAY_ROUNDS, RECENT_WAVES, ROUND_DETAIL_STOPS, ROUND_FOR_UPDATE, UNASSIGNED_WORK } from "./sql";
+import {
+  DAY_ROUNDS,
+  RECENT_WAVES,
+  ROUND_DETAIL_STOPS,
+  ROUND_FOR_UPDATE,
+  ROUND_WORK,
+  UNASSIGNED_WORK,
+} from "./sql";
 
 export class DispatchError extends Error {
   constructor(
@@ -29,13 +38,24 @@ export class DispatchError extends Error {
 }
 
 export async function readDay() {
-  const [rounds, unassigned, waves] = await Promise.all([
+  const [rounds, unassigned, waves, schedule] = await Promise.all([
     query<any>(DAY_ROUNDS),
     query<any>(UNASSIGNED_WORK),
     query<any>(RECENT_WAVES),
+    loadSchedule(),
   ]);
 
   const now = Date.now();
+  // 072 — what each unassigned package is waiting FOR. A shop-side package belongs to the next
+  // collection run (the planner's own rule, `nextRunInstant`); a hub-side one to the end of its
+  // delivery window, or the end of the day where it has none or has already missed it.
+  const nextRun = nextRunInstant(schedule.runs, new Date(now));
+  const endOfDay = endOfLocalDay(new Date(now));
+  const targetOf = (u: { stage: string; window_end: Date | null }): string | null => {
+    if (u.stage === "collection") return nextRun ? nextRun.toISOString() : null;
+    const end = u.window_end && u.window_end.getTime() > now ? u.window_end : endOfDay;
+    return end.toISOString();
+  };
   return {
     rounds: rounds.rows.map((r) => ({
       round: {
@@ -43,6 +63,9 @@ export async function readDay() {
         kind: r.kind,
         status: r.status,
         deadlineAt: r.deadline_at.toISOString(),
+        // 072 — null means open. A past instant is open too; it is sent as it is so the console can
+        // say "opened at" if it ever wants to, and judged against the clock there.
+        opensAt: r.opens_at ? (r.opens_at as Date).toISOString() : null,
         changedNote: r.changed_note,
         lockedBy: r.locked_by_sub,
         stops: [],
@@ -53,7 +76,7 @@ export async function readDay() {
       packagesRemaining: Number(r.packages_remaining),
       // ⚠ Derived on read, never stored (027's counted-not-stored rule). A stored `isLate` would be
       // wrong every minute nothing wrote to it.
-      isLate: r.status !== "completed" && r.deadline_at.getTime() < now,
+      isLate: r.status !== "completed" && r.status !== "cancelled" && r.deadline_at.getTime() < now,
     })),
     unassigned: unassigned.rows.map((u) => ({
       packageId: u.package_id,
@@ -64,6 +87,8 @@ export async function readDay() {
       readySince: u.ready_since.toISOString(),
       // ⚠ An EMPTY array means no candidate existed at all — a staffing problem, not a fixable list.
       reasons: u.no_candidate ? [] : (u.reasons ?? []),
+      stage: u.stage,
+      targetAt: targetOf(u),
     })),
     waves: waves.rows.map((w) => ({
       id: w.id,
@@ -93,6 +118,8 @@ export async function readRound(roundId: string) {
     driverId: r.driver_id,
     lockedBy: r.locked_by_sub,
     updatedAt: r.updated_at,
+    deadlineAt: (r.deadline_at as Date).toISOString(),
+    opensAt: r.opens_at ? (r.opens_at as Date).toISOString() : null,
     // ⚠ ORDERED BY THE SHARED RULE, the same one the driver's app is ordered by (research R5). This
     // read used to return the query's own `seq NULLS LAST, id` order, which agreed with the driver
     // only while no stop had a due time. 069 gives drops one — the window's start — so the two
@@ -150,39 +177,68 @@ export async function reassign(
     if (!r) throw new DispatchError("not_found", "That round does not exist.");
     assertFresh(r.updated_at, expectedUpdatedAt);
 
-    const work = await tx.query(
-      `SELECT COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight,
-              count(DISTINCT rs.id)::int                             AS stops,
-              array_agg(DISTINCT rs.zone_id) FILTER (WHERE rs.zone_id IS NOT NULL) AS zones,
-              bool_or(COALESCE(sf.delivery_method,'standard') = 'same_day')        AS any_same_day
-         FROM public.round_stop rs
-         LEFT JOIN public.round_package   rp ON rp.stop_id = rs.id AND rp.state = 'assigned'
-         LEFT JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
-         LEFT JOIN public.order_item       oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-         LEFT JOIN public.product           p ON p.id = oi.product_id
-        WHERE rs.round_id = $1`,
-      [roundId],
+    // ⚠ THE SAME RULE THE PLANNER USES, imported not retyped (063 R5) — AND, SINCE 072, ASKED ABOUT
+    // THE ROUND AS IT REALLY IS (research R11). Until 072 this call hard-coded "no refrigeration",
+    // an eight-hour deadline, twelve minutes a stop and the round's first zone, so a dispatcher
+    // could do what the planner would not: put a chilled round in a van that cannot carry chilled.
+    const work: {
+      rows: Array<{
+        method: "standard" | "same_day";
+        zone_id: string | null;
+        weight_grams: string;
+        requires_chilled: boolean;
+        requires_frozen: boolean;
+        stops: number;
+      }>;
+    } = await tx.query(ROUND_WORK, [roundId]);
+    const settings: { rows: Array<{ per_stop_allowance_min: number }> } = await tx.query(
+      `SELECT per_stop_allowance_min FROM public.delivery_settings WHERE id = 1`,
     );
-    const w = work.rows[0];
+    const perStopAllowanceMin = settings.rows[0]?.per_stop_allowance_min ?? 12;
 
-    // ⚠ THE SAME RULE THE PLANNER USED, imported not retyped (research R5). If this service asked a
-    // different question, a dispatcher could do what the planner would not — which is not a UI
-    // inconsistency but a way to put an unlicensed driver in a van.
-    const reasons = eligibilityReasons({
-      driver: target,
-      work: {
-        function: r.kind,
-        method: w.any_same_day ? "same_day" : "standard",
-        zoneId: (w.zones ?? [])[0] ?? null,
-        totalWeightGrams: Number(w.weight),
-        requiresChilled: false,
-        requiresFrozen: false,
-        stopCount: Number(w.stops),
-        deadlineAt: new Date(Date.now() + 8 * 3600_000),
-      },
-      now: new Date(),
-      perStopAllowanceMin: 12,
-    });
+    const now = new Date();
+    const deadlineAt = r.deadline_at as Date;
+    const stops = Number(work.rows[0]?.stops ?? 0);
+    // ⚠ A ROUND ALREADY LATE CAN STILL BE MOVED. The deadline gate would refuse every driver for a
+    // round whose deadline has passed — and a late round is exactly the one a dispatcher most needs
+    // to hand to somebody else. Its lateness is already shown; here only the driver's own shift end
+    // limits it, so the deadline is set to when the remaining stops would finish.
+    const late = deadlineAt.getTime() <= now.getTime();
+    const effectiveDeadline = late ? new Date(now.getTime() + stops * perStopAllowanceMin * 60_000) : deadlineAt;
+    // A round not yet begun cannot be worked before it opens (FR-005); one under way starts now.
+    const startAt = r.status === "planned" && r.opens_at ? (r.opens_at as Date) : now;
+
+    // One question per distinct (method, zone) on the round — a driver must be cleared for ALL of it
+    // — each carrying the whole round's weight, stops and refrigeration. An empty round still asks
+    // the conditions that are about the driver and not the work.
+    const units =
+      work.rows.length > 0
+        ? work.rows
+        : [{ method: "standard" as const, zone_id: null, weight_grams: "0", requires_chilled: false, requires_frozen: false, stops: 0 }];
+    const found = new Set<ExclusionReason>();
+    for (const u of units) {
+      for (const reason of eligibilityReasons({
+        driver: target,
+        work: {
+          function: r.kind,
+          method: u.method,
+          zoneId: u.zone_id,
+          totalWeightGrams: Number(u.weight_grams),
+          requiresChilled: u.requires_chilled,
+          requiresFrozen: u.requires_frozen,
+          stopCount: stops,
+          deadlineAt: effectiveDeadline,
+        },
+        now,
+        perStopAllowanceMin,
+        startAt,
+      })) {
+        // An empty round has no zone to be cleared for; that one answer would be about nothing.
+        if (work.rows.length === 0 && reason === "not_cleared") continue;
+        found.add(reason);
+      }
+    }
+    const reasons = [...found];
 
     if (reasons.length > 0) {
       throw new DispatchError(

@@ -14,6 +14,7 @@
 #   apps/shop-web/src/features/today/useNow.ts      re-words "3 minutes ago"; reads nothing
 #   apps/shop-web/src/lib/pwa.ts                    checks for a new APP VERSION, not for data
 #   …/driver/…/delivery/presentation/WindowLine.kt  re-words a delivery window; reads nothing
+#   …/driver/…/core/presentation/OpensLine.kt       notices a round's opening time arrive (072); reads nothing
 #   packages/mobile-kit/common/live/                the live client itself (keep-alive, backoff, epoch)
 #   packages/web-kit/src/live/                      likewise
 set -euo pipefail

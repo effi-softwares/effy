@@ -7,6 +7,7 @@ import type { ProofRequest, ProofResponse } from "@effy/shared-types";
 
 import { authenticate } from "../driver/guard";
 import { DropNotFoundError, ProofValidationError, submitProof } from "../proof/service";
+import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 
 /**
  * POST /driver/v1/delivery/drops/{dropId}/proof (064, US1).
@@ -58,6 +59,8 @@ export const handler = async (
     );
     return json(200, response, guard.scope);
   } catch (err) {
+    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof ProofValidationError) {
       return problem(422, "validation_failed", "Cannot record proof", err.detail, guard.scope, [
         { field: err.field, message: err.detail },

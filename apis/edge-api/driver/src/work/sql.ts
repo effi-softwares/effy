@@ -14,14 +14,47 @@
 //
 // ⚠ NO COORDINATE IS SELECTED ANYWHERE, and none exists to select (D20/D22).
 
-/** The driver's current round, whatever kind. ⚠ Scoped to `$1` — their own subject's driver id. */
-export const CURRENT_ROUND = `
-  SELECT dr.id, dr.kind, dr.status, dr.deadline_at, dr.changed_note
-    FROM public.driver_round dr
-   WHERE dr.driver_id = $1
-     AND dr.status IN ('planned', 'in_progress')
-   ORDER BY dr.kind = 'delivery' DESC, dr.created_at ASC
-   LIMIT 1
+/**
+ * Every unfinished round the driver holds, the CURRENT one first (072).
+ *
+ * ⚠ THIS RETURNED ONE ROW UNTIL 072 — "delivery before collection, oldest first, LIMIT 1" — because
+ * a round only existed for the last 45 minutes before it was due and a driver held one at a time.
+ * Work is now assigned the moment a driver can take it, so a driver holds this afternoon's
+ * collection round, this evening's delivery rounds and possibly tomorrow morning's, all at once. The
+ * old ordering would have put a 5–7 pm delivery round that cannot be started in front of a
+ * collection round that can.
+ *
+ * The order IS the rule for "what do I do next" (FR-027):
+ *   1. a round already under way;
+ *   2. then rounds that are OPEN, earliest deadline first;
+ *   3. then rounds not yet open, soonest to open first.
+ *
+ * ⚠ `opens_at` IS NULL FOR A ROUND THAT IS OPEN — including one whose opening instant has passed.
+ * "Is it open" is decided HERE, against the database's clock, so a phone whose clock is wrong cannot
+ * show an open round as locked. What reaches the app is either nothing, or a moment in the future.
+ *
+ * ⚠ The hub is not counted as a stop: `stop_count` is shops, or drops — what a driver would say if
+ * asked how many places they are going.
+ */
+export const OPEN_ROUNDS = `
+  SELECT r.id, r.kind, r.status, r.deadline_at, r.changed_note,
+         CASE WHEN r.opens > now() THEN r.opens END AS opens_at,
+         (SELECT count(*) FROM public.round_stop rs
+           WHERE rs.round_id = r.id AND rs.kind <> 'hub_checkin')::int AS stop_count,
+         (SELECT count(*) FROM public.round_package rp
+            JOIN public.round_stop rs ON rs.id = rp.stop_id
+           WHERE rs.round_id = r.id)::int                            AS package_count
+    FROM (
+      SELECT dr.*, public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) AS opens
+        FROM public.driver_round dr
+       WHERE dr.driver_id = $1
+         AND dr.status IN ('planned', 'in_progress')
+    ) r
+   ORDER BY (r.status = 'in_progress') DESC,
+            COALESCE(r.opens <= now(), true) DESC,
+            CASE WHEN COALESCE(r.opens <= now(), true) THEN r.deadline_at ELSE r.opens END ASC,
+            r.created_at ASC,
+            r.id ASC
 `;
 
 /**
@@ -149,10 +182,30 @@ export const COMPLETED_TODAY = `
 `;
 
 /**
- * ⚠ OWNERSHIP, AS ITS OWN QUERY. A round or stop belonging to another driver must answer exactly as
- * a non-existent one does (FR-038) — otherwise the route is an oracle for which ids are real. 052
- * made "not yours" and "no such thing" byte-identical for the same reason.
+ * One of the driver's rounds, with when it opens and when it is due (072) — and nothing at all when
+ * the round is not theirs.
+ *
+ * ⚠ THIS IS ALSO THE OWNERSHIP CHECK (it replaced `OWNS_ROUND`). A round or stop belonging to
+ * another driver must answer exactly as a non-existent one does (FR-038) — otherwise the route is an
+ * oracle for which ids are real. 052 made "not yours" and "no such thing" byte-identical for the
+ * same reason. No row here is the caller's "not found", whichever of the two it was.
+ *
+ * `opens_at` follows OPEN_ROUNDS: null once the round is open.
  */
-export const OWNS_ROUND = `
-  SELECT 1 FROM public.driver_round WHERE id = $1 AND driver_id = $2
+export const ROUND_TIMES = `
+  SELECT dr.deadline_at,
+         CASE WHEN public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) > now()
+              THEN public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) END AS opens_at
+    FROM public.driver_round dr
+   WHERE dr.id = $1 AND dr.driver_id = $2
+`;
+
+/** The same, found from one of the round's stops — the drop screen knows only its drop (072). */
+export const STOP_ROUND_TIMES = `
+  SELECT dr.deadline_at,
+         CASE WHEN public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) > now()
+              THEN public.round_opens_at(dr.kind, dr.deadline_at, dr.window_start_at) END AS opens_at
+    FROM public.round_stop   rs
+    JOIN public.driver_round dr ON dr.id = rs.round_id
+   WHERE rs.id = $1 AND dr.driver_id = $2
 `;

@@ -351,3 +351,20 @@ works to the window's end. A window that has already closed is still sent out, l
 such promise. It is shown now because checkout sells one.
 
 ⚠ **Not walked on either platform.**
+
+## §072 — Work assigned early, opened on time (2026-10-07)
+
+Spec: [specs/072-immediate-driver-assignment/](../../specs/072-immediate-driver-assignment/).
+
+| Capability | Android | iOS | Notes |
+|---|---|---|---|
+| A round appears as soon as it is assigned, hours before it can be worked | ✅ built | ✅ built (compile-verified) | Readable in full: stops, packages, manifest |
+| "Not open yet · Opens 1:15 pm" on the home card, run, stop and drop screens | ✅ built | ✅ built (compile-verified) | Words with a mark, no colour. The time is worded by the server |
+| Collect, report, check-in, start/arrive, proof and fail are disabled until the round opens | ✅ built | ✅ built (compile-verified) | And refused by the platform (409 `round_not_open`) whatever the app shows |
+| Controls come alive by themselves when the round opens | ✅ built | ✅ built (compile-verified) | A clock re-judging a held instant; reads nothing (071 allows it) |
+| "Also yours" — the other rounds the driver holds, each opening its run | ✅ built | ✅ built (compile-verified) | Rows, not cards |
+| An early action queued offline is kept, not dropped | ✅ built | ✅ built (compile-verified) | `NotOpenYet` replays later; before 072 a 409 was discarded as "already applied" |
+
+⚠ **The server decides whether a round is open** and sends no opening time once it is, so a phone
+with a wrong clock cannot lock an open round.
+

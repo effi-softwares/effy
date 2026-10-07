@@ -12,6 +12,7 @@ fun AppError.userMessage(): String = when (this) {
     AppError.Forbidden -> "This account can't do that."
     AppError.NotFound -> "That's no longer available."
     AppError.Conflict -> "Someone else just changed this. Pull to refresh."
+    is AppError.NotOpenYet -> opening?.let { "This round isn't open yet. ${it.sentence}." } ?: "This round isn't open yet."
     is AppError.RateLimited -> "Too many attempts. Please wait a moment and try again."
     AppError.Network -> "You're offline. We'll retry when you're back."
     AppError.Unavailable -> "Something's temporarily unavailable. Please try again."

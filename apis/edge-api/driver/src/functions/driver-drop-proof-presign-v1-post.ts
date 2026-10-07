@@ -6,6 +6,7 @@ import type { ProofPresignRequest } from "@effy/shared-types";
 
 import { authenticate } from "../driver/guard";
 import { MediaValidationError, ProofValidationError, presignProof } from "../proof/service";
+import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 
 /**
  * POST /driver/v1/delivery/drops/{dropId}/proof/presign (064, US1).
@@ -35,8 +36,10 @@ export const handler = async (
   }
 
   try {
-    return json(200, await presignProof(dropId, body), guard.scope);
+    return json(200, await presignProof(dropId, guard.driver.id, body), guard.scope);
   } catch (err) {
+    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof ProofValidationError) {
       return problem(422, "validation_failed", "Cannot prepare upload", err.detail, guard.scope, [
         { field: err.field, message: err.detail },

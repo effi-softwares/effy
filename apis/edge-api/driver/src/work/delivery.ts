@@ -18,7 +18,8 @@ import type {
 
 import { dropStatusOf } from "./drop-status";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
-import { packageItems, stopPackageIds } from "./repository";
+import { packageItems, stopPackageIds, stopRoundTimes } from "./repository";
+import { assertStopRoundOpen } from "./open";
 import { NotFoundError } from "./service";
 
 /** GET /driver/v1/delivery/drops/{dropId} — one customer stop. */
@@ -115,6 +116,8 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
       };
     }),
     summary: addSummaries(packageIds.map((id) => manifests.get(id)?.summary ?? EMPTY_SUMMARY)),
+    // 072 — the drop is readable before its round opens; every action on it is refused until then.
+    opening: (await stopRoundTimes(dropId, driverId))?.opening ?? null,
   };
 }
 
@@ -142,6 +145,11 @@ export async function setDropStatus(
     if (current === "done" || current === "skipped") {
       return { status: current === "done" ? "delivered" : "failed" };
     }
+
+    // 072 — THE CALL THAT STOPS A VAN LEAVING THREE HOURS EARLY. A 5–7 pm delivery is assigned, and
+    // visible, from the moment it reaches the hub; "Start this drop" is refused until the window's
+    // round opens.
+    await assertStopRoundOpen(tx, dropId, driverId);
 
     // ⚠⚠ THIS MAPPING WAS THE WHOLE DEFECT (fixed 2026-09-30). It read
     //     const next = body.to === "arrived" ? "arrived" : "pending";

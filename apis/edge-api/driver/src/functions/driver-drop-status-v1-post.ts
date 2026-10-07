@@ -6,6 +6,7 @@ import type { DropStatusRequest } from "@effy/shared-types";
 import { authenticate } from "../driver/guard";
 import { setDropStatus } from "../work/delivery";
 import { NotFoundError } from "../work/service";
+import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 
 /** POST /driver/v1/delivery/drops/{dropId}/status (063). ⚠ `delivered` needs proof — Slice D. */
 export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
@@ -22,6 +23,8 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
     await announceRoundProgress(); // 071 — committed; dispatch sees the drop's progress
     return json(200, status, guard.scope);
   } catch (err) {
+    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof NotFoundError) return problem(404, "not_found", "Not available", "That drop is not available.", guard.scope);
     throw err;
   }

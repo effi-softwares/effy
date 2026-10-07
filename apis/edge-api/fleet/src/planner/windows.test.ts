@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlannablePackage } from "./types";
-import { deadlineFor, groupByWindow, isDue, plannedAt } from "./windows";
+import { deadlineFor, groupByWindow } from "./windows";
 
 const at = (iso: string) => new Date(iso);
 const EARLY = { windowStart: at("2026-10-08T06:00:00Z"), windowEnd: at("2026-10-08T08:00:00Z") }; // 5–7 pm AEDT
@@ -34,30 +34,6 @@ describe("groupByWindow", () => {
 
   it("returns nothing for nothing", () => {
     expect(groupByWindow([])).toEqual([]);
-  });
-});
-
-describe("isDue — a window is planned its lead time before it opens", () => {
-  const group = groupByWindow([pkg("a", EARLY)])[0]!;
-
-  it("is not due before then, so a van is not sent out hours early", () => {
-    expect(isDue(group, at("2026-10-08T05:14:59Z"), 45)).toBe(false);
-  });
-
-  it("is due exactly at the lead time, and from then on — including after the window has closed", () => {
-    expect(isDue(group, at("2026-10-08T05:15:00Z"), 45)).toBe(true);
-    expect(isDue(group, at("2026-10-08T07:00:00Z"), 45)).toBe(true);
-    expect(isDue(group, at("2026-10-08T09:00:00Z"), 45)).toBe(true);
-  });
-
-  it("says when it will be planned, so a skip in the log answers 'then when?'", () => {
-    expect(plannedAt(group, 45)).toEqual(at("2026-10-08T05:15:00Z"));
-  });
-
-  it("a group with no window is always due — the behaviour before 069", () => {
-    const old = groupByWindow([pkg("a", NONE)])[0]!;
-    expect(isDue(old, at("2026-10-08T00:00:00Z"), 45)).toBe(true);
-    expect(plannedAt(old, 45)).toBeNull();
   });
 });
 

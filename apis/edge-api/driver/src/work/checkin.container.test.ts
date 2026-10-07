@@ -70,7 +70,7 @@ async function aCollectedRound(): Promise<{ runId: string; stopId: string; drive
   );
   const round = await q(
     `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at)
-     VALUES ($1, $2, 'collection', now() + interval '4 hours') RETURNING id`,
+     VALUES ($1, $2, 'collection', now() + interval '30 minutes') RETURNING id`,
     [wave.rows[0].id, d.rows[0].id],
   );
   const stop = await q(

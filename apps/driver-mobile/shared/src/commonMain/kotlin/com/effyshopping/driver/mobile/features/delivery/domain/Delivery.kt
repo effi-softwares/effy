@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.delivery.domain
 
+import com.effyshopping.driver.mobile.core.opening.Opening
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
 
@@ -33,7 +34,18 @@ data class DropSummary(
     val window: DeliveryWindow? = null,
 )
 
-data class DeliveryRun(val runId: String, val status: String, val drops: List<DropSummary>)
+data class DeliveryRun(
+    val runId: String,
+    val status: String,
+    val drops: List<DropSummary>,
+    /**
+     * 072 — when the round opens; null = open. A 5–7 pm delivery is on this phone from the moment it
+     * reaches the hub, and cannot be started until shortly before the window.
+     */
+    val opening: Opening? = null,
+    /** 072 — the end of the delivery window (or of the day), in the server's words. */
+    val dueLabel: String? = null,
+)
 
 /**
  * One physical package at a drop (065).
@@ -75,6 +87,8 @@ data class Drop(
     /** 069 — the window the customer was sold; null for an order placed before 069. */
     val window: DeliveryWindow? = null,
     /** 065 — the last loaded copy, served with no connection. See `ShopStop.stale`. */
+    /** 072 — when this drop's round opens; null = open. Every action on the drop waits for it. */
+    val opening: Opening? = null,
     val stale: Boolean = false,
 )
 

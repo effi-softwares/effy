@@ -2,8 +2,12 @@
 //
 // Until 069 a same-day package was "due today" and nothing finer: the delivery wave planned whatever
 // had reached the hub, with the end of the local day as its only deadline. A customer is now sold a
-// WINDOW, so the planner has two more things to respect — it must not send a van out hours early, and
-// the round's deadline is the window's end.
+// WINDOW, so the round's deadline is the window's end.
+//
+// ⚠ 072 REMOVED `isDue` AND `plannedAt` FROM THIS FILE. 069 kept a window's packages unassigned at
+// the hub until the lead time before the window, so that no van went out hours early. The packages
+// are now assigned at once; the ROUND is what waits — its opening time is `public.round_opens_at`,
+// and the driver service refuses any action on it before then.
 
 import type { PlannablePackage } from "./types";
 
@@ -31,25 +35,6 @@ export function groupByWindow(packages: readonly PlannablePackage[]): WindowGrou
   // ⚠ Not round ordering — that rule lives in @effy/edge-shared and this file never orders stops.
   // This decides only which WAVE is planned first, so the earliest window gets first call on drivers.
   return [...groups.values()].sort((a, b) => rank(a) - rank(b) || (a.windowEnd?.getTime() ?? 0) - (b.windowEnd?.getTime() ?? 0));
-}
-
-/**
- * Whether a window's packages should be planned yet.
- *
- * A window is planned `leadMin` before it opens — the same lead a collection wave is planned ahead
- * of its run. Before that the packages wait at the hub: a driver sent at 2 pm with a 5–7 pm delivery
- * either waits outside the customer's door or delivers three hours before anyone is home.
- *
- * A group with no window is always due (the pre-069 behaviour).
- */
-export function isDue(group: WindowGroup, now: Date, leadMin: number): boolean {
-  if (!group.windowStart) return true;
-  return now.getTime() >= group.windowStart.getTime() - leadMin * 60_000;
-}
-
-/** When a window's packages will be planned. Null for a group with no window. */
-export function plannedAt(group: WindowGroup, leadMin: number): Date | null {
-  return group.windowStart ? new Date(group.windowStart.getTime() - leadMin * 60_000) : null;
 }
 
 /**

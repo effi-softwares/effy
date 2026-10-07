@@ -3,7 +3,7 @@
 // Maps the new round/stop/package model into the 049 wire contract the app is already built against
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
-import { formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
+import { formatDeliveryWindow, formatMoment, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops } from "@effy/edge-shared";
 
 import { dropStatusOf } from "./drop-status";
@@ -17,16 +17,18 @@ import type {
   DriverPhase,
   TodayDTO,
   TodayItemRef,
+  UpcomingRound,
 } from "@effy/shared-types";
 
 import {
   addressLine,
   completedToday,
-  currentRound,
-  ownsRound,
+  openingOf,
+  openRounds,
   packageItems,
   roundPackages,
   roundStops,
+  roundTimes,
   type PackageRow,
   type StopRow,
 } from "./repository";
@@ -89,13 +91,37 @@ function packagesByStop(rows: PackageRow[]): Map<string, PackageRow[]> {
 
 /** GET /driver/v1/today — what to do next, already ordered (FR-017, FR-036). */
 export async function today(driverId: string): Promise<TodayDTO> {
-  const round = await currentRound(driverId);
+  // 072 — a driver now holds several rounds at once: work is assigned the moment they can take it,
+  // hours before it opens. The query's ORDER is the rule for which one is current (under way, then
+  // open by deadline, then soonest to open); everything after the first is `upcoming`.
+  const [round, ...later] = await openRounds(driverId);
 
-  if (round === null) {
+  if (round === undefined) {
     // ⚠ An ordinary answer, not an error: an on-duty driver with nothing assigned yet. The app must
     // be able to tell it from a failed request, or "no work" and "we could not ask" look identical.
-    return { phase: "idle", activeRunId: null, active: null, upNext: [], remainingCount: 0 };
+    return {
+      phase: "idle",
+      activeRunId: null,
+      active: null,
+      upNext: [],
+      remainingCount: 0,
+      opening: null,
+      deadlineAt: null,
+      dueLabel: null,
+      upcoming: [],
+    };
   }
+
+  const now = new Date();
+  const upcoming: UpcomingRound[] = later.map((r) => ({
+    runId: r.id,
+    kind: r.kind === "collection" ? "collection" : "same_day_delivery",
+    opening: openingOf(r.opens_at, now),
+    deadlineAt: r.deadline_at.toISOString(),
+    dueLabel: formatMoment(r.deadline_at, now),
+    stopCount: r.stop_count,
+    packageCount: r.package_count,
+  }));
 
   const [stops, packages] = await Promise.all([
     roundStops(round.id, driverId),
@@ -152,12 +178,20 @@ export async function today(driverId: string): Promise<TodayDTO> {
     active: outstanding.length > 0 ? toRef(outstanding[0]!) : null,
     upNext: outstanding.slice(1).map(toRef),
     remainingCount: outstanding.length,
+    // ⚠ Null means OPEN. The round is shown in full either way; while this is set, every action on
+    // it is refused by the platform (`assertRoundOpen`), and the app says when it opens.
+    opening: openingOf(round.opens_at, now),
+    deadlineAt: round.deadline_at.toISOString(),
+    dueLabel: formatMoment(round.deadline_at, now),
+    upcoming,
   };
 }
 
 /** GET /driver/v1/collection/runs/{runId} */
 export async function collectionRun(runId: string, driverId: string): Promise<DriverCollectionRunDTO> {
-  if (!(await ownsRound(runId, driverId))) throw new NotFoundError();
+  // ⚠ Readable whether or not the round has opened (FR-020) — reading is the point of assigning early.
+  const times = await roundTimes(runId, driverId);
+  if (times === null) throw new NotFoundError();
 
   const [allStops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
@@ -178,6 +212,9 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
   return {
     runId,
     status: "assigned",
+    opening: times.opening,
+    deadlineAt: times.deadlineAt,
+    dueLabel: times.dueLabel,
     stops: ordered(stops).map((s, i) => {
       const pkgs = byStop.get(s.stop_id) ?? [];
       return {
@@ -201,7 +238,8 @@ export async function collectionStop(
   stopId: string,
   driverId: string,
 ): Promise<CollectionStopDTO> {
-  if (!(await ownsRound(runId, driverId))) throw new NotFoundError();
+  const times = await roundTimes(runId, driverId);
+  if (times === null) throw new NotFoundError();
 
   const stops = await roundStops(runId, driverId);
   const stop = stops.find((s) => s.stop_id === stopId);
@@ -217,6 +255,7 @@ export async function collectionStop(
     shopCode: stop.shop_code ?? "",
     address: addressLine([stop.address_line1, stop.address_line2, stop.suburb, stop.state, stop.postcode]),
     status: stopStatus(stop.stop_status, pkgs.some((p) => p.state === "not_available")),
+    opening: times.opening,
     packages: pkgs.map((p) => {
       // ⚠ Each package's OWN lines (065). This used to hand every package every line at the stop,
       // on the reasoning that "the manifest is per shop" — but the contract puts `items` on the
@@ -235,7 +274,8 @@ export async function collectionStop(
 
 /** GET /driver/v1/delivery/runs/{runId} */
 export async function deliveryRun(runId: string, driverId: string): Promise<DeliveryRunDTO> {
-  if (!(await ownsRound(runId, driverId))) throw new NotFoundError();
+  const times = await roundTimes(runId, driverId);
+  if (times === null) throw new NotFoundError();
 
   const [stops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
@@ -247,6 +287,9 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
   return {
     runId,
     status: "assigned",
+    opening: times.opening,
+    deadlineAt: times.deadlineAt,
+    dueLabel: times.dueLabel,
     drops: ordered(stops).map((s, i) => {
       const pkgs = byStop.get(s.stop_id) ?? [];
       return {

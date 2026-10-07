@@ -3,9 +3,10 @@
 // The service owns what a request MAY be; `repository.ts` owns what happens when it is. Keeping the
 // refusals here means each one can be tested without a database, and the transaction stays readable.
 
-import { MediaValidationError, PROOF_MEDIA_PREFIX, presignUpload } from "@effy/edge-shared";
+import { MediaValidationError, PROOF_MEDIA_PREFIX, presignUpload, query } from "@effy/edge-shared";
 import type { DropFailRequest, ProofPresignRequest, ProofRequest } from "@effy/shared-types";
 
+import { assertStopRoundOpen } from "../work/open";
 import { DropNotFoundError, recordFailure, recordProof } from "./repository";
 import type { RecordProofResult } from "./repository";
 import { MEDIA_REQUIRED_METHODS, isSupportedMethod } from "./types";
@@ -41,9 +42,15 @@ const FAILURE_REASONS = new Set([
  */
 export async function presignProof(
   dropId: string,
+  driverId: string,
   body: ProofPresignRequest,
 ): Promise<{ uploadUrl: string; mediaKey: string }> {
   if (!body?.changeId) throw new ProofValidationError("changeId", "A changeId is required.");
+
+  // 072 — no upload slot for a delivery that cannot have happened yet. ⚠ Scoped to the driver, so a
+  // drop that is not theirs matches nothing and this route answers as it always has; "not open yet"
+  // for somebody else's drop would say the id is real.
+  await assertStopRoundOpen({ query: (text, values) => query(text, values) }, dropId, driverId);
 
   // Validation (content type, size ceiling) belongs to the shared helper — one definition of what the
   // platform will store, not one per service.

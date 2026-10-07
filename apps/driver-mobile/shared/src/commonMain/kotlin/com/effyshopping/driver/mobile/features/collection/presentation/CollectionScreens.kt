@@ -1,5 +1,7 @@
 package com.effyshopping.driver.mobile.features.collection.presentation
 
+import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
+import com.effyshopping.driver.mobile.core.presentation.OpensLine
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -73,6 +75,8 @@ fun CollectionRunScreen(
     val run = state.run
     val done = run?.stops?.count { it.isDone } ?: 0
     val total = run?.stops?.size ?: 0
+    // 072 — the round is readable from the moment it is assigned, hours before it can be collected.
+    val open = rememberIsOpen(run?.opening)
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         ScreenHeader(
@@ -93,6 +97,18 @@ fun CollectionRunScreen(
                             .padding(horizontal = 20.dp),
                     ) {
                         Spacer(Modifier.height(4.dp))
+                        if (run.opening != null) {
+                            OpensLine(run.opening, style = MaterialTheme.typography.bodyLarge)
+                            Spacer(Modifier.height(4.dp))
+                            run.dueLabel?.let {
+                                Text(
+                                    "Collect by $it",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                        }
                         Text(
                             "Pull down to refresh",
                             style = MaterialTheme.typography.labelMedium,
@@ -115,7 +131,7 @@ fun CollectionRunScreen(
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                     Button(
                         onClick = onCheckIn,
-                        enabled = run.allCollected && !state.isWorking,
+                        enabled = run.allCollected && !state.isWorking && open,
                         shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                     ) {
@@ -278,6 +294,10 @@ fun ShopStopScreen(
     val confirmed = state.confirmedPackageIds
     val total = stop?.packages?.size ?: 0
     val done = stop?.status == StopStatus.COLLECTED || stop?.status == StopStatus.SHORT
+    // 072 — nothing here can be collected, ticked or reported before the round opens. Re-judged
+    // while the screen is up, so a driver waiting at the shop sees it come alive by itself.
+    // ⚠ A courtesy: the platform refuses an early collect whatever this says.
+    val open = rememberIsOpen(stop?.opening)
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         ScreenHeader(
@@ -305,8 +325,12 @@ fun ShopStopScreen(
                         .padding(horizontal = 20.dp),
                 ) {
                     if (stop.stale) StaleNotice()
+                    if (!open) {
+                        OpensLine(stop.opening, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(10.dp))
+                    }
                     Text(
-                        "Tick each package as you load it.",
+                        if (open) "Tick each package as you load it." else "This is what you will collect here.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -325,7 +349,7 @@ fun ShopStopScreen(
                             spokenContents = pkg.summary.spoken,
                             method = pkg.method,
                             checked = pkg.ref in confirmed,
-                            enabled = !done,
+                            enabled = !done && open,
                             onToggle = { onTogglePackage(pkg.ref) },
                         )
                         // Sits OUTSIDE the tick row on purpose: opening the list must not confirm
@@ -342,6 +366,8 @@ fun ShopStopScreen(
                     Spacer(Modifier.height(12.dp))
                     TextButton(
                         onClick = onOpenProblem,
+                        // 072 — "the shop could not supply it" is found out AT the shop.
+                        enabled = open,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     ) { Text("Report a missing or short package") }
                     Spacer(Modifier.height(20.dp))
@@ -363,9 +389,9 @@ fun ShopStopScreen(
                         // whose stop genuinely came up short; that is what the problem report is
                         // for, and FR-021 says reporting must not block the rest of the stop.
                         SwipeToConfirm(
-                            label = "Swipe to confirm collected",
+                            label = if (open) "Swipe to confirm collected" else (stop.opening?.sentence ?: "Not open yet"),
                             onConfirm = onCollect,
-                            enabled = !state.isWorking,
+                            enabled = !state.isWorking && open,
                         )
                     }
                 }

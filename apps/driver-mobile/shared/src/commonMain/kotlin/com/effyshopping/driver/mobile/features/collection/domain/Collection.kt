@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.collection.domain
 
+import com.effyshopping.driver.mobile.core.opening.Opening
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
 
@@ -21,6 +22,10 @@ data class CollectionRun(
     val runId: String,
     val status: String,
     val stops: List<CollectionStop>,
+    /** 072 — when the round opens; null = open. Nothing on it can be collected before then. */
+    val opening: Opening? = null,
+    /** 072 — the collection run's time, in the server's words: when collecting must be finished. */
+    val dueLabel: String? = null,
 ) {
     val allCollected: Boolean get() = stops.isNotEmpty() && stops.all { it.status == StopStatus.COLLECTED || it.status == StopStatus.SHORT }
 }
@@ -40,6 +45,8 @@ data class ShopStop(
     val shopCode: String,
     val packages: List<CollectionPackage>,
     val status: StopStatus,
+    /** 072 — when this stop's round opens; null = open. */
+    val opening: Opening? = null,
     /**
      * 065 — true when this is the LAST LOADED copy, served because the device has no connection.
      * The items are real; anything the shop changed since is not reflected, and the screen says so.

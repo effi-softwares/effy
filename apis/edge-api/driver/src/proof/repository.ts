@@ -3,6 +3,7 @@
 
 import { enqueueOrderDeliveredIfComplete, withTransaction } from "@effy/edge-shared";
 
+import { assertRoundOpen } from "../work/open";
 import * as SQL from "./sql";
 import type {
   CapturedProof,
@@ -77,6 +78,9 @@ export async function recordProof(input: RecordProofInput): Promise<RecordProofR
     const drop = await tx.query(SQL.LOCK_DROP, [input.dropId, input.driverId]);
     if (drop.rowCount === 0) throw new DropNotFoundError();
     const row = drop.rows[0] as DropRow;
+
+    // 072 — no proof of a delivery on a round that has not opened. A replay was answered above.
+    await assertRoundOpen(tx, row.round_id);
 
     // ⚠ Idempotent by state, the pattern `work/complete.ts` establishes for this service: a drop
     // already proven answers with what it already has, as a success. A retry on a phone in a loading
@@ -160,6 +164,9 @@ export async function recordFailure(input: RecordFailureInput): Promise<RecordFa
 
     const drop = await tx.query(SQL.LOCK_DROP, [input.dropId, input.driverId]);
     if (drop.rowCount === 0) throw new DropNotFoundError();
+
+    // 072 — nor a failed attempt: nobody has attempted anything before the round opens.
+    await assertRoundOpen(tx, (drop.rows[0] as DropRow).round_id);
 
     const ins = await tx.query(SQL.INSERT_FAILURE, [
       input.dropId,

@@ -1,5 +1,8 @@
 package com.effyshopping.driver.mobile.features.today.presentation
 
+import com.effyshopping.driver.mobile.core.opening.Opening
+import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
+import com.effyshopping.driver.mobile.core.presentation.OpensLine
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,8 +53,15 @@ fun CurrentWorkCard(
     item: TodayItem,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 072 — when this round opens; null = open. The card is readable and tappable either way. */
+    opening: Opening? = null,
+    /** 072 — when the round must be finished, in the server's words. */
+    dueLabel: String? = null,
 ) {
     val isCollection = phase == Phase.COLLECTION
+    // 072 — work is on the phone hours before it can be done. Until it opens this is the NEXT thing,
+    // not the current one, and the card must not read as an instruction to go and do it.
+    val open = rememberIsOpen(opening)
 
     // ⚠ THE LABELS FOLLOW THE ITEM, NOT JUST THE PHASE (064). When the hub is the current work — the
     // last step of a collection round, once every shop is done — a card reading "CURRENT STOP /
@@ -59,11 +69,14 @@ fun CurrentWorkCard(
     // Deriving chrome from the phase alone was fine while every item WAS a stop.
     val isHub = item.kind == TodayItem.Kind.HUB_CHECKIN
     val kicker = when {
+        !open && isCollection -> "NEXT COLLECTION"
+        !open -> "NEXT DELIVERY"
         isHub -> "LAST STEP"
         isCollection -> "CURRENT STOP"
         else -> "CURRENT DROP"
     }
     val actionChip = when {
+        !open -> "Not open"
         isHub -> "Check in"
         isCollection -> "Collect"
         else -> "Deliver"
@@ -117,12 +130,25 @@ fun CurrentWorkCard(
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(12.dp))
 
-                    // Only what the platform actually knows. Distance and ETA are omitted above.
-                    Text(
-                        item.status.replace('_', ' ').replaceFirstChar { c -> c.uppercase() },
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (!open) {
+                        // ⚠ In words, never colour alone — and it says WHEN (FR-025).
+                        OpensLine(opening, style = MaterialTheme.typography.labelLarge)
+                        dueLabel?.let {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                if (isCollection) "Collect by $it" else "Deliver by $it",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        // Only what the platform actually knows. Distance and ETA are omitted above.
+                        Text(
+                            item.status.replace('_', ' ').replaceFirstChar { c -> c.uppercase() },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

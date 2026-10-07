@@ -59,16 +59,36 @@ export interface PlannedExclusion {
   reason: ExclusionReason;
 }
 
-/** What a wave decided, before any of it is written. */
+/**
+ * A round that already exists for the run or window being planned (072).
+ *
+ * ⚠ ONLY UNLOCKED ROUNDS ARE EVER LOADED INTO THIS SHAPE. A round a dispatcher locked is a person's
+ * decision; the planner is never shown it and so cannot add to it (FR-019).
+ */
+export interface BucketRound {
+  roundId: string;
+  driverId: string;
+  /** `planned` = not yet begun, and the round new work accumulates in. */
+  status: "planned" | "in_progress";
+  /** Everything on the round, so capacity is judged over the whole of it. */
+  weightGrams: number;
+  /** Every stop, keyed as the planner keys them: shop id (collection) or order id (delivery). */
+  stops: ReadonlyArray<{ key: string; outstanding: boolean }>;
+}
+
+/** What a pass decided for one run or window, before any of it is written. */
 export interface WavePlan {
   kind: "collection" | "delivery";
   plannedFor: Date;
   deadlineAt: Date;
-  /** driverId → the packages that driver should take. */
+  /** 072 — the delivery window this plan serves; null for collection and for windowless delivery. */
+  windowStartAt: Date | null;
+  /** driverId → packages that start a NEW round for that driver. */
   assignments: Map<string, PlannablePackage[]>;
-  /** Packages that joined a round already under way (FR-004a). stopId → packages. */
-  lateJoins: Map<string, PlannablePackage[]>;
+  /** 072 — roundId → packages added to a round that already exists. */
+  additions: Map<string, PlannablePackage[]>;
   unassigned: PlannablePackage[];
+  /** ⚠ Only for packages in `unassigned` — a reason is a fact about work nobody has. */
   exclusions: PlannedExclusion[];
   considered: number;
 }

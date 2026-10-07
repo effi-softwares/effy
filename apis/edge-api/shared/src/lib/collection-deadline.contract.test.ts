@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { melbourneDate, sameDayCutoff } from "../delivery/sameday";
-import { collectionDeadline, endOfLocalDay, runsDueForPlanning, wavePlanningTime } from "./collection-deadline";
+import { collectionDeadline, endOfLocalDay } from "./collection-deadline";
 
 /**
  * ⚠ THE DST FIXTURES. Two rules read one clock — when same-day ordering closes (checkout) and when
@@ -145,76 +145,19 @@ describe("checkout cutoff == collection deadline − prep buffer", () => {
   });
 });
 
-describe("wavePlanningTime and runsDueForPlanning", () => {
+describe("the collection deadline", () => {
   // Winter (AEST +10): a 14:00 Melbourne run is 04:00Z.
   const run = { hour: 14, minute: 0 };
   const onDate = new Date("2026-07-15T00:00:00Z");
 
   /** ⚠ THE CORRECTION ITSELF: the driver collects at the run time, not before it. */
-  it("the collection deadline IS the run time", () => {
+  it("IS the run time", () => {
     expect(collectionDeadline(run, onDate).toISOString()).toBe("2026-07-15T04:00:00.000Z");
   });
 
-  it("plans the lead time ahead of the run", () => {
-    const planAt = wavePlanningTime(run, 45, onDate);
-    expect(collectionDeadline(run, onDate).getTime() - planAt.getTime()).toBe(45 * 60_000);
-  });
-
-  /**
-   * ⚠ THE INVARIANT THE BUG VIOLATED. With the live settings (120-minute buffer, 45-minute lead),
-   * same-day ordering for the 14:00 run closes at 12:00 and planning starts at 13:15 — so a shop gets
-   * 75 minutes to pick before the first pass. Under the old rule ordering closed AT the deadline and
-   * the shop got nothing.
-   */
-  it("gives the shop time to pick between ordering closing and planning starting", () => {
-    const buffer = 120;
-    const lead = 45;
-    const orderingCloses = collectionDeadline(run, onDate).getTime() - buffer * 60_000;
-    const planningStarts = wavePlanningTime(run, lead, onDate).getTime();
-    expect(planningStarts - orderingCloses).toBe((buffer - lead) * 60_000);
-    expect(planningStarts).toBeGreaterThan(orderingCloses);
-  });
-
-  // ⚠ The scheduled tick is not the wave. The schedule decides when work is created.
-  it("is not due before its planning moment", () => {
-    const tooEarly = new Date("2026-07-15T01:00:00Z"); // 11:00 Melbourne; plan at 13:15
-    expect(runsDueForPlanning([run], 45, tooEarly)).toEqual([]);
-  });
-
-  /**
-   * ⚠ The old rule would have said NOT due here — 12:30 was already past its deadline of 12:00
-   * (run − 60). Same-day ordering has closed at this point, and that is exactly when the shop should be
-   * picking, with collection still to come.
-   */
-  it("is not yet due just after same-day ordering closes — the shop is picking", () => {
-    const shopPicking = new Date("2026-07-15T02:30:00Z"); // 12:30 Melbourne
-    expect(runsDueForPlanning([run], 45, shopPicking)).toEqual([]);
-  });
-
-  it("is due once the planning moment has arrived", () => {
-    const due = new Date("2026-07-15T03:20:00Z"); // 13:20 Melbourne
-    expect(runsDueForPlanning([run], 45, due)).toEqual([run]);
-  });
-
-  it("is still due right up to the run time", () => {
-    const lastMinute = new Date("2026-07-15T03:59:00Z"); // 13:59 Melbourne
-    expect(runsDueForPlanning([run], 45, lastMinute)).toEqual([run]);
-  });
-
-  it("stops being due once the run time has passed", () => {
-    const tooLate = new Date("2026-07-15T04:30:00Z"); // 14:30 Melbourne
-    expect(runsDueForPlanning([run], 45, tooLate)).toEqual([]);
-  });
-
-  it("selects only the runs that are due, from several", () => {
-    const runs = [
-      { hour: 10, minute: 0 },
-      { hour: 14, minute: 0 },
-      { hour: 18, minute: 0 },
-    ];
-    const at = new Date("2026-07-15T03:20:00Z"); // 13:20 Melbourne
-    expect(runsDueForPlanning(runs, 45, at)).toEqual([{ hour: 14, minute: 0 }]);
-  });
+  // ⚠ 072 removed `wavePlanningTime` and `runsDueForPlanning` — there is no planning window any
+  // more. Which run a package belongs to is `nextRunInstant` (next-run-instant.test.ts); when its
+  // round opens is `public.round_opens_at`, in the database.
 });
 
 describe("endOfLocalDay — DST-safe, because the first draft of it was not", () => {

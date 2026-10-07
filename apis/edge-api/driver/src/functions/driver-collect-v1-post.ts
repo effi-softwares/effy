@@ -8,6 +8,7 @@ import type { CollectRequest } from "@effy/shared-types";
 import { authenticate } from "../driver/guard";
 import { collectStop } from "../work/complete";
 import { NotFoundError } from "../work/service";
+import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 
 /**
  * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect (063, FR-026).
@@ -44,6 +45,8 @@ export const handler = async (
     await announceCollected(stopId);
     return json(200, { status: "collected" }, guard.scope);
   } catch (err) {
+    // 072 — the round has not opened. Nothing was written; the answer says when it will.
+    if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof NotFoundError) {
       return problem(404, "not_found", "Not available", "That stop is not available.", guard.scope);
     }
