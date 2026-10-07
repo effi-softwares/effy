@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 
 import type { DeliverySlotDTO } from "@effy/shared-types";
 import {
-  Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label,
+  Badge, Button, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label,
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
 
@@ -20,13 +20,14 @@ import { slotsQuery, useCreateSlot, usePatchSlot } from "../queries";
  * switched off stops being offered at once. The copy under the heading says so, because the screen
  * looks like configuration and behaves like a storefront control.
  *
- * ⚠ A TABLE, not cards (Principle V), and no metric tiles above it: "booked / capacity" is a column
- * on the row it describes.
+ * ⚠ A TABLE, not cards (Principle V), and no metric tiles above it: the limit and what is booked
+ * against it are columns on the row they describe.
  *
  * ⚠ There is no delete. A slot is switched off, because placed orders reference it.
  *
  * ⚠ NO LIMIT IS THE DEFAULT. A slot takes every order until its cutoff unless an operator types a
- * limit; `capacity: null` is that state, and an empty field is how it is written.
+ * limit; `capacity: null` is that state. The dialog asks with a checkbox, unticked by default, and
+ * the number field exists only while it is ticked.
  */
 export function SlotsPanel({ canManage }: { canManage: boolean }) {
   const slots = useQuery(slotsQuery());
@@ -59,6 +60,16 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       cell: ({ row }) => <span className="font-mono tabular-nums">{row.original.cutoffTime}</span>,
     },
     {
+      id: "limit",
+      header: "Delivery limit",
+      cell: ({ row }) =>
+        row.original.capacity === null ? (
+          <span className="text-muted-foreground">No limit</span>
+        ) : (
+          <span className="tabular-nums">{row.original.capacity}</span>
+        ),
+    },
+    {
       id: "load",
       header: "Booked today",
       cell: ({ row }) => {
@@ -66,14 +77,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
         const full = s.capacity !== null && s.bookedToday >= s.capacity;
         return (
           <span className="tabular-nums">
-            {s.capacity === null ? (
-              <>
-                {s.bookedToday}
-                <span className="ml-2 text-muted-foreground">No limit</span>
-              </>
-            ) : (
-              `${s.bookedToday} of ${s.capacity}`
-            )}
+            {s.bookedToday}
             {full ? <span className="ml-2 text-muted-foreground">Full</span> : null}
             {s.overCapacityToday > 0 ? (
               // ⚠ Said in words, and never by colour alone. A late payer was honoured above the
@@ -163,6 +167,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
   const [startTime, setStartTime] = useState(slot?.startTime ?? "");
   const [endTime, setEndTime] = useState(slot?.endTime ?? "");
   const [cutoffTime, setCutoffTime] = useState(slot?.cutoffTime ?? "");
+  const [limited, setLimited] = useState(slot?.capacity != null);
   const [capacity, setCapacity] = useState(slot?.capacity != null ? String(slot.capacity) : "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -176,8 +181,9 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       cutoffTime: cutoffTime.trim(),
-      // ⚠ Empty is "no limit", sent as null — on an edit that is what REMOVES a limit.
-      capacity: capacity.trim() === "" ? null : Number(capacity),
+      // ⚠ Unticked is "no limit", sent as null — on an edit that is what REMOVES a limit. Ticked
+      // with nothing typed is sent as 0, so the service refuses it on the field.
+      capacity: limited ? Number(capacity) : null,
     };
     try {
       if (slot) await patch.mutateAsync({ slotId: slot.id, body });
@@ -225,14 +231,23 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
             {field("startTime", "Starts (HH:MM)", startTime, setStartTime, "17:00", { autoFocus: true })}
             {field("endTime", "Ends (HH:MM)", endTime, setEndTime, "19:00")}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {field("cutoffTime", "Order by (HH:MM)", cutoffTime, setCutoffTime, "15:00")}
-            {field("capacity", "Delivery limit (optional)", capacity, setCapacity, "No limit", { inputMode: "numeric" })}
+          {field("cutoffTime", "Order by (HH:MM)", cutoffTime, setCutoffTime, "15:00")}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Checkbox id="slot-limited" checked={limited} onCheckedChange={(v) => setLimited(v === true)} />
+              <Label htmlFor="slot-limited" className="font-normal">
+                Limit how many deliveries this slot takes
+              </Label>
+            </div>
+            {limited ? (
+              field("capacity", "Deliveries it can take", capacity, setCapacity, "20", { inputMode: "numeric" })
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No limit: the slot takes every order placed before its cutoff.
+              </p>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Leave the limit empty to take every order placed before the cutoff.
-          </p>
-          {slot && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
+          {slot && limited && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">
               {slot.bookedToday} deliveries are already booked today. They keep their place; the slot
               takes no more until it is below this number.

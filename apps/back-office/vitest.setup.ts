@@ -27,3 +27,13 @@ for (const m of ["hasPointerCapture", "setPointerCapture", "releasePointerCaptur
 if (!("scrollIntoView" in Element.prototype)) {
   Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => {}, writable: true });
 }
+
+// jsdom has no ResizeObserver. Radix's Checkbox measures itself with one the moment it is CHECKED,
+// so a test that only renders a checkbox passes and one that ticks it dies.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}

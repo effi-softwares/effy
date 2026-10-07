@@ -129,8 +129,9 @@ after the apps are switched; the shop console's **live stream is dropped**, not 
 **069 amendment (2026-10-07) — a same-day slot has no capacity limit by default.** On operator
 direction (spec FR-008a). `delivery_slot.capacity` is now nullable and **NULL means no limit**: the
 slot never fills and is closed only by its cutoff and the collection schedule. Back-office › Delivery
-› Time slots has an optional "Delivery limit" field; empty is no limit, and clearing it on an edit
-removes a limit (sent as `null`; an absent key in a PATCH keeps the old value). Existing slots keep
+› Time slots asks with a checkbox ("Limit how many deliveries this slot takes"), unticked by
+default; the number field appears only while it is ticked, and unticking it on an edit removes a
+limit (sent as `null`; an absent key in a PATCH keeps the old value). Existing slots keep
 the number they have. Touches the migration `20261007044315`, `@effy/edge-shared` (`judgeSlot`,
 `finalize`), `fleet` slots, `@effy/shared-types` and back-office. ⚠ **Deploy order: migration first**
 (`make db-up ENV=dev`), then `fleet`, `commerce` and `orders` (`finalize` is shared money code), then

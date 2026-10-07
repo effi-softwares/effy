@@ -220,7 +220,8 @@ The windows a customer can choose for **same-day** delivery, like "5 pm – 7 pm
 |---|---|
 | **Starts / Ends** | The window the customer is told, in Melbourne time (24-hour, HH:MM). |
 | **Order by** | The slot's cutoff. After this it can no longer be chosen. It cannot be later than the start. |
-| **Delivery limit (optional)** | Leave it empty and the slot has **no limit**: it takes every order placed before its cutoff. Enter a number to cap it; clear the field later to remove the cap. One customer order to one address counts as **one**, however many packages it has. |
+| **Limit how many deliveries this slot takes** | A checkbox, unticked by default: the slot has **no limit** and takes every order placed before its cutoff. Tick it and enter a number to cap the slot; untick it later to remove the cap. One customer order to one address counts as **one**, however many packages it has. |
+| **Delivery limit** (table column) | The number you set, or **No limit**. |
 | **Booked today** | Confirmed orders plus customers currently at the payment step. Updates every 30 seconds. |
 
 **A slot is offered only when all three hold:**

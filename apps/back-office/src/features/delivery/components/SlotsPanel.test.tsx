@@ -46,19 +46,19 @@ describe("SlotsPanel — what an operator reads", () => {
     renderPanel();
     const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!;
     expect(within(row).getByText("15:00")).toBeInTheDocument();
-    expect(within(row).getByText(/1 of 3/)).toBeInTheDocument();
+    const cells = within(row).getAllByRole("cell").map((c) => c.textContent);
+    expect(cells.slice(0, 4)).toEqual(["17:00 – 19:00", "15:00", "3", "1"]);
 
     const full = screen.getByText("19:00 – 21:00").closest("tr")!;
-    expect(within(full).getByText(/3 of 3/)).toBeInTheDocument();
-    expect(within(full).getByText("Full")).toBeInTheDocument();
+    expect(within(full).getAllByRole("cell")[3]).toHaveTextContent("3Full");
   });
 
-  it("⚠ shows a slot with no limit as a count and 'No limit' — never 'of null', never 'Full'", async () => {
+  it("⚠ shows 'No limit' in the limit column for a slot without one — never 'null', never 'Full'", async () => {
     repo.listSlots.mockResolvedValue([slot({ capacity: null, bookedToday: 40 })]);
     renderPanel();
     const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!;
-    expect(within(row).getByText("40")).toBeInTheDocument();
-    expect(within(row).getByText("No limit")).toBeInTheDocument();
+    const cells = within(row).getAllByRole("cell").map((c) => c.textContent);
+    expect(cells.slice(2, 4)).toEqual(["No limit", "40"]);
     expect(within(row).queryByText("Full")).not.toBeInTheDocument();
     expect(within(row).queryByText(/null/)).not.toBeInTheDocument();
   });
@@ -118,7 +118,8 @@ describe("SlotsPanel — creating and editing", () => {
     await userEvent.type(within(dialog).getByLabelText(/starts/i), "10:00");
     await userEvent.type(within(dialog).getByLabelText(/ends/i), "12:00");
     await userEvent.type(within(dialog).getByLabelText(/order by/i), "08:00");
-    await userEvent.type(within(dialog).getByLabelText(/delivery limit/i), "12");
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i }));
+    await userEvent.type(within(dialog).getByLabelText(/deliveries it can take/i), "12");
     await userEvent.click(within(dialog).getByRole("button", { name: "Create slot" }));
 
     await waitFor(() =>
@@ -127,8 +128,10 @@ describe("SlotsPanel — creating and editing", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 
-  it("⚠ creates a slot with NO limit when the limit is left empty", async () => {
+  it("⚠ creates a slot with NO limit by default — the limit is unticked and its field is not shown", async () => {
     const dialog = await openNew();
+    expect(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i })).not.toBeChecked();
+    expect(within(dialog).queryByLabelText(/deliveries it can take/i)).not.toBeInTheDocument();
     await userEvent.type(within(dialog).getByLabelText(/starts/i), "10:00");
     await userEvent.type(within(dialog).getByLabelText(/ends/i), "12:00");
     await userEvent.type(within(dialog).getByLabelText(/order by/i), "08:00");
@@ -147,10 +150,11 @@ describe("SlotsPanel — creating and editing", () => {
       ]),
     );
     const dialog = await openNew();
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i }));
     await userEvent.click(within(dialog).getByRole("button", { name: "Create slot" }));
 
     expect(await within(dialog).findByText("The slot must end after it starts.")).toBeInTheDocument();
-    expect(within(dialog).getByText("A limit must be a whole number of at least 1, or left empty for no limit.")).toBeInTheDocument();
+    expect(within(dialog).getByText("Enter a limit as a whole number of at least 1, or untick the limit.")).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/ends/i)).toHaveAttribute("aria-invalid", "true");
     expect(screen.queryByText(/SERVER PROSE/)).not.toBeInTheDocument();
     // The dialog stays open with what was typed.
@@ -169,7 +173,8 @@ describe("SlotsPanel — creating and editing", () => {
     await screen.findByText("19:00 – 21:00");
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[1]!);
     const dialog = screen.getByRole("dialog");
-    const capacity = within(dialog).getByLabelText(/delivery limit/i);
+    expect(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i })).toBeChecked();
+    const capacity = within(dialog).getByLabelText(/deliveries it can take/i);
     expect(capacity).toHaveValue("3");
 
     await userEvent.clear(capacity);
@@ -182,12 +187,13 @@ describe("SlotsPanel — creating and editing", () => {
     );
   });
 
-  it("⚠ removes a limit by clearing the field — sent as null, not 0", async () => {
+  it("⚠ removes a limit by unticking it — sent as null, not 0", async () => {
     renderPanel();
     await screen.findByText("19:00 – 21:00");
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[1]!);
     const dialog = screen.getByRole("dialog");
-    await userEvent.clear(within(dialog).getByLabelText(/delivery limit/i));
+    await userEvent.click(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i }));
+    expect(within(dialog).queryByLabelText(/deliveries it can take/i)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/already booked today/i)).not.toBeInTheDocument();
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Save slot" }));
