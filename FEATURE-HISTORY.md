@@ -36,6 +36,11 @@ E1); spec 080 (courier override compensation) is its first automatic creditor. S
 - ⚠ **THE 071 CUSTOMER-UPDATE GUARD WAS WIDENED ON PURPOSE**: a new live kind `points`, and a fourth
   allowed builder (`points/announce.ts`). No points rule involves a shop, so the guard's reason holds.
   `live_kinds` in `infra/envs/dev/live.tf` gained `points` (the contract test caught the omission).
+- ⚠ **THE SHARED GATEWAY IS FULL (300/300 ROUTES, 300/300 INTEGRATIONS).** The first dev deploy of
+  `customer` was refused by AWS at 299 + 2. The two customer points routes were merged into one
+  (`GET /customer/v1/points` returns balance + a history page). **No route can be added to this
+  gateway now**; the route limit is adjustable, the integration limit is not. The operator agreed
+  (2026-10-08) to a second gateway — that work precedes 075.
 - **New back-office screen**: Customers (search by order number or email — deliberately no browsable
   register), with credit / remove / history / settings.
 - **Not built, recorded**: customer push deep links (the app routes no push tap at all); a points line

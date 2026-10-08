@@ -384,6 +384,87 @@ enum class CustomerStatus(val value: String) {
 }
 
 /**
+ * GET /customer/v1/points — the balance AND a page of history, in one answer.
+ *
+ * ⚠ ONE ROUTE ON PURPOSE. Every screen that shows points shows both, so two routes would be
+ * two round trips for one screen — and the shared gateway's route and integration ceilings
+ * (300 each) were reached the day this shipped. `?cursor=` pages the history; the balance
+ * is always current.
+ */
+@Serializable
+data class CustomerPointsDTO (
+    val centsPerPoint: Long,
+    val history: PointsHistoryPageDTO,
+
+    /**
+     * The soonest lot to expire; null when nothing is due.
+     */
+    val nextExpiry: CustomerPointsNextExpiry? = null,
+
+    val points: Long,
+    val valueAmount: String
+)
+
+@Serializable
+data class PointsHistoryPageDTO (
+    val entries: List<PointsHistoryEntryDTO>,
+
+    /**
+     * Absent on the last page.
+     */
+    val nextCursor: String? = null
+)
+
+/**
+ * One history line as the CUSTOMER sees it.
+ */
+@Serializable
+data class PointsHistoryEntryDTO (
+    val at: String,
+
+    /**
+     * Credits only: the last date these points can be used (yyyy-mm-dd, Melbourne).
+     */
+    val expiresOn: String? = null,
+
+    val id: String,
+    val kind: PointsEntryKind,
+    val orderNumber: String? = null,
+
+    /**
+     * Signed.
+     */
+    val points: Long,
+
+    val valueAmount: String,
+
+    /**
+     * The sentence to show — decided by the server from the reason.
+     */
+    val words: String
+)
+
+/**
+ * Every kind of change to a balance. Credits are positive, debits negative.
+ */
+@Serializable
+enum class PointsEntryKind(val value: String) {
+    @SerialName("auto_credit") AutoCredit("auto_credit"),
+    @SerialName("expired") Expired("expired"),
+    @SerialName("forfeited") Forfeited("forfeited"),
+    @SerialName("returned") Returned("returned"),
+    @SerialName("spent") Spent("spent"),
+    @SerialName("staff_credit") StaffCredit("staff_credit"),
+    @SerialName("staff_debit") StaffDebit("staff_debit");
+}
+
+@Serializable
+data class CustomerPointsNextExpiry (
+    val date: String,
+    val points: Long
+)
+
+/**
  * The step-up challenge result. It carries a MASKED destination and nothing else — never
  * the full address (an information leak) and obviously never the code.
  */
@@ -443,69 +524,16 @@ data class PointsBalanceDTO (
     /**
      * The soonest lot to expire; null when nothing is due.
      */
-    val nextExpiry: NextExpiry? = null,
+    val nextExpiry: PointsBalanceNextExpiry? = null,
 
     val points: Long,
     val valueAmount: String
 )
 
 @Serializable
-data class NextExpiry (
+data class PointsBalanceNextExpiry (
     val date: String,
     val points: Long
-)
-
-/**
- * Every kind of change to a balance. Credits are positive, debits negative.
- */
-@Serializable
-enum class PointsEntryKind(val value: String) {
-    @SerialName("auto_credit") AutoCredit("auto_credit"),
-    @SerialName("expired") Expired("expired"),
-    @SerialName("forfeited") Forfeited("forfeited"),
-    @SerialName("returned") Returned("returned"),
-    @SerialName("spent") Spent("spent"),
-    @SerialName("staff_credit") StaffCredit("staff_credit"),
-    @SerialName("staff_debit") StaffDebit("staff_debit");
-}
-
-/**
- * One history line as the CUSTOMER sees it.
- */
-@Serializable
-data class PointsHistoryEntryDTO (
-    val at: String,
-
-    /**
-     * Credits only: the last date these points can be used (yyyy-mm-dd, Melbourne).
-     */
-    val expiresOn: String? = null,
-
-    val id: String,
-    val kind: PointsEntryKind,
-    val orderNumber: String? = null,
-
-    /**
-     * Signed.
-     */
-    val points: Long,
-
-    val valueAmount: String,
-
-    /**
-     * The sentence to show — decided by the server from the reason.
-     */
-    val words: String
-)
-
-@Serializable
-data class PointsHistoryPageDTO (
-    val entries: List<PointsHistoryEntryDTO>,
-
-    /**
-     * Absent on the last page.
-     */
-    val nextCursor: String? = null
 )
 
 @Serializable

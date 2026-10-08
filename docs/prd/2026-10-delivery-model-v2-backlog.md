@@ -97,6 +97,10 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 
 Numbering assumes nothing else takes 074–082 first; renumber freely.
 
+> ⚠ **2026-10-08 — renumbered by one from E2 on.** Spec **075 is now the back-office front door**
+> (`specs/075-staff-gateway/`): the shared gateway reached its 300-route / 300-integration ceiling when
+> 074 deployed, and nothing below can ship until it is split. E2 becomes 076, E3 077, … E9 083.
+
 ---
 
 ## E0 — Cleanup & decision record (no spec)

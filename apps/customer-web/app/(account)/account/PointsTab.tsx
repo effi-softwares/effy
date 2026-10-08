@@ -1,6 +1,6 @@
 import Link from "next/link"
 
-import type { PointsBalanceDTO, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "@effy/shared-types"
+import type { CustomerPointsDTO, PointsHistoryEntryDTO } from "@effy/shared-types"
 
 import { LiveRefresh } from "@/components/live/LiveRefresh"
 import { edgeApi, uncached } from "@/lib/api/edge"
@@ -32,20 +32,17 @@ const when = (iso: string) =>
  */
 export async function PointsTab({ cursor }: { cursor?: string }) {
   const session = await getSession()
-  let balance: PointsBalanceDTO | null = null
-  let page: PointsHistoryPageDTO | null = null
+  // One read: the balance and this page of history arrive together (CustomerPointsDTO).
+  let balance: CustomerPointsDTO | null = null
   if (session?.idToken) {
     try {
-      const api = edgeApi(session)
       const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""
-      ;[balance, page] = await Promise.all([
-        api.get<PointsBalanceDTO>("/customer/v1/points", uncached()),
-        api.get<PointsHistoryPageDTO>(`/customer/v1/points/history${qs}`, uncached()),
-      ])
+      balance = await edgeApi(session).get<CustomerPointsDTO>(`/customer/v1/points${qs}`, uncached())
     } catch {
       balance = null
     }
   }
+  const page = balance?.history ?? null
 
   return (
     <section aria-labelledby="points-heading" className="space-y-6">

@@ -12,38 +12,40 @@ Errors are RFC 9457 problems (`@effy/edge-shared` `problem()`), with the `code` 
 
 ## Customer — service `customer` (customer pool)
 
-### `GET /customer/v1/points`
+### `GET /customer/v1/points?cursor=…&limit=20`
+
+The balance **and** a page of history, in one answer (`CustomerPointsDTO`).
 
 ```json
 {
   "points": 1250,
   "valueAmount": "12.50",
   "centsPerPoint": 1,
-  "nextExpiry": { "points": 500, "date": "2027-10-08" }   // null when nothing is due
-}
-```
-
-### `GET /customer/v1/points/history?cursor=…&limit=20`
-
-```json
-{
-  "entries": [
-    {
-      "id": "…",
-      "kind": "staff_credit",            // staff_credit | auto_credit | returned | staff_debit | spent | expired | forfeited
-      "points": 500,                     // signed
-      "valueAmount": "5.00",
-      "words": "Sorry your order was late",   // customer-facing, from the reason vocabulary (R11)
-      "orderNumber": "EFY-7K2M9Q",       // null when not tied to an order
-      "expiresOn": "2027-10-08",         // credits only
-      "at": "2026-10-08T10:42:00+11:00"
-    }
-  ],
-  "nextCursor": "…"                     // absent on the last page
+  "nextExpiry": { "points": 500, "date": "2027-10-08" },   // null when nothing is due
+  "history": {
+    "entries": [
+      {
+        "id": "…",
+        "kind": "staff_credit",            // staff_credit | auto_credit | returned | staff_debit | spent | expired | forfeited
+        "points": 500,                     // signed
+        "valueAmount": "5.00",
+        "words": "Sorry your order was late",   // customer-facing, from the reason vocabulary (R11)
+        "orderNumber": "EFY-7K2M9Q",       // null when not tied to an order
+        "expiresOn": "2027-10-08",         // credits only
+        "at": "2026-10-08T10:42:00+11:00"
+      }
+    ],
+    "nextCursor": "…"                     // absent on the last page
+  }
 }
 ```
 
 ⚠ No `note`, no author identity — internal to back-office.
+
+> **As built (2026-10-08):** planned as two routes (`/points` and `/points/history`). They were merged
+> when the first dev deploy failed: the shared gateway was at **299 of 300 routes and 299 of 300
+> integrations**, so a second route could not be created. `cursor` pages the history; the balance is
+> always the current one.
 
 ### `GET /customer/v1/closure` (existing) — adds
 

@@ -32,7 +32,7 @@ import type {
   ClosureRestoreResultDTO,
 } from "./customer";
 import type { ProblemJSON } from "./problem";
-import type { PointsBalanceDTO, PointsEntryKind, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "./points";
+import type { CustomerPointsDTO, PointsBalanceDTO, PointsEntryKind, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "./points";
 
 export type {
   CustomerStatus,
@@ -55,6 +55,7 @@ export type {
   ClosureResultDTO,
   ClosureRestoreResultDTO,
   ProblemJSON,
+  CustomerPointsDTO,
   PointsBalanceDTO,
   PointsEntryKind,
   PointsHistoryEntryDTO,
@@ -91,6 +92,7 @@ export interface CustomerContract {
   pointsEntryKind: PointsEntryKind;
   pointsHistoryEntry: PointsHistoryEntryDTO;
   pointsHistoryPage: PointsHistoryPageDTO;
+  customerPoints: CustomerPointsDTO;
 
   problem: ProblemJSON;
 }

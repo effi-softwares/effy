@@ -76,10 +76,18 @@ was restored.
 
 | Task | What differs |
 |---|---|
+| T024–T025 | **One customer route, not two.** The first dev deploy of `customer` failed: the shared gateway was at 299/300 routes and 299/300 integrations, and AWS refused the second points route. `GET /customer/v1/points` now returns the balance and a page of history together (`?cursor=` pages it). Web and mobile read it once. |
 | T043 | No push deep link wired: the customer app routes **no** push tap today, for any type. The server sends `effy://points` and the screen exists. |
 | T048 | The quote carries `usable`, `centsPerPoint`, `cardMinimumAmount` — not `maxForThisOrder`: the total depends on the delivery choice still to be made. Web works out the maximum; mobile sends the balance and retries once with the maximum the server returns. |
 | T069 | Not applicable: the `order-refunded` email template exists but nothing sends it. |
 | T006 | The shopper role gets DML through 070's default privileges; the migration **revokes** UPDATE/DELETE on the ledger tables instead of granting. |
+
+## ⚠ The shared gateway is full
+
+After 074 the dev gateway holds **300 of 300 routes and 300 of 300 integrations**. The route limit can
+be raised by a quota request; the integration limit is not in AWS's list of adjustable quotas. **No
+further route can be added to this gateway.** The operator has agreed to move services onto a second
+gateway; that is the next piece of work, before spec 075.
 
 ## Not verified
 

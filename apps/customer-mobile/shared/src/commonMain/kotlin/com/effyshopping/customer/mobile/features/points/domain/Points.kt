@@ -29,17 +29,19 @@ data class PointsLine(
 data class PointsHistoryPage(val lines: List<PointsLine>, val nextCursor: String?)
 
 interface PointsRepository {
-    /** ⚠ A failure THROWS — "you have no points" and "we could not ask" are different facts. */
-    suspend fun balance(): PointsBalance
-    suspend fun history(cursor: String?): PointsHistoryPage
+    /**
+     * The balance and a page of history, in ONE read (the server answers both on one route).
+     * ⚠ A failure THROWS — "you have no points" and "we could not ask" are different facts.
+     */
+    suspend fun overview(cursor: String?): Pair<PointsBalance, PointsHistoryPage>
 }
 
-/** GetPoints — the balance and the first page of history, read together on open. */
+/** GetPoints — the balance and the first page of history, on open and on every live update. */
 class GetPoints(private val repo: PointsRepository) {
-    suspend operator fun invoke(): Pair<PointsBalance, PointsHistoryPage> = repo.balance() to repo.history(null)
+    suspend operator fun invoke(): Pair<PointsBalance, PointsHistoryPage> = repo.overview(null)
 }
 
 /** GetOlderPoints — the next page of history. */
 class GetOlderPoints(private val repo: PointsRepository) {
-    suspend operator fun invoke(cursor: String): PointsHistoryPage = repo.history(cursor)
+    suspend operator fun invoke(cursor: String): PointsHistoryPage = repo.overview(cursor).second
 }

@@ -218,25 +218,15 @@ functions:
 
   # ── 022: address book (customer profile management, per 011 FR-028) ────────────────────────────
 
-  # ── 074: the customer's own points. The reads are @effy/edge-shared/points, shared with back-office.
+  # ── 074: the customer's own points — balance AND history on ONE route (the shared gateway was at
+  #    its 300-route / 300-integration ceilings). The reads are @effy/edge-shared/points.
   customerPointsV1Get:
     handler: src/functions/customer-points-v1-get.handler
-    description: The customer's usable points, their value and the next expiry (074 US1)
+    description: The customer's points - balance, value, next expiry and a page of history (074 US1)
     events:
       - httpApi:
           method: GET
           path: /customer/v1/points
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
-
-  customerPointsHistoryV1Get:
-    handler: src/functions/customer-points-history-v1-get.handler
-    description: Every change to the customer's points, newest first (074 US1)
-    events:
-      - httpApi:
-          method: GET
-          path: /customer/v1/points/history
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}

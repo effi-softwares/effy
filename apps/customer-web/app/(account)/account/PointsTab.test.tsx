@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe("Effy points tab (074 US1)", () => {
   it("shows the balance, its value, the next expiry and each line in Effy's words", async () => {
-    apiGet.mockImplementation(async (path: string) => (path.startsWith("/customer/v1/points/history") ? PAGE : BALANCE))
+    apiGet.mockResolvedValue({ ...BALANCE, history: PAGE })
     render(await PointsTab({}))
     expect(screen.getByText("1,250 points")).toBeInTheDocument()
     expect(screen.getByText(/worth \$12\.50/)).toBeInTheDocument()
@@ -34,6 +34,9 @@ describe("Effy points tab (074 US1)", () => {
     expect(screen.getByText("Sorry your order was late")).toBeInTheDocument()
     expect(screen.getByText("Used on order EFY-ABC123")).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "Older" })).toHaveAttribute("href", "/account?tab=points&cursor=abc")
+    // One read for the whole tab.
+    expect(apiGet).toHaveBeenCalledTimes(1)
+    expect(apiGet.mock.calls[0]![0]).toBe("/customer/v1/points")
   })
 
   it("says it could not load, rather than claiming a zero balance", async () => {
@@ -44,9 +47,7 @@ describe("Effy points tab (074 US1)", () => {
   })
 
   it("explains points to someone who has none", async () => {
-    apiGet.mockImplementation(async (path: string) =>
-      path.startsWith("/customer/v1/points/history") ? { entries: [] } : { ...BALANCE, points: 0, valueAmount: "0.00", nextExpiry: null },
-    )
+    apiGet.mockResolvedValue({ ...BALANCE, points: 0, valueAmount: "0.00", nextExpiry: null, history: { entries: [] } })
     render(await PointsTab({}))
     expect(screen.getByText(/don.t have any points yet/)).toBeInTheDocument()
   })

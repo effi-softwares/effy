@@ -66,21 +66,21 @@ describe.skipIf(!RUN)("074 — the customer's points", () => {
     await transact((tx) => hold(tx, { customerId: id, orderId, points: 100, now }));
 
     const svc = createPointsService({ db: pool, now: () => now });
-    const balance = await svc.balance(sub);
+    const balance = await svc.overview(sub, undefined, 10);
     expect(balance).toMatchObject({ points: 900, valueAmount: "9.00", centsPerPoint: 1 });
     expect(balance.nextExpiry?.points).toBe(300);
 
     // A month and a bit later the 300 have expired with no sweep run.
     const later = createPointsService({ db: pool, now: () => new Date(now.getTime() + 40 * 86_400_000) });
-    expect((await later.balance(sub)).points).toBe(700);
+    expect((await later.overview(sub, undefined, 10)).points).toBe(700);
 
-    const page = await svc.history(sub, undefined, 10);
+    const page = balance.history;
     expect(page.entries.map((e) => e.words)).toEqual(["A thank-you from Effy", "Sorry your order was late"]);
     expect(JSON.stringify(page)).not.toContain("INTERNAL ONLY");
   });
 
   it("refuses a barred account", async () => {
     const { sub } = await customer("barred");
-    await expect(createPointsService({ db: pool }).balance(sub)).rejects.toBeInstanceOf(CustomerBarredError);
+    await expect(createPointsService({ db: pool }).overview(sub, undefined, 10)).rejects.toBeInstanceOf(CustomerBarredError);
   });
 });

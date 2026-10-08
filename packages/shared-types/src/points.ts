@@ -78,6 +78,17 @@ export interface PointsHistoryPageDTO {
   nextCursor?: string
 }
 
+/**
+ * GET /customer/v1/points — the balance AND a page of history, in one answer.
+ *
+ * ⚠ ONE ROUTE ON PURPOSE. Every screen that shows points shows both, so two routes would be two round
+ * trips for one screen — and the shared gateway's route and integration ceilings (300 each) were
+ * reached the day this shipped. `?cursor=` pages the history; the balance is always current.
+ */
+export interface CustomerPointsDTO extends PointsBalanceDTO {
+  history: PointsHistoryPageDTO
+}
+
 // ── Back-office ─────────────────────────────────────────────────────────────────────────────────────
 
 /** One history line as STAFF see it: the customer's line plus the facts behind it. */

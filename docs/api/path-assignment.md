@@ -18,6 +18,10 @@ Ask, in order:
    and an authorizer is per-route and all-or-nothing.
 2. **Which domain owns the data it writes?** Put the route with the code that already owns the
    rule. A rule has exactly one implementation.
+   ⚠ **The gateway has limits of its own, and they were reached on 2026-10-08 (074):** an HTTP API
+   takes at most **300 routes** (adjustable by quota request) and **300 integrations** — one per
+   Lambda function — which is not in AWS's adjustable list. A new service on the same gateway does
+   NOT add room. Until the second gateway exists, a new route must replace one or share a function.
 3. **Would it take the service past its limits?** A service is one CloudFormation stack, capped at
    500 resources (roughly five per route). A new domain, or a service nearing the cap, gets a new
    `apis/edge-api/<service>/`.

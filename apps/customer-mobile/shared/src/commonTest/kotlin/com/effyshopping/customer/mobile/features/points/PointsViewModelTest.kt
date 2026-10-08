@@ -44,8 +44,8 @@ class PointsViewModelTest {
             null to PointsHistoryPage(listOf(line("2", -300), line("1", 1550)), nextCursor = "c1"),
             "c1" to PointsHistoryPage(listOf(line("0", 100)), nextCursor = null),
         )
-        override suspend fun balance(): PointsBalance = if (fail) throw AppException(AppError.Network) else balance
-        override suspend fun history(cursor: String?): PointsHistoryPage = if (fail) throw AppException(AppError.Network) else pages.getValue(cursor)
+        override suspend fun overview(cursor: String?): Pair<PointsBalance, PointsHistoryPage> =
+            if (fail) throw AppException(AppError.Network) else balance to pages.getValue(cursor)
     }
 
     private companion object {

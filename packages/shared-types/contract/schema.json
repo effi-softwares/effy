@@ -290,6 +290,56 @@
       ],
       "type": "object"
     },
+    "CustomerPointsDTO": {
+      "additionalProperties": false,
+      "description": "GET /customer/v1/points — the balance AND a page of history, in one answer.\n\n⚠ ONE ROUTE ON PURPOSE. Every screen that shows points shows both, so two routes would be two round trips for one screen — and the shared gateway's route and integration ceilings (300 each) were reached the day this shipped. `?cursor=` pages the history; the balance is always current.",
+      "properties": {
+        "centsPerPoint": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "history": {
+          "$ref": "#/definitions/PointsHistoryPageDTO"
+        },
+        "nextExpiry": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "points": {
+                  "$ref": "#/definitions/WireInt"
+                }
+              },
+              "required": [
+                "points",
+                "date"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The soonest lot to expire; null when nothing is due."
+        },
+        "points": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "valueAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "centsPerPoint",
+        "history",
+        "nextExpiry",
+        "points",
+        "valueAmount"
+      ],
+      "type": "object"
+    },
     "CustomerStatus": {
       "description": "A customer's standing with Effy. PLATFORM-OWNED — never derived from a token claim.",
       "enum": [
@@ -672,6 +722,9 @@
     "customer": {
       "$ref": "#/definitions/CustomerDTO"
     },
+    "customerPoints": {
+      "$ref": "#/definitions/CustomerPointsDTO"
+    },
     "passwordChallengeResult": {
       "$ref": "#/definitions/PasswordChallengeResultDTO"
     },
@@ -736,6 +789,7 @@
     "pointsEntryKind",
     "pointsHistoryEntry",
     "pointsHistoryPage",
+    "customerPoints",
     "problem"
   ],
   "type": "object",

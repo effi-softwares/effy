@@ -1,7 +1,6 @@
 package com.effyshopping.customer.mobile.features.points.data
 
-import com.effyshopping.customer.mobile.contract.PointsBalanceDTO
-import com.effyshopping.customer.mobile.contract.PointsHistoryPageDTO
+import com.effyshopping.customer.mobile.contract.CustomerPointsDTO
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
@@ -23,26 +22,20 @@ import kotlinx.io.IOException
  */
 class HttpPointsRepository(private val edge: HttpClient) : PointsRepository {
 
-    override suspend fun balance(): PointsBalance = request {
-        edge.get("customer/v1/points").ensureSuccess().body<PointsBalanceDTO>().let { dto ->
-            PointsBalance(
-                points = dto.points,
-                valueAmount = dto.valueAmount,
-                nextExpiry = dto.nextExpiry?.let { PointsExpiry(points = it.points, date = it.date) },
-            )
-        }
-    }
-
-    override suspend fun history(cursor: String?): PointsHistoryPage = request {
-        edge.get("customer/v1/points/history") { if (cursor != null) parameter("cursor", cursor) }
+    override suspend fun overview(cursor: String?): Pair<PointsBalance, PointsHistoryPage> = request {
+        edge.get("customer/v1/points") { if (cursor != null) parameter("cursor", cursor) }
             .ensureSuccess()
-            .body<PointsHistoryPageDTO>()
-            .let { page ->
-                PointsHistoryPage(
-                    lines = page.entries.map { e ->
+            .body<CustomerPointsDTO>()
+            .let { dto ->
+                PointsBalance(
+                    points = dto.points,
+                    valueAmount = dto.valueAmount,
+                    nextExpiry = dto.nextExpiry?.let { PointsExpiry(points = it.points, date = it.date) },
+                ) to PointsHistoryPage(
+                    lines = dto.history.entries.map { e ->
                         PointsLine(id = e.id, points = e.points, words = e.words, usableUntil = e.expiresOn, at = e.at)
                     },
-                    nextCursor = page.nextCursor,
+                    nextCursor = dto.history.nextCursor,
                 )
             }
     }
