@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**076-effy-delivery-coverage — Effy Delivery Coverage.** 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT
-MIGRATED, NOT DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-08).** Second slice of the delivery model v2
+**076-effy-delivery-coverage — Effy Delivery Coverage.** ✅ **MIGRATED AND DEPLOYED TO DEV,
+CHECKED LIVE BY MACHINE (2026-10-08). ⚠ NOT WALKED BY A PERSON — V1–V12 remain.** Second slice of the delivery model v2
 programme ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md),
 epic E2). Sign-off: [specs/076-effy-delivery-coverage/SIGNOFF.md](specs/076-effy-delivery-coverage/SIGNOFF.md).
 - **What it is**: one flat list of postcodes Effy delivers to, and one answer per address —

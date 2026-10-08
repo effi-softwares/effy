@@ -85,14 +85,14 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 |---|---|---|---|
 | E0 | — | Cleanup & decision record | — |
 | E1 | 074 | Customer Points (store credit) | — |
-| E2 | 075 | Effy Delivery Coverage (postcode list) | — |
-| E3 | 076 | Delivery Fee Engine v2 | E2 |
-| E4 | 077 | Effy Delivery Windows: today + 3 days | E2 |
-| E5 | 078 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
-| E6 | 079 | Courier Fulfilment (hub handover or shop pickup) | E5 |
-| E7 | 080 | Back-Office Courier Override & Compensation | E1, E5, E6 |
-| E8 | 081 | Driver Operations Realignment | E4, E5 |
-| E9 | 082 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
+| E2 | 076 | Effy Delivery Coverage (postcode list) | — |
+| E3 | 077 | Delivery Fee Engine v2 | E2 |
+| E4 | 078 | Effy Delivery Windows: today + 3 days | E2 |
+| E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
+| E6 | 080 | Courier Fulfilment (hub handover or shop pickup) | E5 |
+| E7 | 081 | Back-Office Courier Override & Compensation | E1, E5, E6 |
+| E8 | 082 | Driver Operations Realignment | E4, E5 |
+| E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
 | E10 | later | Deferred items | — |
 
 Numbering assumes nothing else takes 074–082 first; renumber freely.
@@ -108,7 +108,7 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 > **staff** gateway (`/effy/<env>/staff/…` parameters) and every customer, shop or driver route to
 > the shared one; each plan says which.
 
-> **2026-10-08 — E2 (spec 076, Effy Delivery Coverage) is code-complete**
+> **2026-10-08 — E2 (spec 076, Effy Delivery Coverage) is built and live in dev** (walks V1–V12 open)
 > (`specs/076-effy-delivery-coverage/SIGNOFF.md`). It evolved `delivery_zone` / `delivery_zone_postcode`
 > in place rather than creating the `effy_coverage_*` tables sketched under E2 below. What it leaves
 > for later epics to remove:
@@ -138,7 +138,7 @@ Housekeeping that makes the later specs honest. Nothing here changes behaviour.
 
 ---
 
-## E1 — Customer Points (store credit) · spec 074
+## E1 — Customer Points (store credit) · spec 074 — ✅ built 2026-10-08
 
 > ✅ **Built 2026-10-08** — code-complete and machine-verified, not yet deployed. See
 > [specs/074-customer-points/SIGNOFF.md](../../specs/074-customer-points/SIGNOFF.md). Courier-override
@@ -270,49 +270,49 @@ Customers never see group names, distances or the hub's location.
 **Tasks**
 
 *Data*
-- [ ] E2-T01 Migration: `public.effy_coverage_postcode` (postcode PK, group id nullable, distance_km NOT NULL, distance_source `computed|manual`, added_by, timestamps) — UNIQUE(postcode) is the guarantee.
-- [ ] E2-T02 Migration: `public.effy_coverage_group` (code, name, status). Display-only.
-- [ ] E2-T03 Migration: courier reach — `public.courier_excluded_postcode` (postcode, reason) + settings flag `courier_default_reach = 'national'`.
-- [ ] E2-T04 Data migration: copy every postcode in `public.delivery_zone_postcode` into `effy_coverage_postcode` (group = old zone, distance = old `delivery_zone.hub_distance_km` or recomputed from `public.locality` lat/long), so dev keeps its coverage.
-- [ ] E2-T05 SQL function `public.coverage_for_postcode(text)` → `effy | courier | none` + reason. One place decides; mirrors `round_opens_at` discipline.
-- [ ] E2-T06 SQL/TS: straight-line (haversine) distance hub (`delivery_settings.hub_latitude/longitude`) → `locality` lat/long; pick the primary locality per postcode by `address_count`.
-- [ ] E2-T07 Recompute rule: when hub coordinates change, recompute every `computed` distance; never touch `manual` ones. Admin sees how many changed.
-- [ ] E2-T08 Mark old tables deprecated in comments (`delivery_ring`, `delivery_zone.ring_id`, `delivery_zone.sameday_eligible`, `shop_sameday_*`); actual drops in E9.
+- [x] E2-T01 Migration: `public.effy_coverage_postcode` (postcode PK, group id nullable, distance_km NOT NULL, distance_source `computed|manual`, added_by, timestamps) — UNIQUE(postcode) is the guarantee. — **Done differently:** no new table. `delivery_zone_postcode` was evolved in place and **is** the list (+ `distance_km`, `distance_source`, `distance_review`, `added_by`, `updated_at`); it keeps its name until E9.
+- [x] E2-T02 Migration: `public.effy_coverage_group` (code, name, status). Display-only. — **Done differently:** `delivery_zone` **is** the group (`ring_id` nullable; `status='disabled'` = a removed group).
+- [x] E2-T03 Migration: courier reach — `public.courier_excluded_postcode` (postcode, reason) + settings flag `courier_default_reach = 'national'`. — *The flag is `delivery_settings.courier_offered` (false, and locked off until E5) rather than `courier_default_reach`.*
+- [x] E2-T04 Data migration: copy every postcode in `public.delivery_zone_postcode` into `effy_coverage_postcode` (group = old zone, distance = old `delivery_zone.hub_distance_km` or recomputed from `public.locality` lat/long), so dev keeps its coverage. — **Done differently:** nothing copied — backfilled in place (computed distance → the zone's `hub_distance_km` as manual + review → stop and name the postcodes). Disabled zones' postcodes were removed.
+- [x] E2-T05 SQL function `public.coverage_for_postcode(text)` → `effy | courier | none` + reason. One place decides; mirrors `round_opens_at` discipline.
+- [x] E2-T06 SQL/TS: straight-line (haversine) distance hub (`delivery_settings.hub_latitude/longitude`) → `locality` lat/long; pick the primary locality per postcode by `address_count`.
+- [x] E2-T07 Recompute rule: when hub coordinates change, recompute every `computed` distance; never touch `manual` ones. Admin sees how many changed.
+- [x] E2-T08 Mark old tables deprecated in comments (`delivery_ring`, `delivery_zone.ring_id`, `delivery_zone.sameday_eligible`, `shop_sameday_*`); actual drops in E9.
 *Shared library*
-- [ ] E2-T09 Replace `shared/src/delivery/zone.ts` `zoneForPostcode` / `sameDayForShops` with `coverageForPostcode()` returning `{kind, distanceKm, groupId}`. Keep the old exports until E9.
-- [ ] E2-T10 `shared/src/delivery/locality.ts`: expose place search for coverage (reuse 047's search).
-- [ ] E2-T11 Unit + container tests for coverage decisions, including PO-box postcodes with no locality.
+- [x] E2-T09 Replace `shared/src/delivery/zone.ts` `zoneForPostcode` / `sameDayForShops` with `coverageForPostcode()` returning `{kind, distanceKm, groupId}`. Keep the old exports until E9. — *`coverageForPostcode()` added; `zoneForPostcode` rebuilt on top of it with the three frozen bridges. `sameDayForShops` still exists (E5 removes it).*
+- [x] E2-T10 `shared/src/delivery/locality.ts`: expose place search for coverage (reuse 047's search).
+- [x] E2-T11 Unit + container tests for coverage decisions, including PO-box postcodes with no locality.
 *Admin service* (`apis/edge-api/admin/src/delivery/`)
-- [ ] E2-T12 Routes: list coverage (filter by group, search), add postcodes (by place search), remove postcode, set manual distance, create/rename/disable group, move postcode between groups.
-- [ ] E2-T13 Routes: courier exclusions list/add/remove.
-- [ ] E2-T14 Route: coverage check for a postcode (replaces `delivery-postcode-check-v1-get.ts`) with the reason.
-- [ ] E2-T15 Retire routes (stop registering, keep code until E9): `delivery-rings-*`, `delivery-zone-suggest-ring-*`, `delivery-exception-*` (per-shop same-day), the ring parts of `delivery-zones-*`.
-- [ ] E2-T16 Audit rows for every coverage change (admin schema).
-- [ ] E2-T17 Live announce `coverage` kind; update `change-map.guard.test.ts`.
+- [x] E2-T12 Routes: list coverage (filter by group, search), add postcodes (by place search), remove postcode, set manual distance, create/rename/disable group, move postcode between groups. — *Twelve routes under `/admin/v1/delivery/coverage…` on the staff gateway.*
+- [x] E2-T13 Routes: courier exclusions list/add/remove.
+- [x] E2-T14 Route: coverage check for a postcode (replaces `delivery-postcode-check-v1-get.ts`) with the reason.
+- [x] E2-T15 Retire routes (stop registering, keep code until E9): `delivery-rings-*`, `delivery-zone-suggest-ring-*`, `delivery-exception-*` (per-shop same-day), the ring parts of `delivery-zones-*`. — **Done differently:** the eleven routes and their handlers were **deleted**, not kept. `GET …/delivery/rings` stays read-only until E3.
+- [x] E2-T16 Audit rows for every coverage change (admin schema).
+- [x] E2-T17 Live announce `coverage` kind; update `change-map.guard.test.ts`.
 *Storefront / customer services*
-- [ ] E2-T18 Address add/edit returns coverage (`effy | courier | none`) — same sentence source as checkout.
-- [ ] E2-T19 Public "Do we deliver to you?" check (storefront) if the home page uses one.
+- [x] E2-T18 Address add/edit returns coverage (`effy | courier | none`) — same sentence source as checkout.
+- [x] E2-T19 Public "Do we deliver to you?" check (storefront) if the home page uses one.
 *Shared types*
-- [ ] E2-T20 `packages/shared-types/src/delivery-admin.ts`: coverage DTOs; remove ring DTOs from the console surface. Kotlin contract mirror if mobile uses it.
-- [ ] E2-T21 `packages/shared-types/src/delivery.ts`: `CoverageKind` and the refusal code + sentence.
+- [x] E2-T20 `packages/shared-types/src/delivery-admin.ts`: coverage DTOs; remove ring DTOs from the console surface. Kotlin contract mirror if mobile uses it.
+- [x] E2-T21 `packages/shared-types/src/delivery.ts`: `CoverageKind` and the refusal code + sentence.
 *Back-office* (`apps/back-office/src/features/delivery/`)
-- [ ] E2-T22 New Coverage screen: postcode table (place, postcode, group, distance, source), place-search add dialog (replaces `AddPostcodeDialog.tsx`), manual-distance edit, bulk move to group.
-- [ ] E2-T23 Groups panel (replaces `NewZoneDialog.tsx`).
-- [ ] E2-T24 Courier exclusions panel.
-- [ ] E2-T25 Postcode checker widget (Effy / courier / none + why).
-- [ ] E2-T26 Remove `NewRingDialog.tsx`, `SameDayExceptionsDialog.tsx` from the screen (delete files in E9).
-- [ ] E2-T27 Access rules in `features/delivery/access.ts` (admin/manager edit, csa read).
+- [x] E2-T22 New Coverage screen: postcode table (place, postcode, group, distance, source), place-search add dialog (replaces `AddPostcodeDialog.tsx`), manual-distance edit, bulk move to group.
+- [x] E2-T23 Groups panel (replaces `NewZoneDialog.tsx`).
+- [x] E2-T24 Courier exclusions panel.
+- [x] E2-T25 Postcode checker widget (Effy / courier / none + why).
+- [x] E2-T26 Remove `NewRingDialog.tsx`, `SameDayExceptionsDialog.tsx` from the screen (delete files in E9). — **Done differently:** the four old dialogs were deleted now, not in E9.
+- [x] E2-T27 Access rules in `features/delivery/access.ts` (admin/manager edit, csa read). — *Existing `canManageDelivery` reused; no new rule needed.*
 *Customer surfaces*
-- [ ] E2-T28 customer-web address picker (`app/checkout/AddressPicker.tsx`) shows Effy/courier/none.
-- [ ] E2-T29 customer-mobile address flow shows the same.
+- [x] E2-T28 customer-web address picker (`app/checkout/AddressPicker.tsx`) shows Effy/courier/none.
+- [x] E2-T29 customer-mobile address flow shows the same.
 *Tests, docs*
-- [ ] E2-T30 Container tests: migration of old zones preserves coverage; distance recompute; refusal sentence identical across routes.
-- [ ] E2-T31 Update `docs/delivery-console-guide.md`.
-- [ ] E2-T32 FEATURE-HISTORY entry + operator steps.
+- [x] E2-T30 Container tests: migration of old zones preserves coverage; distance recompute; refusal sentence identical across routes.
+- [x] E2-T31 Update `docs/delivery-console-guide.md`.
+- [x] E2-T32 FEATURE-HISTORY entry + operator steps.
 
 ---
 
-## E3 — Delivery Fee Engine v2 · spec 076
+## E3 — Delivery Fee Engine v2 · spec 077
 
 **Goal.** One fee engine prices both kinds of delivery: Effy by distance + weight + basket value
 + window premium; courier by its own table.
@@ -393,7 +393,7 @@ delivery fees. Fees include GST.
 
 ---
 
-## E4 — Effy Delivery Windows: today + 3 days · spec 077
+## E4 — Effy Delivery Windows: today + 3 days · spec 078
 
 **Goal.** For "Delivered by Effy", the customer picks a window today or on any of the next 3
 delivery days. Same daily slots, capacity per slot per day.
@@ -462,7 +462,7 @@ order was sold. Back-office sees, for each day and window, how full it is.
 
 ---
 
-## E5 — Checkout & Orders: Delivered by Effy vs Courier · spec 078
+## E5 — Checkout & Orders: Delivered by Effy vs Courier · spec 079
 
 **Goal.** Every order is either "Delivered by Effy" (with a window) or "Courier delivery" (no
 window). Checkout, the order record, status, receipts and every app speak this one language.
@@ -554,7 +554,7 @@ window or fee. Back-office sees and can filter orders by delivery type. The old 
 
 ---
 
-## E6 — Courier Fulfilment (hub handover or shop pickup) · spec 079
+## E6 — Courier Fulfilment (hub handover or shop pickup) · spec 080
 
 **Goal.** Courier orders physically reach the courier, either via Effy's hub (as today) or
 picked up straight from the shop, chosen by a back-office setting.
@@ -636,7 +636,7 @@ booking with a courier company comes later.
 
 ---
 
-## E7 — Back-Office Courier Override & Compensation · spec 080
+## E7 — Back-Office Courier Override & Compensation · spec 081
 
 **Goal.** In an emergency, back-office moves an Effy order to courier, the customer is told, and
 the admin picks compensation per order: points (default), free delivery, or refund (last resort).
@@ -704,7 +704,7 @@ Only admins and managers can move orders; customer-service agents can view.
 
 ---
 
-## E8 — Driver Operations Realignment · spec 081
+## E8 — Driver Operations Realignment · spec 082
 
 **Goal.** Driver work follows the new model: collection runs take Effy packages and hub-mode
 courier packages; delivery rounds are Effy windows, now on any of 4 days; "standard" disappears
@@ -758,7 +758,7 @@ and is assigned as soon as a qualifying driver can take it.
 
 ---
 
-## E9 — Cutover & Retirement of Same-Day/Standard · spec 082
+## E9 — Cutover & Retirement of Same-Day/Standard · spec 083
 
 **Goal.** Switch new orders to the new model on a chosen date, keep old orders readable, then
 delete the old model's code, columns and docs.

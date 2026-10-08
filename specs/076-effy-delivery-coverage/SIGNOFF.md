@@ -1,8 +1,20 @@
 # Sign-off: 076 — Effy Delivery Coverage
 
-**Status (2026-10-08)**: **code-complete and machine-verified. NOT migrated, NOT deployed, NOT committed,
-NOT walked by a person.** 58/58 tasks; two carry a recorded note (below). The walks V1–V12 in
-[quickstart.md](quickstart.md) remain, after the operator steps.
+**Status (2026-10-08)**: **migrated, deployed to dev and committed (`f649fac3`). Checked live by
+machine (below). NOT walked by a person** — the walks V1–V12 in [quickstart.md](quickstart.md) are the
+one thing left. 58/58 tasks; two carry a recorded note (below).
+
+## Checked live in dev (2026-10-08, after the operator's deploys)
+
+| Check | Result |
+|---|---|
+| `make edge-health ENV=dev` | all eleven services live and ready, on both gateways |
+| `make gateway-usage ENV=dev` | shared 158 / 300 (53%) · staff 145 / 300 (49%) — as predicted |
+| Staff gateway's delivery routes | the twelve `…/delivery/coverage…` routes are present; the eleven zone, tier-edit and exception routes are gone |
+| Public delivery check | a listed postcode answers `coverage: "effy"`; an unlisted and an unknown one answer `"none"` (courier delivery is off, as designed until E5) |
+
+The last row also shows the migration ran: the answer comes from `coverage_for_postcode`, which only
+it creates.
 
 ## What changed
 
@@ -116,15 +128,15 @@ unplanned-work alarm is the backstop.
 
 ## Not verified
 
-- **Nothing has run against dev.** In particular the migration's backfill has only met test data:
-  - it **removes postcodes belonging to disabled zones** and prints them — read the NOTICE lines;
-  - it **stops** if a listed postcode has no locatable place and its zone has no recorded distance,
-    naming the postcodes. That is by design; if it happens, tell me the list.
+- **No person has walked it.** No staff member's use of the Coverage tab and no customer's sight of
+  the new sentence is recorded here; V1–V12 cover both, and V10 (two open Coverage tabs updating each
+  other) can only be seen on screen.
+- The migration ran in dev without stopping, so every listed postcode got a distance. Which postcodes
+  it removed (disabled zones) or flagged for review was printed in its NOTICE lines and is not
+  recorded here; flagged ones show under "needs review" on the Coverage tab.
 - The dev seed (`db/seeds/047_delivery_dev.sql`) was updated for the new columns and not re-run.
-- No customer has seen the new sentence; no staff member has used the Coverage tab.
-- The live update between two open Coverage tabs (V10) needs the deployed channel.
 
-## Operator steps
+## Operator steps (done 2026-10-08)
 
 ```sh
 make db-up ENV=dev                               # ⚠ read the NOTICE lines (removed + to-review postcodes)
