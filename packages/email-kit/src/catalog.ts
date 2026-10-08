@@ -253,6 +253,13 @@ export const CATALOG = {
       /** Absent on a pre-052 order, or where the post-commit capture failed (data-model §1). */
       hasPaymentMethod: "boolean",
       paymentMethod: "string",
+      /**
+       * 074 — points were part of the payment: "1,250 Effy points ($12.50)". A way of PAYING, shown
+       * after the total like the card, never as a discount above it (FR-018). When points were used,
+       * `paymentMethod` carries the card's amount too, so the two lines add up to the total.
+       */
+      hasPoints: "boolean",
+      pointsPaid: "string",
       deliveryAddress: "string",
       billingSameAsDelivery: "boolean",
       billingAddress: "string",
@@ -373,6 +380,63 @@ export const CATALOG = {
      * happened — and a retry could issue the refund again. The notification row records the send
      * failure instead, which is loud where an operator actually looks.
      */
+    onSendFailure: "swallow",
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // 074 — customer points. Store credit, never "money back": no `refund` word, no reason code, no note.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Effy added points to the customer's balance (074 FR-011).
+   *
+   * ⚠ `reasonWords` IS A SENTENCE FROM A CLOSED VOCABULARY, decided on the server. There is no var for
+   * the staff note, which is internal — the same "no var to make the mistake with" mechanism as above.
+   */
+  "points-credited": {
+    vars: {
+      /** A whole number, already formatted ("1,250"). */
+      points: "string",
+      /** A 2-dp decimal string with no currency symbol. */
+      valueAmount: "string",
+      reasonWords: "string",
+      /** The last day the points can be used, written out. */
+      expiresOn: "string",
+      pointsUrl: "string",
+    },
+    subject: (v, p) => `You've received ${v.points} ${p.productName} points`,
+    preheader: (v) => `They're worth $${v.valueAmount} off your next order.`,
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    /** ⚠ `transactional`: it reports a change to the customer's own account balance, not marketing. */
+    category: "transactional",
+    /**
+     * ⚠ `swallow`. The credit is already committed; a throw would report a failure for something that
+     * happened. The notification row records the send failure where an operator looks.
+     */
+    onSendFailure: "swallow",
+  },
+
+  /**
+   * Some of the customer's points are about to expire (074 FR-023). Sent once per expiry date.
+   *
+   * ⚠ `transactional`, and deliberately so: it warns of a loss to something the customer already
+   * holds. Points are a balance, not a campaign — and an unsubscribe would let a customer silently opt
+   * out of being told their balance is about to shrink.
+   */
+  "points-expiring": {
+    vars: {
+      points: "string",
+      valueAmount: "string",
+      expiresOn: "string",
+      pointsUrl: "string",
+      shopUrl: "string",
+    },
+    subject: (v, p) => `${v.points} of your ${p.productName} points expire on ${v.expiresOn}`,
+    preheader: (v) => `Use them before then — they're worth $${v.valueAmount}.`,
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    category: "transactional",
     onSendFailure: "swallow",
   },
 

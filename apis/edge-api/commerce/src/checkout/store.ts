@@ -7,6 +7,7 @@ import {
   judgeSlot, loadSlotSettings, lockSlot, melbourneDate, sameDaySchedule, slotLoad, type SlotVerdict,
 } from "@effy/edge-shared/delivery";
 import type { PaymentMethodSummary } from "@effy/edge-shared/payments";
+import { hold as holdLedgerPoints, loadSettings as loadPointsSettings, usable as usablePoints } from "@effy/edge-shared/points";
 import { randomBytes } from "node:crypto";
 
 export interface CheckoutLine {
@@ -60,6 +61,11 @@ export interface OrderAmounts {
   promoCode: string | null;
   grandTotalCents: number;
   currency: string;
+  /** 074 — points chosen to pay with; 0 when none. ⚠ They do NOT reduce grandTotalCents (FR-018). */
+  pointsUsed: number;
+  /** The value of a point at this moment, snapshotted on the order. Null when no points are used. */
+  pointsCentsPerPoint: number | null;
+  pointsValueCents: number;
 }
 
 export interface PaymentProfile {
@@ -103,6 +109,12 @@ export interface CheckoutStore {
     orderId: string, quote: unknown, expiresAt: Date, pkgs: readonly PackageDelivery[], hold: SlotHold | null,
   ): Promise<Date | null>;
   upsertPayment(orderId: string, intentId: string, amountCents: number, status: string): Promise<void>;
+  /** 074 — the customer's usable points and the value of one, for the quote and the intent. */
+  pointsFor(customerId: string, now: Date): Promise<{ usable: number; centsPerPoint: number }>;
+  /** 074 — set this order's points aside (0 releases any earlier hold). Throws InsufficientPointsError. */
+  holdPoints(orderId: string, customerId: string, points: number, now: Date): Promise<void>;
+  /** 074 — a points-only order's payment row: provider `points`, nothing charged, no intent. */
+  placePointsOnly(orderId: string): Promise<void>;
   orderIntentForCustomer(customerId: string, orderId: string): Promise<string | null>;
   pendingOrderIntent(customerId: string): Promise<{ orderId: string; intentId: string } | null>;
   savePaymentMethod(orderId: string, m: PaymentMethodSummary): Promise<void>;
@@ -249,13 +261,16 @@ FOR UPDATE`,
               `
 INSERT INTO public."order"
     (customer_id, order_number, status, currency, item_subtotal_amount,
-     discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address, delivery_fee_amount)
+     discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address, delivery_fee_amount,
+     points_used, points_cents_per_point, points_value_amount)
 VALUES ($1, $2, 'pending_payment', $3, $4::numeric,
-        $7::numeric, $8::uuid, $9, $5::numeric, $6::jsonb, $10::numeric)
+        $7::numeric, $8::uuid, $9, $5::numeric, $6::jsonb, $10::numeric,
+        $11, $12, $13::numeric)
 RETURNING id::text AS id`,
               [
                 customerId, orderNumber, a.currency, formatCents(a.itemSubtotalCents), formatCents(a.grandTotalCents),
                 JSON.stringify(address), formatCents(a.discountCents), a.promoCodeId, a.promoCode, formatCents(a.deliveryFeeCents),
+                a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents),
               ],
             )
           ).rows[0]!.id;
@@ -268,10 +283,12 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
     grand_total_amount=$3::numeric, delivery_address=$4::jsonb,
     discount_amount=$5::numeric, promo_code_id=$6::uuid, promo_code=$7,
     delivery_fee_amount=$8::numeric,
+    points_used=$9, points_cents_per_point=$10, points_value_amount=$11::numeric,
     updated_at=now() WHERE id=$1`,
             [
               orderId, formatCents(a.itemSubtotalCents), formatCents(a.grandTotalCents), JSON.stringify(address),
               formatCents(a.discountCents), a.promoCodeId, a.promoCode, formatCents(a.deliveryFeeCents),
+              a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents),
             ],
           );
           await tx.query(`DELETE FROM public.order_item WHERE order_id = $1`, [orderId]);
@@ -384,6 +401,31 @@ VALUES ($1, 'stripe', $2, $3::numeric, 'AUD', $4)
 ON CONFLICT (order_id) DO UPDATE SET stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id,
     amount = EXCLUDED.amount, status = EXCLUDED.status, updated_at = now()`,
         [orderId, intentId, formatCents(amountCents), status],
+      );
+    },
+
+    async pointsFor(customerId, now) {
+      const [u, settings] = await Promise.all([usablePoints(db, customerId, now), loadPointsSettings(db)]);
+      return { usable: Math.max(0, u), centsPerPoint: settings.centsPerPoint };
+    },
+
+    holdPoints: (orderId, customerId, points, now) =>
+      transact(async (tx) => {
+        await holdLedgerPoints(tx, { customerId, orderId, points, now });
+      }),
+
+    /**
+     * ⚠ NO INTENT, NOTHING CHARGED. The row exists so the order has a payment record like every other —
+     * the paid transition marks it succeeded — and so a refund later finds what the card paid: nothing.
+     */
+    async placePointsOnly(orderId) {
+      await db.query(
+        `
+INSERT INTO public.payment (order_id, provider, stripe_payment_intent_id, amount, currency, status)
+VALUES ($1, 'points', NULL, 0, 'AUD', 'requires_payment')
+ON CONFLICT (order_id) DO UPDATE SET provider = 'points', stripe_payment_intent_id = NULL, amount = 0,
+    status = 'requires_payment', updated_at = now()`,
+        [orderId],
       );
     },
 

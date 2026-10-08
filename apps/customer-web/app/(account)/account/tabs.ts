@@ -13,6 +13,8 @@ export type AccountTab =
   // 051 US6 — payment methods sit beside the address book, because that is where a shopper looks for
   // them and because the two are the same kind of thing: saved details Effy uses on their behalf.
   | "payment"
+  // 074 — store credit Effy has given, and what happened to it.
+  | "points"
   | "security"
   | "privacy"
   | "legal"
@@ -21,6 +23,7 @@ export const TABS: readonly AccountTab[] = [
   "personal",
   "addresses",
   "payment",
+  "points",
   "security",
   "privacy",
   "legal",

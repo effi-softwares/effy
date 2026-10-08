@@ -18,6 +18,7 @@
  * See specs/053-order-lifecycle-completion/contracts/back-office-orders.contract.md
  */
 
+import type { OrderPaymentSplitDTO } from "./points";
 import type { OrderStage, OrderStatus } from "./order";
 // ⚠ 055 — the refund vocabulary is SHARED with the customer contract, deliberately. A refund's
 // states and reasons are one set of facts; what differs per audience is how much of it is shown,
@@ -207,6 +208,11 @@ export interface AdminOrderDetailDTO {
   customerId: string;
   customerEmail: string;
   customerName: string | null;
+  /**
+   * 074 — how the order was paid when points were part of it, and what has come back of each. Absent
+   * on an order that used no points.
+   */
+  paymentSplit?: OrderPaymentSplitDTO;
 
   items: AdminOrderItemDTO[];
   packages: AdminOrderPackageDTO[];

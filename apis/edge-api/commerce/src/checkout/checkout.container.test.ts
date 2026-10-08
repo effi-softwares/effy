@@ -3,9 +3,10 @@ import { migrationSql, transactorFor, type Transactor } from "@effy/edge-shared"
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
 import { melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
 import {
-  finalizeSucceeded, WebhookSignatureError,
+  finalizeFailed, finalizeSucceeded, WebhookSignatureError,
   type IntentStatus, type PaymentGateway, type PaymentIntent, type WebhookEvent,
 } from "@effy/edge-shared/payments";
+import { credit, debit, usable } from "@effy/edge-shared/points";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -15,7 +16,7 @@ import { createWebhookHandler } from "../webhook/handler";
 import { DeliveryChoiceError } from "./delivery-choice";
 import { defaultQuoter } from "./quote";
 import {
-  createCheckoutService, EmptyCartError, OrderNotFoundError, type CheckoutService, type IntentInput,
+  createCheckoutService, EmptyCartError, OrderNotFoundError, PointsExceedTotalError, type CheckoutService, type IntentInput,
 } from "./service";
 import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from "./store";
 
@@ -59,6 +60,13 @@ function fakeGateway() {
       const i = byId.get(id);
       if (!i) throw new Error("no such intent");
       return i;
+    },
+    // 074 — as the real provider: a paid or processing intent cannot be cancelled; it says what it is.
+    async cancelPaymentIntent(id) {
+      const i = byId.get(id);
+      if (!i) throw new Error("no such intent");
+      if (i.status === "requires_payment") i.status = "canceled";
+      return i.status;
     },
     async constructWebhookEvent(_raw, signature) {
       const evt = events.get(signature);
@@ -118,8 +126,13 @@ async function shopper(cart: Record<string, number>) {
 
 const input = (addressId: string, over: Partial<IntentInput> = {}): IntentInput => ({
   addressId, billingAddressId: "", deliveryMethod: "standard", sameDaySlotId: "", standardDate: "",
-  deliveryInstructions: { handover: null, note: null }, wantsProviderMethodList: false, ...over,
+  deliveryInstructions: { handover: null, note: null }, wantsProviderMethodList: false, pointsToUse: 0, ...over,
 });
+
+/** 074 — give a shopper points, as back-office would. */
+const givePoints = (customerId: string, points: number) =>
+  transact((tx) => credit(tx, { customerId, points, kind: "staff_credit", reason: "goodwill", author: { kind: "staff", sub: "s" }, now: new Date() }));
+const pointsNow = (customerId: string) => usable(pool, customerId, new Date());
 
 const orderRow = (orderId: string) =>
   one<{ status: string; grand: string; items: string; fee: string; handover: string | null; note: string | null }>(
@@ -596,5 +609,100 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await handle(scope, "{}", sig)).toBe("handled");
     expect(await handle(scope, "{}", sig)).toBe("duplicate");
     expect(seen).toEqual(["re_1"]);
+  });
+
+  // ── 074 points ──────────────────────────────────────────────────────────────────────────────────
+
+  it("074 — part-paid with points: the total is unchanged, the card intent is total − points, and paying spends them once (P6)", async () => {
+    const s = await shopper({ Milk: 2 }); // 9.00 + 6.00 delivery = 15.00
+    await givePoints(s.customerId, 1000);
+    const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
+    expect(r).toMatchObject({ grandTotalAmount: "15.00", pointsUsed: 1000, pointsAmount: "10.00", cardAmount: "5.00", paidWithPoints: false });
+    const intent = (await one<{ i: string }>(`SELECT stripe_payment_intent_id AS i FROM public.payment WHERE order_id = $1`, [r.orderId])).i;
+    expect(gateway.amountOf(intent)).toBe(500);
+    expect(await pointsNow(s.customerId)).toBe(0); // held
+
+    gateway.settle(intent, "succeeded");
+    await svc.confirm({ log: console as never }, s.customerId, r.orderId);
+    await svc.confirm({ log: console as never }, s.customerId, r.orderId); // a second settlement changes nothing
+    expect(await count(`SELECT 1 FROM public.points_entry WHERE order_id = $1 AND kind = 'spent'`, [r.orderId])).toBe(1);
+    expect(await pointsNow(s.customerId)).toBe(0);
+    expect((await one<{ a: string }>(`SELECT amount::text AS a FROM public.payment WHERE order_id = $1`, [r.orderId])).a).toBe("5.00");
+  });
+
+  it("074 — points-only: no provider call, a `points` payment, a paid order, an empty cart and a queued receipt (P8)", async () => {
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 2000);
+    const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1500 }), new Date());
+    expect(r).toMatchObject({ paidWithPoints: true, clientSecret: "", cardAmount: "0.00", pointsAmount: "15.00" });
+    expect(gateway.created()).toBe(0);
+    expect((await orderRow(r.orderId)).status).toBe("paid");
+    expect(await one(`SELECT provider, amount::text AS amount, status FROM public.payment WHERE order_id = $1`, [r.orderId])).toEqual({
+      provider: "points", amount: "0.00", status: "succeeded",
+    });
+    expect(await count(`SELECT 1 FROM public.cart_item WHERE cart_id = $1`, [s.cartId])).toBe(0);
+    expect(await count(`SELECT 1 FROM public.receipt_dispatch WHERE order_id = $1`, [r.orderId])).toBe(1);
+    expect(await pointsNow(s.customerId)).toBe(500);
+  });
+
+  it("074 — switching an attempt to points-only cancels the card intent it had made", async () => {
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 2000);
+    const first = await svc.createIntent(s.customerId, input(s.addressId), new Date());
+    const intent = (await one<{ i: string }>(`SELECT stripe_payment_intent_id AS i FROM public.payment WHERE order_id = $1`, [first.orderId])).i;
+    const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1500 }), new Date());
+    expect(r.orderId).toBe(first.orderId);
+    expect(r.paidWithPoints).toBe(true);
+    expect((await gateway.gw.retrievePaymentIntent(intent)).status).toBe("canceled");
+  });
+
+  it("074 — refuses rather than clamps: too many points, more than the total, a card remainder under 50¢ (P9)", async () => {
+    const s = await shopper({ Milk: 2 }); // 15.00
+    await givePoints(s.customerId, 1400);
+    await expect(svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1500 }), new Date())).rejects.toMatchObject({ usable: 1400 });
+    await givePoints(s.customerId, 1000);
+    await expect(svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1600 }), new Date())).rejects.toBeInstanceOf(PointsExceedTotalError);
+    await expect(svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1470 }), new Date())).rejects.toMatchObject({ maxPoints: 1450 });
+    expect(await count(`SELECT 1 FROM public.points_hold WHERE customer_id = $1 AND state = 'held'`, [s.customerId])).toBe(0);
+  });
+
+  it("074 — refreshing the same checkout is not refused by its own hold; a second checkout cannot take the same points (P4)", async () => {
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 1000);
+    const a = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
+    const again = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
+    expect(again.orderId).toBe(a.orderId);
+    // Another order for the same customer (as a second device would hold).
+    const other = (
+      await one<{ id: string }>(
+        `INSERT INTO public."order" (customer_id, order_number, status, currency, item_subtotal_amount, grand_total_amount, delivery_fee_amount, delivery_address)
+         VALUES ($1, 'EFY-OTHER1', 'pending_payment', 'AUD', 10, 10, 0, '{}'::jsonb) RETURNING id::text AS id`,
+        [s.customerId],
+      )
+    ).id;
+    await expect(store.holdPoints(other, s.customerId, 1, new Date())).rejects.toMatchObject({ usable: 0 });
+  });
+
+  it("074 — the late payer: the hold lapsed and the points went elsewhere; the order is paid, the gap recorded, the balance never negative (P7)", async () => {
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 1000);
+    const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 1000 }), new Date());
+    // The hold lapses, and meanwhile 600 points are debited.
+    await pool.query(`UPDATE public.points_hold SET held_until = now() - interval '1 minute' WHERE order_id = $1`, [r.orderId]);
+    await transact((tx) => debit(tx, { customerId: s.customerId, points: 600, reason: "correction", author: { kind: "staff", sub: "s" }, now: new Date() }));
+    const out = await pay(r.orderId);
+    expect(out).toMatchObject({ applied: true, pointsSpent: 400, pointsShortfall: 600 });
+    expect((await orderRow(r.orderId)).status).toBe("paid");
+    expect((await one<{ a: string }>(`SELECT points_shortfall_amount::text AS a FROM public."order" WHERE id = $1`, [r.orderId])).a).toBe("6.00");
+    expect(await pointsNow(s.customerId)).toBe(0);
+  });
+
+  it("074 — a failed payment gives the held points back at once", async () => {
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 1000);
+    const r = await svc.createIntent(s.customerId, input(s.addressId, { pointsToUse: 500 }), new Date());
+    expect(await pointsNow(s.customerId)).toBe(500);
+    await transact((tx) => finalizeFailed(tx, r.orderId));
+    expect(await pointsNow(s.customerId)).toBe(1000);
   });
 });

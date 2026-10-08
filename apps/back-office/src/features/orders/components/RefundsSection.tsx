@@ -267,7 +267,15 @@ function RefundHistory({
               <td className="w-44 py-2 align-top tabular-nums text-muted-foreground">
                 {new Date(r.createdAt).toLocaleString()}
               </td>
-              <td className="w-24 py-2 align-top tabular-nums">{r.amount}</td>
+              <td className="w-24 py-2 align-top tabular-nums">
+                {r.amount}
+                {/* 074 — part of it came back as points: say how it was made up. */}
+                {r.pointsReturned ? (
+                  <span className="block text-xs text-muted-foreground">
+                    {r.cardAmount} to card · {r.pointsReturned.toLocaleString("en-AU")} points
+                  </span>
+                ) : null}
+              </td>
               <td className="py-2 align-top">
                 {r.kind !== "item" ? (
                   // ⚠ Neither names a line, by design — which is why the note is required on both.

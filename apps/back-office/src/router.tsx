@@ -31,6 +31,7 @@ import {
   ordersIndexRoute,
 } from "./routes/orders";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
+import { customerDetailRoute, customersIndexRoute } from "./routes/customers";
 import { rootRoute } from "./routes/__root";
 
 // Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops',
@@ -46,6 +47,8 @@ const routeTree = rootRoute.addChildren([
     ordersAssignmentsRoute,
     ordersAssignmentRoundRoute,
     orderDetailRoute,
+    customersIndexRoute,
+    customerDetailRoute,
     driversIndexRoute,
       driverDetailRoute,
     vehiclesIndexRoute,

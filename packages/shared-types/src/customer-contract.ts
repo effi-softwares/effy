@@ -32,6 +32,7 @@ import type {
   ClosureRestoreResultDTO,
 } from "./customer";
 import type { ProblemJSON } from "./problem";
+import type { PointsBalanceDTO, PointsEntryKind, PointsHistoryEntryDTO, PointsHistoryPageDTO } from "./points";
 
 export type {
   CustomerStatus,
@@ -54,6 +55,10 @@ export type {
   ClosureResultDTO,
   ClosureRestoreResultDTO,
   ProblemJSON,
+  PointsBalanceDTO,
+  PointsEntryKind,
+  PointsHistoryEntryDTO,
+  PointsHistoryPageDTO,
 };
 
 /** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
@@ -80,6 +85,12 @@ export interface CustomerContract {
   closureRequest: ClosureRequestDTO;
   closureResult: ClosureResultDTO;
   closureRestoreResult: ClosureRestoreResultDTO;
+
+  // ── 074 points. ⚠ Each needs its field here, or it generates zero times (R17).
+  pointsBalance: PointsBalanceDTO;
+  pointsEntryKind: PointsEntryKind;
+  pointsHistoryEntry: PointsHistoryEntryDTO;
+  pointsHistoryPage: PointsHistoryPageDTO;
 
   problem: ProblemJSON;
 }

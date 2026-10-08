@@ -23,6 +23,9 @@ export interface RefundRow {
   actor_label: string | null;
   created_at: Date;
   settled_at: Date | null;
+  /** 074 — the card part (NULL on a pre-074 row = all of it) and the points that came back. */
+  card_amount?: string | null;
+  points_returned?: number;
 }
 
 /**
@@ -49,7 +52,8 @@ export async function refunds(orderId: string): Promise<RefundRow[]> {
     `SELECT r.id::text AS refund_id, r.kind, r.amount::text, r.reason, r.status,
             r.failure_reason, r.note, r.actor_kind,
             COALESCE(ast.name, sst.name) AS actor_label,
-            r.created_at, r.settled_at
+            r.created_at, r.settled_at,
+            COALESCE(r.card_amount, r.amount)::text AS card_amount, r.points_returned
        FROM public.refund r
        LEFT JOIN admin.staff ast
               ON ast.cognito_sub = r.actor_sub AND r.actor_kind = 'back_office'

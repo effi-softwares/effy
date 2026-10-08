@@ -8,6 +8,13 @@ import type { DeliveryQuoteDTO } from "@effy/shared-types";
 import { isUuid } from "../lib/ids";
 import type { CheckoutLine, CheckoutStore } from "./store";
 
+/**
+ * The least a card can be charged (AUD). ⚠ A FIXED PROVIDER FACT, not a business setting: below it the
+ * provider refuses the intent, so a points total that leaves 30¢ for the card is refused up front with
+ * the most points that leave a chargeable amount (research R4).
+ */
+export const CARD_MINIMUM_CENTS = 50;
+
 /** How long a captured quote is honoured. */
 export const QUOTE_VALIDITY_MS = 30 * 60_000;
 
@@ -94,5 +101,17 @@ export async function quoteForCheckout(
   if (!postcode) throw new AddressNotFoundError();
 
   const lines = await deps.store.cartLines(customerId);
-  return toQuoteDTO(postcode, await deps.quoter(customerId, postcode, packagesFromLines(lines), now), now);
+  const [delivery, points] = await Promise.all([
+    deps.quoter(customerId, postcode, packagesFromLines(lines), now),
+    deps.store.pointsFor(customerId, now),
+  ]);
+  return {
+    ...toQuoteDTO(postcode, delivery, now),
+    // 074 — what the shopper can spend. ABSENT when they have none, so the control is not shown.
+    // ⚠ The order total depends on the delivery choice still to be made, so the CLIENT works out the
+    // most for this order; the intent call re-decides it and refuses what it cannot honour.
+    ...(points.usable > 0
+      ? { points: { usable: points.usable, centsPerPoint: points.centsPerPoint, cardMinimumAmount: formatCents(CARD_MINIMUM_CENTS) } }
+      : {}),
+  };
 }

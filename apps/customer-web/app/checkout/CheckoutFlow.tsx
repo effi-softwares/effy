@@ -39,6 +39,8 @@ import { BillingSection } from "./BillingSection"
 import { DeliveryInstructions } from "./DeliveryInstructions"
 import { DeliveryOptions } from "./DeliveryOptions"
 import { PaymentStep } from "./PaymentStep"
+import { PointsControl } from "./_components/PointsControl"
+import { splitTotal } from "./_components/points"
 
 type Step = "review" | "paying"
 
@@ -159,6 +161,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const serviced = quote?.serviced === true
   const totalCents = parseCents(estimate.itemSubtotal) + deliveryCents
 
+  // 074 — points. ON by default at the most they can use (FR-012); `chosenPoints` null = "the most".
+  const [usePoints, setUsePoints] = useState(true)
+  const [chosenPoints, setChosenPoints] = useState<number | null>(null)
+  const split = useMemo(
+    () => splitTotal(quote?.points, totalCents, usePoints ? (chosenPoints ?? Number.MAX_SAFE_INTEGER) : 0),
+    [quote?.points, totalCents, usePoints, chosenPoints],
+  )
+
   // ⚠ 027: the checkout-entry cart snapshot is GONE, and its route with it.
   //
   // Under 019's Option B the device cart was the source of truth, so checkout had to PUT it to the server
@@ -271,6 +281,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       // must not have an earlier attempt's draft delivered with the order.
       const deliveryInstructions = draftToRequest(instructions)
       body.deliveryInstructions = deliveryInstructions
+      // 074 — the points the shopper chose. The server re-decides the split and refuses what it cannot
+      // honour; it never quietly changes the number.
+      if (split.pointsUsed > 0) body.pointsToUse = split.pointsUsed
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -293,6 +306,23 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setError(refusal.message)
         setQuoteEpoch((n) => n + 1)
         return false
+      }
+      // 074 — a points refusal. Nothing was charged; the shopper is shown what they can do now.
+      const pointsMessage = pointsRefusal(data.code)
+      if (pointsMessage) {
+        // A changed balance is re-read (the quote carries it); a too-large number is left for the
+        // shopper to lower — the page's estimate cannot see a promo discount the server applied.
+        if (data.code === "points_balance_changed") setChosenPoints(null)
+        else setChosenPoints(split.pointsUsed)
+        setError(pointsMessage)
+        setQuoteEpoch((n) => n + 1)
+        return false
+      }
+      // 074 — points paid for all of it: the order is ALREADY placed. Straight to the receipt.
+      if (res.ok && data.paidWithPoints && data.orderId) {
+        capture({ name: "checkout_paid_with_points", props: { share: "all" } })
+        window.location.assign(`/checkout/complete?order=${data.orderId}`)
+        return true
       }
       if (!res.ok || !data.clientSecret) {
         setError(data.error ?? "We couldn’t start payment. Please try again.")
@@ -338,6 +368,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         // A failure is deliberately silent: the flow is already moving to payment, the ORDER has the
         // instructions, and the checkbox stays ticked so a return to this step tries again.
       }
+      if ((data.pointsUsed ?? 0) > 0) capture({ name: "checkout_paid_with_points", props: { share: "part" } })
       setIntent(data as CreateCheckoutIntentResponse)
       setStep("paying")
       return true
@@ -413,6 +444,22 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             disabled={busy}
           />
         )}
+
+        {serviced && quote?.points ? (
+          <PointsControl
+            points={quote.points}
+            totalCents={totalCents}
+            on={usePoints}
+            onToggle={(on) => {
+              setUsePoints(on)
+              capture({ name: "checkout_points_toggled", props: { on } })
+            }}
+            chosen={chosenPoints}
+            onChosen={setChosenPoints}
+            currency={currency}
+            disabled={busy}
+          />
+        ) : null}
 
         <BillingSection
           sameAsShipping={billingSameAsShipping}
@@ -538,6 +585,19 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
               )}
             </dd>
           </div>
+          {/* 074 — points are a way of PAYING, shown under the total, never as a discount above it. */}
+          {serviced && split.pointsUsed > 0 ? (
+            <dl className="mt-3 space-y-1 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Points ({split.pointsUsed.toLocaleString("en-AU")})</dt>
+                <dd>−{formatMoney(formatCents(split.pointsCents), currency)}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="font-medium">To pay by card</dt>
+                <dd className="font-medium">{formatMoney(formatCents(split.cardCents), currency)}</dd>
+              </div>
+            </dl>
+          ) : null}
           {quote && !serviced ? (
             <p className="mt-3 text-sm text-destructive">
               We don’t deliver to this address yet. Try a different address above.
@@ -561,6 +621,22 @@ function deliveryRefusal(
       return { reason: code, message: "Choose a delivery time to continue." }
     case "date_unavailable":
       return { reason: code, message: "That delivery day is no longer available. Please choose another." }
+    default:
+      return null
+  }
+}
+
+/** 074 — a points refusal from the intent, in our own words; null when it is not one. */
+function pointsRefusal(code: string | undefined): string | null {
+  switch (code) {
+    case "points_balance_changed":
+      return "Your points balance has changed. We’ve updated how many you can use — please check and continue."
+    case "points_exceed_total":
+      return "That’s more points than this order costs after any discount. Use fewer points and continue."
+    case "points_card_remainder_too_small":
+      return "Use a few fewer points so there’s at least 50¢ left to pay by card, or enough points to cover it all."
+    case "payment_in_progress":
+      return "A payment for this order is already in progress. Please check your orders before trying again."
     default:
       return null
   }

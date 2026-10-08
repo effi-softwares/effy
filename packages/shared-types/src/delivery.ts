@@ -11,6 +11,8 @@
  * ⚠ Nothing here ever carries a distance, a ring name, or a shop identity (FR-018/FR-033; SC-007).
  */
 
+import type { CheckoutPointsDTO } from "./checkout";
+
 /** The two delivery methods. same-day is always priced ≥ standard (FR-022). */
 export type DeliveryMethod = "same_day" | "standard";
 
@@ -91,6 +93,8 @@ export interface DeliveryQuoteDTO {
    * ⚠ Never empty when `serviced` (FR-020).
    */
   standardDays: StandardDayOptionDTO[];
+  /** 074 — the customer's spendable points, when they have any. */
+  points?: CheckoutPointsDTO;
 }
 
 /** Why same-day is not on offer: the zone or shop does not do it, or every slot today is closed or full. */

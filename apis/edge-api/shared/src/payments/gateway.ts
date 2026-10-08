@@ -161,6 +161,13 @@ export interface PaymentGateway {
   createPaymentIntent(input: CreateIntentInput): Promise<PaymentIntent>;
   /** Re-fetch an intent's authoritative status. */
   retrievePaymentIntent(intentId: string): Promise<PaymentIntent>;
+  /**
+   * 074 — withdraw an intent nobody will pay: a checkout that switched to paying entirely with points.
+   * Returns the intent's status AFTER the attempt; a provider that refuses because the intent already
+   * succeeded or is processing yields that status rather than an error, so the caller can tell
+   * "cancelled" from "too late, it was paid".
+   */
+  cancelPaymentIntent(intentId: string): Promise<IntentStatus>;
   /** Verify the provider signature over the RAW body and return the event. */
   constructWebhookEvent(rawBody: string | Buffer, signatureHeader: string): Promise<WebhookEvent>;
 
@@ -326,6 +333,18 @@ export const stripeGateway: PaymentGateway = {
 
   async retrievePaymentIntent(intentId) {
     return toIntent(await (await stripe()).paymentIntents.retrieve(intentId));
+  },
+
+  async cancelPaymentIntent(intentId) {
+    const sdk = await stripe();
+    try {
+      return toIntent(await sdk.paymentIntents.cancel(intentId)).status;
+    } catch (err) {
+      // ⚠ An intent that has succeeded (or is processing) cannot be cancelled. That is an ANSWER, not
+      // a failure: report what it now is so the caller settles it instead of abandoning a payment.
+      if (err instanceof Stripe.errors.StripeInvalidRequestError) return toIntent(await sdk.paymentIntents.retrieve(intentId)).status;
+      throw err;
+    }
   },
 
   async constructWebhookEvent(rawBody, signatureHeader) {

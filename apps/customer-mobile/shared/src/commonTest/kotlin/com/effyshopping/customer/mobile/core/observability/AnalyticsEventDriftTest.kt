@@ -29,6 +29,10 @@ class AnalyticsEventDriftTest {
         "checkout_started",
         "order_placed",
         "search_performed",
+        // commerce-events.md — Points (074)
+        "points_viewed",
+        "checkout_points_toggled",
+        "checkout_paid_with_points",
     )
 
     private val allEvents: List<AnalyticsEvent> = listOf(
@@ -44,6 +48,9 @@ class AnalyticsEventDriftTest {
         AnalyticsEvent.PushPermissionGranted,
         AnalyticsEvent.PushPermissionDenied,
         AnalyticsEvent.NotificationOpened("order_ready"),
+        AnalyticsEvent.PointsViewed,
+        AnalyticsEvent.CheckoutPointsToggled(true),
+        AnalyticsEvent.CheckoutPaidWithPoints("part"),
     )
 
     @Test

@@ -19,5 +19,7 @@
   "deliveryAddress": "1 Test St </td></tr><script>alert(1)</script>",
   "billingSameAsDelivery": false,
   "billingAddress": "2 Test St \"><script>alert(1)</script>",
-  "orderUrl": "https://effyshopping.com/orders/x"
+  "orderUrl": "https://effyshopping.com/orders/x",
+  "hasPoints": true,
+  "pointsPaid": "500 points <script>alert(1)</script>"
 }

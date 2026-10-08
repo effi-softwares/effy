@@ -1,0 +1,12 @@
+{{points}} of your {{effyProductName}} points expire on {{expiresOn}}
+
+{{points}} of your points, worth ${{valueAmount}}, can be used until {{expiresOn}}. After that they can't be used.
+
+{{shopUrl}}
+
+See your balance any time at {{pointsUrl}}. Questions? Reply to this email or write to {{effySupportEmail}}.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

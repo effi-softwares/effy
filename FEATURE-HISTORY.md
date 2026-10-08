@@ -4,6 +4,52 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**074-customer-points — Customer Points (store credit).** 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT
+DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-08).** First slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic
+E1); spec 080 (courier override compensation) is its first automatic creditor. Sign-off:
+[specs/074-customer-points/SIGNOFF.md](specs/074-customer-points/SIGNOFF.md).
+- **What it is**: a points balance per customer that staff credit, the customer spends at checkout,
+  refunds return, and time expires. One point = one cent, 12 months, both business settings.
+- ⚠ **THE BALANCE IS NEVER STORED.** `points_entry` + `points_allocation` are append-only; the balance
+  is `public.points_usable` and nothing else computes it. `@effy/edge-shared/points` is the ONLY writer
+  (`points-append-only.guard.test.ts`); the shopper role has UPDATE/DELETE revoked on both tables.
+- ⚠ **POINTS ARE A WAY OF PAYING, NOT A DISCOUNT.** `order.grand_total_amount` is unchanged;
+  `payment.amount` is now the **CARD** amount (total − points). Anything that read `payment.amount` as
+  "what the order cost" must add `order.points_value_amount` — the refund ceiling was the one place,
+  and it does.
+- **Checkout**: points are HELD at the intent call (`points_hold`, 069's slot pattern) and SPENT inside
+  `finalizeSucceeded`. A late payer whose hold lapsed spends what is left; the gap is recorded on the
+  order (`points_shortfall_amount`) and alarmed. A points-only order makes no provider call
+  (`payment.provider = 'points'`). A card remainder under A$0.50 is refused.
+- **Refunds**: split by CUMULATIVE proportion (`splitRefund`), so partial refunds end at exactly the
+  points spent and the card paid. Only the card part reaches the provider; points return when the
+  card part is accepted, once, whichever of submission / webhook / reconciler gets there first.
+- ⚠ **A SHOP COULD HAVE LEARNED AN ORDER WAS PAID WITH POINTS** — the shared refund result gained the
+  split and the shop-manager route returned it whole. Found by writing the isolation test; fixed with
+  `withoutPaymentSplit`, pinned by `shop/src/points-isolation.contract.test.ts`.
+- ⚠ **A POINTS-ONLY CHECKOUT COULD LEAVE A PAYABLE CARD INTENT BEHIND.** The gateway gained
+  `cancelPaymentIntent`; checkout cancels the earlier intent, and if it was already paid settles that
+  and refuses the points payment.
+- ⚠ **A WEBHOOK CAN SETTLE A REFUND BEFORE `markSubmitted` RUNS**, skipping where points came back.
+  `settleByProviderId` now returns them too (idempotent per refund).
+- ⚠ **THE 071 CUSTOMER-UPDATE GUARD WAS WIDENED ON PURPOSE**: a new live kind `points`, and a fourth
+  allowed builder (`points/announce.ts`). No points rule involves a shop, so the guard's reason holds.
+  `live_kinds` in `infra/envs/dev/live.tf` gained `points` (the contract test caught the omission).
+- **New back-office screen**: Customers (search by order number or email — deliberately no browsable
+  register), with credit / remove / history / settings.
+- **Not built, recorded**: customer push deep links (the app routes no push tap at all); a points line
+  in the refund email (nothing sends `order-refunded`); forfeiture's caller (the erasure worker does
+  not exist — candidates register item 3).
+- **Verified**: typecheck clean; shared 638, commerce 295, customer 220, orders 95 (all with real
+  databases), back-office 297, customer-web 613, three mobile apps + an iOS compile; 8 proofs broken
+  once and caught. The two shop failures recorded under 073 are unchanged.
+- ⚠ **Testcontainers' Ryuk hung on this machine** after a killed run; the suites were run with
+  `TESTCONTAINERS_RYUK_DISABLED=true` and the containers removed by hand. Restart Docker Desktop.
+- **⚠ Open**: `make db-up`; deploy `notifications` FIRST, then `commerce` + `orders` + `shop`
+  **together**, then `customer`; `terraform apply` (live kind, 4 alarms); web pipelines; mobile build.
+  Legal review of the points terms (promotions-terms v2). Walk V1–V7.
+
 **073-order-dispatch-control — Simple Order Status & Driver Assignment in Orders.** 🚧 **CODE-COMPLETE
 AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-07).** Simplified mid-plan on
 operator direction ("simpler is better"). Sign-off:

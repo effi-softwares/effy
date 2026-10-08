@@ -7,6 +7,11 @@
 Each item was checked against the code unless it is marked **(docs only)**. Nothing here was
 re-run: test and deploy states are quoted from the feature history, not observed.
 
+> ⚠ **Superseded as the next priority (2026-10-08):** the operator chose the delivery model v2
+> programme — [2026-10-delivery-model-v2-backlog.md](prd/2026-10-delivery-model-v2-backlog.md),
+> specs 074–082, starting with 074 Customer Points. The items below remain valid candidates; item 5
+> (order emails) and item 7 (`TrackOrderScreen`) are folded into its E5.
+
 **Recommended next spec:** items 1 and 2 together — both are already named as "still ahead" in
 `CLAUDE.md`, and item 16 depends on the sweep. Then item 3, which unblocks store submission.
 
@@ -18,7 +23,7 @@ re-run: test and deploy states are quoted from the feature history, not observed
 | --- | --- | --- |
 | 1 | **Deliver the event backbone.** `event_outbox` is written at payment and nothing drains it. The SNS/SQS fan-out in the architecture has no publisher. | `apis/edge-api/shared/src/payments/outbox.ts:17` |
 | 2 | **Sweep abandoned unpaid orders.** `pending_payment` orders linger forever; no sweep exists in any service. They also block account closure. | No sweep function or schedule under `apis/edge-api`; `ORDER-FLOW-GAPS.md` Tier 4 |
-| 3 | **Account erasure worker.** The service comment says erasure "runs automatically", but no erasure function exists. Store-submission blocker row 10. | `apis/edge-api/customer/serverless.yml:375`; `apis/edge-api/customer/src/functions/`; `docs/store-submission/submission-checklist.md` |
+| 3 | **Account erasure worker.** The service comment says erasure "runs automatically", but no erasure function exists. Store-submission blocker row 10. ⚠ **It MUST call `forfeit` from `@effy/edge-shared/points`** when a closure becomes final (074 FR-024, research R10): until it does, a closed account's points are unusable but never recorded as forfeited. | `apis/edge-api/customer/serverless.yml:375`; `apis/edge-api/customer/src/functions/`; `docs/store-submission/submission-checklist.md` |
 | 4 | **Customer notifications inbox.** The mobile screen is backed by a fixture that returns an empty list. The `customer` service has no notifications read route, though `notification_request` rows are written. | `apps/customer-mobile/.../features/notifications/domain/NotificationFixtures.kt`; `apis/edge-api/customer/src/` |
 | 5 | **Order-ready and out-for-delivery emails.** The email catalogue has only confirmation, delivered and refunded. Web-only shoppers hear nothing in between. | `packages/email-kit/src/catalog.ts` |
 | 6 | **Customer push copy.** Customers are still told "Your order is ready for handoff" — internal vocabulary. | `apis/edge-api/notifications/src/worker/copy.ts:83` |

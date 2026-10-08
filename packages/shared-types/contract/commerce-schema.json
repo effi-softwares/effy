@@ -736,6 +736,27 @@
       ],
       "type": "object"
     },
+    "CheckoutPointsDTO": {
+      "additionalProperties": false,
+      "description": "074 — what a customer can spend at checkout, on the delivery quote. Absent when they have no points. The client offers up to min(usable, order total); the card part must be 0 or at least `cardMinimumAmount` (the provider cannot charge less).",
+      "properties": {
+        "cardMinimumAmount": {
+          "type": "string"
+        },
+        "centsPerPoint": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "usable": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "usable",
+        "centsPerPoint",
+        "cardMinimumAmount"
+      ],
+      "type": "object"
+    },
     "ConfirmCheckoutRequest": {
       "additionalProperties": false,
       "description": "POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook).",
@@ -848,6 +869,10 @@
             "null"
           ]
         },
+        "pointsToUse": {
+          "$ref": "#/definitions/WireInt",
+          "description": "074 — how many points the customer chose to pay with (a whole number, absent = 0). The server refuses rather than clamps: more than is usable → 409 `points_balance_changed`; more than the order total → 422 `points_exceed_total`; a card remainder under the provider minimum → 422 `points_card_remainder_too_small`. Each refusal carries what IS possible."
+        },
         "sameDaySlotId": {
           "description": "069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED when any package will go same-day; the intent is refused with `slot_required` without it and with `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for this order when it accepts the slot — see `slotHeldUntil` on the response.",
           "type": [
@@ -886,6 +911,9 @@
           ],
           "description": "051 — the billing details the CLIENT must pass back at confirmation, because the payment step no longer asks the shopper for them (FR-014/FR-015).\n\n⚠ DERIVED FROM THE ORDER, NEVER FROM THE REQUEST. This is the address the shopper already confirmed one screen earlier — the delivery address where they did not diverge, the chosen billing address where they did — plus the profile name. Sending it means the provider stops guessing a country from the shopper's IP, which is where \"Country: Sri Lanka\" on an Australia-only storefront came from.\n\n⚠ Removing the fields does NOT weaken authorization: the same data still reaches the bank, sourced from Effy instead of from the shopper's keyboard (research R4)."
         },
+        "cardAmount": {
+          "type": "string"
+        },
         "clientSecret": {
           "description": "Authorizes confirming exactly this PaymentIntent from the client. Never a secret key.",
           "type": "string"
@@ -916,9 +944,20 @@
         "orderNumber": {
           "type": "string"
         },
+        "paidWithPoints": {
+          "description": "074 — TRUE when points covered the whole order: it is ALREADY PAID, no card is involved, and `clientSecret` is empty. The client goes straight to the confirmation.",
+          "type": "boolean"
+        },
         "payOverTimeAvailable": {
           "description": "051 US4 — whether the provider offers any instalment option for THIS intent.\n\n⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on account eligibility, neither of which a client knows. A guess produces exactly what FR-010/FR-011 forbid: an option offered and then refused after the shopper commits, or one that vanishes unexplained.\n\n⚠ A boolean, not the list — which providers appear is the payment element's business, and sending the raw list would leak account configuration to a client with no use for it.",
           "type": "boolean"
+        },
+        "pointsAmount": {
+          "type": "string"
+        },
+        "pointsUsed": {
+          "$ref": "#/definitions/WireInt",
+          "description": "074 — the points this order uses, their value, and what is left for the card."
         },
         "publishableKey": {
           "type": "string"
@@ -1134,6 +1173,10 @@
             "$ref": "#/definitions/DeliveryPackageDTO"
           },
           "type": "array"
+        },
+        "points": {
+          "$ref": "#/definitions/CheckoutPointsDTO",
+          "description": "074 — the customer's spendable points, when they have any."
         },
         "postcode": {
           "type": "string"
@@ -1565,6 +1608,10 @@
           ],
           "description": "052 — how the order was paid, in a form safe to display (FR-006). Null when not captured: a pre-052 order, or an order whose post-commit capture failed. The receipt omits the line rather than showing a blank."
         },
+        "paymentSplit": {
+          "$ref": "#/definitions/OrderPaymentSplitDTO",
+          "description": "074 — how the order was paid when points were part of it, and what has come back of each. ⚠ ABSENT on an order that used no points. Points are a way of paying — never a discount."
+        },
         "paymentStatus": {
           "$ref": "#/definitions/PaymentStatus"
         },
@@ -1692,6 +1739,35 @@
         "unitPriceAmount",
         "quantity",
         "lineSubtotalAmount"
+      ],
+      "type": "object"
+    },
+    "OrderPaymentSplitDTO": {
+      "additionalProperties": false,
+      "description": "How an order was paid and what has come back — on customer and staff order reads.",
+      "properties": {
+        "cardAmount": {
+          "type": "string"
+        },
+        "cardReturned": {
+          "type": "string"
+        },
+        "pointsAmount": {
+          "type": "string"
+        },
+        "pointsReturned": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "pointsUsed": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "pointsUsed",
+        "pointsAmount",
+        "cardAmount",
+        "pointsReturned",
+        "cardReturned"
       ],
       "type": "object"
     },

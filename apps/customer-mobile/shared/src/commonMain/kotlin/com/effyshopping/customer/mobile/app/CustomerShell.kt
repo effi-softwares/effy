@@ -34,6 +34,7 @@ import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.paymentmethods.presentation.PaymentMethodsScreen
+import com.effyshopping.customer.mobile.features.points.presentation.PointsScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
@@ -451,6 +452,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // the payment screen; the receipt is reached from there, not from here.
                         onProceedToPayment = { navState.push(CustomerNavKey.Payment) },
                         onBack = { navState.pop() },
+                        // 074 — points paid for everything: the order is placed, exactly as after onPaid.
+                        onPlacedWithPoints = { orderId -> navState.resetTo(CustomerNavKey.Receipt(orderId)) },
                     )
                 }
 
@@ -526,6 +529,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 }
                 entry<CustomerNavKey.AddressBook> {
                     AddressBookScreen(container, onBack = { navState.pop() })
+                }
+                entry<CustomerNavKey.Points> {
+                    PointsScreen(container, onBack = { navState.pop() })
                 }
                 entry<CustomerNavKey.PaymentMethods> {
                     PaymentMethodsScreen(container, onBack = { navState.pop() })

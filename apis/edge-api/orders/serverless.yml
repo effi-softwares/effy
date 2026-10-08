@@ -218,3 +218,83 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── 074: customers and their points. Every rule is @effy/edge-shared/points; these are the
+  #    back-office's routes into it.
+
+  customersV1:
+    handler: src/functions/customers-v1-get.handler
+    description: Back-office — find a customer by order number or email (074). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/customers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  customerDetailV1:
+    handler: src/functions/customer-v1-get.handler
+    description: Back-office — a customer, their points and recent orders (074). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/customers/{customerId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  customerPointsHistoryV1:
+    handler: src/functions/customer-points-history-v1-get.handler
+    description: Back-office — a customer's points history with reasons, notes and authors (074). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/customers/{customerId}/points/history
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  customerPointsCreditV1:
+    handler: src/functions/customer-points-credit-v1-post.handler
+    description: Back-office — credit points with a reason (074 US1). Any active staff; a csa is held to the per-credit limit.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/customers/{customerId}/points/credit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  customerPointsDebitV1:
+    handler: src/functions/customer-points-debit-v1-post.handler
+    description: Back-office — debit points to correct a balance (074 US5). Write = admin|manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/customers/{customerId}/points/debit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  pointsSettingsV1:
+    handler: src/functions/points-settings-v1-get.handler
+    description: Back-office — the points rules and their change log (074 US6). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/points/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  pointsSettingsUpdateV1:
+    handler: src/functions/points-settings-v1-put.handler
+    description: Back-office — change the points rules (074 US6). Admin only; every change audited.
+    events:
+      - httpApi:
+          method: PUT
+          path: /orders/v1/points/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

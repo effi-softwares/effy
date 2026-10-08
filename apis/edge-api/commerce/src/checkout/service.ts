@@ -19,7 +19,7 @@ import { createHash } from "node:crypto";
 import { isUuid } from "../lib/ids";
 import { DeliveryChoiceError, preferredMethod, resolveDeliveryChoice } from "./delivery-choice";
 import {
-  AddressNotFoundError, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
+  AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
 } from "./quote";
 import { SlotUnavailableError, type CheckoutStore, type PackageDelivery, type SlotHold } from "./store";
 
@@ -36,6 +36,28 @@ export class OrderNotFoundError extends Error {}
  * separating them would make the route an oracle for whether a payment-method id exists.
  */
 export class PaymentMethodNotFoundError extends Error {}
+
+/**
+ * 074 — the points asked for cannot be used as asked. Carries the most that CAN be, so the client can
+ * offer it ("Use 4,750 points instead") rather than send the shopper back to guess.
+ */
+export class PointsExceedTotalError extends Error {
+  constructor(readonly maxPoints: number) {
+    super("checkout: more points than the order total");
+  }
+}
+export class PointsCardRemainderTooSmallError extends Error {
+  constructor(readonly maxPoints: number) {
+    super("checkout: the card would be left less than the provider can charge");
+  }
+}
+/**
+ * 074 — a payment for this order is already in flight with the provider, so it cannot switch to being
+ * paid entirely with points. The client re-reads; nothing was charged twice and no points were spent.
+ */
+export class PaymentInProgressError extends Error {}
+
+export { CARD_MINIMUM_CENTS };
 
 /** The order is below the minimum. Carries how much more is needed — never a shop. */
 export class BelowMinimumError extends Error {
@@ -58,6 +80,8 @@ export interface IntentInput {
   deliveryInstructions: DeliveryInstructionsDTO;
   /** Set only by a client that renders a provider-owned payment-method list (mobile). */
   wantsProviderMethodList: boolean;
+  /** 074 — whole points to pay with; 0 for none. Validated by the handler as a non-negative integer. */
+  pointsToUse: number;
 }
 
 export type PromoSource = (customerId: string, payableCents: number) => Promise<{ cents: number; promo: { id: string; code: string } | null }>;
@@ -257,6 +281,25 @@ export function createCheckoutService(deps: {
       const deliveryFeeCents = packages.reduce((sum, p) => sum + p.feeCents, 0);
       grandTotalCents += deliveryFeeCents;
 
+      // 074 — points are a WAY OF PAYING (FR-018): the order total above is final, and the card pays
+      // what the points do not. Refused, never clamped, so the shopper is shown the real figures.
+      let pointsUsed = input.pointsToUse;
+      let centsPerPoint = 1;
+      if (pointsUsed > 0) {
+        ({ centsPerPoint } = await store.pointsFor(customerId, now));
+        const maxForTotal = Math.floor(grandTotalCents / centsPerPoint);
+        if (pointsUsed > maxForTotal) throw new PointsExceedTotalError(maxForTotal);
+        const remainder = grandTotalCents - pointsUsed * centsPerPoint;
+        if (remainder > 0 && remainder < CARD_MINIMUM_CENTS) {
+          throw new PointsCardRemainderTooSmallError(Math.max(0, Math.floor((grandTotalCents - CARD_MINIMUM_CENTS) / centsPerPoint)));
+        }
+      } else {
+        pointsUsed = 0;
+      }
+      const pointsValueCents = pointsUsed * centsPerPoint;
+      const cardCents = grandTotalCents - pointsValueCents;
+
+      const pendingBefore = await store.pendingOrderIntent(customerId);
       const reusePending = await mayReusePendingOrder(customerId);
       const { orderId, orderNumber } = await store.upsertPendingOrder(
         customerId,
@@ -264,9 +307,16 @@ export function createCheckoutService(deps: {
           itemSubtotalCents, deliveryFeeCents, discountCents: discount.cents,
           promoCodeId: discount.promo?.id ?? null, promoCode: discount.promo?.code ?? null,
           grandTotalCents, currency: CURRENCY,
+          pointsUsed, pointsCentsPerPoint: pointsUsed > 0 ? centsPerPoint : null, pointsValueCents,
         },
         address, lines, reusePending,
       );
+
+      // 074 — the points are SET ASIDE here, before the delivery place and long before any charge, at
+      // the same "last moment the server can refuse" as the slot (research R3). Zero releases any hold
+      // this order had from an earlier attempt. ⚠ A refusal here (InsufficientPointsError) leaves the
+      // order pending with nothing held, and the handler re-shows the shopper what they have.
+      await store.holdPoints(orderId, customerId, pointsUsed, now);
 
       // ⚠ The place is HELD here, under the slot's row lock, BEFORE the payment intent is created:
       // a shopper who loses the last place is refused while there is still nothing for them to pay.
@@ -300,6 +350,37 @@ export function createCheckoutService(deps: {
       // who clears the note and pays must not have the earlier draft delivered with their order.
       await store.setOrderDeliveryInstructions(orderId, input.deliveryInstructions.handover, input.deliveryInstructions.note);
 
+      const pointsSplit = {
+        pointsUsed, pointsAmount: formatCents(pointsValueCents), cardAmount: formatCents(cardCents),
+      };
+
+      // 074 — POINTS COVER EVERYTHING: no provider, no intent, no card. The order is placed now.
+      if (cardCents === 0 && pointsUsed > 0) {
+        // ⚠ An intent this order made on an earlier attempt must not stay payable: paying it would
+        // charge a card for an order already paid with points. Cancel it; if the provider says it was
+        // already paid, settle THAT and refuse this — the shopper re-reads and sees one paid order.
+        if (pendingBefore && pendingBefore.orderId === orderId) {
+          const status = await gateway.cancelPaymentIntent(pendingBefore.intentId);
+          if (status === "succeeded" || status === "requires_action") {
+            await store.holdPoints(orderId, customerId, 0, now);
+            if (status === "succeeded") await settlePaid(orderId);
+            throw new PaymentInProgressError();
+          }
+        }
+        await store.placePointsOnly(orderId);
+        await settlePaid(orderId);
+        emitMetric(ns(), "PointsOnlyOrders");
+        return {
+          orderId, orderNumber, clientSecret: "", publishableKey: deps.publishableKey,
+          grandTotalAmount: formatCents(grandTotalCents), currency: CURRENCY,
+          ...pointsSplit, paidWithPoints: true,
+          // Nothing is confirmed with the provider, so there is nothing to pass back.
+          billingDetails: null,
+          // Already confirmed by the paid transition above; carried for a client that shows it.
+          ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
+        };
+      }
+
       // The provider customer, resolved before the intent so a kept card can attach to it.
       const profile = await store.paymentProfile(customerId);
       const providerCustomerId = await gateway.ensureCustomer({
@@ -312,15 +393,17 @@ export function createCheckoutService(deps: {
       // ⚠ `setup_future_usage` is deliberately NOT set: whether the card is kept is the shopper's
       // choice, made at confirmation; setting it here would keep a card they declined (051).
       const [intent, session] = await Promise.all([
+        // ⚠ The CARD amount — the order total less points (074). The key covers it, so changing the
+        // points chosen gets a fresh intent exactly as changing the basket does.
         gateway.createPaymentIntent({
-          amountMinor: grandTotalCents, currency: CURRENCY,
-          idempotencyKey: idempotencyKey(orderId, grandTotalCents, providerCustomerId),
+          amountMinor: cardCents, currency: CURRENCY,
+          idempotencyKey: idempotencyKey(orderId, cardCents, providerCustomerId),
           orderId, orderNumber, customerId: providerCustomerId,
         }),
         input.wantsProviderMethodList ? gateway.createCustomerSession(providerCustomerId) : Promise.resolve(null),
       ]);
 
-      await store.upsertPayment(orderId, intent.id, grandTotalCents, paymentStatusFor(intent.status));
+      await store.upsertPayment(orderId, intent.id, cardCents, paymentStatusFor(intent.status));
 
       return {
         orderId,
@@ -336,6 +419,8 @@ export function createCheckoutService(deps: {
         // business, and the raw list would leak account configuration.
         payOverTimeAvailable: intent.availableMethods.some((m) => PAY_OVER_TIME.has(m)),
         billingDetails: billingDetailsFrom(billingSnapshot, profile.name, profile.email),
+        ...pointsSplit,
+        paidWithPoints: false,
         // Omitted when no package is same-day.
         ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
       };

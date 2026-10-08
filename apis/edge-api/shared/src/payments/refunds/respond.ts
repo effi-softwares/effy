@@ -10,6 +10,7 @@ import {
   NoLinesError, NoteRequiredError, RefundOrderNotFoundError,
 } from "./errors";
 import type { LineInput } from "./repository";
+import { RefundNotSplittableError } from "../../points/split";
 
 /**
  * `[{ orderItemId, quantity }]` from a request body. Absent is an empty list; anything that is not
@@ -46,6 +47,21 @@ export function refundProblem(scope: RequestScope, err: unknown, what: string): 
     return validationFailed(scope, "that refund is not valid");
   }
   if (err instanceof LineOverRefundedError) return validationFailed(scope, "those units have already been refunded");
+  // 074 — only possible when a point is worth more than a cent and little card money is left.
+  if (err instanceof RefundNotSplittableError) {
+    return validationFailed(scope, "this amount can't be split exactly between card and points — try a slightly different amount");
+  }
   scope.log.error({ err }, `refunds: ${what} failed`);
   return internal(scope);
+}
+
+/**
+ * 074 FR-027 — a refund result for an audience that must not learn how the order was PAID: a shop.
+ * How much went back to the card and how many points were returned says "this customer paid with
+ * points", which is between Effy and its customer. The amount refunded is unchanged; only the split
+ * is removed.
+ */
+export function withoutPaymentSplit<T extends { cardAmount?: string; pointsReturned?: number }>(result: T): Omit<T, "cardAmount" | "pointsReturned"> {
+  const { cardAmount: _card, pointsReturned: _points, ...rest } = result;
+  return rest;
 }

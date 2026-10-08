@@ -29,6 +29,10 @@ export interface OrderRow {
   grand_total_amount: string;
   currency: string;
   payment_status: string | null;
+  /** 074 — points the order was part-paid with (0 = none), their value, and what the card paid. */
+  points_used?: number;
+  points_value_amount?: string;
+  card_paid_amount?: string | null;
 }
 
 export interface ItemRow {
@@ -74,6 +78,9 @@ export interface RefundRow {
   amount: string;
   status: string;
   settled_at: string | null;
+  /** 074 — optional so a fake built before 074 still type-checks; the SQL always selects them. */
+  card_amount?: string;
+  points_returned?: number;
 }
 
 export interface OrdersRepository {
@@ -117,7 +124,9 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.discount_amount::text AS discount_amount, o.promo_code AS promo_code,
        o.delivery_fee_amount::text AS delivery_fee_amount,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
-       (SELECT status FROM public.payment WHERE order_id = o.id) AS payment_status
+       (SELECT status FROM public.payment WHERE order_id = o.id) AS payment_status,
+       o.points_used AS points_used, o.points_value_amount::text AS points_value_amount,
+       (SELECT amount::text FROM public.payment WHERE order_id = o.id) AS card_paid_amount
 FROM public."order" o
 WHERE o.id = $1 AND o.customer_id = $2`,
             [orderId, customerId],
@@ -204,7 +213,10 @@ ORDER BY promised_from ASC NULLS LAST, window_start ASC NULLS LAST, promised_to 
         `
 SELECT amount::text        AS amount,
        status              AS status,
-       settled_at::text    AS settled_at
+       settled_at::text    AS settled_at,
+       -- 074 — how it was made up. NULL card_amount (a pre-074 row) means all of it went to the card.
+       COALESCE(card_amount, amount)::text AS card_amount,
+       points_returned     AS points_returned
 FROM public.refund
 WHERE order_id = $1
 ORDER BY created_at DESC, id DESC`,

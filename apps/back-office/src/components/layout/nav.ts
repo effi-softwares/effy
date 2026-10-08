@@ -1,4 +1,4 @@
-import { BadgePercent, Car, ClipboardCheck, LayoutDashboard, MailWarning, MessageSquare, Package, PackageX, Shield, Store, Tags, Truck, Users } from "lucide-react";
+import { BadgePercent, Car, ClipboardCheck, Contact, LayoutDashboard, MailWarning, MessageSquare, Package, PackageX, Shield, Store, Tags, Truck, Users } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -19,6 +19,10 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // reached people who could not see what they were being asked about. Only RECORDING a handover or
   // an arrival is admin/manager (gated in-screen, enforced by the backend).
   { label: "Orders", to: "/orders", icon: Package },
+  // 074 — Customers has NO requiredRole: a csa is who makes things right with a customer, so finding
+  // them and crediting points is theirs. Removing points and changing the points rules are admin/
+  // manager and admin respectively (gated in-screen, enforced by the orders service).
+  { label: "Customers", to: "/customers", icon: Contact },
   // Catalog has NO requiredRole: every back-office role sees the schema read-only (csa included);
   // admin/manager get the mutating controls (gated in-screen, enforced by the backend).
   { label: "Catalog", to: "/catalog", icon: Tags },

@@ -205,6 +205,17 @@ fun DeleteAccountScreen(container: AppContainer) {
                     preview.eraseAfterIfRequestedNowIso.take(10) + ".",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            // 074 FR-024 — said BEFORE they confirm. Absent when there is nothing to lose.
+            preview.pointsHeld?.let { held ->
+                Text(
+                    "You'll also lose your ${held.toString().reversed().chunked(3).joinToString(",").reversed()} Effy points" +
+                        (preview.pointsValueAmount?.let { " (worth \$$it)" } ?: "") +
+                        ". Points have no cash value and can't be paid out.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = EffySpacing.s),
+                )
+            }
 
             Spacer(Modifier.height(EffySpacing.s))
             Text("What we need to keep, and why", style = MaterialTheme.typography.titleSmall)

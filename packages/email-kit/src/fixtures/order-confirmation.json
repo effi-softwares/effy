@@ -167,5 +167,7 @@
   "deliveryAddress": "Janith Madarasinghe\n12 Swan Street\nRichmond VIC 3121\nAustralia",
   "billingSameAsDelivery": true,
   "billingAddress": "",
-  "orderUrl": "https://effyshopping.com/orders/8f2c1a"
+  "orderUrl": "https://effyshopping.com/orders/8f2c1a",
+  "hasPoints": false,
+  "pointsPaid": ""
 }

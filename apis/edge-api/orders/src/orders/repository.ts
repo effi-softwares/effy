@@ -189,6 +189,10 @@ export interface OrderDetailRow {
   method_type: string | null;
   method_brand: string | null;
   method_last4: string | null;
+  /** 074 — points used, their value, and what the card paid (payment.amount). */
+  points_used?: number;
+  points_value_amount?: string;
+  card_paid_amount?: string | null;
 }
 
 export async function findOrder(orderId: string): Promise<OrderDetailRow | null> {
@@ -210,7 +214,8 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.delivery_handover,
             o.delivery_note,
             pay.status AS payment_status,
-            pay.method_type, pay.method_brand, pay.method_last4
+            pay.method_type, pay.method_brand, pay.method_last4,
+            o.points_used, o.points_value_amount::text AS points_value_amount, pay.amount::text AS card_paid_amount
        FROM public."order" o
        JOIN public.customer c ON c.id = o.customer_id
   LEFT JOIN public.promo_code pc ON pc.id = o.promo_code_id

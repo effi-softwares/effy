@@ -935,8 +935,8 @@ top, and previous versions are available from the version history.
         title = "Promotions & Discount Code Terms",
         category = "legal",
         order = 5,
-        currentVersion = "v1",
-        effectiveDate = "2026-08-13",
+        currentVersion = "v2",
+        effectiveDate = "2026-10-08",
         body = """These terms apply to promotional offers, discount codes, vouchers and special prices offered by Effy,
 operated by [LEGAL_ENTITY_NAME] (ABN [ABN]). They form part of our
 [Terms of Service](/legal/terms-of-service). Where a specific promotion has its own terms shown when it
@@ -957,6 +957,28 @@ and nothing in it excludes your rights under the Australian Consumer Law.
 - Discount codes are **personal to the person they are issued to** and **cannot be transferred, sold,
   or published** for others to use, unless we say they are shared.
 - Codes and offers have **no cash value**, cannot be exchanged for cash, and are not gift cards.
+
+## Effy points
+
+Effy points are credit we may add to your account — for example, to make things right when something
+went wrong with an order. They are not bought, and they are not a gift card.
+
+- **What they are worth.** Each point has a fixed value, shown in your account beside your balance
+  (currently one cent per point).
+- **Using them.** You can use points at checkout toward any order, for goods and delivery alike, for
+  part of the total or all of it. Before you pay you are shown how much is paid with points and how
+  much by card. Points are a way of paying; they do not change the price of anything.
+- **Expiry.** Points can be used until the date shown beside them in your account (currently twelve
+  months after they were added). The points that expire soonest are used first. We will email you
+  before points expire.
+- **Refunds and cancellations.** If an order you paid for partly with points is refunded or cancelled,
+  the refund comes back in the same proportion: points are returned as points, and money paid by card
+  is returned to the card.
+- **No cash value.** Points cannot be exchanged for cash, transferred to another person, or paid out,
+  including if you close your account. If you close your account, any points left are lost; we tell you
+  how many before you confirm.
+- **Corrections.** If points were added to an account by mistake, we may remove them. Every change to
+  your balance is listed in your account.
 
 ## Honest pricing
 
@@ -990,7 +1012,81 @@ top, and previous versions are available from the version history.
 
 [LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com""",
         versions = listOf(
-        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """These terms apply to promotional offers, discount codes, vouchers and special prices offered by Effy,
+        LegalDocumentVersion(version = "v2", effectiveDate = "2026-10-08", status = "current", body = """These terms apply to promotional offers, discount codes, vouchers and special prices offered by Effy,
+operated by [LEGAL_ENTITY_NAME] (ABN [ABN]). They form part of our
+[Terms of Service](/legal/terms-of-service). Where a specific promotion has its own terms shown when it
+is offered, those specific terms apply in addition to these. This is a draft prepared for legal review,
+and nothing in it excludes your rights under the Australian Consumer Law.
+
+## Using a discount code or offer
+
+- A code or offer is valid only for the period, products and conditions stated when it is offered, and
+  only while stocks last.
+- Unless stated otherwise, **one code applies per order**, and codes **cannot be combined** with other
+  codes or offers.
+- Any minimum spend, eligible products, usage limit, and expiry are shown when the offer is made. If an
+  expiry is shown, the code cannot be used after it.
+
+## Codes are personal and have no cash value
+
+- Discount codes are **personal to the person they are issued to** and **cannot be transferred, sold,
+  or published** for others to use, unless we say they are shared.
+- Codes and offers have **no cash value**, cannot be exchanged for cash, and are not gift cards.
+
+## Effy points
+
+Effy points are credit we may add to your account — for example, to make things right when something
+went wrong with an order. They are not bought, and they are not a gift card.
+
+- **What they are worth.** Each point has a fixed value, shown in your account beside your balance
+  (currently one cent per point).
+- **Using them.** You can use points at checkout toward any order, for goods and delivery alike, for
+  part of the total or all of it. Before you pay you are shown how much is paid with points and how
+  much by card. Points are a way of paying; they do not change the price of anything.
+- **Expiry.** Points can be used until the date shown beside them in your account (currently twelve
+  months after they were added). The points that expire soonest are used first. We will email you
+  before points expire.
+- **Refunds and cancellations.** If an order you paid for partly with points is refunded or cancelled,
+  the refund comes back in the same proportion: points are returned as points, and money paid by card
+  is returned to the card.
+- **No cash value.** Points cannot be exchanged for cash, transferred to another person, or paid out,
+  including if you close your account. If you close your account, any points left are lost; we tell you
+  how many before you confirm.
+- **Corrections.** If points were added to an account by mistake, we may remove them. Every change to
+  your balance is listed in your account.
+
+## Honest pricing
+
+- Advertised savings are genuine. We do not inflate a price before a promotion in order to advertise a
+  larger discount, and any "was"/"now" or "save" claim reflects a real prior price.
+- Prices and offers shown online may differ from those in any other channel, and promotional prices
+  apply only where and when stated.
+
+## When we can withdraw or cancel an offer
+
+- We may change, suspend, or withdraw a promotion at any time before you place an order.
+- We may cancel or refuse a code, or cancel an order that used it, where we reasonably believe there
+  has been an **error, fraud, abuse, or a breach of these terms** (for example, a code obtained or used
+  in a way it was not intended). Where we do this after an order, we will refund any amount you have
+  paid for goods not supplied.
+- If a promotion is published because of an obvious error (for example, a clear pricing mistake), we
+  may correct it and decline or cancel affected orders, refunding you in full.
+
+## Your consumer rights are not affected
+
+Nothing in these terms limits the consumer guarantees that apply to goods you buy under the Australian
+Consumer Law, whether or not a discount was applied. A discounted item carries the same guarantees as a
+full-price one.
+
+## Changes to these terms
+
+We may update these terms from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com"""),
+        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "superseded", body = """These terms apply to promotional offers, discount codes, vouchers and special prices offered by Effy,
 operated by [LEGAL_ENTITY_NAME] (ABN [ABN]). They form part of our
 [Terms of Service](/legal/terms-of-service). Where a specific promotion has its own terms shown when it
 is offered, those specific terms apply in addition to these. This is a draft prepared for legal review,

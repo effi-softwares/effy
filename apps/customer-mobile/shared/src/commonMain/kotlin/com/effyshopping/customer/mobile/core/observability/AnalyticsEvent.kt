@@ -62,6 +62,13 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutDeliveryChoiceRefused(reason: String) :
         AnalyticsEvent("checkout_delivery_choice_refused", mapOf("reason" to reason))
 
+    // 074 — points. ⚠ NO AMOUNTS, NO BALANCE: a balance is account data, not behaviour. The same names
+    // and props as customer-web's.
+    data object PointsViewed : AnalyticsEvent("points_viewed")
+    class CheckoutPointsToggled(on: Boolean) : AnalyticsEvent("checkout_points_toggled", mapOf("on" to on.toString()))
+    /** `share`: `part` | `all`. */
+    class CheckoutPaidWithPoints(share: String) : AnalyticsEvent("checkout_paid_with_points", mapOf("share" to share))
+
     // Push (platform-events.md) — the type only, never order/customer data.
     data object PushPermissionPrompted : AnalyticsEvent("push_permission_prompted")
     data object PushPermissionGranted : AnalyticsEvent("push_permission_granted")

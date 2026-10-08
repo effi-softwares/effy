@@ -179,7 +179,8 @@ export function PaymentStep({
     })
   }
 
-  const amount = formatMoney(intent.grandTotalAmount, intent.currency)
+  // 074 — with points in the mix the CARD is charged only what the points did not cover.
+  const amount = formatMoney(intent.cardAmount ?? intent.grandTotalAmount, intent.currency)
   // A kept card and a pay-over-time option are both ready as soon as they are selected: there is
   // nothing for Effy to validate, because the provider's own form does it.
   const ready = Boolean(stripe && elements) && (usingNewCard ? card.complete : true)

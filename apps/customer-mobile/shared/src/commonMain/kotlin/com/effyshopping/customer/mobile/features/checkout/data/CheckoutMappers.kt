@@ -29,6 +29,8 @@ import com.effyshopping.customer.mobile.features.checkout.domain.ReceiptItem
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderStage
 import com.effyshopping.customer.mobile.features.checkout.domain.PaymentMethodSummary
+import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutPoints
+import com.effyshopping.customer.mobile.features.checkout.domain.PaymentSplit
 
 // ── Delivery quote (021) ────────────────────────────────────────────────────────────────────────────
 // DTO → domain: `quantity` is a codegen Double narrowed to Int (contract note); DTOs never escape here.
@@ -58,6 +60,8 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     // list and confirms by payment-method id, so minting one there would be an unused provider round
     // trip on a path 027 already found latency-sensitive (spike S2). This flag is the difference.
     wantsProviderMethodList = true,
+    // 074 — absent (null) when none, which the server reads as 0.
+    pointsToUse = pointsToUse.takeIf { it > 0 },
 )
 
 // ── Delivery quote (047): DTO → domain ──────────────────────────────────────────────────────────────
@@ -127,6 +131,7 @@ internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
         sameDayDeliveries = sameDayPackages.size,
         sameDayPartAmount = if (sameDayAvailable) formatCents(sameDayPart) else null,
         standardPartAmount = if (sameDayAvailable) formatCents(standardPart) else null,
+        points = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) },
     )
 }
 
@@ -157,6 +162,11 @@ internal fun CreateCheckoutIntentResponse.toDomain(): CheckoutIntent = CheckoutI
     billingDetails = billingDetails?.toDomain(),
     // 069 — mapped, for the same reason: the payment screen refuses to confirm once this has passed.
     slotHeldUntil = slotHeldUntil,
+    // 074
+    pointsUsed = pointsUsed ?: 0,
+    pointsAmount = pointsAmount,
+    cardAmount = cardAmount,
+    paidWithPoints = paidWithPoints == true,
 )
 
 private fun com.effyshopping.customer.mobile.commerce.contract.BillingDetailsDTO.toDomain() =
@@ -264,6 +274,8 @@ internal fun OrderDTO.toReceipt(): Receipt {
         // pocket the whole amount, and a zero here would tell them they paid nothing.
         amountPaidAfterRefunds = amountPaidAfterRefunds ?: grandTotalAmount,
         fullyRefunded = fullyRefunded ?: false,
+        // 074 — absent on an order that used no points.
+        paymentSplit = paymentSplit?.let { PaymentSplit(pointsUsed = it.pointsUsed, pointsAmount = it.pointsAmount, cardAmount = it.cardAmount) },
     )
 }
 

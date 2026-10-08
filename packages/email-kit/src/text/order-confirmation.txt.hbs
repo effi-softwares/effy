@@ -14,7 +14,8 @@ Items subtotal: {{subtotal}}
 {{#if hasDiscount}}{{discountLabel}}: -{{discountAmount}}
 {{/if}}{{#if hasDeliveryFee}}Delivery: {{deliveryFee}}
 {{/if}}Total paid: {{total}}
-{{#if hasPaymentMethod}}Paid with {{paymentMethod}}
+{{#if hasPoints}}Paid with {{pointsPaid}}
+{{/if}}{{#if hasPaymentMethod}}Paid with {{paymentMethod}}
 {{/if}}
 Delivering to:
 {{deliveryAddress}}

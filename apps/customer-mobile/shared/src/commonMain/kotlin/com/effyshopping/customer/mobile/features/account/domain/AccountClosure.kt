@@ -52,6 +52,9 @@ data class ClosurePreview(
     val retained: List<RetainedCategory>,
     val eraseAfterIfRequestedNowIso: String,
     val activeRequest: ActiveClosureRequest?,
+    /** 074 FR-024 — points the customer would lose, and their value. Null when there are none. */
+    val pointsHeld: Long? = null,
+    val pointsValueAmount: String? = null,
 ) {
     val canProceed: Boolean get() = blockers.isEmpty() && activeRequest == null
 }

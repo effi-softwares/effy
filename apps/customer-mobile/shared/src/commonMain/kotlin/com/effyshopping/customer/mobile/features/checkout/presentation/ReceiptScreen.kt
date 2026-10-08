@@ -256,6 +256,18 @@ private fun ReceiptBody(
     }
     SummaryRow("Total paid", money(receipt.grandTotalAmount, receipt.currency), bold = true)
 
+    // 074 — points are a way of PAYING: a line beside the card's, never a discount above the total.
+    receipt.paymentSplit?.let { split ->
+        Text(
+            "Paid with ${split.pointsUsed.toString().reversed().chunked(3).joinToString(",").reversed()} Effy points " +
+                "(${money(split.pointsAmount, receipt.currency)})" +
+                (if (split.cardAmount != "0.00") " and ${money(split.cardAmount, receipt.currency)} by card" else ""),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
+        )
+    }
+
     // How it was paid (FR-006). Absent when never captured — omitted, never blanked.
     receipt.paymentMethod?.let { m ->
         Text(

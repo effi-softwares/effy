@@ -89,6 +89,10 @@ export interface ReceiptOrderRow {
   method_type: string | null;
   method_brand: string | null;
   method_last4: string | null;
+  /** 074 — points the order was part-paid with, their value, and what the card paid. */
+  points_used?: number;
+  points_value_amount?: string;
+  card_paid_amount?: string | null;
 }
 
 export interface ReceiptItemRow {
@@ -127,7 +131,8 @@ export async function loadReceipt(orderId: string): Promise<{
             o.delivery_fee_amount::text  AS delivery_fee_amount,
             o.grand_total_amount::text   AS grand_total_amount,
             o.delivery_address, o.billing_address,
-            p.method_type, p.method_brand, p.method_last4
+            p.method_type, p.method_brand, p.method_last4,
+            o.points_used, o.points_value_amount::text AS points_value_amount, p.amount::text AS card_paid_amount
        FROM public."order" o
        LEFT JOIN public.payment p ON p.order_id = o.id
       WHERE o.id = $1`,

@@ -72,6 +72,8 @@ private fun ClosurePreviewDTO.toDomain() = ClosurePreview(
     activeRequest = activeRequest?.let {
         ActiveClosureRequest(requestedAtIso = it.requestedAt, eraseAfterIso = it.eraseAfter)
     },
+    pointsHeld = pointsHeld?.takeIf { it > 0 },
+    pointsValueAmount = pointsValueAmount,
 )
 
 private fun ClosureBlockerDTO.toDomain() = ClosureBlocker(

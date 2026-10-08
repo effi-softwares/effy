@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { sessionQuery } from "@/features/auth/queries";
+import { OrderCustomerPoints } from "@/features/customers/components/OrderCustomerPoints";
 
 import { canRecordOrderProgress } from "./access";
 import { orderActionError } from "./errorText";
@@ -125,6 +126,13 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
           <dt className="text-muted-foreground">Placed</dt>
           <dd className="tabular-nums">{formatDateTime(order.placedAt)}</dd>
         </dl>
+        {/* 074 — make things right while looking at the order that went wrong. */}
+        <OrderCustomerPoints
+          customerId={order.customerId}
+          customerName={order.customerName ?? order.customerEmail}
+          orderId={order.id}
+          orderNumber={order.orderNumber}
+        />
       </section>
 
       <section className="space-y-3">
@@ -203,6 +211,21 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
           <dd className="font-medium tabular-nums">
             {formatMoney(order.grandTotalAmount, order.currency)}
           </dd>
+          {/* 074 — points are a way of PAYING, shown after the total, never as a discount above it. */}
+          {order.paymentSplit ? (
+            <>
+              <dt className="text-muted-foreground">Paid with points</dt>
+              <dd className="tabular-nums">
+                {order.paymentSplit.pointsUsed.toLocaleString("en-AU")} points ·{" "}
+                {formatMoney(order.paymentSplit.pointsAmount, order.currency)}
+                {order.paymentSplit.pointsReturned > 0
+                  ? ` (${order.paymentSplit.pointsReturned.toLocaleString("en-AU")} returned)`
+                  : ""}
+              </dd>
+              <dt className="text-muted-foreground">Paid by card</dt>
+              <dd className="tabular-nums">{formatMoney(order.paymentSplit.cardAmount, order.currency)}</dd>
+            </>
+          ) : null}
           <dt className="text-muted-foreground">Status</dt>
           <dd>{order.paymentStatus}</dd>
           {/* Absent on a pre-052 order, or where the capture failed. Omitted, never invented. */}

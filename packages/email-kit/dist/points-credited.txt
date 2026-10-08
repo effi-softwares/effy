@@ -1,0 +1,14 @@
+You've received {{points}} {{effyProductName}} points
+
+{{reasonWords}}. Your points are worth ${{valueAmount}} and you can use them on anything at checkout, delivery included.
+
+Use them by {{expiresOn}}.
+
+{{pointsUrl}}
+
+Points have no cash value and can't be exchanged for money. Questions? Reply to this email or write to {{effySupportEmail}}.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

@@ -17,7 +17,10 @@ enum class LiveKind(val wire: String) {
     WORK("work"),
     DISPATCH("dispatch"),
     SLOTS("slots"),
-    REVIEW("review");
+    REVIEW("review"),
+
+    /** 074 — the customer's points balance changed. */
+    POINTS("points");
 
     companion object {
         /** `null` for a kind this build has never heard of — a newer backend, not an error. */

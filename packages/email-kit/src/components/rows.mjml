@@ -39,6 +39,11 @@
     <td class="e-ink" style="padding:8px 0 0 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;font-weight:600;">Total paid</td>
     <td class="e-ink" align="right" style="padding:8px 0 0 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;font-weight:600;">{{total}}</td>
   </tr>
+  {{#if hasPoints}}
+  <tr>
+    <td class="e-muted" colspan="2" style="padding:10px 0 0 0;color:#666666;font-size:14px;line-height:20px;mso-line-height-rule:exactly;">Paid with {{pointsPaid}}</td>
+  </tr>
+  {{/if}}
   {{#if hasPaymentMethod}}
   <tr>
     <td class="e-muted" colspan="2" style="padding:10px 0 0 0;color:#666666;font-size:14px;line-height:20px;mso-line-height-rule:exactly;">Paid with {{paymentMethod}}</td>

@@ -20,11 +20,17 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   const sameDaySlotId = stringField(body?.sameDaySlotId);
   const standardDate = stringField(body?.standardDate);
   const wantsList = body?.wantsProviderMethodList;
+  // 074 — absent or null means none. Anything else must be a whole number of points, 0 or more.
+  const rawPoints = body?.pointsToUse;
+  const pointsToUse = rawPoints === undefined || rawPoints === null ? 0 : rawPoints;
   if (
     !body || addressId === null || billingAddressId === null || deliveryMethod === null || sameDaySlotId === null ||
     standardDate === null || (wantsList !== undefined && wantsList !== null && typeof wantsList !== "boolean")
   ) {
     return validationFailed(scope, "addressId is required");
+  }
+  if (typeof pointsToUse !== "number" || !Number.isSafeInteger(pointsToUse) || pointsToUse < 0) {
+    return validationFailed(scope, "pointsToUse must be a whole number of points");
   }
 
   // 066 — refused BEFORE anything is written. ⚠ The refusal names the field and the rule and never
@@ -41,7 +47,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
       customer.id,
       {
         addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate,
-        deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true,
+        deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
       },
       new Date(),
     );

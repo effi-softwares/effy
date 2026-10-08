@@ -64,6 +64,22 @@ locals {
       threshold   = 1
       description = "070 — a refund has been waiting more than 15 minutes for the payment provider to answer and the reconciler has not been able to resolve it. A customer may be owed money nobody is sending. Check the provider's status and the refundReconcile function's logs."
     }
+    points-hold-shortfall = {
+      metric      = "PointsHoldShortfall"
+      dimensions  = {}
+      statistic   = "Sum"
+      period      = 300
+      threshold   = 1
+      description = "074 - a customer paid after their points hold lapsed and the points had since been spent or removed. The order is honoured, the customer is not charged again, and Effy has absorbed the difference (order.points_shortfall_amount). Check whether the hold period is too short or a debit raced a checkout."
+    }
+    points-ledger = {
+      metric      = "PointsInvariantViolations"
+      dimensions  = {}
+      statistic   = "Maximum"
+      period      = 3600
+      threshold   = 1
+      description = "074 - the points ledger does not add up: a lot allocated beyond its points, a debit whose allocations do not match it, a negative balance, or a hold left on an order that is no longer pending. Something wrote points outside the shared module, or it has a bug. Check the pointsReconcile function's logs for which."
+    }
     webhook-failing = {
       metric      = "WebhookFailures"
       dimensions  = {}

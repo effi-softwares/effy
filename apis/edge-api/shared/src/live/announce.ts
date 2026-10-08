@@ -26,9 +26,9 @@ import { signPublish } from "./sign";
  */
 export type LiveChange =
   | { scope: "shop"; shopId: string; kind: "orders" | "stock" | "attention" }
-  | { scope: "customer"; sub: string; kind: "orders" }
+  | { scope: "customer"; sub: string; kind: "orders" | "points" }
   | { scope: "driver"; driverId: string; kind: "work" }
-  | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" };
+  | { scope: "ops"; kind: "orders" | "dispatch" | "slots" | "review" | "points" };
 
 /** The live channel's metric namespace — one for the platform, not one per service. */
 export const LIVE_METRIC_NAMESPACE = "Effy/Live";

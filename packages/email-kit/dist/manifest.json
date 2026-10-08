@@ -63,11 +63,11 @@
     "textSha": "a2bc1d98f2cba889"
   },
   "order-confirmation": {
-    "htmlBytes": 44487,
-    "htmlChars": 44479,
-    "textBytes": 1045,
-    "htmlSha": "88b29265869c04d3",
-    "textSha": "fab9cd82fbc68fb4"
+    "htmlBytes": 44701,
+    "htmlChars": 44693,
+    "textBytes": 1094,
+    "htmlSha": "603a24f7b4243834",
+    "textSha": "441732525f0543cc"
   },
   "order-delivered": {
     "htmlBytes": 16276,
@@ -82,5 +82,19 @@
     "textBytes": 582,
     "htmlSha": "f606a5b8af941cae",
     "textSha": "0063d83b9b858a84"
+  },
+  "points-credited": {
+    "htmlBytes": 16850,
+    "htmlChars": 16842,
+    "textBytes": 488,
+    "htmlSha": "284636c2eb05e849",
+    "textSha": "bf66b7a95a7fa167"
+  },
+  "points-expiring": {
+    "htmlBytes": 16323,
+    "htmlChars": 16313,
+    "textBytes": 452,
+    "htmlSha": "2911ee22cdd3cfec",
+    "textSha": "4ce27e3a6ef306a2"
   }
 }

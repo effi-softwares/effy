@@ -8,7 +8,7 @@ import { LIVE_ROUTES } from "./routes";
 // A key prefix that is the root of no declared query re-reads nothing, silently — the screen it was
 // meant to keep current simply stops updating. So each prefix here must appear in a slice's queries.
 const features = resolve(__dirname, "..");
-const SOURCES = ["orders", "dispatch", "drivers", "exceptions", "delivery", "product-review"].map((slice) =>
+const SOURCES = ["orders", "dispatch", "drivers", "exceptions", "delivery", "product-review", "customers"].map((slice) =>
   readFileSync(resolve(features, slice, "queries.ts"), "utf8"),
 );
 
@@ -27,6 +27,7 @@ describe("LIVE_ROUTES", () => {
   });
 
   it("covers what back-office is told about (FR-029)", () => {
-    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["dispatch", "orders", "review", "slots"]);
+    // 074 — `points`: a customer's balance changed.
+    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["dispatch", "orders", "points", "review", "slots"]);
   });
 });

@@ -6,6 +6,7 @@ import {
 } from "@effy/edge-shared";
 import {
   createRefundRepository, createRefundService, LinesNotYoursError, MONEY_METRIC_NAMESPACE, optionalText, parseRefundLines, refundProblem, stripeGateway,
+  withoutPaymentSplit,
 } from "@effy/edge-shared/payments";
 
 import { shopMayRefundOrder } from "../staff/service";
@@ -66,7 +67,9 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   try {
     // ⚠ The WHOLE request is refused if any line is another shop's — never the subset it likes.
     await refunds.repo.assertLinesBelongToShop(orderId, shopId, lines);
-    return json(200, await refunds.issue({
+    // ⚠ 074 FR-027: the result is returned WITHOUT how the refund was split — a shop must not learn
+    // that an order was paid with points.
+    return json(200, withoutPaymentSplit(await refunds.issue({
       orderId, lines, reason, note, amount: "",
       // ⚠ Always `item`. A shop may not issue goodwill: that spends Effy's money on a gesture Effy
       // did not make.
@@ -75,7 +78,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
       actorKind: "shop",
       // ⚠ Stock goes back only when the shop says the goods are fit to sell. Absent means no.
       skipStockReturn: body.restock !== true,
-    }), scope);
+    })), scope);
   } catch (err) {
     if (err instanceof LinesNotYoursError) {
       denied("not_your_lines");

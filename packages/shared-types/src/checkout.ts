@@ -10,6 +10,7 @@
  * 051 extends the intent response additively — every pre-existing field keeps its name and meaning.
  */
 
+import type { WireInt } from "./cart";
 import type { BillingDetailsDTO } from "./payment";
 
 
@@ -73,6 +74,13 @@ export interface CreateCheckoutIntentRequest {
    * one screen earlier (contract § 1, FR-016).
    */
   wantsProviderMethodList?: boolean;
+  /**
+   * 074 — how many points the customer chose to pay with (a whole number, absent = 0). The server
+   * refuses rather than clamps: more than is usable → 409 `points_balance_changed`; more than the order
+   * total → 422 `points_exceed_total`; a card remainder under the provider minimum → 422
+   * `points_card_remainder_too_small`. Each refusal carries what IS possible.
+   */
+  pointsToUse?: WireInt;
 }
 
 export interface CreateCheckoutIntentResponse {
@@ -135,6 +143,26 @@ export interface CreateCheckoutIntentResponse {
    * from Effy instead of from the shopper's keyboard (research R4).
    */
   billingDetails?: BillingDetailsDTO | null;
+  /** 074 — the points this order uses, their value, and what is left for the card. */
+  pointsUsed?: WireInt;
+  pointsAmount?: string;
+  cardAmount?: string;
+  /**
+   * 074 — TRUE when points covered the whole order: it is ALREADY PAID, no card is involved, and
+   * `clientSecret` is empty. The client goes straight to the confirmation.
+   */
+  paidWithPoints?: boolean;
+}
+
+/**
+ * 074 — what a customer can spend at checkout, on the delivery quote. Absent when they have no points.
+ * The client offers up to min(usable, order total); the card part must be 0 or at least
+ * `cardMinimumAmount` (the provider cannot charge less).
+ */
+export interface CheckoutPointsDTO {
+  usable: WireInt;
+  centsPerPoint: WireInt;
+  cardMinimumAmount: string;
 }
 
 /** POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook). */

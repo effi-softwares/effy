@@ -179,7 +179,14 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         deliveryFee: money(order.delivery_fee_amount, currency),
         total: money(order.grand_total_amount, currency),
         hasPaymentMethod: Boolean(order.method_type),
-        paymentMethod: paymentText(order.method_type, order.method_brand, order.method_last4),
+        // 074 — with points in the mix, each way of paying states its own amount so the two add up.
+        paymentMethod: order.points_used
+          ? `${paymentText(order.method_type, order.method_brand, order.method_last4)} (${money(order.card_paid_amount ?? "0", currency)})`
+          : paymentText(order.method_type, order.method_brand, order.method_last4),
+        hasPoints: Boolean(order.points_used),
+        pointsPaid: order.points_used
+          ? `${new Intl.NumberFormat("en-AU").format(order.points_used)} Effy points (${money(order.points_value_amount ?? "0", currency)})`
+          : "",
         deliveryAddress: addressLines(order.delivery_address),
         billingSameAsDelivery: !order.billing_address,
         billingAddress: addressLines(order.billing_address),

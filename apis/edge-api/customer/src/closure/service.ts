@@ -11,6 +11,7 @@ import {
   closeAccount,
   findBlockingOrders,
   findLiveRequest,
+  findPointsHeld,
   restoreAccount,
   GRACE_PERIOD_DAYS,
   type BlockingOrderRow,
@@ -121,9 +122,12 @@ export async function previewClosure(cognitoSub: string): Promise<ClosurePreview
   const customer = await findByCognitoSub(cognitoSub)
   if (!customer) throw new CustomerRecordMissingError()
 
-  const [orders, live] = await Promise.all([
+  const [orders, live, points] = await Promise.all([
     findBlockingOrders(customer.id),
     findLiveRequest(customer.id),
+    // 074 FR-024 — what they will lose. ⚠ Best-effort: a failed points read must not stand between a
+    // customer and the closure preview; the fields are then simply absent, never a false "0".
+    findPointsHeld(customer.id).catch(() => null),
   ])
 
   const eraseAfterIfRequestedNow = new Date(
@@ -140,6 +144,10 @@ export async function previewClosure(cognitoSub: string): Promise<ClosurePreview
           eraseAfter: live.erase_after.toISOString(),
         }
       : null,
+    // Present only when there is something to lose, so an account with no points reads as before.
+    ...(points && points.points > 0
+      ? { pointsHeld: points.points, pointsValueAmount: (points.valueCents / 100).toFixed(2) }
+      : {}),
   }
 }
 

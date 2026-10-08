@@ -81,6 +81,9 @@ import com.effyshopping.customer.mobile.features.addresses.domain.AddressReposit
 import com.effyshopping.customer.mobile.features.addresses.domain.DeleteAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses as ListSavedAddresses
 import com.effyshopping.customer.mobile.features.paymentmethods.data.HttpPaymentMethodsRepository
+import com.effyshopping.customer.mobile.features.points.data.HttpPointsRepository
+import com.effyshopping.customer.mobile.features.points.domain.GetOlderPoints
+import com.effyshopping.customer.mobile.features.points.domain.GetPoints
 import com.effyshopping.customer.mobile.features.paymentmethods.domain.ListPaymentMethods
 import com.effyshopping.customer.mobile.features.paymentmethods.domain.RemovePaymentMethod
 import com.effyshopping.customer.mobile.features.addresses.domain.SetDefault
@@ -354,6 +357,11 @@ class AppContainer(
     // provider call, and the provider secret has one custodian.
     private val paymentMethodsRepo by lazy { HttpPaymentMethodsRepository(edgeClient) }
     val listPaymentMethods by lazy { ListPaymentMethods(paymentMethodsRepo) }
+
+    // 074 — Effy points. The customer service, like the address book.
+    private val pointsRepo by lazy { HttpPointsRepository(edgeClient) }
+    val getPoints by lazy { GetPoints(pointsRepo) }
+    val getOlderPoints by lazy { GetOlderPoints(pointsRepo) }
     val removePaymentMethod by lazy { RemovePaymentMethod(paymentMethodsRepo) }
 
     val addSavedAddress by lazy { AddAddress(addressBookRepo) }

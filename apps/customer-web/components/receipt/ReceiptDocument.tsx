@@ -209,6 +209,19 @@ function Totals({ order }: { order: OrderDTO }) {
         </dd>
       </div>
 
+      {/* 074 — points are a way of PAYING: a line beside the card's, never a discount above the total. */}
+      {order.paymentSplit ? (
+        <p className="mt-3.5 border-t pt-3.5 text-[13.5px] text-muted-foreground">
+          Paid with{" "}
+          <span className="font-medium text-foreground tabular-nums">
+            {order.paymentSplit.pointsUsed.toLocaleString("en-AU")} Effy points
+          </span>{" "}
+          ({formatMoney(order.paymentSplit.pointsAmount, order.currency)})
+          {Number(order.paymentSplit.cardAmount) > 0 ? (
+            <> and {formatMoney(order.paymentSplit.cardAmount, order.currency)} by card</>
+          ) : null}
+        </p>
+      ) : null}
       {order.paymentMethod ? <PaidWith method={order.paymentMethod} /> : null}
     </div>
   )

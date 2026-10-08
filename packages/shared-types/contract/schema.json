@@ -135,6 +135,13 @@
           "description": "Advisory until a request actually exists.",
           "type": "string"
         },
+        "pointsHeld": {
+          "$ref": "#/definitions/WireInt",
+          "description": "074 FR-024 — the points the customer will lose when closure becomes final, and their value. Told BEFORE they confirm. Optional so a client built before 074 still reads the preview."
+        },
+        "pointsValueAmount": {
+          "type": "string"
+        },
         "retained": {
           "items": {
             "$ref": "#/definitions/RetainedCategoryDTO"
@@ -343,6 +350,134 @@
       ],
       "type": "object"
     },
+    "PointsBalanceDTO": {
+      "additionalProperties": false,
+      "description": "GET /customer/v1/points",
+      "properties": {
+        "centsPerPoint": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "nextExpiry": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "points": {
+                  "$ref": "#/definitions/WireInt"
+                }
+              },
+              "required": [
+                "points",
+                "date"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The soonest lot to expire; null when nothing is due."
+        },
+        "points": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "valueAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "points",
+        "valueAmount",
+        "centsPerPoint",
+        "nextExpiry"
+      ],
+      "type": "object"
+    },
+    "PointsEntryKind": {
+      "description": "Every kind of change to a balance. Credits are positive, debits negative.",
+      "enum": [
+        "staff_credit",
+        "auto_credit",
+        "returned",
+        "staff_debit",
+        "spent",
+        "expired",
+        "forfeited"
+      ],
+      "type": "string"
+    },
+    "PointsHistoryEntryDTO": {
+      "additionalProperties": false,
+      "description": "One history line as the CUSTOMER sees it.",
+      "properties": {
+        "at": {
+          "type": "string"
+        },
+        "expiresOn": {
+          "description": "Credits only: the last date these points can be used (yyyy-mm-dd, Melbourne).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/PointsEntryKind"
+        },
+        "orderNumber": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "points": {
+          "$ref": "#/definitions/WireInt",
+          "description": "Signed."
+        },
+        "valueAmount": {
+          "type": "string"
+        },
+        "words": {
+          "description": "The sentence to show — decided by the server from the reason.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "points",
+        "valueAmount",
+        "words",
+        "orderNumber",
+        "expiresOn",
+        "at"
+      ],
+      "type": "object"
+    },
+    "PointsHistoryPageDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "entries": {
+          "items": {
+            "$ref": "#/definitions/PointsHistoryEntryDTO"
+          },
+          "type": "array"
+        },
+        "nextCursor": {
+          "description": "Absent on the last page.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entries"
+      ],
+      "type": "object"
+    },
     "ProblemFieldIssue": {
       "additionalProperties": false,
       "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
@@ -496,6 +631,10 @@
         "phone"
       ],
       "type": "object"
+    },
+    "WireInt": {
+      "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",
+      "type": "integer"
     }
   },
   "description": "Aggregator — codegen entry only (see file header). Every field forces a type into the schema.",
@@ -542,6 +681,18 @@
     "passwordWriteResult": {
       "$ref": "#/definitions/PasswordWriteResultDTO"
     },
+    "pointsBalance": {
+      "$ref": "#/definitions/PointsBalanceDTO"
+    },
+    "pointsEntryKind": {
+      "$ref": "#/definitions/PointsEntryKind"
+    },
+    "pointsHistoryEntry": {
+      "$ref": "#/definitions/PointsHistoryEntryDTO"
+    },
+    "pointsHistoryPage": {
+      "$ref": "#/definitions/PointsHistoryPageDTO"
+    },
     "problem": {
       "$ref": "#/definitions/ProblemJSON"
     },
@@ -581,6 +732,10 @@
     "closureRequest",
     "closureResult",
     "closureRestoreResult",
+    "pointsBalance",
+    "pointsEntryKind",
+    "pointsHistoryEntry",
+    "pointsHistoryPage",
     "problem"
   ],
   "type": "object",

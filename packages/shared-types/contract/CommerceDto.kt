@@ -577,6 +577,15 @@ data class CreateCheckoutIntentRequest (
     val deliveryMethod: String? = null,
 
     /**
+     * 074 — how many points the customer chose to pay with (a whole number, absent = 0). The
+     * server refuses rather than clamps: more than is usable → 409 `points_balance_changed`;
+     * more than the order total → 422 `points_exceed_total`; a card remainder under the
+     * provider minimum → 422 `points_card_remainder_too_small`. Each refusal carries what IS
+     * possible.
+     */
+    val pointsToUse: Long? = null,
+
+    /**
      * 069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED
      * when any package will go same-day; the intent is refused with `slot_required` without it
      * and with `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for
@@ -624,6 +633,8 @@ data class CreateCheckoutIntentResponse (
      */
     val billingDetails: BillingDetailsDTO? = null,
 
+    val cardAmount: String? = null,
+
     /**
      * Authorizes confirming exactly this PaymentIntent from the client. Never a secret key.
      */
@@ -666,6 +677,12 @@ data class CreateCheckoutIntentResponse (
     val orderNumber: String,
 
     /**
+     * 074 — TRUE when points covered the whole order: it is ALREADY PAID, no card is involved,
+     * and `clientSecret` is empty. The client goes straight to the confirmation.
+     */
+    val paidWithPoints: Boolean? = null,
+
+    /**
      * 051 US4 — whether the provider offers any instalment option for THIS intent.
      *
      * ⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on
@@ -677,6 +694,13 @@ data class CreateCheckoutIntentResponse (
      * sending the raw list would leak account configuration to a client with no use for it.
      */
     val payOverTimeAvailable: Boolean? = null,
+
+    val pointsAmount: String? = null,
+
+    /**
+     * 074 — the points this order uses, their value, and what is left for the card.
+     */
+    val pointsUsed: Long? = null,
 
     val publishableKey: String,
 
@@ -765,6 +789,12 @@ enum class DeliveryChoiceRefusalCode(val value: String) {
 data class DeliveryQuoteDTO (
     val expiresAt: String,
     val packages: List<DeliveryPackageDTO>,
+
+    /**
+     * 074 — the customer's spendable points, when they have any.
+     */
+    val points: CheckoutPointsDTO? = null,
+
     val postcode: String,
 
     /**
@@ -829,6 +859,20 @@ enum class DeliveryMethod(val value: String) {
     @SerialName("same_day") SameDay("same_day"),
     @SerialName("standard") Standard("standard");
 }
+
+/**
+ * 074 — the customer's spendable points, when they have any.
+ *
+ * 074 — what a customer can spend at checkout, on the delivery quote. Absent when they have
+ * no points. The client offers up to min(usable, order total); the card part must be 0 or
+ * at least `cardMinimumAmount` (the provider cannot charge less).
+ */
+@Serializable
+data class CheckoutPointsDTO (
+    val cardMinimumAmount: String,
+    val centsPerPoint: Long,
+    val usable: Long
+)
 
 /**
  * One open same-day delivery window (069).
@@ -1236,6 +1280,12 @@ data class OrderDTO (
      */
     val paymentMethod: PaymentMethodSummaryDTO? = null,
 
+    /**
+     * 074 — how the order was paid when points were part of it, and what has come back of each.
+     * ⚠ ABSENT on an order that used no points. Points are a way of paying — never a discount.
+     */
+    val paymentSplit: OrderPaymentSplitDTO? = null,
+
     val paymentStatus: PaymentStatus,
     val placedAt: String? = null,
 
@@ -1465,6 +1515,21 @@ enum class Type(val value: String) {
     @SerialName("pay_over_time") PayOverTime("pay_over_time"),
     @SerialName("wallet") Wallet("wallet");
 }
+
+/**
+ * 074 — how the order was paid when points were part of it, and what has come back of each.
+ * ⚠ ABSENT on an order that used no points. Points are a way of paying — never a discount.
+ *
+ * How an order was paid and what has come back — on customer and staff order reads.
+ */
+@Serializable
+data class OrderPaymentSplitDTO (
+    val cardAmount: String,
+    val cardReturned: String,
+    val pointsAmount: String,
+    val pointsReturned: Long,
+    val pointsUsed: Long
+)
 
 /**
  * Payment outcome mirrored from the Stripe PaymentIntent.

@@ -99,6 +99,32 @@ async function paidOrder() {
   return { orderId, customerId, item, intent };
 }
 
+/**
+ * 074 — the same order as `paidOrder`, part- or wholly-paid with points: the order total stays 26.00,
+ * the card paid `cardCents`, the points paid the rest at one cent each.
+ */
+async function pointsPaidOrder(cardCents: number) {
+  const o = await paidOrder();
+  const points = 2600 - cardCents;
+  await pool.query(
+    `UPDATE public."order" SET points_used = $2::int, points_cents_per_point = 1, points_value_amount = $2::int / 100.0 WHERE id = $1`,
+    [o.orderId, points],
+  );
+  if (cardCents === 0) {
+    await pool.query(`UPDATE public.payment SET provider = 'points', stripe_payment_intent_id = NULL, amount = 0 WHERE order_id = $1`, [o.orderId]);
+  } else {
+    await pool.query(`UPDATE public.payment SET amount = $2::numeric / 100 WHERE order_id = $1`, [o.orderId, cardCents]);
+  }
+  return o;
+}
+const pointsBack = async (orderId: string) =>
+  Number((await one<{ n: string }>(`SELECT COALESCE(SUM(points), 0) AS n FROM public.points_entry WHERE order_id = $1 AND kind = 'returned'`, [orderId])).n);
+const splitRows = (orderId: string) =>
+  pool.query<{ amount: string; card_amount: string | null; points_returned: number; status: string }>(
+    `SELECT amount::text, card_amount::text, points_returned, status FROM public.refund WHERE order_id = $1 ORDER BY created_at, id`,
+    [orderId],
+  ).then((r) => r.rows);
+
 const goodwill = (orderId: string, amount: string, over: Partial<IssueInput> = {}): IssueInput => ({
   orderId, kind: "goodwill", reason: "goodwill", note: "Sorry about the delay", lines: [], amount, actorSub: "staff-1", actorKind: "back_office", ...over,
 });
@@ -490,5 +516,71 @@ d("070 — refunds and cancellation against the real schema", () => {
       .toEqual({ status: "declined", outcome_note: "Delivered within the window", decided_by: "staff-2" });
     await expect(svc.declineRequest(id, "changed my mind", "staff-3")).rejects.toBeInstanceOf(RequestNotFoundError);
     await expect(svc.declineRequest("not-a-uuid", "", "staff-3")).rejects.toBeInstanceOf(RequestNotFoundError);
+  });
+
+  // ── 074 — refunds of orders paid with points ────────────────────────────────────────────────────
+
+  it("074 — a mixed order's refund is split in proportion; only the card part reaches the provider; points come back on submission (P10)", async () => {
+    const o = await pointsPaidOrder(1600); // 16.00 card + 1,000 points
+    const r = await svc.issue(goodwill(o.orderId, "13.00"));
+    expect(r).toMatchObject({ status: "submitted", amount: "13.00", cardAmount: "8.00", pointsReturned: 500 });
+    expect(provider.calls[0]).toMatchObject({ amountCents: 800 });
+    expect(await splitRows(o.orderId)).toEqual([{ amount: "13.00", card_amount: "8.00", points_returned: 500, status: "submitted" }]);
+    expect(await pointsBack(o.orderId)).toBe(500);
+  });
+
+  it("074 — a refund the provider refuses returns no points", async () => {
+    const o = await pointsPaidOrder(1600);
+    provider.set("refuse");
+    await expect(svc.issue(goodwill(o.orderId, "13.00"))).rejects.toBeInstanceOf(ProviderRefusedError);
+    expect(await pointsBack(o.orderId)).toBe(0);
+  });
+
+  it("074 — a points-only order's refund never reaches the provider: recorded succeeded, points back at once (P10)", async () => {
+    const o = await pointsPaidOrder(0);
+    const r = await svc.issue(goodwill(o.orderId, "5.00"));
+    expect(r).toMatchObject({ status: "succeeded", cardAmount: "0.00", pointsReturned: 500 });
+    expect(provider.calls).toHaveLength(0);
+    expect(await pointsBack(o.orderId)).toBe(500);
+  });
+
+  it("074 — partial refunds that add up to the order end at exactly the points spent and the card paid", async () => {
+    const o = await pointsPaidOrder(1599); // 15.99 card + 1,001 points
+    for (const [amount, note] of [["3.33", "a"], ["10.01", "b"], ["12.66", "c"]] as const) {
+      await svc.issue(goodwill(o.orderId, amount, { note }));
+    }
+    const rows = await splitRows(o.orderId);
+    expect(rows.reduce((s, r) => s + Math.round(Number(r.card_amount) * 100), 0)).toBe(1599);
+    expect(rows.reduce((s, r) => s + r.points_returned, 0)).toBe(1001);
+    expect(await pointsBack(o.orderId)).toBe(1001);
+    await expect(svc.issue(goodwill(o.orderId, "0.01", { note: "d" }))).rejects.toBeInstanceOf(CeilingExceededError);
+  });
+
+  it("074 — cancelling a mixed order splits what remains; cancelling a points-only order returns only points (P11)", async () => {
+    const mixed = await pointsPaidOrder(1600);
+    const a = await svc.cancel({ orderId: mixed.orderId, customerId: null, actorKind: "back_office", actorSub: "staff-1" });
+    expect(a).toMatchObject({ status: "submitted", amount: "26.00", cardAmount: "16.00", pointsReturned: 1000 });
+    expect(provider.calls.at(-1)).toMatchObject({ amountCents: 1600 });
+    expect(await pointsBack(mixed.orderId)).toBe(1000);
+
+    const callsBefore = provider.calls.length;
+    const only = await pointsPaidOrder(0);
+    const b = await svc.cancel({ orderId: only.orderId, customerId: null, actorKind: "back_office", actorSub: "staff-1" });
+    expect(b).toMatchObject({ status: "succeeded", amount: "26.00", pointsReturned: 2600 });
+    expect(provider.calls.length).toBe(callsBefore);
+    expect(await pointsBack(only.orderId)).toBe(2600);
+  });
+
+  it("074 — a stalled refund the reconciler later finds returns its points exactly once (P10)", async () => {
+    const o = await pointsPaidOrder(1600);
+    provider.set("timeout-after-accepting");
+    const r = await svc.issue(goodwill(o.orderId, "13.00"));
+    expect(r).toMatchObject({ status: "submitting", stalled: true });
+    expect(await pointsBack(o.orderId)).toBe(0);
+    provider.set("ok");
+    await pool.query(`UPDATE public.refund SET created_at = now() - interval '10 minutes' WHERE order_id = $1`, [o.orderId]);
+    await svc.reconcile({ olderThanSeconds: 60 });
+    await svc.reconcile({ olderThanSeconds: 60 });
+    expect(await pointsBack(o.orderId)).toBe(500);
   });
 });

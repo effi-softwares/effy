@@ -9,6 +9,8 @@
  * every service to that.
  */
 import { pooled, withTransaction, type Queryable, type Transactor } from "../../lib/db";
+import { returnForRefund } from "../../points/ledger";
+import { splitRefund, type Split } from "../../points/split";
 import type { WebhookEvent } from "../gateway";
 import {
   AlreadyCancelledError, AmountInvalidError, CeilingExceededError, LineOverRefundedError, LinesNotYoursError,
@@ -38,16 +40,28 @@ export interface InsertInput {
   lines: readonly InsertLine[];
 }
 
-/** What a refund is issued against. */
+/**
+ * What a refund is issued against.
+ *
+ * ⚠ 074: `paidCents` is the order's TOTAL VALUE — what the card paid PLUS the points' value — because a
+ * refund returns value, and splits it between the two in proportion (research R5). `cardPaidCents` is
+ * the card's part alone: the only part the provider ever sees.
+ */
 export interface PaidContext {
   paidCents: number;
   refundedCents: number;
   paymentIntentId: string;
   currency: string;
+  cardPaidCents: number;
+  cardRefundedCents: number;
+  pointsValueCents: number;
+  pointsReturned: number;
+  centsPerPoint: number;
 }
 
 export type RecordResult =
-  | { issued: true; refundId: string; paid: PaidContext }
+  /** 074: `split` is how this refund is made up; a card part of 0 is already `succeeded`, points back. */
+  | { issued: true; refundId: string; paid: PaidContext; split: Split }
   /** ⚠ The idempotent hit: the same action again. Carries the EXISTING row's real state. */
   | { issued: false; refundId: string; paid: PaidContext; existingStatus: string };
 
@@ -63,6 +77,8 @@ export interface StuckRefund {
   id: string;
   orderId: string;
   amountCents: number;
+  /** 074 — the CARD part: the only part ever sent to the provider. */
+  cardCents: number;
   idempotencyKey: string;
   actorSub: string | null;
   paymentIntentId: string;
@@ -104,9 +120,53 @@ const COUNTS_AGAINST_CEILING = `(
 )`;
 
 const REFUNDED_CENTS = `
-SELECT COALESCE(SUM(round(r.amount * 100))::bigint, 0) AS cents
+SELECT COALESCE(SUM(round(r.amount * 100))::bigint, 0) AS cents,
+       -- 074 — the two halves. A pre-074 row (card_amount NULL) went entirely to the card.
+       COALESCE(SUM(round(COALESCE(r.card_amount, r.amount) * 100))::bigint, 0) AS card_cents,
+       COALESCE(SUM(r.points_returned), 0)::bigint AS points
   FROM public.refund r
  WHERE r.order_id = $1 AND ${COUNTS_AGAINST_CEILING}`;
+
+interface PaidRow {
+  paid: string;
+  intent: string | null;
+  currency: string;
+  points_value: string;
+  cpp: number | null;
+}
+
+/** The figures a refund is decided against, read under the payment lock (074 adds the points side). */
+const PAID_UNDER_LOCK = `
+SELECT round(p.amount * 100)::bigint AS paid, p.stripe_payment_intent_id AS intent, o.currency AS currency,
+       round(o.points_value_amount * 100)::bigint AS points_value, o.points_cents_per_point AS cpp
+  FROM public.payment p
+  JOIN public."order" o ON o.id = p.order_id
+ WHERE p.order_id = $1 AND p.status = 'succeeded'
+ FOR UPDATE OF p`;
+
+function paidContext(row: PaidRow, refunded: { cents: string; card_cents: string; points: string } | undefined): PaidContext {
+  const cardPaidCents = cents(row.paid);
+  const pointsValueCents = cents(row.points_value);
+  return {
+    paidCents: cardPaidCents + pointsValueCents,
+    refundedCents: cents(refunded?.cents),
+    paymentIntentId: row.intent ?? "",
+    currency: row.currency,
+    cardPaidCents,
+    cardRefundedCents: cents(refunded?.card_cents),
+    pointsValueCents,
+    pointsReturned: cents(refunded?.points),
+    centsPerPoint: row.cpp ?? 1,
+  };
+}
+
+/** 074 — how a refund of `amountCents` is made up, given everything returned before it. */
+export function splitFor(paid: PaidContext, amountCents: number): Split {
+  return splitRefund({
+    amountCents, cardPaidCents: paid.cardPaidCents, pointsValueCents: paid.pointsValueCents, centsPerPoint: paid.centsPerPoint,
+    refundedBeforeCents: paid.refundedCents, cardRefundedBeforeCents: paid.cardRefundedCents, pointsReturnedBefore: paid.pointsReturned,
+  });
+}
 
 export function createRefundRepository(
   db: Queryable = pooled,
@@ -171,38 +231,34 @@ SELECT round(oi.unit_price_amount * 100)::bigint AS unit,
       transact(async (tx) => {
         if (beforeLock) await beforeLock();
 
-        const locked = (
-          await tx.query<{ paid: string; intent: string; currency: string }>(
-            `
-SELECT round(p.amount * 100)::bigint AS paid, p.stripe_payment_intent_id AS intent, o.currency AS currency
-  FROM public.payment p
-  JOIN public."order" o ON o.id = p.order_id
- WHERE p.order_id = $1 AND p.status = 'succeeded'
- FOR UPDATE OF p`,
-            [input.orderId],
-          )
-        ).rows[0];
+        const locked = (await tx.query<PaidRow>(PAID_UNDER_LOCK, [input.orderId])).rows[0];
         if (!locked) throw new RefundOrderNotFoundError();
-        const refunded = (await tx.query<{ cents: string }>(REFUNDED_CENTS, [input.orderId])).rows[0];
-        const paid: PaidContext = {
-          paidCents: cents(locked.paid), refundedCents: cents(refunded?.cents),
-          paymentIntentId: locked.intent, currency: locked.currency,
-        };
+        const refunded = (await tx.query<{ cents: string; card_cents: string; points: string }>(REFUNDED_CENTS, [input.orderId])).rows[0];
+        const paid = paidContext(locked, refunded);
 
         const remaining = paid.paidCents - paid.refundedCents;
         if (input.amountCents > remaining) throw new CeilingExceededError(remaining);
+
+        // 074 — how this refund is made up. ⚠ A refund with NO card part never reaches the provider:
+        // it is recorded `succeeded` and its points come back in this same transaction.
+        const split = splitFor(paid, input.amountCents);
+        const cardFree = split.cardCents === 0;
 
         const inserted = (
           await tx.query<{ id: string }>(
             `
 INSERT INTO public.refund
-    (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub)
-VALUES ($1, $2, $3::bigint / 100.0, $4, $5, $6, $7, $8, $9)
+    (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub,
+     card_amount, points_returned, points_value_amount, status, settled_at)
+VALUES ($1, $2, $3::bigint / 100.0, $4, $5, $6, $7, $8, $9,
+        $10::bigint / 100.0, $11, $12::bigint / 100.0,
+        CASE WHEN $13 THEN 'succeeded' ELSE 'submitting' END, CASE WHEN $13 THEN now() END)
 ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING id::text AS id`,
             [
               input.orderId, input.kind, input.amountCents, input.currency, input.reason, input.note,
               input.idempotencyKey, input.actorKind, input.actorSub,
+              split.cardCents, split.points, split.pointsValueCents, cardFree,
             ],
           )
         ).rows[0];
@@ -226,18 +282,26 @@ RETURNING id::text AS id`,
             [inserted.id, l.orderItemId, l.quantity, l.amountCents],
           );
         }
-        return { issued: true, refundId: inserted.id, paid };
+        if (cardFree) await returnForRefund(tx, inserted.id, new Date());
+        return { issued: true, refundId: inserted.id, paid, split };
       }),
 
     // ── Status transitions: the only mutation this table permits ──────────────────────────────────
 
     /** The provider ACCEPTED the request. ⚠ Not "refunded": the bank may refuse weeks later. */
-    async markSubmitted(refundId: string, providerRefundId: string, q: Queryable = db): Promise<void> {
-      await q.query(
-        `UPDATE public.refund SET status = 'submitted', provider_refund_id = $2 WHERE id = $1 AND status = 'submitting'`,
-        [refundId, providerRefundId],
-      );
-    },
+    /**
+     * 074 — AND THE POINTS COME BACK, in the same transaction: the provider has accepted the card part,
+     * so the points part is returned. ⚠ Idempotent (one `returned` entry per refund), so the reconciler
+     * reaching a refund this path already settled returns nothing twice.
+     */
+    markSubmitted: (refundId: string, providerRefundId: string): Promise<void> =>
+      transact(async (tx) => {
+        const res = await tx.query(
+          `UPDATE public.refund SET status = 'submitted', provider_refund_id = $2 WHERE id = $1 AND status = 'submitting'`,
+          [refundId, providerRefundId],
+        );
+        if ((res.rowCount ?? 0) > 0) await returnForRefund(tx, refundId, new Date());
+      }),
 
     /** A provider decision. Terminal. */
     async markRefused(refundId: string, reason: string, q: Queryable = db): Promise<void> {
@@ -252,14 +316,19 @@ RETURNING id::text AS id`,
      * matches zero rows the second time. Returns whether it applied.
      */
     async settleByProviderId(q: Queryable, providerRefundId: string, status: string, failureReason: string): Promise<boolean> {
-      const res = await q.query(
+      const res = await q.query<{ id: string }>(
         `
 UPDATE public.refund
    SET status = $2, failure_reason = NULLIF($3, ''), settled_at = now()
- WHERE provider_refund_id = $1 AND status IN ('submitting', 'submitted')`,
+ WHERE provider_refund_id = $1 AND status IN ('submitting', 'submitted')
+ RETURNING id::text AS id`,
         [providerRefundId, status, failureReason],
       );
-      return (res.rowCount ?? 0) > 0;
+      const id = res.rows[0]?.id;
+      // 074 — an outcome can land before `markSubmitted` did. Succeeded or later failed, the provider
+      // ACCEPTED the card part, so the points part is due (idempotent per refund). Refused: nothing.
+      if (id && (status === "succeeded" || status === "failed")) await returnForRefund(q, id, new Date());
+      return Boolean(id);
     },
 
     async knowsProviderRefund(q: Queryable, providerRefundId: string): Promise<boolean> {
@@ -367,12 +436,12 @@ SELECT COUNT(DISTINCT oi.id) AS n
      * ⚠ Any arrangement that checks and then writes lets a shop start picking between the two, and
      * then a customer has been refunded for an order somebody is packing.
      */
-    cancelOrder: (input: CancelInput): Promise<{ paidCents: number; refundedCents: number; paymentIntentId: string }> =>
+    cancelOrder: (input: CancelInput): Promise<PaidContext> =>
       transact(async (tx) => {
         if (beforeLock) await beforeLock();
 
         const o = (
-          await tx.query<{ status: string; intent: string; paid: string; refunded: string }>(
+          await tx.query<{ status: string; intent: string; paid: string; refunded: string; card_refunded: string; points_back: string; points_value: string; cpp: number | null; currency: string }>(
             `
 SELECT o.status,
        COALESCE(p.stripe_payment_intent_id, '') AS intent,
@@ -380,7 +449,17 @@ SELECT o.status,
        COALESCE((SELECT SUM(round(r.amount * 100))::bigint
                    FROM public.refund r
                   WHERE r.order_id = o.id
-                    AND ${COUNTS_AGAINST_CEILING}), 0) AS refunded
+                    AND ${COUNTS_AGAINST_CEILING}), 0) AS refunded,
+       -- 074 — the two halves already returned, and the points' value on the order.
+       COALESCE((SELECT SUM(round(COALESCE(r.card_amount, r.amount) * 100))::bigint
+                   FROM public.refund r
+                  WHERE r.order_id = o.id
+                    AND ${COUNTS_AGAINST_CEILING}), 0) AS card_refunded,
+       COALESCE((SELECT SUM(r.points_returned)::bigint
+                   FROM public.refund r
+                  WHERE r.order_id = o.id
+                    AND ${COUNTS_AGAINST_CEILING}), 0) AS points_back,
+       round(o.points_value_amount * 100)::bigint AS points_value, o.points_cents_per_point AS cpp, o.currency
   FROM public."order" o
   LEFT JOIN public.payment p ON p.order_id = o.id AND p.status = 'succeeded'
  WHERE o.id = $1
@@ -440,7 +519,13 @@ UPDATE public.delivery_slot_booking
           [input.orderId],
         );
 
-        return { paidCents: cents(o.paid), refundedCents: cents(o.refunded), paymentIntentId: o.intent };
+        const cardPaidCents = cents(o.paid);
+        const pointsValueCents = cents(o.points_value);
+        return {
+          paidCents: cardPaidCents + pointsValueCents, refundedCents: cents(o.refunded), paymentIntentId: o.intent, currency: o.currency,
+          cardPaidCents, cardRefundedCents: cents(o.card_refunded), pointsValueCents, pointsReturned: cents(o.points_back),
+          centsPerPoint: o.cpp ?? 1,
+        };
       }),
 
     /**
@@ -450,24 +535,34 @@ UPDATE public.delivery_slot_booking
      * `canceled` under its own lock, and the amount was computed from rows read under it.
      * ⚠ `cancellation` is its OWN kind, not goodwill — the kind is what staff read.
      */
-    async recordCancellationRefund(input: CancelInput, amountCents: number, key: string): Promise<string | null> {
-      return (
-        (
-          await db.query<{ id: string }>(
-            `
+    /**
+     * 074 — with its card/points split. A card-free cancellation (a points-only order) is recorded
+     * `succeeded` with its points back in the same transaction; it never reaches the provider.
+     */
+    recordCancellationRefund: (input: CancelInput, amountCents: number, key: string, split: Split): Promise<string | null> =>
+      transact(async (tx) => {
+        const cardFree = split.cardCents === 0;
+        const id =
+          (
+            await tx.query<{ id: string }>(
+              `
 INSERT INTO public.refund
-    (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub)
-VALUES ($1, 'cancellation', $2::bigint / 100.0, 'AUD', $3, $4, $5, $6, $7)
+    (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub,
+     card_amount, points_returned, points_value_amount, status, settled_at)
+VALUES ($1, 'cancellation', $2::bigint / 100.0, 'AUD', $3, $4, $5, $6, $7,
+        $8::bigint / 100.0, $9, $10::bigint / 100.0,
+        CASE WHEN $11 THEN 'succeeded' ELSE 'submitting' END, CASE WHEN $11 THEN now() END)
 ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING id::text AS id`,
-            [
-              input.orderId, amountCents, REASON_ORDER_CANCELLED, "The order was cancelled before anyone began preparing it.",
-              key, input.actorKind, input.actorSub,
-            ],
-          )
-        ).rows[0]?.id ?? null
-      );
-    },
+              [
+                input.orderId, amountCents, REASON_ORDER_CANCELLED, "The order was cancelled before anyone began preparing it.",
+                key, input.actorKind, input.actorSub, split.cardCents, split.points, split.pointsValueCents, cardFree,
+              ],
+            )
+          ).rows[0]?.id ?? null;
+        if (id && cardFree) await returnForRefund(tx, id, new Date());
+        return id;
+      }),
 
     // ── Refund requests: an ASK, which moves no money ─────────────────────────────────────────────
 
@@ -542,9 +637,10 @@ RETURNING order_id::text AS order_id`,
     /** Refunds that asked the provider and never recorded an answer, oldest first. */
     async stuckSubmitting(olderThanSeconds: number, limit: number): Promise<StuckRefund[]> {
       return (
-        await db.query<{ id: string; order_id: string; cents: string; key: string; actor_sub: string | null; intent: string }>(
+        await db.query<{ id: string; order_id: string; cents: string; card_cents: string; key: string; actor_sub: string | null; intent: string }>(
           `
 SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bigint AS cents,
+       round(COALESCE(r.card_amount, r.amount) * 100)::bigint AS card_cents,
        r.idempotency_key AS key, r.actor_sub, p.stripe_payment_intent_id AS intent
   FROM public.refund r
   JOIN public.payment p ON p.order_id = r.order_id
@@ -556,7 +652,8 @@ SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bi
           [olderThanSeconds, limit],
         )
       ).rows.map((r) => ({
-        id: r.id, orderId: r.order_id, amountCents: cents(r.cents), idempotencyKey: r.key, actorSub: r.actor_sub, paymentIntentId: r.intent,
+        id: r.id, orderId: r.order_id, amountCents: cents(r.cents), cardCents: cents(r.card_cents),
+        idempotencyKey: r.key, actorSub: r.actor_sub, paymentIntentId: r.intent,
       }));
     },
 
@@ -567,7 +664,10 @@ SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bi
     async remainingCents(orderId: string, exceptRefundId: string | null = null): Promise<number> {
       const paid = (
         await db.query<{ paid: string }>(
-          `SELECT COALESCE(round(p.amount * 100)::bigint, 0) AS paid FROM public.payment p WHERE p.order_id = $1 AND p.status = 'succeeded'`,
+          // 074 — the order's total VALUE: what the card paid plus the points' value.
+          `SELECT COALESCE(round((p.amount + o.points_value_amount) * 100)::bigint, 0) AS paid
+             FROM public.payment p JOIN public."order" o ON o.id = p.order_id
+            WHERE p.order_id = $1 AND p.status = 'succeeded'`,
           [orderId],
         )
       ).rows[0];

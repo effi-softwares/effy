@@ -9,6 +9,7 @@
 // customer who later changes their account email does not retroactively redirect a message about an
 // order that has already arrived. This module is handed the address; it must never look one up.
 import { logger, query } from "@effy/edge-shared";
+import { customerWords, type EntryKind } from "@effy/edge-shared/points";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
 
@@ -30,6 +31,9 @@ const TZ = "Australia/Melbourne";
  */
 const EMAIL_TEMPLATES = {
   order_delivered: "order-delivered",
+  // 074 — a points credit, and the one warning before points expire.
+  points_credited: "points-credited",
+  points_expiring: "points-expiring",
 } as const satisfies Partial<Record<NotificationType, string>>;
 
 export function hasEmailTemplate(type: NotificationType): boolean {
@@ -68,6 +72,51 @@ function formatDeliveredOn(iso: string | null): string {
   return new Intl.DateTimeFormat("en-AU", { dateStyle: "full", timeZone: TZ }).format(when);
 }
 
+// ── 074 points ─────────────────────────────────────────────────────────────────────────────────────
+
+const points = (n: number) => new Intl.NumberFormat("en-AU").format(n);
+const dollars = (cents: number) => (cents / 100).toFixed(2);
+/** A Melbourne yyyy-mm-dd written out, at noon so no zone can move it to another day. */
+const longDate = (ymd: string) => new Intl.DateTimeFormat("en-AU", { dateStyle: "full", timeZone: TZ }).format(new Date(`${ymd}T12:00:00+10:00`));
+
+/**
+ * One credit, resolved at send time from its entry id (the payload carries nothing else). The reason
+ * words come from the same closed vocabulary the account page uses; the staff note is not selected.
+ */
+async function loadCredited(entryId: string) {
+  const row = (
+    await query<{ kind: string; points: number; reason: string; order_number: string | null; last_day: string; cents_per_point: number }>(
+      `SELECT e.kind, e.points, e.reason, o.order_number,
+              ((e.expires_at - interval '1 second') AT TIME ZONE '${TZ}')::date::text AS last_day,
+              (SELECT cents_per_point FROM public.points_settings WHERE id = 1) AS cents_per_point
+         FROM public.points_entry e
+         LEFT JOIN public."order" o ON o.id = e.order_id
+        WHERE e.id = $1 AND e.points > 0`,
+      [entryId],
+    )
+  ).rows[0];
+  if (!row) return null;
+  return {
+    points: points(row.points),
+    valueAmount: dollars(row.points * row.cents_per_point),
+    reasonWords: customerWords(row.kind as EntryKind, row.reason, row.order_number),
+    expiresOn: longDate(row.last_day),
+  };
+}
+
+async function loadExpiring(noticeId: string) {
+  const row = (
+    await query<{ points: number; expiry_date: string; cents_per_point: number }>(
+      `SELECT n.points, n.expiry_date::text AS expiry_date,
+              (SELECT cents_per_point FROM public.points_settings WHERE id = 1) AS cents_per_point
+         FROM public.points_expiry_notice n WHERE n.id = $1`,
+      [noticeId],
+    )
+  ).rows[0];
+  if (!row) return null;
+  return { points: points(row.points), valueAmount: dollars(row.points * row.cents_per_point), expiresOn: longDate(row.expiry_date) };
+}
+
 export interface EmailSenderOptions {
   /** Absolute base URL of the storefront, for the order link. */
   siteUrl: string;
@@ -93,19 +142,33 @@ export function createEmailSender(opts: EmailSenderOptions) {
         return { ok: false, prune: false, errorClass: "no_email_template" };
       }
 
-      const loaded = await loadDelivered(entityId);
-      if (!loaded) return { ok: false, prune: false, errorClass: "order_not_found" };
-
-      const res = await sendEmail(
-        "order-delivered",
-        {
-          orderNumber: loaded.order_number,
-          deliveredOn: formatDeliveredOn(loaded.delivered_at),
-          orderUrl: `${opts.siteUrl.replace(/\/$/, "")}/orders/${entityId}`,
-        },
-        { to, audience: "customer" },
-        logger,
-      );
+      const site = opts.siteUrl.replace(/\/$/, "");
+      let res: Awaited<ReturnType<typeof sendEmail>>;
+      if (type === "points_credited" || type === "points_expiring") {
+        const pointsUrl = `${site}/account?tab=points`;
+        if (type === "points_credited") {
+          const loaded = await loadCredited(entityId);
+          if (!loaded) return { ok: false, prune: false, errorClass: "points_entry_not_found" };
+          res = await sendEmail("points-credited", { ...loaded, pointsUrl }, { to, audience: "customer" }, logger);
+        } else {
+          const loaded = await loadExpiring(entityId);
+          if (!loaded) return { ok: false, prune: false, errorClass: "points_notice_not_found" };
+          res = await sendEmail("points-expiring", { ...loaded, pointsUrl, shopUrl: `${site}/` }, { to, audience: "customer" }, logger);
+        }
+      } else {
+        const loaded = await loadDelivered(entityId);
+        if (!loaded) return { ok: false, prune: false, errorClass: "order_not_found" };
+        res = await sendEmail(
+          "order-delivered",
+          {
+            orderNumber: loaded.order_number,
+            deliveredOn: formatDeliveredOn(loaded.delivered_at),
+            orderUrl: `${site}/orders/${entityId}`,
+          },
+          { to, audience: "customer" },
+          logger,
+        );
+      }
 
       return res.outcome === "sent"
         ? { ok: true, prune: false }

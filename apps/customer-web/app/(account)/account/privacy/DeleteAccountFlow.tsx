@@ -104,6 +104,17 @@ export function DeleteAccountFlow() {
           can&rsquo;t be undone after{" "}
           <strong>{preview.eraseAfterIfRequestedNow.slice(0, 10)}</strong>.
         </p>
+        {/* 074 FR-024 — said BEFORE they confirm. Absent when there is nothing to lose. */}
+        {preview.pointsHeld ? (
+          <p className="text-sm">
+            You&rsquo;ll also lose your{" "}
+            <strong>
+              {preview.pointsHeld.toLocaleString("en-AU")} Effy points
+              {preview.pointsValueAmount ? ` (worth $${preview.pointsValueAmount})` : ""}
+            </strong>
+            . Points have no cash value and can&rsquo;t be paid out.
+          </p>
+        ) : null}
       </div>
 
       {/* What is kept, and why (FR-045). Rendered from the contract so the two surfaces cannot

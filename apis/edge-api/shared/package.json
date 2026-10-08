@@ -9,6 +9,7 @@
     "./delivery": "./src/delivery/index.ts",
     "./cart-policy": "./src/cart-policy/index.ts",
     "./payments": "./src/payments/index.ts",
+    "./points": "./src/points/index.ts",
     "./live": "./src/live/index.ts",
     "./testing": "./src/testing/kotlin-fixture.ts"
   },

@@ -219,6 +219,10 @@ export type StorefrontEvent =
       props: { reason: "rate_limited" | "unavailable" | "failed" }
     }
   | { name: "search_performed"; props?: Record<string, never> }
+  // 074 customer points. ⚠ NO AMOUNTS, NO BALANCE — a points balance is account data, not behaviour.
+  | { name: "points_viewed"; props?: Record<string, never> }
+  | { name: "checkout_points_toggled"; props: { on: boolean } }
+  | { name: "checkout_paid_with_points"; props: { share: "part" | "all" } }
   // 022 address book. ⚠ NO PII — an address is PII (FR-019, SC-008), so these carry NO address
   // fields at all, only the subject id already attached by `identifyCustomer`. Props is deliberately
   // the empty object type so the compiler REFUSES any attempt to attach an address property here.

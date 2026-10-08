@@ -6,6 +6,7 @@
  * rules are identical. Two copies of "what a valid refund is" would drift, and the drift is money.
  */
 import { announceOrder } from "../../live";
+import { announcePointsForOrder } from "../../points/announce";
 import { createHash } from "node:crypto";
 
 import type { Queryable } from "../../lib/db";
@@ -16,7 +17,7 @@ import {
   AlreadyCancelledError, AmountInvalidError, AmountRejectedError, InvalidActorKindError, InvalidReasonError,
   MessageRequiredError, NoLinesError, NoteRequiredError, ProviderRefusedError, RefundOrderNotFoundError, RequestNotFoundError,
 } from "./errors";
-import type { CancelInput, InsertLine, LineInput, RefundRepository } from "./repository";
+import { splitFor, type CancelInput, type InsertLine, type LineInput, type RefundRepository } from "./repository";
 import {
   OPERATOR_REASONS, REASON_GOODWILL, REFUND_SUBMITTED, REFUND_SUBMITTING, REFUND_SUCCEEDED, settledStatus,
 } from "./state";
@@ -51,6 +52,9 @@ export interface IssueInput {
 export interface IssueResult {
   refundId: string;
   amount: string;
+  /** 074 — how it was made up: the part returned to the card, and the points returned. */
+  cardAmount?: string;
+  pointsReturned?: number;
   /** ⚠ NEVER "refunded". The provider has it; the bank has not moved anything and may refuse. */
   status: string;
   remainingAmount?: string;
@@ -64,6 +68,8 @@ export interface IssueResult {
 export interface CancelResult {
   refundId?: string;
   amount?: string;
+  cardAmount?: string;
+  pointsReturned?: number;
   status: string;
   stalled?: true;
 }
@@ -212,9 +218,28 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         };
       }
 
+      const split = rec.split;
+      const splitFields = split.points > 0 ? { cardAmount: formatCents(split.cardCents), pointsReturned: split.points } : {};
+
+      // 074 — NO CARD PART: nothing goes to the provider. The repository recorded it `succeeded` and
+      // returned the points in the same transaction.
+      if (split.cardCents === 0) {
+        emitMetric(ns(), "RefundsIssued", 1, { kind: input.kind });
+        emitMetric(ns(), "PointsReturned", 1);
+        if (input.kind === "item" && !input.skipStockReturn) await quietly(repo.returnStock(rec.refundId, input.orderId));
+        await quietly(repo.closeOpenRequestForOrder(input.orderId, input.actorSub));
+        await announceOrder(input.orderId, { db: repo.db });
+        await announcePointsForOrder(input.orderId, repo.db);
+        return {
+          refundId: rec.refundId, amount: formatCents(amountCents), status: REFUND_SUCCEEDED,
+          remainingAmount: formatCents(remaining - amountCents), ...splitFields,
+        };
+      }
+
       let provider: Refund;
       try {
-        provider = await submit(rec.refundId, rec.paid.paymentIntentId, amountCents, key);
+        // ⚠ ONLY THE CARD PART reaches the provider (074): the points part is not its money.
+        provider = await submit(rec.refundId, rec.paid.paymentIntentId, split.cardCents, key);
       } catch (err) {
         if (err instanceof RefusedError) {
           // A DECISION. Terminal.
@@ -225,11 +250,16 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
         // ⚠ AMBIGUOUS. The row stays `submitting`: not refused (nobody decided) and not counted (it
         // may never have landed). And it is said out loud.
         emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "ambiguous" });
-        return { refundId: rec.refundId, status: REFUND_SUBMITTING, stalled: true, amount: formatCents(amountCents) };
+        return { refundId: rec.refundId, status: REFUND_SUBMITTING, stalled: true, amount: formatCents(amountCents), ...splitFields };
       }
 
+      // 074 — the points part comes back in the same transaction that records the submission.
       await quietly(repo.markSubmitted(rec.refundId, provider.id));
       emitMetric(ns(), "RefundsIssued", 1, { kind: input.kind });
+      if (split.points > 0) {
+        emitMetric(ns(), "PointsReturned", 1);
+        await announcePointsForOrder(input.orderId, repo.db);
+      }
 
       // Put the units back — item-derived only, and only if the issuer did not decline it.
       if (input.kind === "item" && !input.skipStockReturn) await quietly(repo.returnStock(rec.refundId, input.orderId));
@@ -240,7 +270,7 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
 
       return {
         refundId: rec.refundId, amount: formatCents(amountCents), status: REFUND_SUBMITTED,
-        remainingAmount: formatCents(remaining - amountCents),
+        remainingAmount: formatCents(remaining - amountCents), ...splitFields,
       };
     },
 
@@ -274,12 +304,24 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       if (amountCents <= 0) return { amount: formatCents(0), status: REFUND_SUCCEEDED };
 
       const key = cancelIdempotencyKey(input.orderId);
-      const refundId = await repo.recordCancellationRefund(input, amountCents, key);
+      // 074 — what remains, split between card and points in proportion.
+      const split = splitFor(locked, amountCents);
+      const splitFields = split.points > 0 ? { cardAmount: formatCents(split.cardCents), pointsReturned: split.points } : {};
+      const refundId = await repo.recordCancellationRefund(input, amountCents, key, split);
       if (!refundId) return { amount: formatCents(amountCents), status: REFUND_SUBMITTING, stalled: true };
+
+      // 074 — a points-only order: everything came back as points already; nothing for the provider.
+      if (split.cardCents === 0) {
+        emitMetric(ns(), "RefundsIssued", 1, { kind: "cancellation" });
+        emitMetric(ns(), "OrdersCancelled", 1, { actor: input.actorKind });
+        emitMetric(ns(), "PointsReturned", 1);
+        await announcePointsForOrder(input.orderId, repo.db);
+        return { refundId, amount: formatCents(amountCents), status: REFUND_SUCCEEDED, ...splitFields };
+      }
 
       let provider: Refund;
       try {
-        provider = await submit(refundId, locked.paymentIntentId, amountCents, key);
+        provider = await submit(refundId, locked.paymentIntentId, split.cardCents, key);
       } catch (err) {
         if (err instanceof RefusedError) {
           await quietly(repo.markRefused(refundId, err.reason));
@@ -296,7 +338,11 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
       await quietly(repo.markSubmitted(refundId, provider.id));
       emitMetric(ns(), "RefundsIssued", 1, { kind: "cancellation" });
       emitMetric(ns(), "OrdersCancelled", 1, { actor: input.actorKind });
-      return { refundId, amount: formatCents(amountCents), status: REFUND_SUBMITTED };
+      if (split.points > 0) {
+        emitMetric(ns(), "PointsReturned", 1);
+        await announcePointsForOrder(input.orderId, repo.db);
+      }
+      return { refundId, amount: formatCents(amountCents), status: REFUND_SUBMITTED, ...splitFields };
     },
 
     /**
@@ -379,7 +425,8 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
               continue;
             }
             provider = await gateway.createRefund({
-              paymentIntentId: r.paymentIntentId, amountCents: r.amountCents, idempotencyKey: r.idempotencyKey,
+              // ⚠ 074 — the CARD part, never the total: the points part is not the provider's money.
+              paymentIntentId: r.paymentIntentId, amountCents: r.cardCents, idempotencyKey: r.idempotencyKey,
               reason: "requested_by_customer", metadata: { effy_refund_id: r.id },
             });
           }

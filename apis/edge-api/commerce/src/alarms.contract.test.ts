@@ -44,13 +44,14 @@ function alarmedMetrics(): { metric: string; dimensions: Record<string, string> 
 describe("the commerce alarms watch what the code emits", () => {
   const alarms = alarmedMetrics();
 
-  it("found the alarms — seven conditions over eight series", () => {
+  it("found the alarms — nine conditions over ten series", () => {
     expect(alarms.map((a) => a.metric).sort()).toEqual([
-      "DeliveryQuoteFailures", "RefundOutcomes", "RefundSubmitFailures", "RefundSubmitFailures", "RefundsStuck",
-      "SlotBookings", "StockBlocked", "WebhookFailures",
+      // 074 added the two points alarms: a late payer's shortfall, and a ledger that does not add up.
+      "DeliveryQuoteFailures", "PointsHoldShortfall", "PointsInvariantViolations", "RefundOutcomes", "RefundSubmitFailures",
+      "RefundSubmitFailures", "RefundsStuck", "SlotBookings", "StockBlocked", "WebhookFailures",
     ]);
-    // Six in the map and the two-series one: seven alarms.
-    expect((tf.match(/^ {4}[a-z-]+ = \{$/gm) ?? []).length + (tf.match(/resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures"/g) ?? []).length).toBe(7);
+    // Eight in the map and the two-series one: nine alarms.
+    expect((tf.match(/^ {4}[a-z-]+ = \{$/gm) ?? []).length + (tf.match(/resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures"/g) ?? []).length).toBe(9);
   });
 
   it.each(alarms)("$metric $dimensions is emitted", ({ metric, dimensions }) => {

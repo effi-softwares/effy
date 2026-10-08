@@ -283,6 +283,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     awaiting: awaitingFor(awaitingHandover, awaitingArrival, awaitingRefundDecision),
 
     ...refundView(order.grand_total_amount, itemRows, refundRows, refundLineRows),
+    ...paymentSplitView(order, refundRows),
     proposedRefunds: proposedRows.map((p) => ({
       orderItemId: p.order_item_id,
       productName: p.product_name,
@@ -302,6 +303,34 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
  * `0.1 + 0.2` reaches a screen as `0.30000000000000004`, and on a refund screen a rounding artefact
  * is not cosmetic — it is the number an operator is about to hand back.
  */
+/**
+ * 074 — how the order was paid when points were part of it, and what has come back of each. Absent
+ * on an order that used no points. The refundable figure above stays the order's TOTAL value: a refund
+ * is split between card and points by the shared refund service, never by this console.
+ */
+function paymentSplitView(
+  order: repo.OrderDetailRow,
+  refundRows: readonly refundRepo.RefundRow[],
+): Pick<AdminOrderDetailDTO, "paymentSplit"> {
+  if (!order.points_used) return {};
+  let cardReturned = 0;
+  let pointsReturned = 0;
+  for (const r of refundRows) {
+    if (!COUNTED_REFUND_STATUSES.includes(r.status)) continue;
+    cardReturned += cents(r.card_amount ?? r.amount);
+    pointsReturned += r.points_returned ?? 0;
+  }
+  return {
+    paymentSplit: {
+      pointsUsed: order.points_used,
+      pointsAmount: order.points_value_amount ?? "0.00",
+      cardAmount: order.card_paid_amount ?? "0.00",
+      pointsReturned,
+      cardReturned: money(cardReturned),
+    },
+  };
+}
+
 function refundView(
   grandTotal: string,
   itemRows: readonly repo.OrderItemRow[],
@@ -347,6 +376,8 @@ function refundView(
       actorLabel: r.actor_label,
       createdAt: r.created_at.toISOString(),
       settledAt: r.settled_at ? r.settled_at.toISOString() : null,
+      // 074 — present only when points were part of it, so a card-only refund reads as before.
+      ...(r.points_returned ? { cardAmount: r.card_amount ?? r.amount, pointsReturned: r.points_returned } : {}),
       lines: (linesByRefund.get(r.refund_id) ?? []).map((l) => ({
         orderItemId: l.order_item_id,
         productName: l.product_name,

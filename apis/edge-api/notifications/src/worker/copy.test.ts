@@ -32,6 +32,9 @@ const ALL: NotificationType[] = [
   // 067
   "shop_product_approved",
   "shop_product_sent_back",
+  // 074
+  "points_credited",
+  "points_expiring",
 ];
 
 describe("notification copy + wire contract", () => {
@@ -121,6 +124,8 @@ describe("notification copy + wire contract", () => {
       queue: "orders",
       product: "catalog",
       run: "runs",
+      // 074 — the customer's points screen: a tab of the storefront's account page.
+      points: "account?tab=points",
     };
 
     for (const t of ALL) {
@@ -162,5 +167,14 @@ describe("notification copy + wire contract", () => {
     // Object prototype keys must not read as known types.
     expect(isKnownNotificationType("toString")).toBe(false);
     expect(isKnownNotificationType("constructor")).toBe(false);
+  });
+
+  it("074 — a points notification opens the points screen, never a per-entry path that does not exist", () => {
+    for (const t of ["points_credited", "points_expiring"] as const) {
+      expect(deepLinkFor(t, "entry-1")).toBe("effy://points");
+      expect(webPathFor(t, "entry-1")).toBe("/account?tab=points");
+    }
+    // Every other type still carries its entity.
+    expect(deepLinkFor("order_paid", "o-1")).toBe("effy://order/o-1");
   });
 });

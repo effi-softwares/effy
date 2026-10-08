@@ -18,6 +18,10 @@ import { describe, expect, it } from "vitest";
  * A service that built its own `{ scope: "customer", … }` would bypass the stage rule — telling the
  * customer each time ANY shop moved, which on a split order reveals the split by count alone. So
  * no other file may construct one.
+ *
+ * ⚠ 074 ADDED A FOURTH, for a different kind: `announcePoints` (points/announce.ts) tells a customer
+ * their POINTS changed. It decides from the customer's own ledger, in which no shop appears, and
+ * carries only the word `points` — so the reason this guard exists cannot arise there (074 research R7).
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "../../..");
@@ -26,6 +30,7 @@ const ALLOWED = new Set([
   "shared/src/live/announce.ts", // the type's own declaration
   "shared/src/live/order-moves.ts",
   "shared/src/payments/finalize.ts",
+  "shared/src/points/announce.ts", // 074 — points only; no shop is involved in any points rule
 ]);
 
 function sources(dir: string): string[] {
@@ -51,7 +56,7 @@ describe("071 — who may build a customer's update", () => {
   it("the customer variant of a change has no field a shop could be put in", () => {
     const announce = files.find((f) => f.rel === "shared/src/live/announce.ts")!.source;
     const variant = /\{ scope: "customer";([^}]*)\}/.exec(announce)?.[1] ?? "";
-    expect(variant.replace(/\s+/g, " ").trim()).toBe('sub: string; kind: "orders"');
+    expect(variant.replace(/\s+/g, " ").trim()).toBe('sub: string; kind: "orders" | "points"');
   });
 
   it("package moves reach the customer only through the stage rule", () => {

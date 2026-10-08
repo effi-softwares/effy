@@ -45,7 +45,19 @@ data class CheckoutIntent(
      * shopper is charged.
      */
     val slotHeldUntil: String? = null,
-)
+    /** 074 — the points this order uses, and what is left for the card. */
+    val pointsUsed: Long = 0,
+    val pointsAmount: String? = null,
+    val cardAmount: String? = null,
+    /**
+     * 074 — TRUE when points covered everything: the order is ALREADY PAID, there is no card step and
+     * [clientSecret] is empty. The app goes straight to the receipt.
+     */
+    val paidWithPoints: Boolean = false,
+) {
+    /** What the card is charged: the total less any points. */
+    val amountForCard: String get() = cardAmount ?: grandTotalAmount
+}
 
 /** The billing details Effy attaches on the shopper's behalf (051 FR-016). */
 data class CheckoutBillingDetails(
@@ -217,6 +229,8 @@ data class Receipt(
     val amountPaidAfterRefunds: String = "",
     /** ⚠ Derived by the server from the totals, never a stored flag. */
     val fullyRefunded: Boolean = false,
+    /** 074 — how the order was paid when points were part of it. Null when none were used. */
+    val paymentSplit: PaymentSplit? = null,
 ) {
     /** True when billing == shipping (the common case) → "Billing: same as shipping" (FR-016). */
     val billingSameAsShipping: Boolean get() = billingAddressLine == null
@@ -270,7 +284,27 @@ data class PlaceOrder(
      */
     val sameDaySlotId: String? = null,
     val standardDate: String? = null,
+    /** 074 — whole points to pay with; 0 for none. The server re-decides the split and refuses rather than changes it. */
+    val pointsToUse: Long = 0,
 )
+
+/** 074 — points as a way of paying, on a receipt: never a discount line. */
+data class PaymentSplit(val pointsUsed: Long, val pointsAmount: String, val cardAmount: String)
+
+/** 074 — what the shopper can spend at checkout. Absent from the quote when they have none. */
+data class CheckoutPoints(val usable: Long, val centsPerPoint: Long) {
+    /** "$12.50" worth, as a 2-dp string. */
+    val valueAmount: String get() {
+        val c = usable * centsPerPoint
+        return "${c / 100}.${(c % 100).toString().padStart(2, '0')}"
+    }
+}
+
+/** 074 — why the server refused the points asked for. Nothing was charged. */
+enum class PointsRefusal { BalanceChanged, ExceedTotal, CardRemainderTooSmall, PaymentInProgress }
+
+/** 074 — a points refusal, with the most points the server would accept when it said. */
+class PointsRefused(val reason: PointsRefusal, val maxPoints: Long?) : Exception("points refused: $reason")
 
 /** The two delivery methods (047). Same-day is always priced ≥ standard. */
 enum class DeliveryMethod { STANDARD, SAME_DAY }
@@ -315,6 +349,8 @@ data class DeliveryQuote(
     val sameDayDeliveries: Int = 0,
     val sameDayPartAmount: String? = null,
     val standardPartAmount: String? = null,
+    /** 074 — the shopper's spendable points; null when they have none. */
+    val points: CheckoutPoints? = null,
 ) {
     /** Some deliveries can go today and some cannot. */
     val mixed: Boolean get() = sameDayAvailable && sameDayDeliveries < deliveries

@@ -11,6 +11,13 @@ it **spec-first** using **GitHub Spec Kit**. Read this before doing anything.
 - Four audiences, each with its own trust level: **customer, driver, shop/operator, admin/back-office.**
 
 ### Driver logistics model (hub-and-spoke — settled 2026-08-22, feature 049)
+⚠ **BEING REPLACED (decided 2026-10-07).** The same-day vs standard split below gives way to **who
+delivers**: **Delivered by Effy** (default — any postcode on Effy's list, a window today or on the
+next 3 delivery days) or **Courier delivery** (out of area, or a back-office override). Planned as
+epics E0–E10 / specs 074–082 in
+[docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md). The
+text below still describes the **live** code until E9 (cutover) lands — do not build new work on
+same-day/standard.
 Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one-drop flow). They run a
 **hub-and-spoke** operation built on 047's collection-run + operating-hub concepts:
 - **Collection run (shops → hub):** an on-duty driver is assigned **packages to collect** and drives a
@@ -86,6 +93,10 @@ native web build).
     so a shopper burst is refused at the database instead of starving staff, shop and driver traffic.
   - ⚠ **Money logic lives once** — `@effy/edge-shared/payments`. Three services move money
     (`commerce`, `orders`, `shop`); none re-implements a refund.
+  - ⚠ **Points logic lives once** (074) — `@effy/edge-shared/points` is the only writer of the
+    append-only points ledger; the balance is `public.points_usable`, never stored, never recomputed
+    elsewhere. Points are a **way of paying**, not a discount: `order.grand_total_amount` is unchanged
+    and `payment.amount` is the **card** amount. A shop never sees points.
   - **Event backbone:** services publish domain events to one SNS topic; per-consumer SQS queues
     subscribe with filter policies (the fulfillment fan-out).
 - **Data:** PostgreSQL 16, **raw SQL**, Goose migrations, **no ORM.** Two schemas: `public`
@@ -404,6 +415,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **074-customer-points** — Customer Points (store credit)
 - **073-order-dispatch-control** — Simple Order Status & Driver Assignment in Orders
 - **072-immediate-driver-assignment** — Immediate Driver Work Assignment (assign early, open on time)
 - **071-live-updates** — Live Updates Without Polling (all six apps)
@@ -455,5 +467,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/073-order-dispatch-control/plan.md
+at specs/074-customer-points/plan.md
 <!-- SPECKIT END -->

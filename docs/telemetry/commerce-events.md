@@ -57,3 +57,14 @@ the union makes the compiler refuse any attempt to attach an address property.
 
 > The shop/fulfilment boundary is a telemetry constraint too: the billing address never appears in any
 > shop-side log, metric, or event (FR-018 / SC-007).
+
+## Points (074)
+
+**No amounts and no balance** in any of these — a points balance is account data, not behaviour.
+The same names and props on customer-web (`StorefrontEvent`) and customer-mobile (`AnalyticsEvent`).
+
+| Event | Props | Emitted when |
+|---|---|---|
+| `points_viewed` | — | The customer opens their points (web account tab, mobile Points screen) |
+| `checkout_points_toggled` | `{ on }` | The customer switches "Use points" on or off at checkout |
+| `checkout_paid_with_points` | `{ share }` | An order is placed using points. `share`: `part` (card paid the rest) \| `all` (no card) |

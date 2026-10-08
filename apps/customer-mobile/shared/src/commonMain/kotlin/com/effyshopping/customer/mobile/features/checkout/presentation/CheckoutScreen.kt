@@ -74,7 +74,13 @@ import com.effyshopping.customer.mobile.core.presentation.EffySheet
  * gone. Checkout ends unpaid, which is why there is no receipt callback here any more.
  */
 @Composable
-fun CheckoutScreen(container: AppContainer, onProceedToPayment: () -> Unit, onBack: () -> Unit) {
+fun CheckoutScreen(
+    container: AppContainer,
+    onProceedToPayment: () -> Unit,
+    onBack: () -> Unit,
+    /** 074 — points paid for everything; the order is placed. Open its receipt. */
+    onPlacedWithPoints: (orderId: String) -> Unit = {},
+) {
     val vm = viewModel {
         CheckoutViewModel(
             listAddresses = container.listSavedAddresses,
@@ -94,6 +100,14 @@ fun CheckoutScreen(container: AppContainer, onProceedToPayment: () -> Unit, onBa
             // the transition takes, and a shopper who backs out inside that window is sent straight back.
             vm.handoffConsumed()
             onProceedToPayment()
+        }
+    }
+
+    val placed = (state as? CheckoutUiState.Ready)?.placedWithPoints
+    LaunchedEffect(placed) {
+        if (placed != null) {
+            vm.placedConsumed()
+            onPlacedWithPoints(placed)
         }
     }
 
@@ -164,6 +178,28 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
         // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip), and the
         // standard/same-day choice when the whole order qualifies. The server owns every fee (SC-004).
         DeliverySection(s, vm)
+
+        // 074 — Effy points, only when the shopper has some.
+        s.points?.let { points ->
+            HorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .toggleable(value = s.usePoints, role = Role.Switch, onValueChange = vm::setUsePoints),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Use my Effy points", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "${formatPointsCount(points.usable)} points, worth \$${points.valueAmount}. Any rest is paid by card.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = s.usePoints, onCheckedChange = null)
+            }
+        }
 
         BillingSection(s, vm)
 
@@ -402,3 +438,6 @@ private fun SavedAddress.formatSummary(): String = buildString {
     append(", ").append(city).append(" ").append(postalCode)
     append(", ").append(country)
 }
+
+/** "1,250" — grouped thousands. */
+private fun formatPointsCount(n: Long): String = n.toString().reversed().chunked(3).joinToString(",").reversed()

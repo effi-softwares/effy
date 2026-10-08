@@ -206,3 +206,25 @@ describe("ReceiptDocument — discloses no fulfilment structure (FR-009, SC-011)
     expect(text).not.toMatch(/\b\d+ of \d+\b|\bpart \d\b|\bparcel \d\b/i)
   })
 })
+
+describe("ReceiptDocument — points (074 FR-018)", () => {
+  it("shows points as a way of paying beside the card, and leaves the total unchanged", () => {
+    render(
+      <ReceiptDocument
+        order={order({
+          grandTotalAmount: "30.60",
+          paymentSplit: { pointsUsed: 1250, pointsAmount: "12.50", cardAmount: "18.10", pointsReturned: 0, cardReturned: "0.00" },
+        })}
+      />,
+    )
+    expect(screen.getByText(/1,250 Effy points/)).toBeInTheDocument()
+    expect(screen.getByText(/\$18\.10 by card/)).toBeInTheDocument()
+    expect(screen.getByText("$30.60")).toBeInTheDocument()
+    expect(screen.queryByText(/discount/i)).not.toBeInTheDocument()
+  })
+
+  it("says nothing about points on an order that used none", () => {
+    render(<ReceiptDocument order={order()} />)
+    expect(screen.queryByText(/Effy points/)).not.toBeInTheDocument()
+  })
+})

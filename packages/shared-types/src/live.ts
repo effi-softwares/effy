@@ -14,6 +14,8 @@ export const LIVE_KINDS = [
   "dispatch",
   "slots",
   "review",
+  // 074 — a customer's points balance changed (the customer's own channel, and back-office's).
+  "points",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

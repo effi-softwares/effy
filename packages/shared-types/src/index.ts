@@ -55,3 +55,5 @@ export * from "./shop-insights"
 export * from "./dispatch"
 // 071-live-updates — the kinds an update may name, and where an app finds its channel
 export * from "./live"
+// 074-customer-points — the balance, its history, staff credit/debit, settings, and the payment split
+export * from "./points"

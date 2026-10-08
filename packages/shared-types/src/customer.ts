@@ -6,6 +6,8 @@
  * mobile app (KMP) mirrors them.
  */
 
+import type { WireInt } from "./cart";
+
 /** A customer's standing with Effy. PLATFORM-OWNED — never derived from a token claim. */
 export type CustomerStatus = "active" | "barred";
 
@@ -309,6 +311,12 @@ export interface ClosurePreviewDTO {
   eraseAfterIfRequestedNow: string;
   /** Present only when a request is already live. */
   activeRequest: { requestedAt: string; eraseAfter: string } | null;
+  /**
+   * 074 FR-024 — the points the customer will lose when closure becomes final, and their value. Told
+   * BEFORE they confirm. Optional so a client built before 074 still reads the preview.
+   */
+  pointsHeld?: WireInt;
+  pointsValueAmount?: string;
 }
 
 /** The step-up challenge for closure — the same masked-destination shape the password flow uses. */

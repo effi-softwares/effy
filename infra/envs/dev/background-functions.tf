@@ -36,6 +36,20 @@ locals {
       threshold = 1
       stops     = "Refunds whose submission to the payment provider got no answer are no longer being resolved, and the refund-stuck alarm cannot see them because this function is what reports them. A customer may be owed money nobody is sending."
     }
+    points-expiry = {
+      function  = "effy-edge-customer-${var.env}-pointsExpiry"
+      period    = 86400
+      periods   = 1
+      threshold = 1
+      stops     = "074 - expired points are no longer being recorded in customers' history, and nobody is being warned before their points expire. Expired points still cannot be spent (the balance does not depend on this job)."
+    }
+    points-reconcile = {
+      function  = "effy-edge-customer-${var.env}-pointsReconcile"
+      period    = 3600
+      periods   = 2
+      threshold = 1
+      stops     = "074 - the points ledger is no longer being checked, and the points-ledger alarm cannot see a fault because this function is what reports it."
+    }
     notification-drain = {
       function  = "effy-edge-notifications-${var.env}-drain"
       period    = 300

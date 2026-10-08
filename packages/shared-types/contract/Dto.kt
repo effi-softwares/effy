@@ -119,6 +119,14 @@ data class ClosurePreviewDTO (
      */
     val eraseAfterIfRequestedNow: String,
 
+    /**
+     * 074 FR-024 — the points the customer will lose when closure becomes final, and their
+     * value. Told BEFORE they confirm. Optional so a client built before 074 still reads the
+     * preview.
+     */
+    val pointsHeld: Long? = null,
+
+    val pointsValueAmount: String? = null,
     val retained: List<RetainedCategoryDTO>
 )
 
@@ -423,6 +431,81 @@ enum class PasswordWriteDTOMode(val value: String) {
 data class PasswordWriteResultDTO (
     val allSessionsRevoked: Boolean,
     val customer: CustomerDTO
+)
+
+/**
+ * GET /customer/v1/points
+ */
+@Serializable
+data class PointsBalanceDTO (
+    val centsPerPoint: Long,
+
+    /**
+     * The soonest lot to expire; null when nothing is due.
+     */
+    val nextExpiry: NextExpiry? = null,
+
+    val points: Long,
+    val valueAmount: String
+)
+
+@Serializable
+data class NextExpiry (
+    val date: String,
+    val points: Long
+)
+
+/**
+ * Every kind of change to a balance. Credits are positive, debits negative.
+ */
+@Serializable
+enum class PointsEntryKind(val value: String) {
+    @SerialName("auto_credit") AutoCredit("auto_credit"),
+    @SerialName("expired") Expired("expired"),
+    @SerialName("forfeited") Forfeited("forfeited"),
+    @SerialName("returned") Returned("returned"),
+    @SerialName("spent") Spent("spent"),
+    @SerialName("staff_credit") StaffCredit("staff_credit"),
+    @SerialName("staff_debit") StaffDebit("staff_debit");
+}
+
+/**
+ * One history line as the CUSTOMER sees it.
+ */
+@Serializable
+data class PointsHistoryEntryDTO (
+    val at: String,
+
+    /**
+     * Credits only: the last date these points can be used (yyyy-mm-dd, Melbourne).
+     */
+    val expiresOn: String? = null,
+
+    val id: String,
+    val kind: PointsEntryKind,
+    val orderNumber: String? = null,
+
+    /**
+     * Signed.
+     */
+    val points: Long,
+
+    val valueAmount: String,
+
+    /**
+     * The sentence to show — decided by the server from the reason.
+     */
+    val words: String
+)
+
+@Serializable
+data class PointsHistoryPageDTO (
+    val entries: List<PointsHistoryEntryDTO>,
+
+    /**
+     * Absent on the last page.
+     */
+    val nextCursor: String? = null
 )
 
 @Serializable

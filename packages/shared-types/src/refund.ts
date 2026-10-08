@@ -94,6 +94,9 @@ export interface RefundDTO {
   actorLabel: string | null
   createdAt: string
   settledAt: string | null
+  /** 074 — present only when part of this refund came back as points: the card part, and the points. */
+  cardAmount?: string
+  pointsReturned?: WireInt
 }
 
 export interface RefundLineDTO {

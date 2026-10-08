@@ -11,6 +11,7 @@
  *   4. lines the shop cannot fully supply are flagged 10. the promo redemption is recorded
  *   5. stock is reduced, with a movement record       11. the cart is emptied
  *   6. shop staff are notified; order.placed is recorded
+ *   3′. (074) the points held at checkout are spent
  *
  * ⚠ ALL OF IT IS ONE TRANSACTION ON ONE CONNECTION, AND THE FIRST STATEMENT IS THE GUARD. Step 1 is
  * `UPDATE … WHERE status = 'pending_payment'`. Two deliveries race on that row's lock: one changes
@@ -29,6 +30,7 @@ import { formatCents, parseCents } from "../lib/money";
 import { slotLoad } from "../delivery/slots";
 import { emitMetric } from "../lib/metrics";
 import { announce, type LiveChange } from "../live";
+import { release as releasePoints, spendHeld } from "../points/ledger";
 import { appendEvent, appendNotification } from "./outbox";
 
 export interface FinalizeOutcome {
@@ -52,10 +54,18 @@ export interface FinalizeOutcome {
   customerSub: string | null;
   /** The shops whose tracked stock this sale reduced — their stock screens are now out of date. */
   stockShopIds: readonly string[];
+  /** 074 — points spent by this order (0 when it used none). */
+  pointsSpent: number;
+  /**
+   * 074 — ⚠ THE LATE PAYER: points the customer held at checkout that were no longer there when the
+   * payment landed. The order stands and Effy absorbs the value; the alarm watches this.
+   */
+  pointsShortfall: number;
 }
 
 const NOT_APPLIED: FinalizeOutcome = {
   applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false, shopIds: [], customerSub: null, stockShopIds: [],
+  pointsSpent: 0, pointsShortfall: 0,
 };
 
 /**
@@ -147,6 +157,21 @@ WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = 
 
   // 2c. The same-day place becomes a booking (069).
   const slot = await confirmSlotBooking(tx, orderId);
+
+  // 2c″. 074 — the points HELD at the payment-intent call become a `spent` entry, under the customer's
+  //      points lock (taken AFTER the order row's — the platform's one lock order). If the hold lapsed
+  //      and the points went elsewhere meanwhile, what is still usable is spent and the rest is
+  //      recorded as a shortfall: the customer paid the card amount they were shown, so the order
+  //      stands, nobody is charged again, and the balance never goes negative (research R3).
+  const points = await spendHeld(tx, orderId, new Date());
+  if (points.shortfallPoints > 0) {
+    await tx.query(
+      `UPDATE public."order"
+          SET points_shortfall_amount = points_shortfall_amount + ($2::int * COALESCE(points_cents_per_point, 1))::numeric / 100
+        WHERE id = $1`,
+      [orderId, points.shortfallPoints],
+    );
+  }
 
   // 2c′. ⚠ THE STOCK ROWS ARE LOCKED BEFORE THEY ARE READ (070). The backend this replaces read the
   //      shelf in 2d with no lock and locked only in 2e, so two payments for the last unit BOTH read
@@ -320,6 +345,8 @@ DELETE FROM public.cart_item WHERE cart_id = (
     shopIds: shops.map((sh) => sh.shopId),
     customerSub: meta.cognito_sub,
     stockShopIds: [...new Set(stockMoved.rows.map((r) => r.shop_id))],
+    pointsSpent: points.spent,
+    pointsShortfall: points.shortfallPoints,
   };
 }
 
@@ -327,6 +354,8 @@ DELETE FROM public.cart_item WHERE cart_id = (
 export async function finalizeFailed(tx: Queryable, orderId: string): Promise<void> {
   await tx.query(`UPDATE public."order" SET status='failed', updated_at=now() WHERE id=$1 AND status='pending_payment'`, [orderId]);
   await tx.query(`UPDATE public.payment SET status='failed', updated_at=now() WHERE order_id=$1`, [orderId]);
+  // 074 — points set aside for this checkout are usable again at once (they would lapse anyway).
+  await releasePoints(tx, orderId);
 }
 
 /**
@@ -339,6 +368,9 @@ export function meterFinalize(namespace: string, out: FinalizeOutcome): void {
     if (out.slotOverCapacity) emitMetric(namespace, "SlotBookings", 1, { outcome: "over_capacity" });
   }
   if (out.applied) emitMetric(namespace, "StockDeducted", 1, { outcome: out.stockShortfall ? "partial" : "full" });
+  if (out.pointsSpent > 0) emitMetric(namespace, "PointsSpent", 1);
+  // ⚠ Alarmed (PointsHoldShortfall ≥ 1): Effy absorbed value it did not plan to.
+  if (out.pointsShortfall > 0) emitMetric(namespace, "PointsHoldShortfall", 1);
 }
 
 /**
@@ -354,6 +386,8 @@ export async function announcePaid(out: FinalizeOutcome): Promise<void> {
   const changes: LiveChange[] = out.shopIds.map((shopId) => ({ scope: "shop", shopId, kind: "orders" }));
   for (const shopId of out.stockShopIds) changes.push({ scope: "shop", shopId, kind: "stock" });
   if (out.customerSub) changes.push({ scope: "customer", sub: out.customerSub, kind: "orders" });
+  // 074 — the customer's balance moved too. Decided from this ORDER, like the update above.
+  if (out.customerSub && out.pointsSpent > 0) changes.push({ scope: "customer", sub: out.customerSub, kind: "points" });
   changes.push({ scope: "ops", kind: "orders" });
   if (out.slotConfirmed) changes.push({ scope: "ops", kind: "slots" });
   await announce(changes);

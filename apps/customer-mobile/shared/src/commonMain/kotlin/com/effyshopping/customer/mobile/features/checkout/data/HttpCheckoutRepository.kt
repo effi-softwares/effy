@@ -3,6 +3,8 @@ package com.effyshopping.customer.mobile.features.checkout.data
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
+import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefusal
+import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefused
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
@@ -38,8 +40,11 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
         // 069 — a 409 carrying one of the three delivery-choice codes is a NAMED refusal with the
         // options as they stand now. ⚠ Read BEFORE the generic mapping, which turns every 409 into an
         // unrelated account error; a 409 that is not one of ours still falls through to it.
-        if (response.status == HttpStatusCode.Conflict) {
-            deliveryRefusalOrNull(response.bodyAsText())?.let { throw it }
+        if (response.status == HttpStatusCode.Conflict || response.status == HttpStatusCode.UnprocessableEntity) {
+            val body = response.bodyAsText()
+            if (response.status == HttpStatusCode.Conflict) deliveryRefusalOrNull(body)?.let { throw it }
+            // 074 — a points refusal, with the most the server would take when it said.
+            pointsRefusalOrNull(body)?.let { throw it }
         }
         response.ensureSuccess().body<CreateCheckoutIntentResponse>().toDomain()
     }
@@ -72,6 +77,8 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
             throw e
         } catch (e: DeliveryChoiceRefused) {
             throw e // a refusal the shopper can act on — never flattened into "unexpected"
+        } catch (e: PointsRefused) {
+            throw e
         } catch (e: IOException) {
             throw AppException(AppError.Network)
         } catch (e: UnresolvedAddressException) {
@@ -92,6 +99,22 @@ internal fun deliveryRefusalOrNull(body: String): DeliveryChoiceRefused? =
     runCatching { refusalJson.decodeFromString(DeliveryChoiceRefusalDTO.serializer(), body).toDomain() }.getOrNull()
 
 private val refusalJson = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; explicitNulls = false }
+
+/** 074 — decode a points refusal, or null when the body is some other refusal. */
+internal fun pointsRefusalOrNull(body: String): PointsRefused? = runCatching {
+    val dto = refusalJson.decodeFromString(PointsRefusalBody.serializer(), body)
+    val reason = when (dto.code) {
+        "points_balance_changed" -> PointsRefusal.BalanceChanged
+        "points_exceed_total" -> PointsRefusal.ExceedTotal
+        "points_card_remainder_too_small" -> PointsRefusal.CardRemainderTooSmall
+        "payment_in_progress" -> PointsRefusal.PaymentInProgress
+        else -> return@runCatching null
+    }
+    PointsRefused(reason, dto.maxPoints)
+}.getOrNull()
+
+@kotlinx.serialization.Serializable
+private data class PointsRefusalBody(val code: String? = null, val maxPoints: Long? = null)
 
 @kotlinx.serialization.Serializable
 private data class ConfirmResponse(val orderId: String = "", val paid: Boolean = false)

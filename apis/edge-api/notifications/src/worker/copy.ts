@@ -39,7 +39,10 @@ export type NotificationType =
   | "shop_refund_proposed"
   // 067 — Effy's decision on a product a shop submitted or changed. Push-only.
   | "shop_product_approved"
-  | "shop_product_sent_back";
+  | "shop_product_sent_back"
+  // 074 — the customer's points. `points_credited` is push + email; `points_expiring` is email only.
+  | "points_credited"
+  | "points_expiring";
 
 /**
  * Which notification group a type belongs to, for coalescing and badge counting on the web.
@@ -67,6 +70,11 @@ export interface NotificationCopy {
   /** The `showNotification` tag — the coalescing group. The same tag replaces rather than stacks. */
   tag: string;
   group: NotificationGroup;
+  /**
+   * 074 — false when the destination is a SCREEN, not an entity: the points page has no per-entry
+   * route, so `effy://points/<entryId>` would name a page that does not exist. Default true.
+   */
+  entityInLink?: false;
 }
 
 const COPY: Record<NotificationType, NotificationCopy> = {
@@ -179,6 +187,28 @@ const COPY: Record<NotificationType, NotificationCopy> = {
     tag: "shop-product-review",
     group: "attention",
   },
+
+  // ── 074 points ────────────────────────────────────────────────────────────────────────────────
+  // ⚠ NO NUMBER IN THE BANNER: how many points, and why, belong on the points screen, not on a lock
+  // screen. Both open the customer's points page, which has no per-entry route.
+  points_credited: {
+    title: "You've got Effy points",
+    body: "Points were added to your account. Tap to see them.",
+    deepLinkPath: "points",
+    webPath: "/account?tab=points",
+    tag: "customer-points",
+    group: "customer",
+    entityInLink: false,
+  },
+  points_expiring: {
+    title: "Your points expire soon",
+    body: "Some of your points are about to expire.",
+    deepLinkPath: "points",
+    webPath: "/account?tab=points",
+    tag: "customer-points",
+    group: "customer",
+    entityInLink: false,
+  },
 };
 
 /** Every type, for exhaustive iteration in tests and in the preferences contract. */
@@ -217,7 +247,7 @@ export function copyFor(type: NotificationType): NotificationCopy {
 /** Build the `effy://` deep link for a type + entity (050 FR-017). Mobile. */
 export function deepLinkFor(type: NotificationType, entityId: string): string {
   const c = copyFor(type);
-  return entityId ? `effy://${c.deepLinkPath}/${entityId}` : `effy://${c.deepLinkPath}`;
+  return entityId && c.entityInLink !== false ? `effy://${c.deepLinkPath}/${entityId}` : `effy://${c.deepLinkPath}`;
 }
 
 /**
@@ -233,7 +263,7 @@ export function deepLinkFor(type: NotificationType, entityId: string): string {
  */
 export function webPathFor(type: NotificationType, entityId: string): string {
   const c = copyFor(type);
-  return entityId ? `${c.webPath}/${entityId}` : c.webPath;
+  return entityId && c.entityInLink !== false ? `${c.webPath}/${entityId}` : c.webPath;
 }
 
 /**

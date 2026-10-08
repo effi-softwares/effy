@@ -16,6 +16,8 @@ import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefusal
+import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefused
 import com.effyshopping.customer.mobile.features.payment.domain.PaymentHandoff
 import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import kotlinx.coroutines.CancellationException
@@ -89,7 +91,17 @@ sealed interface CheckoutUiState {
          * editing instructions for ONE order must never rewrite the saved default unasked (FR-014).
          */
         val saveInstructions: Boolean = false,
+        /** 074 — pay with points? ON by default whenever the shopper has some (FR-012: the most they can). */
+        val usePoints: Boolean = true,
+        /**
+         * 074 — a ONE-SHOT: points paid for the whole order, which is ALREADY PLACED. The screen opens
+         * its receipt and disarms this via [CheckoutViewModel.placedConsumed].
+         */
+        val placedWithPoints: String? = null,
     ) : CheckoutUiState {
+        /** 074 — the points control is shown only when the quote says the shopper has points. */
+        val points get() = quote?.points?.takeIf { serviced }
+
         /** What the selected address has saved — to tell "using my default" from "changed for this order". */
         val savedInstructions: InstructionsDraft
             get() = InstructionsDraft.from(addresses.firstOrNull { it.id == selectedId }?.defaultInstructions)
@@ -202,6 +214,19 @@ class CheckoutViewModel(
     fun setInstructions(draft: InstructionsDraft) {
         val s = ready() ?: return
         _state.value = s.copy(instructions = draft, error = null)
+    }
+
+    /** 074 — switch "Use my points" on or off. */
+    fun setUsePoints(on: Boolean) {
+        val s = ready() ?: return
+        _state.value = s.copy(usePoints = on, error = null)
+    }
+
+    /** 074 — the screen has opened the receipt for a points-paid order. */
+    fun placedConsumed() {
+        val s = ready() ?: return
+        if (s.placedWithPoints == null) return
+        _state.value = s.copy(placedWithPoints = null)
     }
 
     fun setSaveInstructions(save: Boolean) {
@@ -356,6 +381,9 @@ class CheckoutViewModel(
             deliveryInstructions = s.instructions.toInstructions(),
             sameDaySlotId = s.slotId.takeIf { s.needsSlot },
             standardDate = s.standardDate.takeIf { s.needsDay },
+            // 074 — "the most I can": the balance. If that is more than the order needs, the server says
+            // so with the most it will take, and that is sent instead (below).
+            pointsToUse = if (s.usePoints) s.points?.usable ?: 0 else 0,
         )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
@@ -364,9 +392,30 @@ class CheckoutViewModel(
             // something it drew. The in-app element is drawn by Effy's own payment screen, so the intent
             // has to exist before that screen does — and the confirmation belongs to the pay button on it.
             val intent = try {
-                createIntent(order)
+                try {
+                    createIntent(order)
+                } catch (tooMany: PointsRefused) {
+                    // 074 — the balance is more than this order needs (or would leave the card less than
+                    // it can be charged). The shopper asked for "the most they can", and the server has
+                    // just said what that is: ask once more with exactly that. Anything else is refused.
+                    val max = tooMany.maxPoints
+                    if (max == null || tooMany.reason == PointsRefusal.BalanceChanged || tooMany.reason == PointsRefusal.PaymentInProgress) throw tooMany
+                    createIntent(order.copy(pointsToUse = max))
+                }
             } catch (e: CancellationException) {
                 throw e
+            } catch (refused: PointsRefused) {
+                val cur = ready() ?: return@launch
+                _state.value = cur.copy(
+                    paying = false,
+                    error = when (refused.reason) {
+                        PointsRefusal.BalanceChanged -> "Your points balance has changed. We’ve updated it — check and pay again."
+                        PointsRefusal.PaymentInProgress -> "A payment for this order is already in progress. Check your orders before trying again."
+                        else -> "We couldn’t apply your points to this order. Try again, or switch points off."
+                    },
+                )
+                if (refused.reason == PointsRefusal.BalanceChanged) refreshQuote(addressId)
+                return@launch
             } catch (refused: DeliveryChoiceRefused) {
                 // 069 — the slot or day could not be honoured. Nothing has been charged and no payment
                 // exists. ⚠ The choice is NOT replaced: the shopper is told, shown what is on offer
@@ -402,6 +451,11 @@ class CheckoutViewModel(
                         saveInstructions = false,
                     )
                 }
+            }
+            // 074 — points paid for everything: the order is placed. Straight to its receipt; no payment screen.
+            if (intent.paidWithPoints) {
+                _state.value = (ready() ?: return@launch).copy(paying = false, placedWithPoints = intent.orderId)
+                return@launch
             }
             // In memory only, never in the route — the intent carries a payment client secret.
             handoff.offer(intent)

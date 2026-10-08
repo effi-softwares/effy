@@ -1,4 +1,5 @@
-import { query, withTransaction } from "@effy/edge-shared"
+import { pooled, query, withTransaction } from "@effy/edge-shared"
+import { balanceSummary } from "@effy/edge-shared/points"
 
 import { CUSTOMER_COLUMNS, type CustomerRow } from "../customer/model"
 
@@ -217,4 +218,17 @@ export async function restoreAccount(input: {
     )
     return cust.rows[0] ?? null
   })
+}
+
+// ── Points (074 FR-024) ───────────────────────────────────────────────────────────────────────
+
+/**
+ * The points a customer would lose if closure became final, and their value in cents.
+ *
+ * ⚠ The figure is @effy/edge-shared/points's — the same one the account page shows — never a second
+ * computation here. Nothing is forfeited by READING it: forfeiture happens when closure becomes final.
+ */
+export async function findPointsHeld(customerId: string): Promise<{ points: number; valueCents: number }> {
+  const s = await balanceSummary(pooled, customerId, new Date())
+  return { points: s.usable, valueCents: s.valueCents }
 }

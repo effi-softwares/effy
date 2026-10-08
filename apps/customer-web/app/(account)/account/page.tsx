@@ -15,6 +15,7 @@ import { AccountTabsProvider, SectionNav, TabContent } from "./AccountTabs"
 import { EmailDeliveryNotice } from "./EmailDeliveryNotice"
 import { PasswordCard } from "./PasswordCard"
 import { PaymentMethodList } from "./PaymentMethodList"
+import { PointsTab } from "./PointsTab"
 import { PersonalInfo } from "./PersonalInfo"
 import { SessionCard } from "./SessionCard"
 import { parseTab, tabHref } from "./tabs"
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
 export default function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; cursor?: string }>
 }) {
   return (
     <div className="container py-3 sm:py-6">
@@ -57,8 +58,8 @@ export default function AccountPage({
   )
 }
 
-async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const { tab } = await searchParams
+async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: string; cursor?: string }> }) {
+  const { tab, cursor } = await searchParams
   const active = parseTab(tab)
 
   // Return the customer to the SAME tab after a sign-in bounce, not just to the account root.
@@ -92,6 +93,8 @@ async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: str
               <AddressBook />
             ) : active === "payment" ? (
               <PaymentMethods />
+            ) : active === "points" ? (
+              <PointsTab cursor={cursor} />
             ) : active === "security" ? (
               <SecuritySection
                 hasPassword={customer.hasPassword}

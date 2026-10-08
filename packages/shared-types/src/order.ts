@@ -11,6 +11,7 @@
 // 055 — the CUSTOMER's refund shape, shared with `refund.ts` rather than restated. The staff shape
 // (`RefundDTO`) lives there too and must never reach this file: it carries the provider's failure
 // text, which is staff information.
+import type { OrderPaymentSplitDTO } from "./points";
 import type { CustomerRefundDTO } from "./refund";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
@@ -238,6 +239,11 @@ export interface OrderDTO {
    * than showing a blank.
    */
   paymentMethod?: PaymentMethodSummaryDTO | null;
+  /**
+   * 074 — how the order was paid when points were part of it, and what has come back of each.
+   * ⚠ ABSENT on an order that used no points. Points are a way of paying — never a discount.
+   */
+  paymentSplit?: OrderPaymentSplitDTO;
 
   /**
    * 052 — when the order is expected to arrive (FR-007), one entry per package.

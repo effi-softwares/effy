@@ -46,7 +46,8 @@ class PaymentViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        PaymentUiState(amount = intent.grandTotalAmount, currency = intent.currency),
+        // 074 — the CARD's amount: the total less any points.
+        PaymentUiState(amount = intent.amountForCard, currency = intent.currency),
     )
     val state: StateFlow<PaymentUiState> = _state.asStateFlow()
 
@@ -61,7 +62,7 @@ class PaymentViewModel(
         clientSecret = intent.clientSecret,
         publishableKey = publishableKey,
         merchantName = merchantName,
-        amountMinor = minorUnits(intent.grandTotalAmount),
+        amountMinor = minorUnits(intent.amountForCard),
         currency = intent.currency,
         billingDetails = intent.billingDetails?.let {
             PaymentBillingDetails(

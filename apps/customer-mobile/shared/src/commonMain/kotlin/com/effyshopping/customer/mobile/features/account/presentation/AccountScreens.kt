@@ -355,6 +355,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         // the two are the same kind of thing: saved details Effy uses on their behalf. Keeps the
         // "Shopping" group within SC-004's ≤6 items.
         EffyNavRow("Payment methods", onClick = { nav.push(CustomerNavKey.PaymentMethods) })
+        // 074 — the customer's Effy points.
+        EffyNavRow("Effy points", onClick = { nav.push(CustomerNavKey.Points) })
 
         AccountSectionHeader("Account")
         EffyNavRow("Security", onClick = { nav.push(CustomerNavKey.Security) })

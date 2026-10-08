@@ -11,6 +11,7 @@ vi.mock("./repo", async () => {
     IN_TRANSIT_BLOCK_DAYS: actual.IN_TRANSIT_BLOCK_DAYS,
     findBlockingOrders: vi.fn(),
     findLiveRequest: vi.fn(),
+    findPointsHeld: vi.fn(async () => ({ points: 0, valueCents: 0 })),
     closeAccount: vi.fn(),
     restoreAccount: vi.fn(),
   }
@@ -36,6 +37,7 @@ import {
   closeAccount,
   findBlockingOrders,
   findLiveRequest,
+  findPointsHeld,
   restoreAccount,
   GRACE_PERIOD_DAYS,
   IN_TRANSIT_BLOCK_DAYS,
@@ -113,6 +115,21 @@ describe("previewClosure", () => {
     expect(preview.blockers).toEqual([])
     expect(preview.activeRequest).toBeNull()
     expect(preview.retained.length).toBeGreaterThan(0)
+  })
+
+  // 074 FR-024 — told BEFORE they confirm. Absent, not "0", when there is nothing to lose or the
+  // read failed: a failed points read must not block the preview.
+  it("says how many points would be lost, and stays silent when there are none or the read fails", async () => {
+    vi.mocked(findByCognitoSub).mockResolvedValue(customer())
+    expect(await previewClosure("sub-1")).not.toHaveProperty("pointsHeld")
+
+    vi.mocked(findPointsHeld).mockResolvedValueOnce({ points: 1250, valueCents: 1250 })
+    expect(await previewClosure("sub-1")).toMatchObject({ pointsHeld: 1250, pointsValueAmount: "12.50" })
+
+    vi.mocked(findPointsHeld).mockRejectedValueOnce(new Error("down"))
+    const failed = await previewClosure("sub-1")
+    expect(failed).not.toHaveProperty("pointsHeld")
+    expect(failed.blockers).toEqual([])
   })
 
   /** ⚠ NEVER null. A blocker that cannot state when it ends is the dead end FR-042 forbids. */

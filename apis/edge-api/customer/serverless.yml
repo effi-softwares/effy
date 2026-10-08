@@ -102,6 +102,11 @@ provider:
   iam:
     role:
       statements:
+        # 074 — publish live updates, to this environment's channel only: the points expiry job tells a
+        # customer's open app that their balance changed. (Until 074 this service announced nothing.)
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
@@ -212,6 +217,29 @@ functions:
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
   # ── 022: address book (customer profile management, per 011 FR-028) ────────────────────────────
+
+  # ── 074: the customer's own points. The reads are @effy/edge-shared/points, shared with back-office.
+  customerPointsV1Get:
+    handler: src/functions/customer-points-v1-get.handler
+    description: The customer's usable points, their value and the next expiry (074 US1)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/points
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerPointsHistoryV1Get:
+    handler: src/functions/customer-points-history-v1-get.handler
+    description: Every change to the customer's points, newest first (074 US1)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/points/history
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
   customerAddressesV1Get:
     handler: src/functions/customer-addresses-v1-get.handler
@@ -496,3 +524,24 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ── 074: points housekeeping. ⚠ NOT ROUTES — nothing calls these but their schedules.
+
+  # Writes the "Expired" history line and queues the one warning before points expire. ⚠ Expiry itself
+  # does not depend on it: a lot stops counting the instant its expires_at passes.
+  pointsExpiry:
+    handler: src/functions/points-expiry-scheduled.handler
+    description: Daily — record expired points in customers' history and queue expiry warnings (074 US4).
+    timeout: 120
+    events:
+      - schedule:
+          rate: rate(1 day)
+
+  # Checks the points ledger still adds up and reports the count every run, zero included.
+  pointsReconcile:
+    handler: src/functions/points-reconcile-scheduled.handler
+    description: Hourly — check the points ledger's invariants and report violations (074 SC-001).
+    timeout: 60
+    events:
+      - schedule:
+          rate: rate(1 hour)
