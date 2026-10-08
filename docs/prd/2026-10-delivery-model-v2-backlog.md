@@ -314,6 +314,15 @@ Customers never see group names, distances or the hub's location.
 
 ## E3 — Delivery Fee Engine v2 · spec 077
 
+> **2026-10-08 — specified (`specs/077-delivery-fee-engine-v2/spec.md`); three rules confirmed by the
+> operator while clarifying:**
+> - **One fee per order, never more for more shops** (Q1 confirmed). Effy collects everything and
+>   brings it to the hub, so for the customer the order comes from one place.
+> - **Free delivery is free** — it waives the window premium too.
+> - **Same-day stays a bit dearer**: the method factor becomes a fixed **premium on today's windows**
+>   (amount asked of the operator before release). At release the carried-over plan includes it.
+> - Introductory or targeted delivery discounts are **promotions — a later feature**, not part of E3.
+
 **Goal.** One fee engine prices both kinds of delivery: Effy by distance + weight + basket value
 + window premium; courier by its own table.
 
@@ -359,7 +368,7 @@ delivery fees. Fees include GST.
 - [ ] E3-T03 Columns: `free_over_cents` (nullable), `small_order_under_cents` + `small_order_fee_cents`.
 - [ ] E3-T04 Migration: `delivery_slot_premium(plan_id, slot_id, add_cents)` — premium belongs to the plan, not the slot, so a plan change never edits slots.
 - [ ] E3-T05 Migration: `courier_fee_plan` (or a `kind` on the same plan) — weight bands, flat per order, optional free threshold, step/floor/cap.
-- [ ] E3-T06 Drop the method factor (`same_day_factor`, `factorMilli`) from the active-plan contract (column drop in E9).
+- [ ] E3-T06 Drop the method factor (`same_day_factor`, `factorMilli`) from the active-plan contract (column drop in E9). Replace it with a premium on today's windows in the carried-over plan — same-day stays dearer (confirmed 2026-10-08).
 - [ ] E3-T07 Activation check as SQL function `delivery_plan_is_complete(plan_id)` — every listed postcode's distance falls in a band, weight bands cover 0..∞, premiums reference active slots.
 - [ ] E3-T08 Snapshot fee breakdown onto the order (`order_delivery_fee` columns or JSON: base, distance add, weight add, premium, small-order, discount from threshold, rounding) so a receipt can always explain itself.
 *Shared library* (`apis/edge-api/shared/src/delivery/`)
