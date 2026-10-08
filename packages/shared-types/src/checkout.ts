@@ -65,6 +65,13 @@ export interface CreateCheckoutIntentRequest {
    */
   standardDate?: string | null;
   /**
+   * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` + `date`).
+   * REQUIRED when the quote carried `effyWindows` (refused with `slot_required` without it); the
+   * three 047/069 fields above are then ignored and the server derives same-day vs standard from the
+   * date. Ignored while the new model is off.
+   */
+  deliveryWindow?: { slotId: string; date: string } | null;
+  /**
    * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile in-app element)
    * and therefore needs a customer session. Web renders Effy's own list and leaves this unset.
    *

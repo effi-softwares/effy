@@ -17,6 +17,9 @@ vi.mock("@effy/edge-shared", async () => {
   return {
     ...actual,
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
+    // 078 — recording a handover runs in a transaction; give it the container's.
+    withTransaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      (actual.transactorFor as (p: Pool) => (f: typeof fn) => Promise<unknown>)(holder.pool!)(fn),
   };
 });
 
@@ -24,6 +27,8 @@ import { migrationSql } from "@effy/edge-shared";
 
 import { packages } from "../orders/repository";
 import { listHandovers, toPackage } from "../orders/service";
+import { OrderActionError } from "../lib/errors";
+import { recordHandoff } from "./repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -190,7 +195,37 @@ d("069 — carrier handover list", () => {
       expect(await listHandovers(due), due).toEqual([]);
     }
   });
+
+  it("078 — a standard package sold a WINDOW is Effy's: never listed, and a handover is refused", async () => {
+    const start = new Date(Date.now() + 26 * 3_600_000);
+    const windowed = await seedPackage({
+      method: "standard",
+      promisedDay: await melDay(1),
+      window: { start: start.toISOString(), end: new Date(start.getTime() + 7_200_000).toISOString() },
+    });
+    const carrier = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
+
+    const listed = [...(await listHandovers("today")), ...(await listHandovers("overdue")), ...(await listHandovers("upcoming"))];
+    expect(listed.map((p) => p.orderNumber)).toEqual([carrier.orderNumber]);
+
+    const refused = await recordHandoff({ fulfillmentId: windowed.fulfillmentId, actorSub: "staff-1" } as never).then(() => null, (e: unknown) => e);
+    expect(refused).toBeInstanceOf(OrderActionError);
+    expect((refused as OrderActionError).reason).toBe("not_carrier");
+    // …and one with no window still goes to the carrier.
+    expect((await recordHandoff({ fulfillmentId: carrier.fulfillmentId, actorSub: "staff-1" } as never)).created).toBe(true);
+
+    const pkg = await onlyWindowed(windowed.orderId);
+    expect(pkg.handoverDueOn).toBeNull();
+    expect(pkg.atRisk).toBe(false);
+    expect(pkg.window).not.toBeNull();
+  });
 });
+
+async function onlyWindowed(orderId: string) {
+  const rows = await packages(orderId);
+  expect(rows).toHaveLength(1);
+  return toPackage(rows[0]!);
+}
 
 d("069 — the promise on the back-office order detail", () => {
   beforeEach(async () => {

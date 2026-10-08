@@ -58,9 +58,20 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
             mapOf("daysAhead" to daysAhead.toString(), "wasDefault" to wasDefault.toString()),
         )
 
-    /** `reason`: `slot_unavailable` | `date_unavailable` | `slot_required`. */
+    /** `reason`: `slot_unavailable` | `date_unavailable` | `slot_required` | `no_windows_available`. */
     class CheckoutDeliveryChoiceRefused(reason: String) :
         AnalyticsEvent("checkout_delivery_choice_refused", mapOf("reason" to reason))
+
+    // 078 — delivery windows (the new delivery model). ⚠ WHICH SECTION AND HOW MANY DAYS AHEAD — never
+    // the window's id or its clock time, for the same reason as the slot event above. The same names
+    // and props as customer-web's. Declared, not emitted, like the rest of this app's commerce taxonomy.
+    /** `section`: `same_day` | `standard`. `dayOffset`: 0 for today. */
+    class CheckoutWindowSelected(section: String, dayOffset: Int) :
+        AnalyticsEvent("checkout_window_selected", mapOf("section" to section, "day_offset" to dayOffset.toString()))
+
+    /** `reason`: `no_windows` | `none_defined`. */
+    class CheckoutWindowsUnavailable(reason: String) :
+        AnalyticsEvent("checkout_windows_unavailable", mapOf("reason" to reason))
 
     // 077 — the delivery fee. ⚠ THREE BOOLEANS, NEVER AN AMOUNT: a fee joined to a session says how
     // far from the hub someone lives. The same names and props as customer-web's. Declared, not

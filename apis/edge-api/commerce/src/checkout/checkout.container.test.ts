@@ -1,7 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrationSql, transactorFor, type Transactor } from "@effy/edge-shared";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
-import { melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
+import { effyDays, melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
 import {
   finalizeFailed, finalizeSucceeded, WebhookSignatureError,
   type IntentStatus, type PaymentGateway, type PaymentIntent, type WebhookEvent,
@@ -436,7 +436,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       store.captureDelivery(r.orderId, {}, now, [{
         shopId, method: "same_day", promisedDay: melbourneDate(now), slotId,
         windowStart: now, windowEnd: new Date(now.getTime() + 60_000),
-      }], { slotId, now }),
+      }], { slotId, date: melbourneDate(now), now }),
     ).rejects.toBeInstanceOf(SlotUnavailableError);
 
     expect(await one(`SELECT method FROM public.order_package_delivery WHERE order_id = $1`, [r.orderId])).toEqual({ method: "standard" });
@@ -983,5 +983,298 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         UPDATE public.delivery_fee_plan SET is_active = false WHERE id = '${DEAR}';
         UPDATE public.delivery_fee_plan SET is_active = true WHERE id = '${PLAN}';`);
     }
+  });
+  // ── 078 — Effy delivery windows: today and the next delivery days ────────────────────────────────
+  //
+  // ⚠ The switch is turned on INSIDE each test and always put back: every test above this line is
+  // the proof that nothing changes while it is NULL.
+
+  const quoteOf = (s: { customerId: string; addressId: string }) =>
+    quoteForCheckout({ store, quoter: defaultQuoter(pool), promos: noPromo }, s.customerId, s.addressId, new Date());
+  /** Today, then the next three days — the fixture has no non-delivery days. */
+  const offered = () => effyDays(new Date(), 3).map((d) => d.date);
+  const windowOn = (addressId: string, date: string, over: Partial<IntentInput> = {}) =>
+    input(addressId, { deliveryWindow: { slotId, date }, ...over });
+  const bookedOn = async (date: string) => (await slotLoad(pool, date)).get(slotId) ?? 0;
+  const packagesOf = (orderId: string) =>
+    pool.query<{ method: string; day: string; slot: string | null; start: Date | null }>(
+      `SELECT method, promised_to::text AS day, slot_id::text AS slot, window_start AS start
+         FROM public.order_package_delivery WHERE order_id = $1 ORDER BY shop_id`, [orderId],
+    ).then((r) => r.rows);
+  async function modelOn<T>(fn: () => Promise<T>): Promise<T> {
+    await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = now() - interval '1 minute' WHERE id = 1`);
+    try {
+      return await fn();
+    } finally {
+      await pool.query(`UPDATE public.delivery_settings
+                           SET delivery_model_v2_from = NULL, effy_lookahead_days = 3, standard_no_delivery_weekdays = '{}' WHERE id = 1`);
+      await pool.query(`DELETE FROM public.delivery_non_delivery_date`);
+      await pool.query(`DELETE FROM public.delivery_slot_premium`);
+      await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = NULL WHERE id = $1`, [PLAN]);
+    }
+  }
+  const refusal = async (p: Promise<unknown>) => {
+    const err = await p.then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(DeliveryChoiceError);
+    return (err as DeliveryChoiceError).code;
+  };
+
+  it("078 — with the switch off the quote is the 069/077 quote, and a window sent anyway is ignored (P9)", async () => {
+    const s = await shopper({ Milk: 2 });
+    const q = await quoteOf(s);
+    expect(Object.keys(q).sort()).toEqual([
+      "coverage", "expiresAt", "freeDeliveryRemainingAmount", "packages", "postcode", "sameDayAvailableUntil",
+      "sameDaySlots", "sameDayUnavailableReason", "serviced", "standardDays", "standardFee",
+    ]);
+    expect(q).not.toHaveProperty("effyWindows"); // absent, not null: byte for byte the old quote
+    expect(q.sameDaySlots).toHaveLength(1);
+    expect(q.standardDays).toHaveLength(7); // 069's look-ahead, not 078's
+
+    // The 069 fields decide; `deliveryWindow` is not read. Standard, no window, no place held.
+    const r = await svc.createIntent(s.customerId, windowOn(s.addressId, offered()[2]!), new Date());
+    expect(await packagesOf(r.orderId)).toEqual([{ method: "standard", day: q.standardDays[0]!.date, slot: null, start: null }]);
+    expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId])).toBe(0);
+    expect(r.slotHeldUntil ?? null).toBeNull();
+  });
+
+  it("078 — with the switch on the customer is offered today and the next three delivery days (P10)", async () => {
+    await modelOn(async () => {
+      const s = await shopper({ Milk: 2 });
+      const q = await quoteOf(s);
+      const days = offered();
+      expect(q.effyWindows!.unavailable).toBeNull();
+      expect(q.effyWindows!.days.map((d) => [d.date, d.section, d.windows.length, d.closedReason])).toEqual([
+        [days[0], "same_day", 1, null], [days[1], "standard", 1, null], [days[2], "standard", 1, null], [days[3], "standard", 1, null],
+      ]);
+      const w = q.effyWindows!.days[2]!.windows[0]!;
+      // ⚠ Exactly these fields: no capacity, no count, nothing per package.
+      expect(Object.keys(w).sort()).toEqual(["cutoffAt", "date", "endAt", "fee", "slotId", "startAt", "surchargeAmount"]);
+      expect(w.startAt.slice(0, 16)).toBe(`${days[2]}T23:58`);
+      expect(w.cutoffAt.slice(0, 16)).toBe(`${days[2]}T23:58`);
+      // A client built before 078 still draws something true.
+      expect(q.sameDaySlots.map((x) => x.date)).toEqual([days[0]]);
+      expect(q.standardDays.map((x) => x.date)).toEqual(days.slice(1));
+    });
+  });
+
+  it("078 — a later-day window: every package is 'standard' WITH the window, and the place is held on that day (P10)", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 2 });
+      const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[2]!), new Date());
+      expect(r.slotHeldUntil).toMatch(/[+-]\d\d:\d\d$/);
+      const pk = await packagesOf(r.orderId);
+      expect(pk).toHaveLength(1);
+      expect(pk[0]).toMatchObject({ method: "standard", day: days[2], slot: slotId });
+      expect(melbourneDate(pk[0]!.start!)).toBe(days[2]);
+      expect(await one(`SELECT state, delivery_date::text AS day FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId]))
+        .toEqual({ state: "held", day: days[2] });
+      expect([await bookedOn(days[0]!), await bookedOn(days[2]!), await bookedOn(days[3]!)]).toEqual([0, 1, 0]);
+      // No "today" premium on a later day: the plain $6.00.
+      expect((await feeOf(r.orderId)).fee).toBe("6.00");
+      expect(await pay(r.orderId)).toMatchObject({ slotConfirmed: true, slotOverCapacity: false });
+
+      // Today's window is "same_day", and dearer by the plan's today premium.
+      const t = await shopper({ Milk: 2 });
+      const rt = await svc.createIntent(t.customerId, windowOn(t.addressId, days[0]!), new Date());
+      expect((await packagesOf(rt.orderId))[0]).toMatchObject({ method: "same_day", day: days[0], slot: slotId });
+      expect((await feeOf(rt.orderId)).fee).toBe("11.00");
+    });
+  });
+
+  it("078 — ONE window for the order: a basket from three shops never splits, and holds one place (P10)", async () => {
+    const [b, c] = [await otherShop("CHK-W1"), await otherShop("CHK-W2")];
+    await priced("WinA", "5.00");
+    await priced("WinB", "5.00", b);
+    await priced("WinC", "5.00", c);
+    // ⚠ The 076 same-day bridge says these two shops do NOT do same-day here. The new model does not ask it.
+    await pool.query(
+      `INSERT INTO public.shop_sameday_exception (shop_id, zone_id, mode, updated_by) VALUES ($1, $3, 'off', 'test'), ($2, $3, 'off', 'test')`,
+      [b, c, "00000000-0000-0000-0000-0000000000e1"],
+    );
+    await modelOn(async () => {
+      const days = offered();
+      const s = await shopper({ WinA: 1, WinB: 1, WinC: 1 });
+      const q = await quoteOf(s);
+      expect(q.effyWindows!.days[0]!.windows).toHaveLength(1);
+      const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[0]!), new Date());
+      const pk = await packagesOf(r.orderId);
+      expect(pk.map((p) => [p.method, p.day, p.slot])).toEqual(Array(3).fill(["same_day", days[0], slotId]));
+      expect(await bookedOn(days[0]!)).toBe(1);
+      expect((await feeOf(r.orderId)).fee).toBe("11.00");
+    });
+  });
+
+  it("078 — no window, a day not on offer, a window that is gone: each refused, nothing substituted (P11)", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 1 });
+      // A client built before 078 sends the 069 fields and no window.
+      expect(await refusal(svc.createIntent(s.customerId, sameDay(s.addressId), new Date()))).toBe("slot_required");
+      expect(await refusal(svc.createIntent(s.customerId, input(s.addressId), new Date()))).toBe("slot_required");
+      // Beyond the look-ahead, and a day that has gone.
+      const beyond = effyDays(new Date(), 4)[4]!.date;
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, beyond), new Date()))).toBe("date_unavailable");
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, "2026-01-01"), new Date()))).toBe("date_unavailable");
+      // A window id that is not on offer that day.
+      expect(await refusal(svc.createIntent(s.customerId, input(s.addressId, { deliveryWindow: { slotId: PLAN, date: days[1]! } }), new Date())))
+        .toBe("slot_unavailable");
+      expect(gateway.created()).toBe(0);
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking`)).toBe(0);
+    });
+  });
+
+  it("078 — a full window on one day says nothing about the next, and the last place has one winner (P6, P7)", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      const shoppers = await Promise.all(Array.from({ length: 12 }, () => shopper({ Milk: 1 })));
+      const results = await Promise.allSettled(shoppers.map((s) => svc.createIntent(s.customerId, windowOn(s.addressId, days[2]!), new Date())));
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(3); // capacity 3
+      for (const r of results.filter((x) => x.status === "rejected") as PromiseRejectedResult[]) {
+        expect((r.reason as DeliveryChoiceError).code).toBe("slot_unavailable");
+      }
+      expect(gateway.created()).toBe(3);
+      expect([await bookedOn(days[1]!), await bookedOn(days[2]!), await bookedOn(days[3]!)]).toEqual([0, 3, 0]);
+
+      const next = await shopper({ Milk: 1 });
+      const q = await quoteOf(next);
+      expect(q.effyWindows!.days.map((d) => [d.windows.length, d.closedReason])).toEqual([[1, null], [1, null], [0, "full"], [1, null]]);
+      expect(q.standardDays.map((x) => x.date)).toEqual([days[1], days[3]]);
+      // …and one of the three, looking again, is not told their own day is full by their own hold.
+      const holder = shoppers[results.findIndex((r) => r.status === "fulfilled")]!;
+      expect((await quoteOf(holder)).effyWindows!.days[2]!.windows).toHaveLength(1);
+    });
+  });
+
+  it("078 — a window that fills between the quote and the pay button is refused before anything is charged", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      await pool.query(`UPDATE public.delivery_slot SET capacity = 1 WHERE id = $1`, [slotId]);
+      const s = await shopper({ Milk: 1 });
+      expect((await quoteOf(s)).effyWindows!.days[1]!.windows).toHaveLength(1);
+      const other = await shopper({ Milk: 1 });
+      await svc.createIntent(other.customerId, windowOn(other.addressId, days[1]!), new Date());
+      const before = gateway.created();
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date()))).toBe("slot_unavailable");
+      expect(gateway.created()).toBe(before);
+      expect(await bookedOn(days[1]!)).toBe(1);
+    });
+  });
+
+  it("078 — a late payer into a later-day window that has since filled keeps it and is flagged (P8)", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      await pool.query(`UPDATE public.delivery_slot SET capacity = 1 WHERE id = $1`, [slotId]);
+      const late = await shopper({ Milk: 1 });
+      const r = await svc.createIntent(late.customerId, windowOn(late.addressId, days[3]!), new Date());
+      await pool.query(`UPDATE public.delivery_slot_booking SET held_until = now() - interval '1 minute' WHERE order_id = $1`, [r.orderId]);
+      expect(await bookedOn(days[3]!)).toBe(0);
+      const other = await shopper({ Milk: 1 });
+      await svc.createIntent(other.customerId, windowOn(other.addressId, days[3]!), new Date());
+
+      expect(await pay(r.orderId)).toMatchObject({ slotConfirmed: true, slotOverCapacity: true });
+      expect(await one(`SELECT state, over_capacity, delivery_date::text AS day FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId]))
+        .toEqual({ state: "confirmed", over_capacity: true, day: days[3] });
+      expect((await packagesOf(r.orderId))[0]).toMatchObject({ method: "standard", day: days[3], slot: slotId });
+    });
+  });
+
+  it("078 — non-delivery days are skipped and do not count; a today Effy does not deliver says so", async () => {
+    await modelOn(async () => {
+      const plain = offered();
+      // Tomorrow is a public holiday: it vanishes and a fourth day takes its place.
+      await pool.query(`INSERT INTO public.delivery_non_delivery_date (day, label, created_by) VALUES ($1::date, 'Holiday', 'test')`, [plain[1]]);
+      const s = await shopper({ Milk: 1 });
+      let q = await quoteOf(s);
+      const want = effyDays(new Date(), 3, [], new Set([plain[1]!])).map((d) => d.date);
+      expect(q.effyWindows!.days.map((d) => d.date)).toEqual(want);
+      expect(want).not.toContain(plain[1]);
+      expect(want).toHaveLength(4);
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, plain[1]!), new Date()))).toBe("date_unavailable");
+
+      // Today's weekday is excluded: today is still listed, with the reason and nothing to choose.
+      const iso = ((new Date(`${plain[0]}T12:00:00Z`).getUTCDay() + 6) % 7) + 1;
+      await pool.query(`UPDATE public.delivery_settings SET standard_no_delivery_weekdays = ARRAY[$1]::smallint[] WHERE id = 1`, [iso]);
+      q = await quoteOf(s);
+      expect(q.effyWindows!.days[0]).toMatchObject({ date: plain[0], section: "same_day", windows: [], closedReason: "not_delivery_day" });
+      expect(q.effyWindows!.days.slice(1).every((d) => d.windows.length === 1)).toBe(true);
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, plain[0]!), new Date()))).toBe("date_unavailable");
+
+      // The look-ahead is the business's to set.
+      await pool.query(`UPDATE public.delivery_settings SET standard_no_delivery_weekdays = '{}', effy_lookahead_days = 1 WHERE id = 1`);
+      expect((await quoteOf(s)).effyWindows!.days).toHaveLength(2);
+    });
+  });
+
+  it("078 — each window shows what it adds: the today premium only today, free delivery nothing, and the charge is the one shown (P12)", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      await pool.query(`INSERT INTO public.delivery_slot_premium (plan_id, slot_id, add_amount) VALUES ($1, $2, 2.00)`, [PLAN, slotId]);
+      const s = await shopper({ Milk: 2 });
+      let q = await quoteOf(s);
+      const shown = q.effyWindows!.days.map((d) => [d.windows[0]!.surchargeAmount, d.windows[0]!.fee.totalAmount]);
+      expect(q.standardFee!.totalAmount).toBe("6.00");
+      expect(shown).toEqual([["7.00", "13.00"], ["2.00", "8.00"], ["2.00", "8.00"], ["2.00", "8.00"]]);
+
+      // The charge is the window's on ITS day — and a client showing another amount is stopped first.
+      await expect(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!, { shownDeliveryAmount: "13.00" }), new Date()))
+        .rejects.toBeInstanceOf(DeliveryFeeChangedError);
+      const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!, { shownDeliveryAmount: "8.00" }), new Date());
+      expect((await feeOf(r.orderId)).fee).toBe("8.00");
+      expect(r.deliveryFee!.lines).toEqual([{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "2.00" }]);
+
+      // Over the free-delivery amount, no window costs anything — today's included.
+      await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = 5.00 WHERE id = $1`, [PLAN]);
+      q = await quoteOf(s);
+      expect(q.effyWindows!.days.map((d) => [d.windows[0]!.surchargeAmount, d.windows[0]!.fee.totalAmount])).toEqual(Array(4).fill(["0.00", "0.00"]));
+    });
+  });
+
+  it("078 — nothing to choose: 'no_windows' when every day is taken, 'none_defined' when none is switched on (P11)", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 1 });
+      // One place a day, and somebody has each of them. Today's is simply filled the same way.
+      await pool.query(`UPDATE public.delivery_slot SET capacity = 1 WHERE id = $1`, [slotId]);
+      for (const day of days) {
+        const o = await shopper({ Milk: 1 });
+        await svc.createIntent(o.customerId, windowOn(o.addressId, day), new Date());
+      }
+      let q = await quoteOf(s);
+      expect(q.effyWindows!.unavailable).toBe("no_windows");
+      expect(q.effyWindows!.days.every((d) => d.windows.length === 0 && d.closedReason === "full")).toBe(true);
+      expect(q).not.toHaveProperty("courier");
+      const before = gateway.created();
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date()))).toBe("no_windows_available");
+      expect(gateway.created()).toBe(before);
+
+      await pool.query(`UPDATE public.delivery_slot SET status = 'disabled' WHERE id = $1`, [slotId]);
+      q = await quoteOf(s);
+      expect(q.effyWindows!.unavailable).toBe("none_defined");
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date()))).toBe("no_windows_available");
+    });
+  });
+
+  it("078 — the window a customer bought is the window they keep, whatever is changed afterwards (P13)", async () => {
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    await modelOn(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 2 });
+      const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[2]!), new Date());
+      await pay(r.orderId);
+      const sold = (await orders.get(scope, s.customerId, r.orderId)).arrivalEstimates;
+      expect(sold).toHaveLength(1);
+      expect(sold[0]).toMatchObject({ method: "standard", promisedFrom: days[2], promisedTo: days[2] });
+      expect(sold[0]!.windowStart!.slice(0, 16)).toBe(`${days[2]}T23:58`);
+
+      try {
+        await pool.query(`UPDATE public.delivery_slot SET start_time = '20:00', end_time = '21:00', cutoff_time = '19:00', capacity = 1, status = 'disabled' WHERE id = $1`, [slotId]);
+        await pool.query(`INSERT INTO public.delivery_non_delivery_date (day, label, created_by) VALUES ($1::date, 'Closed', 'test')`, [days[2]]);
+        expect((await orders.get(scope, s.customerId, r.orderId)).arrivalEstimates).toEqual(sold);
+        expect(await one(`SELECT state FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId])).toEqual({ state: "confirmed" });
+      } finally {
+        await pool.query(`UPDATE public.delivery_slot SET start_time = '23:58', end_time = '23:59', cutoff_time = '23:58' WHERE id = $1`, [slotId]);
+      }
+    });
   });
 });

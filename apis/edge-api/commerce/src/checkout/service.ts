@@ -20,7 +20,7 @@ import type { DeliveryInstructionsDTO } from "@effy/shared-types";
 import { createHash } from "node:crypto";
 
 import { isUuid } from "../lib/ids";
-import { DeliveryChoiceError, preferredMethod, resolveDeliveryChoice } from "./delivery-choice";
+import { DeliveryChoiceError, preferredMethod, resolveDeliveryChoice, resolveEffyWindow, type ChosenWindow } from "./delivery-choice";
 import {
   AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
   type PromoSource,
@@ -80,6 +80,11 @@ export interface IntentInput {
   sameDaySlotId: string;
   /** yyyy-mm-dd; empty means the earliest day on offer. */
   standardDate: string;
+  /**
+   * 078 — the ONE window chosen for the order; null when the client sent none. Required while the new
+   * delivery model is on (the three fields above are then ignored), ignored while it is off.
+   */
+  deliveryWindow?: ChosenWindow | null;
   /** ALREADY validated and normalised. The only source of an order's instructions (066). */
   deliveryInstructions: DeliveryInstructionsDTO;
   /** Set only by a client that renders a provider-owned payment-method list (mobile). */
@@ -124,6 +129,8 @@ export function paymentStatusFor(s: IntentStatus): string {
 
 function deliveryOutcome(q: QuoteResult): string {
   if (!q.serviced) return "unserviced";
+  // 078 — the new model: whether any window can be chosen, and if not, which kind of nothing.
+  if (q.effyWindows) return q.effyWindows.unavailable ?? "windows_offered";
   return q.packages.some((p) => p.options.some((o) => o.method === METHOD_SAME_DAY)) ? "same_day_and_standard" : "standard_only";
 }
 
@@ -228,6 +235,8 @@ export function createCheckoutService(deps: {
 
   function meterChoiceRefusal(e: DeliveryChoiceError, verdict?: string): void {
     if (e.code === "date_unavailable") return emitMetric(ns(), "StandardDateRefused");
+    if (e.code === "no_windows_available") return emitMetric(ns(), "SlotBookings", 1, { outcome: "refused_no_windows" });
+    if (e.code === "slot_required") return emitMetric(ns(), "SlotBookings", 1, { outcome: "refused_no_choice" });
     const outcome =
       e.code === "slot_unavailable" && verdict === "full" ? "refused_full"
       : e.code === "slot_unavailable" && verdict === "uncollectable" ? "refused_uncollectable"
@@ -289,6 +298,8 @@ export function createCheckoutService(deps: {
       }
       emitMetric(ns(), "DeliveryQuotes", 1, { outcome: deliveryOutcome(quote) });
       if (!quote.serviced) throw new NotServiceableError();
+      // ⚠ A page, not a number to watch: a covered address and not one window switched on (078 FR-020).
+      if (quote.effyWindows?.unavailable === "none_defined") emitMetric(ns(), "EffyWindowsNoneDefined");
 
       // ⚠ Refused HERE, before the order is written and long before a payment intent exists, when
       // the slot or the day is no longer on offer (069).
@@ -296,7 +307,10 @@ export function createCheckoutService(deps: {
       let hold: SlotHold | null;
       let fee: PricedFee;
       try {
-        ({ packages, hold, fee } = resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
+        // 078 — which checkout this is was decided with the quote, by the one reader of the switch.
+        ({ packages, hold, fee } = quote.effyWindows
+          ? resolveEffyWindow({ ...quote, effyWindows: quote.effyWindows }, input.deliveryWindow ?? null, now)
+          : resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
       } catch (err) {
         if (err instanceof DeliveryChoiceError) meterChoiceRefusal(err);
         throw err;

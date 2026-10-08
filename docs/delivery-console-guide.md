@@ -223,7 +223,7 @@ The windows a customer can choose for **same-day** delivery, like "5 pm – 7 pm
 | **Order by** | The slot's cutoff. After this it can no longer be chosen. It cannot be later than the start. |
 | **Limit how many deliveries this slot takes** | A checkbox, unticked by default: the slot has **no limit** and takes every order placed before its cutoff. Tick it and enter a number to cap the slot; untick it later to remove the cap. One customer order to one address counts as **one**, however many packages it has. |
 | **Delivery limit** (table column) | The number you set, or **No limit**. |
-| **Booked today** | Confirmed orders plus customers currently at the payment step. Updates every 30 seconds. |
+| **Booked today**, then one column per day | Confirmed orders plus customers currently at the payment step, **for that window on that day**. Updates by itself when an order is paid or cancelled. See "How full each window is" below. |
 
 **A slot is offered only when all three hold:**
 
@@ -250,6 +250,15 @@ keeps those bookings and simply takes no more.
 
 **There is no delete.** Placed orders refer to the slot, so it is switched off instead.
 
+**How full each window is, day by day (078).** After the limit come one column for today and one for
+each **Effy delivery day** after it — as many as "Days offered after today" on the *Delivery days* tab
+(3 by default). Days with no delivery are skipped, exactly as a customer's choices skip them. Each cell
+is that window's bookings **on that day**: a full Thursday says nothing about Friday. "Full" and
+"N over capacity" appear in the cell they belong to.
+> ⚠ **The later-day columns are empty until the new delivery model is switched on.** Until then only
+> same-day windows are sold, so only "Booked today" moves. The switch is not on this console: it is
+> turned on at the cutover, once drivers can deliver a later-day window.
+
 **"N over capacity"** (only on a slot with a limit). A customer who pays *after* their hold ended, into a slot that has since
 filled, keeps the window they chose — they have paid for it. The slot's row then says how many such
 orders it has. Check whether that evening's round can carry the extra drop.
@@ -259,6 +268,11 @@ orders it has. Check whether that evening's round can carry the extra drop.
 ---
 
 ## Tab — Delivery days (069)
+
+**Effy delivery days (078).** "Days offered after today" (1–14, default 3) is how many **delivery**
+days after today a customer may choose a window on once the new delivery model is on. It changes
+nothing a customer sees before then. The days with no delivery below apply to it too — and closing a
+date now counts everyone promised that day, a window as much as a carrier day.
 
 Which days a **standard** delivery can arrive, and three timings.
 

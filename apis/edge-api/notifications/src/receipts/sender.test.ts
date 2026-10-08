@@ -77,6 +77,16 @@ describe("arrivalText — more than one delivery", () => {
     expect(got.estimate).toBe("today, 5 pm – 7 pm");
   });
 
+  it("078 — one window for an order from three suppliers is ONE delivery, named by its method", () => {
+    // Before 078 this said "Multiple deliveries" — which told the customer there were several suppliers.
+    expect(arrivalText([row(sameDay), row(sameDay), row(sameDay)], now)).toEqual({ estimate: "today, 5 pm – 7 pm", method: "Same-day" });
+    const later: Case["input"] = {
+      promisedFrom: "2026-10-13", promisedTo: "2026-10-13",
+      windowStart: "2026-10-13T16:00:00+11:00", windowEnd: "2026-10-13T18:00:00+11:00",
+    };
+    expect(arrivalText([row(later, "standard"), row(later, "standard")], now)).toEqual({ estimate: "Tue 13 Oct, 4 pm – 6 pm", method: "Standard" });
+  });
+
   it("an order placed before 069 still says the date will be confirmed", () => {
     const none: Case["input"] = { promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null };
     expect(arrivalText([row(none, "standard"), row(none, "standard")], now).estimate).toBe("a date we'll confirm");

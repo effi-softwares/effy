@@ -30,6 +30,7 @@ const SLOT_FIELD_COPY: Record<string, string> = {
   capacity: "Enter a limit as a whole number of at least 1, or untick the limit.",
   status: "Choose active or off.",
   lookaheadDays: "Customers can be offered between 1 and 30 days.",
+  effyLookaheadDays: "Customers can be offered between 1 and 14 delivery days after today.",
   noDeliveryWeekdays: "At least one day of the week must have delivery.",
   carrierLeadDays: "The carrier lead time must be between 0 and 14 days.",
   slotHoldMin: "A place can be held for between 1 and 60 minutes.",

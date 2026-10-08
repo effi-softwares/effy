@@ -31,6 +31,7 @@ import com.effyshopping.customer.mobile.features.checkout.presentation.DeliveryF
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -80,6 +81,8 @@ class CheckoutViewModelTest {
         ),
         /** 077 — when set, the first intent is refused as "the delivery fee changed", with this quote. */
         private var feeChangedTo: DeliveryQuote? = null,
+        /** 078 — when set, the first intent is refused over the delivery choice. */
+        private var refusal: com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused? = null,
     ) : CheckoutRepository {
         var lastOrder: PlaceOrder? = null
         var intents = 0
@@ -87,6 +90,7 @@ class CheckoutViewModelTest {
             lastOrder = order
             intents += 1
             feeChangedTo?.let { feeChangedTo = null; throw com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged(it) }
+            refusal?.let { refusal = null; throw it }
             return CheckoutIntent(
                 orderId = "o1", orderNumber = "EFY-1", clientSecret = "cs",
                 publishableKey = "pk", grandTotalAmount = "10.00", currency = "AUD",
@@ -346,6 +350,139 @@ class CheckoutViewModelTest {
         assertEquals(2, checkout.intents)
         assertEquals("7.50", checkout.lastOrder?.shownDeliveryAmount)
         assertTrue(ready(vm)!!.handedOffToPayment)
+    }
+
+    // ── 078: one window for the order ──────────────────────────────────────────────────────────
+
+    private fun window(slot: String, date: String, surcharge: String, total: String) =
+        com.effyshopping.customer.mobile.features.checkout.domain.EffyWindow(
+            slotId = slot, date = date, startAt = "${date}T16:00:00+11:00", endAt = "${date}T18:00:00+11:00", cutoffAt = "${date}T14:00:00+11:00",
+            surchargeAmount = surcharge, fee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to total, total = total),
+        )
+
+    /** Today has one window ($5 dearer); two later days have the same window at the plain fee. */
+    private fun windowsQuote(
+        drop: Set<String> = emptySet(),
+        unavailable: com.effyshopping.customer.mobile.features.checkout.domain.WindowsUnavailable? = null,
+    ): DeliveryQuote {
+        fun day(date: String, today: Boolean) = com.effyshopping.customer.mobile.features.checkout.domain.EffyDay(
+            date = date, today = today,
+            windows = listOf(window("afternoon", date, if (today) "5.00" else "0.00", if (today) "11.00" else "6.00")).filter { date !in drop },
+            closedReason = if (date in drop) com.effyshopping.customer.mobile.features.checkout.domain.EffyDayClosed.Full else null,
+        )
+        return DeliveryQuote(
+            serviced = true, sameDayAvailable = false, standardTotalAmount = "6.00", sameDayTotalAmount = null,
+            effyWindows = com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows(
+                days = listOf(day("2026-10-08", true), day("2026-10-09", false), day("2026-10-10", false)), unavailable = unavailable,
+            ),
+        )
+    }
+
+    @Test
+    fun `078 - no window is chosen for the shopper, and paying without one is refused before any round trip`() = runTest {
+        val checkout = FakeCheckout(quote = windowsQuote())
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        assertNotNull(ready(vm)?.effyWindows)
+        assertNull(ready(vm)?.window)
+        assertEquals(false, ready(vm)?.deliveryChosen)
+        assertNull(ready(vm)?.deliveryFee)
+
+        vm.payNow()
+        assertEquals("Choose a delivery time to continue.", ready(vm)?.error)
+        assertEquals(0, checkout.intents)
+    }
+
+    @Test
+    fun `078 - a later-day window is sent as ONE window with the total shown, and none of the 069 fields`() = runTest {
+        val checkout = FakeCheckout(quote = windowsQuote())
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-10")
+        assertEquals("6.00", ready(vm)?.deliveryFee?.totalAmount)
+
+        vm.payNow()
+        val sent = checkout.lastOrder!!
+        assertEquals(com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow("afternoon", "2026-10-10"), sent.deliveryWindow)
+        assertEquals("6.00", sent.shownDeliveryAmount)
+        assertEquals(DeliveryMethod.STANDARD, sent.deliveryMethod)
+        assertNull(sent.sameDaySlotId)
+        assertNull(sent.standardDate)
+    }
+
+    @Test
+    fun `078 - the same window today costs more, and that is the total shown and sent`() = runTest {
+        val checkout = FakeCheckout(quote = windowsQuote())
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-08")
+        assertEquals("11.00", ready(vm)?.deliveryFee?.totalAmount)
+        vm.payNow()
+        assertEquals("11.00", checkout.lastOrder?.shownDeliveryAmount)
+        assertEquals("2026-10-08", checkout.lastOrder?.deliveryWindow?.date)
+    }
+
+    @Test
+    fun `078 - a window the quote does not offer on that day cannot be chosen`() = runTest {
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = FakeCheckout(quote = windowsQuote(drop = setOf("2026-10-09"))))
+        vm.setWindow("afternoon", "2026-10-09") // that day is full
+        vm.setWindow("evening", "2026-10-10")   // no such window
+        vm.setWindow("afternoon", "2026-10-20") // no such day
+        assertNull(ready(vm)?.window)
+    }
+
+    @Test
+    fun `078 - a window that has gone is not replaced - the shopper is told and nothing is chosen`() = runTest {
+        val left = windowsQuote(drop = setOf("2026-10-09"))
+        val checkout = FakeCheckout(
+            quote = windowsQuote(),
+            refusal = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused(
+                com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal.SlotUnavailable, left,
+            ),
+        )
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-09")
+        vm.payNow()
+
+        val s = ready(vm)!!
+        assertEquals("That delivery time is no longer available. Please choose another.", s.error)
+        assertNull(s.window)
+        assertEquals(false, s.paying)
+        assertEquals(false, s.handedOffToPayment)
+        assertEquals(left.effyWindows, s.effyWindows)
+    }
+
+    @Test
+    fun `078 - the choice survives a refusal that is not about the window`() = runTest {
+        val checkout = FakeCheckout(quote = windowsQuote(), feeChangedTo = windowsQuote())
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-10")
+        vm.payNow()
+        assertEquals(com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow("afternoon", "2026-10-10"), ready(vm)?.window)
+        vm.payNow()
+        assertEquals(2, checkout.intents)
+        assertEquals("2026-10-10", checkout.lastOrder?.deliveryWindow?.date)
+    }
+
+    @Test
+    fun `078 - with no window on any day there is nothing to choose and pay says the one sentence`() = runTest {
+        val none = windowsQuote(
+            drop = setOf("2026-10-08", "2026-10-09", "2026-10-10"),
+            unavailable = com.effyshopping.customer.mobile.features.checkout.domain.WindowsUnavailable.NoWindows,
+        )
+        val checkout = FakeCheckout(quote = none)
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        assertEquals(false, ready(vm)?.deliveryChosen)
+        vm.payNow()
+        assertEquals(com.effyshopping.customer.mobile.features.checkout.presentation.DeliveryWindowWords.NO_WINDOWS, ready(vm)?.error)
+        assertEquals(0, checkout.intents)
+    }
+
+    @Test
+    fun `078 - changing the address drops the window`() = runTest {
+        val vm = vm(listOf(addr("a", isDefault = true), addr("b")), checkout = FakeCheckout(quote = windowsQuote()))
+        vm.setWindow("afternoon", "2026-10-10")
+        assertNotNull(ready(vm)?.window)
+        vm.select("b")
+        assertNull(ready(vm)?.window)
+        assertEquals(false, ready(vm)?.deliveryChosen)
     }
 
     @Test

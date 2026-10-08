@@ -290,6 +290,12 @@ data class PlaceOrder(
      */
     val sameDaySlotId: String? = null,
     val standardDate: String? = null,
+    /**
+     * 078 — the ONE window chosen for the order under the new delivery model (the quote then carries
+     * [DeliveryQuote.effyWindows]). When set, it is what is sent and the three 047/069 fields above
+     * are not. ⚠ Never substituted: a window that has gone is a [DeliveryChoiceRefused].
+     */
+    val deliveryWindow: ChosenWindow? = null,
     /** 074 — whole points to pay with; 0 for none. The server re-decides the split and refuses rather than changes it. */
     val pointsToUse: Long = 0,
     /**
@@ -355,6 +361,54 @@ data class DeliverySlot(
     val fee: DeliveryFee? = null,
 )
 
+/** 078 — the one window chosen for an order: a slot ON A DAY (yyyy-mm-dd, Melbourne). */
+data class ChosenWindow(val slotId: String, val date: String)
+
+/**
+ * 078 — one window a shopper may choose, on one day. ⚠ No capacity and no "full": a window that is
+ * taken is simply not here. [fee] is the order's delivery charge with it chosen; [surchargeAmount]
+ * what it adds over a plain later day ("0.00" when nothing).
+ */
+data class EffyWindow(
+    val slotId: String,
+    val date: String,
+    val startAt: String,
+    val endAt: String,
+    /** After this it can no longer be chosen. */
+    val cutoffAt: String,
+    val surchargeAmount: String,
+    val fee: DeliveryFee,
+)
+
+/** Why a day has nothing to choose. A later day is only ever [Full]. */
+enum class EffyDayClosed { NotDeliveryDay, Closed, Full }
+
+/** One day on offer: today (under "Same-day delivery") or a following delivery day ("Standard delivery"). */
+data class EffyDay(
+    val date: String,
+    val today: Boolean,
+    val windows: List<EffyWindow>,
+    val closedReason: EffyDayClosed?,
+)
+
+/** Why no day has a window. The shopper reads one sentence for both. */
+enum class WindowsUnavailable { NoWindows, NoneDefined }
+
+/**
+ * 078 — the windows of the new delivery model: ONE for the whole order.
+ *
+ * ⚠ WHICH CHECKOUT THIS IS, THE QUOTE SAYS. A quote that carries these is the new model; one that
+ * does not is the 069 method / slot / day. Nothing in the app reads a switch of its own.
+ */
+data class EffyWindows(val days: List<EffyDay>, val unavailable: WindowsUnavailable?) {
+    /** The chosen window as it is offered NOW; null when nothing is chosen or it is no longer offered. */
+    fun find(chosen: ChosenWindow?): EffyWindow? =
+        chosen?.let { c -> days.firstOrNull { it.date == c.date }?.windows?.firstOrNull { it.slotId == c.slotId } }
+
+    /** 0 for today, 1 for the first later day… -1 when the date is not offered. */
+    fun dayOffset(date: String): Int = days.indexOfFirst { it.date == date }
+}
+
 /** Why same-day is not on offer (069 FR-004) — two different sentences to a shopper. */
 enum class SameDayUnavailable { NotEligible, SlotsClosed }
 
@@ -393,6 +447,8 @@ data class DeliveryQuote(
     val standardFee: DeliveryFee? = null,
     /** 077 — how much more the basket needs for free delivery; null when unset or reached. */
     val freeDeliveryRemainingAmount: String? = null,
+    /** 078 — the new model's windows; null while it is off, and then everything above is the 069 quote. */
+    val effyWindows: EffyWindows? = null,
 ) {
     /** Some deliveries can go today and some cannot. */
     val mixed: Boolean get() = sameDayAvailable && sameDayDeliveries < deliveries
@@ -402,8 +458,10 @@ data class DeliveryQuote(
      * later-day fee otherwise. Null while same-day is chosen and no window is — nothing to show yet.
      * ⚠ The same rule as customer-web's `chosenFee`; the server re-prices and refuses a mismatch.
      */
-    fun feeFor(method: DeliveryMethod, slotId: String?): DeliveryFee? {
+    fun feeFor(method: DeliveryMethod, slotId: String?, window: ChosenWindow? = null): DeliveryFee? {
         if (!serviced) return null
+        // 078 — the new model: the chosen window's fee, and nothing to show until there is a window.
+        if (effyWindows != null) return effyWindows.find(window)?.fee
         if (method != DeliveryMethod.SAME_DAY || !sameDayAvailable) return standardFee
         return slots.firstOrNull { it.id == slotId }?.fee
     }
@@ -414,7 +472,7 @@ data class DeliveryQuote(
 }
 
 /** Why the server refused a checkout over the delivery choice (069). */
-enum class DeliveryChoiceRefusal { SlotRequired, SlotUnavailable, DateUnavailable }
+enum class DeliveryChoiceRefusal { SlotRequired, SlotUnavailable, DateUnavailable, NoWindowsAvailable }
 
 /**
  * The checkout was refused because the slot or day the shopper chose cannot be honoured (069 FR-009).

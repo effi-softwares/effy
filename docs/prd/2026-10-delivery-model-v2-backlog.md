@@ -425,6 +425,26 @@ delivery fees. Fees include GST.
 
 ## E4 — Effy Delivery Windows: today + 3 days · spec 078
 
+> **2026-10-08 — decided while specifying 078** (`specs/078-effy-delivery-windows/spec.md`):
+> - **Customer words stay "Same-day delivery" and "Standard delivery".** Same-day = today's windows
+>   (meaning unchanged). **Standard = Effy delivers on one of the next 3 delivery days, in a window**
+>   — no longer "handed to a carrier". Out-of-area addresses show "delivered by a courier partner".
+>   This **supersedes** E5's "the old names disappear from everything a customer sees" and E9's
+>   customer-facing sweep; E9's guard script must allow these customer words.
+> - **Built switched off; turned on at the cutover** (needs E8's hub dwell across days first).
+> - A later day's window closes at **that day's own cutoff** (no "day before" rule).
+>
+> **2026-10-08 — E4 (spec 078) is BUILT and checked by machine; not migrated, not deployed, switch off**
+> (`specs/078-effy-delivery-windows/SIGNOFF.md`). What it leaves for later epics:
+> - **E5** — the per-shop same-day bridge is not consulted by the new path; delete it. Add
+>   `order.delivery_type`: today "a `standard` package WITH a window is Effy's" is a convention held
+>   by a CHECK and three readers. Offer courier when `effyWindows.unavailable` and the business allows it.
+> - **E8** — the planner still gathers `same_day` only (`GATHER_DELIVERY`): a windowed `standard`
+>   package gets no delivery round. This is THE reason the switch is off.
+> - **E9** — the switch (`delivery_settings.delivery_model_v2_from`) and its one reader
+>   (`public.delivery_model_v2_at`) ALREADY EXIST. Add only the setter and the readiness check; do not
+>   create `delivery_model_for`. Rename "slot" to "window" on the back-office screen then.
+
 **Goal.** For "Delivered by Effy", the customer picks a window today or on any of the next 3
 delivery days. Same daily slots, capacity per slot per day.
 
@@ -463,32 +483,32 @@ order was sold. Back-office sees, for each day and window, how full it is.
 **Tasks**
 
 *Data*
-- [ ] E4-T01 `delivery_slot_booking` already has `delivery_date` — confirm capacity counting (`delivery_slot_load`) is per `(slot_id, delivery_date)`; fix if it counts today only.
-- [ ] E4-T02 Settings: `effy_lookahead_days` (default 3), reuse `standard_no_delivery_weekdays` and `delivery_non_delivery_date` renamed to Effy semantics (rename in E9; alias now).
-- [ ] E4-T03 Retire `carrier_lead_days` from the Effy path (still used by courier in E6 if needed).
+- [x] E4-T01 `delivery_slot_booking` already has `delivery_date` — confirm capacity counting (`delivery_slot_load`) is per `(slot_id, delivery_date)`; fix if it counts today only.
+- [x] E4-T02 Settings: `effy_lookahead_days` (default 3), reuse `standard_no_delivery_weekdays` and `delivery_non_delivery_date` renamed to Effy semantics (rename in E9; alias now).
+- [ ] E4-T03 Retire `carrier_lead_days` — **kept**: it still drives the live day picker until the cutover (E9 drops it).
 *Shared library*
-- [ ] E4-T04 `shared/src/delivery/slots.ts`: `openWindows(now, lookahead)` returns windows across today + N delivery days; today keeps the cutoff + collection-run reachability gate (`sameday.ts` logic moves here); future days gate on cutoff only (decide: cutoff the day before? — clarify).
-- [ ] E4-T05 Merge `standard-days.ts` day-list logic into the window calendar; delete standard-day picking for Effy.
-- [ ] E4-T06 Holds: unchanged moment (payment-intent), keyed by date; tests for cross-day holds.
-- [ ] E4-T07 Timezone tests (Melbourne) around midnight and DST change days.
+- [x] E4-T04 `shared/src/delivery/slots.ts`: `openWindows(now, lookahead)` returns windows across today + N delivery days; today keeps the cutoff + collection-run reachability gate (`sameday.ts` logic moves here); future days gate on cutoff only (decide: cutoff the day before? — clarify).
+- [ ] E4-T05 Delete `standard-days.ts` — **kept** for the live path; the window calendar is `windows.ts` (E9 deletes the old file).
+- [x] E4-T06 Holds: unchanged moment (payment-intent), keyed by date; tests for cross-day holds.
+- [x] E4-T07 Timezone tests (Melbourne) around midnight and DST change days.
 *Fleet service* (`apis/edge-api/fleet/src/slots`, `deliverydays`)
-- [ ] E4-T08 Slot admin routes unchanged in shape; add per-day fullness read (`delivery-slots-v1-get.ts` gains a date range).
-- [ ] E4-T09 Delivery-days routes: rename semantics to Effy delivery days.
+- [x] E4-T08 Slot admin routes unchanged in shape; add per-day fullness read (`delivery-slots-v1-get.ts` gains a date range).
+- [x] E4-T09 Delivery-days routes: `effyLookaheadDays` added; the non-delivery days apply to both (renames at E9).
 *Commerce*
-- [ ] E4-T10 `commerce/src/checkout/delivery-choice.ts`: replace `preferredMethod` same_day/standard with "Effy window chosen (slot + date)"; remove `standardDate` path for Effy.
-- [ ] E4-T11 Refusal codes `slot_required`, `slot_unavailable` kept; add `no_windows_available`.
+- [x] E4-T10 `commerce/src/checkout/delivery-choice.ts`: replace `preferredMethod` same_day/standard with "Effy window chosen (slot + date)"; remove `standardDate` path for Effy.
+- [x] E4-T11 Refusal codes `slot_required`, `slot_unavailable` kept; add `no_windows_available`.
 *Shared types*
-- [ ] E4-T12 `delivery-window.ts`: window = `{slotId, date, start, end, premiumCents, full}`; grouped by day.
+- [x] E4-T12 `delivery-window.ts`: window = `{slotId, date, start, end, premiumCents, full}`; grouped by day.
 *Back-office*
-- [ ] E4-T13 `SlotsPanel.tsx`: show fullness per day for the next 4 days.
-- [ ] E4-T14 `DeliveryDaysPanel.tsx`: wording → Effy delivery days; lookahead setting.
+- [x] E4-T13 `SlotsPanel.tsx`: show fullness per day for the next 4 days.
+- [x] E4-T14 `DeliveryDaysPanel.tsx`: wording → Effy delivery days; lookahead setting.
 *Customer surfaces*
-- [ ] E4-T15 customer-web `DeliveryOptions.tsx`: day tabs (Today, Tue, Wed, Thu) + window list with surcharge; empty states.
-- [ ] E4-T16 customer-mobile checkout window picker (`CheckoutScreen.kt`, `DeliveryWindowText.kt`).
-- [ ] E4-T17 Order detail / receipt: "Thursday 9 Oct, 4–6 pm".
+- [x] E4-T15 customer-web `DeliveryOptions.tsx`: day tabs (Today, Tue, Wed, Thu) + window list with surcharge; empty states.
+- [x] E4-T16 customer-mobile checkout window picker (`CheckoutScreen.kt`, `DeliveryWindowText.kt`).
+- [x] E4-T17 Order detail / receipt: "Thursday 9 Oct, 4–6 pm".
 *Tests, docs*
-- [ ] E4-T18 Port `CheckoutFlow.slots.test.tsx`, `slots.test.ts`, `sameday.test.ts`, `standard-days.test.ts`.
-- [ ] E4-T19 FEATURE-HISTORY entry + operator steps.
+- [x] E4-T18 Port `CheckoutFlow.slots.test.tsx`, `slots.test.ts`, `sameday.test.ts`, `standard-days.test.ts`.
+- [x] E4-T19 FEATURE-HISTORY entry + operator steps.
 
 ---
 

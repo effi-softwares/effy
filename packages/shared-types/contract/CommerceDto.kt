@@ -611,6 +611,14 @@ data class CreateCheckoutIntentRequest (
     val deliveryMethod: String? = null,
 
     /**
+     * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` +
+     * `date`). REQUIRED when the quote carried `effyWindows` (refused with `slot_required`
+     * without it); the three 047/069 fields above are then ignored and the server derives
+     * same-day vs standard from the date. Ignored while the new model is off.
+     */
+    val deliveryWindow: DeliveryWindow? = null,
+
+    /**
      * 074 — how many points the customer chose to pay with (a whole number, absent = 0). The
      * server refuses rather than clamps: more than is usable → 409 `points_balance_changed`;
      * more than the order total → 422 `points_exceed_total`; a card remainder under the
@@ -657,6 +665,14 @@ data class CreateCheckoutIntentRequest (
      * address it confirmed one screen earlier (contract § 1, FR-016).
      */
     val wantsProviderMethodList: Boolean? = null
+)
+
+@Serializable
+data class DeliveryWindow (
+    val date: String,
+
+    @SerialName("slotId")
+    val slotID: String
 )
 
 @Serializable
@@ -771,6 +787,8 @@ data class CreateCheckoutIntentResponse (
  * customer must not be able to work out where the hub is or how the business prices
  * (FR-032).
  *
+ * The order's delivery charge with this window chosen.
+ *
  * 077 — the order's delivery charge with this window chosen.
  *
  * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent
@@ -874,6 +892,7 @@ data class DeliveryChoiceRefusalDTO (
 @Serializable
 enum class DeliveryChoiceRefusalCode(val value: String) {
     @SerialName("date_unavailable") DateUnavailable("date_unavailable"),
+    @SerialName("no_windows_available") NoWindowsAvailable("no_windows_available"),
     @SerialName("slot_required") SlotRequired("slot_required"),
     @SerialName("slot_unavailable") SlotUnavailable("slot_unavailable");
 }
@@ -891,6 +910,15 @@ data class DeliveryQuoteDTO (
      * here.
      */
     val coverage: CoverageKind? = null,
+
+    /**
+     * 078 — the windows a customer may choose once the new delivery model is on: today's under
+     * "Same-day delivery", the following delivery days' under "Standard delivery". ⚠ ABSENT
+     * WHILE THE MODEL IS OFF — the response is then byte for byte what it was, and every field
+     * above means what it did. When present, the choice is sent back as `deliveryWindow` on the
+     * intent, and `standardDays` may be empty.
+     */
+    val effyWindows: EffyWindowsDTO? = null,
 
     val expiresAt: String,
 
@@ -933,7 +961,7 @@ data class DeliveryQuoteDTO (
 
     /**
      * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
-     * ⚠ Never empty when `serviced` (FR-020).
+     * ⚠ Never empty when `serviced` (FR-020) — while `effyWindows` is null.
      */
     val standardDays: List<StandardDayOptionDTO>,
 
@@ -943,6 +971,108 @@ data class DeliveryQuoteDTO (
      */
     val standardFee: DeliveryFeeDTO? = null
 )
+
+@Serializable
+data class EffyWindowsDTO (
+    /**
+     * Today first, then the next delivery days. Never empty.
+     */
+    val days: List<EffyDayDTO>,
+
+    /**
+     * Set when no window is open on ANY day: `no_windows` (all closed or taken) or
+     * `none_defined` (the business has switched none on). The customer reads
+     * `DELIVERY_WINDOW_WORDS.noWindows`.
+     */
+    val unavailable: Unavailable? = null
+)
+
+/**
+ * 078 — one day on offer: today (`same_day`) or a following delivery day (`standard`).
+ */
+@Serializable
+data class EffyDayDTO (
+    /**
+     * Why `windows` is empty; null when it is not.
+     */
+    val closedReason: EffyDayClosedReason? = null,
+
+    val date: String,
+    val section: DeliveryMethod,
+
+    /**
+     * Open windows only, earliest first.
+     */
+    val windows: List<EffyWindowDTO>
+)
+
+/**
+ * Why a day has no window to choose. A later day is only ever "full".
+ */
+@Serializable
+enum class EffyDayClosedReason(val value: String) {
+    @SerialName("closed") Closed("closed"),
+    @SerialName("full") Full("full"),
+    @SerialName("not_delivery_day") NotDeliveryDay("not_delivery_day");
+}
+
+/**
+ * The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE
+ * amount for the order, and a delivery today costs more only through the plan's window
+ * surcharge.
+ */
+@Serializable
+enum class DeliveryMethod(val value: String) {
+    @SerialName("same_day") SameDay("same_day"),
+    @SerialName("standard") Standard("standard");
+}
+
+/**
+ * 078 — one window on one day.
+ *
+ * ⚠ NO CAPACITY, no remaining count, and a full window is simply ABSENT (069 FR-050).
+ */
+@Serializable
+data class EffyWindowDTO (
+    /**
+     * After this the window can no longer be chosen.
+     */
+    val cutoffAt: String,
+
+    /**
+     * yyyy-mm-dd (Melbourne).
+     */
+    val date: String,
+
+    val endAt: String,
+
+    /**
+     * The order's delivery charge with this window chosen.
+     */
+    val fee: DeliveryFeeDTO,
+
+    /**
+     * Opaque. Sent back with `date` as `deliveryWindow` on the intent request.
+     */
+    @SerialName("slotId")
+    val slotID: String,
+
+    /**
+     * ISO datetimes with the Australia/Melbourne offset.
+     */
+    val startAt: String,
+
+    /**
+     * What this window adds over the plain later-day fee; "0.00" when nothing.
+     */
+    val surchargeAmount: String
+)
+
+@Serializable
+enum class Unavailable(val value: String) {
+    @SerialName("no_windows") NoWindows("no_windows"),
+    @SerialName("none_defined") NoneDefined("none_defined");
+}
 
 /**
  * One portion of the order and the methods it can have. `shopRef` is an OPAQUE handle —
@@ -972,17 +1102,6 @@ data class DeliveryOptionDTO (
     val promisedFrom: String? = null,
     val promisedTo: String? = null
 )
-
-/**
- * The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE
- * amount for the order, and a delivery today costs more only through the plan's window
- * surcharge.
- */
-@Serializable
-enum class DeliveryMethod(val value: String) {
-    @SerialName("same_day") SameDay("same_day"),
-    @SerialName("standard") Standard("standard");
-}
 
 /**
  * 074 — the customer's spendable points, when they have any.
@@ -1027,7 +1146,8 @@ data class DeliverySlotOptionDTO (
     val fee: DeliveryFeeDTO? = null,
 
     /**
-     * Opaque. Sent back as `sameDaySlotId` on the intent request.
+     * Opaque. Sent back as `sameDaySlotId` on the intent request (`deliveryWindow.slotId` once
+     * `effyWindows` is present).
      */
     @SerialName("slotId")
     val slotID: String,

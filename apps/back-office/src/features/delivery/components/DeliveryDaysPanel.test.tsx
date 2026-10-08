@@ -17,7 +17,7 @@ vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")),
 const { DeliveryDaysPanel } = await import("./DeliveryDaysPanel");
 
 const DAYS: DeliveryDaysDTO = {
-  lookaheadDays: 7, noDeliveryWeekdays: [7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60,
+  lookaheadDays: 7, noDeliveryWeekdays: [7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3,
   dates: [{ day: "2026-12-25", label: "Christmas Day", affectedOrders: 0 }],
 };
 
@@ -63,10 +63,25 @@ describe("DeliveryDaysPanel", () => {
 
     await waitFor(() =>
       expect(repo.putDeliveryDays).toHaveBeenCalledWith({
-        lookaheadDays: 5, noDeliveryWeekdays: [6, 7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60,
+        lookaheadDays: 5, noDeliveryWeekdays: [6, 7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3,
       }),
     );
     expect(await screen.findByText(/the next checkout uses these/i)).toBeInTheDocument();
+  });
+
+  it("078 — saves how many delivery days are offered after today, and puts its refusal on the field", async () => {
+    renderPanel();
+    const offered = await screen.findByLabelText(/days offered after today/i);
+    expect(offered).toHaveValue("3");
+    await userEvent.clear(offered);
+    await userEvent.type(offered, "5");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(repo.putDeliveryDays).toHaveBeenCalledWith(expect.objectContaining({ effyLookaheadDays: 5, lookaheadDays: 7 })));
+
+    repo.putDeliveryDays.mockRejectedValue({ kind: "unknown", status: 400, title: "Refused", fields: [{ field: "effyLookaheadDays", message: "SERVER PROSE" }] });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Customers can be offered between 1 and 14 delivery days after today.")).toBeInTheDocument();
+    expect(offered).toHaveAttribute("aria-invalid", "true");
   });
 
   it("puts a named refusal on its field in the console's own words", async () => {

@@ -4,7 +4,11 @@ import {
 } from "./engine";
 import { effyValues, loadActivePlan, METHOD_SAME_DAY, METHOD_STANDARD, windowPremiumCents, type Plan } from "./plan";
 import { melbourneDate, sameDaySchedule } from "./sameday";
-import { loadSlots, loadSlotSettings, openSlots, ownLiveHolds, slotLoad, type OpenSlot } from "./slots";
+import { deliveryModelV2At } from "./model";
+import {
+  loadSlots, loadSlotSettings, openSlots, ownLiveHolds, ownLiveHoldsByDate, slotLoad, slotLoadByDate, type OpenSlot,
+} from "./slots";
+import { effyDays, openWindows, windowKey, windowsUnavailable, type EffyDay } from "./windows";
 import { availableDays, nonDeliveryDates } from "./standard-days";
 import { coverageForPostcode } from "./coverage";
 import { sameDayForShops, zoneForPostcode } from "./zone";
@@ -84,6 +88,19 @@ export interface PricedFee {
 export const SAME_DAY_NOT_ELIGIBLE = "not_eligible";
 export const SAME_DAY_SLOTS_CLOSED = "slots_closed";
 
+/**
+ * 078 — what a customer may choose once the new delivery model is on: ONE window for the order.
+ * `fees` holds the order's delivery charge with each open window, filed under `windowKey(slot, date)`
+ * — the same window costs more today than on a later day (the plan's today premium).
+ */
+export interface EffyWindowsQuote {
+  /** Today first, then the next delivery days. */
+  days: EffyDay[];
+  fees: ReadonlyMap<string, PricedFee>;
+  /** Why no day has a window; null when one can be chosen. */
+  unavailable: "no_windows" | "none_defined" | null;
+}
+
 export type QuoteResult =
   | { serviced: false; coverage: "none" }
   | {
@@ -105,8 +122,10 @@ export type QuoteResult =
       sameDaySlots: OpenSlot[];
       /** Why `sameDaySlots` is empty; null when it is not. */
       sameDayUnavailable: string | null;
-      /** The days a standard delivery can arrive — never empty when serviced (069 FR-020). */
+      /** The days a standard delivery can arrive — never empty when serviced (069 FR-020), while `effyWindows` is null. */
       standardDays: string[];
+      /** 078 — null while the new delivery model is off, and then everything above is the 069 quote. */
+      effyWindows: EffyWindowsQuote | null;
     };
 
 /** First-appearance order. */
@@ -174,6 +193,8 @@ export async function quote(
   if (km === null) throw new ListedPostcodeUnpricedError(plan.id, postcode, "no distance");
   const grams = pkgs.reduce((sum, p) => sum + p.grams, 0);
 
+  if (await deliveryModelV2At(q, now)) return quoteEffyWindows(q, customerId, postcode, pkgs, now, basketCents, plan, km, grams, zone.id);
+
   const sameDayShops = await sameDayForShops(q, zone.id, zone.sameDayEligible, distinctShops(pkgs));
   const { runs, bufferMin } = await sameDaySchedule(q);
 
@@ -234,5 +255,81 @@ export async function quote(
     sameDaySlots,
     sameDayUnavailable,
     standardDays,
+    effyWindows: null,
+  };
+}
+
+/**
+ * The quote under the new delivery model (078): today plus the next delivery days, the windows open
+ * on each, and the order's charge with each.
+ *
+ * ⚠ ONE WINDOW FOR THE WHOLE ORDER. The per-shop same-day bridge (`sameDayForShops`) is NOT asked:
+ * every collection run visits every shop, so a window that is open is open for all of them, and an
+ * order never splits across today and a later day — the split was the one thing on a delivery screen
+ * that told a customer how many suppliers they had.
+ *
+ * ⚠ THE 069 FIELDS ARE STILL FILLED, truthfully — today's windows as `sameDaySlots`, the later days
+ * that have a window as `standardDays` — so a client built before 078 draws something real. Its
+ * intent carries no window and is refused; it never buys a day without one.
+ */
+async function quoteEffyWindows(
+  q: Queryable,
+  customerId: string | null,
+  postcode: string,
+  pkgs: readonly PackageInput[],
+  now: Date,
+  basketCents: number,
+  plan: Plan,
+  km: number,
+  grams: number,
+  zoneId: string | null,
+): Promise<QuoteResult> {
+  const { runs, bufferMin } = await sameDaySchedule(q);
+  const settings = await loadSlotSettings(q);
+  const today = melbourneDate(now);
+  const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today));
+  const dates = calendar.map((d) => d.date);
+
+  const slots = await loadSlots(q);
+  const load = await slotLoadByDate(q, dates);
+  // The customer's own unpaid hold is not counted against them, on whichever day it is.
+  for (const [date, held] of await ownLiveHoldsByDate(q, customerId, dates)) {
+    const day = load.get(date);
+    if (day) for (const [id, n] of held) day.set(id, (day.get(id) ?? 0) - n);
+  }
+  const days = openWindows(now, calendar, slots, load, runs, bufferMin, settings.turnaroundMin);
+
+  // The plain later-day charge is what a window's surcharge is measured against.
+  const standardFee = priceEffyOrder(plan, postcode, km, grams, basketCents, null, false);
+  const fees = new Map<string, PricedFee>();
+  for (const d of days) {
+    for (const w of d.windows) fees.set(windowKey(w.id, d.date), priceEffyOrder(plan, postcode, km, grams, basketCents, w.id, d.isToday));
+  }
+
+  const sameDaySlots = days[0]?.isToday ? days[0].windows : [];
+  const slotFees = new Map<string, PricedFee>();
+  let sameDayUntil: Date | null = null;
+  for (const s of sameDaySlots) {
+    slotFees.set(s.id, fees.get(windowKey(s.id, s.date))!);
+    if (!sameDayUntil || s.cutoff.getTime() > sameDayUntil.getTime()) sameDayUntil = s.cutoff;
+  }
+
+  return {
+    serviced: true,
+    coverage: "effy",
+    zoneId,
+    sameDayUntil,
+    packages: pkgs.map((p) => ({
+      shopId: p.shopId,
+      options: sameDaySlots.length > 0 ? [{ method: METHOD_STANDARD }, { method: METHOD_SAME_DAY }] : [{ method: METHOD_STANDARD }],
+    })),
+    standardFee,
+    slotFees,
+    freeDeliveryRemainingCents:
+      plan.freeOverCents !== null && basketCents < plan.freeOverCents ? plan.freeOverCents - basketCents : null,
+    sameDaySlots,
+    sameDayUnavailable: sameDaySlots.length > 0 ? null : SAME_DAY_SLOTS_CLOSED,
+    standardDays: days.filter((d) => !d.isToday && d.windows.length > 0).map((d) => d.date),
+    effyWindows: { days, fees, unavailable: windowsUnavailable(days, slots) },
   };
 }

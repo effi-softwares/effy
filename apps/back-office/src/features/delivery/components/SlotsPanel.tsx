@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 
-import type { DeliverySlotDTO } from "@effy/shared-types";
+import { formatDeliveryDay, type DeliverySlotDayDTO, type DeliverySlotDTO } from "@effy/shared-types";
 import {
   Badge, Button, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label,
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
 
 import { deliveryMutationError, fieldErrors, SLOT_DUPLICATE } from "../errorText";
-import { slotsQuery, useCreateSlot, usePatchSlot } from "../queries";
+import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries";
 
 /**
  * Same-day delivery slots (069 US5).
@@ -25,12 +25,20 @@ import { slotsQuery, useCreateSlot, usePatchSlot } from "../queries";
  *
  * ⚠ There is no delete. A slot is switched off, because placed orders reference it.
  *
+ * ⚠ 078 — ONE COLUMN PER DAY A CUSTOMER CAN BE OFFERED: today, then the Effy delivery days after it
+ * (the service works them out with the function checkout uses, so a closed day is skipped here
+ * exactly as it is there). Each cell is that window's bookings ON THAT DAY — a full Thursday says
+ * nothing about Friday. Still one table: the days are columns on the row they describe.
+ *
  * ⚠ NO LIMIT IS THE DEFAULT. A slot takes every order until its cutoff unless an operator types a
  * limit; `capacity: null` is that state. The dialog asks with a checkbox, unticked by default, and
  * the number field exists only while it is ticked.
  */
 export function SlotsPanel({ canManage }: { canManage: boolean }) {
-  const slots = useQuery(slotsQuery());
+  const grid = useQuery(slotGridQuery());
+  const slots = { ...grid, data: grid.data?.items };
+  // A server older than 078 sends no days: today alone, from the fields it has always sent.
+  const days: DeliverySlotDayDTO[] = grid.data?.days ?? [{ date: "", isToday: true, nonDelivery: false }];
   const patch = usePatchSlot();
   const [editing, setEditing] = useState<DeliverySlotDTO | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,25 +77,30 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           <span className="tabular-nums">{row.original.capacity}</span>
         ),
     },
-    {
-      id: "load",
-      header: "Booked today",
-      cell: ({ row }) => {
-        const s = row.original;
-        const full = s.capacity !== null && s.bookedToday >= s.capacity;
-        return (
-          <span className="tabular-nums">
-            {s.bookedToday}
-            {full ? <span className="ml-2 text-muted-foreground">Full</span> : null}
-            {s.overCapacityToday > 0 ? (
-              // ⚠ Said in words, and never by colour alone. A late payer was honoured above the
-              // slot's capacity (FR-009b) — the operator needs to know the evening is one over.
-              <span className="ml-2 text-warning">{s.overCapacityToday} over capacity</span>
-            ) : null}
-          </span>
-        );
-      },
-    },
+    ...days.map(
+      (day, i): ColumnDef<DeliverySlotDTO> => ({
+        id: `load-${i}`,
+        header: day.isToday ? (day.nonDelivery ? "Booked today (no delivery)" : "Booked today") : formatDeliveryDay(day.date),
+        cell: ({ row }) => {
+          const s = row.original;
+          const load = s.load?.[i];
+          const booked = load?.booked ?? (day.isToday ? s.bookedToday : 0);
+          const over = load?.overCapacity ?? (day.isToday ? s.overCapacityToday : 0);
+          const full = s.capacity !== null && booked >= s.capacity;
+          return (
+            <span className="tabular-nums">
+              {booked}
+              {full ? <span className="ml-2 text-muted-foreground">Full</span> : null}
+              {over > 0 ? (
+                // ⚠ Said in words, and never by colour alone. A late payer was honoured above the
+                // slot's capacity (FR-009b) — the operator needs to know the evening is one over.
+                <span className="ml-2 text-warning">{over} over capacity</span>
+              ) : null}
+            </span>
+          );
+        },
+      }),
+    ),
     {
       accessorKey: "status",
       header: "Status",
@@ -129,7 +142,8 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           The time windows a customer can choose for same-day delivery (Australia/Melbourne). A slot is
           offered until its “order by” time and while a collection run can still bring the goods to the
           hub before it starts. A slot has no limit on deliveries unless you set one. Changes apply to the next checkout; orders
-          already placed keep the window they were sold.
+          already placed keep the window they were sold. Each day has its own count: the columns show
+          how many deliveries are booked into each window today and on the delivery days after it.
         </p>
         {canManage ? (
           <Button onClick={() => setEditing("new")}>
@@ -151,7 +165,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
               No slot is active, so same-day delivery is not being offered to anyone.
             </p>
           ) : null}
-          {slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
+          {slots.data && slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
         </>
       )}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

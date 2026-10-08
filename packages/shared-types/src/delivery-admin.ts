@@ -315,7 +315,35 @@ export interface DeliverySlotDTO {
   bookedToday: number;
   /** Late payers honoured above capacity today (FR-009b). Normally zero; always zero with no limit. */
   overCapacityToday: number;
+  /**
+   * 078 — how full this window is on each offered day, in the order of the response's `days`.
+   * Absent on the create/update responses and from a server older than 078.
+   */
+  load?: DeliverySlotLoadDTO[];
   updatedAt: string;
+}
+
+/** 078 — one window's bookings on one day. Confirmed bookings plus holds that have not lapsed. */
+export interface DeliverySlotLoadDTO {
+  /** yyyy-mm-dd (Melbourne). */
+  date: string;
+  booked: number;
+  /** Late payers honoured above the limit that day. */
+  overCapacity: number;
+}
+
+/** 078 — a column of the windows grid: today, then the next Effy delivery days. */
+export interface DeliverySlotDayDTO {
+  date: string;
+  isToday: boolean;
+  /** Only ever true for today: a later non-delivery day is skipped, not listed. */
+  nonDelivery: boolean;
+}
+
+/** `GET /fleet/v1/delivery-slots`. `days` is absent from a server older than 078. */
+export interface DeliverySlotsResponseDTO {
+  items: DeliverySlotDTO[];
+  days?: DeliverySlotDayDTO[];
 }
 
 export interface DeliverySlotInput {
@@ -347,10 +375,16 @@ export interface DeliveryDaysDTO {
   slotHoldMin: number;
   /** Collection run → ready to leave the hub. ⚠ A stated assumption until a round is timed. */
   hubTurnaroundMin: number;
+  /**
+   * 078 — how many Effy DELIVERY days after today a customer may choose a window on (1–14).
+   * Non-delivery days do not count. Used once the new delivery model is on.
+   */
+  effyLookaheadDays: number;
   dates: NonDeliveryDateDTO[];
 }
 
-export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates">;
+/** ⚠ `effyLookaheadDays` is optional on input: absent keeps the stored value (a console built before 078). */
+export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates" | "effyLookaheadDays"> & { effyLookaheadDays?: number };
 
 export interface NonDeliveryDateInput {
   day: string;

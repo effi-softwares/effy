@@ -42,6 +42,7 @@ export async function recordHandoff(input: RecordHandoffInput): Promise<HandoffR
       order_id: string;
       status: string;
       method: string | null;
+      has_window: boolean;
       existing_at: string | null;
       existing_reference: string | null;
       existing_carrier: string | null;
@@ -50,6 +51,7 @@ export async function recordHandoff(input: RecordHandoffInput): Promise<HandoffR
               sf.order_id,
               sf.status,
               opd.method,
+              COALESCE(opd.slot_id IS NOT NULL, false) AS has_window,
               h.handed_over_at AS existing_at,
               h.reference      AS existing_reference,
               h.carrier_name   AS existing_carrier
@@ -77,6 +79,9 @@ export async function recordHandoff(input: RecordHandoffInput): Promise<HandoffR
     // ⚠ A same-day package is delivered by an Effy driver and never passes to a carrier. Refusing
     // here keeps the two routes to `delivered` from crossing.
     if (row.method === "same_day") throw new OrderActionError("not_standard");
+    // ⚠ 078 — so is a STANDARD package that was sold a window: "standard" kept its name and now also
+    // means Effy, on a later day. Only a package with no window is a carrier's.
+    if (row.has_window) throw new OrderActionError("not_carrier");
 
     // Nothing to hand over until a driver has collected it from the shop.
     if (row.status !== "collected") throw new OrderActionError("not_collected");

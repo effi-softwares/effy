@@ -10,6 +10,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
@@ -276,6 +280,17 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )
+        // 078 — WHICH CHECKOUT THIS IS, THE QUOTE SAYS. With windows the shopper picks ONE for the
+        // order; everything below this branch is the 069 method / slot / day picker.
+        quote.effyWindows != null -> {
+            EffyWindowsSection(
+                view = effyWindowsView(quote.effyWindows, nowEpochMillis()),
+                chosen = s.window,
+                enabled = !s.paying,
+                onChoose = vm::setWindow,
+            )
+            s.deliveryFee?.let { fee -> DeliveryFeeSummary(fee, quote.freeDeliveryRemainingAmount) }
+        }
         else -> {
             // 077 — ONE fee for the order: a later day's, or the chosen window's. Same-day is shown
             // "from" its cheapest window when the windows differ, so its price is never understated.
@@ -370,6 +385,91 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             // 077 — what is charged for delivery, line by line, before Pay (FR-028), and how close
             // the basket is to free delivery (FR-029).
             s.deliveryFee?.let { fee -> DeliveryFeeSummary(fee, quote.freeDeliveryRemainingAmount) }
+        }
+    }
+}
+
+/**
+ * The delivery-window picker of the new delivery model (078): ONE window for the whole order.
+ *
+ *   Same-day delivery   today's open windows, each with the time to order by;
+ *   Standard delivery   the next delivery days as a strip, each with its own windows.
+ *
+ * ⚠ EVERY WORD IS `effyWindowsView`'S — the twin of the function the website renders, pinned to the
+ * same fixture. This composable only lays the words out.
+ * ⚠ NOTHING IS SELECTED FOR THE SHOPPER. The day strip only decides which day's windows are shown.
+ * ⚠ ONE SELECTABLE GROUP across both sections: the order has one window.
+ * ⚠ Rows and a strip — no cards. Every target is at least 48dp.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EffyWindowsSection(
+    view: EffyWindowsView,
+    chosen: ChosenWindow?,
+    enabled: Boolean,
+    onChoose: (slotId: String, date: String) -> Unit,
+) {
+    view.unavailable?.let { sentence ->
+        Text(sentence, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        return
+    }
+
+    // Which later day is open: the one the shopper tapped, else the chosen window's, else the first with any.
+    var tapped by remember { mutableStateOf<String?>(null) }
+    val shown = view.later.firstOrNull { it.date == tapped }
+        ?: view.later.firstOrNull { it.date == chosen?.date }
+        ?: view.later.firstOrNull { it.windows.isNotEmpty() }
+        ?: view.later.firstOrNull()
+
+    Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+        view.today?.let { today ->
+            Text(view.sameDayTitle, style = MaterialTheme.typography.labelLarge)
+            EffyDayWindows(today, chosen, enabled, onChoose)
+        }
+
+        if (shown != null) {
+            Text(view.standardTitle, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = EffySpacing.s))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                view.later.forEach { day ->
+                    FilterChip(
+                        selected = day.date == shown.date,
+                        onClick = { tapped = day.date },
+                        label = { Text(day.label) },
+                        modifier = Modifier.heightIn(min = 48.dp).semantics { role = Role.Tab },
+                    )
+                }
+            }
+            EffyDayWindows(shown, chosen, enabled, onChoose)
+        }
+    }
+}
+
+@Composable
+private fun EffyDayWindows(day: EffyDayView, chosen: ChosenWindow?, enabled: Boolean, onChoose: (String, String) -> Unit) {
+    day.sentence?.let {
+        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+    day.windows.forEach { w ->
+        val selected = chosen?.slotId == w.slotId && chosen.date == w.date
+        Row(
+            // The WHOLE row is the target, announced as one radio button with its time and what it adds.
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .selectable(selected = selected, enabled = enabled && !w.closed, role = Role.RadioButton, onClick = { onChoose(w.slotId, w.date) }),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = selected, onClick = null, enabled = enabled && !w.closed)
+                Column(modifier = Modifier.padding(start = EffySpacing.s)) {
+                    Text(w.label, style = MaterialTheme.typography.bodyMedium)
+                    w.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                }
+            }
+            // 077 FR-030 — what this window adds, BEFORE it is chosen. Nothing when it adds nothing.
+            w.surchargeAmount?.let { Text("+$$it", style = MaterialTheme.typography.bodyMedium) }
         }
     }
 }

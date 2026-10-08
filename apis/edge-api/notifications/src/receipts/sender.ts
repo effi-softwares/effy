@@ -3,7 +3,7 @@
 // ⚠ EVERY MONEY VALUE, QUANTITY AND DATE IS FORMATTED HERE, not in the template (email-kit FR-048).
 // SES has no formatting helpers and a template handed a raw number cannot format it, so the catalogue
 // declares every one of these as a pre-formatted string. This module is where "3.60" becomes "$3.60".
-import { ARRIVAL_UNCONFIRMED, DELIVERY_FEE_LINE_LABEL, formatArrival, type DeliveryFeeLineKind } from "@effy/shared-types";
+import { ARRIVAL_UNCONFIRMED, DELIVERY_FEE_LINE_LABEL, distinctArrivals, formatArrival, type DeliveryFeeLineKind } from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
@@ -95,19 +95,21 @@ export function arrivalText(
 ): { estimate: string; method: string } {
   if (arrivals.length === 0) return { estimate: UNCONFIRMED, method: "Delivery" };
 
-  const method = arrivals.length > 1 ? "Multiple deliveries" : methodLabel(arrivals[0]!.method);
+  // ⚠ 078 — counted as PROMISES, not packages. Every package of an order sold one window carries
+  // the same promise: that is one delivery, and calling it "Multiple deliveries" told the customer
+  // how many suppliers filled it.
+  const promises = distinctArrivals(arrivals.map((a) => ({
+    method: a.method,
+    promisedFrom: a.promised_from,
+    promisedTo: a.promised_to,
+    windowStart: a.window_start ? a.window_start.toISOString() : null,
+    windowEnd: a.window_end ? a.window_end.toISOString() : null,
+  })));
+  const method = promises.length > 1 ? "Multiple deliveries" : methodLabel(promises[0]!.method);
 
   const said: string[] = [];
-  for (const a of arrivals) {
-    const text = formatArrival(
-      {
-        promisedFrom: a.promised_from,
-        promisedTo: a.promised_to,
-        windowStart: a.window_start ? a.window_start.toISOString() : null,
-        windowEnd: a.window_end ? a.window_end.toISOString() : null,
-      },
-      now,
-    );
+  for (const p of promises) {
+    const text = formatArrival(p, now);
     if (text !== ARRIVAL_UNCONFIRMED && !said.includes(text)) said.push(text);
   }
   if (said.length === 0) return { estimate: UNCONFIRMED, method };

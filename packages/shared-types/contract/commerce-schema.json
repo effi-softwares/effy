@@ -882,6 +882,30 @@
             "null"
           ]
         },
+        "deliveryWindow": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "slotId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slotId",
+                "date"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` + `date`). REQUIRED when the quote carried `effyWindows` (refused with `slot_required` without it); the three 047/069 fields above are then ignored and the server derives same-day vs standard from the date. Ignored while the new model is off."
+        },
         "pointsToUse": {
           "$ref": "#/definitions/WireInt",
           "description": "074 — how many points the customer chose to pay with (a whole number, absent = 0). The server refuses rather than clamps: more than is usable → 409 `points_balance_changed`; more than the order total → 422 `points_exceed_total`; a card remainder under the provider minimum → 422 `points_card_remainder_too_small`. Each refusal carries what IS possible."
@@ -1071,7 +1095,8 @@
       "enum": [
         "slot_required",
         "slot_unavailable",
-        "date_unavailable"
+        "date_unavailable",
+        "no_windows_available"
       ],
       "type": "string"
     },
@@ -1270,6 +1295,17 @@
           "$ref": "#/definitions/CoverageKind",
           "description": "076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be purchased until the courier checkout exists, and until then the server never returns it here."
         },
+        "effyWindows": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EffyWindowsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "078 — the windows a customer may choose once the new delivery model is on: today's under \"Same-day delivery\", the following delivery days' under \"Standard delivery\". ⚠ ABSENT WHILE THE MODEL IS OFF — the response is then byte for byte what it was, and every field above means what it did. When present, the choice is sent back as `deliveryWindow` on the intent, and `standardDays` may be empty."
+        },
         "expiresAt": {
           "type": "string"
         },
@@ -1322,7 +1358,7 @@
           "type": "boolean"
         },
         "standardDays": {
-          "description": "069 — the days a standard delivery can arrive, earliest first. The first is the default. ⚠ Never empty when `serviced` (FR-020).",
+          "description": "069 — the days a standard delivery can arrive, earliest first. The first is the default. ⚠ Never empty when `serviced` (FR-020) — while `effyWindows` is null.",
           "items": {
             "$ref": "#/definitions/StandardDayOptionDTO"
           },
@@ -1365,7 +1401,7 @@
           "description": "077 — the order's delivery charge with this window chosen."
         },
         "slotId": {
-          "description": "Opaque. Sent back as `sameDaySlotId` on the intent request.",
+          "description": "Opaque. Sent back as `sameDaySlotId` on the intent request (`deliveryWindow.slotId` once `effyWindows` is present).",
           "type": "string"
         },
         "startAt": {
@@ -1383,6 +1419,124 @@
         "startAt",
         "endAt",
         "cutoffAt"
+      ],
+      "type": "object"
+    },
+    "EffyDayClosedReason": {
+      "description": "Why a day has no window to choose. A later day is only ever \"full\".",
+      "enum": [
+        "not_delivery_day",
+        "closed",
+        "full"
+      ],
+      "type": "string"
+    },
+    "EffyDayDTO": {
+      "additionalProperties": false,
+      "description": "078 — one day on offer: today (`same_day`) or a following delivery day (`standard`).",
+      "properties": {
+        "closedReason": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EffyDayClosedReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why `windows` is empty; null when it is not."
+        },
+        "date": {
+          "type": "string"
+        },
+        "section": {
+          "$ref": "#/definitions/DeliveryMethod"
+        },
+        "windows": {
+          "description": "Open windows only, earliest first.",
+          "items": {
+            "$ref": "#/definitions/EffyWindowDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "section",
+        "windows",
+        "closedReason"
+      ],
+      "type": "object"
+    },
+    "EffyWindowDTO": {
+      "additionalProperties": false,
+      "description": "078 — one window on one day.\n\n⚠ NO CAPACITY, no remaining count, and a full window is simply ABSENT (069 FR-050).",
+      "properties": {
+        "cutoffAt": {
+          "description": "After this the window can no longer be chosen.",
+          "type": "string"
+        },
+        "date": {
+          "description": "yyyy-mm-dd (Melbourne).",
+          "type": "string"
+        },
+        "endAt": {
+          "type": "string"
+        },
+        "fee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "The order's delivery charge with this window chosen."
+        },
+        "slotId": {
+          "description": "Opaque. Sent back with `date` as `deliveryWindow` on the intent request.",
+          "type": "string"
+        },
+        "startAt": {
+          "description": "ISO datetimes with the Australia/Melbourne offset.",
+          "type": "string"
+        },
+        "surchargeAmount": {
+          "description": "What this window adds over the plain later-day fee; \"0.00\" when nothing.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slotId",
+        "date",
+        "startAt",
+        "endAt",
+        "cutoffAt",
+        "surchargeAmount",
+        "fee"
+      ],
+      "type": "object"
+    },
+    "EffyWindowsDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "days": {
+          "description": "Today first, then the next delivery days. Never empty.",
+          "items": {
+            "$ref": "#/definitions/EffyDayDTO"
+          },
+          "type": "array"
+        },
+        "unavailable": {
+          "description": "Set when no window is open on ANY day: `no_windows` (all closed or taken) or `none_defined` (the business has switched none on). The customer reads `DELIVERY_WINDOW_WORDS.noWindows`.",
+          "enum": [
+            "no_windows",
+            "none_defined",
+            null
+          ],
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "days",
+        "unavailable"
       ],
       "type": "object"
     },

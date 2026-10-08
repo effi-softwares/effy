@@ -79,6 +79,9 @@ export function nextActionFor(pkg: OrderPackage): PackageAction {
   if (pkg.status !== "collected") return "none";
   // A same-day package is delivered by an Effy driver and never passes to a carrier.
   if (pkg.deliveryMethod === "same_day") return "none";
+  // 078 — nor does a standard package that was sold a WINDOW: "standard" now also means Effy, on a
+  // later day. Only a package with no window is a carrier's.
+  if (pkg.window) return "none";
   return pkg.handoff ? "arrival" : "handoff";
 }
 

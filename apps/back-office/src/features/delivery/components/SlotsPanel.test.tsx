@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeliverySlotDTO } from "@effy/shared-types";
 
 const repo = vi.hoisted(() => ({
-  listSlots: vi.fn(),
+  listSlotGrid: vi.fn(),
   createSlot: vi.fn(),
   patchSlot: vi.fn(),
 }));
@@ -36,7 +36,7 @@ const refusal = (status: number, fields?: { field: string; message: string }[]) 
 
 beforeEach(() => {
   vi.clearAllMocks();
-  repo.listSlots.mockResolvedValue([slot(), slot({ id: "s2", startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", bookedToday: 3 })]);
+  repo.listSlotGrid.mockResolvedValue({ items: [slot(), slot({ id: "s2", startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", bookedToday: 3 })] });
   repo.createSlot.mockResolvedValue(slot({ id: "s3" }));
   repo.patchSlot.mockResolvedValue(slot());
 });
@@ -53,8 +53,42 @@ describe("SlotsPanel — what an operator reads", () => {
     expect(within(full).getAllByRole("cell")[3]).toHaveTextContent("3Full");
   });
 
+  it("078 — one column per day a customer can be offered, each with that day's own count (P19)", async () => {
+    const days = [
+      { date: "2026-10-08", isToday: true, nonDelivery: false },
+      { date: "2026-10-09", isToday: false, nonDelivery: false },
+      { date: "2026-10-12", isToday: false, nonDelivery: false }, // the weekend is not a delivery day: skipped
+    ];
+    const load = (...n: [number, number][]) => n.map(([booked, overCapacity], i) => ({ date: days[i]!.date, booked, overCapacity }));
+    repo.listSlotGrid.mockResolvedValue({
+      days,
+      items: [
+        slot({ capacity: 3, bookedToday: 1, load: load([1, 0], [3, 0], [4, 1]) }),
+        slot({ id: "s2", startTime: "19:00", endTime: "21:00", capacity: null, bookedToday: 0, load: load([0, 0], [12, 0], [0, 0]) }),
+      ],
+    });
+    renderPanel();
+    const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!;
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent).slice(0, 6))
+      .toEqual(["Window", "Order by", "Delivery limit", "Booked today", "Fri 9 Oct", "Mon 12 Oct"]);
+    // Today has room; Friday is full; Monday is one over — and a full Friday says nothing about today.
+    expect(within(row).getAllByRole("cell").slice(3, 6).map((c) => c.textContent)).toEqual(["1", "3Full", "4Full1 over capacity"]);
+    const unlimited = screen.getByText("19:00 – 21:00").closest("tr")!;
+    expect(within(unlimited).getAllByRole("cell").slice(2, 6).map((c) => c.textContent)).toEqual(["No limit", "0", "12", "0"]);
+  });
+
+  it("078 — says so in the heading when Effy does not deliver today", async () => {
+    repo.listSlotGrid.mockResolvedValue({
+      days: [{ date: "2026-10-11", isToday: true, nonDelivery: true }, { date: "2026-10-12", isToday: false, nonDelivery: false }],
+      items: [slot({ load: [{ date: "2026-10-11", booked: 0, overCapacity: 0 }, { date: "2026-10-12", booked: 2, overCapacity: 0 }] })],
+    });
+    renderPanel();
+    await screen.findByText("17:00 – 19:00");
+    expect(screen.getByRole("columnheader", { name: "Booked today (no delivery)" })).toBeInTheDocument();
+  });
+
   it("⚠ shows 'No limit' in the limit column for a slot without one — never 'null', never 'Full'", async () => {
-    repo.listSlots.mockResolvedValue([slot({ capacity: null, bookedToday: 40 })]);
+    repo.listSlotGrid.mockResolvedValue({ items: [slot({ capacity: null, bookedToday: 40 })] });
     renderPanel();
     const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!;
     const cells = within(row).getAllByRole("cell").map((c) => c.textContent);
@@ -64,19 +98,19 @@ describe("SlotsPanel — what an operator reads", () => {
   });
 
   it("says in words when a late payer took a slot over capacity", async () => {
-    repo.listSlots.mockResolvedValue([slot({ bookedToday: 4, overCapacityToday: 1 })]);
+    repo.listSlotGrid.mockResolvedValue({ items: [slot({ bookedToday: 4, overCapacityToday: 1 })] });
     renderPanel();
     expect(await screen.findByText("1 over capacity")).toBeInTheDocument();
   });
 
   it("⚠ warns when no slot is active — same-day is then offered to nobody", async () => {
-    repo.listSlots.mockResolvedValue([slot({ status: "disabled" })]);
+    repo.listSlotGrid.mockResolvedValue({ items: [slot({ status: "disabled" })] });
     renderPanel();
     expect(await screen.findByRole("status")).toHaveTextContent(/same-day delivery is not being offered/i);
   });
 
   it("warns the same way when there are no slots at all", async () => {
-    repo.listSlots.mockResolvedValue([]);
+    repo.listSlotGrid.mockResolvedValue({ items: [] });
     renderPanel();
     expect(await screen.findByRole("status")).toHaveTextContent(/not being offered/i);
   });

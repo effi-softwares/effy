@@ -45,6 +45,12 @@ describe("nextActionFor — which control the operator is offered", () => {
     expect(nextActionFor(pkg())).toBe("handoff");
   });
 
+  it("078 — offers nothing on a standard package that was sold a window: Effy delivers it", () => {
+    const window = { startAt: "2026-10-09T16:00:00+11:00", endAt: "2026-10-09T18:00:00+11:00" };
+    expect(nextActionFor(pkg({ promisedDate: "2026-10-09", window }))).toBe("none");
+    expect(promiseTextFor(pkg({ promisedDate: "2026-10-09", window }))).toBe("Fri 9 Oct, 4 pm – 6 pm");
+  });
+
   it("offers an arrival once the handover is recorded", () => {
     expect(nextActionFor(pkg({ handoff: handoff() }))).toBe("arrival");
   });

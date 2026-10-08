@@ -67,6 +67,20 @@ object DeliveryWindowText {
         return formatWindow(s, e)
     }
 
+    /**
+     * A moment in words, relative to today: "1:15 pm" when it is today, "tomorrow 11:15 am",
+     * otherwise "Thu 9 Oct 11:15 am". The twin of `formatMoment` in `delivery-window.ts`.
+     */
+    fun formatMoment(atEpochMillis: Long, nowEpochMillis: Long, offsetAt: (Long) -> Int = ::melbourneOffsetSeconds): String {
+        val at = wallClock(atEpochMillis, offsetAt)
+        val time = clock(at.hour, at.minute)
+        return when (at.epochDay - wallClock(nowEpochMillis, offsetAt).epochDay) {
+            0L -> time
+            1L -> "tomorrow $time"
+            else -> "${formatDay(isoDay(at.epochDay))} $time"
+        }
+    }
+
     /** "Thu 8 Oct" from yyyy-mm-dd. A calendar date has no timezone: this is arithmetic on the string. */
     fun formatDay(isoDate: String): String {
         val day = epochDayOrNull(isoDate) ?: return isoDate

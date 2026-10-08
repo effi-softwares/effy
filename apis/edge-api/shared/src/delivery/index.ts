@@ -1,5 +1,5 @@
 // @effy/edge-shared/delivery — the delivery rules: the fee engine and the plan it prices from,
-// coverage, same-day cutoffs, slots and their holds, standard delivery days, the address typeahead,
+// coverage, same-day cutoffs, slots and their holds, standard delivery days, the Effy window calendar and the model switch (078), the address typeahead,
 // and the quote that composes them. Shared since 070; read by the storefront
 // (serviceability, localities) and commerce (quote, intent, payment finalisation).
 export * from "./engine";
@@ -9,6 +9,8 @@ export * from "./zone";
 export * from "./sameday";
 export * from "./slots";
 export * from "./standard-days";
+export * from "./windows";
+export * from "./model";
 export * from "./locality";
 export * from "./quote";
 export * from "./fee-wire";

@@ -1,4 +1,4 @@
-import type { DeliveryFeeDTO, DeliveryQuoteDTO } from "@effy/shared-types"
+import type { DeliveryFeeDTO, DeliveryQuoteDTO, EffyWindowDTO, EffyWindowsDTO } from "@effy/shared-types"
 
 import { parseCents } from "@/lib/cart-totals"
 
@@ -13,6 +13,39 @@ import { parseCents } from "@/lib/cart-totals"
  * it works out is not the one shown (`shownDeliveryAmount`).
  */
 export type DeliveryMethodChoice = "standard" | "same_day"
+
+/**
+ * 078 — the ONE window chosen for the order under the new delivery model: a slot on a day.
+ *
+ * ⚠ WHICH CHECKOUT THIS IS, THE QUOTE SAYS. `effyWindows` present → the shopper picks one window
+ * (today's under "Same-day delivery", a later day's under "Standard delivery") and it is sent as
+ * `deliveryWindow`. Absent → the 069 method / slot / day below. Nothing here reads a flag of its own.
+ */
+export interface ChosenWindow {
+  slotId: string
+  date: string
+}
+
+/** The new model's windows, or null while it is off (or the address is not served). */
+export const effyWindowsOf = (quote: DeliveryQuoteDTO | null): EffyWindowsDTO | null =>
+  quote?.serviced ? (quote.effyWindows ?? null) : null
+
+/** The chosen window as the quote offers it NOW; null when nothing is chosen or it is no longer offered. */
+export function findWindow(quote: DeliveryQuoteDTO | null, chosen: ChosenWindow | null): EffyWindowDTO | null {
+  if (!chosen) return null
+  const day = effyWindowsOf(quote)?.days.find((d) => d.date === chosen.date)
+  return day?.windows.find((w) => w.slotId === chosen.slotId) ?? null
+}
+
+/**
+ * Carry the window across a NEW quote: kept while it is still on offer, dropped when it is not.
+ * ⚠ Dropped means NOTHING is selected — a window that has gone is never replaced by another (FR-010).
+ */
+export const carryWindow = (quote: DeliveryQuoteDTO | null, chosen: ChosenWindow | null): ChosenWindow | null =>
+  findWindow(quote, chosen) ? chosen : null
+
+/** How many days after today a date is, among the days offered (0 = today). -1 when it is not offered. */
+export const dayOffset = (w: EffyWindowsDTO, date: string): number => w.days.findIndex((d) => d.date === date)
 
 export interface DeliveryShape {
   /** Same-day can be chosen at all: a slot is open and at least one delivery can go today. */
@@ -59,8 +92,11 @@ export function chosenFee(
   quote: DeliveryQuoteDTO | null,
   method: DeliveryMethodChoice,
   slotId: string | null,
+  window: ChosenWindow | null = null,
 ): DeliveryFeeDTO | null {
   if (!quote?.serviced) return null
+  // 078 — the new model: the chosen window's fee, and nothing to show until there is a window.
+  if (quote.effyWindows) return findWindow(quote, window)?.fee ?? null
   const sameDay = method === "same_day" && shapeOf(quote).sameDayOffered
   if (!quote.standardFee) {
     const cents = feesFor(quote, method).totalCents

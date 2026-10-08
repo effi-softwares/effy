@@ -10,11 +10,13 @@ import { DeliveryChoiceError } from "../checkout/delivery-choice";
 import { quoteForCheckout } from "../checkout/quote";
 import { checkoutError, deliveryChoiceRefused, deliveryFeeChanged } from "../checkout/respond";
 import { DeliveryFeeChangedError } from "../checkout/service";
+import { isUuid } from "../lib/ids";
 import { customerRoute, jsonBody, stringField } from "../lib/route";
 import { checkoutService, quoteDeps } from "../lib/wiring";
 
 /** A non-negative amount with exactly two decimal places — how every amount crosses the wire. */
 const AMOUNT = /^\d{1,7}\.\d{2}$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export const handler = customerRoute(async ({ event, scope, customer }) => {
   const body = jsonBody(event);
@@ -43,6 +45,18 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   }
   const shownDeliveryAmount = typeof rawShown === "string" ? rawShown : "";
 
+  // 078 — the one window chosen for the order. Absent or null means none was sent (a client built
+  // before 078, or the new delivery model is off and the three fields above apply).
+  const rawWindow: unknown = body.deliveryWindow;
+  let deliveryWindow: { slotId: string; date: string } | null = null;
+  if (rawWindow !== undefined && rawWindow !== null) {
+    const w = rawWindow as { slotId?: unknown; date?: unknown };
+    if (typeof rawWindow !== "object" || typeof w.slotId !== "string" || !isUuid(w.slotId) || typeof w.date !== "string" || !ISO_DATE.test(w.date)) {
+      return validationFailed(scope, "deliveryWindow must be a window id and a date like 2026-10-09");
+    }
+    deliveryWindow = { slotId: w.slotId, date: w.date };
+  }
+
   // 066 — refused BEFORE anything is written. ⚠ The refusal names the field and the rule and never
   // the value: a note can hold a gate code, and a validation error is exactly what gets logged.
   const instructions = normaliseDeliveryInstructions(body.deliveryInstructions);
@@ -56,7 +70,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     const result = await checkoutService.createIntent(
       customer.id,
       {
-        addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate,
+        addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate, deliveryWindow,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
         shownDeliveryAmount,
       },

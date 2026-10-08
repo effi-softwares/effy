@@ -36,6 +36,12 @@ export function clockOn(clock: Clock, day: Date): Date {
   return instantAtLocalTime(year, month, d, clock.hour, clock.minute);
 }
 
+/** The same, for a Melbourne date written yyyy-mm-dd (078 — a window on a later day). */
+export function clockOnDate(clock: Clock, date: string): Date {
+  const [year, month, day] = date.split("-").map(Number) as [number, number, number];
+  return instantAtLocalTime(year, month, day, clock.hour, clock.minute);
+}
+
 /** A slot a customer may choose right now, as instants. */
 export interface OpenSlot {
   id: string;
@@ -44,28 +50,69 @@ export interface OpenSlot {
   start: Date;
   end: Date;
   /**
-   * The EFFECTIVE last moment: the slot's own cutoff, or the last collection that can still serve
-   * it, whichever comes first.
+   * The EFFECTIVE last moment: the slot's own cutoff, or — today — the last collection that can
+   * still serve it, whichever comes first.
    */
   cutoff: Date;
 }
 
-/** Why a slot is not open — or that it is. */
+/** Why a slot is not open — or that it is. `uncollectable` is only ever said of TODAY. */
 export type SlotVerdict = "open" | "cutoff" | "full" | "uncollectable";
 
 /**
- * Decide whether one slot can be chosen at `now` (069 research R5). It is open when:
+ * Decide whether one slot can be chosen at `now` for delivery on `date` (069 research R5, 078 R3).
+ * It is open when:
  *
- *  1. its own cutoff has not passed;
- *  2. a collection run is still makeable (now ≤ run − prep buffer, the 047 rule) AND that run
- *     reaches the hub in time to go out for it (run + turnaround ≤ slot start);
- *  3. it has capacity left — always true for a slot with no limit.
+ *  1. its cutoff ON THAT DAY has not passed;
+ *  2. — TODAY ONLY — a collection run is still makeable (now ≤ run − prep buffer, the 047 rule) AND
+ *     that run reaches the hub in time to go out for it (run + turnaround ≤ slot start). A window on
+ *     a later day can always be collected for; planning that collection is the driver side's job;
+ *  3. it has capacity left on that day — always true for a slot with no limit.
+ *
+ * ⚠ THIS IS THE ONE WINDOW RULE. The quote, the hold at the payment-intent call and the 069
+ * same-day path (`judgeSlot`) all call it; a second copy would let checkout offer what the hold
+ * then refuses.
  *
  * ⚠ ORDER MATTERS FOR THE REASON, NOT THE RESULT: a slot that is both full and past cutoff reports
  * the cutoff, because "it has closed" stays true and "it is full" might not.
  *
- * Pure: no clock, no database. `booked` is what `public.delivery_slot_load` says.
+ * Pure: no clock, no database. `booked` is what `public.delivery_slot_load` says for `date`.
  */
+export function judgeWindow(
+  now: Date,
+  date: string,
+  slot: Slot,
+  booked: number,
+  runs: readonly CollectionRun[],
+  bufferMin: number,
+  turnaroundMin: number,
+): { verdict: Exclude<SlotVerdict, "open"> } | { verdict: "open"; slot: OpenSlot } {
+  const start = clockOnDate(slot.start, date);
+  const end = clockOnDate(slot.end, date);
+  const cutoff = clockOnDate(slot.cutoff, date);
+
+  if (now.getTime() > cutoff.getTime()) return { verdict: "cutoff" };
+
+  let effectiveCutoff = cutoff;
+  if (date === melbourneDate(now)) {
+    // The latest collection run that can still be made AND still gets the goods out in time.
+    let lastOrder: Date | null = null;
+    for (const r of runs) {
+      const run = clockOn(r, now);
+      const orderBy = new Date(run.getTime() - bufferMin * 60_000);
+      if (now.getTime() > orderBy.getTime()) continue; // this run can no longer be made
+      if (run.getTime() + turnaroundMin * 60_000 > start.getTime()) continue; // reaches the hub too late
+      if (!lastOrder || orderBy.getTime() > lastOrder.getTime()) lastOrder = orderBy;
+    }
+    if (!lastOrder) return { verdict: "uncollectable" };
+    if (lastOrder.getTime() < cutoff.getTime()) effectiveCutoff = lastOrder;
+  }
+  if (slot.capacity !== null && booked >= slot.capacity) return { verdict: "full" };
+
+  return { verdict: "open", slot: { id: slot.id, date, start, end, cutoff: effectiveCutoff } };
+}
+
+/** `judgeWindow` for TODAY — the 069 same-day question. */
 export function judgeSlot(
   now: Date,
   slot: Slot,
@@ -74,34 +121,7 @@ export function judgeSlot(
   bufferMin: number,
   turnaroundMin: number,
 ): { verdict: Exclude<SlotVerdict, "open"> } | { verdict: "open"; slot: OpenSlot } {
-  const start = clockOn(slot.start, now);
-  const end = clockOn(slot.end, now);
-  const cutoff = clockOn(slot.cutoff, now);
-
-  if (now.getTime() > cutoff.getTime()) return { verdict: "cutoff" };
-
-  // The latest collection run that can still be made AND still gets the goods out in time.
-  let lastOrder: Date | null = null;
-  for (const r of runs) {
-    const run = clockOn(r, now);
-    const orderBy = new Date(run.getTime() - bufferMin * 60_000);
-    if (now.getTime() > orderBy.getTime()) continue; // this run can no longer be made
-    if (run.getTime() + turnaroundMin * 60_000 > start.getTime()) continue; // reaches the hub too late
-    if (!lastOrder || orderBy.getTime() > lastOrder.getTime()) lastOrder = orderBy;
-  }
-  if (!lastOrder) return { verdict: "uncollectable" };
-  if (slot.capacity !== null && booked >= slot.capacity) return { verdict: "full" };
-
-  return {
-    verdict: "open",
-    slot: {
-      id: slot.id,
-      date: melbourneDate(now),
-      start,
-      end,
-      cutoff: lastOrder.getTime() < cutoff.getTime() ? lastOrder : cutoff,
-    },
-  };
+  return judgeWindow(now, melbourneDate(now), slot, booked, runs, bufferMin, turnaroundMin);
 }
 
 /** Every slot that can be chosen at `now`, earliest first. */
@@ -131,6 +151,8 @@ export interface SlotSettings {
   /** ISO: 1 = Monday … 7 = Sunday. */
   noWeekdays: number[];
   carrierLeadDays: number;
+  /** 078 — Effy delivery days offered after today, once the new delivery model is on. */
+  effyLookaheadDays: number;
 }
 
 /**
@@ -143,6 +165,7 @@ const DEFAULT_SLOT_SETTINGS: SlotSettings = {
   lookaheadDays: 7,
   noWeekdays: [],
   carrierLeadDays: 1,
+  effyLookaheadDays: 3,
 };
 
 export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
@@ -153,9 +176,11 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
       standard_lookahead_days: number;
       standard_no_delivery_weekdays: number[] | null;
       carrier_lead_days: number;
+      effy_lookahead_days: number;
     }>(`
 		SELECT slot_hold_min, sameday_hub_turnaround_min, standard_lookahead_days,
-		       standard_no_delivery_weekdays::int[] AS standard_no_delivery_weekdays, carrier_lead_days
+		       standard_no_delivery_weekdays::int[] AS standard_no_delivery_weekdays, carrier_lead_days,
+		       effy_lookahead_days
 		FROM public.delivery_settings WHERE id = 1`)
   ).rows[0];
   if (!row) return { ...DEFAULT_SLOT_SETTINGS };
@@ -165,6 +190,7 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
     lookaheadDays: row.standard_lookahead_days,
     noWeekdays: row.standard_no_delivery_weekdays ?? [],
     carrierLeadDays: row.carrier_lead_days,
+    effyLookaheadDays: row.effy_lookahead_days,
   };
 }
 
@@ -239,6 +265,47 @@ export async function slotLoad(q: Queryable, date: string): Promise<Map<string, 
     [date],
   );
   return new Map(rows.rows.map((r) => [r.slot_id, r.booked]));
+}
+
+/**
+ * The same, for several dates at once (078): date → slot → places taken. One round trip, and still
+ * the one view.
+ */
+export async function slotLoadByDate(q: Queryable, dates: readonly string[]): Promise<Map<string, Map<string, number>>> {
+  const out = new Map<string, Map<string, number>>(dates.map((d) => [d, new Map()]));
+  if (dates.length === 0) return out;
+  const rows = await q.query<{ slot_id: string; delivery_date: string; booked: number }>(
+    `SELECT slot_id::text AS slot_id, delivery_date::text AS delivery_date, booked::int AS booked
+		FROM public.delivery_slot_load WHERE delivery_date = ANY($1::date[])`,
+    [dates],
+  );
+  for (const r of rows.rows) out.get(r.delivery_date)?.set(r.slot_id, r.booked);
+  return out;
+}
+
+/** `ownLiveHolds` for several dates at once (078): date → slot → this customer's live holds. */
+export async function ownLiveHoldsByDate(
+  q: Queryable,
+  customerId: string | null,
+  dates: readonly string[],
+): Promise<Map<string, Map<string, number>>> {
+  const out = new Map<string, Map<string, number>>();
+  if (!customerId || dates.length === 0) return out;
+  const rows = await q.query<{ slot_id: string; delivery_date: string; n: number }>(
+    `
+		SELECT b.slot_id::text AS slot_id, b.delivery_date::text AS delivery_date, count(*)::int AS n
+		FROM public.delivery_slot_booking b
+		JOIN public."order" o ON o.id = b.order_id
+		WHERE o.customer_id = $1 AND o.status = 'pending_payment'
+		  AND b.delivery_date = ANY($2::date[]) AND b.state = 'held' AND b.held_until > now()
+		GROUP BY b.slot_id, b.delivery_date`,
+    [customerId, dates],
+  );
+  for (const r of rows.rows) {
+    if (!out.has(r.delivery_date)) out.set(r.delivery_date, new Map());
+    out.get(r.delivery_date)!.set(r.slot_id, r.n);
+  }
+  return out;
 }
 
 /**

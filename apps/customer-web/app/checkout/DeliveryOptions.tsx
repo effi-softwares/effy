@@ -14,8 +14,11 @@ import {
   feesFor,
   needs,
   shapeOf,
+  type ChosenWindow,
   type DeliveryMethodChoice,
 } from "@/lib/delivery-choice"
+
+import { EffyWindowOptions } from "./EffyWindowOptions"
 import { formatMoney } from "@/lib/money"
 
 /**
@@ -45,6 +48,8 @@ export function DeliveryOptions({
   onSlotChange,
   standardDate,
   onStandardDateChange,
+  window: chosenWindow = null,
+  onWindowChange,
   currency,
   disabled = false,
   now = new Date(),
@@ -56,12 +61,29 @@ export function DeliveryOptions({
   onSlotChange: (slotId: string) => void
   standardDate: string | null
   onStandardDateChange: (date: string) => void
+  /** 078 — the one window chosen under the new delivery model; used only when the quote carries `effyWindows`. */
+  window?: ChosenWindow | null
+  onWindowChange?: (next: ChosenWindow) => void
   currency: string
   disabled?: boolean
   /** Injected for tests; "Today" and "Tomorrow" are relative to it. */
   now?: Date
 }) {
   const group = useId()
+  // 078 — WHICH CHECKOUT THIS IS, THE QUOTE SAYS. With `effyWindows` the shopper picks one window for
+  // the order; everything below is the 069 method / slot / day picker, live until the switch.
+  if (quote.effyWindows) {
+    return (
+      <EffyWindowOptions
+        windows={quote.effyWindows}
+        chosen={chosenWindow}
+        onChoose={(next) => onWindowChange?.(next)}
+        currency={currency}
+        disabled={disabled}
+        now={now}
+      />
+    )
+  }
   const shape = shapeOf(quote)
   const need = needs(shape, method)
   const money = (cents: number) => formatMoney(formatCents(cents), currency)

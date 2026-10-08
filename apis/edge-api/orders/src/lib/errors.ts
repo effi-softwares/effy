@@ -13,6 +13,8 @@ export type OrderActionReason =
   | "not_collected"
   /** The package is same-day: an Effy driver delivers it, so it takes no carrier handoff. */
   | "not_standard"
+  /** 078 — the package was sold a delivery WINDOW on a later day: Effy delivers it, not a carrier. */
+  | "not_carrier"
   /** An arrival was attempted on a package with no recorded handover (FR-006). */
   | "no_handoff";
 
@@ -44,6 +46,12 @@ export const ACTION_REFUSALS: Record<
     title: "Same-day package",
     detail:
       "this package is delivered by an Effy driver and does not pass to an outside carrier",
+  },
+  not_carrier: {
+    status: 422,
+    title: "Delivered by Effy",
+    detail:
+      "this package was sold a delivery window, so an Effy driver delivers it and it does not pass to an outside carrier",
   },
   no_handoff: {
     status: 409,

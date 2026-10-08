@@ -13,7 +13,7 @@ export interface PromiseFacts {
   method: string | null;
   /** The delivery day the customer was promised. Null for every order placed before 069. */
   promisedDate: string | null;
-  /** The same-day window's end, or null. */
+  /** The end of the window the package was sold — same-day, or since 078 a later day's — or null. */
   windowEnd: Date | null;
   /** Today in Melbourne. */
   today: string;
@@ -41,10 +41,12 @@ export function minusDays(isoDate: string, days: number): string {
 }
 
 export function judgePromise(f: PromiseFacts): PromiseVerdict {
-  const standard = f.method === "standard" && f.promisedDate !== null;
+  // ⚠ 078 — a standard package that was sold a WINDOW is delivered by Effy on its day; only one
+  // with no window goes to a carrier. The window is the fact; the method is the customer's word.
+  const carrier = f.method === "standard" && f.promisedDate !== null && f.windowEnd === null;
 
-  // Only a STANDARD package is handed to a carrier; a same-day one is Effy's own driver's.
-  const handoverDueOn = standard ? minusDays(f.promisedDate!, f.carrierLeadDays) : null;
+  // Only a carrier package is handed over; anything with a window is Effy's own driver's.
+  const handoverDueOn = carrier ? minusDays(f.promisedDate!, f.carrierLeadDays) : null;
 
   // At risk: the day it had to leave the hub has gone and it had not left — or it left late.
   // ⚠ An arrived package is never at risk: `onTime` is the verdict from then on, and a list that
@@ -54,7 +56,7 @@ export function judgePromise(f: PromiseFacts): PromiseVerdict {
     atRisk = f.handoffDate === null ? f.today > handoverDueOn : f.handoffDate > handoverDueOn;
   }
 
-  // On time: inside the window for same-day, on or before the promised day for standard.
+  // On time: inside the window where one was sold, on or before the promised day otherwise.
   // ⚠ NULL, not false, when there is nothing to judge against. An order placed before 069 was
   // promised no day; calling it late would be inventing a promise in order to have broken it.
   let onTime: boolean | null = null;

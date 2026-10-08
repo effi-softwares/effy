@@ -1,10 +1,10 @@
 // The delivery quote a shopper sees before paying, and its wire form (047, 069).
-import { formatCents, operatingStamp, pooled, type Queryable } from "@effy/edge-shared";
+import { emitMetric, formatCents, metricNamespace, operatingStamp, pooled, type Queryable } from "@effy/edge-shared";
 import {
   basketValueCents, feeDTO, METHOD_SAME_DAY, normalizePostcode, offersSameDay, quote as deliveryQuote,
-  storedBreakdown, type PackageInput, type QuoteResult,
+  storedBreakdown, windowKey, type EffyWindowsQuote, type PackageInput, type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
-import type { DeliveryQuoteDTO } from "@effy/shared-types";
+import type { DeliveryQuoteDTO, EffyWindowsDTO } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
 import type { CheckoutLine, CheckoutStore } from "./store";
@@ -85,6 +85,31 @@ export function compatibilityFees(q: ServicedQuote): { standard: number; sameDay
 }
 
 /**
+ * 078 — the windows as the client receives them: today under `same_day`, every later day under
+ * `standard`, each window with the order's charge and what it adds over a plain later day.
+ *
+ * ⚠ OPEN WINDOWS ONLY. A full window is absent — never sent with a flag or a count (069 FR-050).
+ */
+export function toEffyWindowsDTO(w: EffyWindowsQuote, standardFee: PricedFee): EffyWindowsDTO {
+  return {
+    days: w.days.map((d) => ({
+      date: d.date,
+      section: d.isToday ? "same_day" : "standard",
+      windows: d.windows.map((s) => {
+        const fee = w.fees.get(windowKey(s.id, d.date)) ?? standardFee;
+        return {
+          slotId: s.id, date: d.date, startAt: operatingStamp(s.start), endAt: operatingStamp(s.end), cutoffAt: operatingStamp(s.cutoff),
+          surchargeAmount: formatCents(Math.max(0, fee.totalCents - standardFee.totalCents)),
+          fee: feeDTO(fee),
+        };
+      }),
+      closedReason: d.closedReason,
+    })),
+    unavailable: w.unavailable,
+  };
+}
+
+/**
  * The quote as the client receives it.
  *
  * ⚠ A package is identified by an OPAQUE `pkg-N` — its position — never by its shop: the split
@@ -132,6 +157,9 @@ export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): Deliver
     // 077 — appended, so everything a client built before 077 reads is where it was.
     standardFee: feeDTO(q.standardFee),
     freeDeliveryRemainingAmount: q.freeDeliveryRemainingCents === null ? null : formatCents(q.freeDeliveryRemainingCents),
+    // 078 — ABSENT while the new delivery model is off: the response is then, byte for byte, the
+    // 069/077 quote (the wire contract test holds it to that).
+    ...(q.effyWindows ? { effyWindows: toEffyWindowsDTO(q.effyWindows, q.standardFee) } : {}),
   };
 }
 
@@ -145,6 +173,10 @@ export function capturedQuote(q: ServicedQuote) {
     packages: q.packages.map((p) => ({ shopId: p.shopId, methods: p.options.map((o) => o.method) })),
     standardFee: storedBreakdown(q.standardFee),
     slotFees: [...q.slotFees.values()].map(storedBreakdown),
+    // 078 — every window offered, on every day, with how its charge was built.
+    ...(q.effyWindows
+      ? { windowFees: [...q.effyWindows.fees].map(([key, fee]) => ({ date: key.split("|")[1], ...storedBreakdown(fee) })) }
+      : {}),
   };
 }
 
@@ -170,6 +202,9 @@ export async function quoteForCheckout(
     deps.quoter(customerId, postcode, packagesFromLines(lines), now, basketValueCents(itemSubtotalCents, discount.cents)),
     deps.store.pointsFor(customerId, now),
   ]);
+  // ⚠ A page, not a number to watch (078 FR-020): a covered address and not one window switched on.
+  // Emitted HERE, on the read — a shopper who is shown "no windows" never reaches the intent call.
+  if (delivery.serviced && delivery.effyWindows?.unavailable === "none_defined") emitMetric(metricNamespace(), "EffyWindowsNoneDefined");
   return {
     ...toQuoteDTO(postcode, delivery, now),
     // 074 — what the shopper can spend. ABSENT when they have none, so the control is not shown.

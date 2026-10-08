@@ -76,6 +76,25 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   and the driver service refuses every action (409 `round_not_open`). ⚠ The opening time is derived
   by `public.round_opens_at` only — never stored, never recomputed elsewhere. Off-duty drivers' uncollected
   work returns to the pool on the next pass.
+- ⚠ **EFFY DELIVERY WINDOWS ARE BUILT AND SWITCHED OFF (078).** One window per order: today's under
+  **"Same-day delivery"**, one of the next N delivery days' (`effy_lookahead_days`, 3) under **"Standard
+  delivery"** — the customer words STAY; "standard" now also means *Effy, on a later day, in a window*.
+  - ⚠ **THE SWITCH** is `delivery_settings.delivery_model_v2_from` (NULL = off), read ONLY through
+    `public.delivery_model_v2_at` → `deliveryModelV2At` (`shared/src/delivery/model.ts`), and called by
+    the quote alone (`windows.guard.test.ts`). **Nothing sets it; E9 adds the setter.** ⚠ Do not turn
+    it on before E8: the planner gathers `same_day` only, so a later-day order gets no driver round.
+  - ⚠ **Which checkout a client is in, the QUOTE says**: `effyWindows` present → send `deliveryWindow
+    {slotId, date}`; absent → the 069 fields. Absent, not null — the quote is then byte-identical.
+  - ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` (cutoff every day; collection
+    TODAY only; room per `(slot, date)` — `delivery_slot_load` was always per day). The quote, the hold
+    and 069's `judgeSlot` all call it. The calendar is `effyDays` / `openWindows` (`windows.ts`).
+  - ⚠ **A `standard` package WITH a window (`slot_id`) is delivered by EFFY**; without one it is a
+    carrier's. Carrier handover (`not_carrier`), the handover list, the orders list's "needs handover"
+    and the on-time check all read the window, not the method. E5's `delivery_type` makes it a column.
+  - ⚠ **The picker's words are `effyWindowsView`'s** (`packages/shared-types/src/effy-windows.ts`) and
+    its Kotlin twin, both pinned to `effy-windows.fixtures.json`; the sentences are
+    `DELIVERY_WINDOW_WORDS`. ⚠ An order's arrivals are said once per DISTINCT promise
+    (`distinctArrivals`) — one per package told the customer how many suppliers there were.
 - **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out
   for delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the
   dispatch rows, never from `shop_fulfillment.status` alone (which stops at `collected` by design), and
@@ -457,6 +476,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days (built, switched off; not yet migrated or deployed)
 - **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab) — deployed to dev
 - **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
 - **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)
@@ -512,5 +532,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/077-delivery-fee-engine-v2/plan.md
+at specs/078-effy-delivery-windows/plan.md
 <!-- SPECKIT END -->

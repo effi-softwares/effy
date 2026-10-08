@@ -1,4 +1,4 @@
-// Which days standard delivery runs, and the timings the day rules depend on (069 US6).
+// Which days delivery runs, and the timings the day rules depend on (069 US6; Effy delivery days since 078).
 //
 // ⚠ LIVE ON SAVE, like the slots: the next checkout quote reads these. Every refusal names its field.
 
@@ -40,6 +40,10 @@ export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   if (!wholeNumber(v.slotHoldMin, 1, 60)) {
     errors.push({ field: "slotHoldMin", message: "a place can be held for between 1 and 60 minutes" });
   }
+  // 078 — optional: a console built before it does not send it, and the stored value is kept.
+  if (v.effyLookaheadDays !== undefined && !wholeNumber(v.effyLookaheadDays, 1, 14)) {
+    errors.push({ field: "effyLookaheadDays", message: "customers can be offered between 1 and 14 delivery days after today" });
+  }
   if (!wholeNumber(v.hubTurnaroundMin, 0, 480)) {
     errors.push({ field: "hubTurnaroundMin", message: "the hub turnaround must be between 0 and 480 minutes" });
   }
@@ -60,6 +64,7 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
     carrierLeadDays: body.carrierLeadDays,
     slotHoldMin: body.slotHoldMin,
     hubTurnaroundMin: body.hubTurnaroundMin,
+    ...(body.effyLookaheadDays !== undefined ? { effyLookaheadDays: body.effyLookaheadDays } : {}),
   };
   const saved = await repo.save(v, actorSub, (tx) =>
     recordAudit({ actorSub, action: "delivery_days.updated", targetType: "delivery_settings", driverId: null, detail: { ...v } }, tx),

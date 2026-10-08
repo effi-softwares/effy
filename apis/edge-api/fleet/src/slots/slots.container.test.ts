@@ -44,7 +44,8 @@ import {
   removeNonDeliveryDate,
 } from "../deliverydays/service";
 import type { FleetError } from "../shared/errors";
-import { createSlot, listSlots, updateSlot } from "./service";
+import { effyDays } from "@effy/edge-shared/delivery";
+import { createSlot, listSlots, listSlotsWithDays, updateSlot } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -76,7 +77,7 @@ async function audits(action: string) {
 }
 
 /** A paid order with one package, booked into `slotId` today (or promised `day` as standard). */
-async function order(opts: { slotId?: string; state?: string; heldFor?: string; standardDay?: string; status?: string }) {
+async function order(opts: { slotId?: string; state?: string; heldFor?: string; standardDay?: string; status?: string; windowDay?: string }) {
   const cust = await one<{ id: string }>(
     `INSERT INTO public.customer (cognito_sub, email)
      VALUES ('c-' || gen_random_uuid(), (gen_random_uuid() || '@effyshopping.com')::citext) RETURNING id`,
@@ -96,15 +97,16 @@ async function order(opts: { slotId?: string; state?: string; heldFor?: string; 
   if (opts.slotId) {
     await pool.query(
       `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to, slot_id, window_start, window_end)
-       VALUES ($1, $2, 'same_day', 8, (now() AT TIME ZONE 'Australia/Melbourne')::date, (now() AT TIME ZONE 'Australia/Melbourne')::date,
+       VALUES ($1, $2, CASE WHEN $4::date IS NULL THEN 'same_day' ELSE 'standard' END, 8,
+               COALESCE($4::date, (now() AT TIME ZONE 'Australia/Melbourne')::date), COALESCE($4::date, (now() AT TIME ZONE 'Australia/Melbourne')::date),
                $3, '2026-10-08T06:00:00Z', '2026-10-08T08:00:00Z')`,
-      [o.id, shop.id, opts.slotId],
+      [o.id, shop.id, opts.slotId, opts.windowDay ?? null],
     );
     await pool.query(
       `INSERT INTO public.delivery_slot_booking (slot_id, delivery_date, order_id, state, held_until, window_start, window_end)
-       VALUES ($1, (now() AT TIME ZONE 'Australia/Melbourne')::date, $2, $3,
+       VALUES ($1, COALESCE($5::date, (now() AT TIME ZONE 'Australia/Melbourne')::date), $2, $3,
                CASE WHEN $3 = 'held' THEN now() + $4::interval END, '2026-10-08T06:00:00Z', '2026-10-08T08:00:00Z')`,
-      [opts.slotId, o.id, opts.state ?? "confirmed", opts.heldFor ?? "10 minutes"],
+      [opts.slotId, o.id, opts.state ?? "confirmed", opts.heldFor ?? "10 minutes", opts.windowDay ?? null],
     );
   } else if (opts.standardDay) {
     await pool.query(
@@ -188,6 +190,39 @@ d("069 — same-day delivery slots", () => {
     expect((await listSlots())[0]!.bookedToday).toBe(2);
   });
 
+  it("078 — how full each window is on today and each Effy delivery day after it (P15)", async () => {
+    const days = effyDays(new Date(), 3).map((x) => x.date);
+    const evening = await createSlot(EVENING, ACTOR, scope);
+    const late = await createSlot({ startTime: "19:00", endTime: "21:00", cutoffTime: "17:00" }, ACTOR, scope);
+    await order({ slotId: evening.id });                                        // today, confirmed
+    await order({ slotId: evening.id, windowDay: days[2] });                    // a later day, confirmed
+    await order({ slotId: evening.id, windowDay: days[2], state: "held" });     // …and a live hold
+    await order({ slotId: evening.id, windowDay: days[2], state: "held", heldFor: "-1 minute" }); // lapsed
+    const over = await order({ slotId: evening.id, windowDay: days[3] });
+    await pool.query(`UPDATE public.delivery_slot_booking SET over_capacity = true WHERE order_id = $1`, [over]);
+
+    const grid = await listSlotsWithDays();
+    expect(grid.days).toEqual(days.map((date, i) => ({ date, isToday: i === 0, nonDelivery: false })));
+    expect(grid.items.map((s) => s.id)).toEqual([evening.id, late.id]);
+    expect(grid.items[0]!.load).toEqual([
+      { date: days[0], booked: 1, overCapacity: 0 }, { date: days[1], booked: 0, overCapacity: 0 },
+      { date: days[2], booked: 2, overCapacity: 0 }, { date: days[3], booked: 1, overCapacity: 1 },
+    ]);
+    expect(grid.items[0]).toMatchObject({ bookedToday: 1, overCapacityToday: 0 });
+    // A window nobody has booked still has a cell for every day.
+    expect(grid.items[1]!.load).toEqual(days.map((date) => ({ date, booked: 0, overCapacity: 0 })));
+  });
+
+  it("078 — the grid's days are the customer's days: a closed date is skipped, the look-ahead is the setting", async () => {
+    await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, effy_lookahead_days, updated_by) VALUES (1, -37.8, 144.9, 2, 'seed')`);
+    const plain = effyDays(new Date(), 3).map((x) => x.date);
+    await pool.query(`INSERT INTO public.delivery_non_delivery_date (day, created_by) VALUES ($1::date, 'seed')`, [plain[1]]);
+    await createSlot(EVENING, ACTOR, scope);
+    const grid = await listSlotsWithDays();
+    expect(grid.days!.map((x) => x.date)).toEqual([plain[0], plain[2], plain[3]]);
+    expect(grid.items[0]!.load!.map((l) => l.date)).toEqual([plain[0], plain[2], plain[3]]);
+  });
+
   it("shows how many late payers were honoured above capacity", async () => {
     const slot = await createSlot(EVENING, ACTOR, scope);
     const late = await order({ slotId: slot.id });
@@ -250,7 +285,7 @@ d("069 — the standard-delivery calendar", () => {
 
   it("reads the migration's defaults before anything is saved", async () => {
     expect(await getDeliveryDays()).toEqual({
-      lookaheadDays: 7, noDeliveryWeekdays: [], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, dates: [],
+      lookaheadDays: 7, noDeliveryWeekdays: [], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, dates: [],
     });
   });
 
@@ -300,6 +335,28 @@ d("069 — the standard-delivery calendar", () => {
     await removeNonDeliveryDate(day, ACTOR, scope);
     expect((await getDeliveryDays()).dates).toEqual([]);
     expect(await audits("delivery_days.date_removed")).toHaveLength(1);
+  });
+
+  it("078 — the days offered after today are a setting of 1–14, and a save that does not mention it keeps it", async () => {
+    await hub();
+    expect((await putDeliveryDays({ ...SETTINGS, effyLookaheadDays: 5 }, ACTOR, scope)).effyLookaheadDays).toBe(5);
+    // A console built before 078 saves without the field.
+    expect((await putDeliveryDays(SETTINGS, ACTOR, scope)).effyLookaheadDays).toBe(5);
+    for (const bad of [0, 15, 2.5]) {
+      const err = await refusal(putDeliveryDays({ ...SETTINGS, effyLookaheadDays: bad }, ACTOR, scope));
+      expect(err.fields?.map((f) => f.field)).toEqual(["effyLookaheadDays"]);
+    }
+    expect((await getDeliveryDays()).effyLookaheadDays).toBe(5);
+  });
+
+  it("078 — closing a date counts everyone promised that day, a window as much as a carrier day", async () => {
+    const day = (await one<{ day: string }>(`SELECT ((now() AT TIME ZONE 'Australia/Melbourne')::date + 2)::text AS day`)).day;
+    const slot = await createSlot(EVENING, ACTOR, scope);
+    await order({ standardDay: day });                       // a carrier day (sold before the new model)
+    await order({ slotId: slot.id, windowDay: day });        // Effy, in a window, on a later day
+    await order({ slotId: slot.id, windowDay: day, status: "delivered" });
+    expect((await addNonDeliveryDate({ day }, ACTOR, scope)).affectedOrders).toBe(2);
+    expect(await one(`SELECT count(*)::int AS n FROM public.order_package_delivery WHERE promised_to = $1::date`, [day])).toEqual({ n: 3 });
   });
 
   it("refuses a date that is not a real day, and a removal of one that is not closed", async () => {

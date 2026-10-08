@@ -3,7 +3,7 @@ import { infiniteQueryOptions, keepPreviousData, queryOptions, useMutation, useQ
 import {
   activatePlan, createCollectionRun, createPlan, deleteCollectionRun, getSettings, listCollectionRuns, listPlans,
   putSettings, replacePlan, simulateFee,
-  addNonDeliveryDate, createSlot, getDeliveryDays, listSlots, patchSlot, putDeliveryDays, removeNonDeliveryDate,
+  addNonDeliveryDate, createSlot, getDeliveryDays, listSlotGrid, listSlots, patchSlot, putDeliveryDays, removeNonDeliveryDate,
   addCourierExclusion, addCoveragePostcodes, createCoverageGroup, listCoverage, patchCoveragePostcodes,
   removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, setCourierOffered,
   type CoverageFilters,
@@ -76,6 +76,12 @@ export function useDeleteCollectionRun() {
  */
 export const slotsQuery = () =>
   queryOptions({ queryKey: [...ROOT, "slots"] as const, queryFn: listSlots });
+/**
+ * 078 — the windows WITH how full each is, day by day. Its key sits under `slots`, so the same live
+ * update that re-reads the list re-reads the grid.
+ */
+export const slotGridQuery = () =>
+  queryOptions({ queryKey: [...ROOT, "slots", "grid"] as const, queryFn: listSlotGrid });
 export const deliveryDaysQuery = () =>
   queryOptions({ queryKey: [...ROOT, "days"] as const, queryFn: getDeliveryDays });
 

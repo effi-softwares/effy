@@ -26,6 +26,31 @@ export const LIST_SLOTS = `
            ON l.slot_id = s.id AND l.delivery_date = ${MEL_TODAY}
 `;
 
+/**
+ * 078 — how full every slot is on each of the given days (today and the Effy delivery days after it).
+ *
+ * ⚠ THE SAME VIEW, for the same reason as above: one definition of "a booking counts".
+ */
+export const SLOT_LOAD_ON_DAYS = `
+  SELECT l.slot_id,
+         l.delivery_date::text AS delivery_date,
+         l.booked,
+         l.over_capacity
+    FROM public.delivery_slot_load l
+   WHERE l.delivery_date = ANY($1::date[])
+`;
+
+/** 078 — what the Effy delivery calendar is drawn from: the look-ahead and the closed weekdays. */
+export const CALENDAR_SETTINGS = `
+  SELECT effy_lookahead_days, standard_no_delivery_weekdays::int[] AS no_weekdays
+    FROM public.delivery_settings WHERE id = 1
+`;
+
+/** 078 — individually closed dates from today (Melbourne) on. */
+export const CLOSED_DATES = `
+  SELECT day::text AS day FROM public.delivery_non_delivery_date WHERE day >= ${MEL_TODAY}
+`;
+
 export const INSERT_SLOT = `
   INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
   VALUES ($1::time, $2::time, $3::time, $4, $5)

@@ -1,4 +1,4 @@
-// Repository for the standard-delivery calendar (069 US6). Raw parameterized SQL, no ORM.
+// Repository for the delivery calendar (069 US6; Effy delivery days since 078). Raw parameterized SQL, no ORM.
 
 import { query, withTransaction } from "@effy/edge-shared";
 import type { DeliveryDaysDTO, DeliveryDaysInput, NonDeliveryDateDTO } from "@effy/shared-types";
@@ -16,7 +16,8 @@ const AFFECTED = `
      JOIN public."order" o ON o.id = opd.order_id
      JOIN public.shop_fulfillment sf ON sf.order_id = opd.order_id AND sf.shop_id = opd.shop_id
     WHERE o.status = 'paid'
-      AND opd.method = 'standard'
+      -- ⚠ 078 — WHATEVER ITS METHOD. A closed day now also stops Effy's own windows, so the people to
+      -- tell include anyone promised a window that day, today's included.
       AND opd.promised_to = d.day
       AND sf.status NOT IN ('delivered', 'withdrawn', 'unfulfillable'))
 `;
@@ -27,10 +28,12 @@ interface SettingsRow {
   carrier_lead_days: number;
   slot_hold_min: number;
   sameday_hub_turnaround_min: number;
+  effy_lookahead_days: number;
 }
 
-/** The migration's own defaults, used only until the operator has saved the delivery settings. */
-const DEFAULTS: DeliveryDaysInput = {
+/** The migrations' own defaults, used only until the operator has saved the delivery settings. */
+const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
+  effyLookaheadDays: 3,
   lookaheadDays: 7,
   noDeliveryWeekdays: [],
   carrierLeadDays: 1,
@@ -51,17 +54,18 @@ async function dates(): Promise<NonDeliveryDateDTO[]> {
 export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolean }> {
   const res = await query<SettingsRow>(
     `SELECT standard_lookahead_days, standard_no_delivery_weekdays, carrier_lead_days,
-            slot_hold_min, sameday_hub_turnaround_min
+            slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days
        FROM public.delivery_settings WHERE id = 1`,
   );
   const r = res.rows[0];
-  const settings: DeliveryDaysInput = r
+  const settings: Omit<DeliveryDaysDTO, "dates"> = r
     ? {
         lookaheadDays: r.standard_lookahead_days,
         noDeliveryWeekdays: [...r.standard_no_delivery_weekdays].sort((a, b) => a - b),
         carrierLeadDays: r.carrier_lead_days,
         slotHoldMin: r.slot_hold_min,
         hubTurnaroundMin: r.sameday_hub_turnaround_min,
+        effyLookaheadDays: r.effy_lookahead_days,
       }
     : DEFAULTS;
   return { dto: { ...settings, dates: await dates() }, configured: Boolean(r) };
@@ -83,9 +87,11 @@ export async function save(
       `UPDATE public.delivery_settings
           SET standard_lookahead_days = $1, standard_no_delivery_weekdays = $2::smallint[],
               carrier_lead_days = $3, slot_hold_min = $4, sameday_hub_turnaround_min = $5,
+              -- 078 — absent keeps what is stored: a console built before it never sends this.
+              effy_lookahead_days = COALESCE($7::int, effy_lookahead_days),
               updated_by = $6, updated_at = now()
         WHERE id = 1`,
-      [v.lookaheadDays, v.noDeliveryWeekdays, v.carrierLeadDays, v.slotHoldMin, v.hubTurnaroundMin, actorSub],
+      [v.lookaheadDays, v.noDeliveryWeekdays, v.carrierLeadDays, v.slotHoldMin, v.hubTurnaroundMin, actorSub, v.effyLookaheadDays ?? null],
     );
     if (res.rowCount === 0) return false;
     await audit(tx);

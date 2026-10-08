@@ -141,7 +141,7 @@ export interface DeliveryQuoteDTO {
   sameDayUnavailableReason: SameDayUnavailableReason | null;
   /**
    * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
-   * ⚠ Never empty when `serviced` (FR-020).
+   * ⚠ Never empty when `serviced` (FR-020) — while `effyWindows` is null.
    */
   standardDays: StandardDayOptionDTO[];
   /** 074 — the customer's spendable points, when they have any. */
@@ -156,6 +156,74 @@ export interface DeliveryQuoteDTO {
    * set or it is already reached.
    */
   freeDeliveryRemainingAmount?: string | null;
+  /**
+   * 078 — the windows a customer may choose once the new delivery model is on: today's under
+   * "Same-day delivery", the following delivery days' under "Standard delivery". ⚠ ABSENT WHILE THE MODEL IS OFF — the response is then byte for byte what
+   * it was, and every field above means what it did. When present, the choice is sent back as `deliveryWindow` on the intent, and `standardDays`
+   * may be empty.
+   */
+  effyWindows?: EffyWindowsDTO | null;
+}
+
+/**
+ * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN (078 FR-001a). Web and mobile render these constants;
+ * the mobile app's `DeliveryWindowWords.kt` mirrors them and a test holds it to this file.
+ *
+ * "Standard delivery" kept its name and changed its meaning: from the switch it is Effy, on a later
+ * day, in a window — no longer a carrier.
+ */
+export const DELIVERY_WINDOW_WORDS = {
+  sectionSameDay: "Same-day delivery",
+  sectionStandard: "Standard delivery",
+  todayClosed: "No windows left today.",
+  todayNotDeliveryDay: "We don't deliver today.",
+  dayFull: "Every window on this day is taken.",
+  noWindows: "There are no delivery windows available in the next few days. Please try again later.",
+  cutoffPrefix: "Order by",
+} as const;
+
+/** Why a day has no window to choose. A later day is only ever "full". */
+export type EffyDayClosedReason = "not_delivery_day" | "closed" | "full";
+
+/**
+ * 078 — one window on one day.
+ *
+ * ⚠ NO CAPACITY, no remaining count, and a full window is simply ABSENT (069 FR-050).
+ */
+export interface EffyWindowDTO {
+  /** Opaque. Sent back with `date` as `deliveryWindow` on the intent request. */
+  slotId: string;
+  /** yyyy-mm-dd (Melbourne). */
+  date: string;
+  /** ISO datetimes with the Australia/Melbourne offset. */
+  startAt: string;
+  endAt: string;
+  /** After this the window can no longer be chosen. */
+  cutoffAt: string;
+  /** What this window adds over the plain later-day fee; "0.00" when nothing. */
+  surchargeAmount: string;
+  /** The order's delivery charge with this window chosen. */
+  fee: DeliveryFeeDTO;
+}
+
+/** 078 — one day on offer: today (`same_day`) or a following delivery day (`standard`). */
+export interface EffyDayDTO {
+  date: string;
+  section: DeliveryMethod;
+  /** Open windows only, earliest first. */
+  windows: EffyWindowDTO[];
+  /** Why `windows` is empty; null when it is not. */
+  closedReason: EffyDayClosedReason | null;
+}
+
+export interface EffyWindowsDTO {
+  /** Today first, then the next delivery days. Never empty. */
+  days: EffyDayDTO[];
+  /**
+   * Set when no window is open on ANY day: `no_windows` (all closed or taken) or `none_defined`
+   * (the business has switched none on). The customer reads `DELIVERY_WINDOW_WORDS.noWindows`.
+   */
+  unavailable: "no_windows" | "none_defined" | null;
 }
 
 /** Why same-day is not on offer: the zone or shop does not do it, or every slot today is closed or full. */
@@ -170,7 +238,7 @@ export type SameDayUnavailableReason = "not_eligible" | "slots_closed";
  * "2 left" would be a pressure tactic nobody asked for (FR-050).
  */
 export interface DeliverySlotOptionDTO {
-  /** Opaque. Sent back as `sameDaySlotId` on the intent request. */
+  /** Opaque. Sent back as `sameDaySlotId` on the intent request (`deliveryWindow.slotId` once `effyWindows` is present). */
   slotId: string;
   /** The delivery day, yyyy-mm-dd (Melbourne). */
   date: string;
@@ -197,7 +265,7 @@ export interface StandardDayOptionDTO {
  *
  * ⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses again.
  */
-export type DeliveryChoiceRefusalCode = "slot_required" | "slot_unavailable" | "date_unavailable";
+export type DeliveryChoiceRefusalCode = "slot_required" | "slot_unavailable" | "date_unavailable" | "no_windows_available";
 
 /** The body of a delivery-choice refusal. */
 export interface DeliveryChoiceRefusalDTO {

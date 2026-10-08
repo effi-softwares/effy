@@ -15,6 +15,11 @@ import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalD
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
+import com.effyshopping.customer.mobile.features.checkout.domain.EffyDay
+import com.effyshopping.customer.mobile.features.checkout.domain.EffyDayClosed
+import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindow
+import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows
+import com.effyshopping.customer.mobile.features.checkout.domain.WindowsUnavailable
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine
@@ -58,6 +63,8 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     // actually goes same-day, and defaults the standard day to the earliest.
     sameDaySlotID = sameDaySlotId,
     standardDate = standardDate,
+    // 078 — the one window for the order; null (omitted) while the new delivery model is off.
+    deliveryWindow = deliveryWindow?.let { com.effyshopping.customer.mobile.commerce.contract.DeliveryWindow(date = it.date, slotID = it.slotId) },
     // ⚠ 051 — MOBILE ASKS FOR A CUSTOMER SESSION; WEB DOES NOT. The in-app element renders the
     // provider's own saved-card list and needs a session to do it. The web card route renders Effy's
     // list and confirms by payment-method id, so minting one there would be an unused provider round
@@ -148,8 +155,36 @@ internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
         sameDayPartAmount = if (sameDayAvailable) formatCents(sameDayPart) else null,
         standardPartAmount = if (sameDayAvailable) formatCents(standardPart) else null,
         points = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) },
+        effyWindows = effyWindows?.toDomain(),
     )
 }
+
+/** 078 — the new model's windows. ⚠ Exhaustive `when`s: a reason a newer server adds fails to compile here. */
+internal fun com.effyshopping.customer.mobile.commerce.contract.EffyWindowsDTO.toDomain(): EffyWindows = EffyWindows(
+    days = days.map { day ->
+        EffyDay(
+            date = day.date,
+            today = day.section == DeliveryMethodDTO.SameDay,
+            windows = day.windows.map {
+                EffyWindow(
+                    slotId = it.slotID, date = it.date, startAt = it.startAt, endAt = it.endAt, cutoffAt = it.cutoffAt,
+                    surchargeAmount = it.surchargeAmount, fee = it.fee.toDomain(),
+                )
+            },
+            closedReason = when (day.closedReason) {
+                com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.NotDeliveryDay -> EffyDayClosed.NotDeliveryDay
+                com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.Closed -> EffyDayClosed.Closed
+                com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.Full -> EffyDayClosed.Full
+                null -> null
+            },
+        )
+    },
+    unavailable = when (unavailable) {
+        com.effyshopping.customer.mobile.commerce.contract.Unavailable.NoWindows -> WindowsUnavailable.NoWindows
+        com.effyshopping.customer.mobile.commerce.contract.Unavailable.NoneDefined -> WindowsUnavailable.NoneDefined
+        null -> null
+    },
+)
 
 private fun singleLine(cents: Long): DeliveryFee =
     DeliveryFee(lines = if (cents > 0) listOf(DeliveryFeeLine(DeliveryFeeLineKind.Delivery, formatCents(cents))) else emptyList(), totalAmount = formatCents(cents))
@@ -177,6 +212,7 @@ internal fun DeliveryChoiceRefusalDTO.toDomain(): DeliveryChoiceRefused = Delive
         DeliveryChoiceRefusalCode.SlotRequired -> DeliveryChoiceRefusal.SlotRequired
         DeliveryChoiceRefusalCode.SlotUnavailable -> DeliveryChoiceRefusal.SlotUnavailable
         DeliveryChoiceRefusalCode.DateUnavailable -> DeliveryChoiceRefusal.DateUnavailable
+        DeliveryChoiceRefusalCode.NoWindowsAvailable -> DeliveryChoiceRefusal.NoWindowsAvailable
     },
     quote = quote?.toDomain(),
 )

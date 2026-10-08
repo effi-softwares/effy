@@ -1,10 +1,10 @@
 // Repository for same-day delivery slots (069). Row shapes stay here and are mapped at the boundary.
 
 import { query, withTransaction } from "@effy/edge-shared";
-import type { DeliverySlotDTO } from "@effy/shared-types";
+import type { DeliverySlotDTO, DeliverySlotLoadDTO } from "@effy/shared-types";
 import type pg from "pg";
 
-import { INSERT_SLOT, LIST_SLOTS, SLOT_FOR_UPDATE, UPDATE_SLOT } from "./sql";
+import { CALENDAR_SETTINGS, CLOSED_DATES, INSERT_SLOT, LIST_SLOTS, SLOT_FOR_UPDATE, SLOT_LOAD_ON_DAYS, UPDATE_SLOT } from "./sql";
 
 interface SlotRow {
   id: string;
@@ -35,6 +35,35 @@ function toDTO(r: SlotRow): DeliverySlotDTO {
 export async function listSlots(): Promise<DeliverySlotDTO[]> {
   const res = await query<SlotRow>(`${LIST_SLOTS} ORDER BY s.start_time, s.end_time`);
   return res.rows.map(toDTO);
+}
+
+/** 078 — slot → its load on each of `dates`, in the order given; a day with no booking is zero. */
+export async function loadOnDays(dates: readonly string[]): Promise<Map<string, DeliverySlotLoadDTO[]>> {
+  const res = await query<{ slot_id: string; delivery_date: string; booked: number; over_capacity: number }>(SLOT_LOAD_ON_DAYS, [dates]);
+  const bySlot = new Map<string, Map<string, { booked: number; overCapacity: number }>>();
+  for (const r of res.rows) {
+    if (!bySlot.has(r.slot_id)) bySlot.set(r.slot_id, new Map());
+    bySlot.get(r.slot_id)!.set(r.delivery_date, { booked: r.booked, overCapacity: r.over_capacity });
+  }
+  const out = new Map<string, DeliverySlotLoadDTO[]>();
+  for (const [slotId, days] of bySlot) {
+    out.set(slotId, dates.map((date) => ({ date, booked: days.get(date)?.booked ?? 0, overCapacity: days.get(date)?.overCapacity ?? 0 })));
+  }
+  return out;
+}
+
+/** 078 — the look-ahead and the closed days the Effy calendar is drawn from. Defaults until settings exist. */
+export async function calendarSettings(): Promise<{ lookaheadDays: number; noWeekdays: number[]; noDates: Set<string> }> {
+  const [settings, closed] = await Promise.all([
+    query<{ effy_lookahead_days: number; no_weekdays: number[] | null }>(CALENDAR_SETTINGS),
+    query<{ day: string }>(CLOSED_DATES),
+  ]);
+  const s = settings.rows[0];
+  return {
+    lookaheadDays: s?.effy_lookahead_days ?? 3,
+    noWeekdays: s?.no_weekdays ?? [],
+    noDates: new Set(closed.rows.map((r) => r.day)),
+  };
 }
 
 export async function getSlot(id: string): Promise<DeliverySlotDTO | null> {

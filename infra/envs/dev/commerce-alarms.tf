@@ -32,6 +32,14 @@ locals {
       threshold   = 5
       description = "070 — a delivery quote could not be priced for an address Effy serves (no active fee plan, or a zone with no price). Shoppers at those addresses cannot check out. Check the active delivery plan in back-office."
     }
+    no-delivery-windows-defined = {
+      metric      = "EffyWindowsNoneDefined"
+      dimensions  = {}
+      statistic   = "Sum"
+      period      = 900
+      threshold   = 1
+      description = "078 - a customer at an address Effy delivers to was offered NO delivery window because none is switched on. Nobody in Effy's area can check out. Add or switch on a window in back-office > Delivery > Windows. (Only possible once the new delivery model is on.)"
+    }
     stock-blocked-at-checkout = {
       metric      = "StockBlocked"
       dimensions  = { stage = "checkout" }

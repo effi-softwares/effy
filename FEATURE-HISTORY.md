@@ -4,6 +4,57 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**078-effy-delivery-windows — Effy Delivery Windows: today and the next delivery days.** ⚠ **BUILT AND
+CHECKED BY MACHINE (2026-10-08). NOT MIGRATED, NOT DEPLOYED, NOT WALKED — AND SWITCHED OFF.** Fourth
+slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E4).
+Sign-off: [specs/078-effy-delivery-windows/SIGNOFF.md](specs/078-effy-delivery-windows/SIGNOFF.md).
+- **What it is**: the customer picks ONE window for the order — today's under "Same-day delivery"
+  (cutoff not passed, room left, a collection run can still reach the hub), or one on the next three
+  delivery days under "Standard delivery" (room that day; non-delivery days skipped and not counted).
+  Each window has its own room on each day. Back-office sees how full each window is, day by day, and
+  sets how many days are offered.
+- ⚠ **OPERATOR DECISIONS (2026-10-08)**: the customer words **"Same-day delivery" / "Standard
+  delivery" stay** — "standard" changes meaning to *Effy, on a later day, in a window* (supersedes the
+  backlog's "the old names disappear"); and it is **built off, switched on at the cutover**.
+- ⚠ **THE SWITCH IS `delivery_settings.delivery_model_v2_from`, AND NOTHING SETS IT.** One SQL
+  function reads it (`delivery_model_v2_at`), one TypeScript function calls that (`deliveryModelV2At`),
+  and only the quote calls that — `windows.guard.test.ts`. E9 adds the setter behind its checklist.
+  ⚠ Until E8 the planner gathers `same_day` only: a later-day order would get no driver round.
+- ⚠ **RELEASING IT CHANGES NOTHING A CUSTOMER IS OFFERED.** With the switch off the quote is byte for
+  byte the 077 quote (`effyWindows` is ABSENT, not null — the three existing byte-for-byte wire tests
+  pass unchanged) and a `deliveryWindow` sent anyway is ignored.
+- ⚠ **ONE CUSTOMER-VISIBLE CHANGE SHIPS REGARDLESS OF THE SWITCH**: an order's arrivals are said once
+  per DISTINCT promise (`distinctArrivals`). Before, the order page listed one arrival per supplier
+  package and the receipt said "Multiple deliveries" for any multi-supplier order — telling the
+  customer how many suppliers filled it. An order split across today and a later day still shows two.
+- ⚠ **CAPACITY NEEDED NO SCHEMA CHANGE** — `delivery_slot_booking` / `delivery_slot_load` have been
+  per `(slot, date)` since 069; every CALLER asked about today. The one migration adds the switch,
+  `effy_lookahead_days`, the function, and relaxes `order_package_delivery_window_ck` (a window on
+  either method). Additive; safe before the deploy.
+- ⚠ **A `standard` PACKAGE WITH A WINDOW IS EFFY'S.** Carrier handover refuses it (`not_carrier`); the
+  handover list, the orders list's "needs handover" badge and filter, the back-office order action
+  and the on-time check all read the window. E5's `order.delivery_type` turns the convention into a column.
+- ⚠ **ONE WINDOW RULE** — `judgeWindow(now, date, …)`; 069's `judgeSlot` is it for today. ⚠ The new
+  path does NOT ask the per-shop same-day bridge: one window for the whole order, never a split.
+- **Routes**: none added (shared 158, staff 146 — unchanged). Quote gains `effyWindows`; intent
+  `deliveryWindow` and refusal `no_windows_available`; fleet `GET delivery-slots` gains `days[]` and
+  per-slot `load[]`; `delivery-days` gains `effyLookaheadDays`. No new live kind. One alarm
+  (`EffyWindowsNoneDefined`, emitted on the quote READ — a shopper shown "no windows" never reaches the intent).
+- **Defects I made and the checks that caught them**: (1) `effyWindows: null` on the off path broke
+  three byte-for-byte wire tests — they were right; the field is now absent; (2) my first cutoff proof
+  did not prove the cutoff (the collection test closed the same windows) — found by breaking it, fixed
+  with a window only the cutoff can close; (3) a wrong insert into `shop_sameday_exception` hidden by a
+  `.catch` meant the "never splits" test proved nothing until the fixture was fixed and the proof
+  broken once; (4) the analysis found the back-office order screen and I then found the orders LIST
+  both still called a windowed package "needs handover".
+- ⚠ **NOT MINE, STILL RED**: two `shop` container tests fail with and without this feature —
+  `attention/repository` (`column "id" does not exist`) and `orders/repository` (paging order).
+- **Still open (operator)**: `make db-up ENV=dev` → deploy `commerce`, `fleet`, `orders`,
+  `notifications` → `make apply ENV=dev` (one alarm) → back-office + customer-web builds → a customer
+  mobile build. Walks V1–V4 with the switch off; V5–V10 only with it turned on by hand in dev and
+  **turned off again**.
+
 **077-delivery-fee-engine-v2 — Delivery Fee Engine v2.** ✅ **MIGRATED AND DEPLOYED TO DEV
 (2026-10-08, reported by the operator). ⚠ NOT WALKED BY A PERSON — V1–V17 remain.** Third slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E3).

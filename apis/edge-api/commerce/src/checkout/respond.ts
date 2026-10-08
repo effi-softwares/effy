@@ -4,7 +4,7 @@ import {
 } from "@effy/edge-shared";
 import { CourierNotPurchasableError } from "@effy/edge-shared/delivery";
 import { InsufficientPointsError } from "@effy/edge-shared/points";
-import { COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE, DELIVERY_FEE_CHANGED_CODE, DELIVERY_FEE_WORDS } from "@effy/shared-types";
+import { COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE, DELIVERY_FEE_CHANGED_CODE, DELIVERY_FEE_WORDS, DELIVERY_WINDOW_WORDS } from "@effy/shared-types";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { DeliveryChoiceError } from "./delivery-choice";
@@ -17,6 +17,8 @@ const CHOICE_DETAIL = {
   slot_required: "choose a delivery time",
   slot_unavailable: "that delivery time is no longer available — choose another",
   date_unavailable: "that delivery day is no longer available — choose another",
+  // 078 — the one sentence, from the one place it is written.
+  no_windows_available: DELIVERY_WINDOW_WORDS.noWindows,
 } as const;
 
 /**

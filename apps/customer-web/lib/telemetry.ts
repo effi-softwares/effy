@@ -256,8 +256,14 @@ export type StorefrontEvent =
   | { name: "checkout_delivery_date_selected"; props: { daysAhead: number; wasDefault: boolean } }
   | {
       name: "checkout_delivery_choice_refused"
-      props: { reason: "slot_unavailable" | "date_unavailable" | "slot_required" }
+      props: { reason: "slot_unavailable" | "date_unavailable" | "slot_required" | "no_windows_available" }
     }
+  // 078 delivery windows (the new delivery model).
+  //
+  // ⚠ WHICH SECTION AND HOW MANY DAYS AHEAD — never the window's id or its clock time (the same
+  // reason as the slot event above). `reason` is why nothing could be chosen.
+  | { name: "checkout_window_selected"; props: { section: "same_day" | "standard"; day_offset: number } }
+  | { name: "checkout_windows_unavailable"; props: { reason: "no_windows" | "none_defined" } }
   // 077 delivery fee.
   //
   // ⚠ THREE BOOLEANS AND NOTHING ELSE — never an amount. Whether free delivery, the small-order fee

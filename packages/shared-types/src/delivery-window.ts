@@ -138,6 +138,27 @@ export interface ArrivalPromise {
 export const ARRIVAL_UNCONFIRMED = "We'll confirm your delivery date";
 
 /**
+ * One entry per DISTINCT promise (078).
+ *
+ * An order's delivery is recorded per package, and under the new delivery model every package of an
+ * order carries the same window. Said once per package, one delivery reads as several — and the
+ * number of lines is the number of suppliers, which a customer is never told. Identical promises
+ * are one promise; different ones (an order sold before the new model, split across today and a
+ * later day) stay apart. Order is kept.
+ */
+export function distinctArrivals<T extends ArrivalPromise & { method?: string | null }>(arrivals: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const a of arrivals) {
+    const key = [a.method ?? "", a.promisedFrom ?? "", a.promisedTo ?? "", a.windowStart ?? "", a.windowEnd ?? ""].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a);
+  }
+  return out;
+}
+
+/**
  * The arrival, in the plainest words the DATA supports.
  *
  *   window, today        → "Today, 5 pm – 7 pm"

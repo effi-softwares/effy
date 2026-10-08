@@ -76,6 +76,21 @@ describe("arrivalLabel — a time only when a window was sold", () => {
     expect(arrivalLabel(a, new Date("2026-10-08T09:00:00+11:00"))).toBe("Today, 5 pm – 7 pm")
   })
 
+  it("078 — a Standard delivery sold a window says its day AND its window, as one delivery", () => {
+    const a = est({
+      method: "standard",
+      promisedFrom: "2026-10-13",
+      promisedTo: "2026-10-13",
+      windowStart: "2026-10-13T16:00:00+11:00",
+      windowEnd: "2026-10-13T18:00:00+11:00",
+    })
+    expect(arrivalLabel(a, new Date("2026-10-08T09:00:00+11:00"))).toBe("Tue 13 Oct, 4 pm – 6 pm")
+    render(<ArrivalPanel stage="confirmed" arrivals={[a]} />)
+    expect(screen.getByText("Standard")).toBeInTheDocument()
+    expect(screen.getByText("Arriving")).toBeInTheDocument()
+    expect(screen.queryByText(/Delivery 1/)).not.toBeInTheDocument()
+  })
+
   it("renders a single date as one day, and a spread as a range", () => {
     expect(arrivalLabel(est({ promisedFrom: "2026-09-02", promisedTo: "2026-09-02" }))).not.toContain("–")
     expect(arrivalLabel(est({ promisedFrom: "2026-09-02", promisedTo: "2026-09-04" }))).toContain("–")

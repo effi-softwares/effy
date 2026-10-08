@@ -26,6 +26,21 @@ describe("minusDays", () => {
   });
 });
 
+describe("judgePromise — 078: a standard package that was sold a window is Effy's", () => {
+  const windowed: PromiseFacts = { ...base, windowEnd: new Date("2026-10-08T07:00:00Z") };
+
+  it("is never due for a carrier handover and never at risk for want of one", () => {
+    expect(judgePromise(windowed)).toEqual({ handoverDueOn: null, atRisk: false, onTime: null });
+    expect(judgePromise({ ...windowed, today: "2026-10-20" }).atRisk).toBe(false);
+  });
+
+  it("is on time inside its window, not merely on its day", () => {
+    const arrived = (iso: string) => judgePromise({ ...windowed, arrivedAt: new Date(iso), arrivalDate: "2026-10-08" }).onTime;
+    expect(arrived("2026-10-08T07:00:00Z")).toBe(true);
+    expect(arrived("2026-10-08T07:00:01Z")).toBe(false);
+  });
+});
+
 describe("judgePromise — a standard package", () => {
   it("is due for handover the carrier's lead time before its day", () => {
     expect(judgePromise(base).handoverDueOn).toBe("2026-10-07");

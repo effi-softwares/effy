@@ -4,7 +4,7 @@ import {
   availabilityPredicate, formatCents, parseCents, pooled, withTransaction, type Queryable, type Transactor,
 } from "@effy/edge-shared";
 import {
-  judgeSlot, loadSlotSettings, lockSlot, melbourneDate, sameDaySchedule, slotLoad, type SlotVerdict,
+  judgeWindow, loadSlotSettings, lockSlot, sameDaySchedule, slotLoad, type SlotVerdict,
 } from "@effy/edge-shared/delivery";
 import type { PaymentMethodSummary } from "@effy/edge-shared/payments";
 import { hold as holdLedgerPoints, loadSettings as loadPointsSettings, usable as usablePoints } from "@effy/edge-shared/points";
@@ -40,6 +40,8 @@ export interface PackageDelivery {
 
 export interface SlotHold {
   slotId: string;
+  /** The delivery day, yyyy-mm-dd (Melbourne) — today, or since 078 a later delivery day. */
+  date: string;
   now: Date;
 }
 
@@ -363,8 +365,11 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
           if (!slot) throw new SlotUnavailableError("cutoff");
           const { runs, bufferMin } = await sameDaySchedule(tx);
           const settings = await loadSlotSettings(tx);
-          const load = await slotLoad(tx, melbourneDate(hold.now));
-          const judged = judgeSlot(hold.now, slot, load.get(slot.id) ?? 0, runs, bufferMin, settings.turnaroundMin);
+          // ⚠ Judged for the day the place is ON, against that day's load — the same rule the quote
+          // offered it by (`judgeWindow`), so a window is never offered and then refused for a
+          // reason that was already true.
+          const load = await slotLoad(tx, hold.date);
+          const judged = judgeWindow(hold.now, hold.date, slot, load.get(slot.id) ?? 0, runs, bufferMin, settings.turnaroundMin);
           if (judged.verdict !== "open") throw new SlotUnavailableError(judged.verdict);
 
           heldUntil = new Date(hold.now.getTime() + settings.holdMin * 60_000);

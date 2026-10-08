@@ -104,6 +104,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
        WHERE sf.order_id = o.id
          AND sf.status = 'collected'
          AND COALESCE(opd.method, 'standard') = 'standard'
+         AND opd.slot_id IS NULL -- 078: sold a window = delivered by Effy, never a carrier's
          AND h.id IS NULL
     )`);
   } else if (params.awaiting === "refund_decision") {
@@ -145,6 +146,9 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
                    count(*) FILTER (
                      WHERE sf.status = 'collected'
                        AND COALESCE(opd.method, 'standard') = 'standard'
+                       -- ⚠ 078 — a standard package sold a WINDOW is delivered by Effy and awaits no
+                       -- handover. The same term as the filter above, so badge and filter agree.
+                       AND opd.slot_id IS NULL
                        AND h.id IS NULL
                    )::int AS awaiting_handover,
                    count(*) FILTER (WHERE pa.id IS NULL)::int AS awaiting_arrival,
@@ -446,6 +450,9 @@ export async function handovers(due: "today" | "overdue" | "upcoming"): Promise<
     LEFT JOIN public.carrier_handoff h ON h.shop_fulfillment_id = sf.id
         WHERE o.status = 'paid'
           AND opd.method = 'standard'
+          -- ⚠ 078 — a standard package sold a WINDOW is delivered by Effy on its day and never
+          -- appears here; only a package with no window is a carrier's.
+          AND opd.slot_id IS NULL
           AND opd.promised_to IS NOT NULL
           AND h.id IS NULL
           AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')

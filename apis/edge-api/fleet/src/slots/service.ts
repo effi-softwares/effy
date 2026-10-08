@@ -8,7 +8,8 @@
 // always be able to say which window it was sold. There is deliberately no delete in this file.
 
 import type { FieldError, RequestScope } from "@effy/edge-shared";
-import type { DeliverySlotDTO, DeliverySlotInput, DeliverySlotPatch } from "@effy/shared-types";
+import { effyDays } from "@effy/edge-shared/delivery";
+import type { DeliverySlotDTO, DeliverySlotInput, DeliverySlotPatch, DeliverySlotsResponseDTO } from "@effy/shared-types";
 
 import { recordAudit, type DeliveryConfigAuditAction } from "../shared/audit";
 import { conflict, notFound, validationError } from "../shared/errors";
@@ -56,6 +57,25 @@ const DUPLICATE = () =>
 
 export function listSlots(): Promise<DeliverySlotDTO[]> {
   return repo.listSlots();
+}
+
+/**
+ * Every window, and how full each is on today and the Effy delivery days after it (078 US8).
+ *
+ * ⚠ THE DAYS ARE THE CUSTOMER'S DAYS. They come from `effyDays` — the function the checkout quote
+ * lays its windows out on — so the grid's columns are exactly the days a customer can be offered,
+ * with the same days skipped. A calendar worked out here would be a second one.
+ */
+export async function listSlotsWithDays(now: Date = new Date()): Promise<DeliverySlotsResponseDTO> {
+  const [slots, calendar] = await Promise.all([repo.listSlots(), repo.calendarSettings()]);
+  const days = effyDays(now, calendar.lookaheadDays, calendar.noWeekdays, calendar.noDates);
+  const dates = days.map((d) => d.date);
+  const load = await repo.loadOnDays(dates);
+  const empty = dates.map((date) => ({ date, booked: 0, overCapacity: 0 }));
+  return {
+    items: slots.map((s) => ({ ...s, load: load.get(s.id) ?? empty })),
+    days,
+  };
 }
 
 export async function createSlot(body: DeliverySlotInput, actorSub: string, scope: RequestScope): Promise<DeliverySlotDTO> {

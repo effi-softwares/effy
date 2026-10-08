@@ -6,7 +6,7 @@ import {
   countsAsRefundedToCustomer, customerCancellable, customerRefundState, formatCents, imageUrlOrNull,
   operatingStamp, parseCents, stageFor, type RequestScope,
 } from "@effy/edge-shared";
-import type { CustomerRefundDTO, OrderDTO, OrderSummaryDTO } from "@effy/shared-types";
+import { distinctArrivals, type CustomerRefundDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
 import type { OrderRow, OrdersRepository, RefundRow } from "./repository";
@@ -167,11 +167,13 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
         // null on an order whose method was never captured; the client omits the line.
         paymentMethod: method?.method_type ? { type: method.method_type, brand: method.method_brand, last4: method.method_last4 } : null,
         // Always an array. ⚠ Dates stay dates; a window carries the Melbourne offset (069 FR-029).
-        arrivalEstimates: arrivals.map((a) => ({
+        // ⚠ 078 — one entry per DISTINCT promise, never one per package: an order delivered in one
+        // window is one delivery, however many suppliers filled it.
+        arrivalEstimates: distinctArrivals(arrivals.map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
           windowStart: a.window_start ? operatingStamp(a.window_start) : null,
           windowEnd: a.window_end ? operatingStamp(a.window_end) : null,
-        })),
+        }))),
       };
       return order as unknown as OrderDTO;
     },

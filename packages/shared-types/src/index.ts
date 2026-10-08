@@ -30,6 +30,8 @@ export * from "./delivery";
 export * from "./delivery-fee";
 // 069-delivery-slots-dates — the same-day window and the one wording every surface uses for it
 export * from "./delivery-window";
+// 078-effy-delivery-windows — the window picker as words, shared with the customer app
+export * from "./effy-windows";
 // 073 — where a package is, in nine words, shared by every staff screen.
 export * from "./package-status";
 export * from "./delivery-admin";

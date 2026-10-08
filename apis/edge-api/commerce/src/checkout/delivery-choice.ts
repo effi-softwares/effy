@@ -3,7 +3,7 @@
  * Pure: every input is passed in, including the clock.
  */
 import {
-  METHOD_SAME_DAY, METHOD_STANDARD, offersSameDay, type OpenSlot, type PricedFee, type QuoteResult,
+  METHOD_SAME_DAY, METHOD_STANDARD, offersSameDay, windowKey, type EffyWindowsQuote, type OpenSlot, type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
 import type { DeliveryChoiceRefusalCode } from "@effy/shared-types";
 
@@ -77,5 +77,42 @@ export function resolveDeliveryChoice(
       : { shopId: p.shopId, method: METHOD_STANDARD, promisedDay: day, slotId: null, windowStart: null, windowEnd: null },
   );
 
-  return { packages, hold: slot ? { slotId: slot.id, now } : null, fee };
+  return { packages, hold: slot ? { slotId: slot.id, date: slot.date, now } : null, fee };
+}
+
+/** The window a shopper chose under the new delivery model: a slot ON A DAY. */
+export interface ChosenWindow {
+  slotId: string;
+  /** yyyy-mm-dd, Melbourne. */
+  date: string;
+}
+
+/**
+ * 078 — bind the ONE window the shopper chose to every package of the order.
+ *
+ * The package's method is the customer's word for it: `same_day` when the window is today,
+ * `standard` when it is a later day. Either way Effy delivers, in that window.
+ *
+ * ⚠ NEVER SUBSTITUTED, like its 069 counterpart: no window, a day that is no longer offered, or a
+ * window that has closed or filled is a refusal, and the shopper chooses again.
+ */
+export function resolveEffyWindow(
+  q: ServicedQuote & { effyWindows: EffyWindowsQuote },
+  chosen: ChosenWindow | null,
+  now: Date,
+): { packages: PackageDelivery[]; hold: SlotHold; fee: PricedFee } {
+  if (q.effyWindows.unavailable) throw new DeliveryChoiceError("no_windows_available");
+  if (!chosen) throw new DeliveryChoiceError("slot_required");
+
+  const day = q.effyWindows.days.find((d) => d.date === chosen.date);
+  if (!day || day.closedReason === "not_delivery_day") throw new DeliveryChoiceError("date_unavailable");
+  const slot = day.windows.find((w) => w.id === chosen.slotId);
+  const fee = q.effyWindows.fees.get(windowKey(chosen.slotId, chosen.date));
+  if (!slot || !fee) throw new DeliveryChoiceError("slot_unavailable");
+
+  const method = day.isToday ? METHOD_SAME_DAY : METHOD_STANDARD;
+  const packages = q.packages.map((p): PackageDelivery => ({
+    shopId: p.shopId, method, promisedDay: day.date, slotId: slot.id, windowStart: slot.start, windowEnd: slot.end,
+  }));
+  return { packages, hold: { slotId: slot.id, date: day.date, now }, fee };
 }

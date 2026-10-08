@@ -6,6 +6,7 @@ import type {
   DeliveryDaysInput,
   DeliverySettingsDTO,
   DeliverySlotDTO,
+  DeliverySlotsResponseDTO,
   DeliverySlotInput,
   DeliverySlotPatch,
   NonDeliveryDateDTO,
@@ -85,7 +86,14 @@ export async function deleteCollectionRun(id: string): Promise<CollectionRun[]> 
 // them is in fleet. The operator sees one Delivery console; which service answers is not their concern.
 
 export async function listSlots(): Promise<DeliverySlotDTO[]> {
-  return (await api.get<{ items: DeliverySlotDTO[] }>("/fleet/v1/delivery-slots")).items;
+  return (await listSlotGrid()).items;
+}
+/**
+ * 078 — the same route, whole: every window with how full it is on today and on each Effy delivery
+ * day after it. `days` is absent from a server older than 078; the panel then shows today alone.
+ */
+export function listSlotGrid(): Promise<DeliverySlotsResponseDTO> {
+  return api.get<DeliverySlotsResponseDTO>("/fleet/v1/delivery-slots");
 }
 export function createSlot(body: DeliverySlotInput): Promise<DeliverySlotDTO> {
   return api.post<DeliverySlotDTO>("/fleet/v1/delivery-slots", body);

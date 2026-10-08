@@ -241,6 +241,20 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
     });
 
+    it("078 — does NOT list a standard package that was sold a window: Effy delivers it", async () => {
+      const { orderId } = await seed("standard");
+      // This file's schema is transcribed and has no slot table; the id only has to be present.
+      await pool.query(
+        `UPDATE public.order_package_delivery
+            SET slot_id = gen_random_uuid(), window_start = now() + interval '1 day', window_end = now() + interval '26 hours'
+          WHERE order_id = $1`,
+        [orderId],
+      );
+      expect(await list({ awaiting: "handover", limit: 10 })).toHaveLength(0);
+      const [row] = await list({ limit: 10 });
+      expect(row!.awaiting_handover).toBe(0);
+    });
+
     it("moves an order from `handover` to `arrival` once handed over", async () => {
       const { fulfillmentId } = await seed("standard");
       await pool.query(
