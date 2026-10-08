@@ -1,4 +1,5 @@
 # service-local ignores (root .gitignore covers the monorepo-wide set)
 .serverless/
 .esbuild/
-coverage/
+# Test-coverage reports at this package's root ONLY. ⚠ Unanchored, this also hid src/coverage/ from git.
+/coverage/

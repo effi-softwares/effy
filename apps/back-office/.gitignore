@@ -8,4 +8,6 @@ dist-ssr/
 *.log
 .DS_Store
 .vite/
-coverage/
+# Test-coverage reports at this package's root ONLY. ⚠ Unanchored, this also hid source folders named
+# "coverage" (076's src/features/delivery/coverage) from git, and a clean build could not find them.
+/coverage/
