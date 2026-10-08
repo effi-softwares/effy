@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**077-delivery-fee-engine-v2 — Delivery Fee Engine v2.** 🟡 **BUILT AND CHECKED BY MACHINE
-(2026-10-08). NOT MIGRATED, NOT DEPLOYED, NOT WALKED.** Third slice of the delivery model v2 programme
+**077-delivery-fee-engine-v2 — Delivery Fee Engine v2.** ✅ **MIGRATED AND DEPLOYED TO DEV
+(2026-10-08, reported by the operator). ⚠ NOT WALKED BY A PERSON — V1–V17 remain.** Third slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E3).
 Sign-off: [specs/077-delivery-fee-engine-v2/SIGNOFF.md](specs/077-delivery-fee-engine-v2/SIGNOFF.md).
 - **What it is**: ONE delivery fee per ORDER — base + distance band + weight band + window surcharge,
@@ -45,10 +45,13 @@ Sign-off: [specs/077-delivery-fee-engine-v2/SIGNOFF.md](specs/077-delivery-fee-e
   route: serviceability gained `offer`, the quote `standardFee` / per-slot `fee` + `surchargeAmount` /
   `freeDeliveryRemainingAmount`, the intent `shownDeliveryAmount` / `deliveryFee`, the order `deliveryFee`.
   Shop order DTO lost `deliveryFee`. Live kind `pricing` (ops).
-- **Still open (operator)**: choose the same-day amount; run `preflight.sql`; commit; `EFFY_TODAY_PREMIUM=…
-  make db-up-one`; deploy commerce, storefront, notifications, orders, shop, admin (+ back-office build);
-  `make apply`; `make db-up` (drops tiers); web + mobile builds; walks V1–V17. Open product call: should
-  shops see the customer's order total at all?
+- ⚠ **Found while deploying — `coverage/` in a `.gitignore` hid SOURCE**: the back-office Amplify build
+  failed (`Cannot find module './coverage/CoveragePanel'`) because `apps/back-office/.gitignore` had
+  ignored 076's `src/features/delivery/coverage/` since 076; `apis/edge-api/fleet/.gitignore` hid
+  `fleet/src/coverage/` the same way. Both now `/coverage/`. ⚠ Name a source folder `coverage` and an
+  unanchored ignore rule will hide it — `git status --ignored` shows it.
+- **Still open**: walks V1–V17; customer-mobile build. Open product call: should shops see the
+  customer's order total at all?
 
 **076-effy-delivery-coverage — Effy Delivery Coverage.** ✅ **MIGRATED AND DEPLOYED TO DEV,
 CHECKED LIVE BY MACHINE (2026-10-08). ⚠ NOT WALKED BY A PERSON — V1–V12 remain.** Second slice of the delivery model v2

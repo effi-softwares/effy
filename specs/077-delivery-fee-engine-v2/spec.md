@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-08
 
-**Status**: Planned
+**Status**: Done — deployed to dev 2026-10-08
 
 **Input**: "Delivery Fee Engine v2. Effy prices delivery two ways. 'Delivered by Effy' is priced from
 four things: how far the delivery postcode is from Effy's hub, in distance bands the business sets

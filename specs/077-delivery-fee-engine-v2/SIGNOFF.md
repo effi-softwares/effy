@@ -1,9 +1,17 @@
 # Sign-off: 077 — Delivery Fee Engine v2
 
-**Status (2026-10-08)**: **built and checked by machine. NOT migrated, NOT deployed, NOT walked.**
-Everything below ran against local containers and test runners; nothing has touched dev. The operator
-steps are at the end, and the first needs a number only the operator can give. 82/82 tasks; T016 was
-withdrawn during implementation (below).
+**Status (2026-10-08)**: **built, checked by machine, migrated and deployed to dev — reported by the
+operator. NOT walked by a person**: walks V1–V17 in [quickstart.md](quickstart.md) remain. The machine
+checks below ran on local containers and test runners; I did not read dev itself. 82/82 tasks; T016
+was withdrawn during implementation (below).
+
+## Found while deploying
+
+- **The back-office Amplify build failed**: `Cannot find module './coverage/CoveragePanel'`. Not 077 —
+  `coverage/` in `apps/back-office/.gitignore` (meant for test reports) had hidden 076's
+  `src/features/delivery/coverage/` from git since 076, so a clean checkout never had it. The same rule
+  in `apis/edge-api/fleet/.gitignore` hid `fleet/src/coverage/` (services deploy from the working tree,
+  so it had not failed yet). Both rules are now `/coverage/`, and both folders are committed.
 
 ## What changed
 

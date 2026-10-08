@@ -120,6 +120,11 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 >   postcode is deliverable only by an every-zone driver until then.
 > - **E9** — rename the two tables; drop the frozen columns.
 
+> **2026-10-08 — E3 (spec 077, Delivery Fee Engine v2) is built and deployed to dev** (walks V1–V17 open)
+> (`specs/077-delivery-fee-engine-v2/SIGNOFF.md`). One fee per ORDER from the postcode's own distance,
+> the basket's weight and value, and the window; the fee-tier bridge and the tier tables are gone; a
+> courier fee table exists and is charged to nobody yet. **Next: E4 (spec 078).**
+
 ## E0 — Cleanup & decision record (no spec)
 
 Housekeeping that makes the later specs honest. Nothing here changes behaviour.
@@ -312,17 +317,23 @@ Customers never see group names, distances or the hub's location.
 
 ---
 
-## E3 — Delivery Fee Engine v2 · spec 077 — ✅ built 2026-10-08 (not yet deployed)
+## E3 — Delivery Fee Engine v2 · spec 077 — ✅ built and deployed to dev 2026-10-08
 
-> **2026-10-08 — E3 BUILT (spec 077), checked by machine; NOT yet migrated or deployed**
-> ([specs/077-delivery-fee-engine-v2/SIGNOFF.md](../../specs/077-delivery-fee-engine-v2/SIGNOFF.md)). Tasks
-> E3-T01…T30 below are covered by 077's tasks.md (82/82). Left for later epics:
+> **2026-10-08 — E3 DONE (spec 077): built, checked by machine, migrated and deployed to dev** (reported
+> by the operator; walks V1–V17 not recorded)
+> ([specs/077-delivery-fee-engine-v2/SIGNOFF.md](../../specs/077-delivery-fee-engine-v2/SIGNOFF.md)). 82/82
+> tasks; every E3-T below is ticked with how it landed. Left for later epics:
 > - **E5** — remove the compatibility per-package `feeAmount` on the quote; the same-day bridge; the "N
 >   of your M deliveries" sentence; teach the quote to price `coverage: "courier"` with `courierFee`.
 > - **E9** — drop `delivery_fee_plan.same_day_factor` / `standard_factor` and the two per-package
 >   `delivery_fee_amount` columns (unwritten since 077).
-> - Deviation from E3-T04/T07: premiums and gaps as planned; the immutability trigger was withdrawn (058's
->   trigger guard) — the admin service holds it.
+> - **E4** — the windows now cost: a plan's **"Delivery today"** surcharge applies to any window today,
+>   and a window may carry its own surcharge on any day. When E4 offers the same windows on the next
+>   three days, the today surcharge keeps meaning exactly that — no data change.
+> - Deviations: the immutability trigger was withdrawn (058's trigger guard) — the admin service holds
+>   it; and the web cart has no postcode until checkout, so the free-delivery hint shows at checkout.
+> - ⚠ Found while deploying: the back-office build failed because `coverage/` in two `.gitignore` files
+>   (back-office, fleet) had hidden 076's source folders from git since 076. Anchored to `/coverage/`.
 
 > **2026-10-08 — specified (`specs/077-delivery-fee-engine-v2/spec.md`); three rules confirmed by the
 > operator while clarifying:**
@@ -373,42 +384,42 @@ delivery fees. Fees include GST.
 **Tasks**
 
 *Data*
-- [ ] E3-T01 Migration: `delivery_fee_plan` v2 columns — `base_cents`, distance bands table `delivery_fee_distance_band(plan_id, upper_km, add_cents)` with one open top band.
-- [ ] E3-T02 Keep weight bands table; confirm open-top rule.
-- [ ] E3-T03 Columns: `free_over_cents` (nullable), `small_order_under_cents` + `small_order_fee_cents`.
-- [ ] E3-T04 Migration: `delivery_slot_premium(plan_id, slot_id, add_cents)` — premium belongs to the plan, not the slot, so a plan change never edits slots.
-- [ ] E3-T05 Migration: `courier_fee_plan` (or a `kind` on the same plan) — weight bands, flat per order, optional free threshold, step/floor/cap.
-- [ ] E3-T06 Drop the method factor (`same_day_factor`, `factorMilli`) from the active-plan contract (column drop in E9). Replace it with a premium on today's windows in the carried-over plan — same-day stays dearer (confirmed 2026-10-08).
-- [ ] E3-T07 Activation check as SQL function `delivery_plan_is_complete(plan_id)` — every listed postcode's distance falls in a band, weight bands cover 0..∞, premiums reference active slots.
-- [ ] E3-T08 Snapshot fee breakdown onto the order (`order_delivery_fee` columns or JSON: base, distance add, weight add, premium, small-order, discount from threshold, rounding) so a receipt can always explain itself.
+- [x] E3-T01 Migration: `delivery_fee_plan` v2 columns — `base_cents`, distance bands table `delivery_fee_distance_band(plan_id, upper_km, add_cents)` with one open top band. — **Done** — `delivery_distance_band(plan_id, upper_km NULL = and beyond, add_amount)`; plan gained `base_amount`.
+- [x] E3-T02 Keep weight bands table; confirm open-top rule. — **Done** — kept; the heaviest band prices everything above it.
+- [x] E3-T03 Columns: `free_over_cents` (nullable), `small_order_under_cents` + `small_order_fee_cents`. — **Done** — `free_over_amount`, `small_order_under_amount` + `small_order_fee_amount` (both or neither; small < free).
+- [x] E3-T04 Migration: `delivery_slot_premium(plan_id, slot_id, add_cents)` — premium belongs to the plan, not the slot, so a plan change never edits slots. — **Done** — `delivery_slot_premium`, plus a plan-wide `today_premium_amount`.
+- [x] E3-T05 Migration: `courier_fee_plan` (or a `kind` on the same plan) — weight bands, flat per order, optional free threshold, step/floor/cap. — **Done** — a `kind` (`effy` | `courier`) on the same plan table; one active per kind.
+- [x] E3-T06 Drop the method factor (`same_day_factor`, `factorMilli`) from the active-plan contract (column drop in E9). Replace it with a premium on today's windows in the carried-over plan — same-day stays dearer (confirmed 2026-10-08). — **Done** — factors unread; the carry-over set the today surcharge from `EFFY_TODAY_PREMIUM`.
+- [x] E3-T07 Activation check as SQL function `delivery_plan_is_complete(plan_id)` — every listed postcode's distance falls in a band, weight bands cover 0..∞, premiums reference active slots. — **Done** — `delivery_plan_gaps` + `delivery_plan_is_complete` + `delivery_plan_activate`.
+- [x] E3-T08 Snapshot fee breakdown onto the order (`order_delivery_fee` columns or JSON: base, distance add, weight add, premium, small-order, discount from threshold, rounding) so a receipt can always explain itself. — **Done** — `"order".delivery_fee_breakdown` jsonb (plan, inputs, parts, lines).
 *Shared library* (`apis/edge-api/shared/src/delivery/`)
-- [ ] E3-T09 Rewrite `engine.ts` `fee()` → `effyFee({distanceKm, grams, basketCents, premiumCents, plan})` and `courierFee({grams, basketCents, plan})`; integer cents, round-up rule kept; returns the breakdown.
-- [ ] E3-T10 Table tests for every band edge, threshold edge, floor/cap, rounding (port `engine.test.ts`).
-- [ ] E3-T11 `plan.ts`: load v2 plan; remove ring pricing.
-- [ ] E3-T12 `quote.ts`: price per **order** (if Q1 = per order) — replace `PackageQuote` per-shop options with one order-level quote; remove `ServedZoneUnpricedError` ring wording, keep the fail-loud invariant.
-- [ ] E3-T13 Basket value definition: goods after promo discount, before delivery, GST-inclusive — write it once and test it.
-- [ ] E3-T14 Alarm metric when a listed postcode cannot be priced (port the existing invariant metric).
+- [x] E3-T09 Rewrite `engine.ts` `fee()` → `effyFee({distanceKm, grams, basketCents, premiumCents, plan})` and `courierFee({grams, basketCents, plan})`; integer cents, round-up rule kept; returns the breakdown. — **Done** — plus `feeLines` and `basketValueCents`.
+- [x] E3-T10 Table tests for every band edge, threshold edge, floor/cap, rounding (port `engine.test.ts`). — **Done** — `engine.test.ts`, P1–P6, P18.
+- [x] E3-T11 `plan.ts`: load v2 plan; remove ring pricing. — **Done**.
+- [x] E3-T12 `quote.ts`: price per **order** (if Q1 = per order) — replace `PackageQuote` per-shop options with one order-level quote; remove `ServedZoneUnpricedError` ring wording, keep the fail-loud invariant. — **Done** — one fee per order; `ListedPostcodeUnpricedError`; per-package `feeAmount` kept for old apps only.
+- [x] E3-T13 Basket value definition: goods after promo discount, before delivery, GST-inclusive — write it once and test it. — **Done** — `basketValueCents`; points never reduce it.
+- [x] E3-T14 Alarm metric when a listed postcode cannot be priced (port the existing invariant metric). — **Done** — the existing `DeliveryQuoteFailures` alarm, now on the new error.
 *Admin service*
-- [ ] E3-T15 Routes: create plan (v2 shape), edit draft plan, activate (with completeness check), list plans, preview/simulate fee.
-- [ ] E3-T16 Routes: courier fee plan create/activate/simulate.
-- [ ] E3-T17 Retire ring-priced plan creation in `delivery-plans-create-v1-post.ts`.
+- [x] E3-T15 Routes: create plan (v2 shape), edit draft plan, activate (with completeness check), list plans, preview/simulate fee. — **Done** — list, create, `PUT` draft, activate, simulate.
+- [x] E3-T16 Routes: courier fee plan create/activate/simulate. — **Done** — the same routes with `kind=courier`; simulate with `forceKind`.
+- [x] E3-T17 Retire ring-priced plan creation in `delivery-plans-create-v1-post.ts`. — **Done** — and the rings route removed.
 *Shared types*
-- [ ] E3-T18 `delivery-admin.ts`: plan v2 DTOs, simulator request/response with breakdown.
-- [ ] E3-T19 `checkout.ts`: fee breakdown lines for the customer (delivery, small-order fee, window surcharge, free-delivery saving).
+- [x] E3-T18 `delivery-admin.ts`: plan v2 DTOs, simulator request/response with breakdown. — **Done**.
+- [x] E3-T19 `checkout.ts`: fee breakdown lines for the customer (delivery, small-order fee, window surcharge, free-delivery saving). — **Done** — in `delivery-fee.ts` (shared by quote, intent and order).
 *Back-office*
-- [ ] E3-T20 Fee plan editor v2 (replaces `NewPlanDialog.tsx`): base, distance bands table, weight bands table, thresholds, step/floor/cap, window premiums per slot.
-- [ ] E3-T21 Fee simulator panel.
-- [ ] E3-T22 Courier fee plan editor + simulator.
-- [ ] E3-T23 Activation error messages that name the exact gap (lesson from 047's "nobody could say which term refused").
+- [x] E3-T20 Fee plan editor v2 (replaces `NewPlanDialog.tsx`): base, distance bands table, weight bands table, thresholds, step/floor/cap, window premiums per slot. — **Done** — `pricing/PlanEditor.tsx`; `NewPlanDialog.tsx` deleted.
+- [x] E3-T21 Fee simulator panel. — **Done** — `pricing/FeeSimulator.tsx`.
+- [x] E3-T22 Courier fee plan editor + simulator. — **Done** — the same editor and simulator, kind = courier.
+- [x] E3-T23 Activation error messages that name the exact gap (lesson from 047's "nobody could say which term refused"). — **Done** — `pricing/gapText.ts`, one sentence per gap code.
 *Customer surfaces* (display only; the flow is E5)
-- [ ] E3-T24 customer-web: fee breakdown lines component (cart + checkout) and "Spend $N more for free delivery" hint.
-- [ ] E3-T25 customer-mobile: same.
-- [ ] E3-T26 Receipt (web, mobile, email) shows breakdown lines (`apis/edge-api/notifications/src/receipts`, `packages/email-kit`).
+- [x] E3-T24 customer-web: fee breakdown lines component (cart + checkout) and "Spend $N more for free delivery" hint. — **Done** — at checkout (the web cart has no postcode).
+- [x] E3-T25 customer-mobile: same. — **Done** — checkout and receipt; words mirrored in `DeliveryFeeWords.kt`.
+- [x] E3-T26 Receipt (web, mobile, email) shows breakdown lines (`apis/edge-api/notifications/src/receipts`, `packages/email-kit`). — **Done**.
 *Tests, legal, docs*
-- [ ] E3-T27 Legal check: surcharge display rules (ACL), round-up already cleared by 047 — confirm still valid with new components.
-- [ ] E3-T28 Container tests: activation refuses incomplete plans; placed orders keep their snapshotted fee after plan change.
-- [ ] E3-T29 Update `docs/delivery-console-guide.md`.
-- [ ] E3-T30 FEATURE-HISTORY entry + operator steps.
+- [x] E3-T27 Legal check: surcharge display rules (ACL), round-up already cleared by 047 — confirm still valid with new components. — **Done** — research R17; for the operator's adviser.
+- [x] E3-T28 Container tests: activation refuses incomplete plans; placed orders keep their snapshotted fee after plan change. — **Done** — P7, P8, P14.
+- [x] E3-T29 Update `docs/delivery-console-guide.md`. — **Done**.
+- [x] E3-T30 FEATURE-HISTORY entry + operator steps. — **Done**.
 
 ---
 

@@ -457,7 +457,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab)
+- **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab) — deployed to dev
 - **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
 - **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)
 - **074-customer-points** — Customer Points (store credit)
