@@ -4,6 +4,57 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**076-effy-delivery-coverage — Effy Delivery Coverage.** 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT
+MIGRATED, NOT DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-08).** Second slice of the delivery model v2
+programme ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md),
+epic E2). Sign-off: [specs/076-effy-delivery-coverage/SIGNOFF.md](specs/076-effy-delivery-coverage/SIGNOFF.md).
+- **What it is**: one flat list of postcodes Effy delivers to, and one answer per address —
+  *Delivered by Effy* / *Courier delivery* / cannot deliver. Back-office → Delivery → **Coverage**
+  replaces the Zones and Rings tabs. Customers see who delivers beside each saved address.
+- ⚠ **THE TABLES WERE EVOLVED IN PLACE, NOT COPIED.** `delivery_zone_postcode` IS the list (it already
+  held each postcode once); `delivery_zone` IS an optional group. The backlog sketched new
+  `effy_coverage_*` tables; a copy would have been a second answer to "does Effy deliver here?" while
+  the live checkout, fee and planner still read the old one. Names change at E9.
+- ⚠ **ONE FUNCTION DECIDES** — `public.coverage_for_postcode` (kind + a staff-only reason), read through
+  `coverageForPostcode`. Never stored against an address; the address book calls it inside the row read.
+  `coverage.guard.test.ts` (P12) lists the five files that may touch the list's table at all.
+- ⚠ **`ON DELETE CASCADE` → `SET NULL`.** Until 076, deleting a zone deleted every postcode in it.
+  Removing a group now retires the row (`status = 'disabled'`, kept for round history and clearances)
+  and ungroups its postcodes. `status` no longer decides coverage anywhere.
+- ⚠ **THREE FROZEN BRIDGES** in `zoneForPostcode`, each a `COALESCE`, each deleted by a later epic:
+  fee tier = the pre-076 group's `ring_id`, else `coverage_ring_for_km(distance)` (**E3**); same-day =
+  the pre-076 group's flag, else true (**E5**); driver clearances keyed on the group (**E8**).
+  Nobody's fee or same-day offer moved at release — proofs P1 and P7, written before the code.
+- ⚠ **AN UNGROUPED POSTCODE IS DELIVERABLE ONLY BY AN EVERY-ZONE DRIVER** until E8. The console shows
+  "N drivers can deliver here" per group and asks (409 `no_driver_covers`, confirm to proceed) before
+  leaving postcodes with none. A later change on the Drivers screen can still cause it.
+- ⚠ **COURIER DELIVERY CANNOT BE SWITCHED ON**: `COURIER_ORDERING_AVAILABLE = false` in
+  `@effy/edge-shared/delivery`; the admin route refuses, the storefront maps a courier answer to none,
+  and the quote throws `CourierNotPurchasableError`. **E5 flips the constant.**
+- ⚠ **ONE REFUSAL SENTENCE** — `COVERAGE_REFUSAL_SENTENCE` ("Sorry, we can't deliver to this address.")
+  in `packages/shared-types/src/delivery.ts`; code `address_not_covered`, **422** (was a 400 with its
+  own words). The app's `CoverageWords.kt` is a mirror held by `coverage-words.test.ts`.
+- **Distance lives in SQL** (`haversine_km`, `coverage_computed_distance_km`): stored per postcode as
+  `computed` | `manual`. A hub move recalculates the computed ones **in the settings transaction**,
+  flags the manual ones, and returns the counts. `admin/src/delivery/suggest.ts` is deleted.
+- ⚠ **THE MIGRATION STOPS RATHER THAN GUESS**: a listed postcode with no locatable place and no zone
+  distance raises, naming it. It also **removes postcodes of DISABLED zones** (not served today) and
+  prints them. ⚠ `sameday_eligible` now defaults to **true**.
+- **Defects I made and the checks that caught them**: (1) the script that removed eleven function
+  blocks from `admin/serverless.yml` also deleted its whole `resources:` section — four alarms —
+  caught by `background-alarms.contract.test.ts`; (2) the hub-move test could not fail (its only
+  hand-entered distance had no location to recalculate from) — found by breaking it; (3) a fleet
+  fixture had to name `distance_km`, which `no-location.guard.test.ts` forbids in that service —
+  fixed with `LISTED_POSTCODE_FIXTURE_SQL` in the shared test support rather than by weakening the guard.
+- **Routes**: `admin` −11 +12 (staff gateway 145 / 300). No customer route added: `serviceability`,
+  the address routes and the quote each gained a `coverage` field. Serviceability's public cache went
+  from a day to **5 minutes**. Live kind `coverage`, ops channel; `admin` may now publish.
+- **Still open (operator)**: `make db-up` (read the NOTICE lines), deploy `storefront`, `commerce`,
+  `customer`, then `admin` with the back-office build close behind (the old Zones tab calls removed
+  routes); `make apply` for the live kind; customer-web and customer-mobile builds; walks V1–V12.
+  ⚠ Between the migration and the `admin` deploy, the OLD console's "Add postcode" fails (it sends no
+  distance) — do not edit zones in that window.
+
 **075-staff-gateway — A Second Front Door for Back-Office.** ✅ **MOVED IN DEV AND CLEANED UP
 (2026-10-08).** Shared gateway 158 / 300 (53%), staff 144 / 300 (48%), read from the live environment.
 Walks W1 and W4–W7 are the operator's and not yet reported. Sign-off:

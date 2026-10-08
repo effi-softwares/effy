@@ -2,12 +2,14 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { QuoteResult } from "@effy/edge-shared/delivery";
+import { CourierNotPurchasableError, type QuoteResult } from "@effy/edge-shared/delivery";
+import { COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE } from "@effy/shared-types";
 import { describe, expect, it } from "vitest";
 
 import { DeliveryChoiceError } from "./delivery-choice";
 import { toQuoteDTO } from "./quote";
-import { deliveryChoiceRefused } from "./respond";
+import { checkoutError, deliveryChoiceRefused } from "./respond";
+import { NotServiceableError } from "./service";
 
 /**
  * 070 — guards on what checkout must never say and never read. Each fails naming a file or a key,
@@ -66,8 +68,8 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
   });
 
   it("an unserviced quote has empty arrays, never nulls", () => {
-    expect(toQuoteDTO("9999", { serviced: false } as QuoteResult, now)).toEqual({
-      postcode: "9999", serviced: false, sameDayAvailableUntil: null, packages: [], expiresAt: "",
+    expect(toQuoteDTO("9999", { serviced: false, coverage: "none" }, now)).toEqual({
+      postcode: "9999", serviced: false, coverage: "none", sameDayAvailableUntil: null, packages: [], expiresAt: "",
       sameDaySlots: [], sameDayUnavailableReason: null, standardDays: [],
     });
   });
@@ -139,5 +141,26 @@ describe("stripe_event has one writer, and it is inside the transaction", () => 
     const between = body.slice(opened, insert);
     expect(between.match(/\.query\(/g)).toHaveLength(1); // the insert's own call, and no statement before it
     expect(between).toContain("tx.query(");
+  });
+});
+
+/**
+ * 076 — the refusal is ONE code and ONE sentence, the ones the address book shows (FR-022). The
+ * checkout builds neither: it imports them. A second wording here is how the two come to differ.
+ */
+describe("076 — an address nobody delivers to", () => {
+  const scope = { instance: "/commerce/v1/checkout/intent", requestId: "req-1", log: { error: () => undefined } } as never;
+
+  it.each([
+    ["not on any list", new NotServiceableError()],
+    ["courier-only, before a courier order can be placed", new CourierNotPurchasableError("7000")],
+  ])("%s → 422 with the shared code and sentence, and nothing about why", (_what, err) => {
+    const res = checkoutError(scope, err, "intent");
+    expect(res.statusCode).toBe(422);
+    const body = JSON.parse(res.body ?? "{}");
+    expect(body.code).toBe(COVERAGE_REFUSAL_CODE);
+    expect(body.detail).toBe(COVERAGE_REFUSAL_SENTENCE);
+    expect(body.type).toBe("https://effyshopping.com/problems/address-not-covered");
+    expect(JSON.stringify(body)).not.toMatch(/group|distance|hub|courier|reason|zone/i);
   });
 });

@@ -4,6 +4,8 @@ import { Badge } from "@effy/design-system/ui"
 
 import { addressLines, chipForLabel, type Address } from "@/lib/addresses/model"
 
+import { CoverageNote } from "./CoverageNote"
+
 /**
  * One row of the address book (US1/US3/US4/US5).
  *
@@ -53,6 +55,8 @@ export function AddressRow({
         {chip && <p className="text-sm text-muted-foreground">{address.recipientName}</p>}
         <p className="truncate text-sm text-muted-foreground">{addressLines(address)}</p>
         {address.phone && <p className="text-sm text-muted-foreground">{address.phone}</p>}
+        {/* 076 — who delivers here today, or the one refusal: learnt here, not after building an order. */}
+        <CoverageNote coverage={address.coverage} />
       </button>
 
       <div className="flex shrink-0 flex-col items-end gap-2 text-sm">

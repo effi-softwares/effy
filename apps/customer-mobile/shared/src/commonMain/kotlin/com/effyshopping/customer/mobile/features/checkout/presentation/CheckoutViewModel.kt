@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.core.delivery.CoverageWords
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.SaveAddressInstructions
 import androidx.lifecycle.ViewModel
@@ -363,7 +364,7 @@ class CheckoutViewModel(
         }
         // 047 FR-002: never let a shopper pay for an address we can't deliver to.
         if (!s.serviced) {
-            _state.value = s.copy(error = "We don’t deliver to this address yet. Choose another address."); return
+            _state.value = s.copy(error = CoverageWords.REFUSAL); return
         }
         // 069: a same-day order needs a slot. ⚠ The server refuses it regardless (`slot_required`);
         // this only tells the shopper before the round trip.

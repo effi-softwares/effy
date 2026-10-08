@@ -6,6 +6,7 @@ import type { AddressDTO } from "@effy/shared-types"
 import { Badge, Button } from "@effy/design-system/ui"
 
 import { AddressForm } from "@/app/(account)/addresses/_components/AddressForm"
+import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote"
 import { addressLines, type Address } from "@/lib/addresses/model"
 
 /**
@@ -27,6 +28,7 @@ export function AddressPicker({
   onAddressAdded,
   idPrefix,
   busy = false,
+  showCoverage = false,
 }: {
   addresses: AddressDTO[]
   selectedId: string | null
@@ -37,6 +39,11 @@ export function AddressPicker({
   /** Distinguishes the shipping vs billing radio groups on one page. */
   idPrefix: string
   busy?: boolean
+  /**
+   * 076 — show who delivers to each address. For the DELIVERY picker only: a billing address is
+   * where the card statement goes, and "we can't deliver there" would be a wrong thing to say of it.
+   */
+  showCoverage?: boolean
 }) {
   // Start expanded when there is nothing selected yet (e.g. a just-revealed billing picker) so the
   // list is immediately visible; start collapsed on a pre-selected address (the everyday summary).
@@ -75,7 +82,7 @@ export function AddressPicker({
     <div>
       {!expanded ? (
         <div className="flex items-start justify-between gap-4 rounded-md border p-3">
-          <AddressSummary address={selected} />
+          <AddressSummary address={selected} showCoverage={showCoverage} />
           <button
             type="button"
             onClick={() => setExpanded(true)}
@@ -107,6 +114,7 @@ export function AddressPicker({
                       {a.isDefault && <Badge variant="success">Default</Badge>}
                     </span>
                     <span className="block text-muted-foreground">{addressLines(a)}</span>
+                    {showCoverage ? <CoverageNote coverage={a.coverage} /> : null}
                   </span>
                 </label>
               </li>
@@ -129,7 +137,7 @@ export function AddressPicker({
 }
 
 /** The selected-address summary shown when the picker is collapsed. Not a card (FR-022). */
-function AddressSummary({ address }: { address: AddressDTO | null }) {
+function AddressSummary({ address, showCoverage }: { address: AddressDTO | null; showCoverage: boolean }) {
   if (!address) {
     return <p className="text-sm text-muted-foreground">No address selected.</p>
   }
@@ -140,6 +148,7 @@ function AddressSummary({ address }: { address: AddressDTO | null }) {
         {address.isDefault && <Badge variant="success">Default</Badge>}
       </div>
       <p className="text-muted-foreground">{addressLines(address)}</p>
+      {showCoverage ? <CoverageNote coverage={address.coverage} /> : null}
     </div>
   )
 }

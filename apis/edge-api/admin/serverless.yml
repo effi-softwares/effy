@@ -121,6 +121,12 @@ provider:
           Condition:
             StringEquals:
               cloudwatch:namespace: Effy/Mail
+        # 076 — publish live updates, to this environment's channel only. Until 076 this service
+        # announced nothing (it is configuration); a coverage change now tells an open Coverage
+        # screen to re-read.
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
         # ── 075: how full is each gateway? ──────────────────────────────────────────────────────────
         #
         # Read-only, and only the two lists the hourly `gatewayUsage` function counts, on exactly the
@@ -816,13 +822,139 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryRingsCreateV1:
-    handler: src/functions/delivery-rings-create-v1-post.handler
-    description: Create a distance ring — 047
+
+  # ── Delivery coverage (076): the list of postcodes Effy delivers to, its groups, courier reach ────
+  # ⚠ These REPLACE the 047 zone, ring-create, suggest-ring, postcode-check and same-day-exception
+  # routes. `deliveryRingsListV1` above stays, read-only: the fee-plan dialog prices per tier until
+  # the fee engine (E3) replaces it.
+  deliveryCoverageListV1:
+    handler: src/functions/delivery-coverage-list-v1-get.handler
+    description: The list of postcodes effy delivers to, its groups and courier reach — 076
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/coverage
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoveragePlacesV1:
+    handler: src/functions/delivery-coverage-places-v1-get.handler
+    description: Place search for the add dialog, one result per postcode — 076
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/coverage/places
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageCheckV1:
+    handler: src/functions/delivery-coverage-check-v1-get.handler
+    description: Who delivers to a postcode or place, and why — 076
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/coverage/check
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoveragePostcodesAddV1:
+    handler: src/functions/delivery-coverage-postcodes-add-v1-post.handler
+    description: List postcodes — 076
     events:
       - httpApi:
           method: POST
-          path: /admin/v1/delivery/rings
+          path: /admin/v1/delivery/coverage/postcodes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoveragePostcodesPatchV1:
+    handler: src/functions/delivery-coverage-postcodes-patch-v1-patch.handler
+    description: Move postcodes between groups, or set one distance — 076
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/delivery/coverage/postcodes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoveragePostcodeRemoveV1:
+    handler: src/functions/delivery-coverage-postcode-remove-v1-delete.handler
+    description: Take a postcode off the list; placed orders are untouched — 076
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery/coverage/postcodes/{postcode}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageGroupCreateV1:
+    handler: src/functions/delivery-coverage-group-create-v1-post.handler
+    description: Create a group — 076
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/coverage/groups
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageGroupPatchV1:
+    handler: src/functions/delivery-coverage-group-patch-v1-patch.handler
+    description: Rename a group — 076
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/delivery/coverage/groups/{groupId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageGroupRemoveV1:
+    handler: src/functions/delivery-coverage-group-remove-v1-delete.handler
+    description: Remove a group; its postcodes stay listed — 076
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery/coverage/groups/{groupId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageCourierV1:
+    handler: src/functions/delivery-coverage-courier-v1-put.handler
+    description: Switch courier delivery on or off — 076
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery/coverage/courier
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageCourierExclusionAddV1:
+    handler: src/functions/delivery-coverage-courier-exclusion-add-v1-post.handler
+    description: Exclude a postcode from courier delivery — 076
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/coverage/courier/exclusions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCoverageCourierExclusionRemoveV1:
+    handler: src/functions/delivery-coverage-courier-exclusion-remove-v1-delete.handler
+    description: Offer courier delivery there again — 076
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery/coverage/courier/exclusions/{postcode}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
@@ -860,82 +992,12 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryZonesListV1:
-    handler: src/functions/delivery-zones-list-v1-get.handler
-    description: List served zones — 047
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/delivery/zones
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryZonesCreateV1:
-    handler: src/functions/delivery-zones-create-v1-post.handler
-    description: Create a served zone — 047 FR-006
-    events:
-      - httpApi:
-          method: POST
-          path: /admin/v1/delivery/zones
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryZonesPatchV1:
-    handler: src/functions/delivery-zones-patch-v1-patch.handler
-    description: Rename / set ring / same-day eligibility / status of a zone — 047
-    events:
-      - httpApi:
-          method: PATCH
-          path: /admin/v1/delivery/zones/{zoneId}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryPostcodeCheckV1:
-    handler: src/functions/delivery-postcode-check-v1-get.handler
-    description: Disclosure before adding a postcode — 047 FR-008/009/010
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/delivery/postcode-check
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryZonePostcodeAddV1:
-    handler: src/functions/delivery-zone-postcode-add-v1-post.handler
-    description: Add a postcode to a zone (refuses in-another-zone; confirm for unknown) — 047 FR-009/010
-    events:
-      - httpApi:
-          method: POST
-          path: /admin/v1/delivery/zones/{zoneId}/postcodes
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryZonePostcodeRemoveV1:
-    handler: src/functions/delivery-zone-postcode-remove-v1-delete.handler
-    description: Remove a postcode; states which places stop being serviceable — 047 FR-011
-    events:
-      - httpApi:
-          method: DELETE
-          path: /admin/v1/delivery/zones/{zoneId}/postcodes/{postcode}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  deliveryZoneSuggestRingV1:
-    handler: src/functions/delivery-zone-suggest-ring-v1-post.handler
-    description: Compute + persist a zone's suggested distance ring — 047 FR-015
-    events:
-      - httpApi:
-          method: POST
-          path: /admin/v1/delivery/zones/{zoneId}/suggest-ring
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverySettingsGetV1:
     handler: src/functions/delivery-settings-get-v1-get.handler
@@ -988,39 +1050,6 @@ functions:
       - httpApi:
           method: DELETE
           path: /admin/v1/delivery/collection-runs/{runId}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
-  deliveryExceptionsListV1:
-    handler: src/functions/delivery-exceptions-list-v1-get.handler
-    description: List a zone's per-shop same-day exceptions — 047 US3
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
-  deliveryExceptionPutV1:
-    handler: src/functions/delivery-exception-put-v1-put.handler
-    description: Force a shop on/off for same-day in a zone — 047 US3/FR-043
-    events:
-      - httpApi:
-          method: PUT
-          path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
-  deliveryExceptionDeleteV1:
-    handler: src/functions/delivery-exception-delete-v1-delete.handler
-    description: Remove a shop's same-day exception (revert to zone default) — 047 US3
-    events:
-      - httpApi:
-          method: DELETE
-          path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions/{shopId}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

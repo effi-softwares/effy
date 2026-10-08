@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.features.addresses.data
 
 import com.effyshopping.customer.mobile.commerce.contract.AddressDTO
+import com.effyshopping.customer.mobile.core.delivery.toCoverage
 import com.effyshopping.customer.mobile.commerce.contract.CreateAddressRequest
 import com.effyshopping.customer.mobile.commerce.contract.UpdateAddressRequest
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryInstructionsDTO
@@ -27,6 +28,7 @@ internal fun AddressDTO.toDomain(): SavedAddress = SavedAddress(
     country = country,
     isDefault = isDefault,
     defaultInstructions = defaultDeliveryInstructions.toDomain(),
+    coverage = coverage.toCoverage(),
 )
 
 // create: NEVER sends makeDefault — the backend auto-defaults only the customer's first address

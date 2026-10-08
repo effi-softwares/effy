@@ -16,16 +16,48 @@ import type { CheckoutPointsDTO } from "./checkout";
 /** The two delivery methods. same-day is always priced ≥ standard (FR-022). */
 export type DeliveryMethod = "same_day" | "standard";
 
+/**
+ * 076 — WHO delivers to an address. The one answer every surface gives (FR-019/FR-020):
+ *   effy     the postcode is on Effy's list — Effy's own drivers deliver
+ *   courier  not on the list, and courier delivery is offered there
+ *   none     neither reaches it
+ *
+ * ⚠ Decided in ONE place — the database function `public.coverage_for_postcode` — at the moment of
+ * asking, and never stored against an address (FR-021).
+ * ⚠ A customer contract carries this value and NOTHING about why: no group, no distance, no reason,
+ * no hub (FR-023). Staff contracts are in `delivery-admin.ts`.
+ */
+export type CoverageKind = "effy" | "courier" | "none";
+
+/**
+ * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN (FR-022, SC-004). Every server response and every
+ * customer screen — web and mobile, address book and checkout — renders these constants. Before 076
+ * the refusal existed twice, worded differently; `coverage.guard.test.ts` fails if it does again.
+ */
+export const COVERAGE_LABEL = {
+  effy: "Delivered by Effy",
+  courier: "Courier delivery",
+} as const satisfies Record<Exclude<CoverageKind, "none">, string>;
+
+/** The problem `code` of a request refused because nobody delivers to the address. */
+export const COVERAGE_REFUSAL_CODE = "address_not_covered";
+
+/** The one sentence a customer reads when nobody delivers to their address. */
+export const COVERAGE_REFUSAL_SENTENCE = "Sorry, we can't deliver to this address.";
+
 /** Australian state / territory — the closed set the place record uses. */
 export type AustralianState = "ACT" | "NSW" | "NT" | "QLD" | "SA" | "TAS" | "VIC" | "WA";
 
 /**
  * The single serviceability decision (FR-001), answered before a cart exists and again at checkout by the
- * SAME predicate (FR-004). ⚠ Frozen two-field shape — no zone id, name, fee, or window may be added.
+ * SAME predicate (FR-004). ⚠ No zone id, name, fee, or window may be added.
  */
 export interface ServiceabilityDTO {
   postcode: string;
+  /** Kept for clients released before 076. Always `coverage !== "none"`. */
   serviced: boolean;
+  /** 076 — who delivers. Absent only from a server older than 076. */
+  coverage?: CoverageKind;
 }
 
 /** One place, fully identified — the only selectable unit (FR-007). */
@@ -70,6 +102,11 @@ export interface DeliveryPackageDTO {
 export interface DeliveryQuoteDTO {
   postcode: string;
   serviced: boolean;
+  /**
+   * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be purchased until
+   * the courier checkout exists, and until then the server never returns it here.
+   */
+  coverage?: CoverageKind;
   /**
    * ISO datetime with the Australia/Melbourne offset, or null. ⚠ Kept for clients built before 069;
    * it now carries the latest OPEN SLOT's cutoff. New clients read `sameDaySlots`.

@@ -16,6 +16,9 @@ export const LIVE_KINDS = [
   "review",
   // 074 — a customer's points balance changed (the customer's own channel, and back-office's).
   "points",
+  // 076 — where Effy delivers changed. Back-office (ops) only: a customer's answer is re-read when
+  // they next ask, and on their channel this word would say only "something, somewhere".
+  "coverage",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

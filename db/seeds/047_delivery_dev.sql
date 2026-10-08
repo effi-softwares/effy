@@ -40,7 +40,17 @@ INSERT INTO public.delivery_zone (id, code, name, ring_id, sameday_eligible, sta
   ('22222222-0000-0000-0000-000000000008', 'BALLARAT',     'Ballarat',             '11111111-0000-0000-0000-000000000004', false, 'active', 'seed:047'),
   ('22222222-0000-0000-0000-000000000009', 'BENDIGO',      'Bendigo',              '11111111-0000-0000-0000-000000000004', false, 'active', 'seed:047');
 
-INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES
+-- ⚠ 076 — a listed postcode always has a distance. Worked out from the place's location where one is
+-- known (load the localities first); otherwise this dev seed falls back to a round 10 km, marked as
+-- hand-entered and flagged for review. A real environment never guesses — the console demands a
+-- distance from a person.
+INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, distance_review, added_by)
+SELECT v.zone_id::uuid, v.postcode,
+       COALESCE(public.coverage_computed_distance_km(v.postcode), 10.00),
+       CASE WHEN public.coverage_computed_distance_km(v.postcode) IS NULL THEN 'manual' ELSE 'computed' END,
+       public.coverage_computed_distance_km(v.postcode) IS NULL,
+       'seed:047'
+FROM (VALUES
   ('22222222-0000-0000-0000-000000000001', '3000'),  -- Melbourne
   ('22222222-0000-0000-0000-000000000001', '3006'),  -- Southbank
   ('22222222-0000-0000-0000-000000000001', '3008'),  -- Docklands
@@ -53,7 +63,8 @@ INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES
   ('22222222-0000-0000-0000-000000000007', '3220'),  -- Geelong
   ('22222222-0000-0000-0000-000000000008', '3350'),  -- Ballarat Central
   ('22222222-0000-0000-0000-000000000008', '3355'),  -- Wendouree
-  ('22222222-0000-0000-0000-000000000009', '3550');  -- Bendigo
+  ('22222222-0000-0000-0000-000000000009', '3550')
+) AS v (zone_id, postcode);  -- Bendigo
 
 -- ── 4. The active shipping-fee plan ────────────────────────────────────────────────────────────────
 -- fee = clamp( roundUp( factor × (ring_price + weight_add), 0.50 ), floor 4.00, cap 40.00 ).

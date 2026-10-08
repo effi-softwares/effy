@@ -1,114 +1,105 @@
 # Delivery console — operator guide
 
 **Who this is for:** back-office admins/managers who configure where Effy delivers and what it costs.
-**Where it lives:** Back-office → **Delivery** (left nav). Feature 047 (Delivery Zones & Shipping-Fee Engine).
+**Where it lives:** Back-office → **Delivery** (left nav). Features 047 (fee engine), 069 (slots and days)
+and 076 (coverage).
 
-> **The one rule to remember.** Whether Effy delivers to an address is decided by **one** thing: does the
-> address's postcode belong to a **served zone**. If it does, standard delivery is always available and
-> always priced. If it doesn't, the shopper is told plainly "we don't deliver here yet" — and that's the
-> only reason there ever is. **Same-day is an extra** layered on top; it never affects whether an address
-> is served.
+> **The one rule to remember.** Whether Effy delivers to an address is decided by **one** thing: is the
+> address's postcode on the **Coverage list**. If it is, the address is **Delivered by Effy**. If it is
+> not, the shopper is told plainly *"Sorry, we can't deliver to this address."* — the same sentence on the
+> address book and at checkout. **No shop setting changes this**, and neither does a group.
+
+> ⚠ **Changed by 076 (October 2026).** Zones, distance tiers ("rings") and per-shop same-day exceptions
+> **no longer have controls**. They were replaced by one flat list of postcodes. The fee and the same-day
+> offer still work as before for now, from the settings as they stood — see "What is frozen" below.
 
 ---
 
 ## How the pieces fit together
 
 ```
-              ┌─────────────┐     priced by      ┌──────────────┐
-   Postcode ─►│    ZONE     │───────────────────►│    RING      │  (distance tier: how far from the hub)
-              │ (served?)   │  belongs to exactly └──────────────┘
-              └─────────────┘        one ring            │
-                    │                                     │  each ring has a price in the…
-                    │ same-day eligible?                  ▼
-                    │ (+ per-shop exceptions)      ┌──────────────┐
-                    ▼                              │  FEE PLAN    │  (the active one: prices + weight
-              ┌─────────────┐                      │  (1 active)  │   slabs + method factors + rounding)
-              │  SAME-DAY   │◄─ gated by ─┐        └──────────────┘
-              │  SCHEDULE   │  collection │               │
-              │ (runs+hub)  │  cutoff     │               ▼
-              └─────────────┘             │        fee = round-up( factor × (ring price + weight add) )
-                                          │               │  clamped to [floor, cap]
-                                          └───────────────┴──► shown to the shopper at checkout,
-                                                               GST-inclusive, before they pay
+   Address ─► postcode ─► on the Coverage list?  ── yes ─► DELIVERED BY EFFY ─► fee + delivery times
+                                 │
+                                 no ─► courier delivery offered there?  ── yes ─► COURIER DELIVERY (not yet switched on)
+                                                     │
+                                                     no ─► "Sorry, we can't deliver to this address."
 ```
 
-- A **zone** is the served area (a set of postcodes). It decides *whether* we deliver.
-- Each zone sits in a **ring** — a distance tier. The ring decides the *distance part* of the price.
-- The active **fee plan** turns (ring + basket weight + speed) into a dollar figure.
-- **Same-day** eligibility + the collection **schedule** decide whether the fast option appears.
+- **Coverage** is the list of postcodes Effy delivers to. It decides *whether* we deliver.
+- A **group** is a name you file postcodes under. It decides nothing a customer sees.
+- Every listed postcode has a **distance** from the hub — worked out, or entered by hand.
+- The active **fee plan** turns (distance tier + basket weight + speed) into a dollar figure.
+- **Same-day**, **Time slots** and **Delivery days** decide which delivery times appear.
 - **Settings** holds the hub (where distances are measured from) and the same-day prep buffer.
 
-You configure these; the customer only ever sees the result: "we deliver here" and a fee.
+You configure these; the customer only ever sees the result: who delivers, and a fee.
 
 ---
 
-## Tab 1 — Zones
+## Tab 1 — Coverage
 
-**What it is:** the map of where Effy delivers, built from real Australian places. A zone is a named group
-of **postcodes**. A postcode belongs to **at most one zone**.
+**What it is:** the list of postcodes Effy delivers to with its own drivers, built from real Australian
+places. One row per postcode.
 
-**Why it matters:** this is the serviceability decision. Postcode in an *active* zone → we deliver.
-Postcode in no zone (or a *disabled* zone) → "we don't deliver here yet".
+### Adding a place
+**Add places** → type a suburb or town ("Richmond") → pick the right one. Same-named places are told apart
+by state and postcode. Each result shows **every other place that postcode brings with it** — delivery is
+decided by postcode, so adding Richmond (3121) also adds Burnley and Cremorne.
+
+- You never type a postcode or a distance for a place the platform can locate.
+- A place with **no known location** (a PO-box postcode, a new estate) asks for its distance from the hub.
+- A postcode already on the list is shown and cannot be picked again.
 
 ### The columns
 | Column | Meaning |
 |---|---|
-| **Code / Name** | your handle for the zone (e.g. `MEL-INNER-E`, "Inner East"). |
-| **Ring** | which distance tier this zone is priced on (see Tab 2). |
-| **Postcodes** | how many postcodes the zone contains. |
-| **Same-day** | a toggle — is this zone eligible for same-day, for **every** shop by default? |
+| **Postcode / Places** | the postcode and the places it covers. |
+| **Group** | the group it is filed under, or "No group". |
+| **Distance from hub** | straight-line km, and whether it was **worked out** or **entered by hand**. A **Review** tag means a hand-entered distance should be checked (the hub moved, or it came across from the old zones). |
 
-### The actions
-- **New zone** — create a zone; pick its ring up front (you can change it later or let the platform
-  suggest one).
-- **Add postcode** — the important one. You search a **place by name** (e.g. "Richmond") — you don't type
-  raw postcodes. Before you commit, the dialog tells you **every other place that postcode also makes
-  serviceable** (serviceability is decided per *postcode*, and one postcode often covers several suburbs).
-  Two guards:
-  - if the postcode already belongs to **another zone**, it's refused and names that zone (a postcode is
-    in one zone only);
-  - if the postcode matches **no known place** (a PO-box code, or one missing from the loaded data), you
-    must tick **confirm** to add it anyway — it's never silently accepted.
-- **Suggest ring** — the platform computes the zone's representative location (the average of its
-  postcodes' coordinates) and its straight-line distance from the **hub** (Settings), then suggests the
-  matching ring. It's advisory — your chosen ring always wins. If none of the zone's postcodes has a
-  known coordinate, it says "no coordinate — assign a ring by hand" rather than guessing.
-- **Same-day toggle** — flip a whole zone same-day-eligible or not. This is the platform baseline for
-  every shop; per-shop tweaks live in the **Same-day** tab dialog.
-- **Same-day…** — opens the per-shop exceptions dialog for that zone (see Tab 4).
+### Distance
+**Distance** on a row lets you enter it by hand, or hand it back to the platform ("Work it out instead").
+A worked-out distance is recalculated whenever the hub moves; a hand-entered one never is.
+> The next delivery feature prices by this number. A wrong distance will be a wrong fee.
 
 ### Removing a postcode
-Removing a postcode tells you **which places stop being serviceable** before it takes effect — so you
-never quietly cut off a suburb.
+**Remove** tells you which places stop being Delivered by Effy. **Orders already placed there are not
+affected.** A customer with a saved address there sees the refusal the next time the address is shown.
 
-> **In the platform:** when a shopper enters an address, the storefront checks its postcode against active
-> zones. That same check runs again at checkout, so a shopper told "yes" up front is never refused at
-> payment.
+### Checking a postcode — "do we deliver there, and why?"
+The **Check a postcode or place** box is for everyone in back-office, including customer service. It
+answers in words you can repeat to a customer's question:
+- *Delivered by Effy — On Effy's list. Group: Inner East. 3.40 km from the hub (worked out).*
+- *Cannot deliver — Not on Effy's list. Courier delivery is switched off, so nobody delivers there.*
+- *Cannot deliver — Not a known postcode.*
 
----
+The group, the distance and the reason are for staff. **A customer is told the answer only.**
 
-## Tab 2 — Rings
+### Groups
+A group ("Inner Melbourne", "Bayside") keeps a long list manageable: filter by it, select rows and
+**Move to group**, rename it, remove it. **Removing a group never removes its postcodes** — they stay on
+the list, in no group.
 
-**What it is:** the distance tiers, ordered nearest-to-furthest from the hub. Every zone belongs to
-exactly one ring. The ring is what the fee's **distance** component is priced on — *not* individual zones.
+> ⚠ **The one thing a group still means, for now.** Drivers are cleared to deliver **per group** (or for
+> everywhere) on the Drivers screen. So each group shows *"N drivers can deliver here"*, and postcodes in
+> **no group** can only be delivered by a driver cleared for everywhere. If you are about to leave
+> postcodes where **no** driver can deliver, the console asks you to confirm — orders would be sold there
+> and could not be given to anyone. This goes away with the driver-operations feature.
 
-**Why rings, not per-zone prices?** Two reasons: (1) far zones should cost more than near ones without you
-hand-pricing every zone; (2) a fee that varies by a *tier* (covering many suburbs) never reveals which
-shop is fulfilling — it only reflects roughly how far the shopper's own area is.
+### Courier delivery
+An address **not** on Effy's list will be offered courier delivery — everywhere in the country except the
+postcodes you exclude here (each with a reason, e.g. "No chilled courier service").
 
-### The columns / fields
-| Field | Meaning |
+> ⚠ **The switch is locked for now.** Customers cannot place a courier order yet, so courier delivery
+> cannot be switched on: every address in the country would be promised something checkout cannot sell.
+> You can prepare the exclusions list in the meantime.
+
+### What is frozen (until later delivery features)
+| Was controlled by | Now |
 |---|---|
-| **Order** (ordinal) | 1 = nearest the hub. Rings are ranked by this. |
-| **Code / Name** | e.g. `INNER` / "Inner Melbourne". |
-| **Upper km** | the distance boundary used **only** to *suggest* a ring for a zone. Leave it **blank** on the single furthest, **open-ended** ring (regional). |
-| **Status** | active/disabled. |
-
-**Seeded example (Melbourne):** INNER ≤10 km · MIDDLE ≤25 km · OUTER ≤50 km · EXTENDED (blank = regional).
-
-> Rings are **standing configuration** — they don't change when you switch fee plans. Only their *prices*
-> live in the plan (Tab 3). The `upper km` values feed only the "Suggest ring" button; the customer quote
-> reads a zone's assigned ring directly, never a distance.
+| A zone's **distance tier (ring)** | Postcodes that were in a zone before 076 keep that zone's tier — **nobody's fee changed**. A postcode added since takes the tier its distance falls in. Tiers can no longer be created or edited. |
+| A zone's **same-day** switch | Kept as it stood for postcodes that had one. Everything added since is same-day eligible. |
+| **Per-shop same-day exceptions** | Kept as they stood. They can no longer be added or changed. |
 
 ---
 
@@ -167,7 +158,7 @@ and it never re-prices an order that was already quoted — a captured order kee
 Same-day has **two halves**: *when* it's possible (the collection schedule) and *where/who* (zone
 eligibility + per-shop exceptions). Both are back-office decisions — a shop can never set its own same-day.
 
-### Half 1 — Collection runs (on this tab)
+### Collection runs
 Effy's drivers collect packages from shops on scheduled **runs**. Same-day is offered only while a run is
 still makeable **today**, allowing the shop time to pick and pack (the **prep buffer** in Settings).
 
@@ -191,18 +182,9 @@ from **15:15**, and the driver collects by **16:00**.
 > drivers up to two hours early and leaving shops no time to pick. If you configured runs expecting that
 > behaviour, re-check them.
 
-### Half 2 — Per-shop exceptions (the "Same-day…" button on each zone in Tab 1)
-By default, a same-day-eligible zone is offered same-day by **every** shop. Reality differs — one shop has
-a van and staff for it, another doesn't. The exceptions dialog lets you override a **specific shop** in a
-**specific zone**:
-- **Force off** — this shop does *not* do same-day here (even though the zone is eligible).
-- **Force on** — this shop *does* do same-day here (even in a zone that isn't eligible by default).
-- **Reset** — remove the exception; the shop reverts to the zone default.
-
-> **In the platform:** same-day is decided **per package**. A basket split across two shops can show
-> same-day on one shop's items and standard on the other's — the customer never sees the shops, only the
-> combined options and one total. The rule is: `this shop does same-day here = exception if set, else the
-> zone default` — and then only if a collection run is still makeable.
+> **Per-shop same-day exceptions** no longer have a control (076). Those that existed still apply,
+> frozen, until the delivery checkout is replaced. What a shop fulfils never decides whether Effy
+> delivers to an address.
 
 ---
 
@@ -285,14 +267,14 @@ need to decide what to do about them.
 
 ## Tab — Settings
 
-The two values that same-day and ring-suggestion depend on:
+The two values that distances and same-day depend on:
 
 | Field | Meaning |
 |---|---|
-| **Hub latitude / longitude** | Effy's operating hub — the point all ring distances are measured from. Seeded to the Melbourne CBD (`-37.8136, 144.9631`). Internal only; never shown to shoppers. |
+| **Hub latitude / longitude** | Effy's operating hub — the point every postcode's distance is measured from. **Moving it recalculates every worked-out distance** and flags the hand-entered ones for review; the Save message says how many of each. Seeded to the Melbourne CBD (`-37.8136, 144.9631`). Internal only; never shown to shoppers. |
 | **Same-day prep buffer (minutes)** | how long a shop needs to pick + pack before a collection run. It's what turns a run time into a customer cutoff (`cutoff = run − buffer`). Seeded to 120 min. |
 
-Set the hub **before** using "Suggest ring", or the platform has nothing to measure from.
+Set the hub **before** adding places, or the platform has nothing to measure from and will ask for every distance by hand.
 
 ---
 
@@ -343,16 +325,16 @@ pricing is deliberate so a fee can't be traced back to one shop (Effy's fulfilme
 ## A quick "first-time setup" checklist
 
 1. **Settings** → set the hub (lat/lng) + prep buffer.
-2. **Rings** → create your distance tiers (one open-ended/blank at the top).
-3. **Zones** → create zones, add postcodes by place, run "Suggest ring" (or set the ring by hand).
-4. **Fee plans** → build a plan (price every ring + at least one weight slab, set factors/rounding/floor/
+2. **Coverage** → **Add places** by name. Optionally create groups and file postcodes under them. Check
+   every group (and "No group") shows at least one driver who can deliver there.
+3. **Fee plans** → build a plan (price every tier + at least one weight slab, set factors/rounding/floor/
    cap) → **Activate** it.
-5. **Same-day** → add collection runs; on each eligible zone toggle same-day on; add per-shop exceptions
-   where a shop can't (or specially can) do same-day.
-5a. **Time slots** (069) → create at least one slot. ⚠ Without one, same-day is offered to nobody.
-5b. **Delivery days** (069) → set the days with no delivery and check the two estimated timings.
-6. Test as a shopper: an address in a zone shows a fee before pay; an address in no zone says "we don't
-   deliver here yet".
+4. **Same-day** → add collection runs.
+4a. **Time slots** (069) → create at least one slot. ⚠ Without one, same-day is offered to nobody.
+4b. **Delivery days** (069) → set the days with no delivery and check the two estimated timings.
+5. Test as a shopper: an address on the list says "Delivered by Effy" and shows a fee before pay; an
+   address off it says "Sorry, we can't deliver to this address."
 
-*Spec & implementation detail: `specs/047-delivery-shipping-engine/`. Realistic dev seed:
+*Spec & implementation detail: `specs/076-effy-delivery-coverage/` (coverage) and
+`specs/047-delivery-shipping-engine/` (fee plans, collection runs). Realistic dev seed:
 `db/seeds/047_delivery_dev.sql`.*

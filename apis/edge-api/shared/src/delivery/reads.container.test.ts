@@ -51,10 +51,11 @@ d("070 — delivery reads against the real schema", () => {
       INSERT INTO public.delivery_ring (id, code, name, ordinal, suggest_upper_km, updated_by) VALUES
         ('${RING_INNER}', 'T-INNER', 'Test inner', 9001, 9001, 'test'),
         ('${RING_OUTER}', 'T-OUTER', 'Test outer', 9002, 9002, 'test');
-      INSERT INTO public.delivery_zone (id, code, name, ring_id, status, updated_by) VALUES
-        ('${ZONE}', 'T-Z1', 'Test zone', '${RING_INNER}', 'active', 'test'),
-        ('${ZONE_OFF}', 'T-Z2', 'Disabled zone', '${RING_INNER}', 'disabled', 'test');
-      INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES ('${ZONE}', '3121'), ('${ZONE_OFF}', '3550');
+      INSERT INTO public.delivery_zone (id, code, name, ring_id, sameday_eligible, status, updated_by) VALUES
+        ('${ZONE}', 'T-Z1', 'Test zone', '${RING_INNER}', false, 'active', 'test'),
+        ('${ZONE_OFF}', 'T-Z2', 'Disabled zone', '${RING_INNER}', false, 'disabled', 'test');
+      INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by) VALUES
+        ('${ZONE}', '3121', 3.40, 'manual', 'test'), ('${ZONE_OFF}', '3550', 130.00, 'manual', 'test');
       INSERT INTO public.delivery_fee_plan (id, name, is_active, rounding_step, floor_amount, cap_amount, same_day_factor, standard_factor, created_by)
         VALUES ('${PLAN}', 'Test plan', true, 0.50, 4.00, 40.00, 1.800, 1.000, 'test');
       INSERT INTO public.delivery_ring_price (plan_id, ring_id, price_amount) VALUES
@@ -84,15 +85,19 @@ d("070 — delivery reads against the real schema", () => {
     expect(plan.weightBands[0]?.addCents).toBe(0);
   });
 
-  it("serviceability: active zone yes, disabled zone no, no zone no", async () => {
+  // ⚠ 076 — being LISTED is what serves a postcode. A group's status no longer decides: "disabled"
+  // means a removed group, and removing a group never takes delivery away from its postcodes.
+  it("serviceability: on the list yes — whatever its group's status — not on the list no", async () => {
     expect(await serviceableForPostcode(pool, "3121")).toBe(true);
-    expect(await serviceableForPostcode(pool, "3550")).toBe(false);
+    expect(await serviceableForPostcode(pool, "3550")).toBe(true);
     expect(await serviceableForPostcode(pool, "3999")).toBe(false);
   });
 
   it("the quote's zone lookup agrees with serviceability", async () => {
     expect((await zoneForPostcode(pool, "3121"))?.ringId).toBe(RING_INNER);
-    expect(await zoneForPostcode(pool, "3550")).toBeNull();
+    // In a removed group: listed, treated as ungrouped, tiered by its distance (130 km → the
+    // smallest tier that covers it), same-day eligible.
+    expect(await zoneForPostcode(pool, "3550")).toEqual({ id: null, ringId: RING_INNER, sameDayEligible: true });
     expect(await zoneForPostcode(pool, "3999")).toBeNull();
   });
 
@@ -124,7 +129,7 @@ d("070 — delivery reads against the real schema", () => {
   });
 
   it("an unserved postcode quotes nothing", async () => {
-    expect(await quote(pool, null, "3999", [{ shopId: shopA, grams: 1500 }], new Date())).toEqual({ serviced: false });
+    expect(await quote(pool, null, "3999", [{ shopId: shopA, grams: 1500 }], new Date())).toEqual({ serviced: false, coverage: "none" });
   });
 
   it("same-day appears on exactly the package whose shop does it, while a slot is open", async () => {

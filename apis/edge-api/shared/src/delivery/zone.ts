@@ -1,4 +1,5 @@
 import type { Queryable } from "../lib/db";
+import { coverageForPostcode } from "./coverage";
 
 const POSTCODE = /^[0-9]{4}$/;
 
@@ -12,44 +13,52 @@ export function normalizePostcode(input: string): string | null {
 }
 
 /**
- * THE serviceability predicate (047 FR-001): serviced ⇔ the postcode belongs to an ACTIVE delivery
- * zone. The checkout quote resolves its zone from the same join, so the up-front answer and the
- * quote can never disagree (FR-004).
+ * Can an order be placed for delivery to this postcode TODAY? (047 FR-001, rebuilt by 076.)
+ *
+ * ⚠ It asks `coverageForPostcode` — it has no join of its own — so the up-front answer, the address
+ * book and the quote cannot disagree. True only for `effy`: a `courier` answer is not something the
+ * checkout can sell until the courier checkout exists (`COURIER_ORDERING_AVAILABLE`).
  */
 export async function serviceableForPostcode(q: Queryable, postcode: string): Promise<boolean> {
-  const res = await q.query<{ serviced: boolean }>(
-    `
-		SELECT EXISTS (
-			SELECT 1
-			FROM public.delivery_zone_postcode zp
-			JOIN public.delivery_zone z ON z.id = zp.zone_id
-			-- availability-exempt: public.delivery_zone — a serving area's lifecycle.
-			WHERE zp.postcode = $1 AND z.status = 'active'
-		) AS serviced`,
-    [postcode],
-  );
-  return res.rows[0]?.serviced === true;
+  return (await coverageForPostcode(q, postcode)).kind === "effy";
 }
 
-/** The resolved active zone for a destination postcode. */
+/**
+ * What the LIVE quote needs to price a listed postcode: its fee tier and whether same-day is on.
+ *
+ * ⚠ BOTH ARE BRIDGES. 076 replaced zones-in-distance-tiers with one flat list of postcodes and took
+ * the controls for tiers and same-day zones out of the console — but the live checkout still sells
+ * same-day/standard on a per-tier fee until later features replace it. So the old answers are kept,
+ * frozen, for the postcodes that had them, and derived for the ones that never did.
+ */
 export interface Zone {
-  id: string;
+  /**
+   * The postcode's group (the old "zone"), or null when it is in none. ⚠ Per-shop same-day
+   * exceptions are keyed on it, so an ungrouped postcode has none.
+   */
+  id: string | null;
   /** The distance tier the quote prices on. */
-  ringId: string;
+  ringId: string | null;
   /** Same-day eligible by default (047 FR-037). */
   sameDayEligible: boolean;
 }
 
-/** `null` (no error) when the postcode is in no active zone. */
+/** `null` (no error) when the postcode is not on Effy's list. */
 export async function zoneForPostcode(q: Queryable, postcode: string): Promise<Zone | null> {
   const row = (
-    await q.query<{ id: string; ring_id: string; sameday_eligible: boolean }>(
+    await q.query<{ id: string | null; ring_id: string | null; sameday_eligible: boolean }>(
       `
-		SELECT z.id::text AS id, z.ring_id::text AS ring_id, z.sameday_eligible
+		SELECT z.id::text AS id,
+		       -- BRIDGE until the fee engine (E3): a group that existed before 076 keeps its tier, so
+		       -- nobody's fee moved; anything listed or grouped since is tiered by its distance.
+		       COALESCE(z.ring_id, public.coverage_ring_for_km(zp.distance_km))::text AS ring_id,
+		       -- BRIDGE until the checkout feature (E5): a pre-076 group keeps its flag; everything
+		       -- else is same-day eligible, as the whole list is under the new model.
+		       COALESCE(z.sameday_eligible, true) AS sameday_eligible
 		FROM public.delivery_zone_postcode zp
-		JOIN public.delivery_zone z ON z.id = zp.zone_id
-		-- availability-exempt: public.delivery_zone — a serving area's lifecycle.
-		WHERE zp.postcode = $1 AND z.status = 'active'`,
+		-- availability-exempt: public.delivery_zone — a coverage group's lifecycle, not a product's.
+		LEFT JOIN public.delivery_zone z ON z.id = zp.zone_id AND z.status = 'active'
+		WHERE zp.postcode = $1`,
       [postcode],
     )
   ).rows[0];
@@ -62,12 +71,13 @@ export async function zoneForPostcode(q: Queryable, postcode: string): Promise<Z
  */
 export async function sameDayForShops(
   q: Queryable,
-  zoneId: string,
+  zoneId: string | null,
   zoneDefault: boolean,
   shopIds: readonly string[],
 ): Promise<Map<string, boolean>> {
   const out = new Map<string, boolean>(shopIds.map((id) => [id, zoneDefault]));
-  if (shopIds.length === 0) return out;
+  // No group, no exceptions: they are keyed on one (and frozen since 076 — removed by E5).
+  if (shopIds.length === 0 || zoneId === null) return out;
 
   const rows = await q.query<{ shop_id: string; mode: string }>(
     `

@@ -51,13 +51,14 @@ export function packagesFromLines(lines: readonly CheckoutLine[]): PackageInput[
 export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): DeliveryQuoteDTO {
   if (!q.serviced) {
     return {
-      postcode, serviced: false, sameDayAvailableUntil: null, packages: [], expiresAt: "",
+      postcode, serviced: false, coverage: "none", sameDayAvailableUntil: null, packages: [], expiresAt: "",
       sameDaySlots: [], sameDayUnavailableReason: null, standardDays: [],
     };
   }
   return {
     postcode,
     serviced: true,
+    coverage: q.coverage,
     sameDayAvailableUntil: q.sameDayUntil ? operatingStamp(q.sameDayUntil) : null,
     packages: q.packages.map((p, i) => ({
       shopRef: `pkg-${i + 1}`,

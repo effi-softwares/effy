@@ -6,10 +6,11 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
-import type {
-  AddressDTO,
-  CreateCheckoutIntentResponse,
-  DeliveryQuoteDTO,
+import {
+  COVERAGE_REFUSAL_SENTENCE,
+  type AddressDTO,
+  type CreateCheckoutIntentResponse,
+  type DeliveryQuoteDTO,
 } from "@effy/shared-types"
 
 import { ActionButton } from "@/components/storefront/actions"
@@ -408,6 +409,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             onAddressAdded={onShippingAddressAdded}
             idPrefix="shipping"
             busy={busy}
+            showCoverage
           />
           {selectedId && (
             <div className="mt-6">
@@ -599,8 +601,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             </dl>
           ) : null}
           {quote && !serviced ? (
-            <p className="mt-3 text-sm text-destructive">
-              We don’t deliver to this address yet. Try a different address above.
+            // 076 — the one refusal sentence, from the shared constants (never written here).
+            <p className="mt-3 text-sm text-destructive" data-testid="checkout-coverage-refusal">
+              {COVERAGE_REFUSAL_SENTENCE}
             </p>
           ) : null}
         </div>

@@ -18,6 +18,25 @@ epics E0–E10 / specs 074–082 in
 [docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md). The
 text below still describes the **live** code until E9 (cutover) lands — do not build new work on
 same-day/standard.
+⚠ **COVERAGE IS ALREADY THE NEW MODEL (076).** Where Effy delivers is **one flat list of postcodes**,
+and "who delivers to this address" — `effy` | `courier` | `none` — is decided by
+`public.coverage_for_postcode` **only** (read through `coverageForPostcode`): never stored against an
+address, never re-derived by a join. Zones, distance tiers and per-shop same-day exceptions have **no
+controls** any more.
+- ⚠ **`delivery_zone_postcode` IS the list and `delivery_zone` IS an optional GROUP** — the tables were
+  evolved in place (a copied list would have let the address book and the live checkout disagree) and
+  keep their 047 names until E9. A group's `status` no longer decides coverage; removing a group never
+  removes its postcodes.
+- ⚠ **Three frozen bridges keep the live checkout selling**, each removed by the epic named: the fee
+  tier (`COALESCE(zone.ring_id, coverage_ring_for_km(distance))`, **E3**), the same-day flag (**E5**),
+  and driver clearances keyed on the group — an **ungrouped postcode is deliverable only by an
+  every-zone driver** (**E8**).
+- ⚠ **Courier delivery cannot be switched on** while `COURIER_ORDERING_AVAILABLE` is `false`
+  (`@effy/edge-shared/delivery`); E5 flips it in the change that makes a courier order placeable.
+- ⚠ **The refusal is ONE sentence in ONE file** — `COVERAGE_REFUSAL_SENTENCE` in
+  `packages/shared-types/src/delivery.ts`, mirrored in the customer app's `CoverageWords.kt` and held
+  to it by a test. `coverage.guard.test.ts` fails a second wording, a customer contract that carries a
+  group/distance/reason, or a new reader of the list's table.
 Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one-drop flow). They run a
 **hub-and-spoke** operation built on 047's collection-run + operating-hub concepts:
 - **Collection run (shops → hub):** an on-duty driver is assigned **packages to collect** and drives a
@@ -431,6 +450,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
 - **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)
 - **074-customer-points** — Customer Points (store credit)
 - **073-order-dispatch-control** — Simple Order Status & Driver Assignment in Orders
@@ -484,5 +504,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/075-staff-gateway/plan.md
+at specs/076-effy-delivery-coverage/plan.md
 <!-- SPECKIT END -->

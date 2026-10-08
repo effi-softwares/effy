@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 
-import type { FeePlanDTO, RingDTO, ZoneDTO } from "@effy/shared-types";
+import type { FeePlanDTO } from "@effy/shared-types";
 import {
-  Badge, Button, Input, Label, Switch,
+  Badge, Button, Input, Label,
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
@@ -15,16 +15,13 @@ import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageDelivery } from "./access";
 import { deliveryMutationError, PLAN_INCOMPLETE } from "./errorText";
-import { AddPostcodeDialog } from "./components/AddPostcodeDialog";
 import { DeliveryDaysPanel } from "./components/DeliveryDaysPanel";
 import { NewPlanDialog } from "./components/NewPlanDialog";
-import { NewRingDialog } from "./components/NewRingDialog";
-import { NewZoneDialog } from "./components/NewZoneDialog";
-import { SameDayExceptionsDialog } from "./components/SameDayExceptionsDialog";
 import { SlotsPanel } from "./components/SlotsPanel";
+import { CoveragePanel } from "./coverage/CoveragePanel";
 import {
-  collectionRunsQuery, plansQuery, ringsQuery, settingsQuery, useActivatePlan, useCreateCollectionRun,
-  useDeleteCollectionRun, usePatchZone, usePutSettings, useSuggestRing, zonesQuery,
+  collectionRunsQuery, plansQuery, settingsQuery, useActivatePlan, useCreateCollectionRun,
+  useDeleteCollectionRun, usePutSettings,
 } from "./queries";
 
 export function DeliveryScreen() {
@@ -37,114 +34,27 @@ export function DeliveryScreen() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">Delivery</h1>
         <p className="text-muted-foreground">
-          Served zones, distance rings, shipping-fee plans, and the collection hub. Fees are the
-          platform's — no shop can set them.
+          Where Effy delivers, shipping-fee plans, delivery times and the hub. All of it is the
+          platform's — no shop can set it.
         </p>
       </div>
 
-      <Tabs defaultValue="zones">
+      <Tabs defaultValue="coverage">
         <TabsList>
-          <TabsTrigger value="zones">Zones</TabsTrigger>
-          <TabsTrigger value="rings">Rings</TabsTrigger>
+          <TabsTrigger value="coverage">Coverage</TabsTrigger>
           <TabsTrigger value="plans">Fee plans</TabsTrigger>
           <TabsTrigger value="schedule">Same-day</TabsTrigger>
           <TabsTrigger value="slots">Time slots</TabsTrigger>
           <TabsTrigger value="days">Delivery days</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
-        <TabsContent value="zones" className="mt-4"><ZonesPanel canManage={canManage} /></TabsContent>
-        <TabsContent value="rings" className="mt-4"><RingsPanel canManage={canManage} /></TabsContent>
+        <TabsContent value="coverage" className="mt-4"><CoveragePanel canManage={canManage} /></TabsContent>
         <TabsContent value="plans" className="mt-4"><PlansPanel canManage={canManage} /></TabsContent>
         <TabsContent value="schedule" className="mt-4"><SchedulePanel canManage={canManage} /></TabsContent>
         <TabsContent value="slots" className="mt-4"><SlotsPanel canManage={canManage} /></TabsContent>
         <TabsContent value="days" className="mt-4"><DeliveryDaysPanel canManage={canManage} /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel canManage={canManage} /></TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function ZonesPanel({ canManage }: { canManage: boolean }) {
-  const zones = useQuery(zonesQuery());
-  const rings = useQuery(ringsQuery());
-  const patch = usePatchZone();
-  const suggest = useSuggestRing();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [addZone, setAddZone] = useState<ZoneDTO | null>(null);
-  const [exceptionsZone, setExceptionsZone] = useState<ZoneDTO | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-
-  const ringName = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of rings.data ?? []) m.set(r.id, r.code);
-    return (id: string | null) => (id ? (m.get(id) ?? "—") : "—");
-  }, [rings.data]);
-
-  async function onSuggest(zoneId: string) {
-    setNote(null);
-    try {
-      const s = await suggest.mutateAsync(zoneId);
-      setNote(s.reason === "no_coordinate"
-        ? "No coordinate for that zone yet — assign a ring by hand."
-        : `Suggested ${ringName(s.ringId)} (~${s.hubDistanceKm} km from the hub).`);
-    } catch (err) {
-      setNote(deliveryMutationError(err));
-    }
-  }
-
-  const columns: ColumnDef<ZoneDTO>[] = [
-    { accessorKey: "code", header: "Code", cell: ({ row }) => <span className="font-mono">{row.original.code}</span> },
-    { accessorKey: "name", header: "Name" },
-    { id: "ring", header: "Ring", cell: ({ row }) => ringName(row.original.ringId) },
-    { accessorKey: "postcodeCount", header: "Postcodes", cell: ({ row }) => <span className="tabular-nums">{row.original.postcodeCount}</span> },
-    {
-      id: "sameday", header: "Same-day",
-      cell: ({ row }) => (
-        <Switch
-          checked={row.original.samedayEligible}
-          disabled={!canManage || patch.isPending}
-          onCheckedChange={(v) => patch.mutate({ zoneId: row.original.id, body: { samedayEligible: v } })}
-        />
-      ),
-    },
-    {
-      id: "actions", header: "",
-      cell: ({ row }) => canManage ? (
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setAddZone(row.original)}>Add postcode</Button>
-          <Button variant="outline" size="sm" disabled={suggest.isPending} onClick={() => void onSuggest(row.original.id)}>
-            Suggest ring
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setExceptionsZone(row.original)}>Same-day…</Button>
-        </div>
-      ) : null,
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">A postcode belongs to at most one zone. Same-day is offered per zone (all shops by default).</p>
-        {canManage ? <Button onClick={() => setCreateOpen(true)}><Plus /> New zone</Button> : null}
-      </div>
-      {note ? <p className="text-sm">{note}</p> : null}
-      {zones.isError ? <ErrorState error={zones.error} onRetry={() => void zones.refetch()} />
-        : zones.isPending ? <p className="text-sm text-muted-foreground">Loading…</p>
-        : <DataTable columns={columns} data={zones.data} emptyMessage="No zones yet — create one to start serving." />}
-      <NewZoneDialog open={createOpen} onOpenChange={setCreateOpen} />
-      {addZone ? (
-        <AddPostcodeDialog zoneId={addZone.id} zoneName={addZone.name} open={addZone != null}
-          onOpenChange={(o) => { if (!o) setAddZone(null); }} />
-      ) : null}
-      {exceptionsZone ? (
-        <SameDayExceptionsDialog
-          zoneId={exceptionsZone.id}
-          zoneName={exceptionsZone.name}
-          zoneEligible={exceptionsZone.samedayEligible}
-          open={exceptionsZone != null}
-          onOpenChange={(o) => { if (!o) setExceptionsZone(null); }}
-        />
-      ) : null}
     </div>
   );
 }
@@ -212,30 +122,6 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
   );
 }
 
-function RingsPanel({ canManage }: { canManage: boolean }) {
-  const rings = useQuery(ringsQuery());
-  const [open, setOpen] = useState(false);
-  const columns: ColumnDef<RingDTO>[] = [
-    { accessorKey: "ordinal", header: "Order", cell: ({ row }) => <span className="tabular-nums">{row.original.ordinal}</span> },
-    { accessorKey: "code", header: "Code", cell: ({ row }) => <span className="font-mono">{row.original.code}</span> },
-    { accessorKey: "name", header: "Name" },
-    { id: "upper", header: "Upper km", cell: ({ row }) => row.original.suggestUpperKm ?? "furthest (open-ended)" },
-    { accessorKey: "status", header: "Status" },
-  ];
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Distance tiers, ordered nearest→furthest. The fee's distance factor is priced per ring.</p>
-        {canManage ? <Button onClick={() => setOpen(true)}><Plus /> New ring</Button> : null}
-      </div>
-      {rings.isError ? <ErrorState error={rings.error} onRetry={() => void rings.refetch()} />
-        : rings.isPending ? <p className="text-sm text-muted-foreground">Loading…</p>
-        : <DataTable columns={columns} data={rings.data} emptyMessage="No rings yet." />}
-      <NewRingDialog open={open} onOpenChange={setOpen} />
-    </div>
-  );
-}
-
 function PlansPanel({ canManage }: { canManage: boolean }) {
   const plans = useQuery(plansQuery());
   const activate = useActivatePlan();
@@ -292,6 +178,13 @@ function PlansPanel({ canManage }: { canManage: boolean }) {
   );
 }
 
+/** What a hub move did to the coverage list's distances (076 FR-012), in words. */
+export function hubMoveSummary(d: { recomputed: number; unchanged: number; manualFlagged: number }): string {
+  const parts = [`${d.recomputed} distance${d.recomputed === 1 ? "" : "s"} recalculated`];
+  if (d.manualFlagged > 0) parts.push(`${d.manualFlagged} entered by hand flagged for review`);
+  return `The hub moved: ${parts.join(", ")}.`;
+}
+
 function SettingsPanel({ canManage }: { canManage: boolean }) {
   const settings = useQuery(settingsQuery());
   const put = usePutSettings();
@@ -313,8 +206,8 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
     e.preventDefault();
     setNote(null);
     try {
-      await put.mutateAsync({ hubLatitude: lat.trim(), hubLongitude: lng.trim(), samedayPrepBufferMin: Number(buffer) });
-      setNote("Saved.");
+      const saved = await put.mutateAsync({ hubLatitude: lat.trim(), hubLongitude: lng.trim(), samedayPrepBufferMin: Number(buffer) });
+      setNote(saved.distances ? `Saved. ${hubMoveSummary(saved.distances)}` : "Saved.");
     } catch (err) {
       setNote(deliveryMutationError(err));
     }
@@ -325,8 +218,9 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
   return (
     <form onSubmit={submit} className="max-w-md space-y-4">
       <p className="text-sm text-muted-foreground">
-        The operating hub is where ring distances are measured from. The prep buffer is how long a shop
-        needs before a collection run.
+        The hub is where every postcode's distance is measured from. Moving it recalculates the
+        distances the platform worked out, and flags the ones entered by hand for another look. The prep
+        buffer is how long a shop needs before a collection run.
       </p>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">

@@ -4,11 +4,12 @@
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
-import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
-import type { FeePlanDTO, RingDTO, ZoneDTO } from "@effy/shared-types";
+import { forbidden, problem, ProblemType, refused, subject, unavailable } from "@effy/edge-shared";
+import type { FeePlanDTO, RingDTO } from "@effy/shared-types";
 
 import { canManageDelivery, isActiveStaff } from "./authz";
-import { DeliveryError, type FeePlan, type Ring, type Zone } from "./types";
+import { CoverageError } from "./coverage.service";
+import { DeliveryError, type FeePlan, type Ring } from "./types";
 
 /**
  * Authenticate (401) + authorize from the platform record (403), fail-closed to 503 on infra error.
@@ -50,25 +51,21 @@ export function mapDeliveryError(err: unknown, scope: RequestScope): APIGatewayP
   return unavailable(scope);
 }
 
+/**
+ * Map a CoverageError (076) to problem+json. The `code` becomes the problem's type and any extra
+ * (the postcodes that need a distance, a driver count of zero) rides beside it — the console keys
+ * its own wording off the code, never off this text.
+ */
+export function mapCoverageError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
+  if (err instanceof CoverageError) return refused(scope, err.status, err.code, err.message, { code: err.code, ...err.extra });
+  scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "coverage op failed");
+  return unavailable(scope);
+}
+
 // ── domain → wire DTO ───────────────────────────────────────────────────────────────────────────
 
 export function toRingDTO(r: Ring): RingDTO {
   return { id: r.id, code: r.code, name: r.name, ordinal: r.ordinal, suggestUpperKm: r.suggestUpperKm, status: r.status };
-}
-
-export function toZoneDTO(z: Zone): ZoneDTO {
-  return {
-    id: z.id,
-    code: z.code,
-    name: z.name,
-    ringId: z.ringId,
-    ringIsOverridden: z.ringIsOverridden,
-    suggestedRingId: z.suggestedRingId,
-    hubDistanceKm: z.hubDistanceKm,
-    samedayEligible: z.samedayEligible,
-    status: z.status,
-    postcodeCount: z.postcodeCount,
-  };
 }
 
 export function toFeePlanDTO(p: FeePlan): FeePlanDTO {

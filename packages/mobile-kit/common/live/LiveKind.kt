@@ -20,7 +20,10 @@ enum class LiveKind(val wire: String) {
     REVIEW("review"),
 
     /** 074 — the customer's points balance changed. */
-    POINTS("points");
+    POINTS("points"),
+
+    /** 076 — where Effy delivers changed. Sent to back-office only; no mobile app subscribes to it. */
+    COVERAGE("coverage");
 
     companion object {
         /** `null` for a kind this build has never heard of — a newer backend, not an error. */

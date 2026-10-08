@@ -7,6 +7,7 @@
  * Data design: see specs/019-customer-commerce-flow/data-model.md §2.1 / §3.
  */
 
+import type { CoverageKind } from "./delivery";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
 /** A saved delivery address (GET /v1/addresses). */
@@ -22,6 +23,11 @@ export interface AddressDTO {
   postalCode: string;
   country: string;
   isDefault: boolean;
+  /**
+   * 076 — who delivers to this address TODAY: worked out when the address is read, never saved with
+   * it, so a postcode that leaves Effy's list changes the answer the next time it is shown.
+   */
+  coverage?: CoverageKind;
   /**
    * 066 — the instructions this address PREFILLS at checkout, or null. A convenience for the next
    * order only: a placed order stores what its own checkout sent and never reads this.

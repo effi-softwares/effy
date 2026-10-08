@@ -2,7 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { migrationSql } from "../shared/load-migrations";
+import { LISTED_POSTCODE_FIXTURE_SQL, migrationSql } from "../shared/load-migrations";
 
 /**
  * The wave planner against real PostgreSQL 16, on the REAL migrations (063).
@@ -91,7 +91,7 @@ async function makeZone(name: string, postcode: string): Promise<string> {
      VALUES ($1, $2, $3, 'active', 'test') RETURNING id`,
     [`Z-${postcode}`, name, ringId],
   );
-  await q(`INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES ($1, $2)`, [
+  await q(LISTED_POSTCODE_FIXTURE_SQL, [
     r.rows[0].id,
     postcode,
   ]);

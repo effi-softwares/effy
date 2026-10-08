@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.addresses.presentation
 
+import com.effyshopping.customer.mobile.core.delivery.Coverage
+import com.effyshopping.customer.mobile.core.delivery.CoverageWords
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -219,6 +221,19 @@ private fun AddressRow(
                         it,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                // 076 — who delivers here, or the one refusal sentence: the same words checkout
+                // uses, so the shopper learns it here rather than after building an order.
+                CoverageWords.describe(address.coverage)?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (address.coverage == Coverage.None) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }

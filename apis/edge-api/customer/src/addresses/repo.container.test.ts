@@ -183,4 +183,38 @@ d("066 — address default delivery instructions against real PostgreSQL", () =>
       create(customerId, { ...base, defaultDeliveryInstructions: { handover: null, note: "🚪".repeat(250) } }),
     ).resolves.toBeTruthy();
   });
+
+  /**
+   * 076 — P16, the address half: the address book's answer IS the deciding function's, on create,
+   * on list and on update, and it is today's answer rather than the day-it-was-saved's.
+   */
+  it("⚠ 076 — each address carries who delivers there NOW, on every read and write", async () => {
+    await pool.query(`
+      INSERT INTO public.locality (name, state, postcode) VALUES ('CARLTON', 'VIC', '3053'), ('HOBART', 'TAS', '7000')
+        ON CONFLICT DO NOTHING;
+      INSERT INTO public.delivery_zone_postcode (postcode, distance_km, distance_source, added_by)
+        VALUES ('3053', 2.10, 'manual', 'test') ON CONFLICT (postcode) DO NOTHING;
+    `);
+    const viaFunction = async (postcode: string) =>
+      (await pool.query<{ kind: string }>(`SELECT kind FROM public.coverage_for_postcode($1)`, [postcode])).rows[0]!.kind;
+
+    const listed = await create(customerId, base);
+    const unlisted = await create(customerId, { ...base, label: "Shack", postalCode: " 7000 " });
+    const foreign = await create(customerId, { ...base, label: "Abroad", postalCode: "SW1A 1AA", country: "GB" });
+    expect(listed.coverage).toBe("effy");
+    expect(unlisted.coverage).toBe("none");
+    expect(foreign.coverage).toBe("none"); // not a postcode the country's data knows: never an error
+    expect(listed.coverage).toBe(await viaFunction("3053"));
+    expect(unlisted.coverage).toBe(await viaFunction("7000"));
+
+    // The postcode leaves the list. Nothing about the address row changes — and its answer does.
+    await pool.query(`DELETE FROM public.delivery_zone_postcode WHERE postcode = '3053'`);
+    const after = (await listByCustomer(customerId)).find((a) => a.id === listed.id)!;
+    expect(after.coverage).toBe("none");
+    expect(after.coverage).toBe(await viaFunction("3053"));
+
+    // And there is no column to go stale.
+    const cols = await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'customer_address' AND column_name = 'coverage'`);
+    expect(cols.rowCount).toBe(0);
+  });
 });

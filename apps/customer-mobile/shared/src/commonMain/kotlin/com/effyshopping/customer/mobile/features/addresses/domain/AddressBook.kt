@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.addresses.domain
 
+import com.effyshopping.customer.mobile.core.delivery.Coverage
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.DeliveryInstructions
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 
@@ -28,6 +29,11 @@ data class SavedAddress(
     val isDefault: Boolean,
     /** 066 — the instructions this address prefills at checkout; null when none are saved. */
     val defaultInstructions: DeliveryInstructions? = null,
+    /**
+     * 076 — who delivers to this address today, as the server just worked it out. Never cached past
+     * the read it came with; null only from a server older than 076.
+     */
+    val coverage: Coverage? = null,
 )
 
 /**

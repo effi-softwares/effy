@@ -52,6 +52,7 @@ function addressRow(over: Partial<AddressRow> = {}): AddressRow {
     is_default: true,
     default_delivery_handover: null,
     default_delivery_note: null,
+    coverage: "effy",
     ...over,
   };
 }

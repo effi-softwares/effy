@@ -4,6 +4,7 @@
 // (serviceability, localities) and commerce (quote, intent, payment finalisation).
 export * from "./engine";
 export * from "./plan";
+export * from "./coverage";
 export * from "./zone";
 export * from "./sameday";
 export * from "./slots";

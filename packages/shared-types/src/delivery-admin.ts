@@ -11,11 +11,9 @@
  * (exact, no float); grams / ordinal / buffer / counts are integers (`number`).
  */
 
-import type { AustralianState, DeliveryMethod } from "./delivery";
+import type { AustralianState, CoverageKind, DeliveryMethod } from "./delivery";
 
 export type RingStatus = "active" | "disabled";
-export type ZoneStatus = "active" | "disabled";
-export type SameDayMode = "on" | "off";
 
 /** A distance tier. `suggestUpperKm` is null on exactly one (open-ended, furthest) ring. */
 export interface RingDTO {
@@ -25,63 +23,6 @@ export interface RingDTO {
   ordinal: number;
   suggestUpperKm: string | null;
   status: RingStatus;
-}
-
-/** A served area. `ringId` is the assigned ring; `suggestedRingId`/`hubDistanceKm` are the last suggestion. */
-export interface ZoneDTO {
-  id: string;
-  code: string;
-  name: string;
-  ringId: string;
-  ringIsOverridden: boolean;
-  suggestedRingId: string | null;
-  hubDistanceKm: string | null; // internal only — never surfaced to a shopper
-  samedayEligible: boolean;
-  status: ZoneStatus;
-  postcodeCount: number;
-}
-
-/** A place the console can add to a zone, with the disclosure that its postcode also serves others (FR-008). */
-export interface ZonePostcodeCandidateDTO {
-  locality: LocalityChoice;
-  /** Every OTHER place the same postcode makes serviceable, and how many (FR-008). */
-  alsoServes: LocalityChoice[];
-  alsoServesCount: number;
-  /** True when no locality matches this postcode — requires explicit confirm to add (FR-010). */
-  unknownPostcode: boolean;
-  /** Set when the postcode already belongs to another zone (add is refused) (FR-009). */
-  inZoneCode: string | null;
-}
-
-/** A fully-identified place (mirrors the customer `LocalityDTO`). */
-export interface LocalityChoice {
-  name: string;
-  state: AustralianState;
-  postcode: string;
-}
-
-/** The pre-add disclosure for a postcode (FR-008/009/010): every place it serves, whether it is unknown,
- *  and whether another zone already holds it. */
-export interface PostcodeCheckDTO {
-  postcode: string;
-  places: LocalityChoice[];
-  placeCount: number;
-  unknownPostcode: boolean;
-  inZoneCode: string | null;
-}
-
-/** The places that stop being serviceable if an area is removed (FR-011). */
-export interface ZoneRemovalImpactDTO {
-  postcode: string;
-  places: LocalityChoice[];
-  placeCount: number;
-}
-
-/** The auto-suggested ring for a zone (FR-015). `ringId` null with a reason when no coordinate is available. */
-export interface RingSuggestionDTO {
-  ringId: string | null;
-  hubDistanceKm: string | null;
-  reason: "ok" | "no_coordinate";
 }
 
 /** A distance-slab price within a plan. */
@@ -119,15 +60,6 @@ export interface PlanActivationRefusalDTO {
   reason?: "no_weight_bands";
 }
 
-/** A per-(shop, zone) same-day override, set only by back-office (FR-043/045). */
-export interface SameDayExceptionDTO {
-  id: string;
-  shopId: string;
-  zoneId: string;
-  mode: SameDayMode;
-  updatedBy: string;
-}
-
 /** A daily driver collection run. Times are Australia/Melbourne wall-clock ("HH:MM"). */
 export interface CollectionRunDTO {
   id: string;
@@ -136,11 +68,147 @@ export interface CollectionRunDTO {
   status: RingStatus;
 }
 
-/** The singleton delivery settings: the ring-suggestion hub and the same-day prep buffer. */
+/** The singleton delivery settings: the hub every distance is measured from, and the same-day prep buffer. */
 export interface DeliverySettingsDTO {
   hubLatitude: string;
   hubLongitude: string;
   samedayPrepBufferMin: number;
+  /**
+   * 076 — present on the answer to a save that MOVED the hub: what happened to the list's distances
+   * (FR-012). Worked-out ones were recalculated; hand-entered ones were left alone and flagged.
+   */
+  distances?: HubRecomputeDTO;
+}
+
+/** What a hub move did to the coverage list's distances (076 FR-012). */
+export interface HubRecomputeDTO {
+  /** Worked-out distances that changed. */
+  recomputed: number;
+  /** Worked-out distances that came out the same, or could no longer be worked out and were kept. */
+  unchanged: number;
+  /** Hand-entered distances, left as they were and flagged for a person to review. */
+  manualFlagged: number;
+}
+
+// ── 076 — Effy delivery coverage ───────────────────────────────────────────────────────────────────
+//
+// ONE list of postcodes Effy delivers to, optionally filed under groups. ⚠ These are STAFF contracts:
+// they carry groups, distances and reasons that a customer contract must never carry (FR-023).
+
+/** How a listed postcode's distance was obtained (FR-010). */
+export type DistanceSource = "computed" | "manual";
+
+/** Why a postcode has the answer it has — shown to staff, never to a customer. */
+export type CoverageReason = "listed" | "courier_offered" | "courier_off" | "courier_excluded" | "unknown_postcode";
+
+/** One postcode on Effy's list. */
+export interface CoveragePostcodeDTO {
+  postcode: string;
+  /** Every place the postcode covers, most addresses first. */
+  places: string[];
+  state: AustralianState | null;
+  groupId: string | null;
+  /** Straight-line km from the hub, 2-dp decimal string. */
+  distanceKm: string;
+  distanceSource: DistanceSource;
+  /** A hand-entered distance someone should look at again (the hub moved, or it came from the 076 backfill). */
+  needsReview: boolean;
+}
+
+/** A name staff file postcodes under. It changes nothing a customer sees, is offered or pays (FR-014). */
+export interface CoverageGroupDTO {
+  id: string;
+  name: string;
+  postcodeCount: number;
+  /**
+   * Drivers cleared to DELIVER to this group (or to everywhere). ⚠ Until the driver-operations
+   * feature (E8) a driver is cleared per group, so zero here means orders would be sold and nobody
+   * could be given them.
+   */
+  driverCount: number;
+}
+
+/** Courier reach: offered everywhere in the country except the exclusions — once it can be switched on. */
+export interface CourierReachDTO {
+  offered: boolean;
+  /** False until a courier order can actually be placed; the switch is refused while it is. */
+  canBeOffered: boolean;
+  exclusions: CourierExclusionDTO[];
+}
+
+export interface CourierExclusionDTO {
+  postcode: string;
+  places: string[];
+  reason: string;
+}
+
+/** `GET /admin/v1/delivery/coverage` — everything the Coverage screen shows, in one read. */
+export interface CoverageListDTO {
+  postcodes: CoveragePostcodeDTO[];
+  nextCursor?: string;
+  groups: CoverageGroupDTO[];
+  /** Listed postcodes in no group, and the drivers who can deliver to them (those cleared for everywhere). */
+  ungrouped: { postcodeCount: number; driverCount: number };
+  courier: CourierReachDTO;
+  counts: { listed: number; manualDistance: number; needsReview: number };
+}
+
+/** One result of the add dialog's place search — a postcode, with the place that matched. */
+export interface CoveragePlaceResultDTO {
+  postcode: string;
+  state: AustralianState | null;
+  /** The place name that matched what was typed (or the primary place, for a postcode search). */
+  matched: string;
+  /** Every place that comes with this postcode (FR-003). */
+  places: string[];
+  listed: boolean;
+  /** null → no place in the postcode has a location; a distance must be entered by hand (FR-009). */
+  computedDistanceKm: string | null;
+}
+
+export interface CoveragePlaceSearchDTO {
+  results: CoveragePlaceResultDTO[];
+}
+
+/** `POST /admin/v1/delivery/coverage/postcodes`. */
+export interface AddCoveragePostcodesRequest {
+  postcodes: { postcode: string; manualDistanceKm?: string | null }[];
+  groupId?: string | null;
+  /** Staff have been told no driver can deliver there, and are going ahead. */
+  confirmNoDrivers?: boolean;
+}
+
+export interface AddCoveragePostcodesResult {
+  added: string[];
+  alreadyListed: string[];
+}
+
+/** `PATCH /admin/v1/delivery/coverage/postcodes` — move between groups, or set ONE postcode's distance. */
+export interface PatchCoveragePostcodesRequest {
+  postcodes: string[];
+  /** Present (even as null = no group) → move them. */
+  groupId?: string | null;
+  distance?: { source: "manual"; km: string } | { source: "computed" };
+  confirmNoDrivers?: boolean;
+}
+
+/** One answer of the staff checker (FR-025). */
+export interface CoverageCheckDTO {
+  postcode: string;
+  places: string[];
+  state: AustralianState | null;
+  coverage: CoverageKind;
+  reason: CoverageReason;
+  groupName: string | null;
+  distanceKm: string | null;
+  distanceSource: DistanceSource | null;
+  /** Staff's own words for why couriers do not go there, when `reason` is `courier_excluded`. */
+  exclusionReason: string | null;
+}
+
+/** `GET /admin/v1/delivery/coverage/check?q=` — one entry for a postcode, one per postcode for a place name. */
+export interface CoverageCheckResultDTO {
+  matches: CoverageCheckDTO[];
 }
 
 /**
@@ -199,13 +267,6 @@ export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates">;
 export interface NonDeliveryDateInput {
   day: string;
   label?: string | null;
-}
-
-/** A configuration problem surfaced by the delivery health view (a clean config returns none). */
-export interface ZoneHealthFlagDTO {
-  zoneCode: string;
-  kind: "unknown_place_postcode" | "empty_zone" | "ring_unpriced_in_active_plan";
-  detail: string;
 }
 
 /** Shop-side product weight (used by the shop products domain, not the admin console). */

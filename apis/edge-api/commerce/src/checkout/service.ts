@@ -8,7 +8,7 @@ import {
   CURRENCY, emitMetric, formatCents, metricNamespace, operatingStamp, withTransaction, type RequestScope, type Transactor,
 } from "@effy/edge-shared";
 import { meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
-import { METHOD_SAME_DAY, NoActivePlanError, ServedZoneUnpricedError, type QuoteResult } from "@effy/edge-shared/delivery";
+import { CourierNotPurchasableError, METHOD_SAME_DAY, NoActivePlanError, ServedZoneUnpricedError, type QuoteResult } from "@effy/edge-shared/delivery";
 import {
   announcePaid, finalizeFailed, finalizeSucceeded, meterFinalize,
   type FinalizeOutcome, type IntentStatus, type PaymentGateway,
@@ -262,7 +262,7 @@ export function createCheckoutService(deps: {
       } catch (err) {
         // ⚠ A served zone that could not be priced must never happen; it is a page, not a number
         // to watch idly (047 FR-029). Never free delivery.
-        if (err instanceof ServedZoneUnpricedError || err instanceof NoActivePlanError) emitMetric(ns(), "DeliveryQuoteFailures");
+        if (err instanceof ServedZoneUnpricedError || err instanceof NoActivePlanError || err instanceof CourierNotPurchasableError) emitMetric(ns(), "DeliveryQuoteFailures");
         throw err;
       }
       emitMetric(ns(), "DeliveryQuotes", 1, { outcome: deliveryOutcome(quote) });

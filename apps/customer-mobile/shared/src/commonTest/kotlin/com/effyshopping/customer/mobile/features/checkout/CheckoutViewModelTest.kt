@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout
 
+import com.effyshopping.customer.mobile.core.delivery.CoverageWords
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.DeliveryInstructions
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.Handover
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
@@ -250,7 +251,8 @@ class CheckoutViewModelTest {
         vm.payNow()
 
         assertFalse(ready(vm)!!.paying)
-        assertTrue(ready(vm)?.error?.contains("don’t deliver") == true)
+        // 076 — the ONE refusal sentence, the same the address book and the website show.
+        assertEquals(CoverageWords.REFUSAL, ready(vm)?.error)
         assertNull(unserviced.lastOrder) // never reached placement
     }
 

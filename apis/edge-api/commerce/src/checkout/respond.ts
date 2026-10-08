@@ -2,7 +2,9 @@
 import {
   ConnectionLimitError, formatCents, internal, notFound, ProblemType, refused, validationFailed, type RequestScope,
 } from "@effy/edge-shared";
+import { CourierNotPurchasableError } from "@effy/edge-shared/delivery";
 import { InsufficientPointsError } from "@effy/edge-shared/points";
+import { COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE } from "@effy/shared-types";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { DeliveryChoiceError } from "./delivery-choice";
@@ -39,8 +41,15 @@ export function checkoutError(scope: RequestScope, err: unknown, what: string): 
 
   if (err instanceof EmptyCartError) return validationFailed(scope, "your cart has no items available to purchase");
   if (err instanceof AddressNotFoundError) return validationFailed(scope, "choose a valid delivery address");
-  // 047 FR-002: the single "we don't deliver there yet" outcome.
-  if (err instanceof NotServiceableError) return validationFailed(scope, "we don't deliver to this address yet");
+  // ⚠ THE refusal (076 FR-022): one code and one sentence, from the one file that holds them, so
+  // the checkout says exactly what the address book says. 422, not 400 — the request is well
+  // formed; it is the address nobody delivers to.
+  if (err instanceof NotServiceableError || err instanceof CourierNotPurchasableError) {
+    // A courier-only address reaching checkout is an invariant breach, not a customer's mistake
+    // (see CourierNotPurchasableError). The customer gets the same sentence; the log says why.
+    if (err instanceof CourierNotPurchasableError) scope.log.error({ err: err.message }, "checkout: courier coverage reached the quote before courier ordering exists");
+    return refused(scope, 422, COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE, { code: COVERAGE_REFUSAL_CODE });
+  }
   if (err instanceof BelowMinimumError) {
     // Carries how much more is needed — never a shop.
     return validationFailed(scope, `add ${formatCents(err.remainingCents)} more to reach the ${formatCents(err.minimumCents)} minimum order`);

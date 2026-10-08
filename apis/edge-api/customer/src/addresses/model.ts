@@ -1,4 +1,4 @@
-import type { AddressDTO, HandoverPreference } from "@effy/shared-types";
+import type { AddressDTO, CoverageKind, HandoverPreference } from "@effy/shared-types";
 
 /**
  * The address book — customer profile management, which is this service's job (011 FR-028).
@@ -22,12 +22,21 @@ export interface AddressRow {
   /** 066 — the instructions this address prefills at checkout. Both null = none saved. */
   default_delivery_handover: HandoverPreference | null;
   default_delivery_note: string | null;
+  /** 076 — who delivers there NOW. Computed by the statement that read the row; never a column. */
+  coverage: CoverageKind;
 }
 
 /** Every column the repository returns — one list, referenced by every statement. */
+/**
+ * ⚠ `coverage` IS WORKED OUT, NOT STORED (076 FR-021). The last entry asks the one deciding function
+ * about this row's postcode as the row is read — in a SELECT and in a RETURNING alike — so an
+ * address saved while its postcode was on Effy's list says "cannot deliver" the next time it is
+ * shown after the postcode leaves. A column would remember the answer from the day it was saved.
+ */
 export const ADDRESS_COLUMNS = `id::text, label, recipient_name, phone, line1, line2,
           city, region, postal_code, country, is_default,
-          default_delivery_handover, default_delivery_note`;
+          default_delivery_handover, default_delivery_note,
+          (SELECT c.kind FROM public.coverage_for_postcode(btrim(postal_code)) c) AS coverage`;
 
 export function toDTO(row: AddressRow): AddressDTO {
   return {
@@ -42,6 +51,7 @@ export function toDTO(row: AddressRow): AddressDTO {
     postalCode: row.postal_code,
     country: row.country,
     isDefault: row.is_default,
+    coverage: row.coverage,
     // 066 — null, never an empty object, when nothing is saved: the client shows nothing for null.
     defaultDeliveryInstructions:
       row.default_delivery_handover === null && row.default_delivery_note === null

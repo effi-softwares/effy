@@ -31,7 +31,7 @@ locals {
   # Every kind an update may name — a contract with packages/shared-types/src/live.ts (LIVE_KINDS).
   # The failure alarm must name each one: a CloudWatch alarm addresses a metric by its exact
   # dimensions and cannot discover series, so a kind missing here fails silently.
-  live_kinds = ["orders", "stock", "attention", "work", "dispatch", "slots", "review", "points"]
+  live_kinds = ["orders", "stock", "attention", "work", "dispatch", "slots", "review", "points", "coverage"]
 
   live_metric_namespace = "Effy/Live"
 }

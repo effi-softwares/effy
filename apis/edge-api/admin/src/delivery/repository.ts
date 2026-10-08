@@ -3,9 +3,7 @@
 // change (009 pattern), so attribution can never be missing for the change that mattered.
 import { query, withTransaction } from "@effy/edge-shared";
 
-import type {
-  FeePlan, NewFeePlan, NewRing, NewZone, PlaceRef, Ring, Settings, Zone, ZonePatch,
-} from "./types";
+import type { FeePlan, NewFeePlan, Ring, Settings } from "./types";
 
 interface RingRow {
   id: string;
@@ -33,24 +31,6 @@ export async function listRings(): Promise<Ring[]> {
        FROM public.delivery_ring ORDER BY ordinal`,
   );
   return res.rows.map(toRing);
-}
-
-export async function createRing(input: NewRing, actorSub: string): Promise<Ring> {
-  return withTransaction(async (client) => {
-    const ins = await client.query<RingRow>(
-      `INSERT INTO public.delivery_ring (code, name, ordinal, suggest_upper_km, updated_by)
-       VALUES ($1, $2, $3, NULLIF($4, '')::numeric, $5)
-       RETURNING id::text, code, name, ordinal, suggest_upper_km::text, status`,
-      [input.code, input.name, input.ordinal, input.suggestUpperKm ?? "", actorSub],
-    );
-    const ring = toRing(ins.rows[0]!);
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_ring.create', 'delivery_ring', $2, $3::jsonb)`,
-      [actorSub, ring.id, JSON.stringify(input)],
-    );
-    return ring;
-  });
 }
 
 interface PlanRow {
@@ -196,174 +176,6 @@ export async function activatePlan(planId: string, actorSub: string): Promise<vo
   });
 }
 
-// ── Zones & serviceability (047) ──────────────────────────────────────────────────────────────────
-
-interface ZoneRow {
-  id: string;
-  code: string;
-  name: string;
-  ring_id: string;
-  ring_is_overridden: boolean;
-  suggested_ring_id: string | null;
-  hub_distance_km: string | null;
-  sameday_eligible: boolean;
-  status: string;
-  postcode_count: string;
-}
-
-function toZone(r: ZoneRow): Zone {
-  return {
-    id: r.id,
-    code: r.code,
-    name: r.name,
-    ringId: r.ring_id,
-    ringIsOverridden: r.ring_is_overridden,
-    suggestedRingId: r.suggested_ring_id,
-    hubDistanceKm: r.hub_distance_km,
-    samedayEligible: r.sameday_eligible,
-    status: r.status as Zone["status"],
-    postcodeCount: Number(r.postcode_count),
-  };
-}
-
-const zoneCols = `z.id::text, z.code, z.name, z.ring_id::text, z.ring_is_overridden,
-  z.suggested_ring_id::text, z.hub_distance_km::text, z.sameday_eligible, z.status,
-  (SELECT count(*) FROM public.delivery_zone_postcode zp WHERE zp.zone_id = z.id)::text AS postcode_count`;
-
-export async function listZones(): Promise<Zone[]> {
-  const res = await query<ZoneRow>(`SELECT ${zoneCols} FROM public.delivery_zone z ORDER BY z.code`);
-  return res.rows.map(toZone);
-}
-
-export async function readZone(zoneId: string): Promise<Zone | null> {
-  const res = await query<ZoneRow>(`SELECT ${zoneCols} FROM public.delivery_zone z WHERE z.id = $1`, [zoneId]);
-  return res.rows[0] ? toZone(res.rows[0]) : null;
-}
-
-export async function zoneExists(zoneId: string): Promise<boolean> {
-  const res = await query<{ ok: boolean }>(
-    `SELECT EXISTS (SELECT 1 FROM public.delivery_zone WHERE id = $1) AS ok`, [zoneId]);
-  return res.rows[0]?.ok ?? false;
-}
-
-export async function createZone(input: NewZone, actorSub: string): Promise<Zone> {
-  const id = await withTransaction(async (client) => {
-    const ins = await client.query<{ id: string }>(
-      `INSERT INTO public.delivery_zone (code, name, ring_id, updated_by)
-       VALUES ($1, $2, $3, $4) RETURNING id::text`,
-      [input.code, input.name, input.ringId, actorSub],
-    );
-    const zoneId = ins.rows[0]!.id;
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_zone.create', 'delivery_zone', $2, $3::jsonb)`,
-      [actorSub, zoneId, JSON.stringify(input)],
-    );
-    return zoneId;
-  });
-  return (await readZone(id))!;
-}
-
-export async function updateZone(zoneId: string, patch: ZonePatch, actorSub: string): Promise<Zone> {
-  await withTransaction(async (client) => {
-    const sets: string[] = [];
-    const params: unknown[] = [];
-    let i = 1;
-    if (patch.name !== undefined) { sets.push(`name = $${i++}`); params.push(patch.name); }
-    if (patch.ringId !== undefined) {
-      // An explicit ring choice is an override of any suggestion (FR-016).
-      sets.push(`ring_id = $${i++}`, `ring_is_overridden = true`);
-      params.push(patch.ringId);
-    }
-    if (patch.samedayEligible !== undefined) { sets.push(`sameday_eligible = $${i++}`); params.push(patch.samedayEligible); }
-    if (patch.status !== undefined) { sets.push(`status = $${i++}`); params.push(patch.status); }
-    sets.push(`updated_by = $${i++}`); params.push(actorSub);
-    params.push(zoneId);
-    await client.query(
-      `UPDATE public.delivery_zone SET ${sets.join(", ")}, updated_at = now() WHERE id = $${i}`, params);
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_zone.update', 'delivery_zone', $2, $3::jsonb)`,
-      [actorSub, zoneId, JSON.stringify(patch)],
-    );
-  });
-  return (await readZone(zoneId))!;
-}
-
-export async function placesForPostcode(postcode: string): Promise<PlaceRef[]> {
-  const res = await query<PlaceRef>(
-    `SELECT name, state, postcode FROM public.locality WHERE postcode = $1 ORDER BY address_count DESC, name`,
-    [postcode],
-  );
-  return res.rows;
-}
-
-export async function postcodeZoneCode(postcode: string): Promise<string | null> {
-  const res = await query<{ code: string }>(
-    `SELECT z.code FROM public.delivery_zone_postcode zp
-       JOIN public.delivery_zone z ON z.id = zp.zone_id WHERE zp.postcode = $1`,
-    [postcode],
-  );
-  return res.rows[0]?.code ?? null;
-}
-
-export async function addZonePostcode(zoneId: string, postcode: string, actorSub: string): Promise<void> {
-  await withTransaction(async (client) => {
-    await client.query(
-      `INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES ($1, $2)`, [zoneId, postcode]);
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_zone.add_postcode', 'delivery_zone', $2, $3::jsonb)`,
-      [actorSub, zoneId, JSON.stringify({ postcode })],
-    );
-  });
-}
-
-export async function removeZonePostcode(zoneId: string, postcode: string, actorSub: string): Promise<void> {
-  await withTransaction(async (client) => {
-    await client.query(
-      `DELETE FROM public.delivery_zone_postcode WHERE zone_id = $1 AND postcode = $2`, [zoneId, postcode]);
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_zone.remove_postcode', 'delivery_zone', $2, $3::jsonb)`,
-      [actorSub, zoneId, JSON.stringify({ postcode })],
-    );
-  });
-}
-
-// zoneRepresentativePoint is the mean coordinate of the zone's postcodes' localities (skipping those
-// with no G-NAF point). n=0 means the zone has no coordinate — no suggestion can be made (FR-015 edge).
-export async function zoneRepresentativePoint(zoneId: string): Promise<{ lat: number; lng: number; n: number }> {
-  const res = await query<{ lat: string | null; lng: string | null; n: string }>(
-    `SELECT avg(l.latitude)::text AS lat, avg(l.longitude)::text AS lng, count(l.latitude)::text AS n
-       FROM public.delivery_zone_postcode zp
-       JOIN public.locality l ON l.postcode = zp.postcode
-      WHERE zp.zone_id = $1 AND l.latitude IS NOT NULL AND l.longitude IS NOT NULL`,
-    [zoneId],
-  );
-  const row = res.rows[0];
-  const n = Number(row?.n ?? "0");
-  return { lat: Number(row?.lat ?? "0"), lng: Number(row?.lng ?? "0"), n };
-}
-
-export async function ringsForSuggestion(): Promise<{ id: string; suggestUpperKm: number | null }[]> {
-  const res = await query<{ id: string; upper: number | null }>(
-    `SELECT id::text, suggest_upper_km::float8 AS upper FROM public.delivery_ring WHERE status = 'active' ORDER BY ordinal`,
-  );
-  return res.rows.map((r) => ({ id: r.id, suggestUpperKm: r.upper }));
-}
-
-export async function persistZoneSuggestion(
-  zoneId: string, suggestedRingId: string | null, hubDistanceKm: number | null,
-): Promise<void> {
-  await query(
-    `UPDATE public.delivery_zone
-        SET suggested_ring_id = $2, hub_distance_km = $3::numeric, updated_at = now()
-      WHERE id = $1`,
-    [zoneId, suggestedRingId, hubDistanceKm],
-  );
-}
-
 export async function readSettings(): Promise<Settings | null> {
   const res = await query<{ hub_latitude: string; hub_longitude: string; sameday_prep_buffer_min: number }>(
     `SELECT hub_latitude::text, hub_longitude::text, sameday_prep_buffer_min FROM public.delivery_settings WHERE id = 1`,
@@ -373,8 +185,25 @@ export async function readSettings(): Promise<Settings | null> {
   return { hubLatitude: r.hub_latitude, hubLongitude: r.hub_longitude, samedayPrepBufferMin: r.sameday_prep_buffer_min };
 }
 
+/**
+ * Saves the settings and, when the HUB MOVED, recalculates the coverage list's distances in the same
+ * transaction (076 FR-012).
+ *
+ * ⚠ ONE TRANSACTION, deliberately. Distance is measured from the hub; a saved hub with yesterday's
+ * distances is a list that is wrong until some later job runs — and the next feature prices
+ * delivery on these numbers.
+ *
+ * ⚠ ONLY worked-out distances move. A hand-entered one is a person's statement, not a calculation;
+ * it is left exactly as it was and flagged for that person to look at again. A worked-out distance
+ * whose place has since lost its location is kept too — it is never blanked.
+ */
 export async function upsertSettings(input: Settings, actorSub: string): Promise<Settings> {
-  await withTransaction(async (client) => {
+  const distances = await withTransaction(async (client) => {
+    const before = (
+      await client.query<{ hub_latitude: string; hub_longitude: string }>(
+        `SELECT hub_latitude::text, hub_longitude::text FROM public.delivery_settings WHERE id = 1 FOR UPDATE`,
+      )
+    ).rows[0];
     await client.query(
       `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, sameday_prep_buffer_min, updated_by)
        VALUES (1, $1::numeric, $2::numeric, $3, $4)
@@ -387,13 +216,46 @@ export async function upsertSettings(input: Settings, actorSub: string): Promise
     await client.query(
       `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
        VALUES ($1, 'delivery_settings.update', 'delivery_settings', NULL, $2::jsonb)`,
-      [actorSub, JSON.stringify(input)],
+      [actorSub, JSON.stringify({ hubLatitude: input.hubLatitude, hubLongitude: input.hubLongitude, samedayPrepBufferMin: input.samedayPrepBufferMin })],
     );
+
+    const after = (
+      await client.query<{ hub_latitude: string; hub_longitude: string }>(
+        `SELECT hub_latitude::text, hub_longitude::text FROM public.delivery_settings WHERE id = 1`,
+      )
+    ).rows[0]!;
+    // Compared as the database stores them, so "-37.8136" and "-37.813600" are the same hub.
+    const moved = !before || before.hub_latitude !== after.hub_latitude || before.hub_longitude !== after.hub_longitude;
+    if (!moved) return undefined;
+
+    const computed = (await client.query<{ n: string }>(`SELECT count(*)::text AS n FROM public.delivery_zone_postcode WHERE distance_source = 'computed'`)).rows[0]!;
+    const recomputed = await client.query(
+      `UPDATE public.delivery_zone_postcode zp
+          SET distance_km = d.km, updated_at = now()
+         FROM (SELECT postcode, public.coverage_computed_distance_km(postcode) AS km
+                 FROM public.delivery_zone_postcode WHERE distance_source = 'computed') d
+        WHERE d.postcode = zp.postcode AND d.km IS NOT NULL AND d.km IS DISTINCT FROM zp.distance_km`,
+    );
+    const flagged = await client.query(
+      `UPDATE public.delivery_zone_postcode SET distance_review = true, updated_at = now() WHERE distance_source = 'manual'`,
+    );
+    const result = {
+      recomputed: recomputed.rowCount ?? 0,
+      unchanged: Number(computed.n) - (recomputed.rowCount ?? 0),
+      manualFlagged: flagged.rowCount ?? 0,
+    };
+    await client.query(
+      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
+       VALUES ($1, 'coverage.hub_recompute', 'coverage', NULL, $2::jsonb)`,
+      [actorSub, JSON.stringify({ before: before ?? null, after, ...result })],
+    );
+    return result;
   });
-  return (await readSettings())!;
+  const saved = (await readSettings())!;
+  return distances ? { ...saved, distances } : saved;
 }
 
-// ── Collection runs & same-day exceptions (047 US2/US3) ────────────────────────────────────────────
+// ── Collection runs (047 US2) ────────────────────────────────────────────
 
 interface RunRow { id: string; run_time: string; label: string | null; status: string }
 
@@ -426,41 +288,6 @@ export async function deleteCollectionRun(id: string, actorSub: string): Promise
       `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
        VALUES ($1, 'delivery_collection_run.delete', 'delivery_collection_run', $2, '{}'::jsonb)`,
       [actorSub, id],
-    );
-  });
-}
-
-export async function listExceptions(zoneId: string): Promise<{ id: string; shopId: string; zoneId: string; mode: string }[]> {
-  const res = await query<{ id: string; shop_id: string; zone_id: string; mode: string }>(
-    `SELECT id::text, shop_id::text, zone_id::text, mode FROM public.shop_sameday_exception WHERE zone_id = $1`,
-    [zoneId],
-  );
-  return res.rows.map((r) => ({ id: r.id, shopId: r.shop_id, zoneId: r.zone_id, mode: r.mode }));
-}
-
-export async function upsertException(shopId: string, zoneId: string, mode: string, actorSub: string): Promise<void> {
-  await withTransaction(async (client) => {
-    await client.query(
-      `INSERT INTO public.shop_sameday_exception (shop_id, zone_id, mode, updated_by)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (shop_id, zone_id) DO UPDATE SET mode = EXCLUDED.mode, updated_by = EXCLUDED.updated_by, updated_at = now()`,
-      [shopId, zoneId, mode, actorSub],
-    );
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_sameday_exception.upsert', 'delivery_zone', $2, $3::jsonb)`,
-      [actorSub, zoneId, JSON.stringify({ shopId, mode })],
-    );
-  });
-}
-
-export async function deleteException(shopId: string, zoneId: string, actorSub: string): Promise<void> {
-  await withTransaction(async (client) => {
-    await client.query(`DELETE FROM public.shop_sameday_exception WHERE shop_id = $1 AND zone_id = $2`, [shopId, zoneId]);
-    await client.query(
-      `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-       VALUES ($1, 'delivery_sameday_exception.delete', 'delivery_zone', $2, $3::jsonb)`,
-      [actorSub, zoneId, JSON.stringify({ shopId })],
     );
   });
 }

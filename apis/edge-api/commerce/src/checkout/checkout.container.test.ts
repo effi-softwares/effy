@@ -180,7 +180,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         ('00000000-0000-0000-0000-0000000000f1', 'C-INNER', 'Checkout inner', 9101, 9101, 'test');
       INSERT INTO public.delivery_zone (id, code, name, ring_id, status, sameday_eligible, updated_by) VALUES
         ('00000000-0000-0000-0000-0000000000e1', 'C-Z1', 'Checkout zone', '00000000-0000-0000-0000-0000000000f1', 'active', true, 'test');
-      INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES ('00000000-0000-0000-0000-0000000000e1', '3121');
+      INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by) VALUES ('00000000-0000-0000-0000-0000000000e1', '3121', 3.40, 'manual', 'test');
       INSERT INTO public.delivery_fee_plan (id, name, is_active, rounding_step, floor_amount, cap_amount, same_day_factor, standard_factor, created_by)
         VALUES ('00000000-0000-0000-0000-0000000000d1', 'Checkout plan', true, 0.50, 4.00, 40.00, 1.800, 1.000, 'test');
       INSERT INTO public.delivery_ring_price (plan_id, ring_id, price_amount) VALUES

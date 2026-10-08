@@ -19,7 +19,6 @@ export function deliveryMutationError(err: unknown, conflictMessage?: string): s
 export const PLAN_INCOMPLETE =
   "This plan can't price every served zone yet. Price every ring and add at least one weight band, then activate.";
 
-export const POSTCODE_IN_ZONE = "That postcode already belongs to another zone.";
 
 // ── 069 ───────────────────────────────────────────────────────────────────────────────────────────
 
@@ -55,3 +54,52 @@ export function fieldErrors(err: unknown): Record<string, string> {
   }
   return out;
 }
+
+// ── 076: coverage ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The console's OWN sentence for each coverage refusal, keyed on the code the service sent — never
+ * its `detail`, which is server prose (FR-008).
+ */
+const COVERAGE_COPY: Record<string, string> = {
+  invalid_postcode: "A postcode is four digits.",
+  invalid_query: "Enter a four-digit postcode or a place name.",
+  invalid_name: "A group name is 2 to 60 characters.",
+  unknown_postcode: "That isn't a known postcode.",
+  distance_required: "No place in this postcode has a known location. Enter its distance from the hub.",
+  distance_out_of_range: "Enter a distance between 0 and 5,000 km.",
+  distance_not_computable: "No place in this postcode has a known location, so its distance can't be worked out. Keep the one entered by hand.",
+  group_not_found: "That group no longer exists.",
+  group_name_taken: "There is already a group with that name.",
+  not_listed: "That postcode is no longer on the list.",
+  already_excluded: "That postcode is already excluded.",
+  not_excluded: "That postcode is no longer excluded.",
+  reason_required: "Say why, in a few words.",
+  courier_ordering_unavailable: "Courier delivery can be switched on once customers can place courier orders.",
+};
+
+/** The refusal's code, when the service named one. */
+export function coverageCode(err: unknown): string | undefined {
+  return isDomainError(err) ? err.code : undefined;
+}
+
+/** `no_driver_covers` is not an error to show — it is a question to ask. */
+export const isNoDriverCovers = (err: unknown): boolean => coverageCode(err) === "no_driver_covers";
+
+export function coverageError(err: unknown): string {
+  const code = coverageCode(err);
+  return (code && COVERAGE_COPY[code]) || deliveryMutationError(err);
+}
+
+/** What staff read in the checker, for each reason the service can give (FR-025). */
+export const COVERAGE_REASON_COPY: Record<string, string> = {
+  listed: "On Effy's list.",
+  courier_offered: "Not on Effy's list. Courier delivery is offered there.",
+  courier_off: "Not on Effy's list. Courier delivery is switched off, so nobody delivers there.",
+  courier_excluded: "Not on Effy's list, and excluded from courier delivery.",
+  unknown_postcode: "Not a known postcode.",
+};
+
+export const NO_DRIVER_GROUP = "No driver is cleared to deliver to that group. Orders placed there could not be given to anyone until a driver is cleared for it.";
+export const NO_DRIVER_UNGROUPED =
+  "These postcodes would be in no group, and no driver is cleared to deliver everywhere. Orders placed there could not be given to anyone.";

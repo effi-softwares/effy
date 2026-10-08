@@ -5,4 +5,4 @@
 // behaviour. 028 used exactly this test when it promoted the S3 presign helper: shop's existing media
 // tests had to pass against the shared version WITHOUT edits, and if they needed editing then the
 // extraction was wrong.
-export { migrationSql } from "@effy/edge-shared";
+export { LISTED_POSTCODE_FIXTURE_SQL, migrationSql } from "@effy/edge-shared";

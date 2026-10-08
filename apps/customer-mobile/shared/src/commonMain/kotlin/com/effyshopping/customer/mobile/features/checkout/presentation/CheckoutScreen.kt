@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.core.delivery.CoverageWords
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
@@ -268,8 +269,9 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // 076 — the ONE refusal sentence (CoverageWords), the same the address book shows.
         !quote.serviced -> Text(
-            "We don’t deliver to this address yet. Choose another address above.",
+            CoverageWords.REFUSAL,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )

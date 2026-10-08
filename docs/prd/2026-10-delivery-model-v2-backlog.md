@@ -108,6 +108,18 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 > **staff** gateway (`/effy/<env>/staff/…` parameters) and every customer, shop or driver route to
 > the shared one; each plan says which.
 
+> **2026-10-08 — E2 (spec 076, Effy Delivery Coverage) is code-complete**
+> (`specs/076-effy-delivery-coverage/SIGNOFF.md`). It evolved `delivery_zone` / `delivery_zone_postcode`
+> in place rather than creating the `effy_coverage_*` tables sketched under E2 below. What it leaves
+> for later epics to remove:
+> - **E3** — the fee-tier bridge (`coverage_ring_for_km`, `delivery_zone.ring_id`, `delivery_ring*`,
+>   the read-only `GET /admin/v1/delivery/rings`). Price from `delivery_zone_postcode.distance_km`.
+> - **E5** — the same-day bridge (`delivery_zone.sameday_eligible`, `shop_sameday_exception`), and flip
+>   `COURIER_ORDERING_AVAILABLE` when a courier order can be placed; teach the quote `coverage: "courier"`.
+> - **E8** — driver clearances keyed on a group (`driver_zone_capability.zone_id`): an ungrouped
+>   postcode is deliverable only by an every-zone driver until then.
+> - **E9** — rename the two tables; drop the frozen columns.
+
 ## E0 — Cleanup & decision record (no spec)
 
 Housekeeping that makes the later specs honest. Nothing here changes behaviour.
@@ -214,7 +226,7 @@ the agent credit limit are business settings.
 
 ---
 
-## E2 — Effy Delivery Coverage (postcode list) · spec 075
+## E2 — Effy Delivery Coverage (postcode list) · spec 076 — ✅ built 2026-10-08
 
 **Goal.** Back-office maintains the list of postcodes Effy delivers to. Being on the list means
 "Delivered by Effy"; not being on it means "Courier delivery" (or refused, if the courier does

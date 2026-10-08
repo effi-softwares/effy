@@ -37,6 +37,13 @@ data class AddressDTO (
     val country: String,
 
     /**
+     * 076 — who delivers to this address TODAY: worked out when the address is read, never
+     * saved with it, so a postcode that leaves Effy's list changes the answer the next time it
+     * is shown.
+     */
+    val coverage: CoverageKind? = null,
+
+    /**
      * 066 — the instructions this address PREFILLS at checkout, or null. A convenience for the
      * next order only: a placed order stores what its own checkout sent and never reads this.
      */
@@ -52,6 +59,33 @@ data class AddressDTO (
     val recipientName: String,
     val region: String? = null
 )
+
+/**
+ * 076 — who delivers to this address TODAY: worked out when the address is read, never
+ * saved with it, so a postcode that leaves Effy's list changes the answer the next time it
+ * is shown.
+ *
+ * 076 — WHO delivers to an address. The one answer every surface gives (FR-019/FR-020):
+ * effy     the postcode is on Effy's list — Effy's own drivers deliver   courier  not on
+ * the list, and courier delivery is offered there   none     neither reaches it
+ *
+ * ⚠ Decided in ONE place — the database function `public.coverage_for_postcode` — at the
+ * moment of asking, and never stored against an address (FR-021). ⚠ A customer contract
+ * carries this value and NOTHING about why: no group, no distance, no reason, no hub
+ * (FR-023). Staff contracts are in `delivery-admin.ts`.
+ *
+ * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be
+ * purchased until the courier checkout exists, and until then the server never returns it
+ * here.
+ *
+ * 076 — who delivers. Absent only from a server older than 076.
+ */
+@Serializable
+enum class CoverageKind(val value: String) {
+    @SerialName("courier") Courier("courier"),
+    @SerialName("effy") Effy("effy"),
+    @SerialName("none") None("none");
+}
 
 @Serializable
 data class DeliveryInstructionsDTO (
@@ -787,6 +821,13 @@ enum class DeliveryChoiceRefusalCode(val value: String) {
  */
 @Serializable
 data class DeliveryQuoteDTO (
+    /**
+     * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be
+     * purchased until the courier checkout exists, and until then the server never returns it
+     * here.
+     */
+    val coverage: CoverageKind? = null,
+
     val expiresAt: String,
     val packages: List<DeliveryPackageDTO>,
 
@@ -2069,12 +2110,20 @@ data class ProductSearchResultDTO (
 
 /**
  * The single serviceability decision (FR-001), answered before a cart exists and again at
- * checkout by the SAME predicate (FR-004). ⚠ Frozen two-field shape — no zone id, name,
- * fee, or window may be added.
+ * checkout by the SAME predicate (FR-004). ⚠ No zone id, name, fee, or window may be added.
  */
 @Serializable
 data class ServiceabilityDTO (
+    /**
+     * 076 — who delivers. Absent only from a server older than 076.
+     */
+    val coverage: CoverageKind? = null,
+
     val postcode: String,
+
+    /**
+     * Kept for clients released before 076. Always `coverage !== "none"`.
+     */
     val serviced: Boolean
 )
 
