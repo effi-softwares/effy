@@ -5,10 +5,13 @@
 // discount from the cart's applied code re-evaluated now, the fee from the delivery engine. No
 // figure a client sends is ever used.
 import {
-  CURRENCY, emitMetric, formatCents, metricNamespace, operatingStamp, withTransaction, type RequestScope, type Transactor,
+  CURRENCY, emitMetric, formatCents, metricNamespace, operatingStamp, parseCents, withTransaction, type RequestScope, type Transactor,
 } from "@effy/edge-shared";
 import { meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
-import { CourierNotPurchasableError, METHOD_SAME_DAY, NoActivePlanError, ServedZoneUnpricedError, type QuoteResult } from "@effy/edge-shared/delivery";
+import {
+  basketValueCents, CourierNotPurchasableError, feeDTO, ListedPostcodeUnpricedError, METHOD_SAME_DAY, NoActivePlanError,
+  storedBreakdown, type PricedFee, type QuoteResult,
+} from "@effy/edge-shared/delivery";
 import {
   announcePaid, finalizeFailed, finalizeSucceeded, meterFinalize,
   type FinalizeOutcome, type IntentStatus, type PaymentGateway,
@@ -20,6 +23,7 @@ import { isUuid } from "../lib/ids";
 import { DeliveryChoiceError, preferredMethod, resolveDeliveryChoice } from "./delivery-choice";
 import {
   AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
+  type PromoSource,
 } from "./quote";
 import { SlotUnavailableError, type CheckoutStore, type PackageDelivery, type SlotHold } from "./store";
 
@@ -82,9 +86,25 @@ export interface IntentInput {
   wantsProviderMethodList: boolean;
   /** 074 — whole points to pay with; 0 for none. Validated by the handler as a non-negative integer. */
   pointsToUse: number;
+  /**
+   * 077 — the delivery total the client is showing, as a 2-dp amount; "" when it sent none (a client
+   * built before 077). Validated by the handler.
+   */
+  shownDeliveryAmount: string;
 }
 
-export type PromoSource = (customerId: string, payableCents: number) => Promise<{ cents: number; promo: { id: string; code: string } | null }>;
+export type { PromoSource };
+
+/**
+ * 077 — the delivery total is not the one the client showed (a new fee plan went live, or the
+ * basket crossed a threshold, between the quote and the pay button). NOTHING has been written: the
+ * shopper is shown the new total and decides again. Never charged an amount they did not see.
+ */
+export class DeliveryFeeChangedError extends Error {
+  constructor(readonly shownCents: number, readonly nowCents: number) {
+    super(`checkout: delivery fee changed (shown ${shownCents}, now ${nowCents})`);
+  }
+}
 
 const PAY_OVER_TIME = new Set(["klarna", "zip", "afterpay_clearpay"]);
 
@@ -258,11 +278,13 @@ export function createCheckoutService(deps: {
       if (!postcode) throw new AddressNotFoundError();
       let quote: QuoteResult;
       try {
-        quote = await deps.quoter(customerId, postcode, packagesFromLines(lines), now);
+        // The basket as the fee's rules judge it: goods after the promotion, before delivery (077
+        // FR-005). Points are not in it — they are how the order is paid, further down.
+        quote = await deps.quoter(customerId, postcode, packagesFromLines(lines), now, basketValueCents(itemSubtotalCents, discount.cents));
       } catch (err) {
-        // ⚠ A served zone that could not be priced must never happen; it is a page, not a number
-        // to watch idly (047 FR-029). Never free delivery.
-        if (err instanceof ServedZoneUnpricedError || err instanceof NoActivePlanError || err instanceof CourierNotPurchasableError) emitMetric(ns(), "DeliveryQuoteFailures");
+        // ⚠ A listed postcode that could not be priced must never happen; it is a page, not a
+        // number to watch idly (047 FR-029, 077 FR-009). Never free delivery.
+        if (err instanceof ListedPostcodeUnpricedError || err instanceof NoActivePlanError || err instanceof CourierNotPurchasableError) emitMetric(ns(), "DeliveryQuoteFailures");
         throw err;
       }
       emitMetric(ns(), "DeliveryQuotes", 1, { outcome: deliveryOutcome(quote) });
@@ -272,13 +294,24 @@ export function createCheckoutService(deps: {
       // the slot or the day is no longer on offer (069).
       let packages: PackageDelivery[];
       let hold: SlotHold | null;
+      let fee: PricedFee;
       try {
-        ({ packages, hold } = resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
+        ({ packages, hold, fee } = resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
       } catch (err) {
         if (err instanceof DeliveryChoiceError) meterChoiceRefusal(err);
         throw err;
       }
-      const deliveryFeeCents = packages.reduce((sum, p) => sum + p.feeCents, 0);
+      // ONE fee for the order (077) — never a sum over packages.
+      const deliveryFeeCents = fee.totalCents;
+
+      // ⚠ Refused HERE, before anything is written (077 FR-031): the client says what delivery total
+      // it is showing, and if that is not what the order would be charged, the shopper sees the new
+      // one first. A client built before 077 sends nothing and is priced without the check.
+      if (input.shownDeliveryAmount !== "" && parseCents(input.shownDeliveryAmount) !== deliveryFeeCents) {
+        emitMetric(ns(), "DeliveryFeeChanged");
+        throw new DeliveryFeeChangedError(parseCents(input.shownDeliveryAmount), deliveryFeeCents);
+      }
+      if (fee.breakdown.freeApplied) emitMetric(ns(), "FreeDeliveryOrders");
       grandTotalCents += deliveryFeeCents;
 
       // 074 — points are a WAY OF PAYING (FR-018): the order total above is final, and the card pays
@@ -304,7 +337,7 @@ export function createCheckoutService(deps: {
       const { orderId, orderNumber } = await store.upsertPendingOrder(
         customerId,
         {
-          itemSubtotalCents, deliveryFeeCents, discountCents: discount.cents,
+          itemSubtotalCents, deliveryFeeCents, deliveryFeeBreakdown: storedBreakdown(fee), discountCents: discount.cents,
           promoCodeId: discount.promo?.id ?? null, promoCode: discount.promo?.code ?? null,
           grandTotalCents, currency: CURRENCY,
           pointsUsed, pointsCentsPerPoint: pointsUsed > 0 ? centsPerPoint : null, pointsValueCents,
@@ -373,6 +406,7 @@ export function createCheckoutService(deps: {
         return {
           orderId, orderNumber, clientSecret: "", publishableKey: deps.publishableKey,
           grandTotalAmount: formatCents(grandTotalCents), currency: CURRENCY,
+          deliveryFee: feeDTO(fee),
           ...pointsSplit, paidWithPoints: true,
           // Nothing is confirmed with the provider, so there is nothing to pass back.
           billingDetails: null,
@@ -419,6 +453,8 @@ export function createCheckoutService(deps: {
         // business, and the raw list would leak account configuration.
         payOverTimeAvailable: intent.availableMethods.some((m) => PAY_OVER_TIME.has(m)),
         billingDetails: billingDetailsFrom(billingSnapshot, profile.name, profile.email),
+        // 077 — the delivery charge inside the total, as the lines the shopper was shown.
+        deliveryFee: feeDTO(fee),
         ...pointsSplit,
         paidWithPoints: false,
         // Omitted when no package is same-day.

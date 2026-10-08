@@ -1,7 +1,7 @@
 import Image from "next/image"
 
 import { sellerIdentity } from "@effy/legal-content"
-import type { OrderDTO, OrderItemDTO, PaymentMethodSummaryDTO } from "@effy/shared-types"
+import { DELIVERY_FEE_LINE_LABEL, type OrderDTO, type OrderItemDTO, type PaymentMethodSummaryDTO } from "@effy/shared-types"
 
 import { StatusPill } from "@/components/receipt/StatusPill"
 import { formatMoney } from "@/lib/money"
@@ -199,7 +199,17 @@ function Totals({ order }: { order: OrderDTO }) {
             value={`−${formatMoney(discount, order.currency)}`}
           />
         ) : null}
-        {delivery ? <Row label="Delivery" value={formatMoney(delivery, order.currency)} /> : null}
+        {/* 077 — an order placed since the fee engine shows the lines it was SOLD with (stored, never
+            re-priced); a free delivery is shown as the lines that make its $0. Before 077, one row. */}
+        {order.deliveryFee && order.deliveryFee.lines.length > 0
+          ? order.deliveryFee.lines.map((l, i) => (
+              <Row
+                key={`${l.kind}-${i}`}
+                label={DELIVERY_FEE_LINE_LABEL[l.kind]}
+                value={l.amount.startsWith("-") ? `−${formatMoney(l.amount.slice(1), order.currency)}` : formatMoney(l.amount, order.currency)}
+              />
+            ))
+          : delivery ? <Row label="Delivery" value={formatMoney(delivery, order.currency)} /> : null}
       </dl>
 
       <div className="mt-3.5 flex items-baseline justify-between gap-4 border-t pt-3.5">

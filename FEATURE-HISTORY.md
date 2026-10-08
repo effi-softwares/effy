@@ -4,6 +4,52 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**077-delivery-fee-engine-v2 — Delivery Fee Engine v2.** 🟡 **BUILT AND CHECKED BY MACHINE
+(2026-10-08). NOT MIGRATED, NOT DEPLOYED, NOT WALKED.** Third slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E3).
+Sign-off: [specs/077-delivery-fee-engine-v2/SIGNOFF.md](specs/077-delivery-fee-engine-v2/SIGNOFF.md).
+- **What it is**: ONE delivery fee per ORDER — base + distance band + weight band + window surcharge,
+  rounded up, clamped; $0 at the free-delivery amount (surcharge included); a small-order fee below its
+  amount, outside the maximum. A courier fee table (kind `courier`). Back-office → Delivery → **Pricing**
+  (plans, editor, activation, simulator) replaces "Fee plans"; every order since 077 shows "How the
+  delivery fee was built". Customers see named lines before paying; the receipt and email show them too.
+- ⚠ **ONE FEE PER ORDER, NEVER PER SHOP** (operator, 2026-10-08): Effy collects to the hub, so the order
+  comes from one place. `order_package_delivery.delivery_fee_amount` and `shop_fulfillment`'s are
+  written NULL from 077 (dropped at E9). Multi-shop baskets got cheaper.
+- ⚠ **SAME-DAY IS A FIXED SURCHARGE, NOT A MULTIPLIER** — `delivery_fee_plan.today_premium_amount`.
+  The migration ASKS for it (`EFFY_TODAY_PREMIUM`, via `-- +goose ENVSUB ON`) and raises without it;
+  it also raises if the active plan's `standard_factor` ≠ 1 (a per-band copy could not reproduce it).
+- ⚠ **TWO MIGRATIONS AND A NEW MAKE TARGET.** `…_delivery_fee_engine_v2` is additive (the running
+  checkout still reads tier prices); `…_drop_delivery_rings` drops the tiers AFTER the deploy.
+  `make db-up-one` applies one migration — **never `make db-up` for the first step.**
+- ⚠ **ONE SUM** — `effyFee` / `courierFee` in `shared/src/delivery/engine.ts`. `fee.guard.test.ts`
+  P22 fails any other file that adds fee parts; P21 fails any reader of a tier or a multiplier; P20
+  fails a customer DTO with a distance/band/weight/plan or a shop DTO with delivery money.
+- ⚠ **CHARGED = SHOWN**: the intent takes `shownDeliveryAmount`; a different total is 409
+  `delivery_fee_changed` with a fresh quote, nothing written. Old clients send none and are priced as
+  before. ⚠ `packages[].options[].feeAmount` is COMPATIBILITY ONLY (never sums below the charge for a
+  pre-077 app); E5 removes it.
+- ⚠ **The order stores its breakdown** (`"order".delivery_fee_breakdown` jsonb). A customer or shop route
+  may select `->'lines'` only; the rest (plan, km, grams) is staff-only.
+- ⚠ **ACTIVATION IS ONE SQL FUNCTION** (`delivery_plan_activate`: advisory lock, gaps, deactivate THEN
+  activate — a single swapping UPDATE trips the partial unique index on row order). Gaps come from
+  `delivery_plan_gaps`; VALUE errors are 422 fields from the service. A retired plan is never
+  re-activated; an activated one is never edited (service, row lock).
+- **Defects I made and the checks that caught them**: (1) an immutability TRIGGER on the plan tables —
+  `shop/src/db/triggers.guard.test.ts` (058 R6: triggers only mark analytics buckets) refused it; moved
+  to the service; (2) the dev seed broke twice (tiers; and 076's SET NULL left postcodes behind so a
+  second run hit a duplicate) — found by running it twice through real goose; (3) a simulator
+  expectation of a $5 surcharge line where the $4 minimum meant the window added $4 — the engine was
+  right; (4) back-office live-routes test needed `pricing`.
+- **Routes**: `admin` +2 (PUT plan, POST simulate), −1 (rings) → staff 146 / 300. No new customer
+  route: serviceability gained `offer`, the quote `standardFee` / per-slot `fee` + `surchargeAmount` /
+  `freeDeliveryRemainingAmount`, the intent `shownDeliveryAmount` / `deliveryFee`, the order `deliveryFee`.
+  Shop order DTO lost `deliveryFee`. Live kind `pricing` (ops).
+- **Still open (operator)**: choose the same-day amount; run `preflight.sql`; commit; `EFFY_TODAY_PREMIUM=…
+  make db-up-one`; deploy commerce, storefront, notifications, orders, shop, admin (+ back-office build);
+  `make apply`; `make db-up` (drops tiers); web + mobile builds; walks V1–V17. Open product call: should
+  shops see the customer's order total at all?
+
 **076-effy-delivery-coverage — Effy Delivery Coverage.** ✅ **MIGRATED AND DEPLOYED TO DEV,
 CHECKED LIVE BY MACHINE (2026-10-08). ⚠ NOT WALKED BY A PERSON — V1–V12 remain.** Second slice of the delivery model v2
 programme ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md),

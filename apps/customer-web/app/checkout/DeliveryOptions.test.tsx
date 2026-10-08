@@ -28,6 +28,25 @@ function quote(over: Partial<DeliveryQuoteDTO> = {}): DeliveryQuoteDTO {
   }
 }
 
+/**
+ * 077 — a quote as a server since the fee engine sends it: one fee for the order with no window
+ * ($6.00), and one per window — the evening $3.00 dearer, the late one $5.00.
+ */
+function priced(q: DeliveryQuoteDTO): DeliveryQuoteDTO {
+  const fee = (surcharge: number) => ({
+    lines: [{ kind: "delivery" as const, amount: "6.00" }, { kind: "window_surcharge" as const, amount: `${surcharge}.00` }],
+    totalAmount: `${6 + surcharge}.00`,
+  })
+  return {
+    ...q,
+    standardFee: { lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" },
+    sameDaySlots: (q.sameDaySlots ?? []).map((s) =>
+      s.slotId === "evening" ? { ...s, surchargeAmount: "3.00", fee: fee(3) } : { ...s, surchargeAmount: "5.00", fee: fee(5) },
+    ),
+    freeDeliveryRemainingAmount: null,
+  }
+}
+
 function setup(props: Partial<React.ComponentProps<typeof DeliveryOptions>> = {}) {
   const handlers = { onMethodChange: vi.fn(), onSlotChange: vi.fn(), onStandardDateChange: vi.fn() }
   render(
@@ -148,12 +167,15 @@ describe("DeliveryOptions — a mixed order (SC-010)", () => {
     expect(screen.getByText("1 of your 2 deliveries can arrive today.")).toBeInTheDocument()
   })
 
-  it("prices each part: the same-day delivery on the slots, the standard one on the days", () => {
-    setup({ quote: mixed, method: "same_day" })
-    expect(within(screen.getByRole("group", { name: "Choose a delivery time" })).getAllByText("$11.00")).toHaveLength(2)
-    expect(within(screen.getByRole("group", { name: "Choose a day for the rest" })).getAllByText("$7.00")).toHaveLength(3)
-    // And the method row carries the whole order's delivery fee.
-    expect(within(screen.getByRole("group", { name: "How fast?" })).getByText("$18.00")).toBeInTheDocument()
+  // ⚠ 077 REVERSED 069's "a slot has no price of its own". The order pays ONE fee: its window's
+  // when anything goes today — so each window shows what it adds, and the days for the rest show none.
+  it("077 — one fee for the order: each window says what it adds; the days for the rest carry no price", () => {
+    setup({ quote: priced(mixed), method: "same_day" })
+    const slots = screen.getByRole("group", { name: "Choose a delivery time" })
+    expect(within(slots).getByText("+$3.00")).toBeInTheDocument()
+    expect(within(slots).getByText("+$5.00")).toBeInTheDocument()
+    expect(within(screen.getByRole("group", { name: "Choose a day for the rest" })).queryByText(/\$/)).toBeNull()
+    expect(within(screen.getByRole("group", { name: "How fast?" })).getByText("from $9.00")).toBeInTheDocument()
   })
 
   it("never names a shop or how the order is split", () => {
@@ -172,9 +194,10 @@ describe("DeliveryOptions — a mixed order (SC-010)", () => {
 describe("DeliveryOptions — the method", () => {
   it("offers both methods with the order's fee for each, and reports the choice", async () => {
     const user = userEvent.setup()
-    const h = setup()
+    const h = setup({ quote: priced(quote()) })
     const group = screen.getByRole("group", { name: "How fast?" })
-    expect(within(group).getByText("$11.00")).toBeInTheDocument()
+    // Same-day "from" the cheapest window, since the windows cost different amounts (077).
+    expect(within(group).getByText("from $9.00")).toBeInTheDocument()
     expect(within(group).getByText("$6.00")).toBeInTheDocument()
 
     await user.click(within(group).getByRole("radio", { name: /same-day delivery/i }))

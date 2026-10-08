@@ -3,6 +3,7 @@ package com.effyshopping.customer.mobile.features.checkout.data
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.PointsRefused
 import io.ktor.client.statement.bodyAsText
@@ -43,6 +44,8 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
         if (response.status == HttpStatusCode.Conflict || response.status == HttpStatusCode.UnprocessableEntity) {
             val body = response.bodyAsText()
             if (response.status == HttpStatusCode.Conflict) deliveryRefusalOrNull(body)?.let { throw it }
+            // 077 — the delivery total is not the one shown; the body carries the fresh quote.
+            if (response.status == HttpStatusCode.Conflict) feeChangedOrNull(body)?.let { throw it }
             // 074 — a points refusal, with the most the server would take when it said.
             pointsRefusalOrNull(body)?.let { throw it }
         }
@@ -79,6 +82,8 @@ class HttpCheckoutRepository(private val edge: HttpClient) : CheckoutRepository,
             throw e // a refusal the shopper can act on — never flattened into "unexpected"
         } catch (e: PointsRefused) {
             throw e
+        } catch (e: DeliveryFeeChanged) {
+            throw e
         } catch (e: IOException) {
             throw AppException(AppError.Network)
         } catch (e: UnresolvedAddressException) {
@@ -112,6 +117,16 @@ internal fun pointsRefusalOrNull(body: String): PointsRefused? = runCatching {
     }
     PointsRefused(reason, dto.maxPoints)
 }.getOrNull()
+
+/** 077 — decode a "delivery fee changed" refusal, or null when the body is some other conflict. */
+internal fun feeChangedOrNull(body: String): DeliveryFeeChanged? = runCatching {
+    val dto = refusalJson.decodeFromString(FeeChangedBody.serializer(), body)
+    if (dto.code != "delivery_fee_changed") return@runCatching null
+    DeliveryFeeChanged(dto.quote?.toDomain())
+}.getOrNull()
+
+@kotlinx.serialization.Serializable
+private data class FeeChangedBody(val code: String? = null, val quote: DeliveryQuoteDTO? = null)
 
 @kotlinx.serialization.Serializable
 private data class PointsRefusalBody(val code: String? = null, val maxPoints: Long? = null)

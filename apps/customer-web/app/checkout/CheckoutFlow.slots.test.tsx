@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { AddressDTO, DeliveryQuoteDTO } from "@effy/shared-types"
+import { DELIVERY_FEE_WORDS, type AddressDTO, type DeliveryQuoteDTO } from "@effy/shared-types"
 
 import { capture } from "@/lib/telemetry"
 
@@ -143,15 +143,40 @@ describe("069 — choosing a slot at checkout", () => {
     expect(intentBodies[0]).not.toHaveProperty("deliveryMethod")
   })
 
-  it("the delivery fee in the summary is the method's, whichever slot is chosen", async () => {
+  // ⚠ 077 REVERSED 069 here: a window may cost more than another, and the summary shows the fee of
+  // the window CHOSEN, as lines — and sends that total, so it is the total charged.
+  it("077 — the summary shows the chosen window's fee as lines, and the intent carries that total", async () => {
     const user = userEvent.setup()
+    const fee = (surcharge: number) => ({
+      lines: [{ kind: "delivery" as const, amount: "6.00" }, { kind: "window_surcharge" as const, amount: `${surcharge}.00` }],
+      totalAmount: `${6 + surcharge}.00`,
+    })
+    quotes = [quoteWith([{ ...EVENING, surchargeAmount: "3.00", fee: fee(3) }, { ...LATE, surchargeAmount: "5.00", fee: fee(5) }] as never, {
+      standardFee: { lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" },
+    })]
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await chooseSameDay(user)
-    expect(await screen.findByText(/Same-day · \$11\.00/)).toBeInTheDocument()
+    expect(await screen.findByText("Choose a delivery time", { selector: "span" })).toBeInTheDocument()
     await user.click(within_slots()[0]!)
-    expect(screen.getByText(/Same-day · \$11\.00/)).toBeInTheDocument()
+    expect(screen.getByText("Window surcharge")).toBeInTheDocument()
+    expect(screen.getByText("$3.00")).toBeInTheDocument()
     await user.click(within_slots()[1]!)
-    expect(screen.getByText(/Same-day · \$11\.00/)).toBeInTheDocument()
+    expect(screen.getByText("$5.00")).toBeInTheDocument()
+    await user.click(payButton())
+    await waitFor(() => expect(intentBodies).toHaveLength(1))
+    expect(intentBodies[0]).toMatchObject({ sameDaySlotId: "late", shownDeliveryAmount: "11.00" })
+  })
+
+  it("077 — a delivery fee that changed before payment is shown, and nothing is paid", async () => {
+    const user = userEvent.setup()
+    quotes = [quoteWith([]), quoteWith([])]
+    intentReplies = [REFUSED("delivery_fee_changed")]
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    await waitFor(() => expect(payButton()).toBeEnabled())
+    await user.click(payButton())
+    expect(await screen.findByText(DELIVERY_FEE_WORDS.feeChanged)).toBeInTheDocument()
+    await waitFor(() => expect(quoteCalls).toBeGreaterThanOrEqual(2))
+    expect(intentBodies).toHaveLength(1)
   })
 })
 

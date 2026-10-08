@@ -1,35 +1,25 @@
 /**
- * Delivery — back-office configuration contracts (047-delivery-shipping-engine).
+ * Delivery — back-office configuration contracts (047-delivery-shipping-engine; fee plans rebuilt by
+ * 077-delivery-fee-engine-v2).
  *
- * Contract: `specs/047-delivery-shipping-engine/contracts/delivery-admin-api.contract.md`.
+ * Contracts: `specs/047-delivery-shipping-engine/contracts/delivery-admin-api.contract.md`,
+ * `specs/077-delivery-fee-engine-v2/contracts/routes.md`.
  *
  * The SSOT the `edge-api/admin` delivery domain and the back-office console share (Principle
  * II). ⚠ This surface VALIDATES a plan but never computes a customer fee — the engine's one home is
  * `@effy/edge-shared/delivery`. Every mutation is attributed via `admin.audit_log`.
  *
- * ⚠ Money / factors / coordinates / km are `numeric` DB columns and cross the wire as decimal STRINGS
+ * ⚠ Money / coordinates / km are `numeric` DB columns and cross the wire as decimal STRINGS
  * (exact, no float); grams / ordinal / buffer / counts are integers (`number`).
  */
 
 import type { AustralianState, CoverageKind, DeliveryMethod } from "./delivery";
+import type { DeliveryFeeDTO } from "./delivery-fee";
 
-export type RingStatus = "active" | "disabled";
-
-/** A distance tier. `suggestUpperKm` is null on exactly one (open-ended, furthest) ring. */
-export interface RingDTO {
-  id: string;
-  code: string;
-  name: string;
-  ordinal: number;
-  suggestUpperKm: string | null;
-  status: RingStatus;
-}
-
-/** A distance-slab price within a plan. */
-export interface RingPriceDTO {
-  ringId: string;
-  priceAmount: string;
-}
+/** A configured thing that is switched on or off. (Named for the 047 distance tier, which 077 removed.) */
+export type ActiveStatus = "active" | "disabled";
+/** @deprecated 077 — the tiers are gone; use `ActiveStatus`. Kept so existing slot/run code reads unchanged. */
+export type RingStatus = ActiveStatus;
 
 /** A weight slab within a plan (upper-bound band). */
 export interface WeightBandDTO {
@@ -37,27 +27,125 @@ export interface WeightBandDTO {
   addAmount: string;
 }
 
-/** A complete, named shipping-fee rule set. Exactly one is active platform-wide (FR-048). */
-export interface FeePlanDTO {
-  id: string;
+// ── 077 — fee plans ─────────────────────────────────────────────────────────────────────────────
+
+export type FeePlanKind = "effy" | "courier";
+
+/** Derived, never stored: never activated · the one in force · activated once and since replaced. */
+export type FeePlanState = "draft" | "active" | "retired";
+
+/** A distance band: deliveries up to `upperKm` add `addAmount`. `null` = "and beyond" (exactly one). */
+export interface DistanceBandDTO {
+  upperKm: string | null;
+  addAmount: string;
+}
+
+/** What a plan adds for one delivery window, with enough about the window to show it. */
+export interface SlotPremiumDTO {
+  slotId: string;
+  /** "17:00–19:00" — the window's times, for display. */
+  label: string;
+  /** False when the window is switched off: the surcharge is kept and never applies. */
+  slotActive: boolean;
+  addAmount: string;
+}
+
+/**
+ * Something a draft is missing before it can go live. ⚠ Not a value error — a bad amount is refused
+ * when the plan is saved, as a field error. The two that do not block need a person's attention only.
+ */
+export type PlanGapCode =
+  | "distance_bands_missing"
+  | "distance_open_band_missing"
+  | "weight_bands_missing"
+  | "distance_not_monotonic"
+  | "weight_not_monotonic"
+  | "floor_is_zero"
+  | "premium_on_disabled_slot";
+
+export interface PlanGapDTO {
+  code: PlanGapCode;
+  blocking: boolean;
+  /** The facts the sentence needs — e.g. the two bands that are out of order. */
+  detail: Record<string, string | number | null>;
+}
+
+/** What staff enter. The same shape creates a draft and replaces one. */
+export interface FeePlanInput {
+  kind: FeePlanKind;
   name: string;
-  isActive: boolean;
-  roundingStep: string;
+  /** Effy: the base. Courier: the flat amount per order. */
+  baseAmount: string;
+  /** Effy only; empty for a courier plan. */
+  distanceBands: DistanceBandDTO[];
+  /** The heaviest band also prices everything above it. */
+  weightBands: WeightBandDTO[];
+  freeOverAmount: string | null;
+  /** Effy only. Both set, or neither. */
+  smallOrderUnderAmount: string | null;
+  smallOrderFeeAmount: string | null;
+  /** Effy only. Added when the chosen window is today. */
+  todayPremiumAmount: string;
+  /** Effy only. */
+  slotPremiums: { slotId: string; addAmount: string }[];
+  roundingStepAmount: string;
   floorAmount: string;
   capAmount: string;
-  sameDayFactor: string;
-  standardFactor: string;
-  ringPrices: RingPriceDTO[];
-  weightBands: WeightBandDTO[];
+}
+
+/** A fee plan as staff see it. Exactly one is active per kind. */
+export interface FeePlanDTO extends Omit<FeePlanInput, "slotPremiums"> {
+  id: string;
+  state: FeePlanState;
+  slotPremiums: SlotPremiumDTO[];
+  gaps: PlanGapDTO[];
+  createdBy: string;
+  createdAt: string;
   activatedBy: string | null;
   activatedAt: string | null;
 }
 
-/** Why a plan cannot be activated (FR-051) — the gap is named. */
-export interface PlanActivationRefusalDTO {
-  error: "plan_incomplete";
-  missingRings: string[]; // ring codes with no price
-  reason?: "no_weight_bands";
+export interface PlanActivationRequest {
+  /** Required true to activate a plan whose minimum fee is $0. */
+  confirmZeroFloor?: boolean;
+}
+
+/** The body of a 409 `plan_incomplete`. */
+export interface PlanIncompleteDTO {
+  code: "plan_incomplete";
+  gaps: PlanGapDTO[];
+}
+
+/** Try a plan: what would this delivery cost, and why? Read-only. */
+export interface FeeSimulationRequest {
+  /** null = the active plan of the kind the postcode resolves to. */
+  planId: string | null;
+  postcode: string;
+  grams: number;
+  basketAmount: string;
+  slotId: string | null;
+  windowIsToday: boolean;
+  /**
+   * Price as a courier order whatever the postcode's coverage. Courier delivery cannot be switched
+   * on yet, so without this a courier table could not be tried at all.
+   */
+  forceKind?: "courier";
+}
+
+export interface FeeSimulationStepDTO {
+  label: string;
+  detail: string;
+  /** Signed 2-dp amount; empty for a step that only explains. */
+  amount: string;
+}
+
+export interface FeeSimulationDTO {
+  coverage: CoverageKind;
+  plan: { id: string; name: string; kind: FeePlanKind; state: FeePlanState } | null;
+  /** What the customer would see; null when nobody delivers there. */
+  fee: DeliveryFeeDTO | null;
+  steps: FeeSimulationStepDTO[];
+  note: string | null;
 }
 
 /** A daily driver collection run. Times are Australia/Melbourne wall-clock ("HH:MM"). */

@@ -123,7 +123,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
               value={`−${formatMoney(m.discount, m.currency)}`}
             />
           ) : null}
-          <TotalRow label="Shipping" value={formatMoney(m.deliveryFee, m.currency)} last />
+          {/* ⚠ 077: no delivery row. A shop never sees what the customer paid for delivery (FR-038). */}
           <tr className="border-border border-t">
             <td colSpan={3} className="pt-2.5 pr-2 text-sm font-semibold">
               Total

@@ -261,6 +261,8 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
 
     itemSubtotalAmount: order.item_subtotal_amount,
     deliveryFeeAmount: order.delivery_fee_amount,
+    // 077 — "How this fee was built" (FR-037). ⚠ The staff gateway only; absent before 077.
+    ...(order.delivery_fee_breakdown ? { deliveryFeeBreakdown: order.delivery_fee_breakdown } : {}),
     discountAmount: order.discount_amount,
     promoCode: order.promo_code,
     grandTotalAmount: order.grand_total_amount,

@@ -10,8 +10,11 @@ import type {
   DeliverySlotPatch,
   NonDeliveryDateDTO,
   NonDeliveryDateInput,
+  FeePlanInput,
+  FeePlanKind,
   FeePlanDTO,
-  RingDTO,
+  FeeSimulationDTO,
+  FeeSimulationRequest,
   AddCoveragePostcodesRequest,
   AddCoveragePostcodesResult,
   CoverageCheckResultDTO,
@@ -24,41 +27,23 @@ import { api } from "@/lib/api";
 
 // ── request payloads (match the edge service's parsed bodies) ─────────────────────────────────────
 
-export interface RingPriceBody {
-  ringId: string;
-  priceAmount: string;
-}
-export interface WeightBandBody {
-  upperGrams: number;
-  addAmount: string;
-}
-export interface NewPlanBody {
-  name: string;
-  roundingStep: string;
-  floorAmount: string;
-  capAmount: string;
-  sameDayFactor: string;
-  standardFactor: string;
-  ringPrices: RingPriceBody[];
-  weightBands: WeightBandBody[];
-}
+// ── fee plans (077) ─────────────────────────────────────────────────────────────────────────────
 
-// ── rings ─────────────────────────────────────────────────────────────────────────────────────────
-
-export async function listRings(): Promise<RingDTO[]> {
-  return (await api.get<{ items: RingDTO[] }>("/admin/v1/delivery/rings")).items;
+export async function listPlans(kind: FeePlanKind): Promise<FeePlanDTO[]> {
+  return (await api.get<{ items: FeePlanDTO[] }>(`/admin/v1/delivery/plans?kind=${kind}`)).items;
 }
-
-// ── fee plans ───────────────────────────────────────────────────────────────────────────────────
-
-export async function listPlans(): Promise<FeePlanDTO[]> {
-  return (await api.get<{ items: FeePlanDTO[] }>("/admin/v1/delivery/plans")).items;
-}
-export function createPlan(body: NewPlanBody): Promise<FeePlanDTO> {
+export function createPlan(body: FeePlanInput): Promise<FeePlanDTO> {
   return api.post<FeePlanDTO>("/admin/v1/delivery/plans", body);
 }
-export function activatePlan(planId: string): Promise<FeePlanDTO> {
-  return api.post<FeePlanDTO>(`/admin/v1/delivery/plans/${planId}/activate`, {});
+export function replacePlan(planId: string, body: FeePlanInput): Promise<FeePlanDTO> {
+  return api.put<FeePlanDTO>(`/admin/v1/delivery/plans/${planId}`, body);
+}
+export function activatePlan(planId: string, confirmZeroFloor: boolean): Promise<FeePlanDTO> {
+  return api.post<FeePlanDTO>(`/admin/v1/delivery/plans/${planId}/activate`, { confirmZeroFloor });
+}
+/** Read-only: prices a delivery under a plan and says how. */
+export function simulateFee(body: FeeSimulationRequest): Promise<FeeSimulationDTO> {
+  return api.post<FeeSimulationDTO>("/admin/v1/delivery/plans/simulate", body);
 }
 
 // ── settings ────────────────────────────────────────────────────────────────────────────────────

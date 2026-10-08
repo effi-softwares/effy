@@ -62,6 +62,13 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutDeliveryChoiceRefused(reason: String) :
         AnalyticsEvent("checkout_delivery_choice_refused", mapOf("reason" to reason))
 
+    // 077 — the delivery fee. ⚠ THREE BOOLEANS, NEVER AN AMOUNT: a fee joined to a session says how
+    // far from the hub someone lives. The same names and props as customer-web's. Declared, not
+    // emitted, like the rest of this app's commerce taxonomy.
+    class DeliveryFeeViewed(free: Boolean, smallOrder: Boolean, surcharge: Boolean) :
+        AnalyticsEvent("delivery_fee_viewed", mapOf("free" to free.toString(), "small_order" to smallOrder.toString(), "surcharge" to surcharge.toString()))
+    data object CheckoutDeliveryFeeChanged : AnalyticsEvent("checkout_delivery_fee_changed")
+
     // 074 — points. ⚠ NO AMOUNTS, NO BALANCE: a balance is account data, not behaviour. The same names
     // and props as customer-web's.
     data object PointsViewed : AnalyticsEvent("points_viewed")

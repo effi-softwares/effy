@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 
-import type { FeePlanDTO } from "@effy/shared-types";
 import {
   Badge, Button, Input, Label,
   Tabs, TabsContent, TabsList, TabsTrigger,
@@ -14,13 +13,13 @@ import { DataTable, ErrorState } from "@effy/web-kit/console";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageDelivery } from "./access";
-import { deliveryMutationError, PLAN_INCOMPLETE } from "./errorText";
+import { deliveryMutationError } from "./errorText";
 import { DeliveryDaysPanel } from "./components/DeliveryDaysPanel";
-import { NewPlanDialog } from "./components/NewPlanDialog";
 import { SlotsPanel } from "./components/SlotsPanel";
 import { CoveragePanel } from "./coverage/CoveragePanel";
+import { PricingPanel } from "./pricing/PricingPanel";
 import {
-  collectionRunsQuery, plansQuery, settingsQuery, useActivatePlan, useCreateCollectionRun,
+  collectionRunsQuery, settingsQuery, useCreateCollectionRun,
   useDeleteCollectionRun, usePutSettings,
 } from "./queries";
 
@@ -34,7 +33,7 @@ export function DeliveryScreen() {
       <div className="space-y-1">
         <h1 className="text-xl font-semibold">Delivery</h1>
         <p className="text-muted-foreground">
-          Where Effy delivers, shipping-fee plans, delivery times and the hub. All of it is the
+          Where Effy delivers, what delivery costs, delivery times and the hub. All of it is the
           platform's — no shop can set it.
         </p>
       </div>
@@ -42,14 +41,14 @@ export function DeliveryScreen() {
       <Tabs defaultValue="coverage">
         <TabsList>
           <TabsTrigger value="coverage">Coverage</TabsTrigger>
-          <TabsTrigger value="plans">Fee plans</TabsTrigger>
+          <TabsTrigger value="pricing">Pricing</TabsTrigger>
           <TabsTrigger value="schedule">Same-day</TabsTrigger>
           <TabsTrigger value="slots">Time slots</TabsTrigger>
           <TabsTrigger value="days">Delivery days</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="coverage" className="mt-4"><CoveragePanel canManage={canManage} /></TabsContent>
-        <TabsContent value="plans" className="mt-4"><PlansPanel canManage={canManage} /></TabsContent>
+        <TabsContent value="pricing" className="mt-4"><PricingPanel canManage={canManage} /></TabsContent>
         <TabsContent value="schedule" className="mt-4"><SchedulePanel canManage={canManage} /></TabsContent>
         <TabsContent value="slots" className="mt-4"><SlotsPanel canManage={canManage} /></TabsContent>
         <TabsContent value="days" className="mt-4"><DeliveryDaysPanel canManage={canManage} /></TabsContent>
@@ -118,62 +117,6 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
         </form>
       ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-function PlansPanel({ canManage }: { canManage: boolean }) {
-  const plans = useQuery(plansQuery());
-  const activate = useActivatePlan();
-  const [open, setOpen] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-
-  async function onActivate(id: string) {
-    setNote(null);
-    try {
-      await activate.mutateAsync(id);
-      setNote("Plan activated. New quotes use it; already-quoted orders keep their fee.");
-    } catch (err) {
-      setNote(deliveryMutationError(err, PLAN_INCOMPLETE));
-    }
-  }
-
-  const columns: ColumnDef<FeePlanDTO>[] = [
-    {
-      accessorKey: "name", header: "Name",
-      cell: ({ row }) => (
-        <span className="flex items-center gap-2">
-          {row.original.name}
-          {row.original.isActive ? <Badge>Active</Badge> : null}
-        </span>
-      ),
-    },
-    { id: "std", header: "Standard ×", cell: ({ row }) => row.original.standardFactor },
-    { id: "same", header: "Same-day ×", cell: ({ row }) => row.original.sameDayFactor },
-    { id: "grid", header: "Step / floor / cap", cell: ({ row }) => `${row.original.roundingStep} / ${row.original.floorAmount} / ${row.original.capAmount}` },
-    {
-      id: "actions", header: "",
-      cell: ({ row }) => canManage && !row.original.isActive ? (
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" disabled={activate.isPending} onClick={() => void onActivate(row.original.id)}>
-            Activate
-          </Button>
-        </div>
-      ) : null,
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Exactly one plan is active. Activation is refused unless the plan can price every served zone.</p>
-        {canManage ? <Button onClick={() => setOpen(true)}><Plus /> New plan</Button> : null}
-      </div>
-      {note ? <p className="text-sm">{note}</p> : null}
-      {plans.isError ? <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
-        : plans.isPending ? <p className="text-sm text-muted-foreground">Loading…</p>
-        : <DataTable columns={columns} data={plans.data} emptyMessage="No fee plans yet." />}
-      <NewPlanDialog open={open} onOpenChange={setOpen} />
     </div>
   );
 }

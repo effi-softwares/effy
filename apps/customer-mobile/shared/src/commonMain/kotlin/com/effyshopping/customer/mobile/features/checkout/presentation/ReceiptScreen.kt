@@ -251,7 +251,17 @@ private fun ReceiptBody(
     }
     // ⚠ 052 — PREVIOUSLY MISSING ENTIRELY, so the arithmetic did not close whenever delivery was
     // charged. A zero fee stays omitted: on a financial record "nothing" and "unknown" differ.
-    if (receipt.deliveryFeeAmount != null && receipt.deliveryFeeAmount != "0.00") {
+    // 077 — an order placed since the fee engine shows the lines it was SOLD with, in the shared
+    // words; a free delivery is shown as what was waived. Before 077, the single row.
+    val feeLines = receipt.deliveryFee?.lines.orEmpty()
+    if (feeLines.isNotEmpty()) {
+        feeLines.forEach { line ->
+            SummaryRow(
+                DeliveryFeeWords.label(line.kind),
+                if (line.amount.startsWith("-")) "−" + money(line.amount.removePrefix("-"), receipt.currency) else money(line.amount, receipt.currency),
+            )
+        }
+    } else if (receipt.deliveryFeeAmount != null && receipt.deliveryFeeAmount != "0.00") {
         SummaryRow("Delivery", money(receipt.deliveryFeeAmount, receipt.currency))
     }
     SummaryRow("Total paid", money(receipt.grandTotalAmount, receipt.currency), bold = true)

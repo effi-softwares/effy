@@ -9,6 +9,7 @@ import type {
 } from "@effy/shared-types";
 
 import * as repo from "./coverage.repository";
+import { activePlanId } from "./pricing.repository";
 
 /** A refusal the console tells apart from the others — `code` becomes the problem's type (FR-026). */
 export class CoverageError extends Error {
@@ -254,6 +255,11 @@ export async function setCourier(body: { offered?: unknown }, sub: string): Prom
   // "Courier delivery" by a checkout that cannot sell one.
   if (body.offered && !COURIER_ORDERING_AVAILABLE) {
     throw new CoverageError(409, "courier_ordering_unavailable", "courier delivery can be switched on once customers can place courier orders");
+  }
+  // 077 FR-013 — and never without a price: switched on with no courier table in force, every
+  // courier order would fail to price (or, worse, be priced at nothing).
+  if (body.offered && (await activePlanId("courier")) === null) {
+    throw new CoverageError(409, "courier_plan_missing", "make a courier fee table active before switching courier delivery on");
   }
   await repo.setCourierOffered(body.offered, sub);
   await changed();

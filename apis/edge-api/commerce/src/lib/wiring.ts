@@ -6,7 +6,7 @@ import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
 
 import { createCartRepository } from "../cart/repository";
 import { createCartService } from "../cart/service";
-import { defaultQuoter } from "../checkout/quote";
+import { defaultQuoter, type PromoSource } from "../checkout/quote";
 import { createCheckoutService } from "../checkout/service";
 import { createCheckoutStore } from "../checkout/store";
 import { createOrdersRepository } from "../orders/repository";
@@ -29,12 +29,20 @@ export const savedService = createSavedService({
 export const checkoutStore = createCheckoutStore();
 export const deliveryQuoter = defaultQuoter();
 
+// The SAME rule the cart read applies, with usage counted: the cart and the charge cannot disagree.
+const promos: PromoSource = (customerId, payableCents) => cartService.discountForCustomer(customerId, payableCents);
+
+/**
+ * What a delivery quote is built from. ⚠ It takes the promotion too (077): free delivery and the
+ * small-order fee are judged on the basket AFTER it, and the quote must judge as the charge will.
+ */
+export const quoteDeps = { store: checkoutStore, quoter: deliveryQuoter, promos };
+
 export const checkoutService = createCheckoutService({
   store: checkoutStore,
   gateway: stripeGateway,
   policy: cartPolicy,
-  // The SAME rule the cart read applies, with usage counted: the cart and the charge cannot disagree.
-  promos: (customerId, payableCents) => cartService.discountForCustomer(customerId, payableCents),
+  promos,
   quoter: deliveryQuoter,
   publishableKey: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
 });

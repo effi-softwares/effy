@@ -13,6 +13,8 @@
   "discountAmount": "$1.00",
   "hasDeliveryFee": true,
   "deliveryFee": "$7.90",
+  "hasDeliveryLines": true,
+  "deliveryLines": [{"label": "Delivery <img src=x onerror=alert(1)>", "amount": "$7.90\"><script>alert(1)</script>"}],
   "total": "$19.40",
   "hasPaymentMethod": true,
   "paymentMethod": "Visa</td><script>alert(1)</script>",

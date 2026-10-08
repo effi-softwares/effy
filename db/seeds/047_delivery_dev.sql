@@ -2,9 +2,10 @@
 -- re-inserts. ⚠ Touches ONLY delivery configuration — never public.locality, never orders.
 --
 -- Values are grounded in AU metro grocery/courier norms (research 2026-08):
---   • Melbourne rings from the CBD: inner ≤10 km, middle ≤25 km, outer ≤50 km, extended = regional VIC.
---   • Grocery metro delivery sits ~$5–$15; same-day is a premium ~1.5–1.8× standard (couriers quote
---     same-day 20–30%+ over standard; a grocery premium runs higher). We use 1.6×.
+--   • Distance bands from the CBD hub: ≤10 km, ≤25 km, ≤50 km, then everything beyond (regional VIC).
+--   • Grocery metro delivery sits ~$5–$15. Same-day costs a FIXED amount more than a later day (077 —
+--     it replaced the old 1.6× multiplier); this DEV seed uses $3.00. ⚠ A dev value only: the real
+--     amount is the operator's, asked for by the 077 migration (EFFY_TODAY_PREMIUM).
 --   • Weight adds in slabs; a typical grocery basket is ≤10 kg, big shops 10–20 kg.
 --   • Same-day only near the hub (inner/middle); regional is standard-only (can't reach 65–130 km today).
 --
@@ -15,30 +16,27 @@ BEGIN;
 
 -- ── 1. Clear existing delivery config (FK-safe order) ───────────────────────────────────────────────
 DELETE FROM public.shop_sameday_exception;
-DELETE FROM public.delivery_zone;            -- cascades delivery_zone_postcode + shop_sameday_exception
-DELETE FROM public.delivery_fee_plan;        -- cascades delivery_ring_price + delivery_weight_band
+-- ⚠ Since 076 removing a group UNGROUPS its postcodes rather than deleting them, so the list is
+-- cleared on its own first — without this a second run of this seed fails on a duplicate postcode.
+DELETE FROM public.delivery_zone_postcode;
+DELETE FROM public.delivery_zone;            -- cascades shop_sameday_exception
+DELETE FROM public.delivery_fee_plan;        -- cascades its bands and window premiums
 DELETE FROM public.delivery_collection_run;
-DELETE FROM public.delivery_ring;
 
--- ── 2. Distance rings (nearest → furthest; EXTENDED is open-ended) ──────────────────────────────────
-INSERT INTO public.delivery_ring (id, code, name, ordinal, suggest_upper_km, status, updated_by) VALUES
-  ('11111111-0000-0000-0000-000000000001', 'INNER',    'Inner Melbourne',   1, 10.00, 'active', 'seed:047'),
-  ('11111111-0000-0000-0000-000000000002', 'MIDDLE',   'Middle Melbourne',  2, 25.00, 'active', 'seed:047'),
-  ('11111111-0000-0000-0000-000000000003', 'OUTER',    'Outer Melbourne',   3, 50.00, 'active', 'seed:047'),
-  ('11111111-0000-0000-0000-000000000004', 'EXTENDED', 'Regional Victoria', 4, NULL,  'active', 'seed:047');
+-- ── 2. (077: there are no distance tiers any more — a postcode is priced from its own distance.) ───
 
--- ── 3. Zones (real Melbourne/VIC areas) + their postcodes ──────────────────────────────────────────
+-- ── 3. Coverage groups (real Melbourne/VIC areas) + their postcodes ─────────────────────────────────
 -- same-day eligible: inner + middle only (realistic — driver runs can reach these same day).
-INSERT INTO public.delivery_zone (id, code, name, ring_id, sameday_eligible, status, updated_by) VALUES
-  ('22222222-0000-0000-0000-000000000001', 'MEL-CBD',      'Melbourne CBD',        '11111111-0000-0000-0000-000000000001', true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000002', 'MEL-INNER-E',  'Inner East',           '11111111-0000-0000-0000-000000000001', true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000003', 'MEL-INNER-S',  'Inner South (bayside)','11111111-0000-0000-0000-000000000001', true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000004', 'MEL-INNER-W',  'Inner West',           '11111111-0000-0000-0000-000000000001', true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000005', 'MEL-MIDDLE-W', 'Middle West',          '11111111-0000-0000-0000-000000000002', true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000006', 'MEL-OUTER-W',  'Outer West (Wyndham)', '11111111-0000-0000-0000-000000000003', false, 'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000007', 'GEELONG',      'Geelong',              '11111111-0000-0000-0000-000000000004', false, 'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000008', 'BALLARAT',     'Ballarat',             '11111111-0000-0000-0000-000000000004', false, 'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000009', 'BENDIGO',      'Bendigo',              '11111111-0000-0000-0000-000000000004', false, 'active', 'seed:047');
+INSERT INTO public.delivery_zone (id, code, name, sameday_eligible, status, updated_by) VALUES
+  ('22222222-0000-0000-0000-000000000001', 'MEL-CBD',      'Melbourne CBD',         true,  'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000002', 'MEL-INNER-E',  'Inner East',            true,  'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000003', 'MEL-INNER-S',  'Inner South (bayside)', true,  'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000004', 'MEL-INNER-W',  'Inner West',            true,  'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000005', 'MEL-MIDDLE-W', 'Middle West',           true,  'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000006', 'MEL-OUTER-W',  'Outer West (Wyndham)',  false, 'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000007', 'GEELONG',      'Geelong',               false, 'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000008', 'BALLARAT',     'Ballarat',              false, 'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000009', 'BENDIGO',      'Bendigo',               false, 'active', 'seed:047');
 
 -- ⚠ 076 — a listed postcode always has a distance. Worked out from the place's location where one is
 -- known (load the localities first); otherwise this dev seed falls back to a round 10 km, marked as
@@ -66,26 +64,29 @@ FROM (VALUES
   ('22222222-0000-0000-0000-000000000009', '3550')
 ) AS v (zone_id, postcode);  -- Bendigo
 
--- ── 4. The active shipping-fee plan ────────────────────────────────────────────────────────────────
--- fee = clamp( roundUp( factor × (ring_price + weight_add), 0.50 ), floor 4.00, cap 40.00 ).
+-- ── 4. The active fee plan (077) ───────────────────────────────────────────────────────────────────
+-- One fee per order: clamp( roundUp( base + distance band + weight band + window premium, 0.50 ),
+-- 4.00, 40.00 ). Built as a DRAFT and then made active through the one function that may.
 INSERT INTO public.delivery_fee_plan
-  (id, name, is_active, rounding_step, floor_amount, cap_amount, same_day_factor, standard_factor, created_by, activated_by, activated_at)
+  (id, kind, name, base_amount, today_premium_amount, rounding_step, floor_amount, cap_amount, created_by)
 VALUES
-  ('33333333-0000-0000-0000-000000000001', 'Melbourne Launch 2026', true, 0.50, 4.00, 40.00, 1.600, 1.000, 'seed:047', 'seed:047', now());
+  ('33333333-0000-0000-0000-000000000001', 'effy', 'Melbourne Launch 2026', 0.00, 3.00, 0.50, 4.00, 40.00, 'seed:047');
 
--- ring price = the standard base for that distance tier
-INSERT INTO public.delivery_ring_price (plan_id, ring_id, price_amount) VALUES
-  ('33333333-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 5.00),   -- INNER
-  ('33333333-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', 7.00),   -- MIDDLE
-  ('33333333-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003', 10.00),  -- OUTER
-  ('33333333-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000004', 15.00);  -- EXTENDED
+-- distance bands from the hub; the last has no upper limit
+INSERT INTO public.delivery_distance_band (plan_id, upper_km, add_amount) VALUES
+  ('33333333-0000-0000-0000-000000000001', 10.00,  5.00),
+  ('33333333-0000-0000-0000-000000000001', 25.00,  7.00),
+  ('33333333-0000-0000-0000-000000000001', 50.00, 10.00),
+  ('33333333-0000-0000-0000-000000000001', NULL,  15.00);
 
--- weight slabs (grocery basket weights) — add on top of the ring price; top slab is open-ended.
+-- weight slabs (grocery basket weights); top slab is open-ended.
 INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES
   ('33333333-0000-0000-0000-000000000001',  5000, 0.00),   -- ≤ 5 kg  (a light basket)
   ('33333333-0000-0000-0000-000000000001', 10000, 2.00),   -- ≤ 10 kg (a typical weekly shop)
   ('33333333-0000-0000-0000-000000000001', 20000, 4.50),   -- ≤ 20 kg (a big shop)
   ('33333333-0000-0000-0000-000000000001', 40000, 8.00);   -- ≤ 40 kg (open-ended top: heavier takes this)
+
+SELECT public.delivery_plan_activate('33333333-0000-0000-0000-000000000001', 'seed:047', false);
 
 -- ── 5. Hub + same-day prep buffer (settings singleton) ─────────────────────────────────────────────
 -- Hub = Melbourne CBD. Prep buffer 120 min: a shop needs ~2h to pick + pack before a collection run.

@@ -3,11 +3,6 @@
 // refusals the handler maps to problem+json.
 
 export type DeliveryErrorCode =
-  | "invalid_plan"
-  | "plan_incomplete"
-  | "plan_not_found"
-  | "ring_not_found"
-  | "duplicate_name"
   | "invalid_zone"
   | "zone_not_found"
   | "postcode_in_zone"
@@ -25,53 +20,6 @@ export class DeliveryError extends Error {
     super(message);
     this.name = "DeliveryError";
   }
-}
-
-export type RingStatus = "active" | "disabled";
-
-export interface Ring {
-  id: string;
-  code: string;
-  name: string;
-  ordinal: number;
-  suggestUpperKm: string | null;
-  status: RingStatus;
-}
-
-export interface RingPrice {
-  ringId: string;
-  priceAmount: string;
-}
-
-export interface WeightBand {
-  upperGrams: number;
-  addAmount: string;
-}
-
-export interface FeePlan {
-  id: string;
-  name: string;
-  isActive: boolean;
-  roundingStep: string;
-  floorAmount: string;
-  capAmount: string;
-  sameDayFactor: string;
-  standardFactor: string;
-  ringPrices: RingPrice[];
-  weightBands: WeightBand[];
-  activatedBy: string | null;
-  activatedAt: string | null;
-}
-
-export interface NewFeePlan {
-  name: string;
-  roundingStep: string;
-  floorAmount: string;
-  capAmount: string;
-  sameDayFactor: string;
-  standardFactor: string;
-  ringPrices: RingPrice[];
-  weightBands: WeightBand[];
 }
 
 export interface Settings {

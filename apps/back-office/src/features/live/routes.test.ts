@@ -29,6 +29,7 @@ describe("LIVE_ROUTES", () => {
   it("covers what back-office is told about (FR-029)", () => {
     // 074 — `points`: a customer's balance changed.
     // 076 — `coverage`: where Effy delivers changed.
-    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["coverage", "dispatch", "orders", "points", "review", "slots"]);
+    // 077 — `pricing`: a fee plan was saved or made active.
+    expect(Object.keys(LIVE_ROUTES).sort()).toEqual(["coverage", "dispatch", "orders", "points", "pricing", "review", "slots"]);
   });
 });

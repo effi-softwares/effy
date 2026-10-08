@@ -13,6 +13,7 @@ import com.effyshopping.customer.mobile.features.addresses.presentation.toDraft
 import com.effyshopping.customer.mobile.features.addresses.presentation.validate
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
@@ -136,6 +137,12 @@ sealed interface CheckoutUiState {
         /** Every delivery choice this order needs has been made. */
         val deliveryChosen: Boolean
             get() = (!needsSlot || slotId != null) && (!needsDay || standardDate != null)
+
+        /**
+         * 077 — what delivery costs for what is chosen, as the lines the server priced. Null while
+         * same-day is chosen and no window is. ⚠ Picked, never added up: the server is the judge.
+         */
+        val deliveryFee get() = quote?.feeFor(method, slotId)
     }
 
 }
@@ -385,6 +392,8 @@ class CheckoutViewModel(
             // 074 — "the most I can": the balance. If that is more than the order needs, the server says
             // so with the most it will take, and that is sent instead (below).
             pointsToUse = if (s.usePoints) s.points?.usable ?: 0 else 0,
+            // 077 — the delivery total on screen. A different one at the server is refused unpaid.
+            shownDeliveryAmount = s.deliveryFee?.totalAmount,
         )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
@@ -416,6 +425,13 @@ class CheckoutViewModel(
                     },
                 )
                 if (refused.reason == PointsRefusal.BalanceChanged) refreshQuote(addressId)
+                return@launch
+            } catch (changed: DeliveryFeeChanged) {
+                // 077 — the delivery total moved between the quote and the pay button. Nothing was
+                // charged. The new total is shown and the shopper presses pay again.
+                val cur = ready() ?: return@launch
+                _state.value = cur.withQuote(changed.quote ?: cur.quote).copy(paying = false, error = DeliveryFeeWords.FEE_CHANGED)
+                if (changed.quote == null) refreshQuote(addressId)
                 return@launch
             } catch (refused: DeliveryChoiceRefused) {
                 // 069 — the slot or day could not be honoured. Nothing has been charged and no payment

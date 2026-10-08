@@ -810,23 +810,9 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  # ── Delivery configuration (047): distance rings + shipping-fee plans ──────────────────────────────
-  deliveryRingsListV1:
-    handler: src/functions/delivery-rings-list-v1-get.handler
-    description: List distance rings — 047
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/delivery/rings
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
-
   # ── Delivery coverage (076): the list of postcodes Effy delivers to, its groups, courier reach ────
   # ⚠ These REPLACE the 047 zone, ring-create, suggest-ring, postcode-check and same-day-exception
-  # routes. `deliveryRingsListV1` above stays, read-only: the fee-plan dialog prices per tier until
-  # the fee engine (E3) replaces it.
+  # routes. (The read-only rings route that outlived them went with the fee engine, 077.)
   deliveryCoverageListV1:
     handler: src/functions/delivery-coverage-list-v1-get.handler
     description: The list of postcodes effy delivers to, its groups and courier reach — 076
@@ -959,9 +945,10 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  # ── Delivery pricing (077): fee plans v2 — one active per kind (Effy, courier) ──────────────────
   deliveryPlansListV1:
     handler: src/functions/delivery-plans-list-v1-get.handler
-    description: List shipping-fee plans (one active) — 047 FR-048
+    description: List fee plans of a kind (effy | courier) with their gaps — 077
     events:
       - httpApi:
           method: GET
@@ -972,7 +959,7 @@ functions:
 
   deliveryPlansCreateV1:
     handler: src/functions/delivery-plans-create-v1-post.handler
-    description: Create an inactive shipping-fee plan — 047 FR-047
+    description: Create a draft fee plan — 077
     events:
       - httpApi:
           method: POST
@@ -981,13 +968,35 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  deliveryPlanUpdateV1:
+    handler: src/functions/delivery-plan-update-v1-put.handler
+    description: Replace a draft fee plan whole; refused once it has been active — 077
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery/plans/{planId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   deliveryPlanActivateV1:
     handler: src/functions/delivery-plan-activate-v1-post.handler
-    description: Activate a plan; refused if it cannot price every served zone — 047 FR-049/FR-051
+    description: Make a plan the one in force; refused with every gap named — 077
     events:
       - httpApi:
           method: POST
           path: /admin/v1/delivery/plans/{planId}/activate
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryPlansSimulateV1:
+    handler: src/functions/delivery-plans-simulate-v1-post.handler
+    description: Price a delivery under any plan and show every step; writes nothing — 077
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/plans/simulate
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

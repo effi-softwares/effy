@@ -161,6 +161,8 @@
   "discountAmount": "$38.10",
   "hasDeliveryFee": true,
   "deliveryFee": "$8.00",
+  "hasDeliveryLines": true,
+  "deliveryLines": [{"label": "Delivery", "amount": "$6.00"}, {"label": "Window surcharge", "amount": "$2.00"}],
   "total": "$350.94",
   "hasPaymentMethod": true,
   "paymentMethod": "Visa ending 4242",

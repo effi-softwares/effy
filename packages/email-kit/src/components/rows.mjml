@@ -13,7 +13,12 @@
      `hasDiscount`/`hasDeliveryFee` gate their rows. A component that is genuinely zero is left OUT
      rather than printed as "$0.00" or a dash: on a financial record "nothing" and "unknown" are
      different claims, and a dash reads as the second. The invariant the shopper can check is
-     subtotal − discount + delivery = total = what was charged (FR-004). -->
+     subtotal − discount + delivery = total = what was charged (FR-004).
+
+     ── 077: DELIVERY IS LINES ───────────────────────────────────────────────────────────────────
+     An order placed since 077 carries how its delivery charge was built — delivery, a window
+     surcharge, a small-order fee, a free-delivery saving — and `deliveryLines` prints them in place
+     of the single Delivery row. They sum to it, so the invariant above still holds line by line. -->
 <mj-table role="presentation" cellpadding="0" cellspacing="0" width="100%" css-class="e-ink"
           font-family="'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <tr>
@@ -26,11 +31,20 @@
     <td class="e-muted" align="right" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">&minus;{{discountAmount}}</td>
   </tr>
   {{/if}}
+  {{#if hasDeliveryLines}}
+  {{#each deliveryLines}}
+  <tr>
+    <td class="e-muted" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{label}}</td>
+    <td class="e-muted" align="right" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{amount}}</td>
+  </tr>
+  {{/each}}
+  {{else}}
   {{#if hasDeliveryFee}}
   <tr>
     <td class="e-muted" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">Delivery</td>
     <td class="e-muted" align="right" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{deliveryFee}}</td>
   </tr>
+  {{/if}}
   {{/if}}
   <tr>
     <td class="e-rule" colspan="2" height="1" style="height:1px;line-height:1px;font-size:1px;padding:8px 0 0 0;"><span style="font-size:1px;">&nbsp;</span></td>

@@ -16,6 +16,9 @@ import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot
 import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
@@ -62,6 +65,8 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     wantsProviderMethodList = true,
     // 074 — absent (null) when none, which the server reads as 0.
     pointsToUse = pointsToUse.takeIf { it > 0 },
+    // 077 — what this screen shows for delivery; the server refuses a total it would not charge.
+    shownDeliveryAmount = shownDeliveryAmount,
 )
 
 // ── Delivery quote (047): DTO → domain ──────────────────────────────────────────────────────────────
@@ -113,13 +118,24 @@ internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
         (pkg.options.firstOrNull { it.method == DeliveryMethodDTO.Standard } ?: pkg.options.firstOrNull())
             ?.let { centsOf(it.feeAmount) } ?: 0L
     }
+    // 077 — the order's fee as the server priced it. ⚠ A server older than 077 sends none: the
+    // per-package sums stand in, as one Delivery line, so a deploy out of step never shows a blank.
+    val legacyStandard = totalFor(DeliveryMethodDTO.Standard)
+    val legacySameDay = totalFor(DeliveryMethodDTO.SameDay)
+    val standard = standardFee?.toDomain() ?: singleLine(legacyStandard)
     return DeliveryQuote(
         serviced = true,
         sameDayAvailable = sameDayAvailable,
+        standardFee = standard,
+        freeDeliveryRemainingAmount = freeDeliveryRemainingAmount,
         standardTotalAmount = formatCents(totalFor(DeliveryMethodDTO.Standard)),
         sameDayTotalAmount = if (sameDayAvailable) formatCents(totalFor(DeliveryMethodDTO.SameDay)) else null,
         slots = sameDaySlots.map {
-            DeliverySlot(id = it.slotID, date = it.date, startAt = it.startAt, endAt = it.endAt, cutoffAt = it.cutoffAt)
+            DeliverySlot(
+                id = it.slotID, date = it.date, startAt = it.startAt, endAt = it.endAt, cutoffAt = it.cutoffAt,
+                surchargeAmount = it.surchargeAmount,
+                fee = it.fee?.toDomain() ?: singleLine(legacySameDay),
+            )
         },
         standardDays = standardDays.map { it.date },
         sameDayUnavailable = when (sameDayUnavailableReason) {
@@ -134,6 +150,26 @@ internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
         points = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) },
     )
 }
+
+private fun singleLine(cents: Long): DeliveryFee =
+    DeliveryFee(lines = if (cents > 0) listOf(DeliveryFeeLine(DeliveryFeeLineKind.Delivery, formatCents(cents))) else emptyList(), totalAmount = formatCents(cents))
+
+internal fun com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO.toDomain(): DeliveryFee = DeliveryFee(
+    // ⚠ An exhaustive `when` over the generated enum: a kind a newer server adds fails to compile
+    // here rather than being shown under a guessed label.
+    lines = lines.map {
+        DeliveryFeeLine(
+            kind = when (it.kind) {
+                com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind.Delivery -> DeliveryFeeLineKind.Delivery
+                com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind.WindowSurcharge -> DeliveryFeeLineKind.WindowSurcharge
+                com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind.SmallOrder -> DeliveryFeeLineKind.SmallOrder
+                com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind.FreeDelivery -> DeliveryFeeLineKind.FreeDelivery
+            },
+            amount = it.amount,
+        )
+    },
+    totalAmount = totalAmount,
+)
 
 /** 069 — the server's refusal, as the domain exception the ViewModel acts on. */
 internal fun DeliveryChoiceRefusalDTO.toDomain(): DeliveryChoiceRefused = DeliveryChoiceRefused(
@@ -245,6 +281,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
         // ⚠ 052 — previously UNMAPPED, so the receipt's lines did not add up whenever delivery was
         // charged (051 FR-043 fixed this on web and never here).
         deliveryFeeAmount = deliveryFeeAmount,
+        deliveryFee = deliveryFee?.toDomain(),
         grandTotalAmount = grandTotalAmount,
         currency = currency,
         placedAt = placedAt.orEmpty(),

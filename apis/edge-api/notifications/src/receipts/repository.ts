@@ -83,6 +83,11 @@ export interface ReceiptOrderRow {
   discount_amount: string | null;
   promo_code: string | null;
   delivery_fee_amount: string | null;
+  /**
+   * 077 — the delivery charge as the lines the customer was sold; null before 077. ⚠ Only the
+   * `lines` key of `delivery_fee_breakdown`: the rest is the business's pricing, never mailed.
+   */
+  delivery_fee_lines?: { kind: string; amount: string }[] | null;
   grand_total_amount: string;
   delivery_address: Record<string, unknown> | null;
   billing_address: Record<string, unknown> | null;
@@ -129,6 +134,7 @@ export async function loadReceipt(orderId: string): Promise<{
             o.discount_amount::text      AS discount_amount,
             o.promo_code,
             o.delivery_fee_amount::text  AS delivery_fee_amount,
+            o.delivery_fee_breakdown -> 'lines' AS delivery_fee_lines,
             o.grand_total_amount::text   AS grand_total_amount,
             o.delivery_address, o.billing_address,
             p.method_type, p.method_brand, p.method_last4,

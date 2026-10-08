@@ -10,7 +10,8 @@
  * every page will believe it. Each line below is annotated with the thing that makes it true; a line
  * without one does not belong here.
  *
- *   ⚠ Explicitly NOT claimed: free delivery (there is none), delivery times or windows, coverage
+ *   ⚠ Explicitly NOT claimed: free delivery (since 077 it exists only when the business sets an amount on the
+ *   active fee plan, and a banner here could not say what that amount is), delivery times or windows, coverage
  *   areas, opening hours, a phone number, or any guarantee.
  *
  * ── Zero JavaScript, and that is a constraint rather than a flourish ────────────────────────────

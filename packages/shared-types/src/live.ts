@@ -19,6 +19,9 @@ export const LIVE_KINDS = [
   // 076 — where Effy delivers changed. Back-office (ops) only: a customer's answer is re-read when
   // they next ask, and on their channel this word would say only "something, somewhere".
   "coverage",
+  // 077 — a delivery fee plan was saved or made active. Back-office (ops) only: a customer's next
+  // quote reads the new plan, and a quote already on screen is caught at the intent call.
+  "pricing",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

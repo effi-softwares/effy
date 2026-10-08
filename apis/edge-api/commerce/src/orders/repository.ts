@@ -26,6 +26,12 @@ export interface OrderRow {
   discount_amount: string;
   promo_code: string | null;
   delivery_fee_amount: string;
+  /**
+   * 077 — the delivery charge as the lines the customer was sold, or null on an order placed before
+   * 077. ⚠ `delivery_fee_breakdown->'lines'` and NOTHING else from that column: the rest holds a
+   * distance and the plan's prices, which a customer must never be sent (FR-032).
+   */
+  delivery_fee_lines?: { kind: string; amount: string }[] | null;
   grand_total_amount: string;
   currency: string;
   payment_status: string | null;
@@ -123,6 +129,7 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.item_subtotal_amount::text AS item_subtotal_amount,
        o.discount_amount::text AS discount_amount, o.promo_code AS promo_code,
        o.delivery_fee_amount::text AS delivery_fee_amount,
+       o.delivery_fee_breakdown -> 'lines' AS delivery_fee_lines,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
        (SELECT status FROM public.payment WHERE order_id = o.id) AS payment_status,
        o.points_used AS points_used, o.points_value_amount::text AS points_value_amount,

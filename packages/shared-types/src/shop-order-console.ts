@@ -169,7 +169,8 @@ export interface ShopOrderMoneyDTO {
   shopSubtotal: string
   /** The order's item subtotal; exceeds `shopSubtotal` when other shops supplied part of it. */
   itemSubtotal: string
-  deliveryFee: string
+  // ⚠ 077: NO delivery fee. A shop never sees what the customer paid for delivery, or any part of it
+  // (FR-038). `shop-order.guard` fails a shop contract that carries one.
   discount: string
   promoCode: string | null
   total: string

@@ -3,7 +3,7 @@
  * Pure: every input is passed in, including the clock.
  */
 import {
-  feeFor, METHOD_SAME_DAY, METHOD_STANDARD, offersSameDay, type OpenSlot, type QuoteResult,
+  METHOD_SAME_DAY, METHOD_STANDARD, offersSameDay, type OpenSlot, type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
 import type { DeliveryChoiceRefusalCode } from "@effy/shared-types";
 
@@ -30,6 +30,10 @@ type ServicedQuote = Extract<QuoteResult, { serviced: true }>;
  * Apply the order-level preference per package — same-day where offered, standard elsewhere — and
  * bind the slot and the day the shopper chose. One slot covers every same-day package and one day
  * covers every standard one.
+ *
+ * ⚠ ONE FEE FOR THE ORDER (077): the chosen window's when anything goes today, the plain later-day
+ * fee otherwise. A package carries WHEN it arrives, never what it costs — an order whose packages
+ * split across today and a later day still pays one delivery fee, the window's.
  */
 export function resolveDeliveryChoice(
   q: ServicedQuote,
@@ -37,7 +41,7 @@ export function resolveDeliveryChoice(
   slotId: string,
   standardDate: string,
   now: Date,
-): { packages: PackageDelivery[]; hold: SlotHold | null } {
+): { packages: PackageDelivery[]; hold: SlotHold | null; fee: PricedFee } {
   let anySameDay = false;
   let anyStandard = false;
   for (const p of q.packages) {
@@ -62,12 +66,16 @@ export function resolveDeliveryChoice(
     if (day === "" || !q.standardDays.includes(day)) throw new DeliveryChoiceError("date_unavailable");
   }
 
-  const packages = q.packages.map((p): PackageDelivery => {
-    const chosen = feeFor(p, preferred);
-    return chosen.method === METHOD_SAME_DAY && slot
-      ? { shopId: p.shopId, method: chosen.method, feeCents: chosen.feeCents, promisedDay: slot.date, slotId: slot.id, windowStart: slot.start, windowEnd: slot.end }
-      : { shopId: p.shopId, method: chosen.method, feeCents: chosen.feeCents, promisedDay: day, slotId: null, windowStart: null, windowEnd: null };
-  });
+  // The window's fee was priced with the quote, beside the slot it belongs to. A slot with no fee
+  // is a slot the quote did not offer — refused like any other that has gone.
+  const fee = slot ? q.slotFees.get(slot.id) : q.standardFee;
+  if (!fee) throw new DeliveryChoiceError("slot_unavailable");
 
-  return { packages, hold: slot ? { slotId: slot.id, now } : null };
+  const packages = q.packages.map((p): PackageDelivery =>
+    preferred === METHOD_SAME_DAY && offersSameDay(p) && slot
+      ? { shopId: p.shopId, method: METHOD_SAME_DAY, promisedDay: slot.date, slotId: slot.id, windowStart: slot.start, windowEnd: slot.end }
+      : { shopId: p.shopId, method: METHOD_STANDARD, promisedDay: day, slotId: null, windowStart: null, windowEnd: null },
+  );
+
+  return { packages, hold: slot ? { slotId: slot.id, now } : null, fee };
 }

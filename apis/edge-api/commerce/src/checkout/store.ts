@@ -31,7 +31,6 @@ export interface CheckoutLine {
 export interface PackageDelivery {
   shopId: string;
   method: string;
-  feeCents: number;
   /** yyyy-mm-dd, Melbourne. */
   promisedDay: string;
   slotId: string | null;
@@ -53,7 +52,13 @@ export class SlotUnavailableError extends Error {
 
 export interface OrderAmounts {
   itemSubtotalCents: number;
+  /** The delivery TOTAL for the order (077): one fee, small-order fee included. */
   deliveryFeeCents: number;
+  /**
+   * How that total was built, exactly as sold — `storedBreakdown(...)`. Written with the amount and
+   * never recomputed, so the receipt still explains itself after the plan changes (077 FR-034).
+   */
+  deliveryFeeBreakdown: unknown;
   /** The platform's own discount computation at the moment of payment (027). */
   discountCents: number;
   promoCodeId: string | null;
@@ -262,15 +267,15 @@ FOR UPDATE`,
 INSERT INTO public."order"
     (customer_id, order_number, status, currency, item_subtotal_amount,
      discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address, delivery_fee_amount,
-     points_used, points_cents_per_point, points_value_amount)
+     points_used, points_cents_per_point, points_value_amount, delivery_fee_breakdown)
 VALUES ($1, $2, 'pending_payment', $3, $4::numeric,
         $7::numeric, $8::uuid, $9, $5::numeric, $6::jsonb, $10::numeric,
-        $11, $12, $13::numeric)
+        $11, $12, $13::numeric, $14::jsonb)
 RETURNING id::text AS id`,
               [
                 customerId, orderNumber, a.currency, formatCents(a.itemSubtotalCents), formatCents(a.grandTotalCents),
                 JSON.stringify(address), formatCents(a.discountCents), a.promoCodeId, a.promoCode, formatCents(a.deliveryFeeCents),
-                a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents),
+                a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents), JSON.stringify(a.deliveryFeeBreakdown),
               ],
             )
           ).rows[0]!.id;
@@ -284,11 +289,12 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
     discount_amount=$5::numeric, promo_code_id=$6::uuid, promo_code=$7,
     delivery_fee_amount=$8::numeric,
     points_used=$9, points_cents_per_point=$10, points_value_amount=$11::numeric,
+    delivery_fee_breakdown=$12::jsonb,
     updated_at=now() WHERE id=$1`,
             [
               orderId, formatCents(a.itemSubtotalCents), formatCents(a.grandTotalCents), JSON.stringify(address),
               formatCents(a.discountCents), a.promoCodeId, a.promoCode, formatCents(a.deliveryFeeCents),
-              a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents),
+              a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents), JSON.stringify(a.deliveryFeeBreakdown),
             ],
           );
           await tx.query(`DELETE FROM public.order_item WHERE order_id = $1`, [orderId]);
@@ -382,11 +388,12 @@ WHERE id = $1`,
           await tx.query(
             `
 INSERT INTO public.order_package_delivery
-    (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to,
+    (order_id, shop_id, method, promised_from, promised_to,
      slot_id, window_start, window_end)
-VALUES ($1, $2, $3, $4::numeric, NULLIF($5, '')::date, NULLIF($5, '')::date,
-        $6::uuid, $7, $8)`,
-            [orderId, p.shopId, p.method, formatCents(p.feeCents), p.promisedDay, p.slotId, p.windowStart, p.windowEnd],
+VALUES ($1, $2, $3, NULLIF($4, '')::date, NULLIF($4, '')::date,
+        $5::uuid, $6, $7)`,
+            // ⚠ No fee: delivery is priced once per order (077). A package says WHEN, not how much.
+            [orderId, p.shopId, p.method, p.promisedDay, p.slotId, p.windowStart, p.windowEnd],
           );
         }
         return heldUntil;

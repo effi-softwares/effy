@@ -144,6 +144,9 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
         itemSubtotalAmount: row.item_subtotal_amount,
         discountAmount: row.discount_amount,
         deliveryFeeAmount: row.delivery_fee_amount,
+        // 077 — the same charge as lines. ⚠ Absent on an order placed before 077, which has only
+        // the single amount above; never an empty array standing in for "unknown".
+        ...(row.delivery_fee_lines ? { deliveryFee: { lines: row.delivery_fee_lines, totalAmount: row.delivery_fee_amount } } : {}),
         promoCode: row.promo_code,
         grandTotalAmount: row.grand_total_amount,
         currency: row.currency,

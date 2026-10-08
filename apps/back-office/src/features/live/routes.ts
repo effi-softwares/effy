@@ -15,6 +15,7 @@ const DRIVERS: QueryKey = ["drivers"];
 const EXCEPTIONS: QueryKey = ["exceptions"];
 const SLOTS: QueryKey = ["back-office", "delivery", "slots"];
 const COVERAGE: QueryKey = ["back-office", "delivery", "coverage"];
+const PRICING: QueryKey = ["back-office", "delivery", "plans"];
 const REVIEW: QueryKey = ["product-review"];
 const CUSTOMERS: QueryKey = ["customers"];
 
@@ -31,4 +32,7 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   // 076 — where Effy delivers changed (a postcode, a group, a distance, courier reach, a hub move):
   // an open Coverage tab re-reads, so two people editing the list see each other's changes.
   coverage: [COVERAGE],
+  // 077 — a fee plan was saved or made active: an open Pricing tab re-reads, so two managers see
+  // each other's drafts and nobody activates a plan that has already been replaced.
+  pricing: [PRICING],
 };

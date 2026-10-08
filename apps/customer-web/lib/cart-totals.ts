@@ -3,8 +3,8 @@
  * module. This is a display approximation for the guest cart review — the SERVER computes the
  * authoritative amount at checkout, and the charge is always the server's.
  *
- * 021: there is NO client-side delivery fee any more. Delivery is per-package, geographic, and needs
- * a destination address to price — so it is quoted only at the delivery step (FR-024/SC-010: no order
+ * 021: there is NO client-side delivery fee any more. Delivery is geographic and needs a destination
+ * address to price (077: one fee for the ORDER, never per package) — so it is quoted only at the delivery step (FR-024/SC-010: no order
  * or package ever falls back to a flat/hardcoded fee). The cart shows the item subtotal and says
  * "Delivery calculated at checkout".
  */
@@ -36,7 +36,7 @@ export interface CartTotals {
   itemSubtotal: string
 }
 
-/** Σ(unit×qty). Delivery is NOT included — it is quoted per package at checkout (021 FR-024). */
+/** Σ(unit×qty). Delivery is NOT included — it is quoted once for the order at checkout (021, 077). */
 export function computeCartTotals(lines: readonly PricedLine[]): CartTotals {
   const subtotal = lines.reduce((c, l) => c + parseCents(l.unitPriceAmount) * l.quantity, 0)
   return { itemSubtotal: formatCents(subtotal) }

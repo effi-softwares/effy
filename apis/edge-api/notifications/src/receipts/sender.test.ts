@@ -5,7 +5,7 @@ import { formatArrival } from "@effy/shared-types";
 import { describe, expect, it } from "vitest";
 
 import type { ReceiptArrivalRow } from "./repository";
-import { arrivalText } from "./sender";
+import { arrivalText, deliveryLinesVars } from "./sender";
 
 /**
  * 069 — the emailed receipt says when the order arrives in the SAME WORDS as the confirmation page.
@@ -86,5 +86,29 @@ describe("arrivalText — more than one delivery", () => {
   it("a promised package beside an unpromised one says only what was promised", () => {
     const none: Case["input"] = { promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null };
     expect(arrivalText([row(standard, "standard"), row(none, "standard")], now).estimate).toBe("Tue 13 Oct");
+  });
+});
+
+describe("077 — deliveryLinesVars", () => {
+  it("labels each line in the checkout's words and formats the amount, the saving negative", () => {
+    expect(
+      deliveryLinesVars([{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "2.00" }, { kind: "free_delivery", amount: "-8.00" }], "AUD"),
+    ).toEqual({
+      hasDeliveryLines: true,
+      deliveryLines: [
+        { label: "Delivery", amount: "$6.00" },
+        { label: "Window surcharge", amount: "$2.00" },
+        { label: "Free delivery", amount: "-$8.00" },
+      ],
+    });
+  });
+
+  it("an order placed before 077 has none, and keeps its single row", () => {
+    expect(deliveryLinesVars(null, "AUD")).toEqual({ hasDeliveryLines: false, deliveryLines: [] });
+    expect(deliveryLinesVars(undefined, "AUD")).toEqual({ hasDeliveryLines: false, deliveryLines: [] });
+  });
+
+  it("a kind this build does not know is dropped, never printed as a code", () => {
+    expect(deliveryLinesVars([{ kind: "surge", amount: "9.00" }], "AUD").deliveryLines).toEqual([]);
   });
 });

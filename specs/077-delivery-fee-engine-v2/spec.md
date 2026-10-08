@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-08
 
-**Status**: Draft
+**Status**: Planned
 
 **Input**: "Delivery Fee Engine v2. Effy prices delivery two ways. 'Delivered by Effy' is priced from
 four things: how far the delivery postcode is from Effy's hub, in distance bands the business sets
@@ -122,8 +122,8 @@ fee, the lines shown and the "spend more" hint for each.
 ### User Story 3 - A plan cannot go live unless it prices everything (Priority: P1)
 
 A manager builds a new fee plan and presses Activate. If the plan has a gap — distance bands that
-stop at 30 km, weight bands that stop at 20 kg, a small-order amount above the free-delivery amount,
-a surcharge on a window that no longer exists — activation is refused and the message names the
+stop at 30 km, weight bands that stop at 20 kg, bands where a farther or heavier
+delivery would cost less — activation is refused and the message names the
 exact gap. When it is complete it becomes the one active plan, and the previous one is retired in
 the same moment.
 
@@ -282,8 +282,9 @@ a fixed surcharge instead of a multiplier).
 
 1. **Given** the plan active before release, **When** the feature goes live, **Then** an equivalent
    plan is active with no staff action, and no basket is unpriced at any moment.
-2. **Given** a single-supplier, non-same-day basket, **When** it is priced before and after release,
-   **Then** the fee is the same.
+2. **Given** a single-supplier, non-same-day basket to a postcode whose distance falls in its former
+   tier, **When** it is priced before and after release, **Then** the fee is the same; postcodes
+   whose tier did not match their distance are listed for the operator before release.
 3. **Given** orders placed before release, **When** they are viewed or refunded afterwards, **Then**
    their fees are as they were charged.
 4. **Given** a same-day basket, **When** it is priced after release, **Then** it costs more than the
@@ -300,8 +301,8 @@ a fixed surcharge instead of a multiplier).
   $0 must be confirmed explicitly by the person activating it.
 - **Free-delivery amount reached and a surcharged window chosen.** Delivery is free including the
   surcharge (see Assumptions — flagged for the operator).
-- **Small-order amount set at or above the free-delivery amount.** Refused when saving the plan; a
-  basket cannot be both small and free.
+- **Small-order amount set at or above the free-delivery amount.** Refused when saving the plan, as a
+  field error; a basket cannot be both small and free.
 - **Small-order fee and the maximum fee.** The maximum limits the delivery fee; the small-order fee
   is added after it and is not absorbed by it.
 - **A basket whose value drops below the free-delivery amount** because an item is removed or goes
@@ -310,8 +311,9 @@ a fixed surcharge instead of a multiplier).
   the fee is never refused for it.
 - **A covered postcode's distance is corrected after an order is placed.** New baskets use the new
   distance; the placed order is unchanged.
-- **A window with a surcharge is removed or switched off.** The plan stays valid for pricing; the
-  surcharge simply never applies, and staff see it marked as pointing at nothing.
+- **A window with a surcharge is switched off or removed.** The plan stays valid; a switched-off
+  window's surcharge simply never applies and staff see it marked; a removed window takes its
+  surcharge with it. Neither blocks activation.
 - **A draft copied from a plan while another manager activates a third.** The draft is unaffected and
   can still be activated later, subject to the same check.
 - **An order placed, then partly refunded or cancelled.** What is returned of the delivery charges
@@ -341,8 +343,8 @@ a fixed surcharge instead of a multiplier).
   equal to the free-delivery amount MUST be free; one exactly equal to the small-order amount MUST NOT
   attract the small-order fee.
 - **FR-007**: A heavier basket MUST never be priced below a lighter one at the same postcode, and a
-  farther postcode never below a nearer one for the same basket; plans that would break this MUST be
-  refused when saved.
+  farther postcode never below a nearer one for the same basket; a plan that would break this MUST be
+  refused at activation, and the draft MUST show the problem as soon as it is saved.
 - **FR-008**: The fee MUST NOT vary with demand, time of day (other than through a window's set
   surcharge), customer, or supplier.
 - **FR-009**: Every listed postcode and every basket weight MUST always produce a fee under the
@@ -365,7 +367,8 @@ a fixed surcharge instead of a multiplier).
   plan at all times, and at most one active courier table.
 - **FR-015**: Staff MUST be able to create a plan, copy an existing one, edit a draft, activate a
   draft, and see every plan with its state (draft, active, retired) and who activated it and when.
-- **FR-016**: An active or retired plan MUST NOT be editable.
+- **FR-016**: An active or retired plan MUST NOT be editable, and a retired plan MUST NOT be made
+  active again — staff copy it to a new draft and activate that.
 - **FR-017**: Activation MUST be refused unless the plan can price every distance from zero upward
   with no gap or overlap, and every weight from zero upward with no gap or overlap; its minimum does
   not exceed its maximum and both are multiples of the step; its small-order amount, if set, is below
@@ -470,8 +473,9 @@ a fixed surcharge instead of a multiplier).
   charged to a real basket with the same inputs.
 - **SC-010**: A basket's delivery fee is identical whether its goods come from one supplier or
   several.
-- **SC-011**: On release day, 100% of single-supplier, non-same-day sample baskets are priced the
-  same as the day before, and no basket is unpriced at any moment.
+- **SC-011**: On release day, 100% of single-supplier, non-same-day sample baskets to postcodes whose
+  distance falls in their former tier are priced the same as the day before; every other postcode is
+  on a list the operator saw before release; and no basket is unpriced at any moment.
 - **SC-012**: No customer-visible screen, receipt or email contains a distance, band, weight, plan
   name or supplier count; no shop-visible screen contains a delivery fee.
 - **SC-013**: The delivery lines shown on the website and in the mobile app are identical for 100% of
@@ -511,6 +515,22 @@ a fixed surcharge instead of a multiplier).
 - **Refund rules for delivery charges are unchanged** (055); they act on the amounts recorded on the
   order.
 - **Roles** follow the existing back-office pattern: admin and manager change, customer-service reads.
-- **Legal**: rounding up was cleared under 047; showing a small-order fee and a window surcharge as
-  separate, pre-payment lines is to be confirmed against consumer-law surcharge display rules during
-  planning.
+- **The cart shows only what it can know.** Once the shopper has set a delivery postcode that Effy
+  delivers to, it shows the free-delivery progress and any small-order fee, which depend on the basket
+  alone. The delivery fee and a window surcharge
+  need an address and a window, and appear at checkout. (Found while planning.)
+- **"Same fee as yesterday" holds where a postcode's distance falls in its former tier.** A few
+  postcodes sat in a tier that did not match their own distance (a tier chosen by hand, or one tier
+  for a whole zone). Pricing by each postcode's distance — the point of the new model — moves those.
+  They are listed for the operator before release, never changed silently. (Found while planning.)
+- **A basket split across today and a later day still says so** ("2 of your 3 deliveries can arrive
+  today"). That sentence predates this feature, belongs to the same-day arrangement the checkout
+  feature (E5) replaces, and is removed there. Nothing this feature adds — no fee, line or total —
+  reveals the number of suppliers. (Found while analysing.)
+- **The carried-over fee assumes today's standard multiplier is 1.** If it is not, release stops and
+  says so rather than moving every fee. (Found while analysing.)
+- **Shop order screens currently show the order's delivery charge.** That contradicts "shops never
+  see delivery fees" and is removed by this feature. (Found while planning.)
+- **Legal**: rounding up was cleared under 047. Showing a small-order fee and a window surcharge as
+  separate, pre-payment lines under one prominent total was checked against consumer-law component
+  pricing while planning (research R17) — for the operator's adviser to confirm, not legal advice.

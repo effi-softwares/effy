@@ -4,7 +4,7 @@
 // or an order detail in any internal console, which is why a customer told "contact support and
 // we'll sort it out" (020 FR-018b) reached people who could not see what they were being asked about.
 
-import type { HandoverPreference, OrderAwaiting } from "@effy/shared-types";
+import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
 import { query } from "@effy/edge-shared";
 
@@ -176,6 +176,8 @@ export interface OrderDetailRow {
   customer_name: string | null;
   item_subtotal_amount: string;
   delivery_fee_amount: string;
+  /** 077 — how the delivery charge was built, as stored at placement; null before 077. Staff only. */
+  delivery_fee_breakdown?: DeliveryFeeBreakdownDTO | null;
   discount_amount: string;
   promo_code: string | null;
   grand_total_amount: string;
@@ -205,6 +207,7 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             NULLIF(TRIM(CONCAT_WS(' ', c.given_name, c.family_name)), '') AS customer_name,
             o.item_subtotal_amount::text,
             o.delivery_fee_amount::text,
+            o.delivery_fee_breakdown,
             o.discount_amount::text,
             pc.code AS promo_code,
             o.grand_total_amount::text,

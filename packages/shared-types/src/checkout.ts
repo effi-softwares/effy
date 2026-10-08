@@ -21,6 +21,8 @@ import type { BillingDetailsDTO } from "./payment";
 
 
 
+import type { DeliveryQuoteDTO } from "./delivery";
+import type { DeliveryFeeDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
 /** POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019, extended 021). */
@@ -81,6 +83,23 @@ export interface CreateCheckoutIntentRequest {
    * `points_card_remainder_too_small`. Each refusal carries what IS possible.
    */
   pointsToUse?: WireInt;
+  /**
+   * 077 — the delivery total the client is SHOWING (the chosen option's `totalAmount`). If the server
+   * now works out a different one — a new fee plan went live, the basket crossed a threshold — it
+   * writes nothing and refuses with 409 `delivery_fee_changed` and a fresh quote, so the customer
+   * sees the new total before they can pay (FR-031). Absent from a client built before 077, which is
+   * priced without the check.
+   */
+  shownDeliveryAmount?: string | null;
+}
+
+/** 077 — the problem `code` when the delivery total differs from the one the client showed. */
+export const DELIVERY_FEE_CHANGED_CODE = "delivery_fee_changed";
+
+/** The body of that refusal: the options as they stand NOW. Nothing was written or charged. */
+export interface DeliveryFeeChangedDTO {
+  code: typeof DELIVERY_FEE_CHANGED_CODE;
+  quote: DeliveryQuoteDTO | null;
 }
 
 export interface CreateCheckoutIntentResponse {
@@ -152,6 +171,8 @@ export interface CreateCheckoutIntentResponse {
    * `clientSecret` is empty. The client goes straight to the confirmation.
    */
   paidWithPoints?: boolean;
+  /** 077 — the delivery charge inside `grandTotalAmount`, as lines. */
+  deliveryFee?: DeliveryFeeDTO;
 }
 
 /**

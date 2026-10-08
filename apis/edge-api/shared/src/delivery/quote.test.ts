@@ -1,82 +1,81 @@
 import { describe, expect, it } from "vitest";
 
-import { fee } from "./engine";
-import { factorMilli, METHOD_SAME_DAY, METHOD_STANDARD, parseMilli, type Plan } from "./plan";
-import { distinctShops, feeFor, feeInputs, offersSameDay, standardFeeCents, type PackageQuote } from "./quote";
+import { METHOD_SAME_DAY, METHOD_STANDARD, windowPremiumCents, type Plan } from "./plan";
+import { distinctShops, ListedPostcodeUnpricedError, offersSameDay, priceEffyOrder, type PackageQuote } from "./quote";
 
-describe("parseMilli", () => {
-  it.each([
-    ["1", 1000],
-    ["1.8", 1800],
-    ["2.400", 2400],
-    ["1.05", 1050],
-    ["0.5", 500],
-    ["1.2345", 1234], // truncated to 3 dp
-    [" 1.8 ", 1800],
-  ])("%j → %d", (input, want) => {
-    expect(parseMilli(input)).toBe(want);
-  });
+const SLOT = "slot-evening";
 
-  it("refuses an empty factor", () => {
-    expect(() => parseMilli("")).toThrow();
-  });
-});
-
-const testPlan = (): Plan => ({
+const testPlan = (over: Partial<Plan> = {}): Plan => ({
   id: "plan",
-  roundingStepCents: 50,
-  floorCents: 400,
-  capCents: 4000,
-  standardFactorMilli: 1000, // ×1.0
-  sameDayFactorMilli: 1800, // ×1.8
-  ringPriceCents: new Map(),
+  name: "Test plan",
+  kind: "effy",
+  isActive: true,
+  activatedAt: null,
+  baseCents: 0,
+  distanceBands: [{ upperKm: 10, addCents: 600 }, { upperKm: null, addCents: 1200 }],
   weightBands: [
     { upperGrams: 2000, addCents: 0 },
     { upperGrams: 5000, addCents: 200 },
     { upperGrams: 10000, addCents: 550 },
   ],
+  freeOverCents: null,
+  smallOrderUnderCents: null,
+  smallOrderFeeCents: 0,
+  todayPremiumCents: 300,
+  slotPremiumCents: new Map([[SLOT, 150]]),
+  stepCents: 50,
+  floorCents: 400,
+  capCents: 4000,
+  ...over,
 });
 
-describe("feeInputs", () => {
+describe("windowPremiumCents", () => {
   const plan = testPlan();
-  const innerRing = 600; // $6.00
 
-  it("prices standard and same-day from one plan", () => {
-    const std = fee(feeInputs(plan, innerRing, 7000, plan.standardFactorMilli));
-    const sd = fee(feeInputs(plan, innerRing, 7000, plan.sameDayFactorMilli));
-    expect(std).toBe(1150);
-    expect(sd).toBe(2100); // 2070 snapped up to the .50 grid
-    expect(sd).toBeGreaterThanOrEqual(std);
+  it("no window adds nothing — a later day is the plain fee", () => {
+    expect(windowPremiumCents(plan, null, false)).toBe(0);
+    expect(windowPremiumCents(plan, null, true)).toBe(0);
   });
 
-  it("applies the floor", () => {
-    expect(fee(feeInputs(plan, 0, 100, plan.standardFactorMilli))).toBe(400);
+  it("a window today adds the today premium, plus the window's own if it has one", () => {
+    expect(windowPremiumCents(plan, "slot-plain", true)).toBe(300);
+    expect(windowPremiumCents(plan, SLOT, true)).toBe(450);
   });
 
-  it("selects the factor by method; anything but same_day is standard", () => {
-    expect(factorMilli(plan, METHOD_SAME_DAY)).toBe(1800);
-    expect(factorMilli(plan, METHOD_STANDARD)).toBe(1000);
-    expect(factorMilli(plan, "carrier_pigeon")).toBe(1000);
+  it("the same window on a later day adds only its own premium", () => {
+    expect(windowPremiumCents(plan, SLOT, false)).toBe(150);
+    expect(windowPremiumCents(plan, "slot-plain", false)).toBe(0);
+  });
+});
+
+describe("priceEffyOrder", () => {
+  it("prices a later day and a window today from one plan — today is dearer by the premium", () => {
+    const later = priceEffyOrder(testPlan(), "3121", 3.4, 7000, 5000, null, false);
+    const today = priceEffyOrder(testPlan(), "3121", 3.4, 7000, 5000, "slot-plain", true);
+    expect(later.totalCents).toBe(1150); // 6.00 + 5.50
+    expect(today.totalCents).toBe(1450);
+    expect(today.lines).toEqual([{ kind: "delivery", cents: 1150 }, { kind: "window_surcharge", cents: 300 }]);
+  });
+
+  it("carries the plan and the choice it was priced for", () => {
+    const fee = priceEffyOrder(testPlan(), "3121", 3.4, 100, 5000, SLOT, true);
+    expect(fee).toMatchObject({ planId: "plan", planName: "Test plan", slotId: SLOT, windowIsToday: true });
+    expect(fee.breakdown.premiumCents).toBe(450);
+  });
+
+  it("a plan that cannot price the postcode fails LOUD and names it — never a zero", () => {
+    const closed = testPlan({ distanceBands: [{ upperKm: 10, addCents: 600 }] });
+    expect(() => priceEffyOrder(closed, "3550", 130, 100, 5000, null, false)).toThrow(ListedPostcodeUnpricedError);
+    expect(() => priceEffyOrder(closed, "3550", 130, 100, 5000, null, false)).toThrow(/3550/);
+    expect(() => priceEffyOrder(testPlan({ weightBands: [] }), "3121", 3, 100, 5000, null, false)).toThrow(ListedPostcodeUnpricedError);
   });
 });
 
 describe("package quote helpers", () => {
-  const both: PackageQuote = {
-    shopId: "s",
-    options: [{ method: METHOD_STANDARD, feeCents: 600 }, { method: METHOD_SAME_DAY, feeCents: 1100 }],
-  };
-  const stdOnly: PackageQuote = { shopId: "s", options: [{ method: METHOD_STANDARD, feeCents: 600 }] };
+  const both: PackageQuote = { shopId: "s", options: [{ method: METHOD_STANDARD }, { method: METHOD_SAME_DAY }] };
+  const stdOnly: PackageQuote = { shopId: "s", options: [{ method: METHOD_STANDARD }] };
 
-  it("feeFor returns the chosen method's fee", () => {
-    expect(feeFor(both, METHOD_SAME_DAY)).toEqual({ method: METHOD_SAME_DAY, feeCents: 1100 });
-  });
-
-  it("feeFor falls back to standard when same-day is not offered — charged standard, never refused", () => {
-    expect(feeFor(stdOnly, METHOD_SAME_DAY)).toEqual({ method: METHOD_STANDARD, feeCents: 600 });
-  });
-
-  it("standardFeeCents / offersSameDay", () => {
-    expect(standardFeeCents(both)).toBe(600);
+  it("offersSameDay", () => {
     expect(offersSameDay(both)).toBe(true);
     expect(offersSameDay(stdOnly)).toBe(false);
   });

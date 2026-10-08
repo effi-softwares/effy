@@ -23,7 +23,10 @@ enum class LiveKind(val wire: String) {
     POINTS("points"),
 
     /** 076 — where Effy delivers changed. Sent to back-office only; no mobile app subscribes to it. */
-    COVERAGE("coverage");
+    COVERAGE("coverage"),
+
+    /** 077 — a delivery fee plan changed. Sent to back-office only; no mobile app subscribes to it. */
+    PRICING("pricing");
 
     companion object {
         /** `null` for a kind this build has never heard of — a newer backend, not an error. */

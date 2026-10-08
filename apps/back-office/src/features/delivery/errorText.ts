@@ -15,9 +15,6 @@ export function deliveryMutationError(err: unknown, conflictMessage?: string): s
   return "Something went wrong. Please try again.";
 }
 
-// Activation-specific copy: a plan must price every ring and carry a weight band before it can go live.
-export const PLAN_INCOMPLETE =
-  "This plan can't price every served zone yet. Price every ring and add at least one weight band, then activate.";
 
 
 // ── 069 ───────────────────────────────────────────────────────────────────────────────────────────
@@ -76,6 +73,7 @@ const COVERAGE_COPY: Record<string, string> = {
   not_excluded: "That postcode is no longer excluded.",
   reason_required: "Say why, in a few words.",
   courier_ordering_unavailable: "Courier delivery can be switched on once customers can place courier orders.",
+  courier_plan_missing: "Make a courier fee table active on the Pricing tab before switching courier delivery on.",
 };
 
 /** The refusal's code, when the service named one. */

@@ -12,6 +12,7 @@ import { OrderCustomerPoints } from "@/features/customers/components/OrderCustom
 import { canRecordOrderProgress } from "./access";
 import { orderActionError } from "./errorText";
 import { DeliveryInstructions } from "./components/DeliveryInstructions";
+import { FeeBreakdown } from "./components/FeeBreakdown";
 import { PackageRows } from "./components/PackageRows";
 import { RefundsSection } from "./components/RefundsSection";
 import { STAGE_LABEL, type OrderDetail } from "./model";
@@ -241,6 +242,9 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
           ) : null}
         </dl>
       </section>
+
+      {/* 077 — staff only. Absent on an order placed before the fee engine. */}
+      {order.deliveryFeeBreakdown ? <FeeBreakdown breakdown={order.deliveryFeeBreakdown} /> : null}
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Delivering to</h2>

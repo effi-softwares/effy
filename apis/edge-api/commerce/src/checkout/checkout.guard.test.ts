@@ -30,7 +30,23 @@ function sources(dir: string): { file: string; body: string }[] {
  * watch the evening's demand fill up. That a late payer went over capacity is a fact for dispatch.
  * And — as on every customer contract — nothing may identify a shop.
  */
-const FORBIDDEN = ["capacity", "booked", "remaining", "overcapacity", "over_capacity", "load", "shopid", "shop_id", "shopname"];
+const FORBIDDEN = [
+  "capacity", "booked", "remaining", "overcapacity", "over_capacity", "load", "shopid", "shop_id", "shopname",
+  // 077 — how the fee was built is the business's: a distance places the hub, a band or a plan
+  // shows the price list, and a weight is nobody's concern but the van's (FR-032).
+  "km", "distance", "band", "grams", "plan", "breakdown", "basketcents", "premium",
+];
+
+/** A priced fee as the quote carries it, with a breakdown that DOES know the distance and the plan. */
+function pricedFee(totalCents: number, withoutPremiumCents = totalCents) {
+  const lines = [{ kind: "delivery", cents: withoutPremiumCents }];
+  if (totalCents > withoutPremiumCents) lines.push({ kind: "window_surcharge", cents: totalCents - withoutPremiumCents });
+  return {
+    planId: "plan-secret", planName: "Secret plan", slotId: null, windowIsToday: totalCents > withoutPremiumCents,
+    breakdown: { kind: "effy", km: 12.34, grams: 6200, basketCents: 5400, baseCents: 300, distanceCents: 300, distanceBandUpperKm: 20 },
+    lines, totalCents,
+  };
+}
 
 describe("the customer's delivery wire carries no capacity and no shop", () => {
   const SHOP = "99999999-9999-4999-8999-999999999999";
@@ -39,7 +55,10 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
   const quote = {
     serviced: true,
     sameDayUntil: new Date("2026-08-24T04:00:00Z"),
-    packages: [{ shopId: SHOP, options: [{ method: "same_day", feeCents: 1100 }, { method: "standard", feeCents: 600 }] }],
+    packages: [{ shopId: SHOP, options: [{ method: "same_day" }, { method: "standard" }] }],
+    standardFee: pricedFee(600),
+    slotFees: new Map([["33333333-3333-4333-8333-333333333333", pricedFee(1100, 600)]]),
+    freeDeliveryRemainingCents: 2600,
     sameDaySlots: [{
       id: "33333333-3333-4333-8333-333333333333", date: "2026-08-24",
       start: new Date("2026-08-24T07:00:00Z"), end: new Date("2026-08-24T09:00:00Z"), cutoff: new Date("2026-08-24T04:00:00Z"),
@@ -63,6 +82,13 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
     const dto = JSON.parse(wire);
     expect(dto.packages[0].shopRef).toBe("pkg-1");
     expect(dto.packages[0].options[1]).toEqual({ method: "standard", feeAmount: "6.00", promisedFrom: null, promisedTo: null });
+    // 077 — the fee is the ORDER's: lines and a total for a later day, and for each window.
+    expect(dto.standardFee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" });
+    expect(dto.sameDaySlots[0].surchargeAmount).toBe("5.00");
+    expect(dto.sameDaySlots[0].fee).toEqual({
+      lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00",
+    });
+    expect(dto.freeDeliveryRemainingAmount).toBe("26.00");
     expect(dto.sameDaySlots[0].startAt).toBe("2026-08-24T17:00:00+10:00"); // Melbourne offset, not Z
     expect(dto.standardDays).toEqual([{ date: "2026-08-25" }]);
   });
@@ -105,9 +131,25 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
   const intent = readFileSync(resolve(src, "functions/checkout-intent-v1-post.ts"), "utf8");
   const code = intent.split("\n").filter((l) => !l.trimStart().startsWith("//")).join("\n");
 
-  it("the intent route reads no amount, total, price or discount from the request", () => {
+  it("the intent route reads no amount, total, price or discount from the request — except the one it only COMPARES", () => {
     expect(code).toMatch(/body\?\.addressId/); // it does read the body — the check below is not vacuous
-    expect(code).not.toMatch(/body\??\.\w*(amount|total|price|discount|fee)\w*/i);
+    // 077 — `shownDeliveryAmount` is what the client says it is DISPLAYING. It is read, and it is
+    // an amount; the next test holds that it can only ever refuse a charge, never set one.
+    expect(code).toMatch(/body\.shownDeliveryAmount/);
+    expect(code.replaceAll("body.shownDeliveryAmount", "")).not.toMatch(/body\??\.\w*(amount|total|price|discount|fee)\w*/i);
+  });
+
+  it("the shown delivery amount is compared with the platform's and used for nothing else", () => {
+    const service = readFileSync(resolve(src, "checkout/service.ts"), "utf8")
+      .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    const uses = service.split("\n").filter((l) => l.includes("shownDeliveryAmount"));
+    // Declared on the input, tested against the computed fee, and reported in the refusal. A fourth
+    // line would be a client-sent amount finding its way into a charge.
+    expect(uses.map((l) => l.trim())).toEqual([
+      "shownDeliveryAmount: string;",
+      'if (input.shownDeliveryAmount !== "" && parseCents(input.shownDeliveryAmount) !== deliveryFeeCents) {',
+      "throw new DeliveryFeeChangedError(parseCents(input.shownDeliveryAmount), deliveryFeeCents);",
+    ]);
   });
 
   it("nothing in checkout sets setup_future_usage", () => {

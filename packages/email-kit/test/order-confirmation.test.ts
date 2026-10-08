@@ -134,6 +134,8 @@ describe("order-confirmation — 052's additions", () => {
       discountAmount: "",
       hasDeliveryFee: false,
       deliveryFee: "",
+      hasDeliveryLines: false,
+      deliveryLines: [],
       hasPaymentMethod: false,
       paymentMethod: "",
     };
@@ -183,10 +185,43 @@ describe("order-confirmation — 052's additions", () => {
   /** Every figure a shopper needs must survive with images blocked / as plain text (FR-022). */
   it("carries every figure in the text part", () => {
     const m = render("order-confirmation", large, "customer", identity);
-    for (const v of [large.subtotal, large.discountAmount, large.deliveryFee, large.total]) {
+    for (const v of [large.subtotal, large.discountAmount, large.total]) {
       expect(m.text).toContain(v);
     }
     expect(m.text).toContain(large.orderNumber);
+  });
+
+  /**
+   * 077 — an order placed since the fee engine prints its delivery charge as the LINES it was sold
+   * with, in place of the single row; they sum to that row's figure.
+   */
+  it("077 — prints the delivery lines instead of the single Delivery row, in both parts", () => {
+    const m = render("order-confirmation", large, "customer", identity);
+    for (const l of large.deliveryLines as { label: string; amount: string }[]) {
+      expect(m.html).toContain(l.label);
+      expect(m.html).toContain(l.amount);
+      expect(m.text).toContain(`${l.label}: ${l.amount}`);
+    }
+    expect(m.text).not.toContain(`Delivery: ${large.deliveryFee}`);
+    const n = (x: string) => Number(x.replace(/[^0-9.-]/g, ""));
+    const sum = (large.deliveryLines as { amount: string }[]).reduce((t, l) => t + n(l.amount), 0);
+    expect(sum).toBeCloseTo(n(large.deliveryFee), 2);
+  });
+
+  it("077 — an order placed before the fee engine keeps its single Delivery row", () => {
+    const m = render("order-confirmation", { ...large, hasDeliveryLines: false, deliveryLines: [] }, "customer", identity);
+    expect(m.text).toContain(`Delivery: ${large.deliveryFee}`);
+    expect(m.text).not.toContain("Window surcharge");
+  });
+
+  it("077 — a free delivery is printed, as the lines that make its $0.00", () => {
+    const free = {
+      ...large,
+      deliveryFee: "$0.00",
+      deliveryLines: [{ label: "Delivery", amount: "$6.00" }, { label: "Free delivery", amount: "-$6.00" }],
+    };
+    const m = render("order-confirmation", free, "customer", identity);
+    expect(m.text).toContain("Free delivery: -$6.00");
   });
 
   /** FR-024: a customer must never be able to opt out of their own proof of purchase. */

@@ -249,6 +249,19 @@ export const CATALOG = {
       discountAmount: "string",
       hasDeliveryFee: "boolean",
       deliveryFee: "string",
+      /**
+       * 077 — the delivery charge as the lines the customer was sold: "Delivery", "Window surcharge",
+       * "Small-order fee", "Free delivery" (a NEGATIVE amount). When present they are printed INSTEAD
+       * of the single `deliveryFee` row, and they sum to it. ⚠ Empty on an order placed before 077,
+       * which has only the one figure. Labels come from `DELIVERY_FEE_LINE_LABEL` in shared-types —
+       * the same words the checkout and the order page use — and amounts arrive pre-formatted.
+       * ⚠ A free delivery IS printed (as a $0.00 total made of its lines): it is a claim the customer
+       * was sold, not an absent figure.
+       */
+      hasDeliveryLines: "boolean",
+      deliveryLines: {
+        of: { label: "string", amount: "string" },
+      },
       total: "string",
       /** Absent on a pre-052 order, or where the post-commit capture failed (data-model §1). */
       hasPaymentMethod: "boolean",

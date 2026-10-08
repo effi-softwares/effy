@@ -387,9 +387,9 @@ export async function setDistance(postcode: string, change: DistanceChange, acto
 export async function createGroup(name: string, actorSub: string): Promise<string> {
   return withTransaction(async (client) => {
     const res = await client.query<{ id: string }>(
-      `INSERT INTO public.delivery_zone (code, name, ring_id, sameday_eligible, status, updated_by)
+      `INSERT INTO public.delivery_zone (code, name, sameday_eligible, status, updated_by)
        VALUES (upper(regexp_replace($1, '[^A-Za-z0-9]+', '-', 'g')) || '-' || substr(gen_random_uuid()::text, 1, 8),
-               $1, NULL, true, 'active', $2)
+               $1, true, 'active', $2)
        RETURNING id::text AS id`,
       [name, actorSub],
     );

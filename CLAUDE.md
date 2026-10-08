@@ -27,10 +27,9 @@ controls** any more.
   evolved in place (a copied list would have let the address book and the live checkout disagree) and
   keep their 047 names until E9. A group's `status` no longer decides coverage; removing a group never
   removes its postcodes.
-- ⚠ **Three frozen bridges keep the live checkout selling**, each removed by the epic named: the fee
-  tier (`COALESCE(zone.ring_id, coverage_ring_for_km(distance))`, **E3**), the same-day flag (**E5**),
-  and driver clearances keyed on the group — an **ungrouped postcode is deliverable only by an
-  every-zone driver** (**E8**).
+- ⚠ **Two frozen bridges keep the live checkout selling**, each removed by the epic named: the same-day
+  flag (**E5**), and driver clearances keyed on the group — an **ungrouped postcode is deliverable only
+  by an every-zone driver** (**E8**). (The fee-tier bridge went with **077**; the tiers are dropped.)
 - ⚠ **Courier delivery cannot be switched on** while `COURIER_ORDERING_AVAILABLE` is `false`
   (`@effy/edge-shared/delivery`); E5 flips it in the change that makes a courier order placeable.
 - ⚠ **The refusal is ONE sentence in ONE file** — `COVERAGE_REFUSAL_SENTENCE` in
@@ -55,6 +54,14 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
 - **Work is typed tasks, not driver roles** (`collection` / `same_day_delivery`); one driver typically
   does a collection run then a same-day round in one shift, but neither is a hard-coded role.
 - **One hub for now** (matches 047's single operating-hub point); multi-hub is deferred.
+- ⚠ **DELIVERY IS PRICED ONCE PER ORDER, NEVER PER SHOP (077).** base + distance band (the postcode's own
+  distance) + weight band (the whole basket) + window surcharge, rounded UP, clamped; $0 at the plan's
+  free-delivery amount (surcharge included); + a small-order fee below its amount. **One sum**: `effyFee`
+  / `courierFee` in `shared/src/delivery/engine.ts` (`fee.guard.test.ts` P22). Same-day costs more by the
+  plan's **fixed "Delivery today" surcharge** — the method multiplier is gone. The order stores its
+  breakdown (`delivery_fee_breakdown`; customers get `->'lines'` only); the intent refuses a total the
+  client did not show (409 `delivery_fee_changed`). Per-package `feeAmount` on the quote is compatibility
+  only (E5 removes it). A shop never sees delivery money.
 - **A same-day order is sold a TIME WINDOW; a standard order a DAY (069).** Back-office defines daily
   **slots** (start, end, cutoff, capacity). ⚠ **Same-day is offered only while a slot is open** — its
   cutoff has not passed, it has room, and a collection run can still reach the hub before it starts —
@@ -62,7 +69,7 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   (the client confirms payment with the provider directly, so that is the last server moment before
   the charge) and confirmed at payment. The delivery wave is planned **per window**, to the window's
   end. A standard order's chosen day is honoured **through the carrier**: hub staff hand it over on
-  day − carrier lead time. ⚠ The fee does **not** vary by slot or day.
+  day − carrier lead time. ⚠ Since 077 a window **may** cost more (its plan surcharge); a day does not.
 - **Work is assigned the moment a driver can take it, and OPENS on time (072).** Every 5-minute pass
   gives ready work to a qualifying driver (first come, first served, no rebalancing). A round opens at
   its run time — or window start — less `planning_lead_min`; before that the driver sees it in full
@@ -450,6 +457,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab)
 - **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
 - **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)
 - **074-customer-points** — Customer Points (store credit)
@@ -504,5 +512,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/076-effy-delivery-coverage/plan.md
+at specs/077-delivery-fee-engine-v2/plan.md
 <!-- SPECKIT END -->

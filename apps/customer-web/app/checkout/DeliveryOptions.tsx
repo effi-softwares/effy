@@ -6,9 +6,10 @@ import {
   formatArrival,
   formatDeliveryWindow,
   type DeliveryQuoteDTO,
+  type DeliverySlotOptionDTO,
 } from "@effy/shared-types"
 
-import { formatCents } from "@/lib/cart-totals"
+import { formatCents, parseCents } from "@/lib/cart-totals"
 import {
   feesFor,
   needs,
@@ -65,12 +66,17 @@ export function DeliveryOptions({
   const need = needs(shape, method)
   const money = (cents: number) => formatMoney(formatCents(cents), currency)
 
-  const standardFees = feesFor(quote, "standard")
-  const sameDayFees = feesFor(quote, "same_day")
-  const chosen = method === "same_day" && shape.sameDayOffered ? sameDayFees : standardFees
+  // 077 — the order's fee for a later day, and for each window. A server older than 077 sends neither,
+  // and the per-package sums stand in.
+  const legacyStandard = feesFor(quote, "standard")
+  const legacySameDay = feesFor(quote, "same_day")
+  const standardCents = quote.standardFee ? parseCents(quote.standardFee.totalAmount) : legacyStandard.totalCents
+  const slotCents = (slot: DeliverySlotOptionDTO) => (slot.fee ? parseCents(slot.fee.totalAmount) : legacySameDay.totalCents)
+  const slots = quote.sameDaySlots ?? []
+  // "Same-day from $X": the cheapest open window, so the method's price is never understated.
+  const sameDayFrom = slots.length > 0 ? Math.min(...slots.map(slotCents)) : legacySameDay.totalCents
 
   const nowMs = now.getTime()
-  const slots = quote.sameDaySlots ?? []
   const days = quote.standardDays ?? []
 
   return (
@@ -93,7 +99,9 @@ export function DeliveryOptions({
                   />
                   {m === "same_day" ? "Same-day delivery" : "Standard delivery"}
                 </span>
-                <span className="font-medium">{money((m === "same_day" ? sameDayFees : standardFees).totalCents)}</span>
+                <span className="font-medium">
+                  {m === "same_day" ? `${slots.length > 1 ? "from " : ""}${money(sameDayFrom)}` : money(standardCents)}
+                </span>
               </label>
             ))}
           </div>
@@ -152,7 +160,12 @@ export function DeliveryOptions({
                     )}
                   </span>
                   <span className={selected && !closed ? "text-xs opacity-90" : "text-xs text-muted-foreground"}>
-                    {closed ? "Closed" : money(sameDayFees.sameDayCents)}
+                    {/* 077 FR-030 — what this window adds over a later day, BEFORE it is chosen. */}
+                    {closed
+                      ? "Closed"
+                      : slot.surchargeAmount && parseCents(slot.surchargeAmount) > 0
+                        ? `+${money(parseCents(slot.surchargeAmount))}`
+                        : money(slotCents(slot))}
                     <span className="sr-only">
                       {" "}
                       {formatDeliveryWindow({ startAt: slot.startAt, endAt: slot.endAt })}
@@ -183,7 +196,9 @@ export function DeliveryOptions({
                   />
                   {formatArrival({ promisedFrom: day.date, promisedTo: day.date }, now)}
                 </span>
-                <span className="font-medium">{money(chosen.standardCents)}</span>
+                {/* 077 — a same-day order pays ONE fee, its window's; the rest arrives later at no extra
+                    charge, so a day chosen for it carries no price of its own. */}
+                {method === "same_day" && shape.sameDayOffered ? null : <span className="font-medium">{money(standardCents)}</span>}
               </label>
             ))}
           </div>

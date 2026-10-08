@@ -893,6 +893,13 @@
             "null"
           ]
         },
+        "shownDeliveryAmount": {
+          "description": "077 — the delivery total the client is SHOWING (the chosen option's `totalAmount`). If the server now works out a different one — a new fee plan went live, the basket crossed a threshold — it writes nothing and refuses with 409 `delivery_fee_changed` and a fresh quote, so the customer sees the new total before they can pay (FR-031). Absent from a client built before 077, which is priced without the check.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "standardDate": {
           "description": "069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the earliest available day, which is also what the UI preselects. Refused with `date_unavailable` if it is not among the days currently offered.",
           "type": [
@@ -947,6 +954,10 @@
             "string",
             "null"
           ]
+        },
+        "deliveryFee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "077 — the delivery charge inside `grandTotalAmount`, as lines."
         },
         "grandTotalAmount": {
           "type": "string"
@@ -1088,6 +1099,53 @@
       ],
       "type": "object"
     },
+    "DeliveryFeeDTO": {
+      "additionalProperties": false,
+      "description": "What a customer is charged for delivery, in lines that sum EXACTLY to `totalAmount` (FR-028). A zero line is omitted.\n\n⚠ Lines and a total — nothing else. No distance, band, weight or plan may be added: a customer must not be able to work out where the hub is or how the business prices (FR-032).",
+      "properties": {
+        "lines": {
+          "items": {
+            "$ref": "#/definitions/DeliveryFeeLineDTO"
+          },
+          "type": "array"
+        },
+        "totalAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "lines",
+        "totalAmount"
+      ],
+      "type": "object"
+    },
+    "DeliveryFeeLineDTO": {
+      "additionalProperties": false,
+      "description": "`amount` is a signed 2-dp decimal string; only `free_delivery` is negative.",
+      "properties": {
+        "amount": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/DeliveryFeeLineKind"
+        }
+      },
+      "required": [
+        "kind",
+        "amount"
+      ],
+      "type": "object"
+    },
+    "DeliveryFeeLineKind": {
+      "description": "077 — one line of what a customer is charged for delivery.   delivery          the fee for the distance and weight, before any window surcharge   window_surcharge  what the chosen window adds   small_order       the extra fee on a basket under the business's small-order amount   free_delivery     the saving when the basket reaches the free-delivery amount (NEGATIVE)",
+      "enum": [
+        "delivery",
+        "window_surcharge",
+        "small_order",
+        "free_delivery"
+      ],
+      "type": "string"
+    },
     "DeliveryInstructionsDTO": {
       "additionalProperties": false,
       "properties": {
@@ -1116,16 +1174,46 @@
       "type": "object"
     },
     "DeliveryMethod": {
-      "description": "The two delivery methods. same-day is always priced ≥ standard (FR-022).",
+      "description": "The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE amount for the order, and a delivery today costs more only through the plan's window surcharge.",
       "enum": [
         "same_day",
         "standard"
       ],
       "type": "string"
     },
+    "DeliveryOfferDTO": {
+      "additionalProperties": false,
+      "description": "The business's public basket offer (077): what a cart can say before there is an address to price. A null value means the rule is not set.",
+      "properties": {
+        "freeDeliveryOverAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "smallOrderFeeAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "smallOrderUnderAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "freeDeliveryOverAmount",
+        "smallOrderUnderAmount",
+        "smallOrderFeeAmount"
+      ],
+      "type": "object"
+    },
     "DeliveryOptionDTO": {
       "additionalProperties": false,
-      "description": "One offered method for one package, at its GST-inclusive, snapped-up fee (FR-024/032/034). `feeAmount` is a 2-dp decimal string (e.g. \"6.00\"). The delivery window is advisory copy.",
+      "description": "One method a package can have.\n\n⚠ `feeAmount` IS COMPATIBILITY ONLY since 077. Delivery is priced once per order (`DeliveryQuoteDTO.standardFee`, `DeliverySlotOptionDTO.fee`); these per-package figures are an arrangement that makes a client built before 077 — which sums the chosen method per package — show no less than it is charged. They mean nothing about any one package. Removed by the checkout feature (E5).",
       "properties": {
         "feeAmount": {
           "type": "string"
@@ -1156,7 +1244,7 @@
     },
     "DeliveryPackageDTO": {
       "additionalProperties": false,
-      "description": "The per-shop portion of the order, priced independently (FR-030). `shopRef` is an OPAQUE handle — never a shop id, so nothing here identifies the fulfilling shop (FR-033). A served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only where the fulfilling shop does same-day in this zone and it is before the cutoff (FR-044).",
+      "description": "One portion of the order and the methods it can have. `shopRef` is an OPAQUE handle — never a shop id (FR-033). A served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only where it can go today (FR-044). ⚠ Not priced: see `DeliveryOptionDTO.feeAmount`.",
       "properties": {
         "options": {
           "items": {
@@ -1184,6 +1272,13 @@
         },
         "expiresAt": {
           "type": "string"
+        },
+        "freeDeliveryRemainingAmount": {
+          "description": "077 — how much more the basket needs for free delivery. Null when no free-delivery amount is set or it is already reached.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "packages": {
           "items": {
@@ -1232,6 +1327,10 @@
             "$ref": "#/definitions/StandardDayOptionDTO"
           },
           "type": "array"
+        },
+        "standardFee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "077 — the delivery charge for the order when NO window is chosen (a standard day). Absent when not serviced, and from a server older than 077."
         }
       },
       "required": [
@@ -1248,7 +1347,7 @@
     },
     "DeliverySlotOptionDTO": {
       "additionalProperties": false,
-      "description": "One open same-day delivery window (069).\n\n⚠ NO FEE: a slot has no price of its own — the fee is the same-day METHOD's, read from the package options (FR-021). ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's operational business, and \"2 left\" would be a pressure tactic nobody asked for (FR-050).",
+      "description": "One open same-day delivery window (069).\n\n⚠ 077 REVERSED \"a slot has no fee\": the order's delivery charge with THIS window is `fee`, and what the window adds over a standard day is `surchargeAmount` — shown before it is chosen. ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's operational business, and \"2 left\" would be a pressure tactic nobody asked for (FR-050).",
       "properties": {
         "cutoffAt": {
           "description": "After this the slot can no longer be chosen. Lets a client grey it out without a round trip.",
@@ -1261,12 +1360,20 @@
         "endAt": {
           "type": "string"
         },
+        "fee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "077 — the order's delivery charge with this window chosen."
+        },
         "slotId": {
           "description": "Opaque. Sent back as `sameDaySlotId` on the intent request.",
           "type": "string"
         },
         "startAt": {
           "description": "ISO datetimes with the Australia/Melbourne offset.",
+          "type": "string"
+        },
+        "surchargeAmount": {
+          "description": "077 — what this window adds to the delivery charge; \"0.00\" when nothing.",
           "type": "string"
         }
       },
@@ -1566,6 +1673,10 @@
         "deliveryAddress": {
           "$ref": "#/definitions/OrderAddressDTO",
           "description": "The SHIPPING address snapshot (the main one — where the order is delivered)."
+        },
+        "deliveryFee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "077 — the same charge as lines (delivery, window surcharge, small-order fee, free delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads the same after the business changes its prices."
         },
         "deliveryFeeAmount": {
           "description": "051 FR-043 — the delivery fee as charged.\n\n⚠ The column has existed since 019 and the receipt read never selected it, so delivery sat inside the total and appeared nowhere. A receipt whose lines do not add up to its total is not one a shopper can check — and for a GST-inclusive Australian sale that is a real gap, not a cosmetic one.",
@@ -2588,6 +2699,10 @@
           "$ref": "#/definitions/CoverageKind",
           "description": "076 — who delivers. Absent only from a server older than 076."
         },
+        "offer": {
+          "$ref": "#/definitions/DeliveryOfferDTO",
+          "description": "077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and from a server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the window."
+        },
         "postcode": {
           "type": "string"
         },
@@ -2604,7 +2719,7 @@
     },
     "StandardDayOptionDTO": {
       "additionalProperties": false,
-      "description": "One day a standard delivery can arrive (069). The fee is the standard METHOD's, as above.",
+      "description": "One day a standard delivery can arrive (069). Its charge is the quote's `standardFee` (077).",
       "properties": {
         "date": {
           "description": "yyyy-mm-dd (Melbourne).",

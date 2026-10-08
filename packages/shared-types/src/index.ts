@@ -26,6 +26,8 @@ export * from "./validation";
 export * from "./feedback";
 // 047-delivery-shipping-engine
 export * from "./delivery";
+// 077-delivery-fee-engine-v2 — the fee lines and the words every customer surface uses for them
+export * from "./delivery-fee";
 // 069-delivery-slots-dates — the same-day window and the one wording every surface uses for it
 export * from "./delivery-window";
 // 073 — where a package is, in nine words, shared by every staff screen.

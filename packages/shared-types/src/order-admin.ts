@@ -29,6 +29,7 @@ import type {
   RefundRequestDTO,
 } from "./refund";
 import type { WireInt } from "./cart";
+import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryWindow } from "./delivery-window";
 import type { PackageStatusView } from "./package-status";
@@ -220,6 +221,11 @@ export interface AdminOrderDetailDTO {
 
   itemSubtotalAmount: string;
   deliveryFeeAmount: string;
+  /**
+   * 077 — how `deliveryFeeAmount` was built, exactly as stored when the order was placed (FR-037).
+   * Absent on an order placed before 077.
+   */
+  deliveryFeeBreakdown?: DeliveryFeeBreakdownDTO;
   discountAmount: string;
   promoCode: string | null;
   grandTotalAmount: string;
@@ -273,6 +279,45 @@ export interface AdminOrderDetailDTO {
   proposedRefunds: ProposedRefundDTO[];
   /** An open customer request, if there is one (FR-004c). */
   refundRequest: RefundRequestDTO | null;
+}
+
+/**
+ * 077 — the whole of a placed order's delivery charge: which plan priced it, from what, and every
+ * step. Written once at the intent call and never recomputed (FR-034/FR-036).
+ *
+ * ⚠ STAFF ONLY. `plan`, `inputs` and `parts` carry a distance, a weight and the business's pricing —
+ * none of which a customer or a shop may see (FR-032/FR-038). A customer contract carries `lines`
+ * alone (`DeliveryFeeDTO`). `*Cents` are integer minor units, as the engine computes them.
+ */
+export interface DeliveryFeeBreakdownDTO {
+  v: 1;
+  kind: "effy" | "courier";
+  plan: { id: string; name: string };
+  inputs: {
+    km: number | null;
+    grams: WireInt;
+    basketCents: WireInt;
+    slotId: string | null;
+    windowIsToday: boolean;
+  };
+  parts: {
+    baseCents: WireInt;
+    distanceCents: WireInt;
+    /** The band the distance fell in; null = the open-ended "and beyond" band (or a courier order). */
+    distanceBandUpperKm: number | null;
+    weightCents: WireInt;
+    weightBandUpperGrams: WireInt | null;
+    premiumCents: WireInt;
+    rawCents: WireInt;
+    roundedCents: WireInt;
+    /** Which limit moved the rounded fee, if either did. */
+    clamp: "floor" | "cap" | null;
+    deliveryCents: WireInt;
+    freeApplied: boolean;
+    smallOrderCents: WireInt;
+    totalCents: WireInt;
+  };
+  lines: DeliveryFeeLineDTO[];
 }
 
 /** A line with units still available to refund. */

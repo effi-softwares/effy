@@ -85,7 +85,6 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
       currency: "AUD",
       shopSubtotal: "17.80",
       itemSubtotal: "47.80",
-      deliveryFee: "10.00",
       discount: "0.00",
       promoCode: null,
       total: "57.80",

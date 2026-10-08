@@ -1,6 +1,8 @@
 import type { Queryable } from "../lib/db";
-import { fee, type FeeInputs } from "./engine";
-import { loadActivePlan, METHOD_SAME_DAY, METHOD_STANDARD, type Plan } from "./plan";
+import {
+  effyFee, feeLines, UnpricedDistanceError, UnpricedWeightError, type FeeBreakdown, type FeeLine,
+} from "./engine";
+import { effyValues, loadActivePlan, METHOD_SAME_DAY, METHOD_STANDARD, windowPremiumCents, type Plan } from "./plan";
 import { melbourneDate, sameDaySchedule } from "./sameday";
 import { loadSlots, loadSlotSettings, openSlots, ownLiveHolds, slotLoad, type OpenSlot } from "./slots";
 import { availableDays, nonDeliveryDates } from "./standard-days";
@@ -8,18 +10,18 @@ import { coverageForPostcode } from "./coverage";
 import { sameDayForShops, zoneForPostcode } from "./zone";
 
 /**
- * The INVARIANT breach (047 FR-029): a served zone whose ring the active plan does not price.
- * Activation guarantees it cannot happen; if it ever does, the quote fails LOUD — never free
- * delivery — and the caller raises the alarm metric.
+ * The INVARIANT breach (047 FR-029, 077 FR-009): a postcode on Effy's list that the active plan
+ * cannot price — it has no distance, or the plan has no band for it. Activation guarantees it cannot
+ * happen; if it ever does, the quote fails LOUD — never free delivery — and the caller raises the
+ * alarm metric.
  */
-export class ServedZoneUnpricedError extends Error {
-  constructor(planId: string, ringId: string) {
-    super(`delivery: served zone could not be priced (plan ${planId}, ring ${ringId})`);
-    this.name = "ServedZoneUnpricedError";
+export class ListedPostcodeUnpricedError extends Error {
+  constructor(planId: string, postcode: string, why: string) {
+    super(`delivery: listed postcode ${postcode} could not be priced by plan ${planId} (${why})`);
+    this.name = "ListedPostcodeUnpricedError";
   }
 }
 
-/** One per-shop package to price: its fulfilling shop and its total weight. */
 /**
  * ⚠ AN INVARIANT, NOT A REFUSAL (076 research R7). The coverage answer is "courier" — and nothing
  * can sell a courier order yet. It cannot happen while `COURIER_ORDERING_AVAILABLE` is false,
@@ -35,42 +37,44 @@ export class CourierNotPurchasableError extends Error {
   }
 }
 
+/** One per-shop package: its fulfilling shop and its total weight. */
 export interface PackageInput {
   shopId: string;
   grams: number;
 }
 
-/** One offered delivery method for a package, at its GST-inclusive, snapped-up fee. */
+/** A method a package can have. ⚠ No fee: delivery is priced once per ORDER (077). */
 export interface DeliveryOption {
   method: string;
-  feeCents: number;
 }
 
 /**
- * A package's offered options. A served package ALWAYS carries a standard option; it carries a
- * same_day option only when the fulfilling shop does same-day in this zone and a slot is open.
+ * The methods one package can have. A served package ALWAYS carries standard; it carries same_day
+ * only when the fulfilling shop does same-day in this group and a slot is open.
  */
 export interface PackageQuote {
   shopId: string;
   options: DeliveryOption[];
 }
 
-/** The package's standard fee (always present when serviced). */
-export function standardFeeCents(p: PackageQuote): number {
-  return (p.options.find((o) => o.method === METHOD_STANDARD) ?? p.options[0])?.feeCents ?? 0;
+export function offersSameDay(p: PackageQuote): boolean {
+  return p.options.some((o) => o.method === METHOD_SAME_DAY);
 }
 
 /**
- * The fee for a chosen method, falling back to standard when that method is not offered on this
- * package — a client asking for same_day where it is unavailable is charged standard, never
- * refused.
+ * One priced delivery choice for the order: every step that built it, and the lines a customer
+ * reads. ⚠ `breakdown` holds a distance and the plan's prices — it is stored on the order for staff
+ * and never sent to a customer; `lines` and `totalCents` are what a customer sees.
  */
-export function feeFor(p: PackageQuote, method: string): DeliveryOption {
-  return p.options.find((o) => o.method === method) ?? { method: METHOD_STANDARD, feeCents: standardFeeCents(p) };
-}
-
-export function offersSameDay(p: PackageQuote): boolean {
-  return p.options.some((o) => o.method === METHOD_SAME_DAY);
+export interface PricedFee {
+  planId: string;
+  planName: string;
+  /** The window this choice is for; null when none is chosen (a later day). */
+  slotId: string | null;
+  windowIsToday: boolean;
+  breakdown: FeeBreakdown;
+  lines: FeeLine[];
+  totalCents: number;
 }
 
 /**
@@ -88,11 +92,15 @@ export type QuoteResult =
       coverage: "effy";
       /** The postcode's group, or null when it is in none (076). */
       zoneId: string | null;
-      ringId: string;
       /** The latest cutoff among the open slots; null when there is no same-day today. */
       sameDayUntil: Date | null;
       packages: PackageQuote[];
-      standardTotalCents: number;
+      /** 077 — the order's delivery charge when NO window is chosen (a later day). */
+      standardFee: PricedFee;
+      /** 077 — the order's delivery charge with each open window, by slot id. */
+      slotFees: ReadonlyMap<string, PricedFee>;
+      /** 077 — how much more the basket needs for free delivery; null when unset or reached. */
+      freeDeliveryRemainingCents: number | null;
       /** The windows still open for this order, earliest first. */
       sameDaySlots: OpenSlot[];
       /** Why `sameDaySlots` is empty; null when it is not. */
@@ -101,30 +109,49 @@ export type QuoteResult =
       standardDays: string[];
     };
 
-export function feeInputs(plan: Plan, ringPriceCents: number, grams: number, factorMilli: number): FeeInputs {
-  return {
-    ringPriceCents,
-    packageGrams: grams,
-    weightBands: plan.weightBands,
-    factorMilli,
-    stepCents: plan.roundingStepCents,
-    floorCents: plan.floorCents,
-    capCents: plan.capCents,
-  };
-}
-
 /** First-appearance order. */
 export function distinctShops(pkgs: readonly PackageInput[]): string[] {
   return [...new Set(pkgs.map((p) => p.shopId))];
 }
 
 /**
- * Price delivery per package for a destination postcode at `now` (047 US1–US3, 069). Every served
- * package gets a standard option; a same_day option is added where the fulfilling shop does
- * same-day in this zone AND a delivery slot is still open today.
+ * Price ONE delivery choice for the order under `plan` (077 FR-001): the whole basket's weight, the
+ * postcode's distance, the basket's value, and what the window adds.
  *
- * `customerId` is whose checkout this is: their own unpaid hold is not counted against them. Null
- * subtracts nothing.
+ * ⚠ It CALLS the engine and adds nothing itself — `effyFee` is the only sum.
+ */
+export function priceEffyOrder(
+  plan: Plan,
+  postcode: string,
+  km: number,
+  grams: number,
+  basketCents: number,
+  slotId: string | null,
+  windowIsToday: boolean,
+): PricedFee {
+  try {
+    const breakdown = effyFee({
+      km, grams, basketCents, premiumCents: windowPremiumCents(plan, slotId, windowIsToday), plan: effyValues(plan),
+    });
+    return { planId: plan.id, planName: plan.name, slotId, windowIsToday, breakdown, lines: feeLines(breakdown), totalCents: breakdown.totalCents };
+  } catch (err) {
+    if (err instanceof UnpricedDistanceError || err instanceof UnpricedWeightError) {
+      throw new ListedPostcodeUnpricedError(plan.id, postcode, err.message);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Quote delivery for a destination postcode at `now` (047 US1–US3, 069, 077).
+ *
+ * ⚠ ONE FEE FOR THE ORDER. Effy collects from its suppliers and delivers from its hub, so to the
+ * customer the order comes from one place: the basket is weighed whole and priced once, and how many
+ * packages it splits into changes nothing. The packages still say which of them can go TODAY — that
+ * is what a customer chooses a window for, not what they pay by.
+ *
+ * `basketCents` is `basketValueCents(...)`. `customerId` is whose checkout this is: their own unpaid
+ * hold is not counted against them. Null subtracts nothing.
  */
 export async function quote(
   q: Queryable,
@@ -132,19 +159,20 @@ export async function quote(
   postcode: string,
   pkgs: readonly PackageInput[],
   now: Date,
+  basketCents: number,
 ): Promise<QuoteResult> {
-  const zone = await zoneForPostcode(q, postcode);
-  if (!zone) {
-    // Not on Effy's list. Nobody delivers — or a courier does, which nothing here can sell yet.
-    if ((await coverageForPostcode(q, postcode)).kind === "courier") throw new CourierNotPurchasableError(postcode);
-    return { serviced: false, coverage: "none" };
-  }
+  const coverage = await coverageForPostcode(q, postcode);
+  // Nobody delivers — or a courier does, which nothing here can sell yet.
+  if (coverage.kind === "courier") throw new CourierNotPurchasableError(postcode);
+  const zone = coverage.kind === "effy" ? await zoneForPostcode(q, postcode) : null;
+  if (!zone) return { serviced: false, coverage: "none" };
 
-  const plan = await loadActivePlan(q);
-  // A listed postcode always resolves a tier while any tier exists (076 `coverage_ring_for_km`).
-  const ringId = zone.ringId;
-  const ringPrice = ringId === null ? undefined : plan.ringPriceCents.get(ringId);
-  if (ringId === null || ringPrice === undefined) throw new ServedZoneUnpricedError(plan.id, ringId ?? "none");
+  const plan = await loadActivePlan(q, "effy");
+  // Every listed postcode has a distance (076: the column is NOT NULL). Without one there is no
+  // band to price it on — and "no price" must never become "no charge".
+  const km = coverage.distanceKm;
+  if (km === null) throw new ListedPostcodeUnpricedError(plan.id, postcode, "no distance");
+  const grams = pkgs.reduce((sum, p) => sum + p.grams, 0);
 
   const sameDayShops = await sameDayForShops(q, zone.id, zone.sameDayEligible, distinctShops(pkgs));
   const { runs, bufferMin } = await sameDaySchedule(q);
@@ -178,30 +206,31 @@ export async function quote(
     if (!sameDayUntil || s.cutoff.getTime() > sameDayUntil.getTime()) sameDayUntil = s.cutoff;
   }
 
-  const packages: PackageQuote[] = [];
-  let standardTotalCents = 0;
-  for (const p of pkgs) {
-    const std = fee(feeInputs(plan, ringPrice, p.grams, plan.standardFactorMilli));
-    const options: DeliveryOption[] = [{ method: METHOD_STANDARD, feeCents: std }];
-    standardTotalCents += std;
-
+  const packages: PackageQuote[] = pkgs.map((p) => {
+    const options: DeliveryOption[] = [{ method: METHOD_STANDARD }];
     // Same-day is a strictly additive offer (047 FR-038): its absence never removes standard.
     // ⚠ 069: only while a slot is open. Same-day without a window is not something the platform
     // sells, so there is no "same-day, time to be confirmed" option to fall into.
-    if (sameDayOpen && sameDayShops.get(p.shopId)) {
-      options.push({ method: METHOD_SAME_DAY, feeCents: fee(feeInputs(plan, ringPrice, p.grams, plan.sameDayFactorMilli)) });
-    }
-    packages.push({ shopId: p.shopId, options });
-  }
+    if (sameDayOpen && sameDayShops.get(p.shopId)) options.push({ method: METHOD_SAME_DAY });
+    return { shopId: p.shopId, options };
+  });
+
+  // No window: a later day. Then once per open window — every slot offered today IS today, which is
+  // what makes a same-day delivery dearer (the plan's today premium), plus the window's own premium.
+  const standardFee = priceEffyOrder(plan, postcode, km, grams, basketCents, null, false);
+  const slotFees = new Map<string, PricedFee>();
+  for (const s of sameDaySlots) slotFees.set(s.id, priceEffyOrder(plan, postcode, km, grams, basketCents, s.id, s.date === today));
 
   return {
     serviced: true,
     coverage: "effy",
     zoneId: zone.id,
-    ringId,
     sameDayUntil,
     packages,
-    standardTotalCents,
+    standardFee,
+    slotFees,
+    freeDeliveryRemainingCents:
+      plan.freeOverCents !== null && basketCents < plan.freeOverCents ? plan.freeOverCents - basketCents : null,
     sameDaySlots,
     sameDayUnavailable,
     standardDays,

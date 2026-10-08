@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { migrationSql } from "../lib/load-migrations";
 import { coverageForPostcode } from "./coverage";
-import { quote, standardFeeCents } from "./quote";
+import { quote } from "./quote";
 import { serviceableForPostcode, zoneForPostcode } from "./zone";
 
 /**
@@ -99,7 +99,9 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     before = (await pool.query(OLD_SERVED)).rows;
     allPostcodes = (await pool.query<{ postcode: string }>(`SELECT DISTINCT postcode FROM public.locality ORDER BY 1`)).rows.map((r) => r.postcode);
 
-    await pool.query(migrationSql({ from: M076 }));
+    // ⚠ Everything from 076 ON — which since 077 includes the fee engine's migration, and that asks
+    // for the same-day amount whenever a plan is active (as one is here).
+    await pool.query(migrationSql({ from: M076, env: { EFFY_TODAY_PREMIUM: "3.00" } }));
 
     shopId = (await pool.query<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('COV', 'Coverage shop') RETURNING id::text AS id`)).rows[0]!.id;
   }, 240_000);
@@ -129,25 +131,27 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     expect(audit.rows.map((r) => r.detail.postcodes)).toEqual([["3550"]]);
   });
 
-  it("P7 — every postcode served before keeps its fee tier and its same-day flag", async () => {
+  it("P7 — every postcode served before keeps its same-day flag", async () => {
     for (const row of before) {
       const zone = await zoneForPostcode(pool, row.postcode);
-      expect(zone?.ringId, `${row.postcode}: fee tier moved`).toBe(row.ring_id);
       expect(zone?.sameDayEligible, `${row.postcode}: same-day flag moved`).toBe(row.sameday_eligible);
     }
-    // The one that would move if tiers were re-derived from distance: 3 km away, priced FAR by hand.
-    expect((await zoneForPostcode(pool, "3141"))?.ringId).toBe(RING_FAR);
   });
 
-  it("P7 — and so quotes the same fee", async () => {
+  // ⚠ 077 ENDED THE FEE-TIER HALF OF P7, deliberately. Until the fee engine, a pre-076 postcode kept
+  // its zone's tier and this asserted that nobody's fee moved. Delivery is now priced from each
+  // postcode's OWN distance, so a postcode whose zone was put on a tier by hand is priced where it
+  // actually is. `fee.container.test.ts` P16 holds what replaced this: the fee is unchanged wherever
+  // the old tier matched the distance, and the operator is shown every postcode where it did not.
+  it("since 077 — a listed postcode is priced from its own distance", async () => {
     const fee = async (postcode: string) => {
-      const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date());
+      const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date(), 5000);
       if (!res.serviced) throw new Error(`${postcode} not serviced`);
-      return standardFeeCents(res.packages[0]!);
+      return res.standardFee.totalCents;
     };
-    expect(await fee("3121")).toBe(600); //  inner
-    expect(await fee("3141")).toBe(1500); // far, by the old override
-    expect(await fee("3900")).toBe(900); //  mid
+    expect(await fee("3121")).toBe(600); // 3.3 km — inner, as before
+    expect(await fee("3900")).toBe(900); // 18.5 km by hand — mid, as before
+    expect(await fee("3141")).toBe(600); // 3 km away; was priced FAR ($15) by a hand-picked tier
   });
 
   it("P2 — every listed postcode has a distance: worked out where the place is located, the zone's own where it is not", async () => {
@@ -187,26 +191,26 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     }
   });
 
-  it("P8 — a postcode listed AFTER 076, with no group, is tiered by its distance, same-day eligible, and quotes a fee", async () => {
+  it("P8 — a postcode listed AFTER 076, with no group, is same-day eligible and quotes a fee from its distance", async () => {
     await pool.query(
       `INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by)
        VALUES (NULL, '3220', public.coverage_computed_distance_km('3220'), 'computed', 'test')`,
     );
     const zone = await zoneForPostcode(pool, "3220");
-    expect(zone).toEqual({ id: null, ringId: RING_FAR, sameDayEligible: true }); // Geelong, ~65 km → open-ended tier
-    const res = await quote(pool, null, "3220", [{ shopId, grams: 1500 }], new Date());
+    expect(zone).toEqual({ id: null, sameDayEligible: true });
+    const res = await quote(pool, null, "3220", [{ shopId, grams: 1500 }], new Date(), 5000);
     if (!res.serviced) throw new Error("expected serviced");
     expect(res.coverage).toBe("effy");
     expect(res.zoneId).toBeNull();
-    expect(standardFeeCents(res.packages[0]!)).toBe(1500);
+    expect(res.standardFee.totalCents).toBe(1500); // Geelong, ~65 km → the open-ended band
   });
 
-  it("P8 — and so is one in a group created after 076 (no tier of its own)", async () => {
+  it("P8 — and so is one in a group created after 076", async () => {
     const group = (
       await pool.query<{ id: string }>(`INSERT INTO public.delivery_zone (code, name, updated_by) VALUES ('T-NEW', 'New group', 'test') RETURNING id::text AS id`)
     ).rows[0]!.id;
     await pool.query(`UPDATE public.delivery_zone_postcode SET zone_id = $1 WHERE postcode = '3220'`, [group]);
-    expect(await zoneForPostcode(pool, "3220")).toEqual({ id: group, ringId: RING_FAR, sameDayEligible: true });
+    expect(await zoneForPostcode(pool, "3220")).toEqual({ id: group, sameDayEligible: true });
     expect(await coverageForPostcode(pool, "3220")).toMatchObject({ kind: "effy", groupId: group, groupName: "New group" });
   });
 
@@ -228,7 +232,7 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     for (const postcode of [...allPostcodes, "9999"]) {
       const coverage = await coverageForPostcode(pool, postcode);
       const upFront = await serviceableForPostcode(pool, postcode);
-      const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date());
+      const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date(), 5000);
       expect(upFront, `${postcode}: up-front vs coverage`).toBe(coverage.kind === "effy");
       expect(res.serviced, `${postcode}: quote vs coverage`).toBe(coverage.kind === "effy");
       expect(res.coverage, `${postcode}: the quote's own coverage`).toBe(coverage.kind);

@@ -16,11 +16,13 @@ const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8")
 
 // Every delivery function → its expected path, all under the back-office authorizer.
 const DELIVERY_FUNCTIONS: Record<string, string> = {
-  // 047 — kept. ⚠ The ring LIST stays read-only for the fee-plan dialog until the fee engine (E3).
-  deliveryRingsListV1: "/admin/v1/delivery/rings",
+  // 077 — fee plans v2.
   deliveryPlansListV1: "/admin/v1/delivery/plans",
   deliveryPlansCreateV1: "/admin/v1/delivery/plans",
+  deliveryPlanUpdateV1: "/admin/v1/delivery/plans/{planId}",
   deliveryPlanActivateV1: "/admin/v1/delivery/plans/{planId}/activate",
+  deliveryPlansSimulateV1: "/admin/v1/delivery/plans/simulate",
+  // 047 — kept.
   deliverySettingsGetV1: "/admin/v1/delivery/settings",
   deliverySettingsPutV1: "/admin/v1/delivery/settings",
   deliveryCollectionRunsListV1: "/admin/v1/delivery/collection-runs",
@@ -79,6 +81,10 @@ describe("delivery console deployment contract", () => {
     expect(yaml).not.toContain("/admin/v1/delivery/zones")
     expect(yaml).not.toContain("sameday-exceptions")
     expect(yaml).not.toContain("/admin/v1/delivery/postcode-check")
-    expect(yaml.match(/path: \/admin\/v1\/delivery\/rings/g)?.length).toBe(1)
+  })
+
+  it("077 — the last tier route is gone: nothing in the console speaks of distance tiers", () => {
+    expect(yaml).not.toContain("  deliveryRingsListV1:")
+    expect(yaml).not.toContain("/admin/v1/delivery/rings")
   })
 })

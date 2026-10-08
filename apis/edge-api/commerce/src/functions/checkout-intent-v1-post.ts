@@ -8,9 +8,13 @@ import { normaliseDeliveryInstructions } from "@effy/shared-types";
 
 import { DeliveryChoiceError } from "../checkout/delivery-choice";
 import { quoteForCheckout } from "../checkout/quote";
-import { checkoutError, deliveryChoiceRefused } from "../checkout/respond";
+import { checkoutError, deliveryChoiceRefused, deliveryFeeChanged } from "../checkout/respond";
+import { DeliveryFeeChangedError } from "../checkout/service";
 import { customerRoute, jsonBody, stringField } from "../lib/route";
-import { checkoutService, checkoutStore, deliveryQuoter } from "../lib/wiring";
+import { checkoutService, quoteDeps } from "../lib/wiring";
+
+/** A non-negative amount with exactly two decimal places — how every amount crosses the wire. */
+const AMOUNT = /^\d{1,7}\.\d{2}$/;
 
 export const handler = customerRoute(async ({ event, scope, customer }) => {
   const body = jsonBody(event);
@@ -32,6 +36,12 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   if (typeof pointsToUse !== "number" || !Number.isSafeInteger(pointsToUse) || pointsToUse < 0) {
     return validationFailed(scope, "pointsToUse must be a whole number of points");
   }
+  // 077 — absent or null means the client is not saying what it shows (one built before 077).
+  const rawShown: unknown = body.shownDeliveryAmount;
+  if (rawShown !== undefined && rawShown !== null && (typeof rawShown !== "string" || !AMOUNT.test(rawShown))) {
+    return validationFailed(scope, "shownDeliveryAmount must be an amount like 6.00");
+  }
+  const shownDeliveryAmount = typeof rawShown === "string" ? rawShown : "";
 
   // 066 — refused BEFORE anything is written. ⚠ The refusal names the field and the rule and never
   // the value: a note can hold a gate code, and a validation error is exactly what gets logged.
@@ -48,18 +58,19 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
       {
         addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
+        shownDeliveryAmount,
       },
       new Date(),
     );
     return json(200, result, scope);
   } catch (err) {
-    if (err instanceof DeliveryChoiceError) {
+    if (err instanceof DeliveryChoiceError || err instanceof DeliveryFeeChangedError) {
       // Best-effort: the refusal is still correct without the quote.
-      const fresh = await quoteForCheckout({ store: checkoutStore, quoter: deliveryQuoter }, customer.id, addressId, new Date()).catch((qerr: unknown) => {
+      const fresh = await quoteForCheckout(quoteDeps, customer.id, addressId, new Date()).catch((qerr: unknown) => {
         scope.log.warn({ err: qerr }, "checkout: fresh quote for refusal failed");
         return null;
       });
-      return deliveryChoiceRefused(scope, err, fresh);
+      return err instanceof DeliveryChoiceError ? deliveryChoiceRefused(scope, err, fresh) : deliveryFeeChanged(scope, fresh);
     }
     return checkoutError(scope, err, "intent");
   }

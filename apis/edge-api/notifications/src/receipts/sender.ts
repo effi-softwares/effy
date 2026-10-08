@@ -3,7 +3,7 @@
 // ⚠ EVERY MONEY VALUE, QUANTITY AND DATE IS FORMATTED HERE, not in the template (email-kit FR-048).
 // SES has no formatting helpers and a template handed a raw number cannot format it, so the catalogue
 // declares every one of these as a pre-formatted string. This module is where "3.60" becomes "$3.60".
-import { ARRIVAL_UNCONFIRMED, formatArrival } from "@effy/shared-types";
+import { ARRIVAL_UNCONFIRMED, DELIVERY_FEE_LINE_LABEL, formatArrival, type DeliveryFeeLineKind } from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
@@ -22,6 +22,21 @@ function money(amount: string | null, currency: string): string {
     currency: currency || "AUD",
     currencyDisplay: "narrowSymbol",
   }).format(n);
+}
+
+/**
+ * 077 — the delivery lines as the template takes them. Labels come from the one file that writes
+ * them; an unknown kind (a newer backend) is dropped rather than printed as a code.
+ */
+export function deliveryLinesVars(
+  lines: { kind: string; amount: string }[] | null | undefined,
+  currency: string,
+): { hasDeliveryLines: boolean; deliveryLines: { label: string; amount: string }[] } {
+  const known = (lines ?? []).filter((l): l is { kind: DeliveryFeeLineKind; amount: string } => l.kind in DELIVERY_FEE_LINE_LABEL);
+  return {
+    hasDeliveryLines: known.length > 0,
+    deliveryLines: known.map((l) => ({ label: DELIVERY_FEE_LINE_LABEL[l.kind], amount: money(l.amount, currency) })),
+  };
 }
 
 function isPositive(amount: string | null): boolean {
@@ -177,6 +192,9 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         discountAmount: money(order.discount_amount, currency),
         hasDeliveryFee: isPositive(order.delivery_fee_amount),
         deliveryFee: money(order.delivery_fee_amount, currency),
+        // 077 — the lines the customer was sold, in the words the checkout used. Printed in place of
+        // the single row; a free delivery IS printed, because it is something they were sold.
+        ...deliveryLinesVars(order.delivery_fee_lines, currency),
         total: money(order.grand_total_amount, currency),
         hasPaymentMethod: Boolean(order.method_type),
         // 074 — with points in the mix, each way of paying states its own amount so the two add up.

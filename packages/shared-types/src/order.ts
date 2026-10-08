@@ -13,6 +13,7 @@
 // text, which is staff information.
 import type { OrderPaymentSplitDTO } from "./points";
 import type { CustomerRefundDTO } from "./refund";
+import type { DeliveryFeeDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
 /** Order lifecycle mirrored to the client (payment-driven). */
@@ -164,6 +165,13 @@ export interface OrderDTO {
    * shopper can check — and for a GST-inclusive Australian sale that is a real gap, not a cosmetic one.
    */
   deliveryFeeAmount?: string;
+  /**
+   * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free delivery),
+   * exactly as sold. ⚠ ABSENT on an order placed before 077: render the single `deliveryFeeAmount`
+   * row instead. Stored with the order and never recomputed, so it reads the same after the
+   * business changes its prices.
+   */
+  deliveryFee?: DeliveryFeeDTO;
   /**
    * The literal code used, denormalised beside the discount so the receipt can still say "SPRING20"
    * independently of the promotion record. Null/absent when no code was used.

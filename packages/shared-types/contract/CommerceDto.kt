@@ -629,6 +629,15 @@ data class CreateCheckoutIntentRequest (
     val sameDaySlotID: String? = null,
 
     /**
+     * 077 — the delivery total the client is SHOWING (the chosen option's `totalAmount`). If
+     * the server now works out a different one — a new fee plan went live, the basket crossed a
+     * threshold — it writes nothing and refuses with 409 `delivery_fee_changed` and a fresh
+     * quote, so the customer sees the new total before they can pay (FR-031). Absent from a
+     * client built before 077, which is priced without the check.
+     */
+    val shownDeliveryAmount: String? = null,
+
+    /**
      * 069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the
      * earliest available day, which is also what the UI preselects. Refused with
      * `date_unavailable` if it is not among the days currently offered.
@@ -703,6 +712,11 @@ data class CreateCheckoutIntentResponse (
      */
     val customerSessionSecret: String? = null,
 
+    /**
+     * 077 — the delivery charge inside `grandTotalAmount`, as lines.
+     */
+    val deliveryFee: DeliveryFeeDTO? = null,
+
     val grandTotalAmount: String,
 
     @SerialName("orderId")
@@ -746,6 +760,56 @@ data class CreateCheckoutIntentResponse (
      */
     val slotHeldUntil: String? = null
 )
+
+/**
+ * 077 — the delivery charge inside `grandTotalAmount`, as lines.
+ *
+ * What a customer is charged for delivery, in lines that sum EXACTLY to `totalAmount`
+ * (FR-028). A zero line is omitted.
+ *
+ * ⚠ Lines and a total — nothing else. No distance, band, weight or plan may be added: a
+ * customer must not be able to work out where the hub is or how the business prices
+ * (FR-032).
+ *
+ * 077 — the order's delivery charge with this window chosen.
+ *
+ * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent
+ * when not serviced, and from a server older than 077.
+ *
+ * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
+ * delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single
+ * `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads
+ * the same after the business changes its prices.
+ */
+@Serializable
+data class DeliveryFeeDTO (
+    val lines: List<DeliveryFeeLineDTO>,
+    val totalAmount: String
+)
+
+/**
+ * `amount` is a signed 2-dp decimal string; only `free_delivery` is negative.
+ */
+@Serializable
+data class DeliveryFeeLineDTO (
+    val amount: String,
+    val kind: DeliveryFeeLineKind
+)
+
+/**
+ * 077 — one line of what a customer is charged for delivery.   delivery          the fee
+ * for the distance and weight, before any window surcharge   window_surcharge  what the
+ * chosen window adds   small_order       the extra fee on a basket under the business's
+ * small-order amount   free_delivery     the saving when the basket reaches the
+ * free-delivery amount (NEGATIVE)
+ */
+@Serializable
+enum class DeliveryFeeLineKind(val value: String) {
+    @SerialName("delivery") Delivery("delivery"),
+    @SerialName("free_delivery") FreeDelivery("free_delivery"),
+    @SerialName("small_order") SmallOrder("small_order"),
+    @SerialName("window_surcharge") WindowSurcharge("window_surcharge");
+}
 
 /**
  * ⚠ NO DESTINATION FIELD, AND THERE MUST NEVER BE ONE. The refund goes to the payment
@@ -829,6 +893,13 @@ data class DeliveryQuoteDTO (
     val coverage: CoverageKind? = null,
 
     val expiresAt: String,
+
+    /**
+     * 077 — how much more the basket needs for free delivery. Null when no free-delivery amount
+     * is set or it is already reached.
+     */
+    val freeDeliveryRemainingAmount: String? = null,
+
     val packages: List<DeliveryPackageDTO>,
 
     /**
@@ -864,14 +935,20 @@ data class DeliveryQuoteDTO (
      * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
      * ⚠ Never empty when `serviced` (FR-020).
      */
-    val standardDays: List<StandardDayOptionDTO>
+    val standardDays: List<StandardDayOptionDTO>,
+
+    /**
+     * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent
+     * when not serviced, and from a server older than 077.
+     */
+    val standardFee: DeliveryFeeDTO? = null
 )
 
 /**
- * The per-shop portion of the order, priced independently (FR-030). `shopRef` is an OPAQUE
- * handle — never a shop id, so nothing here identifies the fulfilling shop (FR-033). A
- * served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only where
- * the fulfilling shop does same-day in this zone and it is before the cutoff (FR-044).
+ * One portion of the order and the methods it can have. `shopRef` is an OPAQUE handle —
+ * never a shop id (FR-033). A served package ALWAYS carries a `standard` option (FR-029);
+ * `same_day` appears only where it can go today (FR-044). ⚠ Not priced: see
+ * `DeliveryOptionDTO.feeAmount`.
  */
 @Serializable
 data class DeliveryPackageDTO (
@@ -880,9 +957,13 @@ data class DeliveryPackageDTO (
 )
 
 /**
- * One offered method for one package, at its GST-inclusive, snapped-up fee
- * (FR-024/032/034). `feeAmount` is a 2-dp decimal string (e.g. "6.00"). The delivery window
- * is advisory copy.
+ * One method a package can have.
+ *
+ * ⚠ `feeAmount` IS COMPATIBILITY ONLY since 077. Delivery is priced once per order
+ * (`DeliveryQuoteDTO.standardFee`, `DeliverySlotOptionDTO.fee`); these per-package figures
+ * are an arrangement that makes a client built before 077 — which sums the chosen method
+ * per package — show no less than it is charged. They mean nothing about any one package.
+ * Removed by the checkout feature (E5).
  */
 @Serializable
 data class DeliveryOptionDTO (
@@ -893,7 +974,9 @@ data class DeliveryOptionDTO (
 )
 
 /**
- * The two delivery methods. same-day is always priced ≥ standard (FR-022).
+ * The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE
+ * amount for the order, and a delivery today costs more only through the plan's window
+ * surcharge.
  */
 @Serializable
 enum class DeliveryMethod(val value: String) {
@@ -918,10 +1001,10 @@ data class CheckoutPointsDTO (
 /**
  * One open same-day delivery window (069).
  *
- * ⚠ NO FEE: a slot has no price of its own — the fee is the same-day METHOD's, read from
- * the package options (FR-021). ⚠ NO CAPACITY and no remaining count: how full a slot is is
- * Effy's operational business, and "2 left" would be a pressure tactic nobody asked for
- * (FR-050).
+ * ⚠ 077 REVERSED "a slot has no fee": the order's delivery charge with THIS window is
+ * `fee`, and what the window adds over a standard day is `surchargeAmount` — shown before
+ * it is chosen. ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's
+ * operational business, and "2 left" would be a pressure tactic nobody asked for (FR-050).
  */
 @Serializable
 data class DeliverySlotOptionDTO (
@@ -939,6 +1022,11 @@ data class DeliverySlotOptionDTO (
     val endAt: String,
 
     /**
+     * 077 — the order's delivery charge with this window chosen.
+     */
+    val fee: DeliveryFeeDTO? = null,
+
+    /**
      * Opaque. Sent back as `sameDaySlotId` on the intent request.
      */
     @SerialName("slotId")
@@ -947,7 +1035,12 @@ data class DeliverySlotOptionDTO (
     /**
      * ISO datetimes with the Australia/Melbourne offset.
      */
-    val startAt: String
+    val startAt: String,
+
+    /**
+     * 077 — what this window adds to the delivery charge; "0.00" when nothing.
+     */
+    val surchargeAmount: String? = null
 )
 
 /**
@@ -961,7 +1054,8 @@ enum class SameDayUnavailableReason(val value: String) {
 }
 
 /**
- * One day a standard delivery can arrive (069). The fee is the standard METHOD's, as above.
+ * One day a standard delivery can arrive (069). Its charge is the quote's `standardFee`
+ * (077).
  */
 @Serializable
 data class StandardDayOptionDTO (
@@ -1272,6 +1366,14 @@ data class OrderDTO (
      * The SHIPPING address snapshot (the main one — where the order is delivered).
      */
     val deliveryAddress: OrderAddressDTO,
+
+    /**
+     * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
+     * delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single
+     * `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads
+     * the same after the business changes its prices.
+     */
+    val deliveryFee: DeliveryFeeDTO? = null,
 
     /**
      * 051 FR-043 — the delivery fee as charged.
@@ -2119,12 +2221,34 @@ data class ServiceabilityDTO (
      */
     val coverage: CoverageKind? = null,
 
+    /**
+     * 077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and
+     * from a server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the
+     * window.
+     */
+    val offer: DeliveryOfferDTO? = null,
+
     val postcode: String,
 
     /**
      * Kept for clients released before 076. Always `coverage !== "none"`.
      */
     val serviced: Boolean
+)
+
+/**
+ * 077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and
+ * from a server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the
+ * window.
+ *
+ * The business's public basket offer (077): what a cart can say before there is an address
+ * to price. A null value means the rule is not set.
+ */
+@Serializable
+data class DeliveryOfferDTO (
+    val freeDeliveryOverAmount: String? = null,
+    val smallOrderFeeAmount: String? = null,
+    val smallOrderUnderAmount: String? = null
 )
 
 /**

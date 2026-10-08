@@ -1,15 +1,15 @@
 // Shared handler support for the delivery slice (047): the back-office guard, DeliveryError → problem+json,
-// and domain → wire-DTO mappers. Thin handlers own their own parse/authorize/map flow (no middleware
+// and the error mappers. Thin handlers own their own parse/authorize/map flow (no middleware
 // framework, per ARCHITECTURE).
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, refused, subject, unavailable } from "@effy/edge-shared";
-import type { FeePlanDTO, RingDTO } from "@effy/shared-types";
 
 import { canManageDelivery, isActiveStaff } from "./authz";
 import { CoverageError } from "./coverage.service";
-import { DeliveryError, type FeePlan, type Ring } from "./types";
+import { PricingError } from "./pricing.repository";
+import { DeliveryError } from "./types";
 
 /**
  * Authenticate (401) + authorize from the platform record (403), fail-closed to 503 on infra error.
@@ -41,9 +41,9 @@ export async function guard(
 export function mapDeliveryError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
   if (err instanceof DeliveryError) {
     const status =
-      err.code === "plan_not_found" || err.code === "ring_not_found" || err.code === "zone_not_found" ? 404 :
-      err.code === "duplicate_name" || err.code === "postcode_in_zone" || err.code === "hub_not_set" ? 409 :
-      err.code === "plan_incomplete" || err.code === "unknown_postcode" ? 422 : 400;
+      err.code === "zone_not_found" ? 404 :
+      err.code === "postcode_in_zone" || err.code === "hub_not_set" ? 409 :
+      err.code === "unknown_postcode" ? 422 : 400;
     const title = status === 404 ? "Not found" : status === 409 ? "Conflict" : status === 422 ? "Unprocessable" : "Validation failed";
     return problem(status, `https://effyshopping.com/problems/${err.code.replace(/_/g, "-")}`, title, err.message, scope);
   }
@@ -62,25 +62,10 @@ export function mapCoverageError(err: unknown, scope: RequestScope): APIGatewayP
   return unavailable(scope);
 }
 
-// ── domain → wire DTO ───────────────────────────────────────────────────────────────────────────
-
-export function toRingDTO(r: Ring): RingDTO {
-  return { id: r.id, code: r.code, name: r.name, ordinal: r.ordinal, suggestUpperKm: r.suggestUpperKm, status: r.status };
-}
-
-export function toFeePlanDTO(p: FeePlan): FeePlanDTO {
-  return {
-    id: p.id,
-    name: p.name,
-    isActive: p.isActive,
-    roundingStep: p.roundingStep,
-    floorAmount: p.floorAmount,
-    capAmount: p.capAmount,
-    sameDayFactor: p.sameDayFactor,
-    standardFactor: p.standardFactor,
-    ringPrices: p.ringPrices,
-    weightBands: p.weightBands,
-    activatedBy: p.activatedBy,
-    activatedAt: p.activatedAt,
-  };
+/** Map a PricingError (077) to problem+json; the console keys its words off `code`, never this text. */
+export function mapPricingError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
+  if (err instanceof PricingError) return refused(scope, err.status, err.code, err.message, { code: err.code, ...err.extra });
+  if (err instanceof SyntaxError) return refused(scope, 400, "invalid_request", "the request body is not JSON", { code: "invalid_request" });
+  scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "pricing op failed");
+  return unavailable(scope);
 }

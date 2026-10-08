@@ -113,15 +113,28 @@ describe("the delivery quote", () => {
     start: new Date("2026-08-24T07:00:00Z"), end: new Date("2026-08-24T09:00:00Z"), cutoff: new Date("2026-08-24T03:00:00Z"),
   };
 
+  /** A priced fee as the quote carries it (077): only the lines and the total reach the wire. */
+  const priced = (totalCents: number, withoutPremiumCents = totalCents) => ({
+    planId: "p", planName: "P", slotId: null, windowIsToday: false, breakdown: {}, totalCents,
+    lines: [
+      { kind: "delivery", cents: withoutPremiumCents },
+      ...(totalCents > withoutPremiumCents ? [{ kind: "window_surcharge", cents: totalCents - withoutPremiumCents }] : []),
+    ],
+  });
+
   it("with no open same-day slot — byte for byte", () => {
-    const q = { serviced: true, sameDayUntil: null, packages: [], sameDaySlots: [], sameDayUnavailable: "slots_closed", standardDays: ["2026-08-25"] } as unknown as QuoteResult;
+    const q = {
+      serviced: true, sameDayUntil: null, packages: [], sameDaySlots: [], sameDayUnavailable: "slots_closed", standardDays: ["2026-08-25"],
+      standardFee: priced(600), slotFees: new Map(), freeDeliveryRemainingCents: null,
+    } as unknown as QuoteResult;
     expect(JSON.stringify(toQuoteDTO("3121", q, now))).toBe(kotlinFixture(DELIVERY, "DELIVERY_QUOTE_NO_SAME_DAY_WIRE"));
   });
 
   it("with same-day on offer — every key the app reads is present, and every time carries the Melbourne offset", () => {
     const q = {
       serviced: true, sameDayUntil: slot.cutoff, sameDayUnavailable: null, standardDays: ["2026-08-25", "2026-08-26"], sameDaySlots: [slot],
-      packages: [{ shopId: "a-shop", options: [{ method: "standard", feeCents: 600 }, { method: "same_day", feeCents: 1100 }] }],
+      packages: [{ shopId: "a-shop", options: [{ method: "standard" }, { method: "same_day" }] }],
+      standardFee: priced(600), slotFees: new Map([[slot.id, priced(1100, 600)]]), freeDeliveryRemainingCents: 2600,
     } as unknown as QuoteResult;
     const got = wire(toQuoteDTO("3121", q, now)) as Record<string, unknown>;
     const want = kotlinFixtureJson(DELIVERY, "DELIVERY_QUOTE_WIRE") as Record<string, unknown>;

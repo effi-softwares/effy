@@ -8,12 +8,17 @@
  * the platform, e.g. `CartLineDTO.unitPriceAmount`) — never a float and never cents-as-number, which is
  * what the backend↔mobile wire-contract test exists to keep honest (research R14; 027 R13).
  *
- * ⚠ Nothing here ever carries a distance, a ring name, or a shop identity (FR-018/FR-033; SC-007).
+ * ⚠ Nothing here ever carries a distance, a band, a weight, a fee plan or a shop identity (047
+ * FR-018/FR-033; 077 FR-032). The delivery fee is lines and a total — see `delivery-fee.ts`.
  */
 
 import type { CheckoutPointsDTO } from "./checkout";
+import type { DeliveryFeeDTO, DeliveryOfferDTO } from "./delivery-fee";
 
-/** The two delivery methods. same-day is always priced ≥ standard (FR-022). */
+/**
+ * The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE amount
+ * for the order, and a delivery today costs more only through the plan's window surcharge.
+ */
 export type DeliveryMethod = "same_day" | "standard";
 
 /**
@@ -58,6 +63,11 @@ export interface ServiceabilityDTO {
   serviced: boolean;
   /** 076 — who delivers. Absent only from a server older than 076. */
   coverage?: CoverageKind;
+  /**
+   * 077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and from a
+   * server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the window.
+   */
+  offer?: DeliveryOfferDTO;
 }
 
 /** One place, fully identified — the only selectable unit (FR-007). */
@@ -73,8 +83,13 @@ export interface LocalitiesResultDTO {
 }
 
 /**
- * One offered method for one package, at its GST-inclusive, snapped-up fee (FR-024/032/034).
- * `feeAmount` is a 2-dp decimal string (e.g. "6.00"). The delivery window is advisory copy.
+ * One method a package can have.
+ *
+ * ⚠ `feeAmount` IS COMPATIBILITY ONLY since 077. Delivery is priced once per order
+ * (`DeliveryQuoteDTO.standardFee`, `DeliverySlotOptionDTO.fee`); these per-package figures are an
+ * arrangement that makes a client built before 077 — which sums the chosen method per package —
+ * show no less than it is charged. They mean nothing about any one package. Removed by the
+ * checkout feature (E5).
  */
 export interface DeliveryOptionDTO {
   method: DeliveryMethod;
@@ -84,10 +99,9 @@ export interface DeliveryOptionDTO {
 }
 
 /**
- * The per-shop portion of the order, priced independently (FR-030). `shopRef` is an OPAQUE handle — never
- * a shop id, so nothing here identifies the fulfilling shop (FR-033). A served package ALWAYS carries a
- * `standard` option (FR-029); `same_day` appears only where the fulfilling shop does same-day in this zone
- * and it is before the cutoff (FR-044).
+ * One portion of the order and the methods it can have. `shopRef` is an OPAQUE handle — never a shop
+ * id (FR-033). A served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only
+ * where it can go today (FR-044). ⚠ Not priced: see `DeliveryOptionDTO.feeAmount`.
  */
 export interface DeliveryPackageDTO {
   shopRef: string;
@@ -132,6 +146,16 @@ export interface DeliveryQuoteDTO {
   standardDays: StandardDayOptionDTO[];
   /** 074 — the customer's spendable points, when they have any. */
   points?: CheckoutPointsDTO;
+  /**
+   * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent when
+   * not serviced, and from a server older than 077.
+   */
+  standardFee?: DeliveryFeeDTO;
+  /**
+   * 077 — how much more the basket needs for free delivery. Null when no free-delivery amount is
+   * set or it is already reached.
+   */
+  freeDeliveryRemainingAmount?: string | null;
 }
 
 /** Why same-day is not on offer: the zone or shop does not do it, or every slot today is closed or full. */
@@ -140,9 +164,10 @@ export type SameDayUnavailableReason = "not_eligible" | "slots_closed";
 /**
  * One open same-day delivery window (069).
  *
- * ⚠ NO FEE: a slot has no price of its own — the fee is the same-day METHOD's, read from the
- * package options (FR-021). ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's
- * operational business, and "2 left" would be a pressure tactic nobody asked for (FR-050).
+ * ⚠ 077 REVERSED "a slot has no fee": the order's delivery charge with THIS window is `fee`, and
+ * what the window adds over a standard day is `surchargeAmount` — shown before it is chosen.
+ * ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's operational business, and
+ * "2 left" would be a pressure tactic nobody asked for (FR-050).
  */
 export interface DeliverySlotOptionDTO {
   /** Opaque. Sent back as `sameDaySlotId` on the intent request. */
@@ -154,9 +179,13 @@ export interface DeliverySlotOptionDTO {
   endAt: string;
   /** After this the slot can no longer be chosen. Lets a client grey it out without a round trip. */
   cutoffAt: string;
+  /** 077 — what this window adds to the delivery charge; "0.00" when nothing. */
+  surchargeAmount?: string;
+  /** 077 — the order's delivery charge with this window chosen. */
+  fee?: DeliveryFeeDTO;
 }
 
-/** One day a standard delivery can arrive (069). The fee is the standard METHOD's, as above. */
+/** One day a standard delivery can arrive (069). Its charge is the quote's `standardFee` (077). */
 export interface StandardDayOptionDTO {
   /** yyyy-mm-dd (Melbourne). */
   date: string;

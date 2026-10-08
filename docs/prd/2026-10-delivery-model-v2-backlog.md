@@ -312,7 +312,17 @@ Customers never see group names, distances or the hub's location.
 
 ---
 
-## E3 — Delivery Fee Engine v2 · spec 077
+## E3 — Delivery Fee Engine v2 · spec 077 — ✅ built 2026-10-08 (not yet deployed)
+
+> **2026-10-08 — E3 BUILT (spec 077), checked by machine; NOT yet migrated or deployed**
+> ([specs/077-delivery-fee-engine-v2/SIGNOFF.md](../../specs/077-delivery-fee-engine-v2/SIGNOFF.md)). Tasks
+> E3-T01…T30 below are covered by 077's tasks.md (82/82). Left for later epics:
+> - **E5** — remove the compatibility per-package `feeAmount` on the quote; the same-day bridge; the "N
+>   of your M deliveries" sentence; teach the quote to price `coverage: "courier"` with `courierFee`.
+> - **E9** — drop `delivery_fee_plan.same_day_factor` / `standard_factor` and the two per-package
+>   `delivery_fee_amount` columns (unwritten since 077).
+> - Deviation from E3-T04/T07: premiums and gaps as planned; the immutability trigger was withdrawn (058's
+>   trigger guard) — the admin service holds it.
 
 > **2026-10-08 — specified (`specs/077-delivery-fee-engine-v2/spec.md`); three rules confirmed by the
 > operator while clarifying:**

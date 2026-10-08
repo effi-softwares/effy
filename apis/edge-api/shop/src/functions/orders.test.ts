@@ -55,7 +55,7 @@ const DETAIL = {
   atRisk: false,
   delivery: { recipientName: "A", phone: null, line1: "1", line2: null, city: "M", region: null, postalCode: "3000", country: "AU" },
   lines: [],
-  money: { currency: "AUD", shopSubtotal: "0.00", itemSubtotal: "0.00", deliveryFee: "0.00", discount: "0.00", promoCode: null, total: "0.00", refunded: "0.00", refundPending: "0.00", net: "0.00" },
+  money: { currency: "AUD", shopSubtotal: "0.00", itemSubtotal: "0.00", discount: "0.00", promoCode: null, total: "0.00", refunded: "0.00", refundPending: "0.00", net: "0.00" },
   payment: { state: "paid", methodType: null, methodBrand: null, methodLast4: null, amount: "0.00", paidAt: null },
   refunds: [],
   handoff: { collectedAt: null, deliveredAt: null, unfulfillableReason: null },

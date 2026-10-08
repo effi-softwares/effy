@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout
 
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryMethod
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.commerce.contract.ServiceabilityDTO
@@ -37,12 +38,14 @@ class DeliveryWireContractTest {
 
         // Read by the backend's wire.contract.test.ts. ⚠ The per-option promise dates here are a
         // DECODE case only: the platform has sent them as null since 069.
+        // ⚠ 077: the delivery charge is the ORDER's — `standardFee` for a later day, each slot's
+        // `fee` for that window. The per-option `feeAmount` is kept only for builds older than 077.
         const val DELIVERY_QUOTE_WIRE =
-            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":"2026-08-24T13:00:00+10:00","packages":[{"shopRef":"pkg-1","options":[{"method":"standard","feeAmount":"6.00","promisedFrom":null,"promisedTo":null},{"method":"same_day","feeAmount":"11.00","promisedFrom":"2026-08-24","promisedTo":"2026-08-24"}]}],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00"}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"},{"date":"2026-08-26"}]}"""
+            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":"2026-08-24T13:00:00+10:00","packages":[{"shopRef":"pkg-1","options":[{"method":"standard","feeAmount":"6.00","promisedFrom":null,"promisedTo":null},{"method":"same_day","feeAmount":"11.00","promisedFrom":"2026-08-24","promisedTo":"2026-08-24"}]}],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"},{"date":"2026-08-26"}],"standardFee":{"lines":[{"kind":"delivery","amount":"6.00"}],"totalAmount":"6.00"},"freeDeliveryRemainingAmount":"26.00"}"""
 
         // Read by the backend's wire.contract.test.ts, byte for byte (069).
         const val DELIVERY_QUOTE_NO_SAME_DAY_WIRE =
-            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[],"sameDayUnavailableReason":"slots_closed","standardDays":[{"date":"2026-08-25"}]}"""
+            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[],"sameDayUnavailableReason":"slots_closed","standardDays":[{"date":"2026-08-25"}],"standardFee":{"lines":[{"kind":"delivery","amount":"6.00"}],"totalAmount":"6.00"},"freeDeliveryRemainingAmount":null}"""
     }
 
     @Test
@@ -102,6 +105,36 @@ class DeliveryWireContractTest {
         assertEquals("2026-08-24T13:00:00+10:00", slot.cutoffAt)
         assertEquals(listOf("2026-08-25", "2026-08-26"), dto.standardDays.map { it.date })
         assertEquals(null, dto.sameDayUnavailableReason)
+    }
+
+    // ── 077: one fee for the order, as lines ────────────────────────────────────────────────────────
+
+    @Test
+    fun `Kotlin decodes the order's delivery fee - lines and totals as Strings`() {
+        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
+
+        val later = dto.standardFee!!
+        assertEquals("6.00", later.totalAmount)
+        assertEquals(listOf(DeliveryFeeLineKind.Delivery to "6.00"), later.lines.map { it.kind to it.amount })
+
+        val slot = dto.sameDaySlots.single()
+        assertEquals("5.00", slot.surchargeAmount)
+        assertEquals("11.00", slot.fee!!.totalAmount)
+        assertEquals(
+            listOf(DeliveryFeeLineKind.Delivery to "6.00", DeliveryFeeLineKind.WindowSurcharge to "5.00"),
+            slot.fee!!.lines.map { it.kind to it.amount },
+        )
+        assertEquals("26.00", dto.freeDeliveryRemainingAmount)
+    }
+
+    @Test
+    fun `a quote from a server older than 077 still decodes - no fee, no surcharge`() {
+        val dto = json.decodeFromString<DeliveryQuoteDTO>(
+            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"s","date":"2026-08-24","startAt":"a","endAt":"b","cutoffAt":"c"}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"}]}""",
+        )
+        assertEquals(null, dto.standardFee)
+        assertEquals(null, dto.sameDaySlots.single().fee)
+        assertEquals(null, dto.freeDeliveryRemainingAmount)
     }
 
     @Test

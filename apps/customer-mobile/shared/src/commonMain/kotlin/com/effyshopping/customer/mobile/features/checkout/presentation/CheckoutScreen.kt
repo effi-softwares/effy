@@ -10,6 +10,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
 import androidx.compose.foundation.layout.Spacer
@@ -276,16 +277,21 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             color = MaterialTheme.colorScheme.error,
         )
         else -> {
+            // 077 — ONE fee for the order: a later day's, or the chosen window's. Same-day is shown
+            // "from" its cheapest window when the windows differ, so its price is never understated.
+            val standardTotal = quote.standardFee?.totalAmount ?: quote.standardTotalAmount
+            val windowTotals = quote.slots.mapNotNull { it.fee?.totalAmount }
+            val sameDayFrom = windowTotals.minByOrNull { it.toDoubleOrNull() ?: 0.0 } ?: quote.sameDayTotalAmount ?: standardTotal
             if (s.sameDayOfferable) {
                 DeliveryOptionRow(
                     label = "Same-day delivery",
-                    fee = quote.sameDayTotalAmount ?: quote.standardTotalAmount,
+                    fee = if (windowTotals.distinct().size > 1) "from \$$sameDayFrom" else "\$$sameDayFrom",
                     selected = s.method == DeliveryMethod.SAME_DAY,
                     onSelect = { vm.setMethod(DeliveryMethod.SAME_DAY) },
                 )
                 DeliveryOptionRow(
                     label = "Standard delivery",
-                    fee = quote.standardTotalAmount,
+                    fee = "\$$standardTotal",
                     selected = s.method == DeliveryMethod.STANDARD,
                     onSelect = { vm.setMethod(DeliveryMethod.STANDARD) },
                 )
@@ -312,7 +318,6 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                val slotFee = quote.sameDayPartAmount ?: quote.sameDayTotalAmount ?: quote.standardTotalAmount
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().selectableGroup(),
                     horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
@@ -322,7 +327,11 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                         FilterChip(
                             selected = slot.id == s.slotId,
                             onClick = { vm.setSlot(slot.id) },
-                            label = { Text("Today, $label · $$slotFee") },
+                            // 077 FR-030 — what this window ADDS, before it is chosen; else its fee.
+                            label = {
+                                val surcharge = slot.surchargeAmount?.takeIf { (it.toDoubleOrNull() ?: 0.0) > 0.0 }
+                                Text(if (surcharge != null) "Today, $label · +$$surcharge" else "Today, $label · $${slot.fee?.totalAmount ?: sameDayFrom}")
+                            },
                             // ⚠ 48dp: a fat-finger target, and the difference between two adjacent
                             // windows is exactly the mistake a small chip invites.
                             modifier = Modifier.heightIn(min = 48.dp).semantics { role = Role.RadioButton },
@@ -336,7 +345,9 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                     if (quote.mixed && s.needsSlot) "Choose a day for the rest" else "Choose a delivery day",
                     style = MaterialTheme.typography.labelLarge,
                 )
-                val dayFee = if (s.needsSlot) quote.standardPartAmount ?: quote.standardTotalAmount else quote.standardTotalAmount
+                // 077 — a same-day order pays its window's fee; the rest arrives later at no extra
+                // charge, so the days for it carry no price.
+                val dayFee = if (s.needsSlot) null else "\$$standardTotal"
                 val today = DeliveryWindowText.melbourneDay(nowEpochMillis())
                 Column(modifier = Modifier.selectableGroup()) {
                     quote.standardDays.forEach { day ->
@@ -352,9 +363,13 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                 // A server older than 069 offers no days: the one standard fee, as before.
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
-                    Text("$${quote.standardTotalAmount}", style = MaterialTheme.typography.bodyMedium)
+                    Text("$$standardTotal", style = MaterialTheme.typography.bodyMedium)
                 }
             }
+
+            // 077 — what is charged for delivery, line by line, before Pay (FR-028), and how close
+            // the basket is to free delivery (FR-029).
+            s.deliveryFee?.let { fee -> DeliveryFeeSummary(fee, quote.freeDeliveryRemainingAmount) }
         }
     }
 }
@@ -362,8 +377,33 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
 @OptIn(kotlin.time.ExperimentalTime::class)
 private fun nowEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
 
+/** 077 — the delivery lines, in the shared words, and the free-delivery hint. A list, not a card. */
 @Composable
-private fun DeliveryOptionRow(label: String, fee: String, selected: Boolean, onSelect: () -> Unit) {
+private fun DeliveryFeeSummary(fee: DeliveryFee, freeRemaining: String?) {
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+        fee.lines.forEach { line ->
+            val saving = line.amount.startsWith("-")
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(DeliveryFeeWords.label(line.kind), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (saving) "−$${line.amount.removePrefix("-")}" else "$${line.amount}",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        when {
+            fee.free -> Text(DeliveryFeeWords.FREE_REACHED, style = MaterialTheme.typography.bodySmall)
+            freeRemaining != null -> Text(
+                DeliveryFeeWords.spendMore("$$freeRemaining"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeliveryOptionRow(label: String, fee: String?, selected: Boolean, onSelect: () -> Unit) {
     Row(
         // The WHOLE row is the target, announced as one radio button with its label and fee.
         modifier = Modifier
@@ -377,7 +417,7 @@ private fun DeliveryOptionRow(label: String, fee: String, selected: Boolean, onS
             RadioButton(selected = selected, onClick = null)
             Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = EffySpacing.s))
         }
-        Text("$$fee", style = MaterialTheme.typography.bodyMedium)
+        fee?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
     }
 }
 

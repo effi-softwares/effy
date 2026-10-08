@@ -274,7 +274,6 @@ interface HeadRecord {
   unfulfillable_reason: string | null;
   delivery_address: Record<string, unknown> | null;
   item_subtotal_amount: string;
-  delivery_fee_amount: string;
   discount_amount: string;
   promo_code: string | null;
   grand_total_amount: string;
@@ -303,7 +302,7 @@ SELECT sf.id, sf.order_id, o.order_number,
        ${PLACED} AS placed_at, o.placed_at AS paid_at,
        sf.status, sf.state_changed_at, sf.delivery_method, sf.unfulfillable_reason,
        o.delivery_address,
-       o.item_subtotal_amount, o.delivery_fee_amount, o.discount_amount, o.promo_code,
+       o.item_subtotal_amount, o.discount_amount, o.promo_code,
        o.grand_total_amount, o.currency,
        p.amount AS payment_amount, p.method_type, p.method_brand, p.method_last4,
        rf.settled AS refunded, rf.pending AS refund_pending,
@@ -455,7 +454,6 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       currency: row.currency,
       shopSubtotal: fromCents(shopSubtotal),
       itemSubtotal: money(row.item_subtotal_amount),
-      deliveryFee: money(row.delivery_fee_amount),
       discount: money(row.discount_amount),
       promoCode: row.promo_code,
       total: money(row.grand_total_amount),

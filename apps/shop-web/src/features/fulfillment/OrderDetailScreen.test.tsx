@@ -132,8 +132,10 @@ describe("layout", () => {
     await screen.findByText("Items and fulfilment");
     expect(screen.getByText("Items from other shops")).toBeInTheDocument();
     expect(screen.getByText("$30.00")).toBeInTheDocument();
-    expect(screen.getByText("Shipping")).toBeInTheDocument();
     expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/);
+    // ⚠ 077: no delivery or shipping amount reaches a shop (FR-038).
+    expect(screen.queryByText("Shipping")).toBeNull();
+    expect(screen.queryByText(/delivery fee/i)).toBeNull();
   });
 });
 

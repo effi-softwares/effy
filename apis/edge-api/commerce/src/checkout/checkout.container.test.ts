@@ -14,9 +14,10 @@ import { createOrdersRepository } from "../orders/repository";
 import { createOrdersService, OrderNotFoundError as ReceiptNotFoundError } from "../orders/service";
 import { createWebhookHandler } from "../webhook/handler";
 import { DeliveryChoiceError } from "./delivery-choice";
-import { defaultQuoter } from "./quote";
+import { defaultQuoter, quoteForCheckout, type PromoSource } from "./quote";
 import {
-  createCheckoutService, EmptyCartError, OrderNotFoundError, PointsExceedTotalError, type CheckoutService, type IntentInput,
+  createCheckoutService, DeliveryFeeChangedError, EmptyCartError, OrderNotFoundError, PointsExceedTotalError, type CheckoutService,
+  type IntentInput,
 } from "./service";
 import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from "./store";
 
@@ -100,6 +101,7 @@ let svc: CheckoutService;
 let shopId: string;
 let slotId: string;
 const product: Record<string, string> = {};
+const PLAN = "00000000-0000-0000-0000-0000000000d1";
 let seq = 0;
 
 const one = async <T>(sql: string, args: unknown[] = []) => (await pool.query(sql, args)).rows[0] as T;
@@ -126,7 +128,7 @@ async function shopper(cart: Record<string, number>) {
 
 const input = (addressId: string, over: Partial<IntentInput> = {}): IntentInput => ({
   addressId, billingAddressId: "", deliveryMethod: "standard", sameDaySlotId: "", standardDate: "",
-  deliveryInstructions: { handover: null, note: null }, wantsProviderMethodList: false, pointsToUse: 0, ...over,
+  deliveryInstructions: { handover: null, note: null }, wantsProviderMethodList: false, pointsToUse: 0, shownDeliveryAmount: "", ...over,
 });
 
 /** 074 — give a shopper points, as back-office would. */
@@ -176,15 +178,13 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     }
 
     await pool.query(`
-      INSERT INTO public.delivery_ring (id, code, name, ordinal, suggest_upper_km, updated_by) VALUES
-        ('00000000-0000-0000-0000-0000000000f1', 'C-INNER', 'Checkout inner', 9101, 9101, 'test');
-      INSERT INTO public.delivery_zone (id, code, name, ring_id, status, sameday_eligible, updated_by) VALUES
-        ('00000000-0000-0000-0000-0000000000e1', 'C-Z1', 'Checkout zone', '00000000-0000-0000-0000-0000000000f1', 'active', true, 'test');
+      INSERT INTO public.delivery_zone (id, code, name, status, sameday_eligible, updated_by) VALUES
+        ('00000000-0000-0000-0000-0000000000e1', 'C-Z1', 'Checkout zone', 'active', true, 'test');
       INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by) VALUES ('00000000-0000-0000-0000-0000000000e1', '3121', 3.40, 'manual', 'test');
-      INSERT INTO public.delivery_fee_plan (id, name, is_active, rounding_step, floor_amount, cap_amount, same_day_factor, standard_factor, created_by)
-        VALUES ('00000000-0000-0000-0000-0000000000d1', 'Checkout plan', true, 0.50, 4.00, 40.00, 1.800, 1.000, 'test');
-      INSERT INTO public.delivery_ring_price (plan_id, ring_id, price_amount) VALUES
-        ('00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000f1', 6.00);
+      -- $6.00 anywhere, any weight; a delivery today is $5.00 dearer.
+      INSERT INTO public.delivery_fee_plan (id, name, is_active, today_premium_amount, rounding_step, floor_amount, cap_amount, created_by)
+        VALUES ('${PLAN}', 'Checkout plan', true, 5.00, 0.50, 4.00, 40.00, 'test');
+      INSERT INTO public.delivery_distance_band (plan_id, upper_km, add_amount) VALUES ('${PLAN}', NULL, 6.00);
       INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('00000000-0000-0000-0000-0000000000d1', 100000, 0.00);
       INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, sameday_prep_buffer_min, sameday_hub_turnaround_min, updated_by)
         VALUES (1, -37.81, 144.96, 0, 0, 'test')
@@ -336,12 +336,14 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await count(`SELECT 1 FROM public.cart_item WHERE cart_id = $1`, [s.cartId])).toBe(0);
     expect((await one<{ s: string }>(`SELECT status AS s FROM public.payment WHERE order_id = $1`, [orderId])).s).toBe("succeeded");
 
-    const sf = await one<{ items: number; cust: string; shop: string; method: string; fee: string }>(
+    const sf = await one<{ items: number; cust: string; shop: string; method: string; fee: string | null }>(
       `SELECT item_count AS items, subtotal_amount::text AS cust, shop_subtotal_amount::text AS shop,
               delivery_method AS method, delivery_fee_amount::text AS fee FROM public.shop_fulfillment WHERE order_id = $1`,
       [orderId],
     );
-    expect(sf).toEqual({ items: 3, cust: "11.00", shop: "10.00", method: "standard", fee: "6.00" });
+    // ⚠ No fee on a shop's portion (077): delivery is priced once, on the order.
+    expect(sf).toEqual({ items: 3, cust: "11.00", shop: "10.00", method: "standard", fee: null });
+    expect((await orderRow(orderId)).fee).toBe("6.00");
   });
 
   it("two deliveries of one payment racing on separate connections apply once", async () => {
@@ -432,7 +434,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const now = new Date();
     await expect(
       store.captureDelivery(r.orderId, {}, now, [{
-        shopId, method: "same_day", feeCents: 1100, promisedDay: melbourneDate(now), slotId,
+        shopId, method: "same_day", promisedDay: melbourneDate(now), slotId,
         windowStart: now, windowEnd: new Date(now.getTime() + 60_000),
       }], { slotId, now }),
     ).rejects.toBeInstanceOf(SlotUnavailableError);
@@ -704,5 +706,282 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     expect(await pointsNow(s.customerId)).toBe(500);
     await transact((tx) => finalizeFailed(tx, r.orderId));
     expect(await pointsNow(s.customerId)).toBe(1000);
+  });
+  // ── 077 — one delivery fee per order ────────────────────────────────────────────────────────────
+
+  /** A product at any price, in any shop — the basket rules are tested to the cent. */
+  async function priced(name: string, price: string, inShop = shopId): Promise<string> {
+    product[name] = (
+      await one<{ id: string }>(
+        `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, shop_price_amount,
+                                     short_description, created_by, status, approved_at, stock_tracked, stock_on_hand)
+         SELECT $1, (SELECT id FROM public.product_type WHERE key='chk-type'), (SELECT id FROM public.category WHERE key='chk-cat'),
+                $2, $3::numeric, $3::numeric, 'd', 'seed', 'active', now(), false, NULL
+         RETURNING id::text AS id`,
+        [inShop, name, price],
+      )
+    ).id;
+    return product[name]!;
+  }
+  const otherShop = async (code: string) =>
+    (await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ($1, $1) RETURNING id::text AS id`, [code])).id;
+
+  const feeOf = (orderId: string) =>
+    one<{ fee: string; lines: { kind: string; amount: string }[]; breakdown: Record<string, unknown> }>(
+      `SELECT delivery_fee_amount::text AS fee, delivery_fee_breakdown -> 'lines' AS lines, delivery_fee_breakdown AS breakdown
+         FROM public."order" WHERE id = $1`,
+      [orderId],
+    );
+  const noPromo: PromoSource = async () => ({ cents: 0, promo: null });
+  const quoteFor = (s: { customerId: string; addressId: string }, promos: PromoSource = noPromo) =>
+    quoteForCheckout({ store, quoter: defaultQuoter(pool), promos }, s.customerId, s.addressId, new Date());
+
+  /** Change the plan's prices for one test. The seeded plan was never activated, so it can be edited. */
+  async function withPlan<T>(set: string, run: () => Promise<T>): Promise<T> {
+    await pool.query(`UPDATE public.delivery_fee_plan SET ${set} WHERE id = '${PLAN}'`);
+    try {
+      return await run();
+    } finally {
+      await pool.query(
+        `UPDATE public.delivery_fee_plan SET free_over_amount = NULL, small_order_under_amount = NULL, small_order_fee_amount = NULL,
+                today_premium_amount = 5.00, base_amount = 0 WHERE id = '${PLAN}'`,
+      );
+    }
+  }
+
+  it("077 — the order keeps how its fee was built, and the intent hands back the lines", async () => {
+    const s = await shopper({ Milk: 2 });
+    const r = await svc.createIntent(s.customerId, sameDay(s.addressId), new Date());
+    expect(r.deliveryFee).toEqual({
+      lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00",
+    });
+    expect(r.grandTotalAmount).toBe("20.00");
+
+    const o = await feeOf(r.orderId);
+    expect(o.fee).toBe("11.00");
+    expect(o.lines).toEqual(r.deliveryFee!.lines);
+    expect(o.breakdown).toMatchObject({
+      v: 1, kind: "effy", plan: { id: PLAN, name: "Checkout plan" },
+      inputs: { km: 3.4, grams: 1000, basketCents: 900, slotId, windowIsToday: true },
+      parts: { baseCents: 0, distanceCents: 600, distanceBandUpperKm: null, premiumCents: 500, rawCents: 1100, deliveryCents: 1100, totalCents: 1100, freeApplied: false },
+    });
+    // A package says WHEN it arrives, never what it costs.
+    expect(await one(`SELECT method, delivery_fee_amount AS fee FROM public.order_package_delivery WHERE order_id = $1`, [r.orderId])).toEqual({
+      method: "same_day", fee: null,
+    });
+  });
+
+  it("077 — a basket from three shops pays ONE fee, the same as from one (P3)", async () => {
+    const [b, c] = [await otherShop("CHK-B"), await otherShop("CHK-C")];
+    await priced("FromA", "5.00");
+    await priced("FromB", "5.00", b);
+    await priced("FromC", "5.00", c);
+    const three = await shopper({ FromA: 1, FromB: 1, FromC: 1 });
+    const one_ = await shopper({ FromA: 3 });
+    const r3 = await svc.createIntent(three.customerId, input(three.addressId), new Date());
+    const r1 = await svc.createIntent(one_.customerId, input(one_.addressId), new Date());
+    expect((await feeOf(r3.orderId)).fee).toBe("6.00");
+    expect((await feeOf(r1.orderId)).fee).toBe("6.00");
+    expect(r3.grandTotalAmount).toBe(r1.grandTotalAmount);
+    expect(await count(`SELECT 1 FROM public.order_package_delivery WHERE order_id = $1`, [r3.orderId])).toBe(3);
+  });
+
+  it("077 — a client built before 077, summing per-package fees, is never shown LESS than it is charged (P26)", async () => {
+    const [b, c] = [await otherShop("CHK-D"), await otherShop("CHK-E")];
+    await priced("OldA", "5.00");
+    await priced("OldB", "5.00", b);
+    await priced("OldC", "5.00", c);
+    // A second window, dearer by its own premium: the old client cannot know which it is showing.
+    const dear = (
+      await one<{ id: string }>(
+        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+         VALUES ('23:58:10', '23:59:10', '23:58', 3, 'test') RETURNING id::text AS id`,
+      )
+    ).id;
+    await pool.query(`INSERT INTO public.delivery_slot_premium (plan_id, slot_id, add_amount) VALUES ('${PLAN}', $1, 2.00)`, [dear]);
+
+    /** What a pre-077 client displays: the chosen method's option per package, standard where it has no same-day. */
+    const oldClientSum = (q: Awaited<ReturnType<typeof quoteFor>>, method: "standard" | "same_day") =>
+      q.packages.reduce((sum, p) => {
+        const opt = p.options.find((o) => o.method === method) ?? p.options.find((o) => o.method === "standard")!;
+        return sum + Math.round(Number(opt.feeAmount) * 100);
+      }, 0);
+    const charged = async (s: { customerId: string; addressId: string }, over: Partial<IntentInput>) =>
+      Math.round(Number((await feeOf((await svc.createIntent(s.customerId, input(s.addressId, over), new Date())).orderId)).fee) * 100);
+
+    try {
+      const s = await shopper({ OldA: 1, OldB: 1, OldC: 1 });
+      const all = await quoteFor(s);
+      expect(all.packages).toHaveLength(3);
+      // Every package standard: exactly the charge.
+      expect(oldClientSum(all, "standard")).toBe(await charged(s, {}));
+      // Every package today, the dearest window: exactly the charge.
+      expect(oldClientSum(all, "same_day")).toBe(1300);
+      expect(await charged(s, { deliveryMethod: "same_day", sameDaySlotId: dear })).toBe(1300);
+      // …and the cheaper window charges less than was shown — never more.
+      expect(await charged(s, { deliveryMethod: "same_day", sameDaySlotId: slotId })).toBe(1100);
+
+      // Mixed: the FIRST package cannot go today (its shop is excepted), the others can.
+      const first = (await store.cartLines(s.customerId))[0]!.shopId;
+      await pool.query(
+        `INSERT INTO public.shop_sameday_exception (shop_id, zone_id, mode, updated_by) VALUES ($1, '00000000-0000-0000-0000-0000000000e1', 'off', 'test')`,
+        [first],
+      );
+      const mixed = await quoteFor(s);
+      expect(mixed.packages[0]!.options.map((o) => o.method)).toEqual(["standard"]);
+      expect(oldClientSum(mixed, "same_day")).toBe(1300);
+      expect(await charged(s, { deliveryMethod: "same_day", sameDaySlotId: dear })).toBe(1300);
+      expect(oldClientSum(mixed, "standard")).toBe(600);
+    } finally {
+      await pool.query(`DELETE FROM public.shop_sameday_exception`);
+      // A window that has carried an order is switched off, not deleted (its bookings keep it).
+      await pool.query(`UPDATE public.delivery_slot SET status = 'disabled' WHERE id = $1`, [dear]);
+      await pool.query(`DELETE FROM public.delivery_slot_premium WHERE slot_id = $1`, [dear]);
+    }
+  });
+
+  it("077 — basket value: free delivery at the amount, a small-order fee under the other, to the cent", async () => {
+    await priced("P1999", "19.99");
+    await priced("P2000", "20.00");
+    await priced("P7999", "79.99");
+    await priced("P8000", "80.00");
+    await priced("P8500", "85.00");
+
+    await withPlan(`free_over_amount = 80.00, small_order_under_amount = 20.00, small_order_fee_amount = 3.00`, async () => {
+      const place = async (name: string, over: Partial<IntentInput> = {}, service: CheckoutService = svc) => {
+        const s = await shopper({ [name]: 1 });
+        const r = await service.createIntent(s.customerId, input(s.addressId, over), new Date());
+        return { s, r, o: await feeOf(r.orderId) };
+      };
+
+      // One cent under the small-order amount: delivery plus the fee, each its own line.
+      const small = await place("P1999");
+      expect(small.o.fee).toBe("9.00");
+      expect(small.o.lines).toEqual([{ kind: "delivery", amount: "6.00" }, { kind: "small_order", amount: "3.00" }]);
+      expect(small.r.grandTotalAmount).toBe("28.99");
+      // Exactly at it: no small-order fee.
+      expect((await place("P2000")).o.lines).toEqual([{ kind: "delivery", amount: "6.00" }]);
+
+      // One cent under the free amount: charged, and the quote says how little is missing.
+      const near = await place("P7999");
+      expect(near.o.fee).toBe("6.00");
+      expect((await quoteFor(await shopper({ P7999: 1 }))).freeDeliveryRemainingAmount).toBe("0.01");
+      // Exactly at it: free — window surcharge and all — and the customer is told what was waived.
+      const free = await place("P8000", { deliveryMethod: "same_day", sameDaySlotId: slotId });
+      expect(free.o.fee).toBe("0.00");
+      expect(free.o.lines).toEqual([
+        { kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }, { kind: "free_delivery", amount: "-11.00" },
+      ]);
+      expect(free.r.grandTotalAmount).toBe("80.00");
+      expect((await quoteFor(await shopper({ P8000: 1 }))).freeDeliveryRemainingAmount).toBeNull();
+
+      // A promotion counts: $85 less $10 is a $75 basket, which is not free — in the quote and the charge alike.
+      const tenOff: PromoSource = async () => ({ cents: 1000, promo: { id: "00000000-0000-0000-0000-0000000000aa", code: "TEN" } });
+      const discounted = await shopper({ P8500: 1 });
+      const q = await quoteFor(discounted, tenOff);
+      expect(q.standardFee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" });
+      expect(q.freeDeliveryRemainingAmount).toBe("5.00");
+
+      // Points do NOT count: an $80 basket half-paid with points is still an $80 basket.
+      const withPoints = await shopper({ P8000: 1 });
+      await givePoints(withPoints.customerId, 4000);
+      const paid = await svc.createIntent(withPoints.customerId, input(withPoints.addressId, { pointsToUse: 4000 }), new Date());
+      expect((await feeOf(paid.orderId)).fee).toBe("0.00");
+      expect(paid).toMatchObject({ grandTotalAmount: "80.00", pointsAmount: "40.00", cardAmount: "40.00" });
+    });
+  });
+
+  it("077 — a delivery total the client is not showing is refused, and nothing at all is written (P13)", async () => {
+    // A shopper with nothing yet: a stale amount creates no order.
+    const fresh = await shopper({ Milk: 2 });
+    await expect(svc.createIntent(fresh.customerId, input(fresh.addressId, { shownDeliveryAmount: "7.00" }), new Date()))
+      .rejects.toBeInstanceOf(DeliveryFeeChangedError);
+    expect(await count(`SELECT 1 FROM public."order" WHERE customer_id = $1`, [fresh.customerId])).toBe(0);
+    expect(gateway.created()).toBe(0);
+
+    // A shopper mid-checkout, with a place and points held at the price they were shown.
+    const s = await shopper({ Milk: 2 });
+    await givePoints(s.customerId, 300);
+    const shown = sameDay(s.addressId, { pointsToUse: 300, shownDeliveryAmount: "11.00" });
+    const r = await svc.createIntent(s.customerId, shown, new Date());
+    expect(r.deliveryFee!.totalAmount).toBe("11.00");
+
+    const snapshot = async () => ({
+      order: await one(`SELECT row_to_json(o)::text AS j FROM public."order" o WHERE id = $1`, [r.orderId]),
+      packages: (await pool.query(`SELECT row_to_json(p)::text AS j FROM public.order_package_delivery p WHERE order_id = $1`, [r.orderId])).rows,
+      booking: await one(`SELECT row_to_json(b)::text AS j FROM public.delivery_slot_booking b WHERE order_id = $1`, [r.orderId]),
+      hold: await one(`SELECT row_to_json(h)::text AS j FROM public.points_hold h WHERE order_id = $1`, [r.orderId]),
+      payment: await one(`SELECT row_to_json(p)::text AS j FROM public.payment p WHERE order_id = $1`, [r.orderId]),
+    });
+    const was = await snapshot();
+    const intents = gateway.created();
+
+    // The business makes today dearer while the pay button is on screen.
+    await withPlan(`today_premium_amount = 7.00`, async () => {
+      const err = await svc.createIntent(s.customerId, shown, new Date()).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(DeliveryFeeChangedError);
+      expect(err).toMatchObject({ shownCents: 1100, nowCents: 1300 });
+      expect(await snapshot()).toEqual(was);
+      expect(gateway.created()).toBe(intents);
+
+      // Shown the new total, the shopper pays it.
+      const again = await svc.createIntent(s.customerId, { ...shown, shownDeliveryAmount: "13.00" }, new Date());
+      expect(again.orderId).toBe(r.orderId);
+      expect(again.deliveryFee!.totalAmount).toBe("13.00");
+    });
+
+    // A client built before 077 says nothing about what it shows, and is priced without the check.
+    const old = await shopper({ Milk: 1 });
+    await expect(svc.createIntent(old.customerId, input(old.addressId), new Date())).resolves.toMatchObject({ grandTotalAmount: "10.50" });
+  });
+
+  it("077 — a placed order's fee never moves: a new plan, a corrected distance, a postcode removed (P14)", async () => {
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    const s = await shopper({ Milk: 2 });
+    const r = await svc.createIntent(s.customerId, sameDay(s.addressId), new Date());
+    await pay(r.orderId);
+
+    const view = async () => {
+      const o = await orders.get(scope, s.customerId, r.orderId);
+      return {
+        row: await one(`SELECT delivery_fee_amount::text AS fee, grand_total_amount::text AS grand, delivery_fee_breakdown::text AS b FROM public."order" WHERE id = $1`, [r.orderId]),
+        customer: { deliveryFeeAmount: o.deliveryFeeAmount, deliveryFee: o.deliveryFee, grandTotalAmount: o.grandTotalAmount },
+      };
+    };
+    const was = await view();
+    expect(was.customer).toEqual({
+      deliveryFeeAmount: "11.00", grandTotalAmount: "20.00",
+      deliveryFee: { lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00" },
+    });
+    // ⚠ What the customer is sent is the lines and nothing else of how the fee was built.
+    expect(JSON.stringify(await orders.get(scope, s.customerId, r.orderId))).not.toMatch(/"km"|"plan"|"grams"|"basketCents"|"parts"|"inputs"/);
+
+    const DEAR = "00000000-0000-0000-0000-0000000000d7";
+    try {
+      // A dearer plan goes live, through the one function that makes a plan live.
+      await pool.query(`
+        INSERT INTO public.delivery_fee_plan (id, name, base_amount, today_premium_amount, rounding_step, floor_amount, cap_amount, created_by)
+          VALUES ('${DEAR}', 'Dearer plan', 20.00, 9.00, 0.50, 4.00, 90.00, 'test');
+        INSERT INTO public.delivery_distance_band (plan_id, upper_km, add_amount) VALUES ('${DEAR}', NULL, 10.00);
+        INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${DEAR}', 100000, 0.00);
+        SELECT public.delivery_plan_activate('${DEAR}', 'test', false);`);
+      expect(await view()).toEqual(was);
+      // The next shopper pays the new price — the plan really did change.
+      const next = await shopper({ Milk: 2 });
+      expect((await svc.createIntent(next.customerId, input(next.addressId), new Date())).deliveryFee!.totalAmount).toBe("30.00");
+
+      await pool.query(`UPDATE public.delivery_zone_postcode SET distance_km = 77 WHERE postcode = '3121'`);
+      expect(await view()).toEqual(was);
+
+      await pool.query(`DELETE FROM public.delivery_zone_postcode WHERE postcode = '3121'`);
+      expect(await view()).toEqual(was);
+    } finally {
+      await pool.query(`
+        INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by)
+          VALUES ('00000000-0000-0000-0000-0000000000e1', '3121', 3.40, 'manual', 'test')
+          ON CONFLICT (postcode) DO UPDATE SET distance_km = 3.40;
+        UPDATE public.delivery_fee_plan SET is_active = false WHERE id = '${DEAR}';
+        UPDATE public.delivery_fee_plan SET is_active = true WHERE id = '${PLAN}';`);
+    }
   });
 });

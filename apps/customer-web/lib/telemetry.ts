@@ -258,6 +258,13 @@ export type StorefrontEvent =
       name: "checkout_delivery_choice_refused"
       props: { reason: "slot_unavailable" | "date_unavailable" | "slot_required" }
     }
+  // 077 delivery fee.
+  //
+  // ⚠ THREE BOOLEANS AND NOTHING ELSE — never an amount. Whether free delivery, the small-order fee
+  // or a window surcharge appeared says how the business's pricing lands; a fee joined to a session
+  // says how far from the hub someone lives.
+  | { name: "delivery_fee_viewed"; props: { free: boolean; small_order: boolean; surcharge: boolean } }
+  | { name: "checkout_delivery_fee_changed"; props: Record<string, never> }
   // 051 payment experience.
   //
   // ⚠ WHAT THESE MAY NEVER CARRY, and the type is what enforces it: no card number (not even the last

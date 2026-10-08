@@ -1,15 +1,16 @@
-import type { DeliveryQuoteDTO } from "@effy/shared-types"
+import type { DeliveryFeeDTO, DeliveryQuoteDTO } from "@effy/shared-types"
 
 import { parseCents } from "@/lib/cart-totals"
 
 /**
- * What a quote lets the shopper choose, and what each choice costs (069).
+ * What a quote lets the shopper choose, and what each choice costs (069, 077).
  *
  * Pure, so the checkout flow, the options control and their tests agree on one reading of a quote.
  *
- * ⚠ THE FEE IS THE METHOD'S, NEVER THE SLOT'S OR THE DAY'S (FR-021). Every same-day slot costs the
- * same and every standard day costs the same; these functions sum the per-package option fees the
- * SERVER priced and add nothing. The server re-prices at the intent and never takes a fee from here.
+ * ⚠ 077: ONE FEE FOR THE ORDER, and a window may cost more than a later day. The server prices the
+ * order once with no window (`standardFee`) and once per open window (`sameDaySlots[].fee`); these
+ * functions PICK one and add nothing. The server re-prices at the intent and refuses if the total
+ * it works out is not the one shown (`shownDeliveryAmount`).
  */
 export type DeliveryMethodChoice = "standard" | "same_day"
 
@@ -46,7 +47,38 @@ export function shapeOf(quote: DeliveryQuoteDTO | null): DeliveryShape {
   }
 }
 
-/** The fee for one method, split into the part that goes same-day and the part that goes standard. */
+/**
+ * The delivery charge for what the shopper has chosen (077): the chosen window's fee when anything
+ * goes today, the later-day fee otherwise. Null when same-day is chosen but no window yet — there
+ * is no single charge to show until there is a window.
+ *
+ * ⚠ Against a server older than 077 (no `standardFee`), the old per-package sum stands in, as one
+ * "Delivery" line — so a deploy out of step never shows a blank.
+ */
+export function chosenFee(
+  quote: DeliveryQuoteDTO | null,
+  method: DeliveryMethodChoice,
+  slotId: string | null,
+): DeliveryFeeDTO | null {
+  if (!quote?.serviced) return null
+  const sameDay = method === "same_day" && shapeOf(quote).sameDayOffered
+  if (!quote.standardFee) {
+    const cents = feesFor(quote, method).totalCents
+    const amount = (cents / 100).toFixed(2)
+    return { lines: cents > 0 ? [{ kind: "delivery", amount }] : [], totalAmount: amount }
+  }
+  if (!sameDay) return quote.standardFee
+  const slot = (quote.sameDaySlots ?? []).find((s) => s.slotId === slotId)
+  return slot?.fee ?? null
+}
+
+/** Whether the fee shown is free because the basket reached the free-delivery amount. */
+export const isFreeDelivery = (fee: DeliveryFeeDTO | null): boolean => fee?.lines.some((l) => l.kind === "free_delivery") ?? false
+
+/**
+ * ⚠ COMPATIBILITY ONLY — a server older than 077 priced each package. The fee for one method, split
+ * into the part that goes same-day and the part that goes standard.
+ */
 export function feesFor(
   quote: DeliveryQuoteDTO | null,
   method: DeliveryMethodChoice,

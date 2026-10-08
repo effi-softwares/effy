@@ -148,7 +148,6 @@ export interface OrderDetail {
     currency: string;
     shopSubtotal: string;
     itemSubtotal: string;
-    deliveryFee: string;
     discount: string;
     promoCode: string | null;
     total: string;

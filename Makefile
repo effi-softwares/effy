@@ -25,7 +25,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
-        db-new db-status db-up db-down db-shopper-role check-goose \
+        db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
         live-guards purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
@@ -166,6 +166,23 @@ db-up: check-goose ## OPERATOR: apply pending migrations (confirm; FORCE=1 skips
 	printf 'goose UP  →  env=%s  host=%s\nContinue? [y/N] ' "$(ENV)" "$$HOST"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up
+
+# 077: ONE migration, not all of them. A feature whose first migration is additive and whose second
+# drops what the old code still reads needs a deploy between the two; `db-up` would apply both.
+# The process environment reaches goose unchanged — a migration that asks for an operator value
+# (`-- +goose ENVSUB ON`) reads it from here and raises when it is missing.
+db-up-one: check-goose ## OPERATOR: apply ONE pending migration (confirm; FORCE=1 skips the commit guard)
+	@if [ -z "$(FORCE)" ] && [ -n "$$(git status --porcelain $(MIGRATIONS_DIR))" ]; then \
+		echo "db-up-one BLOCKED: uncommitted changes under $(MIGRATIONS_DIR) — migrations must be committed before applying"; \
+		echo "(FORCE=1 to override while privately iterating on your own latest migration)"; \
+		git status --porcelain $(MIGRATIONS_DIR); \
+		exit 1; \
+	fi
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+	HOST=$$(printf '%s\n' "$$DSN" | tr ' ' '\n' | sed -n 's/^host=//p'); \
+	printf 'goose UP-BY-ONE  →  env=%s  host=%s\nContinue? [y/N] ' "$(ENV)" "$$HOST"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing applied"; exit 1; }; \
+	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose up-by-one
 
 # 070: the shopper-facing services (edge storefront + commerce) connect as a connection-limited role
 # so a shopper burst cannot starve staff, shop and driver services. The migration creates the role

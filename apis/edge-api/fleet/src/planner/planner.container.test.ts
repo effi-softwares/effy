@@ -69,27 +69,12 @@ async function makeShop(name: string, code: string): Promise<string> {
   return r.rows[0].id;
 }
 
-/**
- * ⚠ Rings are NOT seeded by the migrations — 047 creates the table and back-office fills it. A
- * fixture that assumed otherwise would fail here rather than in dev, which is the point of building
- * on the real schema.
- */
-async function ensureRing(): Promise<string> {
-  const existing = await q(`SELECT id FROM public.delivery_ring ORDER BY ordinal LIMIT 1`);
-  if (existing.rows[0]) return existing.rows[0].id;
-  const r = await q(
-    `INSERT INTO public.delivery_ring (code, name, ordinal, status, updated_by)
-     VALUES ('INNER', 'Inner', 1, 'active', 'test') RETURNING id`,
-  );
-  return r.rows[0].id;
-}
-
 async function makeZone(name: string, postcode: string): Promise<string> {
-  const ringId = await ensureRing();
+  // A coverage group (076). ⚠ No fee tier: 077 removed them, and the planner never priced anything.
   const r = await q(
-    `INSERT INTO public.delivery_zone (code, name, ring_id, status, updated_by)
-     VALUES ($1, $2, $3, 'active', 'test') RETURNING id`,
-    [`Z-${postcode}`, name, ringId],
+    `INSERT INTO public.delivery_zone (code, name, status, updated_by)
+     VALUES ($1, $2, 'active', 'test') RETURNING id`,
+    [`Z-${postcode}`, name],
   );
   await q(LISTED_POSTCODE_FIXTURE_SQL, [
     r.rows[0].id,

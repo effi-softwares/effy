@@ -1,8 +1,8 @@
 # Delivery console — operator guide
 
 **Who this is for:** back-office admins/managers who configure where Effy delivers and what it costs.
-**Where it lives:** Back-office → **Delivery** (left nav). Features 047 (fee engine), 069 (slots and days)
-and 076 (coverage).
+**Where it lives:** Back-office → **Delivery** (left nav). Features 047 (collection runs), 069 (slots and
+days), 076 (coverage) and 077 (pricing).
 
 > **The one rule to remember.** Whether Effy delivers to an address is decided by **one** thing: is the
 > address's postcode on the **Coverage list**. If it is, the address is **Delivered by Effy**. If it is
@@ -10,8 +10,11 @@ and 076 (coverage).
 > address book and at checkout. **No shop setting changes this**, and neither does a group.
 
 > ⚠ **Changed by 076 (October 2026).** Zones, distance tiers ("rings") and per-shop same-day exceptions
-> **no longer have controls**. They were replaced by one flat list of postcodes. The fee and the same-day
-> offer still work as before for now, from the settings as they stood — see "What is frozen" below.
+> **no longer have controls**. They were replaced by one flat list of postcodes.
+>
+> ⚠ **Changed by 077 (October 2026).** Delivery is priced **once per order** — never per shop — from the
+> postcode's own distance, the basket's weight, the basket's value and the chosen window. Distance tiers
+> and the same-day multiplier are **gone**. See **Tab — Pricing**.
 
 ---
 
@@ -28,7 +31,7 @@ and 076 (coverage).
 - **Coverage** is the list of postcodes Effy delivers to. It decides *whether* we deliver.
 - A **group** is a name you file postcodes under. It decides nothing a customer sees.
 - Every listed postcode has a **distance** from the hub — worked out, or entered by hand.
-- The active **fee plan** turns (distance tier + basket weight + speed) into a dollar figure.
+- The active **fee plan** turns (distance + basket weight + basket value + window) into ONE fee for the order.
 - **Same-day**, **Time slots** and **Delivery days** decide which delivery times appear.
 - **Settings** holds the hub (where distances are measured from) and the same-day prep buffer.
 
@@ -97,59 +100,75 @@ postcodes you exclude here (each with a reason, e.g. "No chilled courier service
 ### What is frozen (until later delivery features)
 | Was controlled by | Now |
 |---|---|
-| A zone's **distance tier (ring)** | Postcodes that were in a zone before 076 keep that zone's tier — **nobody's fee changed**. A postcode added since takes the tier its distance falls in. Tiers can no longer be created or edited. |
+| A zone's **distance tier (ring)** | **Removed by 077.** Every postcode is priced from its own distance (Tab — Pricing). |
 | A zone's **same-day** switch | Kept as it stood for postcodes that had one. Everything added since is same-day eligible. |
 | **Per-shop same-day exceptions** | Kept as they stood. They can no longer be added or changed. |
 
 ---
 
-## Tab 3 — Fee plans
+## Tab — Pricing (077)
 
-**What it is:** the pricing rule sets. You can keep **several** plans (a launch plan, a seasonal plan, a
-fuel-surcharge plan) but **exactly one is active** at a time. The active plan is what every new quote is
-priced against.
+**What it is:** what delivery costs. Two kinds of plan, each with **exactly one in force**:
 
-### The fee formula (what the engine does per package)
+- **Delivered by Effy** — every order to a postcode on the Coverage list.
+- **Courier** — a courier fee table. Nothing is charged from it until customers can place courier orders,
+  but courier delivery **cannot be switched on** without one in force.
+
+You can keep several plans of each kind (a launch plan, a summer plan) — drafts, the one in force, and
+retired ones kept as the record of what was charged.
+
+### The fee (one per order — never per shop)
 ```
-fee = clamp(  round-UP( method_factor × ( ring_price + weight_add ) , rounding_step ),  floor,  cap )
+delivery = clamp( round-UP( base + distance band + weight band + window surcharge , step ), minimum, maximum )
+basket ≥ free-delivery amount   → delivery is $0 (the window surcharge too)
+basket < small-order amount     → + small-order fee (its own line, outside the maximum)
 ```
-- **ring_price** — the price for the destination zone's ring (from this plan).
-- **weight_add** — the add for the basket's weight slab (from this plan).
-- **method_factor** — `standard_factor` (usually 1.0) or `same_day_factor` (always ≥ standard).
-- **round-UP** — snapped up to the `rounding_step` (e.g. the next $0.50) — never down.
-- **floor / cap** — the fee is never below the floor (never free / never below cost) and never above the cap.
+- **Distance band** — from the hub to the postcode, straight line (the distance on the Coverage list). A
+  distance exactly on a boundary takes the **lower** band. The **last band has no upper limit**, so a
+  postcode added later at any distance is priced without touching the plan.
+- **Weight band** — the **whole basket's** weight. The heaviest band also prices everything above it.
+- **Basket value** — the goods **after** any promotion, **before** delivery. Paying with points does not
+  change it.
+- **Window surcharge** — **Delivery today** is added to any window today (this is what makes same-day a
+  bit dearer). A window can also carry its own surcharge on any day (a busy evening, say). Surcharges
+  belong to the **plan**: replacing the plan never edits a window.
+- **Round up / minimum / maximum** — snapped **up** to the step, never down; held between the two.
 
-### The fields in "New plan"
-| Field | Meaning | Seeded value |
-|---|---|---|
-| **Name** | your label. | "Melbourne Launch 2026" |
-| **Rounding step** | the grid every fee snaps up to. | $0.50 |
-| **Floor** | minimum fee, ever. Your "never lose money on a delivery" guard. | $4.00 |
-| **Cap** | maximum fee, ever (stops an extreme basket/ring producing an absurd number). | $40.00 |
-| **Standard factor (b)** | the multiplier for standard delivery. | 1.000 |
-| **Same-day factor (a ≥ b)** | the multiplier for same-day — always at least the standard factor. | 1.600 |
-| **Ring prices** | one price per ring (the distance component). | $5 / $7 / $10 / $15 |
-| **Weight slabs** | "grams ≤ → add $". The top slab is **open-ended** (a heavier basket takes it). | ≤5 kg +$0, ≤10 kg +$2, ≤20 kg +$4.50, ≤40 kg +$8 |
+**A basket from three shops costs the same to deliver as the same goods from one.** Effy collects to the
+hub and delivers once.
 
-**The rules the form enforces** (so a bad plan can't reach a shopper): same-day factor ≥ standard factor;
-floor and cap are multiples of the step (so *every* fee, even a capped one, lands on a clean $x.00/$x.50);
-cap ≥ floor.
+### Building a plan
+**New plan** (or **Copy to new draft** on any plan) opens the editor: Amounts · Distance bands · Weight bands
+· Basket rules · Window surcharges. **Saving a draft changes no fee.** What the draft is still missing is
+listed at the top in plain words, for example *"The distance bands stop at 30 km. Add a last band with no
+upper limit, so every distance has a price."*
+
+Values are checked when you save (each problem is shown on its field): amounts on the rounding step,
+minimum ≤ maximum, the small-order amount **below** the free-delivery amount, a courier table without
+distance bands, window surcharges or a small-order fee.
 
 ### Activating a plan
-**Activate** makes a plan the one live plan. It is **refused** — with the gap named — unless the plan can
-price **every** served zone: every active ring must have a price, and there must be at least one weight
-slab. This is the safety net that guarantees *a served zone can never fail to produce a price*.
+**Activate** makes a draft the one in force for its kind, and retires the one before it in the same moment
+— there is never a moment with none or two. It is refused, with every gap named, unless the plan prices
+every distance and every weight, and a farther or heavier delivery never costs less. A **$0 minimum** must
+be confirmed in words. A plan that has been active **cannot be edited or brought back** — copy it.
 
-Switching plans changes **only what new quotes cost**. It does **not** touch zones or same-day eligibility,
-and it never re-prices an order that was already quoted — a captured order keeps the fee it was shown.
+Activating changes **only what new checkouts cost**. An order already placed keeps the fee it was sold,
+line by line — its receipt never changes. A customer on the payment step when the plan changes is shown the
+new total before they can pay.
 
-### Worked examples (with the seeded plan)
-| Address | Basket | Standard | Same-day |
+### Try a plan (the simulator)
+Pick any plan (or "the one in force"), a postcode, a weight, a basket value and a window. You see what the
+customer would see — the lines and the total — and every step that built it. It changes nothing, and
+customer-service agents can use it to explain a fee on the phone. For an order already placed, open the
+order: **"How the delivery fee was built"** shows the steps it was actually priced with.
+
+### Worked examples (the dev seed plan: base $0, ≤10 km +$5, ≤25 km +$7, ≤50 km +$10, beyond +$15; ≤5 kg +$0, ≤10 kg +$2; today +$3)
+| Address | Basket | Later day | A window today |
 |---|---|---|---|
-| Richmond 3121 (INNER) | 3 kg | (5+0)×1.0 = **$5.00** | 5×1.6 = **$8.00** |
-| Richmond 3121 (INNER) | 12 kg | (5+4.50)×1.0 = **$9.50** | 9.50×1.6 = 15.20 → **$15.50** |
-| Werribee 3030 (OUTER) | 8 kg | (10+2)×1.0 = **$12.00** | not offered (zone not eligible) |
-| Ballarat 3350 (EXTENDED) | 15 kg | (15+4.50) = **$19.50** | not offered |
+| Richmond 3121 (~3 km) | 3 kg | **$5.00** | **$8.00** |
+| Richmond 3121 | 8 kg, from two shops | **$7.00** | **$10.00** |
+| Geelong 3220 (~65 km) | 3 kg | **$15.00** | not offered (group not same-day) |
 
 ---
 
@@ -289,12 +308,13 @@ free. A basket's weight is the sum of its items; the engine picks the matching w
 
 ## What the customer sees (and never sees)
 
-**Sees:** whether we deliver to their address; a single, **GST-inclusive**, rounded delivery fee shown
-**before they pay**; a standard/same-day choice when same-day is available; a plain "we don't deliver here
-yet" when it isn't.
+**Sees:** whether we deliver to their address; the delivery charge **before they pay**, as plain lines —
+Delivery, Window surcharge, Small-order fee, Free delivery — that add up to one GST-inclusive total; each
+window's surcharge before choosing it; "Spend $N more for free delivery"; and the same lines on the order
+page, receipt and email.
 
-**Never sees:** a distance figure, a ring name, or which shop fulfils their order. The banded, tier-based
-pricing is deliberate so a fee can't be traced back to one shop (Effy's fulfilment is hidden by design).
+**Never sees:** a distance, a band, a weight, a plan name, the hub's location, or how many shops are behind
+the order — one fee per order is what makes that true.
 
 ---
 
@@ -304,8 +324,8 @@ pricing is deliberate so a fee can't be traced back to one shop (Effy's fulfilme
   work.
 - **Change** (create/activate/toggle/settings): **admin** or **manager** only. The backend enforces this
   independently of what the UI shows.
-- Every change — a zone edit, a ring, a plan activation, a same-day toggle or exception, a settings save —
-  is recorded with **who** made it and **when**.
+- Every change — a coverage edit, a fee plan saved or activated, a settings save — is recorded with **who**
+  made it, **when**, and what it was before and after.
 - ⚠ Fees and same-day are **back-office decisions only**. The shop console has no control over any of them.
 
 ---
@@ -319,6 +339,9 @@ pricing is deliberate so a fee can't be traced back to one shop (Effy's fulfilme
   the shown fee is what's charged, which it always is.
 - The **floor** is the "never lose money on a single delivery" guard; the **cap** keeps extreme baskets
   sane.
+- A **small-order fee** and a **window surcharge** are shown as their own lines **before** the customer
+  chooses and pays, under one total that is at least as prominent (component pricing, ACL s 48). "Free
+  delivery" is free — surcharge included — so the claim stays true. *(Not legal advice; for your adviser.)*
 
 ---
 
@@ -327,14 +350,15 @@ pricing is deliberate so a fee can't be traced back to one shop (Effy's fulfilme
 1. **Settings** → set the hub (lat/lng) + prep buffer.
 2. **Coverage** → **Add places** by name. Optionally create groups and file postcodes under them. Check
    every group (and "No group") shows at least one driver who can deliver there.
-3. **Fee plans** → build a plan (price every tier + at least one weight slab, set factors/rounding/floor/
-   cap) → **Activate** it.
+3. **Pricing** → build a plan (distance bands ending in one with no limit, weight bands, step / minimum /
+   maximum, a "Delivery today" amount; free-delivery and small-order amounts if you want them) → try it
+   in the simulator → **Activate** it.
 4. **Same-day** → add collection runs.
 4a. **Time slots** (069) → create at least one slot. ⚠ Without one, same-day is offered to nobody.
 4b. **Delivery days** (069) → set the days with no delivery and check the two estimated timings.
 5. Test as a shopper: an address on the list says "Delivered by Effy" and shows a fee before pay; an
    address off it says "Sorry, we can't deliver to this address."
 
-*Spec & implementation detail: `specs/076-effy-delivery-coverage/` (coverage) and
-`specs/047-delivery-shipping-engine/` (fee plans, collection runs). Realistic dev seed:
+*Spec & implementation detail: `specs/076-effy-delivery-coverage/` (coverage),
+`specs/077-delivery-fee-engine-v2/` (pricing) and `specs/047-delivery-shipping-engine/` (collection runs). Realistic dev seed:
 `db/seeds/047_delivery_dev.sql`.*

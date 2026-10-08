@@ -177,6 +177,12 @@ data class Receipt(
      */
     val deliveryFeeAmount: String? = null,
     /**
+     * 077 — the same charge as the lines the shopper was sold (delivery, window surcharge, small-order
+     * fee, free delivery). Stored with the order and never re-priced. Null on an order placed before
+     * 077, which shows the single [deliveryFeeAmount] row instead.
+     */
+    val deliveryFee: DeliveryFee? = null,
+    /**
      * 027 — what a promotional code took off, as computed at PAYMENT, and the code itself. Read from the
      * ORDER rather than re-derived, so a receipt explains itself years later even if the code has since
      * changed or been disabled (FR-049). Null/"0.00" when none was used.
@@ -286,7 +292,31 @@ data class PlaceOrder(
     val standardDate: String? = null,
     /** 074 — whole points to pay with; 0 for none. The server re-decides the split and refuses rather than changes it. */
     val pointsToUse: Long = 0,
+    /**
+     * 077 — the delivery total this screen is SHOWING. If the server would now charge another, it
+     * refuses ([DeliveryFeeChanged]) and nothing is written or charged. Null sends no check.
+     */
+    val shownDeliveryAmount: String? = null,
 )
+
+/** 077 — one line of what delivery costs. Only [DeliveryFeeLineKind.FreeDelivery] is negative. */
+enum class DeliveryFeeLineKind { Delivery, WindowSurcharge, SmallOrder, FreeDelivery }
+
+data class DeliveryFeeLine(val kind: DeliveryFeeLineKind, val amount: String)
+
+/**
+ * 077 — what the shopper pays for delivery, in lines that sum to [totalAmount]. ⚠ Nothing else: no
+ * distance, weight or plan ever reaches the app (FR-032).
+ */
+data class DeliveryFee(val lines: List<DeliveryFeeLine>, val totalAmount: String) {
+    val free: Boolean get() = lines.any { it.kind == DeliveryFeeLineKind.FreeDelivery }
+}
+
+/**
+ * 077 — the delivery total changed between the quote and the pay button (a new fee plan went live,
+ * or the basket crossed a threshold). Nothing was charged. [quote] is what is on offer NOW.
+ */
+class DeliveryFeeChanged(val quote: DeliveryQuote?) : Exception("delivery fee changed")
 
 /** 074 — points as a way of paying, on a receipt: never a discount line. */
 data class PaymentSplit(val pointsUsed: Long, val pointsAmount: String, val cardAmount: String)
@@ -306,10 +336,13 @@ enum class PointsRefusal { BalanceChanged, ExceedTotal, CardRemainderTooSmall, P
 /** 074 — a points refusal, with the most points the server would accept when it said. */
 class PointsRefused(val reason: PointsRefusal, val maxPoints: Long?) : Exception("points refused: $reason")
 
-/** The two delivery methods (047). Same-day is always priced ≥ standard. */
+/** The two delivery methods (047). ⚠ Since 077 a method has no price; the order has one fee. */
 enum class DeliveryMethod { STANDARD, SAME_DAY }
 
-/** One open same-day delivery window (069). ⚠ No fee and no capacity: the fee is the method's. */
+/**
+ * One open same-day delivery window (069). ⚠ No capacity. ⚠ 077: a window MAY cost more — [fee] is
+ * the order's delivery charge with it chosen, [surchargeAmount] what it adds over a later day.
+ */
 data class DeliverySlot(
     val id: String,
     /** yyyy-mm-dd, Melbourne. */
@@ -318,6 +351,8 @@ data class DeliverySlot(
     val endAt: String,
     /** After this the slot can no longer be chosen. */
     val cutoffAt: String,
+    val surchargeAmount: String? = null,
+    val fee: DeliveryFee? = null,
 )
 
 /** Why same-day is not on offer (069 FR-004) — two different sentences to a shopper. */
@@ -351,9 +386,27 @@ data class DeliveryQuote(
     val standardPartAmount: String? = null,
     /** 074 — the shopper's spendable points; null when they have none. */
     val points: CheckoutPoints? = null,
+    /**
+     * 077 — the order's delivery charge with no window (a later day). Built from the legacy totals
+     * when the server is older than 077, so it is never null on a serviced quote.
+     */
+    val standardFee: DeliveryFee? = null,
+    /** 077 — how much more the basket needs for free delivery; null when unset or reached. */
+    val freeDeliveryRemainingAmount: String? = null,
 ) {
     /** Some deliveries can go today and some cannot. */
     val mixed: Boolean get() = sameDayAvailable && sameDayDeliveries < deliveries
+
+    /**
+     * 077 — the delivery charge for what is chosen: the window's fee when anything goes today, the
+     * later-day fee otherwise. Null while same-day is chosen and no window is — nothing to show yet.
+     * ⚠ The same rule as customer-web's `chosenFee`; the server re-prices and refuses a mismatch.
+     */
+    fun feeFor(method: DeliveryMethod, slotId: String?): DeliveryFee? {
+        if (!serviced) return null
+        if (method != DeliveryMethod.SAME_DAY || !sameDayAvailable) return standardFee
+        return slots.firstOrNull { it.id == slotId }?.fee
+    }
 
     companion object {
         val Unserviced = DeliveryQuote(serviced = false, sameDayAvailable = false, standardTotalAmount = "0.00", sameDayTotalAmount = null)

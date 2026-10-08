@@ -126,6 +126,43 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
   })
 })
 
+describe("ReceiptDocument — 077 delivery lines", () => {
+  it("shows the lines the order was sold with, and they reconcile to the total", () => {
+    render(
+      <ReceiptDocument
+        order={order({
+          deliveryFeeAmount: "12.00",
+          deliveryFee: {
+            lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "3.00" }, { kind: "small_order", amount: "3.00" }],
+            totalAmount: "12.00",
+          },
+          grandTotalAmount: "34.60",
+          discountAmount: "0.00",
+        })}
+      />,
+    )
+    expect(screen.getByText("Window surcharge")).toBeInTheDocument()
+    expect(screen.getByText("Small-order fee")).toBeInTheDocument()
+    const total = money(screen.getByText("Total paid").nextElementSibling!.textContent!)
+    expect(22.6 + 6 + 3 + 3).toBeCloseTo(total, 2)
+  })
+
+  it("a free delivery is shown as what was waived — not omitted as if nothing were known", () => {
+    render(
+      <ReceiptDocument
+        order={order({
+          deliveryFeeAmount: "0.00",
+          deliveryFee: { lines: [{ kind: "delivery", amount: "6.00" }, { kind: "free_delivery", amount: "-6.00" }], totalAmount: "0.00" },
+          grandTotalAmount: "22.60",
+          discountAmount: "0.00",
+        })}
+      />,
+    )
+    expect(screen.getByText("Free delivery")).toBeInTheDocument()
+    expect(screen.getByText("−$6.00")).toBeInTheDocument()
+  })
+})
+
 describe("ReceiptDocument — what a line must show (FR-003)", () => {
   /** The unit price has been on the wire since 019 and NO surface rendered it. */
   it("shows the unit price beside every line, not just the line total", () => {

@@ -24,12 +24,14 @@ export async function serviceableForPostcode(q: Queryable, postcode: string): Pr
 }
 
 /**
- * What the LIVE quote needs to price a listed postcode: its fee tier and whether same-day is on.
+ * What the LIVE quote still needs to know about a listed postcode beyond its distance: its group,
+ * and whether same-day is on there.
  *
- * ⚠ BOTH ARE BRIDGES. 076 replaced zones-in-distance-tiers with one flat list of postcodes and took
- * the controls for tiers and same-day zones out of the console — but the live checkout still sells
- * same-day/standard on a per-tier fee until later features replace it. So the old answers are kept,
- * frozen, for the postcodes that had them, and derived for the ones that never did.
+ * ⚠ THE SAME-DAY FLAG IS A BRIDGE. 076 took the controls for same-day zones out of the console, but
+ * the live checkout still sells same-day/standard until the checkout feature (E5) replaces it. So
+ * the old answer is kept, frozen, for the groups that had one, and is "yes" for everything since.
+ * ⚠ The FEE-TIER bridge that stood beside it ended with 077: a postcode is priced from its own
+ * distance (`coverageForPostcode(...).distanceKm`), and no reader of a tier may come back.
  */
 export interface Zone {
   /**
@@ -37,8 +39,6 @@ export interface Zone {
    * exceptions are keyed on it, so an ungrouped postcode has none.
    */
   id: string | null;
-  /** The distance tier the quote prices on. */
-  ringId: string | null;
   /** Same-day eligible by default (047 FR-037). */
   sameDayEligible: boolean;
 }
@@ -46,12 +46,9 @@ export interface Zone {
 /** `null` (no error) when the postcode is not on Effy's list. */
 export async function zoneForPostcode(q: Queryable, postcode: string): Promise<Zone | null> {
   const row = (
-    await q.query<{ id: string | null; ring_id: string | null; sameday_eligible: boolean }>(
+    await q.query<{ id: string | null; sameday_eligible: boolean }>(
       `
 		SELECT z.id::text AS id,
-		       -- BRIDGE until the fee engine (E3): a group that existed before 076 keeps its tier, so
-		       -- nobody's fee moved; anything listed or grouped since is tiered by its distance.
-		       COALESCE(z.ring_id, public.coverage_ring_for_km(zp.distance_km))::text AS ring_id,
 		       -- BRIDGE until the checkout feature (E5): a pre-076 group keeps its flag; everything
 		       -- else is same-day eligible, as the whole list is under the new model.
 		       COALESCE(z.sameday_eligible, true) AS sameday_eligible
@@ -62,7 +59,7 @@ export async function zoneForPostcode(q: Queryable, postcode: string): Promise<Z
       [postcode],
     )
   ).rows[0];
-  return row ? { id: row.id, ringId: row.ring_id, sameDayEligible: row.sameday_eligible } : null;
+  return row ? { id: row.id, sameDayEligible: row.sameday_eligible } : null;
 }
 
 /**

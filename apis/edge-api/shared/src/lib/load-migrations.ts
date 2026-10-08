@@ -47,7 +47,7 @@ export function migrationSql(range: MigrationRange = {}): string {
       const up = sql.indexOf("-- +goose Up");
       const down = sql.indexOf("-- +goose Down");
       if (up === -1) throw new Error(`${f} has no "-- +goose Up" section`);
-      return sql.slice(up, down === -1 ? undefined : down);
+      return substitute(sql.slice(up, down === -1 ? undefined : down), range.env);
     })
     .join("\n\n");
 }
@@ -63,6 +63,23 @@ export interface MigrationRange {
   before?: string;
   /** Apply only files that sort AT OR AFTER this prefix. */
   from?: string;
+  /**
+   * Values for the `${NAME}` placeholders a migration asks the operator for (077).
+   *
+   * ⚠ THIS LOADER IS NOT GOOSE. Goose substitutes the process environment into the statements a
+   * migration marks with `-- +goose ENVSUB ON`; this reads the file as text and substitutes nothing
+   * unless told to here. A migration that asks for a value must therefore treat an unsubstituted
+   * placeholder exactly like an unset variable — and the proof that goose itself applies the file
+   * correctly has to run goose (`fee.goose.container.test.ts`), not this.
+   */
+  env?: Readonly<Record<string, string>>;
+}
+
+function substitute(sql: string, env: MigrationRange["env"]): string {
+  if (!env) return sql;
+  let out = sql;
+  for (const [name, value] of Object.entries(env)) out = out.split("${" + name + "}").join(value);
+  return out;
 }
 
 /**
@@ -80,6 +97,11 @@ export interface MigrationRange {
 export const LISTED_POSTCODE_FIXTURE_SQL = `
   INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by)
   VALUES ($1, $2, 5, 'manual', 'test')`;
+
+/** Where the real migrations live — for a test that has to hand the directory to goose itself. */
+export function migrationsDir(): string {
+  return findMigrationsDir();
+}
 
 /** Walk up from this file until `db/migrations` appears — depth-independent (see the note above). */
 function findMigrationsDir(): string {

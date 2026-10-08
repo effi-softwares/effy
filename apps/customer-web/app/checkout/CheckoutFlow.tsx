@@ -8,11 +8,15 @@ import { useEffect, useMemo, useState } from "react"
 
 import {
   COVERAGE_REFUSAL_SENTENCE,
+  DELIVERY_FEE_CHANGED_CODE,
+  DELIVERY_FEE_WORDS,
   type AddressDTO,
   type CreateCheckoutIntentResponse,
   type DeliveryQuoteDTO,
 } from "@effy/shared-types"
 
+import { DeliveryFeeLines } from "@/components/delivery/DeliveryFeeLines"
+import { FreeDeliveryHint } from "@/components/delivery/FreeDeliveryHint"
 import { ActionButton } from "@/components/storefront/actions"
 import { updateAddress } from "@/lib/addresses/repo"
 import {
@@ -26,7 +30,8 @@ import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import {
   carryDay,
   carrySlot,
-  feesFor,
+  chosenFee,
+  isFreeDelivery,
   needs,
   shapeOf,
   type DeliveryMethodChoice,
@@ -154,10 +159,22 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     setStandardDate((prev) => carryDay(quote, prev))
   }, [quote, sameDayOfferable])
 
-  // The delivery fee is the sum of each package's option for the chosen method (falling back to standard
-  // per package). GST-inclusive, already snapped up by the server. Distance / shop identity never appear
-  // here (FR-018/033). ⚠ It does not depend on the slot or the day (069 FR-021).
-  const deliveryCents = useMemo(() => feesFor(quote, method).totalCents, [quote, method])
+  // 077 — ONE fee for the order, as the server priced it: the chosen window's when anything goes
+  // today, the later-day fee otherwise. Lines and a total; no distance, weight or plan ever reaches
+  // here (FR-032). Null while same-day is chosen and no window is — there is nothing to show yet.
+  const deliveryFee = useMemo(() => chosenFee(quote, method, slotId), [quote, method, slotId])
+  const deliveryCents = deliveryFee ? parseCents(deliveryFee.totalAmount) : 0
+
+  // 077 — once per fee the shopper is shown: whether it was free, had a small-order fee, or a
+  // surcharge. Booleans only (lib/telemetry.ts).
+  const feeShape = deliveryFee
+    ? `${isFreeDelivery(deliveryFee)}|${deliveryFee.lines.some((l) => l.kind === "small_order")}|${deliveryFee.lines.some((l) => l.kind === "window_surcharge")}`
+    : null
+  useEffect(() => {
+    if (!feeShape) return
+    const [free, small, surcharge] = feeShape.split("|").map((v) => v === "true")
+    capture({ name: "delivery_fee_viewed", props: { free: free!, small_order: small!, surcharge: surcharge! } })
+  }, [feeShape])
 
   const serviced = quote?.serviced === true
   const totalCents = parseCents(estimate.itemSubtotal) + deliveryCents
@@ -285,6 +302,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       // 074 — the points the shopper chose. The server re-decides the split and refuses what it cannot
       // honour; it never quietly changes the number.
       if (split.pointsUsed > 0) body.pointsToUse = split.pointsUsed
+      // 077 — the delivery total this page is SHOWING. If the server would now charge another (a new
+      // fee plan, a basket that crossed a threshold), it refuses and nothing is written or charged.
+      if (deliveryFee) body.shownDeliveryAmount = deliveryFee.totalAmount
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,6 +325,16 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setIntent(null)
         setStep("review")
         setError(refusal.message)
+        setQuoteEpoch((n) => n + 1)
+        return false
+      }
+      // 077 — the delivery total changed between the quote and the pay button. Nothing was charged.
+      // The new total is shown and the shopper presses pay again; it is never charged unseen.
+      if (res.status === 409 && data.code === DELIVERY_FEE_CHANGED_CODE) {
+        capture({ name: "checkout_delivery_fee_changed", props: {} })
+        setIntent(null)
+        setStep("review")
+        setError(DELIVERY_FEE_WORDS.feeChanged)
         setQuoteEpoch((n) => n + 1)
         return false
       }
@@ -550,7 +580,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         </div>
         {/* 069: the choice itself lives in the Delivery section; the summary states what was chosen
             and what it costs. The fee updates live; the server re-prices and never trusts a client fee. */}
-        <div>
+        {serviced && !quoting && deliveryFee && deliveryFee.lines.length > 0 ? (
+          // 077 — each charge its own named line (FR-028): they sum to the delivery in the total.
+          <DeliveryFeeLines fee={deliveryFee} currency={currency} />
+        ) : (
           <div className="flex items-center justify-between">
             <dt className="text-muted-foreground">Delivery</dt>
             <dd className="text-sm">
@@ -560,17 +593,23 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                 <span className="text-muted-foreground">Calculating…</span>
               ) : quote && !serviced ? (
                 <span className="text-destructive">Not available</span>
+              ) : serviced && !deliveryFee ? (
+                <span className="text-muted-foreground">Choose a delivery time</span>
               ) : serviced ? (
-                <span className="font-medium">
-                  {method === "same_day" && sameDayOfferable ? "Same-day" : "Standard"} ·{" "}
-                  {formatMoney(formatCents(deliveryCents), currency)}
-                </span>
+                <span className="font-medium">{formatMoney(formatCents(deliveryCents), currency)}</span>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
             </dd>
           </div>
-        </div>
+        )}
+        {serviced && !quoting ? (
+          <FreeDeliveryHint
+            remainingAmount={quote?.freeDeliveryRemainingAmount}
+            freeApplied={isFreeDelivery(deliveryFee)}
+            currency={currency}
+          />
+        ) : null}
         <div className="border-t pt-4">
           <div className="flex items-center justify-between">
             <dt className="text-lg">Total</dt>

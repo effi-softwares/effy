@@ -275,4 +275,39 @@ class CheckoutMappersTest {
     fun orderItemIdSurvivesTheMapper() {
         assertEquals("oi1", order(billing = null).toReceipt().items.single().orderItemId)
     }
+
+    // ── 077 — the delivery fee as lines ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `077 - a receipt carries the lines the order was sold with`() {
+        val dto = order(billing = null, deliveryFee = "9.00").copy(
+            deliveryFee = com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO(
+                lines = listOf(
+                    com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineDTO(
+                        amount = "6.00", kind = com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind.Delivery,
+                    ),
+                    com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineDTO(
+                        amount = "3.00", kind = com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind.WindowSurcharge,
+                    ),
+                ),
+                totalAmount = "9.00",
+            ),
+        )
+        val fee = assertNotNull(dto.toReceipt().deliveryFee)
+        assertEquals("9.00", fee.totalAmount)
+        assertEquals(
+            listOf(
+                com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "6.00",
+                com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.WindowSurcharge to "3.00",
+            ),
+            fee.lines.map { it.kind to it.amount },
+        )
+    }
+
+    @Test
+    fun `077 - an order placed before the fee engine has no lines, and keeps its single amount`() {
+        val r = order(billing = null, deliveryFee = "6.00").toReceipt()
+        assertNull(r.deliveryFee)
+        assertEquals("6.00", r.deliveryFeeAmount)
+    }
 }

@@ -140,16 +140,17 @@ ON CONFLICT (order_id, shop_id) DO NOTHING`,
     [orderId],
   );
 
-  // 2b. Copy the captured per-package delivery onto each fulfilment (047).
+  // 2b. Copy the captured per-package delivery METHOD onto each fulfilment (047).
+  //     ⚠ No fee is copied (077): delivery is priced once per order and lives on the order. A
+  //     fulfilment is a shop's portion, and a shop is never shown what delivery cost.
   //     ⚠ `promised_ready_at` IS DELIBERATELY NOT SET (069 research R2). The package's promised day
   //     is the CUSTOMER'S DELIVERY DAY; copying it would tell a shop that an order for next Thursday
   //     is not due until next Thursday, when a standard package waits at the HUB, not at the shop.
   await tx.query(
     `
 UPDATE public.shop_fulfillment sf
-SET delivery_method     = opd.method,
-    delivery_fee_amount = opd.delivery_fee_amount,
-    updated_at          = now()
+SET delivery_method = opd.method,
+    updated_at      = now()
 FROM public.order_package_delivery opd
 WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = $1`,
     [orderId],

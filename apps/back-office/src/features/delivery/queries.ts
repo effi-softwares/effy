@@ -2,8 +2,7 @@ import { infiniteQueryOptions, keepPreviousData, queryOptions, useMutation, useQ
 
 import {
   activatePlan, createCollectionRun, createPlan, deleteCollectionRun, getSettings, listCollectionRuns, listPlans,
-  listRings, putSettings,
-  type NewPlanBody,
+  putSettings, replacePlan, simulateFee,
   addNonDeliveryDate, createSlot, getDeliveryDays, listSlots, patchSlot, putDeliveryDays, removeNonDeliveryDate,
   addCourierExclusion, addCoveragePostcodes, createCoverageGroup, listCoverage, patchCoveragePostcodes,
   removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, setCourierOffered,
@@ -11,28 +10,39 @@ import {
 } from "./repo";
 import type {
   AddCoveragePostcodesRequest, DeliveryDaysInput, DeliverySettingsDTO, DeliverySlotInput, DeliverySlotPatch,
-  NonDeliveryDateInput, PatchCoveragePostcodesRequest,
+  FeePlanInput, FeePlanKind, FeeSimulationRequest, NonDeliveryDateInput, PatchCoveragePostcodesRequest,
 } from "@effy/shared-types";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
 // rather than hand-patching cached rows.
 const ROOT = ["back-office", "delivery"] as const;
 
-export const ringsQuery = () => queryOptions({ queryKey: [...ROOT, "rings"] as const, queryFn: listRings });
-export const plansQuery = () => queryOptions({ queryKey: [...ROOT, "plans"] as const, queryFn: listPlans });
+/** Root of every fee-plan query — what the live channel's `pricing` kind re-reads (features/live/routes.ts). */
+export const PLANS_ROOT = [...ROOT, "plans"] as const;
+export const plansQuery = (kind: FeePlanKind) => queryOptions({ queryKey: [...PLANS_ROOT, kind] as const, queryFn: () => listPlans(kind) });
 export const settingsQuery = () => queryOptions({ queryKey: [...ROOT, "settings"] as const, queryFn: getSettings });
 
 function invalidate(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: ROOT });
 }
 
-export function useCreatePlan() {
+export function useSavePlan() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (b: NewPlanBody) => createPlan(b), onSuccess: () => invalidate(qc) });
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string | null; body: FeePlanInput }) => (id ? replacePlan(id, body) : createPlan(body)),
+    onSuccess: () => invalidate(qc),
+  });
 }
 export function useActivatePlan() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (id: string) => activatePlan(id), onSuccess: () => invalidate(qc) });
+  return useMutation({
+    mutationFn: ({ id, confirmZeroFloor }: { id: string; confirmZeroFloor: boolean }) => activatePlan(id, confirmZeroFloor),
+    onSuccess: () => invalidate(qc),
+  });
+}
+/** ⚠ A mutation only in the HTTP sense: it changes nothing, so it invalidates nothing. */
+export function useSimulateFee() {
+  return useMutation({ mutationFn: (b: FeeSimulationRequest) => simulateFee(b) });
 }
 export function usePutSettings() {
   const qc = useQueryClient();

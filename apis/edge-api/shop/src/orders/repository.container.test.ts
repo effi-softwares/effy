@@ -253,7 +253,10 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     );
 
     const d = await readOrder(o.fulfillmentId, SHOP);
-    expect(d.money).toMatchObject({ shopSubtotal: "39.00", itemSubtotal: "39.00", deliveryFee: "5.00", total: "44.00", refunded: "10.00", net: "34.00" });
+    expect(d.money).toMatchObject({ shopSubtotal: "39.00", itemSubtotal: "39.00", total: "44.00", refunded: "10.00", net: "34.00" });
+    // ⚠ 077: what the customer paid for delivery is never sent to a shop (FR-038).
+    expect(d.money).not.toHaveProperty("deliveryFee");
+    expect(JSON.stringify(d)).not.toMatch(/delivery_?fee/i);
     expect(d.payment).toMatchObject({ state: "partially_refunded", methodBrand: "visa", methodLast4: "4242", amount: "44.00" });
     const milk = d.lines.find((l) => l.name === "Milk")!;
     expect(milk).toMatchObject({ unitPrice: "10.00", lineTotal: "30.00", refundedQuantity: 1 });

@@ -12,8 +12,9 @@ What you ordered:
 {{/each}}
 Items subtotal: {{subtotal}}
 {{#if hasDiscount}}{{discountLabel}}: -{{discountAmount}}
-{{/if}}{{#if hasDeliveryFee}}Delivery: {{deliveryFee}}
-{{/if}}Total paid: {{total}}
+{{/if}}{{#if hasDeliveryLines}}{{#each deliveryLines}}{{label}}: {{amount}}
+{{/each}}{{else}}{{#if hasDeliveryFee}}Delivery: {{deliveryFee}}
+{{/if}}{{/if}}Total paid: {{total}}
 {{#if hasPoints}}Paid with {{pointsPaid}}
 {{/if}}{{#if hasPaymentMethod}}Paid with {{paymentMethod}}
 {{/if}}

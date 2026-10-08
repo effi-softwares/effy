@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
+import com.effyshopping.customer.mobile.features.checkout.presentation.DeliveryFeeWords
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -77,10 +78,15 @@ class CheckoutViewModelTest {
         private val quote: DeliveryQuote = DeliveryQuote(
             serviced = true, sameDayAvailable = false, standardTotalAmount = "6.00", sameDayTotalAmount = null,
         ),
+        /** 077 — when set, the first intent is refused as "the delivery fee changed", with this quote. */
+        private var feeChangedTo: DeliveryQuote? = null,
     ) : CheckoutRepository {
         var lastOrder: PlaceOrder? = null
+        var intents = 0
         override suspend fun createIntent(order: PlaceOrder): CheckoutIntent {
             lastOrder = order
+            intents += 1
+            feeChangedTo?.let { feeChangedTo = null; throw com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged(it) }
             return CheckoutIntent(
                 orderId = "o1", orderNumber = "EFY-1", clientSecret = "cs",
                 publishableKey = "pk", grandTotalAmount = "10.00", currency = "AUD",
@@ -282,6 +288,64 @@ class CheckoutViewModelTest {
         vm.payNow()
         assertEquals(DeliveryMethod.SAME_DAY, sameDay.lastOrder?.deliveryMethod)
         assertEquals("evening", sameDay.lastOrder?.sameDaySlotId)
+    }
+
+    // ── 077: one delivery fee for the order ────────────────────────────────────────────────────
+
+    private fun fee(vararg lines: Pair<com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind, String>, total: String) =
+        com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee(
+            lines.map { com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine(it.first, it.second) }, total,
+        )
+
+    private val pricedSameDay = DeliveryQuote(
+        serviced = true, sameDayAvailable = true, standardTotalAmount = "6.00", sameDayTotalAmount = "9.00",
+        standardFee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "6.00", total = "6.00"),
+        slots = listOf(
+            com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot(
+                id = "evening", date = "2026-10-08", startAt = "2026-10-08T17:00:00+11:00", endAt = "2026-10-08T19:00:00+11:00",
+                cutoffAt = "2026-10-08T15:00:00+11:00", surchargeAmount = "3.00",
+                fee = fee(
+                    com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "6.00",
+                    com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.WindowSurcharge to "3.00",
+                    total = "9.00",
+                ),
+            ),
+        ),
+        standardDays = listOf("2026-10-09"), deliveries = 1, sameDayDeliveries = 1,
+    )
+
+    @Test
+    fun `077 - the fee shown is the chosen window's, and that total is sent with the order`() = runTest {
+        val checkout = FakeCheckout(quote = pricedSameDay)
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        assertEquals("6.00", ready(vm)?.deliveryFee?.totalAmount) // a later day, until same-day is chosen
+
+        vm.setMethod(DeliveryMethod.SAME_DAY)
+        assertEquals(null, ready(vm)?.deliveryFee) // nothing to show until a window is chosen
+        vm.setSlot("evening")
+        assertEquals("9.00", ready(vm)?.deliveryFee?.totalAmount)
+
+        vm.payNow()
+        assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
+    }
+
+    @Test
+    fun `077 - a delivery fee that changed is shown, nothing is paid, and paying again sends the new total`() = runTest {
+        val dearer = pricedSameDay.copy(standardFee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "7.50", total = "7.50"))
+        val checkout = FakeCheckout(quote = pricedSameDay, feeChangedTo = dearer)
+        val handoff = PaymentHandoff()
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout, handoff = handoff)
+
+        vm.payNow()
+        val s = ready(vm)!!
+        assertEquals(DeliveryFeeWords.FEE_CHANGED, s.error)
+        assertEquals("7.50", s.deliveryFee?.totalAmount)
+        assertFalse(s.handedOffToPayment)
+
+        vm.payNow()
+        assertEquals(2, checkout.intents)
+        assertEquals("7.50", checkout.lastOrder?.shownDeliveryAmount)
+        assertTrue(ready(vm)!!.handedOffToPayment)
     }
 
     @Test
