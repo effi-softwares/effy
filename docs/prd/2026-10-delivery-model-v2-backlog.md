@@ -123,7 +123,10 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 > **2026-10-08 — E3 (spec 077, Delivery Fee Engine v2) is built and deployed to dev** (walks V1–V17 open)
 > (`specs/077-delivery-fee-engine-v2/SIGNOFF.md`). One fee per ORDER from the postcode's own distance,
 > the basket's weight and value, and the window; the fee-tier bridge and the tier tables are gone; a
-> courier fee table exists and is charged to nobody yet. **Next: E4 (spec 078).**
+> courier fee table exists and is charged to nobody yet.
+
+> **2026-10-09 — E4 (spec 078, Effy Delivery Windows) is built and deployed to dev, switched off**
+> (`specs/078-effy-delivery-windows/SIGNOFF.md`) — details under E4. **Next: E5 (spec 079).**
 
 ## E0 — Cleanup & decision record (no spec)
 
@@ -423,7 +426,7 @@ delivery fees. Fees include GST.
 
 ---
 
-## E4 — Effy Delivery Windows: today + 3 days · spec 078
+## E4 — Effy Delivery Windows: today + 3 days · spec 078 — ✅ built 2026-10-08, deployed to dev 2026-10-09 (switched off)
 
 > **2026-10-08 — decided while specifying 078** (`specs/078-effy-delivery-windows/spec.md`):
 > - **Customer words stay "Same-day delivery" and "Standard delivery".** Same-day = today's windows
@@ -434,7 +437,7 @@ delivery fees. Fees include GST.
 > - **Built switched off; turned on at the cutover** (needs E8's hub dwell across days first).
 > - A later day's window closes at **that day's own cutoff** (no "day before" rule).
 >
-> **2026-10-08 — E4 (spec 078) is BUILT and checked by machine; not migrated, not deployed, switch off**
+> **2026-10-09 — E4 (spec 078) is built, migrated and deployed to dev; the switch is off** (walks V1–V10 open)
 > (`specs/078-effy-delivery-windows/SIGNOFF.md`). What it leaves for later epics:
 > - **E5** — the per-shop same-day bridge is not consulted by the new path; delete it. Add
 >   `order.delivery_type`: today "a `standard` package WITH a window is Effy's" is a convention held

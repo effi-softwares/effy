@@ -76,7 +76,7 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   and the driver service refuses every action (409 `round_not_open`). ⚠ The opening time is derived
   by `public.round_opens_at` only — never stored, never recomputed elsewhere. Off-duty drivers' uncollected
   work returns to the pool on the next pass.
-- ⚠ **EFFY DELIVERY WINDOWS ARE BUILT AND SWITCHED OFF (078).** One window per order: today's under
+- ⚠ **EFFY DELIVERY WINDOWS ARE LIVE IN DEV AND SWITCHED OFF (078).** One window per order: today's under
   **"Same-day delivery"**, one of the next N delivery days' (`effy_lookahead_days`, 3) under **"Standard
   delivery"** — the customer words STAY; "standard" now also means *Effy, on a later day, in a window*.
   - ⚠ **THE SWITCH** is `delivery_settings.delivery_model_v2_from` (NULL = off), read ONLY through
@@ -476,7 +476,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days (built, switched off; not yet migrated or deployed)
+- **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — deployed to dev, switched off until the cutover
 - **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab) — deployed to dev
 - **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
 - **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)

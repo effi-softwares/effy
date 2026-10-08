@@ -1,8 +1,11 @@
 # Sign-off: 078 — Effy Delivery Windows: today and the next delivery days
 
-**Status (2026-10-08)**: **built and checked by machine. NOT migrated, NOT deployed, NOT walked by a
-person — and switched off.** Everything below ran on local containers and test runners; nothing here
-touched dev. 62/62 tasks.
+**Status (2026-10-09)**: **built, checked by machine, migrated and deployed to dev — reported by the
+operator. NOT walked by a person, and still switched off.** The machine checks below ran on local
+containers and test runners; I did not read dev itself. 62/62 tasks.
+
+Not confirmed either way: `make apply ENV=dev` (the `EffyWindowsNoneDefined` alarm), the back-office and
+customer-web builds, and a customer mobile build.
 
 ## What changed
 

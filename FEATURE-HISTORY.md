@@ -4,8 +4,9 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**078-effy-delivery-windows — Effy Delivery Windows: today and the next delivery days.** ⚠ **BUILT AND
-CHECKED BY MACHINE (2026-10-08). NOT MIGRATED, NOT DEPLOYED, NOT WALKED — AND SWITCHED OFF.** Fourth
+**078-effy-delivery-windows — Effy Delivery Windows: today and the next delivery days.** ✅ **MIGRATED AND
+DEPLOYED TO DEV (2026-10-09, reported by the operator). ⚠ NOT WALKED BY A PERSON — V1–V10 remain — AND
+STILL SWITCHED OFF.** Fourth
 slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E4).
 Sign-off: [specs/078-effy-delivery-windows/SIGNOFF.md](specs/078-effy-delivery-windows/SIGNOFF.md).
@@ -50,10 +51,9 @@ Sign-off: [specs/078-effy-delivery-windows/SIGNOFF.md](specs/078-effy-delivery-w
   both still called a windowed package "needs handover".
 - ⚠ **NOT MINE, STILL RED**: two `shop` container tests fail with and without this feature —
   `attention/repository` (`column "id" does not exist`) and `orders/repository` (paging order).
-- **Still open (operator)**: `make db-up ENV=dev` → deploy `commerce`, `fleet`, `orders`,
-  `notifications` → `make apply ENV=dev` (one alarm) → back-office + customer-web builds → a customer
-  mobile build. Walks V1–V4 with the switch off; V5–V10 only with it turned on by hand in dev and
-  **turned off again**.
+- **Still open**: confirm `make apply ENV=dev` (one alarm), the back-office + customer-web builds and a
+  customer mobile build. Walks V1–V4 with the switch off; V5–V10 only with it turned on by hand in dev
+  and **turned off again**.
 
 **077-delivery-fee-engine-v2 — Delivery Fee Engine v2.** ✅ **MIGRATED AND DEPLOYED TO DEV
 (2026-10-08, reported by the operator). ⚠ NOT WALKED BY A PERSON — V1–V17 remain.** Third slice of the delivery model v2 programme
