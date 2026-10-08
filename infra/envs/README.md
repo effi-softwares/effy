@@ -46,6 +46,14 @@ DNS record are gone; the backend is the serverless services under `apis/edge-api
 service with `make edge-deploy SERVICE=<name> ENV=<env>`. A new environment needs no container
 infrastructure, and the constitution (v3, Principle III) forbids a plan from adding any.
 
+**Both API gateways come from the one `make apply`** (075): the shared gateway (customers, shops,
+drivers, public) and the staff gateway (back-office), each with its hostname, authorizers and SSM
+parameters. There is nothing to step through: the staged move dev went through in 2026-10 (a cutover
+variable and temporary forwarding routes) was removed once it had run. Each service stack then attaches
+to the gateway its `serverless*.yml` names; `inventory` deploys as **two** stacks
+(`SERVICE=inventory` and `SERVICE=inventory-staff`). After deploying, `make gateway-usage ENV=<env>`
+shows how full each is.
+
 What a new environment DOES need beyond `make apply`, in order: the migrations (`make db-up`), the
 shopper database role's password (`make db-shopper-role` — the migration creates the role unable to
 log in), the two payment-provider secrets in Secrets Manager, then each service.

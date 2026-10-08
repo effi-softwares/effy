@@ -1,81 +1,104 @@
-# Contract — Shared edge API Gateway (Terraform-owned; A3)
+# Contract — The gateways (Terraform-owned)
 
-**Feature**: 004 (amendment A3 — cold-path decomposition) · **Owner**: Terraform
-(`infra/envs/dev/edge-gateway.tf`) · **Consumers**: every `apis/edge-api/<service>/serverless.yml`.
+**Features**: 004 (A3 — one HTTP API, services attach by id) · **075** (a second one, for back-office)
+**Owner**: Terraform (`infra/envs/<env>/edge-gateway.tf`, `staff-gateway.tf`)
+**Consumers**: every `apis/edge-api/<service>/serverless*.yml`.
 
-The cost-optimized path is many independently deployable services behind **one** HTTP API. The
-API + the four per-pool JWT authorizers are created **once** in Terraform (the layer that owns
-Cognito/VPC/RDS) and referenced by id from each service (research F3, option a).
+There is **one backend** and **two HTTP gateways** in front of it (constitution v3.2.0, Principle III):
 
-## What Terraform creates + exports to SSM
+| | Shared gateway | Staff gateway |
+|---|---|---|
+| Used by | customer, shop, driver, public | back-office only |
+| Address | `https://<api_subdomain>.<env zone>` — `edge-api.dev.effyshopping.com` | `https://<staff_api_subdomain>.<env zone>` — `staff-api.dev.effyshopping.com` |
+| Authorizers | customer, shop, driver | **back-office only** |
+| Allowed browser origins | shop console, storefront, their localhost ports | back-office console, `http://localhost:5173` |
+| Stacks | `storefront` `commerce` `customer` `shop` `inventory` `driver` `notifications` | `admin` `fleet` `orders` `catalog` `inventory-staff` |
+| SSM prefix | `/effy/<env>/edge/` | `/effy/<env>/staff/` |
+| 5xx alarm | `effy-<env>-edge-api-5xx` | `effy-<env>-staff-api-5xx` |
 
-| SSM key (written by `edge-gateway.tf`) | Type | What | Consumed by |
-|---|---|---|---|
-| `/effy/<env>/edge/http_api_id` | String | the shared `aws_apigatewayv2_api` (HTTP) id | each service `provider.httpApi.id` |
-| `/effy/<env>/edge/api_endpoint` | String | the API invoke URL (host) | 005 console `VITE_API_BASE_URL`; smoke tests |
-| `/effy/<env>/edge/authorizer/customer_id` | String | JWT authorizer (customer pool) | routes: `authorizer.id` |
-| `/effy/<env>/edge/authorizer/driver_id` | String | JWT authorizer (driver pool) | routes: `authorizer.id` |
-| `/effy/<env>/edge/authorizer/shop_id` | String | JWT authorizer (shop pool) | routes: `authorizer.id` |
-| `/effy/<env>/edge/authorizer/back-office_id` | String | JWT authorizer (back-office/admin pool) | routes: `authorizer.id` |
+Which gateway and which service a new route belongs to: [path-assignment.md](./path-assignment.md).
 
-- Each `aws_apigatewayv2_authorizer` is `type = JWT`, `identity_sources =
-  ["$request.header.Authorization"]`, `jwt_configuration { issuer =
-  "https://cognito-idp.<region>.amazonaws.com/<pool_id>", audience = [<app_client_id>] }` — one per
-  pool, reading the existing 001 pool ids. **Exactly one authorizer per pool** (Principle IV) — a
-  cross-pool token is structurally rejected before any handler runs.
-- The API's **CORS** (approved dev origins incl. `http://localhost:5173` and `http://localhost:3000`)
-  and the **API-level 5xx CloudWatch alarm** live here too (they cannot live in a service that
-  attaches to an external API — research F1).
-- `$default` auto-deploy stage; owned by Terraform. Services never create/manage the stage.
+> **Why two.** An HTTP API holds at most **300 routes** and **300 integrations**. The route limit can
+> be raised by a quota request; the integration limit cannot, and this platform creates one
+> integration per function. On 2026-10-08 the shared gateway held 300 of each and a deployment was
+> refused. Back-office was 142 of them. A **third** gateway needs a constitution amendment.
 
-## What each service `serverless.yml` does (attach-only)
+## What Terraform creates and publishes
+
+| Parameter | What | Read by |
+|---|---|---|
+| `/effy/<env>/edge/http_api_id` | the shared HTTP API's id | `provider.httpApi.id` of every shared-gateway stack; the usage check |
+| `/effy/<env>/edge/api_endpoint` | the shared gateway's address | shop console, storefront, mobile apps; `make edge-health` |
+| `/effy/<env>/edge/api_default_endpoint` | its raw provider URL (break-glass, 010) | operator |
+| `/effy/<env>/edge/authorizer/{customer,shop,driver}_id` | one JWT authorizer per pool | routes: `authorizer.id` |
+| `/effy/<env>/staff/http_api_id` | the staff HTTP API's id | `provider.httpApi.id` of every staff-gateway stack; the usage check |
+| `/effy/<env>/staff/api_endpoint` | the staff gateway's address | back-office `VITE_API_BASE_URL`; `make edge-health` |
+| `/effy/<env>/staff/api_default_endpoint` | its raw provider URL | operator |
+| `/effy/<env>/staff/authorizer/back-office_id` | the staff gateway's one JWT authorizer | every authenticated back-office route |
+
+⚠ `/effy/<env>/edge/authorizer/back-office_id` **no longer exists** once an environment's move is
+complete. A stack that still reads it fails at deploy — loudly, which is the point.
+
+On both gateways:
+
+- Each authorizer is `JWT`, identity source `$request.header.Authorization`, issuer
+  `https://cognito-idp.<region>.amazonaws.com/<pool_id>`, audience = that pool's app clients.
+- **CORS** and the **5xx alarm** live in Terraform — a service that attaches to an external API cannot
+  configure them. A new console origin is a Terraform change.
+- `$default` auto-deploy stage, so paths carry no stage segment. Services never manage the stage.
+- A regional TLS 1.2 custom domain on the environment's wildcard certificate, one empty-path mapping.
+  The raw endpoint stays enabled.
+
+## What a stack does (attach only)
 
 ```yaml
 provider:
   httpApi:
-    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}   # external → no API/stage/CORS/authorizers here
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}      # or /edge/http_api_id
 functions:
   someRoute:
     events:
       - httpApi:
           method: GET
-          path: /admin/v1/me                          # /<service>/v1/... (research F4)
+          path: /admin/v1/me                              # /<service>/v<major>/…
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 ```
-- **Drops** (vs the pre-A3 single service): `provider.httpApi.authorizers`, `provider.httpApi.cors`,
-  the `!Ref HttpApi` 5xx alarm. **Keeps**: runtime/arch, `provider.vpc`, IAM, DB env, secret fetch,
-  per-function alarms.
-- Route keys must be unique across the whole API → disjoint `/<service>/` prefixes guarantee it.
 
-## Route inventory (live)
+- No API, stage, CORS or authorizer is declared in a service.
+- Route keys are unique per gateway; disjoint `/<service>/` prefixes guarantee it.
+- **A service whose routes belong on both gateways is two stacks from one directory** —
+  `inventory/serverless.yml` (shop routes, shared) and `inventory/serverless.staff.yml`
+  (`/inventory/v1/admin/…`, staff). Same `src/`, nothing copied. Deployed as
+  `SERVICE=inventory` and `SERVICE=inventory-staff`.
+- The route inventory is the stack files themselves; `make gateway-usage ENV=<env> BY=1` lists what is
+  deployed per service prefix.
 
-| Route | Service | Authorizer | Slice |
-|---|---|---|---|
-| `GET /admin/healthz` | admin | — (public) | 004 |
-| `GET /admin/v1/ping` | admin | back-office | 004 |
-| `GET /admin/v1/me` | admin | back-office | 005 |
-| `GET /admin/v1/admin-ping` | admin | back-office | 005 |
-| `GET /shop/healthz` | shop | — (public) | 004 |
-| `GET /shop/v1/status` | shop | — (public) | 004 |
-| `GET /shop/v2/status` | shop | — (public) | 004 |
-| `GET /shop/v1/ping` | shop | shop | 004 |
-| `GET /shop/v1/me` | shop | shop | **007** |
-| `GET /shop/v1/manager-ping` | shop | shop | **007** |
+## Refusals
 
-Adding a route to an existing version is **additive** (`versioning-policy.md` rule 3) and needs no
-Terraform change — unless it introduces a new pool, which would need a new authorizer.
+| Caller | At the staff gateway | At the shared gateway |
+|---|---|---|
+| no token, on an authenticated route | 401 | 401 |
+| customer / shop / driver token | **401** — no authorizer there accepts it | served on its own audience's routes, 401 on the others |
+| back-office token | accepted; the staff record then decides (403 if not permitted) | **401** on every route |
 
-**Approved CORS origins** (gateway-owned; a service on an external API cannot set them):
-`http://localhost:5173` (back-office) · `http://localhost:5174` (shop-web) · `http://localhost:3000`
-(reserved for customer-web).
+Verified against the live gateways by `make shop-verify-isolation` (it cannot be unit-tested), and held
+in the tree by `gateway-placement.contract.test.ts`.
+
+## How full each gateway is
+
+| | What | When it speaks |
+|---|---|---|
+| `gateway-capacity.contract.test.ts` | counts what the tree is **about to** deploy, per gateway | fails `pnpm test` past 300 |
+| `make gateway-usage ENV=<env>` | counts what **is** deployed | on demand; exits non-zero at ≥ 90% |
+| `gatewayUsage` (admin, hourly) | emits `GatewayUsagePercent` in `Effy/Platform`, by `gateway` and `limit` | alarms at 75% and 90%; its own failed-run alarm |
 
 ## Invariants
-- **Ordering**: `terraform apply` (API + authorizers + SSM) MUST precede any service deploy
-  (`${ssm:…}` resolves at deploy time). Then services deploy independently, any order.
-- **Deploy independence**: a service deploy/`remove` only touches its own routes on the shared API
-  (its own CFN stack). Authorizer/API **shape** changes are a coordinated Terraform change, not a
-  per-service deploy (the SSM id stays stable → no service redeploy unless the id changes).
-- **Smoke-test (research F2)**: verify a bare SSM-string `authorizer.id` deploys on SLS 3.40.0 on
-  one route before the full cutover; fallback `Fn::Sub`/resolved var.
+
+- **Ordering**: `terraform apply` (both gateways, authorizers, parameters) precedes any service deploy
+  — `${ssm:…}` resolves at deploy time. Then stacks deploy independently, in any order.
+- **Deploy independence**: a deploy or `remove` touches only that stack's routes on its gateway.
+- **Moving a stack between gateways** is a redeploy with the other gateway's two parameters: its routes
+  are created there and removed here in one deployment. To do it without an outage, see 075's
+  forwarding routes (`specs/075-staff-gateway/quickstart.md`).

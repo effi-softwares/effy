@@ -13,9 +13,13 @@
 # a public-safe pool id / client id / gateway address.
 
 locals {
-  # The backend gateway — the one address every surface calls (070: there is no second backend).
-  # shop-web uses /shop/v1/*; back-office uses /admin, /orders, /fleet, /catalog.
-  console_api_base_url = "https://${var.api_subdomain}.${module.dns.zone_name}" # https://edge-api.dev.effyshopping.com
+  # ⚠ TWO ADDRESSES SINCE 075 — one per gateway, one backend behind both.
+  #   shop-web     → the SHARED gateway: /shop/v1/*, /inventory/v1/* (its own stock routes).
+  #   back-office  → the STAFF gateway:  /admin, /orders, /fleet, /catalog, /inventory/v1/admin.
+  # Paths did not change in the move; only back-office's base address did.
+  shop_web_api_base_url = local.api_url # https://edge-api.dev.effyshopping.com
+
+  back_office_api_base_url = local.staff_api_url # https://staff-api.dev.effyshopping.com
 
   # ── SPA rewrite (research D3 / contracts § "SPA rewrite") ──────────────────────────────────────
   # Any path that is NOT a real static asset → /index.html with status 200 (a rewrite, not a redirect,
@@ -72,7 +76,7 @@ locals {
   shop_web_env = merge({
     VITE_COGNITO_USER_POOL_ID = module.shop_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.shop_pool.app_client_id
-    VITE_API_BASE_URL         = local.console_api_base_url
+    VITE_API_BASE_URL         = local.shop_web_api_base_url
 
     # ── 059 web push ─────────────────────────────────────────────────────────────────────────────
     # ⚠ ALL FIVE ARE PUBLIC BY DESIGN. They identify the Firebase project; they do not authorise.
@@ -96,7 +100,7 @@ locals {
   back_office_env = merge({
     VITE_COGNITO_USER_POOL_ID = module.back_office_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.back_office_pool.app_client_id
-    VITE_API_BASE_URL         = local.console_api_base_url
+    VITE_API_BASE_URL         = local.back_office_api_base_url
   }, local.telemetry_env)
 }
 

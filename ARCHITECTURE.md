@@ -196,9 +196,13 @@ export const handler = async (event) => {
 
 ### Two service shapes: sync HTTP vs async worker
 
-- **Sync HTTP (every audience)** — attaches to a shared HTTP gateway and gates each route with the
-  **per-pool JWT authorizer** for its audience (customer, driver, shop, back-office), with
-  record-backed authorization inside the handler. **Public routes** (catalogue reads, cart preview,
+- **Sync HTTP (every audience)** — attaches to one of **two HTTP gateways** and gates each route with
+  the **per-pool JWT authorizer** for its audience, with record-backed authorization inside the
+  handler. The **shared** gateway serves customer, driver, shop and public routes; the **staff**
+  gateway serves back-office and carries only the back-office authorizer (075, constitution v3.2.0),
+  so the audience boundary holds per gateway as well as per route. A service used by two audiences
+  on two gateways is two stacks from one source directory (`inventory`). How full each gateway is
+  is measured and alarmed ([docs/api/path-assignment.md](docs/api/path-assignment.md)). **Public routes** (catalogue reads, cart preview,
   health) simply omit the authorizer; an authorizer is per-route and all-or-nothing, so a capability
   offered to both guests and signed-in shoppers is two routes. Services are split **by audience and
   domain** — one audience per service is preferred. Cold starts are accepted.

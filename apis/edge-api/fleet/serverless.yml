@@ -1,7 +1,7 @@
 # edge-fleet — Effy fleet service (056-driver-management).
 #
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/CORS/
-# authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live under
+# Attaches to the Terraform-owned STAFF HTTP API (075; docs/api/shared-gateway.md): NO API/stage/CORS/
+# authorizers created here (those live in infra/envs/<env>/staff-gateway.tf). Routes live under
 # /fleet/. Every authenticated route uses the Terraform-owned BACK-OFFICE JWT authorizer (by id from
 # SSM) — an ATTACHMENT to an existing authorizer, not a new pool (Principle IV).
 #
@@ -57,7 +57,7 @@ provider:
     slice: 056-driver-management
     service: fleet
   httpApi:
-    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
@@ -149,7 +149,7 @@ functions:
           path: /fleet/v1/drivers
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   driverGetV1:
     handler: src/functions/driver-get-v1-get.handler
@@ -160,7 +160,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   driverUpdateV1:
     handler: src/functions/driver-update-v1-patch.handler
@@ -171,7 +171,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── US2 — onboarding, lifecycle, offboarding ────────────────────────────────────────────────────
   driverCreateV1:
@@ -183,7 +183,7 @@ functions:
           path: /fleet/v1/drivers
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   driverStatusV1:
     handler: src/functions/driver-status-v1-post.handler
@@ -194,7 +194,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   driverAuditV1:
     handler: src/functions/driver-audit-v1-get.handler
@@ -205,7 +205,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}/audit
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dutyV1:
     handler: src/functions/duty-v1-get.handler
@@ -216,7 +216,7 @@ functions:
           path: /fleet/v1/duty
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dutyEndV1:
     handler: src/functions/duty-end-v1-post.handler
@@ -227,7 +227,7 @@ functions:
           path: /fleet/v1/duty/{sessionId}/end
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── 061 — the vehicle register. A vehicle is Effy property, not a driver's attribute. ───────────
   # ── 069-delivery-slots-dates: same-day slots and the standard-delivery calendar ──────────────────
@@ -244,7 +244,7 @@ functions:
           path: /fleet/v1/delivery-slots
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverySlotCreateV1:
     handler: src/functions/delivery-slot-create-v1-post.handler
@@ -255,7 +255,7 @@ functions:
           path: /fleet/v1/delivery-slots
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverySlotUpdateV1:
     handler: src/functions/delivery-slot-update-v1-patch.handler
@@ -266,7 +266,7 @@ functions:
           path: /fleet/v1/delivery-slots/{slotId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryDaysGetV1:
     handler: src/functions/delivery-days-v1-get.handler
@@ -277,7 +277,7 @@ functions:
           path: /fleet/v1/delivery-days
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryDaysPutV1:
     handler: src/functions/delivery-days-v1-put.handler
@@ -288,7 +288,7 @@ functions:
           path: /fleet/v1/delivery-days
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryDaysDateAddV1:
     handler: src/functions/delivery-days-date-add-v1-post.handler
@@ -299,7 +299,7 @@ functions:
           path: /fleet/v1/delivery-days/dates
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryDaysDateRemoveV1:
     handler: src/functions/delivery-days-date-remove-v1-delete.handler
@@ -310,7 +310,7 @@ functions:
           path: /fleet/v1/delivery-days/dates/{day}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehiclesListV1:
     handler: src/functions/vehicles-list-v1-get.handler
@@ -321,7 +321,7 @@ functions:
           path: /fleet/v1/vehicles
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehicleCreateV1:
     handler: src/functions/vehicle-create-v1-post.handler
@@ -332,7 +332,7 @@ functions:
           path: /fleet/v1/vehicles
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehicleGetV1:
     handler: src/functions/vehicle-get-v1-get.handler
@@ -343,7 +343,7 @@ functions:
           path: /fleet/v1/vehicles/{vehicleId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehicleUpdateV1:
     handler: src/functions/vehicle-update-v1-patch.handler
@@ -354,7 +354,7 @@ functions:
           path: /fleet/v1/vehicles/{vehicleId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehicleStatusV1:
     handler: src/functions/vehicle-status-v1-post.handler
@@ -365,7 +365,7 @@ functions:
           path: /fleet/v1/vehicles/{vehicleId}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehicleHoldingIssueV1:
     handler: src/functions/vehicle-holding-issue-v1-post.handler
@@ -376,7 +376,7 @@ functions:
           path: /fleet/v1/vehicles/{vehicleId}/holdings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   vehicleHoldingReturnV1:
     handler: src/functions/vehicle-holding-return-v1-post.handler
@@ -387,7 +387,7 @@ functions:
           path: /fleet/v1/vehicles/{vehicleId}/holdings/current/return
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── 062 — clearances: who may do what work, where. Assigns nothing. ─────────────────────────────
   driverCapabilitiesV1:
@@ -399,7 +399,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}/capabilities
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   driverCapabilityGrantV1:
     handler: src/functions/driver-capability-grant-v1-post.handler
@@ -410,7 +410,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}/capabilities
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   driverCapabilityRevokeV1:
     handler: src/functions/driver-capability-revoke-v1-delete.handler
@@ -421,7 +421,7 @@ functions:
           path: /fleet/v1/drivers/{driverId}/capabilities/{capabilityId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   planWavesScheduled:
     handler: src/functions/plan-waves-scheduled.handler
@@ -448,7 +448,7 @@ functions:
           path: /fleet/v1/exceptions
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   exceptionsResolveV1:
     handler: src/functions/exceptions-resolve-v1-post.handler
@@ -460,7 +460,7 @@ functions:
           path: /fleet/v1/exceptions/{exceptionId}/resolve
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dispatchCustodyV1:
     handler: src/functions/dispatch-custody-v1-get.handler
@@ -472,7 +472,7 @@ functions:
           path: /fleet/v1/custody
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dispatchDayV1:
     handler: src/functions/dispatch-day-v1-get.handler
@@ -484,7 +484,7 @@ functions:
           path: /fleet/v1/dispatch/day
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dispatchRoundV1:
     handler: src/functions/dispatch-round-v1-get.handler
@@ -495,7 +495,7 @@ functions:
           path: /fleet/v1/dispatch/rounds/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dispatchReassignV1:
     handler: src/functions/dispatch-reassign-v1-post.handler
@@ -506,7 +506,7 @@ functions:
           path: /fleet/v1/dispatch/rounds/{id}/reassign
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dispatchUnassignV1:
     handler: src/functions/dispatch-unassign-v1-post.handler
@@ -517,7 +517,7 @@ functions:
           path: /fleet/v1/dispatch/rounds/{id}/unassign
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   dispatchReorderV1:
     handler: src/functions/dispatch-reorder-v1-post.handler
@@ -528,7 +528,7 @@ functions:
           path: /fleet/v1/dispatch/rounds/{id}/reorder
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   assignmentDriversV1:
     handler: src/functions/assignment-drivers-v1-get.handler
@@ -539,7 +539,7 @@ functions:
           path: /fleet/v1/dispatch/packages/{packageId}/drivers
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   assignmentAssignV1:
     handler: src/functions/assignment-assign-v1-post.handler
@@ -550,7 +550,7 @@ functions:
           path: /fleet/v1/dispatch/packages/{packageId}/assign
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   assignmentUnassignV1:
     handler: src/functions/assignment-unassign-v1-post.handler
@@ -561,7 +561,7 @@ functions:
           path: /fleet/v1/dispatch/packages/{packageId}/unassign
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   coverageV1:
     handler: src/functions/coverage-v1-get.handler
@@ -572,7 +572,7 @@ functions:
           path: /fleet/v1/coverage
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   readinessV1:
     handler: src/functions/readiness-v1-get.handler
@@ -583,7 +583,7 @@ functions:
           path: /fleet/v1/readiness
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
 resources:
   Resources:

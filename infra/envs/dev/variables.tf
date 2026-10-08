@@ -215,6 +215,22 @@ variable "api_subdomain" {
   default     = "edge-api"
 }
 
+variable "staff_api_subdomain" {
+  description = "Single label for the STAFF gateway (back-office only, 075) under this env's namespace → staff-api.dev.effyshopping.com. One label, for the same wildcard-certificate reason as api_subdomain, and never the same label as it."
+  type        = string
+  default     = "staff-api"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.staff_api_subdomain))
+    error_message = "staff_api_subdomain must be ONE lowercase DNS label (letters, digits, hyphens) — the wildcard certificate matches exactly one."
+  }
+
+  validation {
+    condition     = var.staff_api_subdomain != var.api_subdomain
+    error_message = "staff_api_subdomain must differ from api_subdomain — they are two gateways on two hostnames."
+  }
+}
+
 variable "dmarc_rua" {
   description = "Address receiving this namespace's DMARC aggregate reports (037 FR-017). Without it, monitor mode collects nothing and there is never evidence on which to tighten the policy."
   type        = string

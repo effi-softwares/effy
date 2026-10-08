@@ -1,8 +1,10 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
+
+import { functionsOf, listStacks } from "./serverless-stacks.js";
 
 /**
  * ⚠ EVERY SCHEDULED FUNCTION HAS AN ALARM THAT DOES NOT DEPEND ON ITS OWN CODE RUNNING.
@@ -23,32 +25,23 @@ const here = dirname(fileURLToPath(import.meta.url));
 const edgeApi = resolve(here, "../../..");
 const infra = resolve(edgeApi, "../../infra/envs/dev");
 
-/** `<service>/serverless.yml` → the keys of its functions that have a `schedule` event. */
+/**
+ * Every stack's functions that have a `schedule` event.
+ *
+ * ⚠ Through `listStacks()`, not by reading `<dir>/serverless.yml` (075): a service may deploy as
+ * more than one stack, and a scheduled function in the second file would otherwise be scheduled,
+ * unwatched, and invisible to this guard.
+ */
 function scheduledFunctions(): { service: string; key: string; name: string }[] {
-  const out: { service: string; key: string; name: string }[] = [];
-  for (const dir of readdirSync(edgeApi)) {
-    let yml: string;
-    try {
-      yml = readFileSync(resolve(edgeApi, dir, "serverless.yml"), "utf8");
-    } catch {
-      continue; // not a deployed service (shared, ops)
-    }
-    const service = /^service: (\S+)$/m.exec(yml)?.[1];
-    if (!service) throw new Error(`${dir}/serverless.yml names no service`);
-    const start = yml.indexOf("\nfunctions:");
-    const end = yml.indexOf("\nresources:", start);
-    const functions = yml.slice(start, end < 0 ? undefined : end);
-    const keys = [...functions.matchAll(/\n {2}([A-Za-z]\w*):\n/g)];
-    keys.forEach((m, i) => {
-      const body = functions.slice(m.index, keys[i + 1]?.index);
-      if (/\n\s+handler:/.test(body) && /-\s+schedule\b/.test(body)) out.push({ service, key: m[1]!, name: `${service}-dev-${m[1]}` });
-    });
-  }
-  return out;
+  return listStacks().flatMap((stack) =>
+    functionsOf(stack)
+      .filter((f) => f.scheduled)
+      .map((f) => ({ service: stack.service, key: f.key, name: `${stack.service}-dev-${f.key}` })),
+  );
 }
 
 const tf = readFileSync(resolve(infra, "background-functions.tf"), "utf8");
-const alarmed = [...tf.matchAll(/function\s*=\s*"(effy-edge-[a-z]+)-\$\{var\.env\}-(\w+)"/g)].map((m) => `${m[1]}-dev-${m[2]}`);
+const alarmed = [...tf.matchAll(/function\s*=\s*"(effy-edge-[a-z-]+?)-\$\{var\.env\}-(\w+)"/g)].map((m) => `${m[1]}-dev-${m[2]}`);
 
 /** Scheduled functions watched by a wired error alarm declared somewhere else. Each says where. */
 const ALARMED_ELSEWHERE: Record<string, string> = {

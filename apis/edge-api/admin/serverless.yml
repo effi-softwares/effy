@@ -1,6 +1,6 @@
 # edge-admin — Effy back-office/admin service (004-backend-bootstrap A3; hosts the
-# 005 back-office console's endpoints). Attaches to the Terraform-owned shared HTTP API
-# (shared-gateway.contract.md): NO API/stage/CORS/authorizers here. Routes live under /admin/.
+# 005 back-office console's endpoints). Attaches to the Terraform-owned STAFF HTTP API
+# (075; docs/api/shared-gateway.md): NO API/stage/CORS/authorizers here. Routes live under /admin/.
 service: effy-edge-admin
 frameworkVersion: "3"
 
@@ -38,7 +38,7 @@ provider:
     slice: 004-backend-bootstrap
     service: admin
   httpApi:
-    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
@@ -121,6 +121,18 @@ provider:
           Condition:
             StringEquals:
               cloudwatch:namespace: Effy/Mail
+        # ── 075: how full is each gateway? ──────────────────────────────────────────────────────────
+        #
+        # Read-only, and only the two lists the hourly `gatewayUsage` function counts, on exactly the
+        # two gateways this environment owns. ⚠ Not `apigateway:GET` on `*`: that reads every API in
+        # the account, including each one's authorizer configuration.
+        - Effect: Allow
+          Action: apigateway:GET
+          Resource:
+            - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/edge/http_api_id}/routes
+            - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/edge/http_api_id}/integrations
+            - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/staff/http_api_id}/routes
+            - arn:aws:apigateway:${aws:region}::/apis/${ssm:/effy/${sls:stage}/staff/http_api_id}/integrations
         # ── 046: feedback reply email (US3) ─────────────────────────────────────────────────────────
         #
         # ⚠ ses:SendEmail authorizes against EVERY resource the request touches, and 037 made every send
@@ -167,7 +179,7 @@ functions:
           path: /admin/v1/live
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   healthz:
     handler: src/functions/healthz-get.handler
@@ -194,7 +206,7 @@ functions:
           path: /admin/v1/ping
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   backOfficeMeV1:
     handler: src/functions/back-office-me-v1-get.handler
@@ -205,7 +217,7 @@ functions:
           path: /admin/v1/me
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   backOfficeAdminPingV1:
     handler: src/functions/back-office-admin-ping-v1-get.handler
@@ -216,7 +228,7 @@ functions:
           path: /admin/v1/admin-ping
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── Shop management (009). All back-office authorizer; read = any active staff, mutate = admin/manager. ──
   shopsListV1:
@@ -228,7 +240,7 @@ functions:
           path: /admin/v1/shops
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopGetV1:
     handler: src/functions/shop-get-v1-get.handler
@@ -239,7 +251,7 @@ functions:
           path: /admin/v1/shops/{shopId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopAuditV1:
     handler: src/functions/shop-audit-v1-get.handler
@@ -250,7 +262,7 @@ functions:
           path: /admin/v1/shops/{shopId}/audit
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopCreateV1:
     handler: src/functions/shop-create-v1-post.handler
@@ -261,7 +273,7 @@ functions:
           path: /admin/v1/shops
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopUpdateV1:
     handler: src/functions/shop-update-v1-patch.handler
@@ -272,7 +284,7 @@ functions:
           path: /admin/v1/shops/{shopId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopStatusV1:
     handler: src/functions/shop-status-v1-post.handler
@@ -283,7 +295,7 @@ functions:
           path: /admin/v1/shops/{shopId}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopDeleteV1:
     handler: src/functions/shop-delete-v1-delete.handler
@@ -294,7 +306,7 @@ functions:
           path: /admin/v1/shops/{shopId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopUserCreateV1:
     handler: src/functions/shop-user-create-v1-post.handler
@@ -305,7 +317,7 @@ functions:
           path: /admin/v1/shops/{shopId}/users
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   shopUserUpdateV1:
     handler: src/functions/shop-user-update-v1-patch.handler
@@ -316,7 +328,7 @@ functions:
           path: /admin/v1/shops/{shopId}/users/{userId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── Driver management MOVED OUT (056-driver-management). ──────────────────────────────────────
   # 049 landed five routes here as a "minimal provisioning adjunct" so the driver app had accounts to
@@ -349,7 +361,7 @@ functions:
           path: /admin/v1/promotions
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsCreateV1:
     handler: src/functions/promotions-create-v1-post.handler
@@ -360,7 +372,7 @@ functions:
           path: /admin/v1/promotions
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsDetailV1:
     handler: src/functions/promotions-detail-v1-get.handler
@@ -371,7 +383,7 @@ functions:
           path: /admin/v1/promotions/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsUpdateV1:
     handler: src/functions/promotions-update-v1-patch.handler
@@ -382,7 +394,7 @@ functions:
           path: /admin/v1/promotions/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsStatusV1:
     handler: src/functions/promotions-status-v1-post.handler
@@ -393,7 +405,7 @@ functions:
           path: /admin/v1/promotions/{id}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsDeleteV1:
     handler: src/functions/promotions-delete-v1-delete.handler
@@ -404,7 +416,7 @@ functions:
           path: /admin/v1/promotions/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsBannerImageV1:
     handler: src/functions/promotions-banner-image-v1-post.handler
@@ -415,7 +427,7 @@ functions:
           path: /admin/v1/promotions/{id}/banner-image/presign
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsAuditV1:
     handler: src/functions/promotions-audit-v1-get.handler
@@ -426,7 +438,7 @@ functions:
           path: /admin/v1/promotions/{id}/audit
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   orderPolicyReadV1:
     handler: src/functions/order-policy-v1-get.handler
@@ -437,7 +449,7 @@ functions:
           path: /admin/v1/order-policy
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   orderPolicyWriteV1:
     handler: src/functions/order-policy-v1-put.handler
@@ -448,7 +460,7 @@ functions:
           path: /admin/v1/order-policy
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── Catalog schema authority (016). All back-office authorizer; read = any active staff,
   #    mutate = admin/manager (contracts/admin-catalog.contract.md). Every mutation audits. ──
@@ -461,7 +473,7 @@ functions:
           path: /admin/v1/catalog/product-types
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeGetV1:
     handler: src/functions/catalog-product-types-get-v1-get.handler
@@ -472,7 +484,7 @@ functions:
           path: /admin/v1/catalog/product-types/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeCreateV1:
     handler: src/functions/catalog-product-types-create-v1-post.handler
@@ -483,7 +495,7 @@ functions:
           path: /admin/v1/catalog/product-types
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeUpdateV1:
     handler: src/functions/catalog-product-types-update-v1-patch.handler
@@ -494,7 +506,7 @@ functions:
           path: /admin/v1/catalog/product-types/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeStatusV1:
     handler: src/functions/catalog-product-types-status-v1-post.handler
@@ -505,7 +517,7 @@ functions:
           path: /admin/v1/catalog/product-types/{id}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeAssignV1:
     handler: src/functions/catalog-product-type-attributes-assign-v1-post.handler
@@ -516,7 +528,7 @@ functions:
           path: /admin/v1/catalog/product-types/{id}/attributes
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeAssignUpdateV1:
     handler: src/functions/catalog-product-type-attributes-update-v1-patch.handler
@@ -527,7 +539,7 @@ functions:
           path: /admin/v1/catalog/product-types/{id}/attributes/{attrId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogProductTypeUnassignV1:
     handler: src/functions/catalog-product-type-attributes-unassign-v1-delete.handler
@@ -538,7 +550,7 @@ functions:
           path: /admin/v1/catalog/product-types/{id}/attributes/{attrId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogAttributesListV1:
     handler: src/functions/catalog-attributes-list-v1-get.handler
@@ -549,7 +561,7 @@ functions:
           path: /admin/v1/catalog/attributes
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogAttributeGetV1:
     handler: src/functions/catalog-attributes-get-v1-get.handler
@@ -560,7 +572,7 @@ functions:
           path: /admin/v1/catalog/attributes/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogAttributeCreateV1:
     handler: src/functions/catalog-attributes-create-v1-post.handler
@@ -571,7 +583,7 @@ functions:
           path: /admin/v1/catalog/attributes
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogAttributeUpdateV1:
     handler: src/functions/catalog-attributes-update-v1-patch.handler
@@ -582,7 +594,7 @@ functions:
           path: /admin/v1/catalog/attributes/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogAttributeStatusV1:
     handler: src/functions/catalog-attributes-status-v1-post.handler
@@ -593,7 +605,7 @@ functions:
           path: /admin/v1/catalog/attributes/{id}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogAllowedValueDeleteV1:
     handler: src/functions/catalog-attribute-allowed-value-delete-v1-delete.handler
@@ -604,7 +616,7 @@ functions:
           path: /admin/v1/catalog/attributes/{id}/allowed-values/{valueId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogCategoriesListV1:
     handler: src/functions/catalog-categories-list-v1-get.handler
@@ -615,7 +627,7 @@ functions:
           path: /admin/v1/catalog/categories
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogCategoryCreateV1:
     handler: src/functions/catalog-categories-create-v1-post.handler
@@ -626,7 +638,7 @@ functions:
           path: /admin/v1/catalog/categories
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogCategoryUpdateV1:
     handler: src/functions/catalog-categories-update-v1-patch.handler
@@ -637,7 +649,7 @@ functions:
           path: /admin/v1/catalog/categories/{id}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   catalogCategoryStatusV1:
     handler: src/functions/catalog-categories-status-v1-post.handler
@@ -648,7 +660,7 @@ functions:
           path: /admin/v1/catalog/categories/{id}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
 # Alarms: see `resources:` at the end of this file — only ones that notify, and only for what the
 # gateway's 5xx alarm (Terraform, A3) cannot see.
@@ -684,6 +696,22 @@ functions:
     events:
       - schedule: rate(1 hour)
 
+  # ── 075: gateway usage ───────────────────────────────────────────────────────────────────────────
+  # ⚠ No route — and so no integration: the function that counts integrations must not be one.
+  # It lives here because it is platform health for the operator, beside the other hourly probe.
+  # Its failed-invocation alarm is infra/envs/<env>/background-functions.tf (gateway-usage); the
+  # 75% / 90% alarms on what it reports are infra/envs/<env>/gateway-usage.tf.
+  gatewayUsage:
+    handler: src/functions/gateway-usage-scheduled.handler
+    description: Hourly count of routes and integrations on both API gateways → Effy/Platform GatewayUsagePercent (075)
+    timeout: 30
+    environment:
+      # The one stack that reads BOTH gateways' ids: it measures both. It attaches only to staff.
+      SHARED_HTTP_API_ID: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+      STAFF_HTTP_API_ID: ${ssm:/effy/${sls:stage}/staff/http_api_id}
+    events:
+      - schedule: rate(1 hour)
+
   deliverabilityListV1:
     handler: src/functions/deliverability-list-v1-get.handler
     description: List addresses the platform cannot reach — 037
@@ -693,7 +721,7 @@ functions:
           path: /admin/v1/deliverability
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverabilityDetailV1:
     handler: src/functions/deliverability-detail-v1-get.handler
@@ -704,7 +732,7 @@ functions:
           path: /admin/v1/deliverability/{address}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverabilityRepairV1:
     handler: src/functions/deliverability-repair-v1-post.handler
@@ -715,7 +743,7 @@ functions:
           path: /admin/v1/deliverability/{address}/repair
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── 046: customer feedback console (US2/US3) ─────────────────────────────────────────────────────
   #
@@ -730,7 +758,7 @@ functions:
           path: /admin/v1/feedback
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   feedbackDetailV1:
     handler: src/functions/feedback-detail-v1-get.handler
@@ -741,7 +769,7 @@ functions:
           path: /admin/v1/feedback/{referenceCode}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   feedbackStatusV1:
     handler: src/functions/feedback-status-v1-post.handler
@@ -752,7 +780,7 @@ functions:
           path: /admin/v1/feedback/{referenceCode}/status
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   feedbackNoteV1:
     handler: src/functions/feedback-note-v1-post.handler
@@ -763,7 +791,7 @@ functions:
           path: /admin/v1/feedback/{referenceCode}/notes
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   feedbackReplyV1:
     handler: src/functions/feedback-reply-v1-post.handler
@@ -774,7 +802,7 @@ functions:
           path: /admin/v1/feedback/{referenceCode}/reply
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── Delivery configuration (047): distance rings + shipping-fee plans ──────────────────────────────
   deliveryRingsListV1:
@@ -786,7 +814,7 @@ functions:
           path: /admin/v1/delivery/rings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryRingsCreateV1:
     handler: src/functions/delivery-rings-create-v1-post.handler
@@ -797,7 +825,7 @@ functions:
           path: /admin/v1/delivery/rings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryPlansListV1:
     handler: src/functions/delivery-plans-list-v1-get.handler
@@ -808,7 +836,7 @@ functions:
           path: /admin/v1/delivery/plans
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryPlansCreateV1:
     handler: src/functions/delivery-plans-create-v1-post.handler
@@ -819,7 +847,7 @@ functions:
           path: /admin/v1/delivery/plans
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryPlanActivateV1:
     handler: src/functions/delivery-plan-activate-v1-post.handler
@@ -830,7 +858,7 @@ functions:
           path: /admin/v1/delivery/plans/{planId}/activate
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryZonesListV1:
     handler: src/functions/delivery-zones-list-v1-get.handler
@@ -841,7 +869,7 @@ functions:
           path: /admin/v1/delivery/zones
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryZonesCreateV1:
     handler: src/functions/delivery-zones-create-v1-post.handler
@@ -852,7 +880,7 @@ functions:
           path: /admin/v1/delivery/zones
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryZonesPatchV1:
     handler: src/functions/delivery-zones-patch-v1-patch.handler
@@ -863,7 +891,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryPostcodeCheckV1:
     handler: src/functions/delivery-postcode-check-v1-get.handler
@@ -874,7 +902,7 @@ functions:
           path: /admin/v1/delivery/postcode-check
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryZonePostcodeAddV1:
     handler: src/functions/delivery-zone-postcode-add-v1-post.handler
@@ -885,7 +913,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}/postcodes
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryZonePostcodeRemoveV1:
     handler: src/functions/delivery-zone-postcode-remove-v1-delete.handler
@@ -896,7 +924,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}/postcodes/{postcode}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryZoneSuggestRingV1:
     handler: src/functions/delivery-zone-suggest-ring-v1-post.handler
@@ -907,7 +935,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}/suggest-ring
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverySettingsGetV1:
     handler: src/functions/delivery-settings-get-v1-get.handler
@@ -918,7 +946,7 @@ functions:
           path: /admin/v1/delivery/settings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliverySettingsPutV1:
     handler: src/functions/delivery-settings-put-v1-put.handler
@@ -929,7 +957,7 @@ functions:
           path: /admin/v1/delivery/settings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryCollectionRunsListV1:
     handler: src/functions/delivery-collection-runs-list-v1-get.handler
@@ -940,7 +968,7 @@ functions:
           path: /admin/v1/delivery/collection-runs
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryCollectionRunsCreateV1:
     handler: src/functions/delivery-collection-runs-create-v1-post.handler
@@ -951,7 +979,7 @@ functions:
           path: /admin/v1/delivery/collection-runs
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryCollectionRunDeleteV1:
     handler: src/functions/delivery-collection-run-delete-v1-delete.handler
@@ -962,7 +990,7 @@ functions:
           path: /admin/v1/delivery/collection-runs/{runId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryExceptionsListV1:
     handler: src/functions/delivery-exceptions-list-v1-get.handler
@@ -973,7 +1001,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryExceptionPutV1:
     handler: src/functions/delivery-exception-put-v1-put.handler
@@ -984,7 +1012,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   deliveryExceptionDeleteV1:
     handler: src/functions/delivery-exception-delete-v1-delete.handler
@@ -995,7 +1023,7 @@ functions:
           path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions/{shopId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
 resources:
   Resources:

@@ -24,12 +24,12 @@ reveals a specification or plan gap, return to the appropriate earlier artifact 
 
 ## Where backend code goes
 
-**Every API is written in `apis/edge-api/`** — serverless TypeScript services behind one gateway,
+**Every API is written in `apis/edge-api/`** — serverless TypeScript services behind two gateways (shared: customer/shop/driver/public; staff: back-office — 075),
 one service per audience and domain. There is no other backend. Put a new endpoint in the service
 that already owns its audience and domain, or add a new `apis/edge-api/<service>/`
 (`docs/api/path-assignment.md` decides which). Logic more than one service needs lives in the
 shared library `apis/edge-api/shared`, never copied; money logic lives only in its `payments`
-module. Every client — web and mobile — calls the one gateway.
+module. Every client — web and mobile — calls the gateway for its audience.
 
 Do not add a second backend runtime, a container service, a load balancer or any always-on
 compute: the constitution (Principle III) forbids it without an amendment. An earlier Go backend

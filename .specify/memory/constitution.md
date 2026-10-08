@@ -1,6 +1,36 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.1.0 → 3.2.0
+Bump rationale: MINOR — guidance materially expanded. No principle is removed or redefined, and no
+                existing plan is invalidated: every service stays where its plan put it.
+
+Trigger: feature 075-staff-gateway. On 2026-10-08 a deployment was refused: the shared HTTP gateway
+held 300 of 300 routes and 300 of 300 integrations, and the integration limit is one the provider
+does not raise (075 research F1). Principle III said every server behaviour runs "behind the shared
+HTTP gateway". The operator decided (2026-10-08) to give back-office its own gateway; this is the
+amendment that sentence required (075 research R7, plan Complexity Tracking).
+
+What changed in the text:
+  - Principle III: the backend is still ONE — one runtime, under `apis/edge-api/` — but it is
+    reached through TWO HTTP gateways: the shared gateway (customer, shop, driver, public) and the
+    staff gateway (back-office only). A gateway is a managed, pay-per-request entry point, not
+    compute; the always-on prohibition is untouched.
+  - Principle III gains two rules: a plan MUST state which gateway a new service attaches to, and a
+    THIRD gateway requires amending this constitution first.
+  - Principle III: a service that serves two audiences on two gateways is two deployable stacks
+    from one source, never one rule written twice.
+  - Technology Standards gains "API entry points".
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged; none names a gateway.
+  ⚠ CLAUDE.md, ARCHITECTURE.md, docs/api/shared-gateway.md, docs/api/path-assignment.md,
+     infra/envs/README.md — corrected by 075 (its T039–T041).
+  ✅ specs 004–074 — history, not edited.
+
+Follow-up TODOs: none.
+
+--- previous report ---
 Version change: 3.0.1 → 3.1.0
 Bump rationale: MINOR — guidance materially expanded and one locked standard ADDED. No principle is
                 removed or redefined, and no existing plan is invalidated.
@@ -540,13 +570,21 @@ The backend is one path: serverless TypeScript. There is no second backend runti
 written under `apis/edge-api/`, and every client surface calls that backend and no other.
 
 - **All server behaviour** — public and customer reads, transactions and payments, operator and
-  back-office workflows, and asynchronous workers — runs on Node + TypeScript Lambdas behind the
-  shared HTTP gateway.
+  back-office workflows, and asynchronous workers — runs on Node + TypeScript Lambdas behind one
+  of **two HTTP gateways**: the **shared gateway** (customer, shop, driver and public routes) and
+  the **staff gateway** (back-office routes only). Two entry points, one backend.
+- A gateway is a managed, pay-per-request entry point, not compute: it MUST incur nothing while
+  idle. Every feature's plan MUST state which gateway a new service attaches to. A **third**
+  gateway MUST NOT be added without amending this constitution first.
+- The staff gateway MUST accept only back-office sign-ins, and the shared gateway MUST NOT accept
+  a back-office sign-in for any route.
 - **Services are split by audience and domain.** One audience per service is preferred; a service
   that mixes audiences or carries unauthenticated routes MUST record why in its plan.
 - Every feature's `plan.md` MUST state which service(s) it extends or adds, and why.
 - A rule MUST have exactly one implementation. Logic needed by more than one service lives in the
   shared backend library, never copied between services.
+- A service whose routes belong on both gateways is deployed as two stacks from **one** source
+  directory. Its handlers and rules are not copied.
 - A plan MUST NOT introduce an always-on compute component — a container service, a load
   balancer, a persistent-connection server — without amending this constitution first.
 - A **managed, pay-per-use connection service** is permitted for telling open apps that something
@@ -752,6 +790,8 @@ any entry requires a constitution amendment (see Governance).
   on arm64; raw SQL. **No ORM.**
 - **Database**: PostgreSQL 16; Goose migrations; **forward-only** (no down migrations relied on).
 - **Infrastructure**: Terraform; multi-environment; remote state.
+- **API entry points**: two AWS API Gateway HTTP APIs per environment — shared and staff — each on
+  its own hostname in the environment's namespace. How full each is MUST be measured and alarmed.
 - **Live channel**: AWS AppSync Events. An update MUST carry no business information — only the
   kind of thing that changed — and the app re-reads through the backend's own routes. Clients
   subscribe and MUST NOT publish; only the backend publishes, after the change has committed.
@@ -838,4 +878,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.1.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-05
+**Version**: 3.2.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-08

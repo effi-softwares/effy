@@ -1,5 +1,9 @@
 # Shared edge API Gateway (004-backend-bootstrap, plan amendment A3 — cold-path decomposition).
 #
+# ⚠ ONE OF TWO GATEWAYS SINCE 075. This one serves customers, shops, drivers and the public;
+# back-office has its own (staff-gateway.tf). An HTTP API holds at most 300 integrations, a limit
+# the provider does not raise, and on 2026-10-08 this one was full.
+#
 # The cost-optimized path is many independently deployable Serverless services behind ONE HTTP
 # API. Terraform owns the API + the four per-pool JWT authorizers (the same layer that owns the
 # Cognito pools, VPC, RDS); each service attaches by id via provider.httpApi.id and references an
@@ -64,6 +68,31 @@ locals {
     "https://${module.dns.zone_name}",
     "https://www.${module.dns.zone_name}",
   ]
+
+  # ── 075: back-office has its own gateway (staff-gateway.tf) ────────────────────────────────────
+  #
+  # ⚠ THIS GATEWAY CARRIES NO BACK-OFFICE AUTHORIZER AND ALLOWS NO BACK-OFFICE ORIGIN. That is what
+  # makes the separation structural: a staff sign-in presented here has no authorizer that could
+  # accept it, on any route, whatever a service's own configuration says.
+  #
+  # `edge_pools` still lists all four pools — it is the one description of them, and the staff
+  # gateway's authorizer reads the back-office entry from it. THIS gateway takes the other three.
+  #
+  # ⚠ The map is FILTERED, not re-keyed: the three authorizers keep the addresses they have always
+  # had (`…pool["customer"]` etc.). Re-keying would destroy and recreate them under live routes.
+  shared_pools = { for k, v in local.edge_pools : k => v if k != "back-office" }
+
+  # ⚠ NOT `browser_origins` minus something written inline at the use site: that list is ALSO the
+  # product-media bucket's (media.tf), and back-office still uploads banner artwork straight to the
+  # bucket. The bucket keeps the back-office origins; only this gateway drops them.
+  back_office_origins = [
+    "http://localhost:5173",
+    "https://${var.back_office_subdomain}.${module.dns.zone_name}",
+  ]
+  shared_gateway_origins = concat(
+    [for o in local.browser_origins : o if !contains(local.back_office_origins, o)],
+    local.storefront_origins,
+  )
 }
 
 resource "aws_apigatewayv2_api" "edge" {
@@ -81,7 +110,7 @@ resource "aws_apigatewayv2_api" "edge" {
   # console origin is a Terraform change, not a code change. Without the deployed origin, every
   # authenticated console call fails at the OPTIONS pre-flight.
   cors_configuration {
-    allow_origins  = concat(local.browser_origins, local.storefront_origins)
+    allow_origins  = local.shared_gateway_origins
     allow_methods  = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers  = ["Authorization", "Content-Type", "X-Request-ID"]
     expose_headers = ["x-request-id"]
@@ -97,8 +126,9 @@ resource "aws_apigatewayv2_stage" "default" {
 }
 
 # One JWT authorizer per pool (Principle IV — a cross-pool token is structurally rejected).
+# ⚠ 075: the back-office pool's authorizer is on the STAFF gateway, never here.
 resource "aws_apigatewayv2_authorizer" "pool" {
-  for_each = local.edge_pools
+  for_each = local.shared_pools
 
   api_id           = aws_apigatewayv2_api.edge.id
   authorizer_type  = "JWT"
@@ -137,7 +167,7 @@ resource "aws_ssm_parameter" "edge_api_endpoint" {
 }
 
 resource "aws_ssm_parameter" "edge_authorizer_id" {
-  for_each = local.edge_pools
+  for_each = local.shared_pools
 
   name  = "/effy/${var.env}/edge/authorizer/${each.key}_id"
   type  = "String"

@@ -103,6 +103,11 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 
 ---
 
+> **2026-10-08 — 075 is done: back-office moved to the staff gateway in dev**
+> (`specs/075-staff-gateway/SIGNOFF.md`). The shared gateway is at 53%. ⚠ From 076 on, every **back-office** route attaches to the
+> **staff** gateway (`/effy/<env>/staff/…` parameters) and every customer, shop or driver route to
+> the shared one; each plan says which.
+
 ## E0 — Cleanup & decision record (no spec)
 
 Housekeeping that makes the later specs honest. Nothing here changes behaviour.

@@ -91,7 +91,7 @@ describe("fleet deployment contract — serverless.yml declares what the service
 
       expect(block, `${name} must be authenticated`).toContain("authorizer");
       expect(block, `${name} must use the BACK-OFFICE authorizer`).toContain(
-        "edge/authorizer/back-office_id",
+        "staff/authorizer/back-office_id",
       );
     }
   });
@@ -142,8 +142,8 @@ describe("fleet deployment contract — serverless.yml declares what the service
     expect(planner!.block).not.toContain("httpApi:");
   });
 
-  it("attaches to the shared HTTP API and creates no API, stage, CORS or authorizer of its own", () => {
-    expect(yaml).toContain("id: ${ssm:/effy/${sls:stage}/edge/http_api_id}");
+  it("attaches to the STAFF HTTP API (075) and creates no API, stage, CORS or authorizer of its own", () => {
+    expect(yaml).toContain("id: ${ssm:/effy/${sls:stage}/staff/http_api_id}");
     expect(yaml).not.toContain("cors:");
     expect(yaml).not.toMatch(/^\s+authorizers:/m);
   });

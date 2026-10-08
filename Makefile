@@ -23,7 +23,7 @@ TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 # All Terraform roots (for fmt-check / validate / lint sweeps).
 TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
-.PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
+.PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-down db-shopper-role check-goose \
         live-guards purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
@@ -196,7 +196,16 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 # The operator tools below (create-first-admin, delete-admin, load-localities) are TypeScript in
 # apis/edge-api/ops, run from a workstation; the DSN and pool id are composed AT INVOCATION and passed
 # as process env — never a file, never echoed.
-EDGE_DIR := apis/edge-api/$(SERVICE)
+# ⚠ A STACK IS NOT ALWAYS A DIRECTORY (075). `inventory` deploys as TWO stacks from one source —
+# `inventory` (shop routes, the shared gateway) and `inventory-staff` (back-office routes, the staff
+# gateway) — because a stack attaches to exactly one gateway. SERVICE names the STACK; the lookup
+# below maps it to its directory and config file. Every other service is its own directory.
+EDGE_STACK_DIR_inventory-staff    := inventory
+EDGE_STACK_CONFIG_inventory-staff := serverless.staff.yml
+EDGE_DIR    := apis/edge-api/$(or $(EDGE_STACK_DIR_$(SERVICE)),$(SERVICE))
+EDGE_CONFIG := $(or $(EDGE_STACK_CONFIG_$(SERVICE)),serverless.yml)
+# Which gateway the stack attaches to, read from the stack file itself — shown in the deploy prompt.
+EDGE_GATEWAY = $(shell grep -q '/staff/http_api_id' "$(EDGE_DIR)/$(EDGE_CONFIG)" 2>/dev/null && echo "the STAFF gateway" || { grep -q '/edge/http_api_id' "$(EDGE_DIR)/$(EDGE_CONFIG)" 2>/dev/null && echo "the SHARED gateway" || echo "no gateway"; })
 
 AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
 
@@ -232,21 +241,22 @@ edge-test: ## typecheck + vitest for every backend service and the shared librar
 
 edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce; needs the ef profile)
 	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce ENV=dev"; exit 1; }
-	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
+	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --config $(EDGE_CONFIG) --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|fleet|catalog|storefront|commerce|live ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders|inventory|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
-	@printf 'serverless DEPLOY  →  service=%s stage=%s (attaches to the shared HTTP API, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
+	@test -f "$(EDGE_DIR)/$(EDGE_CONFIG)" || { echo "edge-deploy: no stack file: $(EDGE_DIR)/$(EDGE_CONFIG)"; exit 1; }
+	@printf 'serverless DEPLOY  →  service=%s stage=%s (%s, attaches to %s, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)" "$(EDGE_DIR)/$(EDGE_CONFIG)" "$(EDGE_GATEWAY)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
-	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose
+	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --config $(EDGE_CONFIG) --stage $(ENV) --verbose
 
 edge-remove: ## OPERATOR: tear down ONE cold-path service's CloudFormation stack (SERVICE=.. ENV=dev)
 	@test -n "$(SERVICE)" || { echo "usage: make edge-remove SERVICE=admin|shop|...|fleet ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-remove: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@printf 'serverless REMOVE  →  service=%s stage=%s (DESTROYS the stack: lambdas, routes, alarms, deployment bucket)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing removed"; exit 1; }; \
-	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless remove --stage $(ENV) --verbose
+	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless remove --config $(EDGE_CONFIG) --stage $(ENV) --verbose
 
 # --- back-office web (005): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on
 # :5173 against the live dev edge-api + admin Cognito pool. VITE_* config comes from
@@ -418,10 +428,12 @@ cm-ngrok-edge: ## Expose local edge-api on your ngrok static domain (NGROK_STATI
 # --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted
 # here and run against the real gateway. See specs/007-shop-web/research.md R9.
-shop-verify-isolation: ## OPERATOR: SC-004 cross-pool isolation, both directions (SHOP_TOKEN=.. BO_TOKEN=..)
-	@test -n "$(SHOP_TOKEN)" && test -n "$(BO_TOKEN)" || { echo 'usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... ENV=dev'; exit 1; }
-	@API="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
-	API_ENDPOINT="$$API" SHOP_TOKEN="$(SHOP_TOKEN)" BO_TOKEN="$(BO_TOKEN)" bash scripts/verify-cross-pool.sh
+shop-verify-isolation: ## OPERATOR: cross-pool isolation at BOTH gateways (SHOP_TOKEN=.. BO_TOKEN=.. [CUSTOMER_TOKEN=..] [DRIVER_TOKEN=..])
+	@test -n "$(SHOP_TOKEN)" && test -n "$(BO_TOKEN)" || { echo 'usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... [CUSTOMER_TOKEN=eyJ...] [DRIVER_TOKEN=eyJ...] ENV=dev'; exit 1; }
+	@SHARED="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
+	STAFF="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_endpoint)" || exit 1; \
+	SHARED_API="$$SHARED" STAFF_API="$$STAFF" SHOP_TOKEN="$(SHOP_TOKEN)" BO_TOKEN="$(BO_TOKEN)" \
+	CUSTOMER_TOKEN="$(CUSTOMER_TOKEN)" DRIVER_TOKEN="$(DRIVER_TOKEN)" bash scripts/verify-cross-pool.sh
 
 shop-verify-gate: ## OPERATOR: SC-005 manager gate is backend-authoritative (MANAGER_TOKEN=.. STAFF_TOKEN=.. NOBODY_TOKEN=..)
 	@test -n "$(MANAGER_TOKEN)" && test -n "$(STAFF_TOKEN)" && test -n "$(NOBODY_TOKEN)" \
@@ -440,11 +452,21 @@ dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL sti
 	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" \
 	API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
 	RAW_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_default_endpoint)" \
+	STAFF_API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_endpoint 2>/dev/null || true)" \
+	STAFF_RAW_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_default_endpoint 2>/dev/null || true)" \
 		bash scripts/dns-verify.sh
 
-edge-health: ## Probe every cold-path service: healthz (liveness) + readyz (readiness). Public, no token.
-	@API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
-	SERVICES="admin shop customer storefront commerce" bash scripts/edge-health.sh
+# ⚠ Each service is probed on the gateway it is attached to (075). CUTOVER=1 while back-office is
+# being moved: a service not yet redeployed is reported with the gateway it actually answered on.
+EDGE_HEALTH_SHARED := shop customer storefront commerce driver inventory
+EDGE_HEALTH_STAFF  := admin fleet orders catalog inventory-staff
+edge-health: ## Probe every service on its own gateway: healthz + readyz. Public, no token. (CUTOVER=1 during the 075 move)
+	@SHARED="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
+	STAFF="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_endpoint)" || exit 1; \
+	TARGETS="$$SHARED=$(EDGE_HEALTH_SHARED);$$STAFF=$(EDGE_HEALTH_STAFF)" CUTOVER="$(CUTOVER)" bash scripts/edge-health.sh
+
+gateway-usage: ## How full is each API gateway — routes and integrations of 300 (BY=1 lists routes per service). Read-only.
+	@ENV="$(ENV)" AWS_REGION="$(AWS_REGION)" AWS_PROFILE="$(AWS_PROFILE)" BY_SERVICE="$(BY)" bash scripts/gateway-usage.sh
 
 # 010 SC-001/002/004 + 037 FR-001/FR-017: is the platform AUTHORIZED to send as its namespace?
 mail-verify: ## Mail is authorized: DKIM/SPF/DMARC published, SES identity verified, sender configured

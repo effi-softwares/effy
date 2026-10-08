@@ -1,0 +1,184 @@
+# edge-inventory-staff — the BACK-OFFICE half of the inventory service (075-staff-gateway).
+#
+# ⚠ THE SAME SERVICE AS `serverless.yml`, DEPLOYED AS A SECOND STACK. Same directory, same `src/`,
+# same handlers and repository — nothing is copied (constitution v3.2.0, Principle III: a service
+# whose routes belong on both gateways is two stacks from one source).
+#
+# WHY. A stack attaches to exactly one HTTP API. Inventory serves two audiences: shops manage their
+# own stock (the shared gateway) and back-office staff manage it on a shop's behalf (the staff
+# gateway, since 075). The alternatives were worse: a second directory whose handlers import another
+# service's source, or the six routes moved into `admin` and stock rules living in two services
+# (075 research R4).
+#
+# ⚠ ONLY THE SIX `/inventory/v1/admin/…` ROUTES LIVE HERE, plus this stack's own health routes.
+# Scheduled and queue-driven functions stay in `serverless.yml`. `gateway-placement.contract.test.ts`
+# fails if a handler is declared by both stacks or by neither.
+#
+# Deploy: `make edge-deploy SERVICE=inventory-staff ENV=dev`.
+#
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-inventory-staff
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # ⚠ Set from the START, not when it is needed — 053's lesson, learned from admin hitting the CFN
+  # limit under pressure. Nothing here publishes aliases or uses provisioned concurrency, and every
+  # httpApi integration invokes the unqualified ($LATEST) ARN, so per-deploy Versions are dead weight.
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 054-product-inventory
+    service: inventory-staff
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    # 071 — the live-update channel. Published to after a change commits; named in the handshake an
+    # app makes. No default: a service deployed before the channel exists must fail, not go quiet.
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  iam:
+    role:
+      statements:
+        # 071 — publish live updates, to this environment's channel only.
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
+  # edge-shop/admin/driver/orders. DEV ONLY — see infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+
+functions:
+  # Its own health routes, under its own name: `/inventory/healthz` is the shop stack's, on the
+  # other gateway. Same handlers.
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the inventory-staff stack deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory-staff/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the inventory-staff stack serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory-staff/readyz
+
+  # ── Back-office routes — BACK-OFFICE authorizer, acting on a shop's behalf (054 US4) ──────────
+  # ⚠ The shop comes from the PATH here, and the tier decides what may be done: reading is open to any
+  # active staff incl. `csa` (triage is CSA work); writing is admin/manager, because it changes another
+  # organisation's records for them. Both are decided from the `admin.staff` RECORD, never the claim.
+
+  adminStockGetV1:
+    handler: src/functions/admin-stock-v1-get.handler
+    description: Read any shop's product stock and movement history (054 US4, FR-025). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminLowStockGetV1:
+    handler: src/functions/admin-low-stock-v1-get.handler
+    description: Read any shop's restock list (054 US4/US5, FR-025). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/admin/shops/{shopId}/low-stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminStockPutV1:
+    handler: src/functions/admin-stock-v1-put.handler
+    description: Set a product's count on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminStockTrackingPutV1:
+    handler: src/functions/admin-stock-tracking-v1-put.handler
+    description: Turn stock tracking on or off on a shop's behalf (054 US4, FR-026 full parity). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/tracking
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminStockThresholdPutV1:
+    handler: src/functions/admin-stock-threshold-v1-put.handler
+    description: Set a product's own low-stock threshold on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/threshold
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminSettingsPutV1:
+    handler: src/functions/admin-settings-v1-put.handler
+    description: Set a shop's default low-stock threshold on their behalf (054 US4, FR-026). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

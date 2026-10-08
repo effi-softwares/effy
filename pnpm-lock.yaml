@@ -18,6 +18,9 @@ importers:
 
   apis/edge-api/admin:
     dependencies:
+      '@aws-sdk/client-apigatewayv2':
+        specifier: 3.1086.0
+        version: 3.1086.0
       '@aws-sdk/client-cloudwatch':
         specifier: 3.1086.0
         version: 3.1086.0
@@ -1365,6 +1368,10 @@ packages:
 
   '@aws-sdk/client-api-gateway@3.1079.0':
     resolution: {integrity: sha512-iUAoqoqs1S54fmdhHpZqYffwk0yznuUmb846mW4Vr6utEym+RFNLwnFsFCBV0Jw6MJD5Z0gWytawSJqdfvyVXg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-apigatewayv2@3.1086.0':
+    resolution: {integrity: sha512-reZFmI6Kz3U5jwf1LXip/rxqgXAInMHgf58aqX4U4U0vCfB5qNbiF2l4odmUzprcXYUAxTm4N6zu0h381kVpDw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-cloudformation@3.1079.0':
@@ -9337,6 +9344,17 @@ snapshots:
       '@aws-sdk/core': 3.977.4
       '@aws-sdk/credential-provider-node': 3.972.69
       '@aws-sdk/middleware-sdk-api-gateway': 3.972.21
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.31.1
+      '@smithy/fetch-http-handler': 5.6.6
+      '@smithy/node-http-handler': 4.9.6
+      '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
+  '@aws-sdk/client-apigatewayv2@3.1086.0':
+    dependencies:
+      '@aws-sdk/core': 3.977.4
+      '@aws-sdk/credential-provider-node': 3.972.69
       '@aws-sdk/types': 3.974.2
       '@smithy/core': 3.31.1
       '@smithy/fetch-http-handler': 5.6.6

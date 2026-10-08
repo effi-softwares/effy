@@ -1,7 +1,7 @@
 # edge-orders — Effy orders service (053-order-lifecycle-completion).
 #
-# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
-# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
+# Attaches to the Terraform-owned STAFF HTTP API (075; docs/api/shared-gateway.md): NO API/stage/
+# CORS/authorizers created here (those live in infra/envs/<env>/staff-gateway.tf). Routes live
 # under /orders/. Authenticated routes use the Terraform-owned BACK-OFFICE JWT authorizer (by id
 # from SSM) — this is a new ATTACHMENT to an existing authorizer, not a new pool (Principle IV).
 #
@@ -46,9 +46,9 @@ provider:
     project: effy
     slice: 053-order-lifecycle-completion
     service: orders
-  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
+  # Attach to the STAFF HTTP API (075). external id → no API/stage/CORS/authorizers here.
   httpApi:
-    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
@@ -123,7 +123,7 @@ functions:
           path: /orders/v1/orders
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   orderDetailV1:
     handler: src/functions/order-v1-get.handler
@@ -134,7 +134,7 @@ functions:
           path: /orders/v1/orders/{orderId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   refundProposalDismissV1:
     handler: src/functions/refund-proposal-dismiss-v1-post.handler
@@ -145,7 +145,7 @@ functions:
           path: /orders/v1/orders/{orderId}/proposals/{orderItemId}/dismiss
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── 070: money. Until 070 these three ran on the Go backend, because it alone held the payment
   #    secret. The rules are @effy/edge-shared/payments; these are the back-office's routes into them.
@@ -161,7 +161,7 @@ functions:
           path: /orders/v1/orders/{orderId}/refunds
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   orderCancelV1:
     handler: src/functions/order-cancel-v1-post.handler
@@ -173,7 +173,7 @@ functions:
           path: /orders/v1/orders/{orderId}/cancel
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   refundRequestDeclineV1:
     handler: src/functions/refund-request-decline-v1-post.handler
@@ -184,7 +184,7 @@ functions:
           path: /orders/v1/refund-requests/{requestId}/decline
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   handoversListV1:
     handler: src/functions/handovers-v1-get.handler
@@ -195,7 +195,7 @@ functions:
           path: /orders/v1/handovers
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   fulfillmentHandoffV1:
     handler: src/functions/fulfillment-handoff-v1-post.handler
@@ -206,7 +206,7 @@ functions:
           path: /orders/v1/fulfillments/{fulfillmentId}/handoff
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   fulfillmentArrivalV1:
     handler: src/functions/fulfillment-arrival-v1-post.handler
@@ -217,7 +217,7 @@ functions:
           path: /orders/v1/fulfillments/{fulfillmentId}/arrival
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   # ── 074: customers and their points. Every rule is @effy/edge-shared/points; these are the
   #    back-office's routes into it.
@@ -231,7 +231,7 @@ functions:
           path: /orders/v1/customers
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   customerDetailV1:
     handler: src/functions/customer-v1-get.handler
@@ -242,7 +242,7 @@ functions:
           path: /orders/v1/customers/{customerId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   customerPointsHistoryV1:
     handler: src/functions/customer-points-history-v1-get.handler
@@ -253,7 +253,7 @@ functions:
           path: /orders/v1/customers/{customerId}/points/history
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   customerPointsCreditV1:
     handler: src/functions/customer-points-credit-v1-post.handler
@@ -264,7 +264,7 @@ functions:
           path: /orders/v1/customers/{customerId}/points/credit
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   customerPointsDebitV1:
     handler: src/functions/customer-points-debit-v1-post.handler
@@ -275,7 +275,7 @@ functions:
           path: /orders/v1/customers/{customerId}/points/debit
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   pointsSettingsV1:
     handler: src/functions/points-settings-v1-get.handler
@@ -286,7 +286,7 @@ functions:
           path: /orders/v1/points/settings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   pointsSettingsUpdateV1:
     handler: src/functions/points-settings-v1-put.handler
@@ -297,4 +297,4 @@ functions:
           path: /orders/v1/points/settings
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

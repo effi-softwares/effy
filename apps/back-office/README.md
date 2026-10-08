@@ -2,7 +2,8 @@
 
 The platform's first web surface (spec `005-back-office-web`). Client-only, feature-sliced per
 [ARCHITECTURE.md](../../ARCHITECTURE.md) "Operator / admin web (SPA)". **Local-only this slice** —
-runs against the live dev `edge-api` + admin Cognito pool; no hosted deploy yet.
+runs against the live dev backend through the **staff gateway** (075 — `VITE_API_BASE_URL` is
+SSM `/effy/dev/staff/api_endpoint`, not the shared gateway's address) + the admin Cognito pool.
 
 ## Run
 

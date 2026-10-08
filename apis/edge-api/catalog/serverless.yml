@@ -1,7 +1,7 @@
 # Effy CATALOG service — 067-product-approval-margin.
 #
 # The BACK-OFFICE half of product review: the queue of new products and pending changes, the
-# decisions (approve / send back) and Effy's margin. Attaches to the shared HTTP API; every route is
+# decisions (approve / send back) and Effy's margin. Attaches to the STAFF HTTP API (075); every route is
 # under /catalog/ and behind the back-office authorizer.
 #
 # ⚠ WHY A NEW SERVICE. `effy-edge-admin` packages to 434/500 CloudFormation resources with
@@ -43,7 +43,7 @@ provider:
     slice: 067-product-approval-margin
     service: catalog
   httpApi:
-    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
   environment:
     EFFY_ENV: ${sls:stage}
     LOG_LEVEL: ${param:logLevel}
@@ -108,7 +108,7 @@ functions:
           path: /catalog/v1/review
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   reviewMarginNotSetV1:
     handler: src/functions/review-margin-not-set-v1-get.handler
@@ -119,7 +119,7 @@ functions:
           path: /catalog/v1/review/margin-not-set
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   reviewItemV1:
     handler: src/functions/review-item-v1-get.handler
@@ -130,7 +130,7 @@ functions:
           path: /catalog/v1/review/items/{productId}
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   reviewApproveV1:
     handler: src/functions/review-approve-v1-post.handler
@@ -141,7 +141,7 @@ functions:
           path: /catalog/v1/review/items/{productId}/approve
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   reviewSendBackV1:
     handler: src/functions/review-send-back-v1-post.handler
@@ -152,7 +152,7 @@ functions:
           path: /catalog/v1/review/items/{productId}/send-back
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   productMarginV1:
     handler: src/functions/product-margin-v1-post.handler
@@ -163,7 +163,7 @@ functions:
           path: /catalog/v1/products/{productId}/margin
           authorizer:
             type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   reviewQueueAge:
     handler: src/functions/review-queue-age-scheduled.handler

@@ -4,13 +4,11 @@
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
 # under /inventory/.
 #
-# ⚠ TWO AUDIENCES, ONE SERVICE, TWO AUTHORIZERS. Shop routes attach to the Terraform-owned SHOP
-# authorizer; the assisted back-office routes attach to the BACK-OFFICE one. API Gateway authorizers
-# are per-ROUTE, so no token crosses pools and this service never brokers auth for another —
-# Principle IV holds structurally, not by convention. 046 established the pattern (an authed and a
-# public submit route in one service). The alternative — shop routes in edge-shop and admin routes
-# somewhere else — would put one stock service and repository in two places, or force a third
-# extraction to avoid that.
+# ⚠ TWO AUDIENCES, ONE SERVICE, TWO STACKS (075). This file is the SHOP half: shops managing their
+# own stock, on the shared gateway, behind the shop authorizer. The assisted back-office routes are
+# the same service's `serverless.staff.yml`, on the staff gateway — one stock service and one
+# repository, deployed twice, never written twice. Until 075 both halves were in this file, told
+# apart per route; a stack attaches to exactly one gateway, so they are now told apart per stack.
 #
 # ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R6): `effy-edge-admin`
 # declares 77 functions and packages to 434 of CloudFormation's 500 resources, and the cheap
@@ -203,73 +201,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  # ── Back-office routes — BACK-OFFICE authorizer, acting on a shop's behalf (054 US4) ──────────
-  # ⚠ The shop comes from the PATH here, and the tier decides what may be done: reading is open to any
-  # active staff incl. `csa` (triage is CSA work); writing is admin/manager, because it changes another
-  # organisation's records for them. Both are decided from the `admin.staff` RECORD, never the claim.
-
-  adminStockGetV1:
-    handler: src/functions/admin-stock-v1-get.handler
-    description: Read any shop's product stock and movement history (054 US4, FR-025). Read = any active staff incl. csa.
-    events:
-      - httpApi:
-          method: GET
-          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  adminLowStockGetV1:
-    handler: src/functions/admin-low-stock-v1-get.handler
-    description: Read any shop's restock list (054 US4/US5, FR-025). Read = any active staff incl. csa.
-    events:
-      - httpApi:
-          method: GET
-          path: /inventory/v1/admin/shops/{shopId}/low-stock
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  adminStockPutV1:
-    handler: src/functions/admin-stock-v1-put.handler
-    description: Set a product's count on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
-    events:
-      - httpApi:
-          method: PUT
-          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  adminStockTrackingPutV1:
-    handler: src/functions/admin-stock-tracking-v1-put.handler
-    description: Turn stock tracking on or off on a shop's behalf (054 US4, FR-026 full parity). Write = admin/manager only.
-    events:
-      - httpApi:
-          method: PUT
-          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/tracking
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  adminStockThresholdPutV1:
-    handler: src/functions/admin-stock-threshold-v1-put.handler
-    description: Set a product's own low-stock threshold on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
-    events:
-      - httpApi:
-          method: PUT
-          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/threshold
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  adminSettingsPutV1:
-    handler: src/functions/admin-settings-v1-put.handler
-    description: Set a shop's default low-stock threshold on their behalf (054 US4, FR-026). Write = admin/manager only.
-    events:
-      - httpApi:
-          method: PUT
-          path: /inventory/v1/admin/shops/{shopId}/settings
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+  # ⚠ THE SIX BACK-OFFICE ROUTES ARE NOT HERE (075). They are in `serverless.staff.yml`, the same
+  # handlers from the same `src/`, deployed as a second stack on the STAFF gateway. A stack attaches
+  # to exactly one gateway, and since 075 back-office has its own.

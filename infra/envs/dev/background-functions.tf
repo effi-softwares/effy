@@ -85,6 +85,13 @@ locals {
       threshold = 1
       stops     = "The nightly check that recomputes each shop's figures did not complete. Insights may be carrying an error that tonight's run would have corrected."
     }
+    gateway-usage = {
+      function  = "effy-edge-admin-${var.env}-gatewayUsage"
+      period    = 3600
+      periods   = 2
+      threshold = 1
+      stops     = "075 - nobody is counting how full the two API gateways are, so the gateway-usage alarms cannot fire. A gateway that fills up refuses the next deployment. This function does not use the database: check its permission to read the gateways."
+    }
     review-queue-age = {
       function  = "effy-edge-catalog-${var.env}-reviewQueueAge"
       period    = 900

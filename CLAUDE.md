@@ -68,8 +68,8 @@ native web build).
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
   client state via TanStack Store (no Zustand; constitution v1.4.0), AWS Amplify.
-- **Backend — ONE path, serverless** (constitution **v3.1.0**, Principle III; feature 070): Node +
-  TypeScript Lambdas (Serverless Framework v3) behind one shared HTTP gateway, **one service per
+- **Backend — ONE path, serverless** (constitution **v3.2.0**, Principle III; features 070, 075): Node +
+  TypeScript Lambdas (Serverless Framework v3) behind **two HTTP gateways** (below), **one service per
   audience and domain** under `apis/edge-api/` — `storefront` (public catalogue), `commerce`
   (cart, checkout, payment, customer orders), `customer`, `shop`, `inventory`, `driver`, `admin`,
   `catalog`, `fleet`, `orders`, plus the `notifications` and `auth` workers and `live` (the
@@ -77,13 +77,28 @@ native web build).
   belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
   - ⚠ **EVERY API IS WRITTEN IN `apis/edge-api`. THERE IS NO OTHER BACKEND, AND NONE MAY BE
     ADDED.** A new endpoint goes into the existing service that owns its audience and domain, or
-    into a new `apis/edge-api/<service>/`; every client calls the one gateway. A plan MUST NOT
+    into a new `apis/edge-api/<service>/`; every client calls the gateway for its audience. A plan MUST NOT
     introduce always-on compute (a container service, a load balancer, a persistent-connection
     server) or a second backend runtime — that needs a constitution amendment first.
     ⚠ **One managed exception (constitution v3.1.0, feature 071):** AWS AppSync Events holds the
     live-update connections. It is a pay-per-use managed service, not compute of ours; an update
     carries only the KIND of thing that changed, clients never publish, and holding connections
     in anything the platform runs is still prohibited.
+  - ⚠ **ONE BACKEND, TWO GATEWAYS (075).** The **shared** gateway (`edge-api.<zone>`) serves
+    customers, shops, drivers and public routes; the **staff** gateway (`staff-api.<zone>`) serves
+    back-office only — `admin`, `fleet`, `orders`, `catalog` and `inventory-staff` — and carries
+    **only** the back-office authorizer, while the shared one carries none for back-office. ⚠ Why:
+    an HTTP API holds at most **300 integrations, a limit the provider does not raise**, and on
+    2026-10-08 the shared gateway was full (074's deploy was refused). A plan states which gateway a
+    new service attaches to; a **third** gateway needs a constitution amendment.
+    - ⚠ **`inventory` is TWO stacks from one directory** — `serverless.yml` (shop routes, shared) and
+      `serverless.staff.yml` (`/inventory/v1/admin/…`, staff), deployed as `SERVICE=inventory` and
+      `SERVICE=inventory-staff`. A guard that needs "every stack" asks `listStacks()`
+      (`shared/src/lib/serverless-stacks.ts`), never `<dir>/serverless.yml`.
+    - ⚠ **A gateway's fullness is measured three ways**: `gateway-capacity.contract.test.ts` (what
+      the tree would deploy — fails past 300), `make gateway-usage ENV=dev` (what is deployed), and
+      an hourly function with alarms at 75% / 90%. At 90% stop adding routes; **never merge routes
+      to fit**. The rule: [docs/api/path-assignment.md](docs/api/path-assignment.md).
   - ⚠ **THERE WAS A SECOND BACKEND, AND IT IS GONE (070, 2026-10-05).** A Go service on Fargate
     behind a load balancer carried shopper traffic until then; its routes moved here, its
     infrastructure was destroyed and its source deleted. "Hot path" / "cold path" / "Path:" in
@@ -354,7 +369,7 @@ defers an unresolved symbol to RUNTIME. All three are currently the base KMP tem
 `Greeting`/`Platform` stubs); each feature's stack is layered in per that feature's plan/tasks.
 
 ## Current status
-Built so far: the **infrastructure** (four Cognito pools, dev DB, shared HTTP gateway), the
+Built so far: the **infrastructure** (four Cognito pools, dev DB, the shared and staff HTTP gateways), the
 **migration workflow**, the **backend** (twelve services and a shared library under `apis/edge-api/`), and **all
 three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`apps/customer-web`
 (011 — the first PUBLIC surface, Next.js 16 SSR)** — on the shared packages
@@ -379,7 +394,8 @@ built on stable Material 3, Nav3-migration-ready).
 items and lists, checkout and payment, orders, refunds and cancellation, delivery zones, slots and
 days, stock, the shop and back-office consoles, the driver operation. ⚠ **Since 070 all of it is
 served by the one serverless backend** — `storefront` and `commerce` for shoppers, beside the staff,
-shop and driver services — at `edge-api.dev.effyshopping.com`. The Go service that 040 deployed at
+shop and driver services — at `edge-api.dev.effyshopping.com`, with back-office at
+`staff-api.dev.effyshopping.com` (075, moved 2026-10-08). The Go service that 040 deployed at
 `core-api.dev.effyshopping.com` no longer exists. Still ahead: **delivering the event backbone**
 (the order-placed record is written and not yet delivered) and sweeping abandoned unpaid orders.
 
@@ -415,6 +431,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)
 - **074-customer-points** — Customer Points (store credit)
 - **073-order-dispatch-control** — Simple Order Status & Driver Assignment in Orders
 - **072-immediate-driver-assignment** — Immediate Driver Work Assignment (assign early, open on time)

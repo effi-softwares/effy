@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { LIVE_KINDS } from "@effy/shared-types";
 import { describe, expect, it } from "vitest";
 
+import { listStacks } from "../lib/serverless-stacks.js";
+
 import { LIVE_NAMESPACES } from "./channel";
 
 /**
@@ -28,20 +30,18 @@ function sources(dir: string): string[] {
   return out;
 }
 
-/** Deployed services (those with a serverless.yml), with their config and their source. */
-const services = readdirSync(edgeApi)
-  .filter((dir) => {
-    try {
-      return statSync(resolve(edgeApi, dir, "serverless.yml")).isFile();
-    } catch {
-      return false;
-    }
-  })
-  .map((dir) => ({
-    dir,
-    yml: readFileSync(resolve(edgeApi, dir, "serverless.yml"), "utf8"),
-    src: sources(resolve(edgeApi, dir, "src")).join("\n"),
-  }));
+/**
+ * Every deployed STACK, with its config and its service's source.
+ *
+ * ⚠ A stack, not a directory (075): `inventory` deploys twice from one `src/`, once per gateway,
+ * and each stack is its own role and its own environment. A stack whose source announces must be
+ * able to publish — both of them, not just the one in `serverless.yml`.
+ */
+const services = listStacks().map((stack) => ({
+  dir: stack.name,
+  yml: stack.yml,
+  src: sources(resolve(edgeApi, stack.dir, "src")).join("\n"),
+}));
 
 /**
  * A service announces if its own source calls one of the announcing functions, or builds the shared

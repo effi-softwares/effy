@@ -84,10 +84,10 @@ describe("orders service deployment contract", () => {
     for (const fn of ["orderRefundV1", "orderCancelV1"]) expect(blockFor(fn), fn).toMatch(/^ {4}timeout: 25$/m);
   });
 
-  it("attaches to the shared HTTP API rather than creating one", () => {
+  it("attaches to the STAFF HTTP API (075) rather than creating one", () => {
     // A3's contract: the gateway, its stage, its CORS and its authorizers are Terraform-owned. A
     // service that created its own would silently serve on a different hostname with no CORS.
-    expect(yaml).toMatch(/httpApi:\s*\n\s+id: \$\{ssm:\/effy\/\$\{sls:stage\}\/edge\/http_api_id\}/);
+    expect(yaml).toMatch(/httpApi:\s*\n\s+id: \$\{ssm:\/effy\/\$\{sls:stage\}\/staff\/http_api_id\}/);
   });
 
   it("puts EVERY /orders/v1 route behind the back-office authorizer", () => {
@@ -97,7 +97,7 @@ describe("orders service deployment contract", () => {
         "authorizer:",
       );
       expect(block, `${fn} must use the back-office authorizer`).toContain(
-        "/edge/authorizer/back-office_id",
+        "/staff/authorizer/back-office_id",
       );
     }
   });

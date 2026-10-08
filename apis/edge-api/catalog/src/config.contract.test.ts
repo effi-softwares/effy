@@ -50,7 +50,7 @@ describe("catalog deployment contract — serverless.yml declares what the servi
     const http = functions().filter((f) => f.block.includes("httpApi:") && f.name !== "healthz");
     expect(http.length).toBeGreaterThanOrEqual(6);
     for (const f of http) {
-      expect(f.block, `${f.name} has no back-office authorizer`).toContain("/edge/authorizer/back-office_id}");
+      expect(f.block, `${f.name} has no back-office authorizer`).toContain("/staff/authorizer/back-office_id}");
     }
     expect(yaml).not.toContain("/edge/authorizer/shop_id}");
     expect(yaml).not.toContain("/edge/authorizer/customer_id}");

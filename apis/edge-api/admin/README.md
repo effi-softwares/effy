@@ -16,9 +16,9 @@ src/
 ## Add an endpoint
 1. Add `src/functions/<name>-v<n>-get.ts` importing helpers from `@effy/edge-shared`.
 2. Add the route to `serverless.yml` under `/admin/v<n>/...`; pick the pool via
-   `authorizer.id: ${ssm:/effy/${sls:stage}/edge/authorizer/<pool>_id}`.
+   `authorizer.id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}`.
 3. Add its per-function alarms. `pnpm --filter @effy/edge-admin test`.
 
 ## Deploy (operator)
-`make edge-deploy SERVICE=admin ENV=dev` — attaches to the shared gateway; touches only this
+`make edge-deploy SERVICE=admin ENV=dev` — attaches to the staff gateway (075); touches only this
 service's routes (deploy independence). The gateway (Terraform) must exist first.

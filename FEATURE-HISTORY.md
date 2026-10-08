@@ -4,6 +4,39 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**075-staff-gateway — A Second Front Door for Back-Office.** ✅ **MOVED IN DEV AND CLEANED UP
+(2026-10-08).** Shared gateway 158 / 300 (53%), staff 144 / 300 (48%), read from the live environment.
+Walks W1 and W4–W7 are the operator's and not yet reported. Sign-off:
+[specs/075-staff-gateway/SIGNOFF.md](specs/075-staff-gateway/SIGNOFF.md).
+- **Why**: an HTTP API holds at most 300 routes and **300 integrations — a limit the provider does not
+  raise** — and the framework creates one integration per function. 074's deploy was refused at
+  300 / 300 and completed only by merging two routes. Nothing had been counting.
+- **What it is**: back-office gets its own gateway (`staff-api.<zone>`). `admin`, `fleet`, `orders`,
+  `catalog` and a new `inventory-staff` stack attach to it; customers, shops and drivers stay on the
+  shared one. Shared drops to 158 (53%), staff holds 144 (48%). Constitution **v3.2.0**.
+- ⚠ **`inventory` is TWO stacks from ONE directory** (`serverless.yml`, `serverless.staff.yml`) — a
+  stack attaches to one gateway. Deployed as `SERVICE=inventory` / `SERVICE=inventory-staff`. Anything
+  that needs "every stack" uses `listStacks()` (`shared/src/lib/serverless-stacks.ts`); two guards
+  that read `<dir>/serverless.yml` were corrected.
+- ⚠ **The audience boundary is now per gateway**: the staff gateway has exactly one authorizer, the
+  shared one none for back-office (after the move). Held by `gateway-placement.contract.test.ts` —
+  a new stack must be added to its placement table or the test fails.
+- **How it was moved without an outage** (history — the machinery is removed): a
+  `staff_gateway_cutover` variable stepped `prepare → forward → website → complete`, with five
+  temporary `ANY /<prefix>/{proxy+}` routes on the shared gateway forwarding to the staff one, so
+  stacks moved one at a time while the website kept its old address. `catalog` went first to free
+  room for them (product review was the one planned gap); `inventory-staff` before `inventory`; the
+  authorizer removal last. Record: `specs/075-staff-gateway/quickstart.md`.
+- **Fullness is measured three ways**: `gateway-capacity.contract.test.ts` (the tree), `make
+  gateway-usage ENV=dev` (deployed), hourly `gatewayUsage` in `admin` → `Effy/Platform
+  GatewayUsagePercent`, alarms at 75% (plan) and 90% (stop adding). Rule and options:
+  [docs/api/path-assignment.md](docs/api/path-assignment.md). ⚠ Never merge routes to fit.
+- **Found while building**: `make dns-verify` probed `/admin/healthz` on the shared gateway and would
+  have gone on passing on two matching 404s; it now probes a service that lives on each gateway.
+- **Still open (operator)**: one `make plan ENV=dev` after the clean-up (must show no changes); walks
+  W1, W4–W7 (back-office unchanged, live updates, cross-audience 401s, one refund and one
+  cancellation, the usage metric and an alarm).
+
 **074-customer-points — Customer Points (store credit).** 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT
 DEPLOYED, NOT COMMITTED, NOT WALKED (2026-10-08).** First slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic
