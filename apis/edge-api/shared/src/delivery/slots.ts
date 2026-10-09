@@ -1,6 +1,6 @@
 import { instantAtLocalTime, localDateParts } from "../lib/collection-deadline";
 import type { Queryable } from "../lib/db";
-import { melbourneDate, type CollectionRun } from "./sameday";
+import { melbourneDate, type CollectionRun } from "./schedule";
 
 /** A wall-clock time of day. It names no date and no zone — it describes Effy's working day. */
 export interface Clock {
@@ -69,9 +69,8 @@ export type SlotVerdict = "open" | "cutoff" | "full" | "uncollectable";
  *     a later day can always be collected for; planning that collection is the driver side's job;
  *  3. it has capacity left on that day — always true for a slot with no limit.
  *
- * ⚠ THIS IS THE ONE WINDOW RULE. The quote, the hold at the payment-intent call and the 069
- * same-day path (`judgeSlot`) all call it; a second copy would let checkout offer what the hold
- * then refuses.
+ * ⚠ THIS IS THE ONE WINDOW RULE. The quote, the hold at the payment-intent call and back-office's
+ * move to Effy all call it; a second copy would let checkout offer what the hold then refuses.
  *
  * ⚠ ORDER MATTERS FOR THE REASON, NOT THE RESULT: a slot that is both full and past cutoff reports
  * the cutoff, because "it has closed" stays true and "it is full" might not.
@@ -112,46 +111,15 @@ export function judgeWindow(
   return { verdict: "open", slot: { id: slot.id, date, start, end, cutoff: effectiveCutoff } };
 }
 
-/** `judgeWindow` for TODAY — the 069 same-day question. */
-export function judgeSlot(
-  now: Date,
-  slot: Slot,
-  booked: number,
-  runs: readonly CollectionRun[],
-  bufferMin: number,
-  turnaroundMin: number,
-): { verdict: Exclude<SlotVerdict, "open"> } | { verdict: "open"; slot: OpenSlot } {
-  return judgeWindow(now, melbourneDate(now), slot, booked, runs, bufferMin, turnaroundMin);
-}
-
-/** Every slot that can be chosen at `now`, earliest first. */
-export function openSlots(
-  now: Date,
-  slots: readonly Slot[],
-  booked: ReadonlyMap<string, number>,
-  runs: readonly CollectionRun[],
-  bufferMin: number,
-  turnaroundMin: number,
-): OpenSlot[] {
-  const out: OpenSlot[] = [];
-  for (const s of slots) {
-    const j = judgeSlot(now, s, booked.get(s.id) ?? 0, runs, bufferMin, turnaroundMin);
-    if (j.verdict === "open") out.push(j.slot);
-  }
-  return out.sort((a, b) => a.start.getTime() - b.start.getTime() || a.end.getTime() - b.end.getTime());
-}
-
 // ── Settings ─────────────────────────────────────────────────────────────────────────────────────
 
-/** The 069 timings read from the singleton settings row. */
+/** The window timings read from the singleton settings row. */
 export interface SlotSettings {
   holdMin: number;
   turnaroundMin: number;
-  lookaheadDays: number;
   /** ISO: 1 = Monday … 7 = Sunday. */
   noWeekdays: number[];
-  carrierLeadDays: number;
-  /** 078 — Effy delivery days offered after today, once the new delivery model is on. */
+  /** Effy delivery days offered after today (078). */
   effyLookaheadDays: number;
 }
 
@@ -162,9 +130,7 @@ export interface SlotSettings {
 const DEFAULT_SLOT_SETTINGS: SlotSettings = {
   holdMin: 10,
   turnaroundMin: 60,
-  lookaheadDays: 7,
   noWeekdays: [],
-  carrierLeadDays: 1,
   effyLookaheadDays: 3,
 };
 
@@ -173,13 +139,11 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
     await q.query<{
       slot_hold_min: number;
       sameday_hub_turnaround_min: number;
-      standard_lookahead_days: number;
       standard_no_delivery_weekdays: number[] | null;
-      carrier_lead_days: number;
       effy_lookahead_days: number;
     }>(`
-		SELECT slot_hold_min, sameday_hub_turnaround_min, standard_lookahead_days,
-		       standard_no_delivery_weekdays::int[] AS standard_no_delivery_weekdays, carrier_lead_days,
+		SELECT slot_hold_min, sameday_hub_turnaround_min,
+		       standard_no_delivery_weekdays::int[] AS standard_no_delivery_weekdays,
 		       effy_lookahead_days
 		FROM public.delivery_settings WHERE id = 1`)
   ).rows[0];
@@ -187,9 +151,7 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
   return {
     holdMin: row.slot_hold_min,
     turnaroundMin: row.sameday_hub_turnaround_min,
-    lookaheadDays: row.standard_lookahead_days,
     noWeekdays: row.standard_no_delivery_weekdays ?? [],
-    carrierLeadDays: row.carrier_lead_days,
     effyLookaheadDays: row.effy_lookahead_days,
   };
 }
@@ -331,4 +293,13 @@ export async function ownLiveHolds(
     [customerId, date],
   );
   return new Map(rows.rows.map((r) => [r.slot_id, r.n]));
+}
+
+/** The individually excluded delivery dates from `from` (yyyy-mm-dd) onward. */
+export async function nonDeliveryDates(q: Queryable, from: string): Promise<Set<string>> {
+  const rows = await q.query<{ day: string }>(
+    `SELECT day::text AS day FROM public.delivery_non_delivery_date WHERE day >= $1::date`,
+    [from],
+  );
+  return new Set(rows.rows.map((r) => r.day));
 }

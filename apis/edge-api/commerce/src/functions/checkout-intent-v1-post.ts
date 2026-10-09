@@ -22,16 +22,13 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   const body = jsonBody(event);
   const addressId = stringField(body?.addressId);
   const billingAddressId = stringField(body?.billingAddressId);
-  const deliveryMethod = stringField(body?.deliveryMethod);
-  const sameDaySlotId = stringField(body?.sameDaySlotId);
-  const standardDate = stringField(body?.standardDate);
   const wantsList = body?.wantsProviderMethodList;
   // 074 — absent or null means none. Anything else must be a whole number of points, 0 or more.
   const rawPoints = body?.pointsToUse;
   const pointsToUse = rawPoints === undefined || rawPoints === null ? 0 : rawPoints;
   if (
-    !body || addressId === null || billingAddressId === null || deliveryMethod === null || sameDaySlotId === null ||
-    standardDate === null || (wantsList !== undefined && wantsList !== null && typeof wantsList !== "boolean")
+    !body || addressId === null || billingAddressId === null ||
+    (wantsList !== undefined && wantsList !== null && typeof wantsList !== "boolean")
   ) {
     return validationFailed(scope, "addressId is required");
   }
@@ -78,7 +75,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     const result = await checkoutService.createIntent(
       customer.id,
       {
-        addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate, deliveryWindow, deliveryType,
+        addressId, billingAddressId, deliveryWindow, deliveryType,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
         shownDeliveryAmount,
       },

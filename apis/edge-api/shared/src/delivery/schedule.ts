@@ -10,14 +10,15 @@ export function melbourneDate(at: Date): string {
 }
 
 /**
- * The LATEST still-makeable same-day cutoff instant for `now`, given the active collection runs
- * and the shop prep buffer. A run is makeable when now ≤ run_time − buffer. With one run this is a
- * single daily cutoff; with several, availability extends run-by-run through the day. `null` when
- * no run today can still be made (same-day is simply not offered).
+ * The LATEST instant an order can still be placed for collection TODAY, given the active collection
+ * runs and the shop prep buffer. A run is makeable when now ≤ run_time − buffer. `null` when no run
+ * today can still be made.
  *
- * ⚠ Judged in Melbourne, never in UTC or the shopper's device clock (047 FR-041).
+ * ⚠ Judged in Melbourne, never in UTC or the shopper's device clock (047 FR-041). ⚠ The window rule
+ * (`judgeWindow`) applies the same arithmetic per window; this is the day-level form the
+ * cross-language collection contract pins (`collection-deadline.contract.test.ts`).
  */
-export function sameDayCutoff(now: Date, runs: readonly CollectionRun[], bufferMin: number): Date | null {
+export function lastOrderCutoff(now: Date, runs: readonly CollectionRun[], bufferMin: number): Date | null {
   let best: Date | null = null;
   for (const run of runs) {
     const cutoff = new Date(collectionDeadline(run, now).getTime() - bufferMin * 60_000);
@@ -28,10 +29,10 @@ export function sameDayCutoff(now: Date, runs: readonly CollectionRun[], bufferM
 }
 
 /**
- * The active collection runs and the prep buffer. A zone and a plan can exist before the schedule
- * does, so a missing settings row is buffer 0 rather than an error; the runs decide availability.
+ * The active collection runs and the prep buffer. A plan can exist before the schedule does, so a
+ * missing settings row is buffer 0 rather than an error; the runs decide what can be collected.
  */
-export async function sameDaySchedule(q: Queryable): Promise<{ runs: CollectionRun[]; bufferMin: number }> {
+export async function collectionSchedule(q: Queryable): Promise<{ runs: CollectionRun[]; bufferMin: number }> {
   const settings = await q.query<{ sameday_prep_buffer_min: number }>(
     `SELECT sameday_prep_buffer_min FROM public.delivery_settings WHERE id = 1`,
   );

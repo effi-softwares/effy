@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { judgeSlot, openSlots, type Slot, type SlotVerdict } from "./slots";
-import type { CollectionRun } from "./sameday";
+import type { CollectionRun } from "./schedule";
 import { at, melbourne, wallClock } from "./test-clock";
 
 const c = (hour: number, minute: number) => ({ hour, minute });

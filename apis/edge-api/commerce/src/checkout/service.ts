@@ -9,7 +9,7 @@ import {
 } from "@effy/edge-shared";
 import { meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
 import {
-  basketValueCents, CourierNotPurchasableError, feeDTO, ListedPostcodeUnpricedError, METHOD_SAME_DAY, NoActivePlanError,
+  basketValueCents, CourierNotPurchasableError, feeDTO, ListedPostcodeUnpricedError, NoActivePlanError,
   storedBreakdown, type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
 import {
@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 
 import { isUuid } from "../lib/ids";
 import {
-  DeliveryChoiceError, preferredMethod, resolveCourier, resolveDeliveryChoice, resolveEffyWindow, type ChosenWindow,
+  DeliveryChoiceError, resolveCourier, resolveEffyWindow, type ChosenWindow,
 } from "./delivery-choice";
 import {
   AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
@@ -76,15 +76,9 @@ export interface IntentInput {
   addressId: string;
   /** Empty, or equal to `addressId`, means "billing same as shipping". Never affects the amount. */
   billingAddressId: string;
-  /** "same_day" or "standard" (default). Applied per package where offered. */
-  deliveryMethod: string;
-  /** Required when any package resolves same-day. */
-  sameDaySlotId: string;
-  /** yyyy-mm-dd; empty means the earliest day on offer. */
-  standardDate: string;
   /**
-   * 078 — the ONE window chosen for the order; null when the client sent none. Required while the new
-   * delivery model is on (the three fields above are then ignored), ignored while it is off.
+   * The ONE window chosen for the order (078); null when the client sent none. Required when Effy
+   * delivers; a courier order has none.
    */
   deliveryWindow?: ChosenWindow | null;
   /**
@@ -139,9 +133,8 @@ function deliveryOutcome(q: QuoteResult): string {
   if (!q.serviced) return "unserviced";
   // 079 — a courier delivers: because Effy does not go there, or because Effy has no window left.
   if (q.coverage === "courier") return q.reason === "no_window" ? "courier_fallback" : "courier";
-  // 078 — the new model: whether any window can be chosen, and if not, which kind of nothing.
-  if (q.effyWindows) return q.effyWindows.unavailable ?? "windows_offered";
-  return q.packages.some((p) => p.options.some((o) => o.method === METHOD_SAME_DAY)) ? "same_day_and_standard" : "standard_only";
+  // Whether any window can be chosen, and if not, which kind of nothing (078).
+  return q.effyWindows.unavailable ?? "windows_offered";
 }
 
 /**
@@ -310,7 +303,7 @@ export function createCheckoutService(deps: {
       emitMetric(ns(), "DeliveryQuotes", 1, { outcome: deliveryOutcome(quote) });
       if (!quote.serviced) throw new NotServiceableError();
       // ⚠ A page, not a number to watch: a covered address and not one window switched on (078 FR-020).
-      if (quote.coverage === "effy" && quote.effyWindows?.unavailable === "none_defined") emitMetric(ns(), "EffyWindowsNoneDefined");
+      if (quote.coverage === "effy" && quote.effyWindows.unavailable === "none_defined") emitMetric(ns(), "EffyWindowsNoneDefined");
 
       // ⚠ 079 FR-005 — WHO DELIVERS MUST BE WHAT THE SHOPPER WAS SHOWN. Refused HERE, before anything
       // is written: a courier order has to be asked for by name (a client built before 079 cannot
@@ -321,27 +314,23 @@ export function createCheckoutService(deps: {
         meterChoiceRefusal(changed);
         throw changed;
       }
-      // What the order will be recorded as. Null under the checkout that predates the new delivery
-      // model — such an order has no delivery type, exactly like every order before it.
-      const sold: SoldDelivery | null =
+      // What the order is recorded as. Every order has a delivery type since 083; only orders placed
+      // before delivery types have none, and they keep it that way.
+      const sold: SoldDelivery =
         quote.coverage === "courier"
           ? { type: "courier", reason: quote.reason, courierEstimate: quote.estimate, courierServiceId: quote.serviceId, courierCollection: quote.collection }
-        : quote.effyWindows ? { type: "effy", reason: "in_coverage", courierEstimate: null }
-        : null;
+          : { type: "effy", reason: "in_coverage", courierEstimate: null };
 
       // ⚠ Refused HERE, before the order is written and long before a payment intent exists, when
-      // the slot or the day is no longer on offer (069).
+      // the window is no longer on offer (069, 078).
       let packages: PackageDelivery[];
       let hold: SlotHold | null;
       let fee: PricedFee;
       try {
-        // 078 — which checkout this is was decided with the quote, by the one reader of the switch.
         ({ packages, hold, fee } = quote.coverage === "courier"
           // 079 — nothing to choose, nothing to hold: the cart's shops, each sent by courier.
           ? resolveCourier(quote, packagesFromLines(lines))
-          : quote.effyWindows
-            ? resolveEffyWindow({ ...quote, effyWindows: quote.effyWindows }, input.deliveryWindow ?? null, now)
-            : resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
+          : resolveEffyWindow(quote, input.deliveryWindow ?? null, now));
       } catch (err) {
         if (err instanceof DeliveryChoiceError) meterChoiceRefusal(err);
         throw err;

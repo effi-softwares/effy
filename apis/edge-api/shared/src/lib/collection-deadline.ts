@@ -1,8 +1,8 @@
 // Wall-clock time in the platform's operating zone — the ONE file that does zone arithmetic.
 //
 // It began (063) as the wave planner's "when must collection for a run be complete?". Since 070 the
-// checkout question (`delivery/sameday.ts`), the slot rules (`delivery/slots.ts`) and the
-// standard-day rule (`delivery/standard-days.ts`) build their instants HERE too, from
+// order cutoff (`delivery/schedule.ts`) and the window rules (`delivery/slots.ts`) build their
+// instants HERE too, from
 // `instantAtLocalTime`. There is one implementation.
 //
 // ⚠ DST IS NOT A DETAIL HERE. 058 found TWO real calendar bugs that only DST tests caught, including
@@ -122,7 +122,7 @@ export function localDateParts(at: Date): { year: number; month: number; day: nu
  * 063's research R1 reasoned "given the 14:00 run and a 60-minute buffer, everything for that run must
  * be collected by 13:00" — reading the prep buffer as time taken off the END of the collection window.
  * It is the opposite. The buffer is the time a SHOP gets to pick and pack AFTER ordering closes:
- * checkout offers same-day while `now ≤ run_time − prep_buffer` (`sameDayCutoff`, unchanged), and
+ * checkout offers same-day while `now ≤ run_time − prep_buffer` (`lastOrderCutoff`, unchanged), and
  * the driver collects AT the run time. 063's own spec always said so — FR-002: "early enough that an
  * assigned driver can complete the round before the **run time**". The code implemented the research,
  * not the spec.

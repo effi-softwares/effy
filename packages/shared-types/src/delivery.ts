@@ -1,7 +1,6 @@
 /**
- * Delivery — customer-facing contracts (047-delivery-shipping-engine).
- *
- * Contract: `specs/047-delivery-shipping-engine/contracts/delivery-customer-api.contract.md`.
+ * Delivery — customer-facing contracts (047, rebuilt by 076–079; the old same-day/standard
+ * checkout fields were removed by 083).
  *
  * The SSOT the backend (serviceability, localities, quote), customer-web, and customer-mobile all
  * consume (Principle II). ⚠ Money crosses the wire as a 2-dp decimal string (like every other amount on
@@ -16,8 +15,10 @@ import type { CheckoutPointsDTO } from "./checkout";
 import type { DeliveryFeeDTO, DeliveryOfferDTO } from "./delivery-fee";
 
 /**
- * The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE amount
- * for the order, and a delivery today costs more only through the plan's window surcharge.
+ * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today, `standard` =
+ * a window on a later day (078). ⚠ No price of its own (077): the fee is ONE amount for the order.
+ * ⚠ On an order placed before delivery types (079) `standard` meant a day a carrier delivered —
+ * such an order is read through `deliveredBy`, never guessed from this word.
  */
 export type DeliveryMethod = "same_day" | "standard";
 
@@ -83,92 +84,39 @@ export interface LocalitiesResultDTO {
 }
 
 /**
- * One method a package can have.
+ * The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted
+ * fee — the client never sends a fee (047 FR-036).
  *
- * ⚠ `feeAmount` IS COMPATIBILITY ONLY since 077. Delivery is priced once per order
- * (`DeliveryQuoteDTO.standardFee`, `DeliverySlotOptionDTO.fee`); these per-package figures are an
- * arrangement that makes a client built before 077 — which sums the chosen method per package —
- * show no less than it is charged. They mean nothing about any one package. Removed by the
- * checkout feature (E5).
- */
-export interface DeliveryOptionDTO {
-  method: DeliveryMethod;
-  feeAmount: string;
-  promisedFrom: string | null; // ISO date (yyyy-mm-dd) or null
-  promisedTo: string | null;
-}
-
-/**
- * One portion of the order and the methods it can have. `shopRef` is an OPAQUE handle — never a shop
- * id (FR-033). A served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only
- * where it can go today (FR-044). ⚠ Not priced: see `DeliveryOptionDTO.feeAmount`.
- */
-export interface DeliveryPackageDTO {
-  shopRef: string;
-  options: DeliveryOptionDTO[];
-}
-
-/**
- * The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted fee —
- * the client never sends a fee (FR-036). When `serviced` is false there are NO packages and one reason:
- * the postcode is in no served zone (FR-002).
+ * A serviced address answers exactly one of two things (083): `effyWindows` — the windows to choose
+ * from — or `courier`. ⚠ Nothing about how the order splits across suppliers: no package list.
  */
 export interface DeliveryQuoteDTO {
   postcode: string;
   serviced: boolean;
   /**
-   * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only when a
-   * courier order can be placed (079): the new delivery model is on, courier delivery is on, a
-   * courier fee table is active and an estimate is set. The quote then carries `courier`.
+   * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only when a
+   * courier order can be placed (079); the quote then carries `courier`.
    */
   coverage?: CoverageKind;
-  /**
-   * ISO datetime with the Australia/Melbourne offset, or null. ⚠ Kept for clients built before 069;
-   * it now carries the latest OPEN SLOT's cutoff. New clients read `sameDaySlots`.
-   */
-  sameDayAvailableUntil: string | null;
-  packages: DeliveryPackageDTO[];
+  /** ISO datetime with the Australia/Melbourne offset; "" when not serviced. */
   expiresAt: string;
-  /**
-   * 069 — the same-day time slots still open for THIS order, earliest first. Empty when there are
-   * none, and then no package carries a `same_day` option. A slot is offered only if it is open for
-   * every package that would go same-day, so one choice covers the order (FR-005).
-   */
-  sameDaySlots: DeliverySlotOptionDTO[];
-  /**
-   * 069 — why same-day is not offered, when it is not (FR-004). The two are different sentences to a
-   * customer: "not in your area" will still be true tomorrow; "today's times are taken" will not.
-   */
-  sameDayUnavailableReason: SameDayUnavailableReason | null;
-  /**
-   * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
-   * ⚠ Never empty when `serviced` (FR-020) — while `effyWindows` is null.
-   */
-  standardDays: StandardDayOptionDTO[];
   /** 074 — the customer's spendable points, when they have any. */
   points?: CheckoutPointsDTO;
-  /**
-   * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent when
-   * not serviced, and from a server older than 077.
-   */
-  standardFee?: DeliveryFeeDTO;
   /**
    * 077 — how much more the basket needs for free delivery. Null when no free-delivery amount is
    * set or it is already reached.
    */
   freeDeliveryRemainingAmount?: string | null;
   /**
-   * 078 — the windows a customer may choose once the new delivery model is on: today's under
-   * "Same-day delivery", the following delivery days' under "Standard delivery". ⚠ ABSENT WHILE THE MODEL IS OFF — the response is then byte for byte what
-   * it was, and every field above means what it did. When present, the choice is sent back as `deliveryWindow` on the intent, and `standardDays`
-   * may be empty.
+   * PRESENT EXACTLY WHEN `coverage` is `"effy"` (078): today's windows under "Same-day delivery",
+   * the following delivery days' under "Standard delivery". The choice is sent back as
+   * `deliveryWindow` on the intent.
    */
   effyWindows?: EffyWindowsDTO | null;
   /**
-   * 079 — PRESENT EXACTLY WHEN `coverage` is `"courier"`. There is then nothing to choose:
-   * `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The client
-   * shows "Courier delivery", the estimate and the fee, and sends `deliveryType: "courier"` on the
-   * intent. ⚠ No distance, no courier company, nothing about how many suppliers fill the order.
+   * PRESENT EXACTLY WHEN `coverage` is `"courier"` (079). There is then nothing to choose: the
+   * client shows "Courier delivery", the estimate and the fee, and sends `deliveryType: "courier"`
+   * on the intent. ⚠ No distance, no courier company, nothing about how many suppliers fill the order.
    */
   courier?: CourierQuoteDTO;
 }
@@ -254,44 +202,11 @@ export interface EffyWindowsDTO {
   unavailable: "no_windows" | "none_defined" | null;
 }
 
-/** Why same-day is not on offer: the zone or shop does not do it, or every slot today is closed or full. */
-export type SameDayUnavailableReason = "not_eligible" | "slots_closed";
-
-/**
- * One open same-day delivery window (069).
- *
- * ⚠ 077 REVERSED "a slot has no fee": the order's delivery charge with THIS window is `fee`, and
- * what the window adds over a standard day is `surchargeAmount` — shown before it is chosen.
- * ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's operational business, and
- * "2 left" would be a pressure tactic nobody asked for (FR-050).
- */
-export interface DeliverySlotOptionDTO {
-  /** Opaque. Sent back as `sameDaySlotId` on the intent request (`deliveryWindow.slotId` once `effyWindows` is present). */
-  slotId: string;
-  /** The delivery day, yyyy-mm-dd (Melbourne). */
-  date: string;
-  /** ISO datetimes with the Australia/Melbourne offset. */
-  startAt: string;
-  endAt: string;
-  /** After this the slot can no longer be chosen. Lets a client grey it out without a round trip. */
-  cutoffAt: string;
-  /** 077 — what this window adds to the delivery charge; "0.00" when nothing. */
-  surchargeAmount?: string;
-  /** 077 — the order's delivery charge with this window chosen. */
-  fee?: DeliveryFeeDTO;
-}
-
-/** One day a standard delivery can arrive (069). Its charge is the quote's `standardFee` (077). */
-export interface StandardDayOptionDTO {
-  /** yyyy-mm-dd (Melbourne). */
-  date: string;
-}
-
 /**
  * 069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a 409
  * problem, with a fresh `quote` so the client can re-offer without a second request.
  *
- * ⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses again.
+ * ⚠ A refusal NEVER substitutes a window or a day (FR-010). The customer chooses again.
  */
 export type DeliveryChoiceRefusalCode =
   | "slot_required" | "slot_unavailable" | "date_unavailable" | "no_windows_available"

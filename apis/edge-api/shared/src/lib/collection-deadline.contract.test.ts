@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { melbourneDate, sameDayCutoff } from "../delivery/sameday";
+import { lastOrderCutoff, melbourneDate } from "../delivery/schedule";
 import { collectionDeadline, endOfLocalDay } from "./collection-deadline";
 
 /**
@@ -128,13 +128,13 @@ describe("checkout cutoff == collection deadline − prep buffer", () => {
     // a run can never be ordered for on its own day, and checkout says so by offering nothing —
     // it does not reach back and sell tomorrow's run as "same-day".
     if (melbourneDate(new Date(at)) !== melbourneDate(new Date(at + bufferMin * 60_000))) {
-      expect(sameDayCutoff(new Date(at - 1000), run, bufferMin)).toBeNull();
-      expect(sameDayCutoff(new Date(at + bufferMin * 60_000 - 1000), run, bufferMin)).toBeNull();
+      expect(lastOrderCutoff(new Date(at - 1000), run, bufferMin)).toBeNull();
+      expect(lastOrderCutoff(new Date(at + bufferMin * 60_000 - 1000), run, bufferMin)).toBeNull();
       return;
     }
-    expect(sameDayCutoff(new Date(at - 1000), run, bufferMin)?.toISOString()).toBe(want);
-    expect(sameDayCutoff(new Date(at), run, bufferMin)?.toISOString()).toBe(want); // the cutoff instant itself is still in time
-    const after = sameDayCutoff(new Date(at + 1000), run, bufferMin);
+    expect(lastOrderCutoff(new Date(at - 1000), run, bufferMin)?.toISOString()).toBe(want);
+    expect(lastOrderCutoff(new Date(at), run, bufferMin)?.toISOString()).toBe(want); // the cutoff instant itself is still in time
+    const after = lastOrderCutoff(new Date(at + 1000), run, bufferMin);
     // Either nothing can be made today, or the answer is a LATER day's cutoff — never this one.
     if (after) expect(after.getTime()).toBeGreaterThan(at);
   });

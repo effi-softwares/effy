@@ -1,5 +1,5 @@
 import { localDateParts } from "../lib/collection-deadline";
-import type { CollectionRun } from "./sameday";
+import type { CollectionRun } from "./schedule";
 import { judgeWindow, type OpenSlot, type Slot } from "./slots";
 
 /**
@@ -9,7 +9,10 @@ import { judgeWindow, type OpenSlot, type Slot } from "./slots";
  * one day; this file only lays that rule out across days. Pure: no clock, no database.
  */
 
-/** Bounds the day scan — see `standard-days.ts`: a deliverable day always exists within a week. */
+/**
+ * Bounds the day scan. The settings forbid excluding all seven weekdays (a CHECK), so a deliverable
+ * day always exists within a week; this guards the loop against a long run of excluded dates.
+ */
 const MAX_DAY_SCAN = 60;
 const DAY_MS = 24 * 3600_000;
 

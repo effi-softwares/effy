@@ -4,7 +4,7 @@ import {
   availabilityPredicate, formatCents, parseCents, pooled, withTransaction, type Queryable, type Transactor,
 } from "@effy/edge-shared";
 import {
-  judgeWindow, loadSlotSettings, lockSlot, sameDaySchedule, slotLoad, type SlotVerdict,
+  judgeWindow, loadSlotSettings, lockSlot, collectionSchedule, slotLoad, type SlotVerdict,
 } from "@effy/edge-shared/delivery";
 import type { PaymentMethodSummary } from "@effy/edge-shared/payments";
 import { hold as holdLedgerPoints, loadSettings as loadPointsSettings, usable as usablePoints } from "@effy/edge-shared/points";
@@ -378,7 +378,7 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
           // are serialised here, and the second counts the first's hold.
           const slot = await lockSlot(tx, hold.slotId);
           if (!slot) throw new SlotUnavailableError("cutoff");
-          const { runs, bufferMin } = await sameDaySchedule(tx);
+          const { runs, bufferMin } = await collectionSchedule(tx);
           const settings = await loadSlotSettings(tx);
           // ⚠ Judged for the day the place is ON, against that day's load — the same rule the quote
           // offered it by (`judgeWindow`), so a window is never offered and then refused for a

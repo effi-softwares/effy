@@ -42,9 +42,8 @@ import { changeDeliveryType, deliveryTypeChangeNotes } from "./delivery-type";
 import { PLANNER_PASS_LOCK, removeAssignment } from "./driver-work";
 import { courierFee } from "./engine";
 import { courierValues, loadActivePlan, NoActivePlanError } from "./plan";
-import { melbourneDate, sameDaySchedule } from "./sameday";
-import { judgeWindow, loadSlots, loadSlotSettings, lockSlot, slotLoad, slotLoadByDate } from "./slots";
-import { nonDeliveryDates } from "./standard-days";
+import { collectionSchedule, melbourneDate } from "./schedule";
+import { judgeWindow, loadSlots, loadSlotSettings, lockSlot, nonDeliveryDates, slotLoad, slotLoadByDate } from "./slots";
 import { effyDays, openWindows } from "./windows";
 import { normalizePostcode } from "./zone";
 
@@ -338,7 +337,7 @@ async function guardBackToEffy(q: Queryable, f: MoveFacts, now: Date): Promise<D
 
 /** The windows a customer could be sold now — the quote's calendar and rule, never a second one. */
 async function windowsNow(q: Queryable, now: Date): Promise<DeliveryMoveWindowDTO[]> {
-  const { runs, bufferMin } = await sameDaySchedule(q);
+  const { runs, bufferMin } = await collectionSchedule(q);
   const settings = await loadSlotSettings(q);
   const today = melbourneDate(now);
   const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today));
@@ -583,7 +582,7 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
   const day = calendar.find((d) => d.date === input.window.date && !d.nonDelivery);
   const slot = day ? await lockSlot(tx, input.window.slotId) : null;
   if (!day || !slot) throw new DeliveryMoveError("window_unavailable");
-  const { runs, bufferMin } = await sameDaySchedule(tx);
+  const { runs, bufferMin } = await collectionSchedule(tx);
   const load = await slotLoad(tx, day.date);
   const judged = judgeWindow(now, day.date, slot, load.get(slot.id) ?? 0, runs, bufferMin, settings.turnaroundMin);
   if (judged.verdict !== "open") throw new DeliveryMoveError("window_unavailable");

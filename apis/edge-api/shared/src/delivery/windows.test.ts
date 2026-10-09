@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { CollectionRun } from "./sameday";
+import type { CollectionRun } from "./schedule";
 import { judgeWindow, type Slot } from "./slots";
 import { melbourne, wallClock } from "./test-clock";
 import { effyDays, openWindows, windowsUnavailable } from "./windows";
