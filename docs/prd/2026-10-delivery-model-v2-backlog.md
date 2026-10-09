@@ -829,29 +829,29 @@ Only admins and managers can move orders; customer-service agents can view.
 **Tasks**
 
 *Data*
-- [ ] E7-T01 Migration: `delivery_override` (order id, from, to, reason, actor, compensation kind `points|free_delivery_points|free_delivery_refund|refund_difference|none`, amount, created_at). Links to `order_delivery_type_change` (E5) and `points_ledger` (E1) / refund (055).
+- [x] E7-T01 Migration: `delivery_override` (order id, from, to, reason, actor, compensation kind `points|free_delivery_points|free_delivery_refund|refund_difference|none`, amount, created_at). Links to `order_delivery_type_change` (E5) and `points_ledger` (E1) / refund (055).
 *Shared library*
-- [ ] E7-T02 `@effy/edge-shared/delivery/override`: one function that, in one transaction, changes type, releases the `delivery_slot_booking`, removes the package from rounds (`round_package`), creates consignments per collection mode (E6), and records the change. Announce after commit.
-- [ ] E7-T03 Compensation via `@effy/edge-shared/points` (E1) or `@effy/edge-shared/payments` refunds (055) — never re-implemented.
-- [ ] E7-T04 Compute `effyFeePaid` from the snapshotted breakdown (E3-T08) and `courierFee` from the active courier plan at override time; clamp difference at ≥ 0.
+- [x] E7-T02 `@effy/edge-shared/delivery/override`: one function that, in one transaction, changes type, releases the `delivery_slot_booking`, removes the package from rounds (`round_package`), creates consignments per collection mode (E6), and records the change. Announce after commit. — *Built as `delivery/override.ts`; consignments are made at booking (080), not at the move; the mode is set through `consignment.ts`.*
+- [x] E7-T03 Compensation via `@effy/edge-shared/points` (E1) or `@effy/edge-shared/payments` refunds (055) — never re-implemented.
+- [x] E7-T04 Compute `effyFeePaid` from the snapshotted breakdown (E3-T08) and `courierFee` from the active courier plan at override time; clamp difference at ≥ 0.
 *Admin / orders service*
-- [ ] E7-T05 Route `POST /admin/v1/orders/{id}/delivery-type` (to courier / back to Effy) with role guard and state guards.
-- [ ] E7-T06 Route `POST /admin/v1/orders/{id}/delivery-compensation` (or same call) with choice + amount preview.
-- [ ] E7-T07 Preview route: shows courier fee, difference, each option's effect.
+- [x] E7-T05 Route `POST /admin/v1/orders/{id}/delivery-type` (to courier / back to Effy) with role guard and state guards. — *Built as one `POST /orders/v1/orders/{id}/delivery-move` on `orders` (staff gateway), both directions.*
+- [x] E7-T06 Route `POST /admin/v1/orders/{id}/delivery-compensation` (or same call) with choice + amount preview. — *Same call as T05: the compensation is chosen with the move.*
+- [x] E7-T07 Preview route: shows courier fee, difference, each option's effect. — *`GET /orders/v1/orders/{id}/delivery-move?to=`.*
 *Fleet / driver*
-- [ ] E7-T08 Removing a package from an open round — reuse 073's Unassign; driver app reflects via live update.
+- [x] E7-T08 Removing a package from an open round — reuse 073's Unassign; driver app reflects via live update. — *`removeAssignment` moved into the shared library; a delivery round under way blocks the move.*
 *Notifications*
-- [ ] E7-T09 Email + push "Your order will now arrive by courier" with compensation sentence (email-kit template).
+- [x] E7-T09 Email + push "Your order will now arrive by courier" with compensation sentence (email-kit template).
 *Back-office*
-- [ ] E7-T10 Order detail action "Send by courier…" → dialog: reason, compensation choice (points preselected), preview, confirm.
-- [ ] E7-T11 Reverse action "Deliver by Effy…" with window picker.
-- [ ] E7-T12 Override history panel on the order.
+- [x] E7-T10 Order detail action "Send by courier…" → dialog: reason, compensation choice (points preselected), preview, confirm.
+- [x] E7-T11 Reverse action "Deliver by Effy…" with window picker.
+- [x] E7-T12 Override history panel on the order.
 *Customer surfaces*
-- [ ] E7-T13 Order detail shows type change and compensation line; receipt updated (web, mobile).
+- [x] E7-T13 Order detail shows type change and compensation line; receipt updated (web, mobile).
 *Tests, docs*
-- [ ] E7-T14 Container tests: each compensation kind; courier dearer → no charge; override after handover refused; window released frees capacity; driver round updated.
-- [ ] E7-T15 Metrics: overrides per day (alarm if above threshold — emergencies should be rare).
-- [ ] E7-T16 FEATURE-HISTORY entry + operator steps.
+- [x] E7-T14 Container tests: each compensation kind; courier dearer → no charge; override after handover refused; window released frees capacity; driver round updated. — *All but the refusal for an order with no delivery type were in the list; that is covered too.*
+- [x] E7-T15 Metrics: overrides per day (alarm if above threshold — emergencies should be rare).
+- [x] E7-T16 FEATURE-HISTORY entry + operator steps. — *Operator steps in `specs/081-courier-override-compensation/SIGNOFF.md`; not yet migrated or deployed.*
 
 ---
 
