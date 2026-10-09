@@ -4,31 +4,43 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**083-delivery-model-cutover — Delivery Model Cutover.** 🟡 **STAGE 1 (THE SWITCH) BUILT AND CHECKED BY MACHINE
-(2026-10-09) — NOT MIGRATED, DEPLOYED, WALKED OR SIGNED OFF. ⛔ STAGE 2 (THE REMOVAL) NOT STARTED.** Ninth slice of the
-delivery model v2 programme ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md),
-epic E9). Sign-off notes: [specs/083-delivery-model-cutover/SIGNOFF.md](specs/083-delivery-model-cutover/SIGNOFF.md).
-Runbook: [docs/runbooks/delivery-model-v2-cutover.md](docs/runbooks/delivery-model-v2-cutover.md).
+**083-delivery-model-cutover — Delivery Model Cutover.** 🟡 **STAGE 1 (THE SWITCH) DEPLOYED TO DEV (operator-reported,
+2026-10-09) — NOT WALKED OR SIGNED OFF. 🟡 STAGE 2 (THE OLD ARRANGEMENT REMOVED) BUILT AND CHECKED BY MACHINE
+(2026-10-10) — NOT MIGRATED, DEPLOYED, WALKED OR SIGNED OFF.** Ninth and last slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E9). Sign-off notes:
+[specs/083-delivery-model-cutover/SIGNOFF.md](specs/083-delivery-model-cutover/SIGNOFF.md). Runbook:
+[docs/runbooks/delivery-model-v2-cutover.md](docs/runbooks/delivery-model-v2-cutover.md). What the old model was:
+[docs/archive/delivery-model-v1.md](docs/archive/delivery-model-v1.md).
 
-- **What stage 1 is.** The switch 078 left with no setter gets one: Back-office → Delivery → **Go-live** — a
-  readiness checklist, the moment (now or scheduled; change, cancel, turn back off with a reason), who set
-  it, and how many orders sold the old way are still open. **Nothing was switched on.**
-- ⚠ **ONE WRITER** — `admin/src/delivery/go-live.repository.ts` is the only code that names
-  `delivery_model_v2_from`; every write is in one transaction with its `admin.audit_log` row, and "who set
-  it" is read from that trail. Admin only. `windows.guard.test.ts` holds it.
-- ⚠ **ONE "READY"** — `goLiveReadiness` (`shared/src/delivery/readiness.ts`): the page, the setter (409
-  `not_ready`) and a 5-minute sweep that **clears a scheduled switch** the platform is no longer ready for
-  within 10 minutes of its moment. The sweep never undoes a moment that has passed.
-- ⚠ **ONE "OLD ORDER STILL OPEN"** — `LEGACY_OPEN_ORDER_SQL` (`shared/src/delivery/legacy.ts`): the count,
-  the order list's `open=true` filter and the alert. Stage 2's migration will restate it as its guard.
-- ⚠ **An order's type is recorded at CAPTURE, not payment** — an order captured the old way and paid just
-  after the moment is still an old order; the count can rise for a few minutes after the switch.
-- **Old orders finish as sold with the model on** — proven in the planner and handover suites; nothing on
-  that path reads the switch.
-- **Operator steps (dev):** `make db-up`, `make edge-deploy` for `admin` and `orders`, `make apply`; the
-  back-office build on push. Then the runbook. Walks V1–V6 in
+- **Stage 1 — the switch.** Back-office → Delivery → **Go-live**: a readiness checklist, the moment (now or
+  scheduled; change, cancel, turn back off with a reason), who set it, and the old orders still open.
+  ⚠ ONE writer of the switch (`admin/src/delivery/go-live.repository.ts`, admins only, audited); ONE
+  "ready" (`goLiveReadiness`), asked by the page, the setter and a 5-minute sweep that clears a scheduled
+  switch the platform is no longer ready for; ONE "old order still open" (`LEGACY_OPEN_ORDER_SQL`).
+- **Stage 2 — the removal.** One checkout: a serviced address answers Effy windows or a courier. The
+  method choice, the slot and day pickers, the same-day bridge, the per-package fee, the carrier lead time
+  and the standard look-ahead are gone, in code and in the schema.
+- ⚠ **THE REMOVAL MIGRATION REFUSES** while an old-kind order is open, or on a database that took orders
+  and was never switched over — and runs on one with no orders (a new environment). **Not reversible.**
+- ⚠ **`delivery_model_v2_at` ANSWERS TRUE FOR GOOD; no service asks it.** After the removal the go-live
+  route refuses every change (409 `removed`).
+- ⚠ **THE QUOTE LOST FIELDS, SO THE CUSTOMER WEB AND APP GO OUT WITH `commerce`.** A build from before
+  cannot read the new quote; checkout stops at delivery, uncharged. Shop and driver wire fields were
+  KEPT (`same_day_delivery`, `sameDayCount`, `standardCount`, `deliveryMethod`) — there is no app-update
+  mechanism.
+- ⚠ **`same_day` / `standard` ARE NOT LEGACY**: for an Effy order they are the customer's words (a window
+  today / on a later day). `scripts/check-no-legacy-delivery.sh` fails the old path's identifiers only.
+- ⚠ **The schema-drift guard is name-scoped**, and 083 dropped two names that stay live on another table
+  (`delivery_fee_amount`, `method`). They are exempted by name in `LIVE_ON_ANOTHER_TABLE`, each saying
+  what else holds the dropped side. Add to it only with that.
+- **Defect found**: stage 1's `readiness.ts` lacked an availability exemption and turned `storefront`'s
+  guard red; I had not run that suite. Fixed (a comment).
+- **Not done**: four operator guides carry an "out of date" notice instead of a rewrite; the dead
+  `courier_pending` values remain in the types. See SIGNOFF.
+- **Operator steps (dev), stage 2:** `make edge-deploy` for `commerce`, `orders`, `fleet`, `admin` **then**
+  `make db-up`; web builds on the same push; a customer app release. On dev the migration refuses unless
+  the switch is on and no old order is open (or the orders are purged). Walks V7–V10 in
   [quickstart.md](specs/083-delivery-model-cutover/quickstart.md).
-- ⛔ **Stage 2 (T022–T038) waits** for stage 1 live and walked, no old order open, and every app updated.
 
 **082-driver-operations-realignment — Driver Operations Realignment.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
 DEPLOYED TO DEV. ⚠ Walks V1–V7 were not recorded. No migration.** Eighth slice of the delivery model v2 programme

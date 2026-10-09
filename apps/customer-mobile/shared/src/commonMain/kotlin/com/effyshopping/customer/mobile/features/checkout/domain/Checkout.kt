@@ -266,21 +266,15 @@ data class CustomerRefund(
 enum class CustomerRefundState { OnItsWay, Completed, ThereWasAProblem }
 
 /**
- * What placement needs.
+ * What placement needs: where it goes, what the shopper chose, and what this screen is showing.
  *
- * ⚠ It used to carry per-package delivery selections and an exclusion set. Delivery zones, quotes and
- * fees were withdrawn from the platform, so there is nothing per-package to choose and nothing to
- * exclude — every item in the cart is charged, and the shopper picks only an address.
+ * ⚠ The client never sends a fee — the server prices the order (047 SC-004) — and never anything
+ * about how the order splits across suppliers.
  */
 data class PlaceOrder(
     val addressId: String,
     /** Set only when the shopper diverged from shipping (023). Null means "same as shipping". */
     val billingAddressId: String? = null,
-    /**
-     * 047: the shopper's order-level delivery preference. Applied per package where same-day is offered,
-     * standard elsewhere (FR-044). The client never sends a fee — the server prices the method (SC-004).
-     */
-    val deliveryMethod: DeliveryMethod = DeliveryMethod.STANDARD,
     /**
      * 066 — what the shopper tells the driver for THIS order, or null when they said nothing.
      *
@@ -289,24 +283,15 @@ data class PlaceOrder(
      */
     val deliveryInstructions: DeliveryInstructions? = null,
     /**
-     * 069 — the same-day slot and the standard day the shopper chose. ⚠ Neither is ever substituted:
-     * the server refuses the order ([DeliveryChoiceRefused]) when one is no longer on offer, and the
-     * shopper chooses again. A null [standardDate] means the earliest day, which is what the UI
-     * preselects.
-     */
-    val sameDaySlotId: String? = null,
-    val standardDate: String? = null,
-    /**
-     * 078 — the ONE window chosen for the order under the new delivery model (the quote then carries
-     * [DeliveryQuote.effyWindows]). When set, it is what is sent and the three 047/069 fields above
-     * are not. ⚠ Never substituted: a window that has gone is a [DeliveryChoiceRefused].
+     * The ONE window chosen for the order when Effy delivers (078); null for a courier order, which
+     * has nothing to choose. ⚠ Never substituted: a window that has gone is a [DeliveryChoiceRefused].
      */
     val deliveryWindow: ChosenWindow? = null,
     /**
      * 079 — who delivers the order, as this screen is SHOWING it ([DeliveryQuote.deliveryType]). A
      * courier order is refused without it, and so is one that says "courier" for an address Effy now
      * delivers to ([DeliveryChoiceRefusal.DeliveryTypeChanged]) — nobody pays a courier fee for a
-     * screen that showed Effy's windows. Null under the checkout that predates delivery types.
+     * screen that showed Effy's windows.
      */
     val deliveryType: DeliveryType? = null,
     /** 074 — whole points to pay with; 0 for none. The server re-decides the split and refuses rather than changes it. */
@@ -354,25 +339,6 @@ enum class PointsRefusal { BalanceChanged, ExceedTotal, CardRemainderTooSmall, P
 
 /** 074 — a points refusal, with the most points the server would accept when it said. */
 class PointsRefused(val reason: PointsRefusal, val maxPoints: Long?) : Exception("points refused: $reason")
-
-/** The two delivery methods (047). ⚠ Since 077 a method has no price; the order has one fee. */
-enum class DeliveryMethod { STANDARD, SAME_DAY }
-
-/**
- * One open same-day delivery window (069). ⚠ No capacity. ⚠ 077: a window MAY cost more — [fee] is
- * the order's delivery charge with it chosen, [surchargeAmount] what it adds over a later day.
- */
-data class DeliverySlot(
-    val id: String,
-    /** yyyy-mm-dd, Melbourne. */
-    val date: String,
-    val startAt: String,
-    val endAt: String,
-    /** After this the slot can no longer be chosen. */
-    val cutoffAt: String,
-    val surchargeAmount: String? = null,
-    val fee: DeliveryFee? = null,
-)
 
 /** 078 — the one window chosen for an order: a slot ON A DAY (yyyy-mm-dd, Melbourne). */
 data class ChosenWindow(val slotId: String, val date: String)
@@ -460,53 +426,27 @@ sealed interface OrderTracking {
     data object ByEmail : OrderTracking
 }
 
-/** Why same-day is not on offer (069 FR-004) — two different sentences to a shopper. */
-enum class SameDayUnavailable { NotEligible, SlotsClosed }
-
 /**
- * The delivery quote for a chosen address (047 US1/US2; 069), shown BEFORE payment. When [serviced] is
- * false there are no packages and one reason — we don't deliver there yet (FR-002). Fees are
- * GST-inclusive, snapped-up 2-dp decimal strings.
+ * The delivery quote for a chosen address, shown BEFORE payment. When [serviced] is false nobody
+ * delivers there. A serviced address answers exactly one of two things (083): [effyWindows] — the
+ * windows to choose from — or [courier].
  *
- * ⚠ [sameDayAvailable] IS "ANY DELIVERY CAN GO TODAY AND A SLOT IS OPEN" (069 research R7). Until 069
- * it meant EVERY package could, so a basket with one excepted shop could not be placed same-day at
- * all. Such an order is now [mixed]: the shopper chooses one slot and one day, and is told how many
- * deliveries arrive today — a fact about their experience that names no shop.
- *
- * ⚠ A slot and a day have no price of their own (FR-021). [sameDayPartAmount] and
- * [standardPartAmount] are what the same-day and standard deliveries cost when same-day is chosen.
+ * ⚠ ONE FEE FOR THE ORDER (077), and nothing here says how the order splits across suppliers.
  */
 data class DeliveryQuote(
     val serviced: Boolean,
-    val sameDayAvailable: Boolean,
-    val standardTotalAmount: String,
-    val sameDayTotalAmount: String?,
-    val slots: List<DeliverySlot> = emptyList(),
-    /** yyyy-mm-dd, earliest first. The first is the default. */
-    val standardDays: List<String> = emptyList(),
-    val sameDayUnavailable: SameDayUnavailable? = null,
-    val deliveries: Int = 0,
-    val sameDayDeliveries: Int = 0,
-    val sameDayPartAmount: String? = null,
-    val standardPartAmount: String? = null,
     /** 074 — the shopper's spendable points; null when they have none. */
     val points: CheckoutPoints? = null,
-    /**
-     * 077 — the order's delivery charge with no window (a later day). Built from the legacy totals
-     * when the server is older than 077, so it is never null on a serviced quote.
-     */
-    val standardFee: DeliveryFee? = null,
     /** 077 — how much more the basket needs for free delivery; null when unset or reached. */
     val freeDeliveryRemainingAmount: String? = null,
-    /** 078 — the new model's windows; null while it is off, and then everything above is the 069 quote. */
+    /** Set exactly when Effy delivers: today and the next delivery days, and the windows open on each (078). */
     val effyWindows: EffyWindows? = null,
-    /** 079 — set exactly when a courier delivers the order; then nothing above is there to choose. */
+    /** Set exactly when a courier delivers the order (079); then there is nothing to choose. */
     val courier: CourierDelivery? = null,
 ) {
     /**
-     * 079 — who delivers the order this quote is for: a courier, Effy under the new delivery model,
-     * or null under the checkout that predates it. ⚠ THE QUOTE SAYS, and the same value is sent back
-     * on the intent — the same rule as customer-web's `deliveryTypeOf`.
+     * 079 — who delivers the order this quote is for. ⚠ THE QUOTE SAYS, and the same value is sent
+     * back on the intent — the same rule as customer-web's `deliveryTypeOf`.
      */
     val deliveryType: DeliveryType?
         get() = when {
@@ -516,26 +456,20 @@ data class DeliveryQuote(
             else -> null
         }
 
-    /** Some deliveries can go today and some cannot. */
-    val mixed: Boolean get() = sameDayAvailable && sameDayDeliveries < deliveries
-
     /**
-     * 077 — the delivery charge for what is chosen: the window's fee when anything goes today, the
-     * later-day fee otherwise. Null while same-day is chosen and no window is — nothing to show yet.
+     * 077 — the delivery charge for what is chosen: the courier's fee, or the chosen window's. Null
+     * until a window is chosen — nothing to show yet.
      * ⚠ The same rule as customer-web's `chosenFee`; the server re-prices and refuses a mismatch.
      */
-    fun feeFor(method: DeliveryMethod, slotId: String?, window: ChosenWindow? = null): DeliveryFee? {
+    fun feeFor(window: ChosenWindow?): DeliveryFee? {
         if (!serviced) return null
         // 079 — a courier delivers: ONE fee, already decided, whatever else is (not) chosen.
         if (courier != null) return courier.fee
-        // 078 — the new model: the chosen window's fee, and nothing to show until there is a window.
-        if (effyWindows != null) return effyWindows.find(window)?.fee
-        if (method != DeliveryMethod.SAME_DAY || !sameDayAvailable) return standardFee
-        return slots.firstOrNull { it.id == slotId }?.fee
+        return effyWindows?.find(window)?.fee
     }
 
     companion object {
-        val Unserviced = DeliveryQuote(serviced = false, sameDayAvailable = false, standardTotalAmount = "0.00", sameDayTotalAmount = null)
+        val Unserviced = DeliveryQuote(serviced = false)
     }
 }
 
@@ -548,11 +482,11 @@ enum class DeliveryChoiceRefusal {
 }
 
 /**
- * The checkout was refused because the slot or day the shopper chose cannot be honoured (069 FR-009).
+ * The checkout was refused because the window the shopper chose cannot be honoured (069 FR-009).
  * Nothing has been charged and no payment exists. [quote] is what is on offer NOW, when the server
  * sent it.
  *
- * ⚠ A refusal never substitutes a slot, a day or a method. The shopper chooses again.
+ * ⚠ A refusal never substitutes a window or a day. The shopper chooses again.
  */
 class DeliveryChoiceRefused(
     val reason: DeliveryChoiceRefusal,

@@ -12,7 +12,6 @@ import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutRepository
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
@@ -75,9 +74,15 @@ class CheckoutViewModelTest {
     }
 
     private class FakeCheckout(
-        // 047: the quote the fake returns. Serviced by default so the existing pay tests still pass.
+        // The quote the fake returns. ⚠ A COURIER quote by default, on purpose: it has one fee ($6.00)
+        // and NOTHING TO CHOOSE, so the tests that are not about delivery can go straight to paying.
         private val quote: DeliveryQuote = DeliveryQuote(
-            serviced = true, sameDayAvailable = false, standardTotalAmount = "6.00", sameDayTotalAmount = null,
+            serviced = true,
+            courier = com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery(
+                estimate = "2–4 business days",
+                fee = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee(listOf(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery, "6.00")), "6.00"),
+                noWindowLeft = false,
+            ),
         ),
         /** 077 — when set, the first intent is refused as "the delivery fee changed", with this quote. */
         private var feeChangedTo: DeliveryQuote? = null,
@@ -255,7 +260,7 @@ class CheckoutViewModelTest {
         val vm = vm(listOf(addr("a", isDefault = true)))
         val s = ready(vm)!!
         assertTrue(s.serviced)
-        assertEquals("6.00", s.quote?.standardTotalAmount)
+        assertEquals("6.00", s.deliveryFee?.totalAmount)
     }
 
     @Test
@@ -272,34 +277,6 @@ class CheckoutViewModelTest {
         assertNull(unserviced.lastOrder) // never reached placement
     }
 
-    // ⚠ 069 changed what this test can say. It used to read "offerable only when the WHOLE order
-    // qualifies" — same-day is now offered when ANY delivery can go today and a slot is open, and it
-    // cannot be paid for without a slot. The slot rules themselves are in DeliveryChoiceTest.
-    @Test
-    fun `same-day is sent on pay - with the slot it needs`() = runTest {
-        val slot = com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot(
-            id = "evening", date = "2026-10-08",
-            startAt = "2026-10-08T17:00:00+11:00", endAt = "2026-10-08T19:00:00+11:00", cutoffAt = "2026-10-08T15:00:00+11:00",
-        )
-        val sameDay = FakeCheckout(
-            quote = DeliveryQuote(
-                serviced = true, sameDayAvailable = true,
-                standardTotalAmount = "6.00", sameDayTotalAmount = "10.00",
-                slots = listOf(slot), standardDays = listOf("2026-10-09"), deliveries = 1, sameDayDeliveries = 1,
-            ),
-        )
-        val vm = vm(listOf(addr("a", isDefault = true)), checkout = sameDay)
-        assertTrue(ready(vm)!!.sameDayOfferable)
-
-        vm.setMethod(DeliveryMethod.SAME_DAY)
-        assertEquals(DeliveryMethod.SAME_DAY, ready(vm)?.method)
-
-        vm.setSlot("evening")
-        vm.payNow()
-        assertEquals(DeliveryMethod.SAME_DAY, sameDay.lastOrder?.deliveryMethod)
-        assertEquals("evening", sameDay.lastOrder?.sameDaySlotId)
-    }
-
     // ── 077: one delivery fee for the order ────────────────────────────────────────────────────
 
     private fun fee(vararg lines: Pair<com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind, String>, total: String) =
@@ -307,48 +284,23 @@ class CheckoutViewModelTest {
             lines.map { com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine(it.first, it.second) }, total,
         )
 
-    private val pricedSameDay = DeliveryQuote(
-        serviced = true, sameDayAvailable = true, standardTotalAmount = "6.00", sameDayTotalAmount = "9.00",
-        standardFee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "6.00", total = "6.00"),
-        slots = listOf(
-            com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot(
-                id = "evening", date = "2026-10-08", startAt = "2026-10-08T17:00:00+11:00", endAt = "2026-10-08T19:00:00+11:00",
-                cutoffAt = "2026-10-08T15:00:00+11:00", surchargeAmount = "3.00",
-                fee = fee(
-                    com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "6.00",
-                    com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.WindowSurcharge to "3.00",
-                    total = "9.00",
-                ),
-            ),
-        ),
-        standardDays = listOf("2026-10-09"), deliveries = 1, sameDayDeliveries = 1,
-    )
-
-    @Test
-    fun `077 - the fee shown is the chosen window's, and that total is sent with the order`() = runTest {
-        val checkout = FakeCheckout(quote = pricedSameDay)
-        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
-        assertEquals("6.00", ready(vm)?.deliveryFee?.totalAmount) // a later day, until same-day is chosen
-
-        vm.setMethod(DeliveryMethod.SAME_DAY)
-        assertEquals(null, ready(vm)?.deliveryFee) // nothing to show until a window is chosen
-        vm.setSlot("evening")
-        assertEquals("9.00", ready(vm)?.deliveryFee?.totalAmount)
-
-        vm.payNow()
-        assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
-    }
-
     @Test
     fun `077 - a delivery fee that changed is shown, nothing is paid, and paying again sends the new total`() = runTest {
-        val dearer = pricedSameDay.copy(standardFee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "7.50", total = "7.50"))
-        val checkout = FakeCheckout(quote = pricedSameDay, feeChangedTo = dearer)
+        // The same windows, each $1.50 dearer: a new fee plan went live between the quote and the pay button.
+        val was = windowsQuote()
+        val dearer = was.copy(effyWindows = was.effyWindows!!.copy(days = was.effyWindows!!.days.map { d ->
+            d.copy(windows = d.windows.map { w -> w.copy(fee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "7.50", total = "7.50")) })
+        }))
+        val checkout = FakeCheckout(quote = was, feeChangedTo = dearer)
         val handoff = PaymentHandoff()
         val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout, handoff = handoff)
+        vm.setWindow("afternoon", "2026-10-09")
+        assertEquals("6.00", ready(vm)?.deliveryFee?.totalAmount)
 
         vm.payNow()
         val s = ready(vm)!!
         assertEquals(DeliveryFeeWords.FEE_CHANGED, s.error)
+        // The window is still the one chosen; its fee is the new one.
         assertEquals("7.50", s.deliveryFee?.totalAmount)
         assertFalse(s.handedOffToPayment)
 
@@ -377,7 +329,7 @@ class CheckoutViewModelTest {
             closedReason = if (date in drop) com.effyshopping.customer.mobile.features.checkout.domain.EffyDayClosed.Full else null,
         )
         return DeliveryQuote(
-            serviced = true, sameDayAvailable = false, standardTotalAmount = "6.00", sameDayTotalAmount = null,
+            serviced = true,
             effyWindows = com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows(
                 days = listOf(day("2026-10-08", true), day("2026-10-09", false), day("2026-10-10", false)), unavailable = unavailable,
             ),
@@ -399,7 +351,7 @@ class CheckoutViewModelTest {
     }
 
     @Test
-    fun `078 - a later-day window is sent as ONE window with the total shown, and none of the 069 fields`() = runTest {
+    fun `078 - a later-day window is sent as ONE window with the total shown`() = runTest {
         val checkout = FakeCheckout(quote = windowsQuote())
         val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
         vm.setWindow("afternoon", "2026-10-10")
@@ -409,9 +361,6 @@ class CheckoutViewModelTest {
         val sent = checkout.lastOrder!!
         assertEquals(com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow("afternoon", "2026-10-10"), sent.deliveryWindow)
         assertEquals("6.00", sent.shownDeliveryAmount)
-        assertEquals(DeliveryMethod.STANDARD, sent.deliveryMethod)
-        assertNull(sent.sameDaySlotId)
-        assertNull(sent.standardDate)
     }
 
     @Test
@@ -494,7 +443,7 @@ class CheckoutViewModelTest {
     // ── 079: Delivered by Effy, or by a courier ─────────────────────────────────────────────────
 
     private fun courierQuote(noWindowLeft: Boolean = false) = DeliveryQuote(
-        serviced = true, sameDayAvailable = false, standardTotalAmount = "9.00", sameDayTotalAmount = null,
+        serviced = true,
         courier = com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery(
             estimate = "2–4 business days",
             fee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "9.00", total = "9.00"),
@@ -513,12 +462,11 @@ class CheckoutViewModelTest {
         assertNull(s.effyWindows)
         assertEquals(true, s.deliveryChosen)
         assertEquals("9.00", s.deliveryFee?.totalAmount)
-        assertEquals(false, s.needsSlot)
-        assertEquals(false, s.needsDay)
+        assertNull(s.window)
     }
 
     @Test
-    fun `079 - a courier order sends the type and the total shown - and no window, slot or day`() = runTest {
+    fun `079 - a courier order sends the type and the total shown - and no window`() = runTest {
         val checkout = FakeCheckout(quote = courierQuote())
         val vm = vm(listOf(addr("far", isDefault = true)), checkout = checkout)
         vm.payNow()
@@ -526,26 +474,34 @@ class CheckoutViewModelTest {
         assertEquals(courierType, sent.deliveryType)
         assertEquals("9.00", sent.shownDeliveryAmount)
         assertNull(sent.deliveryWindow)
-        assertNull(sent.sameDaySlotId)
-        assertNull(sent.standardDate)
-        assertEquals(DeliveryMethod.STANDARD, sent.deliveryMethod)
         assertEquals(true, ready(vm)?.handedOffToPayment)
     }
 
     @Test
-    fun `079 - an Effy order says so on the intent, and the checkout that predates delivery types says nothing`() = runTest {
+    fun `079 - an Effy order says so on the intent`() = runTest {
         val effy = FakeCheckout(quote = windowsQuote())
         val vm = vm(listOf(addr("a", isDefault = true)), checkout = effy)
         assertEquals(effyType, ready(vm)?.quote?.deliveryType)
         vm.setWindow("afternoon", "2026-10-10")
         vm.payNow()
         assertEquals(effyType, effy.lastOrder?.deliveryType)
+    }
 
-        val old = FakeCheckout() // the 069 quote: no windows, no courier
-        val legacy = vm(listOf(addr("a", isDefault = true)), checkout = old)
-        assertNull(ready(legacy)?.quote?.deliveryType)
-        legacy.payNow()
-        assertNull(old.lastOrder?.deliveryType)
+    /**
+     * ⚠ 083 — A SERVICED QUOTE WITH NEITHER WINDOWS NOR A COURIER CANNOT BE PAID FOR. It is a server
+     * fault (a serviced address always answers one or the other); the app must not turn it into an
+     * order with no window and no delivery charge.
+     */
+    @Test
+    fun `083 - a serviced quote that offers nothing cannot be paid for`() = runTest {
+        val broken = FakeCheckout(quote = DeliveryQuote(serviced = true))
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = broken)
+        assertNull(ready(vm)?.quote?.deliveryType)
+        assertEquals(false, ready(vm)?.deliveryChosen)
+        assertNull(ready(vm)?.deliveryFee)
+        vm.payNow()
+        assertEquals(0, broken.intents)
+        assertEquals("Choose a delivery time to continue.", ready(vm)?.error)
     }
 
     @Test
@@ -618,13 +574,6 @@ class CheckoutViewModelTest {
         assertEquals(courierType, checkout.lastOrder?.deliveryType)
         assertNull(checkout.lastOrder?.deliveryWindow)
         assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
-    }
-
-    @Test
-    fun `same-day cannot be chosen when it is not offerable`() = runTest {
-        val vm = vm(listOf(addr("a", isDefault = true))) // default fake: standard only
-        vm.setMethod(DeliveryMethod.SAME_DAY)
-        assertEquals(DeliveryMethod.STANDARD, ready(vm)?.method) // ignored — not offerable
     }
 
     // ── Delivery instructions (066) ────────────────────────────────────────────────────────────

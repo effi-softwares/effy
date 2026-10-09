@@ -39,6 +39,8 @@ import { migrationSql } from "@effy/edge-shared";
 import { readGoLive, setSwitch, sweep } from "./go-live.service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
+/** The migration that removes the old delivery arrangement. */
+const RETIRE = "20261009150000";
 const ADMIN = "admin-sub";
 const MANAGER = "manager-sub";
 const PLAN = "00000000-0000-0000-0000-0000000083b1";
@@ -57,7 +59,10 @@ describe.skipIf(!RUN)("083 — the delivery-model switch", () => {
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     pool = new Pool({ connectionString: container.getConnectionUri() });
     holder.pool = pool;
-    await pool.query(migrationSql());
+    // ⚠ THE SCHEMA AS IT WAS BEFORE THE REMOVAL (083 stage 2). The switch can be set, changed and
+    // turned back only until the old arrangement is removed; an environment between the two stages is
+    // exactly this schema, and it is where this code runs for real. After the removal: the suite below.
+    await pool.query(migrationSql({ before: RETIRE }));
     await pool.query(`
       DELETE FROM public.delivery_fee_plan; DELETE FROM public.delivery_zone_postcode; DELETE FROM public.delivery_slot;
       DELETE FROM public.delivery_collection_run; DELETE FROM public.courier_service;
@@ -160,5 +165,53 @@ describe.skipIf(!RUN)("083 — the delivery-model switch", () => {
     await pool.query(`UPDATE public.delivery_slot SET status = 'disabled'`);
     expect(await sweep(later(6))).toMatchObject({ state: "on", blocked: false, legacyOpen: 0, legacyPastDue: 0 });
     expect((await stored()).at?.toISOString()).toBe(a.at);
+  });
+});
+
+/**
+ * ⚠ 083 stage 2 — AFTER THE REMOVAL THERE IS NOTHING TO SWITCH. The page says the model is on for
+ * good; every way of setting the switch is refused the one way; the sweep goes on counting (and finds
+ * nothing, since the removal refused to run while an old order was open).
+ */
+describe.skipIf(!RUN)("083 — after the old arrangement is removed", () => {
+  let c2: StartedPostgreSqlContainer;
+  let p2: Pool;
+
+  beforeAll(async () => {
+    c2 = await new PostgreSqlContainer("postgres:16-alpine").start();
+    p2 = new Pool({ connectionString: c2.getConnectionUri() });
+    holder.pool = p2;
+    await p2.query(migrationSql());
+    await p2.query(`
+      INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by) VALUES (1, -37.81, 144.96, 'test') ON CONFLICT (id) DO NOTHING;
+      INSERT INTO admin.staff (cognito_sub, email, name) VALUES ('${ADMIN}', 'ada@example.test', 'Ada');
+      INSERT INTO admin.staff_role (staff_id, role_key) SELECT id, 'admin' FROM admin.staff;`);
+  }, 240_000);
+
+  afterAll(async () => {
+    await p2?.end();
+    await c2?.stop();
+  });
+
+  it("the page: on, removed, no turning back — and the old-order count is shown as none", async () => {
+    const page = await readGoLive(NOW);
+    expect(page.switch).toMatchObject({ state: "on", canTurnBack: false });
+    expect(page.switch.removedAt).toEqual(expect.any(String));
+    expect(page.legacy).toMatchObject({ open: 0 });
+  });
+
+  it("⚠ set, schedule, cancel, turn back off: each refused as `removed`, nothing written", async () => {
+    for (const body of [
+      { at: "now", expected: null }, { at: later(600).toISOString(), expected: null },
+      { at: null, expected: null }, { at: null, expected: null, reason: "second thoughts" },
+    ]) {
+      expect(await refusal(setSwitch(body, ADMIN, NOW)), JSON.stringify(body)).toMatchObject({ status: 409, code: "removed" });
+    }
+    expect((await p2.query(`SELECT 1 FROM admin.audit_log WHERE target_type = 'delivery_model'`)).rowCount).toBe(0);
+    expect((await p2.query(`SELECT delivery_model_v2_from AS at FROM public.delivery_settings WHERE id = 1`)).rows[0].at).toBeNull();
+  });
+
+  it("the sweep reports on, with nothing old still open", async () => {
+    expect(await sweep(NOW)).toMatchObject({ state: "on", blocked: false, legacyOpen: 0, legacyPastDue: 0 });
   });
 });

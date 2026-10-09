@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { judgePromise, minusDays, type PromiseFacts } from "./promise";
+import { judgePromise, type PromiseFacts } from "./promise";
 
 // A package a carrier takes, from an order placed before 079 (it was promised a DAY).
 const base: PromiseFacts = {
@@ -13,21 +13,7 @@ const base: PromiseFacts = {
   handoffDate: null,
   arrivedAt: null,
   arrivalDate: null,
-  carrierLeadDays: 1,
 };
-
-describe("minusDays", () => {
-  it("crosses a month and a year without a timezone", () => {
-    expect(minusDays("2026-10-01", 1)).toBe("2026-09-30");
-    expect(minusDays("2027-01-01", 2)).toBe("2026-12-30");
-    expect(minusDays("2026-10-08", 0)).toBe("2026-10-08");
-  });
-
-  it("is unaffected by the day daylight saving starts", () => {
-    expect(minusDays("2026-10-05", 1)).toBe("2026-10-04");
-    expect(minusDays("2026-10-04", 1)).toBe("2026-10-03");
-  });
-});
 
 describe("judgePromise — 078: a standard package that was sold a window is Effy's", () => {
   // ⚠ 079 — WHO delivers is `public.package_delivered_by`'s answer, handed in; this file no longer
@@ -46,42 +32,23 @@ describe("judgePromise — 078: a standard package that was sold a window is Eff
   });
 });
 
-describe("judgePromise — a standard package", () => {
-  it("is due for handover the carrier's lead time before its day", () => {
-    expect(judgePromise(base).handoverDueOn).toBe("2026-10-07");
-    expect(judgePromise({ ...base, carrierLeadDays: 3 }).handoverDueOn).toBe("2026-10-05");
-    expect(judgePromise({ ...base, carrierLeadDays: 0 }).handoverDueOn).toBe("2026-10-08");
+/**
+ * ⚠ 083 — "the promised day less the carrier's lead time" WENT WITH THE OLD ARRANGEMENT. A carrier's
+ * package from before delivery types has no due-out day and is never at risk: every such order was
+ * finished before the rule was removed (the migration refused otherwise), so there is nothing left to
+ * chase. What it was promised still judges whether it ARRIVED on time — history reads as it did.
+ */
+describe("judgePromise — a carrier's package from before delivery types", () => {
+  it("has no due-out day and is never at risk, however late today is", () => {
+    expect(judgePromise(base)).toEqual({ handoverDueOn: null, atRisk: false, onTime: null });
+    expect(judgePromise({ ...base, today: "2026-12-01" }).atRisk).toBe(false);
+    expect(judgePromise({ ...base, today: "2026-12-01", handoffDate: "2026-11-30" }).atRisk).toBe(false);
   });
 
-  it("is not at risk before or on its due day", () => {
-    expect(judgePromise({ ...base, today: "2026-10-06" }).atRisk).toBe(false);
-    expect(judgePromise({ ...base, today: "2026-10-07" }).atRisk).toBe(false);
-  });
-
-  it("is at risk once the due day has passed with no handover", () => {
-    expect(judgePromise({ ...base, today: "2026-10-08" }).atRisk).toBe(true);
-  });
-
-  it("is not at risk when it was handed over in time, however long ago", () => {
-    expect(judgePromise({ ...base, today: "2026-10-12", handoffDate: "2026-10-07" }).atRisk).toBe(false);
-  });
-
-  it("is at risk when it was handed over late", () => {
-    expect(judgePromise({ ...base, today: "2026-10-08", handoffDate: "2026-10-08" }).atRisk).toBe(true);
-  });
-
-  it("stops being at risk once it has arrived, and is judged on its day instead", () => {
-    const late = judgePromise({
-      ...base, today: "2026-10-10", handoffDate: "2026-10-08",
-      arrivedAt: new Date("2026-10-09T03:00:00Z"), arrivalDate: "2026-10-09",
-    });
-    expect(late.atRisk).toBe(false);
-    expect(late.onTime).toBe(false);
-
-    const early = judgePromise({
-      ...base, handoffDate: "2026-10-06",
-      arrivedAt: new Date("2026-10-07T03:00:00Z"), arrivalDate: "2026-10-07",
-    });
+  it("is still judged on the day it was promised once it has arrived", () => {
+    const late = judgePromise({ ...base, today: "2026-10-10", handoffDate: "2026-10-08", arrivedAt: new Date("2026-10-09T03:00:00Z"), arrivalDate: "2026-10-09" });
+    expect(late).toMatchObject({ atRisk: false, onTime: false });
+    const early = judgePromise({ ...base, handoffDate: "2026-10-06", arrivedAt: new Date("2026-10-07T03:00:00Z"), arrivalDate: "2026-10-07" });
     expect(early.onTime).toBe(true);
   });
 

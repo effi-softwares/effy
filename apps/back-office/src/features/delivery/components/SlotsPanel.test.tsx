@@ -103,10 +103,10 @@ describe("SlotsPanel — what an operator reads", () => {
     expect(await screen.findByText("1 over capacity")).toBeInTheDocument();
   });
 
-  it("⚠ warns when no slot is active — same-day is then offered to nobody", async () => {
+  it("⚠ warns when no window is active — Effy delivery is then offered to nobody", async () => {
     repo.listSlotGrid.mockResolvedValue({ items: [slot({ status: "disabled" })] });
     renderPanel();
-    expect(await screen.findByRole("status")).toHaveTextContent(/same-day delivery is not being offered/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/Effy delivery is not being offered/i);
   });
 
   it("warns the same way when there are no slots at all", async () => {
@@ -126,7 +126,7 @@ describe("SlotsPanel — who may change a slot (FR-039)", () => {
   it("a role that cannot manage delivery sees the slots and no control to change them", async () => {
     renderPanel(false);
     await screen.findByText("17:00 – 19:00");
-    expect(screen.queryByRole("button", { name: /new slot/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /new window/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /edit/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /switch off/i })).not.toBeInTheDocument();
   });
@@ -143,7 +143,7 @@ describe("SlotsPanel — who may change a slot (FR-039)", () => {
 describe("SlotsPanel — creating and editing", () => {
   async function openNew() {
     renderPanel();
-    await userEvent.click(await screen.findByRole("button", { name: /new slot/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /new window/i }));
     return screen.getByRole("dialog");
   }
 
@@ -154,7 +154,7 @@ describe("SlotsPanel — creating and editing", () => {
     await userEvent.type(within(dialog).getByLabelText(/order by/i), "08:00");
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i }));
     await userEvent.type(within(dialog).getByLabelText(/deliveries it can take/i), "12");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create slot" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create window" }));
 
     await waitFor(() =>
       expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "10:00", endTime: "12:00", cutoffTime: "08:00", capacity: 12 }),
@@ -169,7 +169,7 @@ describe("SlotsPanel — creating and editing", () => {
     await userEvent.type(within(dialog).getByLabelText(/starts/i), "10:00");
     await userEvent.type(within(dialog).getByLabelText(/ends/i), "12:00");
     await userEvent.type(within(dialog).getByLabelText(/order by/i), "08:00");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create slot" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create window" }));
 
     await waitFor(() =>
       expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "10:00", endTime: "12:00", cutoffTime: "08:00", capacity: null }),
@@ -185,7 +185,7 @@ describe("SlotsPanel — creating and editing", () => {
     );
     const dialog = await openNew();
     await userEvent.click(within(dialog).getByRole("checkbox", { name: /limit how many deliveries/i }));
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create slot" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create window" }));
 
     expect(await within(dialog).findByText("The slot must end after it starts.")).toBeInTheDocument();
     expect(within(dialog).getByText("Enter a limit as a whole number of at least 1, or untick the limit.")).toBeInTheDocument();
@@ -198,7 +198,7 @@ describe("SlotsPanel — creating and editing", () => {
   it("says a duplicate window is a duplicate", async () => {
     repo.createSlot.mockRejectedValue(refusal(409));
     const dialog = await openNew();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create slot" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create window" }));
     expect(await within(dialog).findByText(/already a slot with these start and end times/i)).toBeInTheDocument();
   });
 
@@ -215,7 +215,7 @@ describe("SlotsPanel — creating and editing", () => {
     await userEvent.type(capacity, "2");
     expect(within(dialog).getByText(/3 deliveries are already booked today\. They keep their place/i)).toBeInTheDocument();
 
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save slot" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save window" }));
     await waitFor(() =>
       expect(repo.patchSlot).toHaveBeenCalledWith("s2", { startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: 2 }),
     );
@@ -230,7 +230,7 @@ describe("SlotsPanel — creating and editing", () => {
     expect(within(dialog).queryByLabelText(/deliveries it can take/i)).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/already booked today/i)).not.toBeInTheDocument();
 
-    await userEvent.click(within(dialog).getByRole("button", { name: "Save slot" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Save window" }));
     await waitFor(() =>
       expect(repo.patchSlot).toHaveBeenCalledWith("s2", { startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: null }),
     );

@@ -52,19 +52,25 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
   const SHOP = "99999999-9999-4999-8999-999999999999";
   const now = new Date("2026-08-24T00:00:00Z");
   // A domain value that DOES know the shop and the slot's identity: none of it may survive.
+  const window = {
+    id: "33333333-3333-4333-8333-333333333333", date: "2026-08-24",
+    start: new Date("2026-08-24T07:00:00Z"), end: new Date("2026-08-24T09:00:00Z"), cutoff: new Date("2026-08-24T04:00:00Z"),
+  };
   const quote = {
     serviced: true,
-    sameDayUntil: new Date("2026-08-24T04:00:00Z"),
-    packages: [{ shopId: SHOP, options: [{ method: "same_day" }, { method: "standard" }] }],
-    standardFee: pricedFee(600),
-    slotFees: new Map([["33333333-3333-4333-8333-333333333333", pricedFee(1100, 600)]]),
+    coverage: "effy",
+    zoneId: "77777777-7777-4777-8777-777777777777",
+    shopIds: [SHOP],
+    baseFee: pricedFee(600),
     freeDeliveryRemainingCents: 2600,
-    sameDaySlots: [{
-      id: "33333333-3333-4333-8333-333333333333", date: "2026-08-24",
-      start: new Date("2026-08-24T07:00:00Z"), end: new Date("2026-08-24T09:00:00Z"), cutoff: new Date("2026-08-24T04:00:00Z"),
-    }],
-    sameDayUnavailable: null,
-    standardDays: ["2026-08-25"],
+    effyWindows: {
+      days: [
+        { date: "2026-08-24", isToday: true, nonDelivery: false, windows: [window], closedReason: null },
+        { date: "2026-08-25", isToday: false, nonDelivery: false, windows: [], closedReason: "full" },
+      ],
+      fees: new Map([["33333333-3333-4333-8333-333333333333|2026-08-24", pricedFee(1100, 600)]]),
+      unavailable: null,
+    },
   } as unknown as QuoteResult;
 
   const wire = JSON.stringify(toQuoteDTO("3121", quote, now));
@@ -78,33 +84,30 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
     expect(body).not.toContain(SHOP);
   });
 
-  it("the only handle on a package is the opaque one, and a fee is a string", () => {
+  it("there is no package list at all, the group is not sent, and a fee is a string", () => {
     const dto = JSON.parse(wire);
-    expect(dto.packages[0].shopRef).toBe("pkg-1");
-    expect(dto.packages[0].options[1]).toEqual({ method: "standard", feeAmount: "6.00", promisedFrom: null, promisedTo: null });
-    // 077 — the fee is the ORDER's: lines and a total for a later day, and for each window.
-    expect(dto.standardFee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" });
-    expect(dto.sameDaySlots[0].surchargeAmount).toBe("5.00");
-    expect(dto.sameDaySlots[0].fee).toEqual({
-      lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00",
-    });
+    // ⚠ 083 — how the order splits across suppliers is not on the wire in any form.
+    expect(Object.keys(dto).sort()).toEqual(["coverage", "effyWindows", "expiresAt", "freeDeliveryRemainingAmount", "postcode", "serviced"]);
+    expect(wire).not.toContain("77777777");
+    // 077 — the fee is the ORDER's: lines and a total, for each window.
+    const w = dto.effyWindows.days[0].windows[0];
+    expect(w.surchargeAmount).toBe("5.00");
+    expect(w.fee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }, { kind: "window_surcharge", amount: "5.00" }], totalAmount: "11.00" });
     expect(dto.freeDeliveryRemainingAmount).toBe("26.00");
-    expect(dto.sameDaySlots[0].startAt).toBe("2026-08-24T17:00:00+10:00"); // Melbourne offset, not Z
-    expect(dto.standardDays).toEqual([{ date: "2026-08-25" }]);
+    expect(w.startAt).toBe("2026-08-24T17:00:00+10:00"); // Melbourne offset, not Z
+    // A full day is said to be full — never how full, and never with its windows.
+    expect(dto.effyWindows.days[1]).toEqual({ date: "2026-08-25", section: "standard", windows: [], closedReason: "full" });
   });
 
-  it("an unserviced quote has empty arrays, never nulls", () => {
-    expect(toQuoteDTO("9999", { serviced: false, coverage: "none" }, now)).toEqual({
-      postcode: "9999", serviced: false, coverage: "none", sameDayAvailableUntil: null, packages: [], expiresAt: "",
-      sameDaySlots: [], sameDayUnavailableReason: null, standardDays: [],
-    });
+  it("an unserviced quote says so and nothing else", () => {
+    expect(toQuoteDTO("9999", { serviced: false, coverage: "none" }, now)).toEqual({ postcode: "9999", serviced: false, coverage: "none", expiresAt: "" });
   });
 
   it("the refusal is a 409 conflict carrying the code and the fresh quote", () => {
     const body = JSON.parse(refusal);
     expect(body).toMatchObject({ status: 409, code: "slot_unavailable", title: "Conflict" });
     expect(body.type).toMatch(/conflict$/);
-    expect(body.quote.sameDaySlots).toHaveLength(1);
+    expect(body.quote.effyWindows.days[0].windows).toHaveLength(1);
   });
 });
 

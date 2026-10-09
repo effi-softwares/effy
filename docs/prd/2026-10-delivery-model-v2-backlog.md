@@ -92,7 +92,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
 | E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 (deployed to dev) | E1, E5, E6 |
 | E8 | 082 | Driver Operations Realignment — ✅ signed off 2026-10-09 (deployed to dev) | E4, E5 |
-| E9 | 083 | Cutover & Retirement of Same-Day/Standard — 🟡 stage 1 (the switch) built 2026-10-09, not yet deployed; stage 2 (the removal) waits for no old order open | E5–E8 |
+| E9 | 083 | Cutover & Retirement of Same-Day/Standard — 🟡 stage 1 (the switch) deployed to dev 2026-10-09; stage 2 (the removal) built 2026-10-10, not yet migrated or deployed | E5–E8 |
 | E10 | later | Deferred items | — |
 
 Numbering assumes nothing else takes 074–082 first; renumber freely.
@@ -944,7 +944,7 @@ planned time and is assigned as soon as a qualifying driver can take it.
 
 ---
 
-## E9 — Cutover & Retirement of Same-Day/Standard · spec 083 — stage 1 built 2026-10-09 (not deployed); stage 2 not started
+## E9 — Cutover & Retirement of Same-Day/Standard · spec 083 — stage 1 deployed to dev 2026-10-09; stage 2 built 2026-10-10 (not deployed)
 
 > **2026-10-09 — specified (`specs/083-delivery-model-cutover/spec.md`).** The specify prompt below was amended with
 > what 078–082 left: the customer words "Same-day delivery" / "Standard delivery" STAY (078's decision — the
@@ -975,6 +975,18 @@ planned time and is assigned as soon as a qualifying driver can take it.
 > cross-service test; **E9-T03 / T015** needed no change — every surface already asserted an old order renders.
 > Found while proving P6: an order's type is recorded when it is **captured**, so an order captured the old way
 > and paid just after the moment is still an old order — the runbook says to expect a few.
+>
+> **2026-10-10 — stage 2 built (083 T022–T038), on the operator's instruction to proceed** (dev has no users);
+> **not migrated or deployed.** One checkout (Effy windows or courier); the removal migration refuses while an
+> old order is open or the model was never switched on, and runs on a database with no orders. Decisions that
+> differ from the tasks below: **E9-T06** — the two tables are kept (they are the list and its groups);
+> **E9-T07** — only `shop_sameday_exception` still existed; **E9-T09** — the method columns are KEPT (the
+> customer's words for an Effy order, and how an old order is read); **E9-T11 / T12** — already deleted by 076/077;
+> **E9-T13** — the customer quote and intent lost the old fields, while the driver and shop wire KEEP
+> `same_day_delivery` / `sameDayCount` / `standardCount` / `deliveryMethod` as compatibility values. ⚠ The
+> customer web and app must be released with the `commerce` deploy: an older build cannot read the new quote.
+> Not done: four operator guides carry a notice rather than a rewrite. **Programme status: E0–E9 built; E10
+> deferred. Stage 2 of E9 awaits the operator's deploy and walks.**
 
 > **2026-10-09 — three removals moved here from E5 (079 research R10).** Today's live checkout still
 > reads them, so they go with the legacy quote, not before: the same-day bridge
@@ -1016,22 +1028,22 @@ record of what the old one was and how to read an old order.
 - [x] E9-T04 Report: open legacy orders count (back-office + metric) — the trigger for the retirement step. — **Done (stage 1).** Count on the Go-live tab linking to the order list's "Still open" filter; metrics `LegacyOrdersOpen` / `LegacyOrdersOpenPastDue` + alarm.
 - [x] E9-T05 Runbook `docs/runbooks/delivery-model-v2-cutover.md` (order: migrations → deploy shared → services → web → mobile releases → set the date). — **Done (stage 1).** Written for the real order of work: migration → `admin`, `orders` → `apply` → back-office → readiness → the moment.
 *Retirement (after legacy count = 0)*
-- [ ] E9-T06 Migration: drop `delivery_ring`, `delivery_zone.ring_id`, `ring_is_overridden`, `hub_distance_km`, `sameday_eligible`; drop `delivery_zone` + `delivery_zone_postcode` if E2 replaced them.
-- [ ] E9-T07 Migration: drop `shop_sameday_declaration`, `shop_sameday_area`, `shop_sameday_exception` (if still present in the live schema — verify).
-- [ ] E9-T08 Migration: drop method factor columns from fee plans; drop `carrier_lead_days`, `standard_lookahead_days` (renamed ones stay; `effy_lookahead_days` from 078 stays). (Takes over E4-T03.)
-- [ ] E9-T09 Migration: `shop_fulfillment.delivery_method`, `order_package_delivery.method` → constrain to legacy-only or drop after archival (keep history readable: decide archive view).
-- [ ] E9-T10 (takes over E4-T05; also delete the 069 half of `quote.ts`, `resolveDeliveryChoice`, and the web/mobile 069 pickers; rename "slot" → "window" on the back-office screen) Delete `shared/src/delivery/sameday.ts`, `standard-days.ts`, ring code in `plan.ts`/`zone.ts`, `METHOD_SAME_DAY`/`METHOD_STANDARD` exports.
-- [ ] E9-T11 Delete admin routes `delivery-rings-*`, `delivery-zone-suggest-ring-*`, `delivery-exception*`, `admin/src/delivery/suggest.ts` (+ tests) and `serverless.yml` entries.
-- [ ] E9-T12 Delete back-office `NewRingDialog.tsx`, `SameDayExceptionsDialog.tsx`, old `NewZoneDialog.tsx`, `NewPlanDialog.tsx`.
-- [ ] E9-T13 Remove same-day/standard from `packages/shared-types/src/*` and Kotlin contracts.
-- [ ] E9-T14 Remove same-day/standard from all three mobile apps and three web apps (sweep from E0-T03).
-- [ ] E9-T15 Add a guard script `scripts/check-no-same-day.sh` (pattern of `check-no-emerald.sh`) that fails the build on `same_day|sameday|standard_date` outside migrations and archived docs.
-- [ ] E9-T16 Dev seeds (`db/seeds/047_delivery_dev.sql`) rewritten for the new model.
+- [x] E9-T06 Migration: drop `delivery_ring`, `delivery_zone.ring_id`, `ring_is_overridden`, `hub_distance_km`, `sameday_eligible`; drop `delivery_zone` + `delivery_zone_postcode` if E2 replaced them. — **Done differently (stage 2).** `sameday_eligible` dropped; rings were already gone (077); the two tables are KEPT.
+- [x] E9-T07 Migration: drop `shop_sameday_declaration`, `shop_sameday_area`, `shop_sameday_exception` (if still present in the live schema — verify). — **Done (stage 2).** `shop_sameday_exception` dropped; the other two no longer existed.
+- [x] E9-T08 Migration: drop method factor columns from fee plans; drop `carrier_lead_days`, `standard_lookahead_days` (renamed ones stay; `effy_lookahead_days` from 078 stays). (Takes over E4-T03.) — **Done (stage 2).** Also `courier_estimate_text`, the per-package `delivery_fee_amount` columns and the round lock.
+- [x] E9-T09 Migration: `shop_fulfillment.delivery_method`, `order_package_delivery.method` → constrain to legacy-only or drop after archival (keep history readable: decide archive view). — **Done differently (stage 2).** The method columns are KEPT, unconstrained: not legacy. `docs/archive/delivery-model-v1.md` says how to read an old order.
+- [x] E9-T10 (takes over E4-T05; also delete the 069 half of `quote.ts`, `resolveDeliveryChoice`, and the web/mobile 069 pickers; rename "slot" → "window" on the back-office screen) Delete `shared/src/delivery/sameday.ts`, `standard-days.ts`, ring code in `plan.ts`/`zone.ts`, `METHOD_SAME_DAY`/`METHOD_STANDARD` exports. — **Done (stage 2).** `sameday.ts` → `schedule.ts`; `standard-days.ts`, `model.ts`, `judgeSlot`/`openSlots`, `resolveDeliveryChoice`, `compatibilityFees` and the web/mobile 069 pickers deleted. `METHOD_SAME_DAY`/`METHOD_STANDARD` KEPT (the customer's words).
+- [x] E9-T11 Delete admin routes `delivery-rings-*`, `delivery-zone-suggest-ring-*`, `delivery-exception*`, `admin/src/delivery/suggest.ts` (+ tests) and `serverless.yml` entries. — **No work (stage 2):** deleted by 076/077.
+- [x] E9-T12 Delete back-office `NewRingDialog.tsx`, `SameDayExceptionsDialog.tsx`, old `NewZoneDialog.tsx`, `NewPlanDialog.tsx`. — **No work (stage 2):** deleted by 076/077.
+- [x] E9-T13 Remove same-day/standard from `packages/shared-types/src/*` and Kotlin contracts. — **Done differently (stage 2).** Customer quote/intent fields removed; driver and shop compatibility fields kept and marked.
+- [x] E9-T14 Remove same-day/standard from all three mobile apps and three web apps (sweep from E0-T03). — **Done differently (stage 2).** The old CHECKOUT is removed from customer web and mobile; the customer words stay (078); driver/shop compatibility values kept.
+- [x] E9-T15 Add a guard script `scripts/check-no-same-day.sh` (pattern of `check-no-emerald.sh`) that fails the build on `same_day|sameday|standard_date` outside migrations and archived docs. — **Done (stage 2)** as `scripts/check-no-legacy-delivery.sh`: the old path's identifiers, not the words.
+- [x] E9-T16 Dev seeds (`db/seeds/047_delivery_dev.sql`) rewritten for the new model. — **Done (stage 2).** Also `062_capability_dev.sql`.
 *Docs*
-- [ ] E9-T17 Rewrite `CLAUDE.md` → "Driver logistics model" for the new model (remove the 047/069 same-day/standard bullets; keep 072/073 bullets that still hold).
-- [ ] E9-T18 Constitution amendment if any principle names same-day/standard (check `.specify/memory/constitution.md`).
-- [ ] E9-T19 Mark 047/069 specs as superseded in their headers; FEATURE-HISTORY entry.
-- [ ] E9-T20 `docs/archive/delivery-model-v1.md`: what the old model was and how to read legacy orders.
+- [x] E9-T17 Rewrite `CLAUDE.md` → "Driver logistics model" for the new model (remove the 047/069 same-day/standard bullets; keep 072/073 bullets that still hold). — **Done (stage 2).** The section is now "Delivery model".
+- [x] E9-T18 Constitution amendment if any principle names same-day/standard (check `.specify/memory/constitution.md`). — **Checked (stage 2):** no principle names it; not amended.
+- [x] E9-T19 Mark 047/069 specs as superseded in their headers; FEATURE-HISTORY entry. — **Done (stage 2).**
+- [x] E9-T20 `docs/archive/delivery-model-v1.md`: what the old model was and how to read legacy orders. — **Done (stage 2).**
 
 ---
 

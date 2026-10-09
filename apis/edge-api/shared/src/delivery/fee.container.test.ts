@@ -9,6 +9,7 @@ import { instantAtLocalTime } from "../lib/collection-deadline";
 import { migrationSql } from "../lib/load-migrations";
 import { loadActivePlan, loadPlan } from "./plan";
 import { quote } from "./quote";
+import { windowKey } from "./windows";
 
 /**
  * 077 — the fee engine's migration against REAL data.
@@ -167,7 +168,7 @@ d("077 — the fee engine migration carries today's prices across", () => {
     const pkgs = shops.map((shopId) => ({ shopId, grams: grams / shops.length }));
     const res = await quote(pool, null, postcode, pkgs, new Date(), basketCents);
     if (!res.serviced || res.coverage !== "effy") throw new Error(`${postcode} not serviced`);
-    return res.standardFee;
+    return res.baseFee;
   };
 
   it("the test is looking at something", () => {
@@ -288,9 +289,10 @@ d("077 — the fee engine migration carries today's prices across", () => {
     const now = instantAtLocalTime(2026, 8, 24, 10, 0);
     const res = await quote(pool, null, "3121", [{ shopId: shop, grams: 500 }], now, 5000);
     if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
-    expect(res.sameDaySlots).toHaveLength(1);
-    const today = res.slotFees.get(res.sameDaySlots[0]!.id)!;
-    expect(res.standardFee.totalCents).toBe(600);
+    const windows = res.effyWindows.days[0]!.windows;
+    expect(windows).toHaveLength(1);
+    const today = res.effyWindows.fees.get(windowKey(windows[0]!.id, "2026-08-24"))!;
+    expect(res.baseFee.totalCents).toBe(600);
     expect(today.totalCents).toBe(900);
     expect(today.lines).toEqual([{ kind: "delivery", cents: 600 }, { kind: "window_surcharge", cents: 300 }]);
   });
@@ -337,7 +339,7 @@ d("077 — window surcharges belong to the plan (T071)", () => {
   const windowFee = async () => {
     const res = await quote(p3, null, "3121", [{ shopId: shopA, grams: 500 }, { shopId: shopB, grams: 500 }], at10, 5000);
     if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
-    return res.slotFees.get(slot)?.totalCents ?? null;
+    return res.effyWindows.fees.get(windowKey(slot, "2026-08-24"))?.totalCents ?? null;
   };
 
   it("today's premium and the window's own apply ONCE for an order of two packages going today", async () => {

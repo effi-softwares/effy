@@ -93,8 +93,8 @@ async function seedPackage(opts: {
   }
   await pool.query(
     `INSERT INTO public.order_package_delivery
-       (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to, slot_id, window_start, window_end)
-     VALUES ($1, $2, $3, 6, $4::date, $4::date, $5, $6, $7)`,
+       (order_id, shop_id, method, promised_from, promised_to, slot_id, window_start, window_end)
+     VALUES ($1, $2, $3, $4::date, $4::date, $5, $6, $7)`,
     [o.rows[0]!.id, s.rows[0]!.id, opts.method, opts.promisedDay, slotId, opts.window?.start ?? null, opts.window?.end ?? null],
   );
   return { orderId: o.rows[0]!.id, fulfillmentId: f.rows[0]!.id, orderNumber };
@@ -128,68 +128,56 @@ d("069 — carrier handover list", () => {
     await pool.query(`DELETE FROM public.delivery_settings`);
   });
 
-  it("partitions by the day each package must leave the hub — its day minus the carrier lead time", async () => {
-    // Lead time defaults to 1 with no settings row: due the day BEFORE the promised day.
-    const dueToday = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
-    const overdue = await seedPackage({ method: "standard", promisedDay: await melDay(0) });
-    const upcoming = await seedPackage({ method: "standard", promisedDay: await melDay(4) });
+  /** A parcel of an order SOLD as a courier delivery — the only kind this list holds since 083. */
+  async function courierParcel(opts: { placedDaysAgo?: number; status?: string } = {}): Promise<Seeded> {
+    const p = await seedPackage({ method: "standard", promisedDay: null, status: opts.status });
+    await sell(p.orderId, "courier", "out_of_coverage", "2–4 business days");
+    if (opts.placedDaysAgo) await pool.query(`UPDATE public."order" SET placed_at = now() - ($2 || ' days')::interval WHERE id = $1`, [p.orderId, opts.placedDaysAgo]);
+    return p;
+  }
+
+  it("partitions by the day each parcel is due out — the day it was placed, with no courier service to ask", async () => {
+    const dueToday = await courierParcel();
+    const overdue = await courierParcel({ placedDaysAgo: 2 });
 
     const today = await listHandovers("today");
     expect(today.map((r) => r.orderNumber)).toEqual([dueToday.orderNumber]);
-    expect(today[0]).toMatchObject({
-      fulfillmentId: dueToday.fulfillmentId,
-      promisedDate: await melDay(1),
-      handoverDueOn: await melDay(0),
-      atRisk: false,
-      atHub: true,
-    });
+    expect(today[0]).toMatchObject({ fulfillmentId: dueToday.fulfillmentId, promisedDate: null, handoverDueOn: await melDay(0), atRisk: false, atHub: true });
 
     const late = await listHandovers("overdue");
     expect(late.map((r) => r.orderNumber)).toEqual([overdue.orderNumber]);
-    expect(late[0]!.atRisk).toBe(true);
-    expect(late[0]!.handoverDueOn).toBe(await melDay(-1));
-
-    const later = await listHandovers("upcoming");
-    expect(later.map((r) => r.orderNumber)).toEqual([upcoming.orderNumber]);
-    expect(later[0]!.atRisk).toBe(false);
+    expect(late[0]).toMatchObject({ atRisk: true, handoverDueOn: await melDay(-2) });
+    expect(await listHandovers("upcoming")).toEqual([]);
   });
 
-  it("reads the carrier lead time from the settings, not a constant", async () => {
-    await pool.query(
-      `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by, carrier_lead_days)
-       VALUES (1, -37.8, 144.9, 'test', 3)`,
-    );
-    const p = await seedPackage({ method: "standard", promisedDay: await melDay(3) });
-
-    const today = await listHandovers("today");
-    expect(today.map((r) => r.orderNumber)).toEqual([p.orderNumber]);
-    expect(today[0]!.handoverDueOn).toBe(await melDay(0));
-  });
-
-  it("drops a package once it has been handed over", async () => {
-    const p = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
+  it("drops a parcel once it has been handed over", async () => {
+    const p = await courierParcel();
     expect(await listHandovers("today")).toHaveLength(1);
     await handOver(p.fulfillmentId, 0);
     expect(await listHandovers("today")).toHaveLength(0);
   });
 
-  it("shows a package that is due but has not reached the hub yet, and says so", async () => {
-    await seedPackage({ method: "standard", promisedDay: await melDay(1), status: "ready_for_pickup" });
+  it("shows a parcel that is due but has not reached the hub yet, and says so", async () => {
+    await courierParcel({ status: "ready_for_pickup" });
     const today = await listHandovers("today");
     expect(today).toHaveLength(1);
     expect(today[0]!.atHub).toBe(false);
   });
 
-  it("never lists same-day packages, cancelled orders, withdrawn portions or an order with no promised day", async () => {
+  it("never lists Effy's packages, cancelled orders, withdrawn portions — or a carrier's package from before delivery types", async () => {
     const now = new Date();
     await seedPackage({
       method: "same_day",
       promisedDay: await melDay(0),
       window: { start: now.toISOString(), end: new Date(now.getTime() + 7_200_000).toISOString() },
     });
-    await seedPackage({ method: "standard", promisedDay: await melDay(0), orderStatus: "canceled" });
-    await seedPackage({ method: "standard", promisedDay: await melDay(0), status: "withdrawn" });
-    // ⚠ Every order placed before 069: promised no day, so it cannot be overdue against one.
+    const cancelled = await seedPackage({ method: "standard", promisedDay: null, orderStatus: "canceled" });
+    await sell(cancelled.orderId, "courier", "out_of_coverage", "2–4 business days");
+    const withdrawn = await seedPackage({ method: "standard", promisedDay: null, status: "withdrawn" });
+    await sell(withdrawn.orderId, "courier", "out_of_coverage", "2–4 business days");
+    // ⚠ 083 — sold a standard day before delivery types: it was due "its day less the carrier's lead
+    // time", a rule that went with the old arrangement. Every such order was finished first.
+    await seedPackage({ method: "standard", promisedDay: await melDay(0) });
     await seedPackage({ method: "standard", promisedDay: null });
 
     for (const due of ["today", "overdue", "upcoming"] as const) {
@@ -204,10 +192,11 @@ d("069 — carrier handover list", () => {
       promisedDay: await melDay(1),
       window: { start: start.toISOString(), end: new Date(start.getTime() + 7_200_000).toISOString() },
     });
+    // A carrier's package from before delivery types: no longer on the list (083), still the carrier's.
     const carrier = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
 
     const listed = [...(await listHandovers("today")), ...(await listHandovers("overdue")), ...(await listHandovers("upcoming"))];
-    expect(listed.map((p) => p.orderNumber)).toEqual([carrier.orderNumber]);
+    expect(listed).toEqual([]);
 
     const refused = await recordHandoff({ fulfillmentId: windowed.fulfillmentId, actorSub: "staff-1" } as never).then(() => null, (e: unknown) => e);
     expect(refused).toBeInstanceOf(OrderActionError);
@@ -240,13 +229,14 @@ d("069 — the promise on the back-office order detail", () => {
     return toPackage(rows[0]!);
   }
 
-  it("a standard package shows its day, when it is due out, and that it is at risk once that has passed", async () => {
+  it("⚠ 083 P13 — a standard package from before delivery types still shows the day it was promised; it has no due-out day", async () => {
     const p = await seedPackage({ method: "standard", promisedDay: await melDay(0) });
     const pkg = await onlyPackage(p.orderId);
 
     expect(pkg.promisedDate).toBe(await melDay(0));
-    expect(pkg.handoverDueOn).toBe(await melDay(-1));
-    expect(pkg.atRisk).toBe(true);
+    expect(pkg.deliveredBy).toBe("courier");
+    expect(pkg.handoverDueOn).toBeNull();
+    expect(pkg.atRisk).toBe(false);
     expect(pkg.window).toBeNull();
     expect(pkg.onTime).toBeNull();
     expect(pkg.overCapacity).toBe(false);
@@ -404,19 +394,17 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
    * path reads the switch: who delivers an old order is answered from what it was sold (079), so the
    * moment the new checkout starts changes nothing for a parcel already on its way.
    */
-  it("⚠ 083 P7 — with the new model ON: an old standard order is still the carrier's and is handed over; an old same-day one is still Effy's", async () => {
-    await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by, delivery_model_v2_from)
-                      VALUES (1, -37.81, 144.96, 'test', now() - interval '2 days')`);
-    expect((await pool.query(`SELECT public.delivery_model_v2_at(now()) AS on`)).rows[0].on).toBe(true);
-
+  it("⚠ 083 P7/P13 — an old standard order is still the carrier's and can be handed over; an old same-day one is still Effy's", async () => {
     const std = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
     const today = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(3) });
 
-    // The carrier's: listed for handover as it always was, and Effy's is not.
-    expect(await everywhere()).toEqual([std.orderNumber]);
+    // ⚠ Not on the handover list any more — its due-out rule went with the old arrangement, and
+    // none was open when it did — but whose it is has not changed, and neither has what can be done.
+    expect(await everywhere()).toEqual([]);
     expect(await refusal(today.fulfillmentId)).toBe("not_standard");
     expect(await refusal(std.fulfillmentId)).toBeNull();
-    expect(await everywhere()).toEqual([]);
+    expect((await toPackage((await packages(std.orderId))[0]!)).deliveredBy).toBe("courier");
+    expect((await toPackage((await packages(today.orderId))[0]!)).deliveredBy).toBe("effy");
 
     // Neither can be moved between Effy and courier: it keeps how it was sold (081).
     for (const o of [std, today]) {
@@ -457,7 +445,7 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     const courier = await seedPackage({ method: "standard", promisedDay: null });
     await sell(courier.orderId, "courier", "out_of_coverage", "2–4 business days");
     // The business changes its estimate afterwards; the order keeps the one it was sold.
-    await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, courier_estimate_text, updated_by) VALUES (1, -37.81, 144.96, '5–7 business days', 'test')`);
+    await pool.query(`UPDATE public.courier_service SET estimate_text = '5–7 business days'`);
 
     // ⚠ The reads, not `getOrder`: that also reads refund proposals through the shared library's own
     // pool, which this file does not replace (as `delivery-instructions.container.test.ts` found).

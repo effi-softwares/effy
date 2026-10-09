@@ -7,7 +7,7 @@ import com.effyshopping.customer.mobile.features.checkout.data.deliveryRefusalOr
 import com.effyshopping.customer.mobile.features.checkout.data.toDomain
 import com.effyshopping.customer.mobile.features.checkout.data.toRequest
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
+import com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
@@ -23,9 +23,8 @@ import kotlinx.serialization.json.Json
  * 079 — the courier checkout, at the wire: what the server sends for an address a courier delivers
  * to, what this app sends back, and the refusal when the two no longer agree.
  *
- * ⚠ A COURIER QUOTE READ AS AN EFFY ONE IS A FREE DELIVERY. It has no packages, no slots, no days and
- * no `standardFee`; the pre-077 fallback in the mapper would price it at $0.00 with nothing to choose.
- * The first test is what stops that.
+ * ⚠ A COURIER QUOTE HAS ONE FEE AND NOTHING TO CHOOSE. Read as an Effy quote it would be a serviced
+ * order with no window to pick and no way to pay; the first test is what stops that.
  */
 class CourierWireTest {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
@@ -33,10 +32,10 @@ class CourierWireTest {
     companion object {
         /** What POST /commerce/v1/checkout/quote answers when a courier delivers (commerce `toQuoteDTO`). */
         const val COURIER_QUOTE_WIRE =
-            """{"postcode":"7000","serviced":true,"coverage":"courier","sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-10-09T12:20:00+11:00","sameDaySlots":[],"sameDayUnavailableReason":null,"standardDays":[],"freeDeliveryRemainingAmount":null,"courier":{"estimate":"2–4 business days","fee":{"lines":[{"kind":"delivery","amount":"9.00"}],"totalAmount":"9.00"},"reason":"out_of_coverage"}}"""
+            """{"postcode":"7000","serviced":true,"coverage":"courier","expiresAt":"2026-10-09T12:20:00+11:00","freeDeliveryRemainingAmount":null,"courier":{"estimate":"2–4 business days","fee":{"lines":[{"kind":"delivery","amount":"9.00"}],"totalAmount":"9.00"},"reason":"out_of_coverage"}}"""
 
         const val NO_WINDOW_QUOTE_WIRE =
-            """{"postcode":"3121","serviced":true,"coverage":"courier","sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-10-09T12:20:00+11:00","sameDaySlots":[],"sameDayUnavailableReason":null,"standardDays":[],"freeDeliveryRemainingAmount":"11.00","courier":{"estimate":"2–4 business days","fee":{"lines":[{"kind":"delivery","amount":"9.00"}],"totalAmount":"9.00"},"reason":"no_window"}}"""
+            """{"postcode":"3121","serviced":true,"coverage":"courier","expiresAt":"2026-10-09T12:20:00+11:00","freeDeliveryRemainingAmount":"11.00","courier":{"estimate":"2–4 business days","fee":{"lines":[{"kind":"delivery","amount":"9.00"}],"totalAmount":"9.00"},"reason":"no_window"}}"""
     }
 
     @Test
@@ -49,11 +48,9 @@ class CourierWireTest {
         assertFalse(courier.noWindowLeft)
         assertEquals("9.00", courier.fee.totalAmount)
         // Whatever the shopper has (not) chosen, the fee is the courier's.
-        assertEquals("9.00", q.feeFor(DeliveryMethod.STANDARD, null)?.totalAmount)
-        assertEquals("9.00", q.feeFor(DeliveryMethod.SAME_DAY, "any-slot")?.totalAmount)
+        assertEquals("9.00", q.feeFor(null)?.totalAmount)
+        assertEquals("9.00", q.feeFor(ChosenWindow("any-slot", "2026-10-09"))?.totalAmount)
         assertNull(q.effyWindows)
-        assertFalse(q.sameDayAvailable)
-        assertTrue(q.slots.isEmpty() && q.standardDays.isEmpty())
     }
 
     @Test
@@ -64,7 +61,7 @@ class CourierWireTest {
     }
 
     @Test
-    fun `the intent says which type the screen showed - and says nothing under the checkout that predates types`() {
+    fun `the intent says which type the screen showed`() {
         fun sent(type: DeliveryType?) = json.encodeToString(CreateCheckoutIntentRequest.serializer(), PlaceOrder(addressId = "a1", deliveryType = type).toRequest())
         assertTrue(sent(DeliveryType.COURIER).contains(""""deliveryType":"courier""""), sent(DeliveryType.COURIER))
         assertTrue(sent(DeliveryType.EFFY).contains(""""deliveryType":"effy""""))

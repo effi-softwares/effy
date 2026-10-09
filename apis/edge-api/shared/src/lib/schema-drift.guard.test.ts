@@ -105,6 +105,24 @@ const NOT_A_COLUMN_HERE: Record<string, string> = {
   vehicle_type: "a SELECT alias in edge-api/driver over body_type",
 };
 
+/**
+ * Names whose LAST migration action was a drop from ONE table while the same name stays LIVE on
+ * another. The check is name-scoped (see 3 above), so without this entry every read of the live
+ * column would be reported.
+ *
+ * ⚠ Each entry trades the guard for that name. It says where the name is still live and where it
+ * was dropped — and the dropped side must be held by something else, named here.
+ */
+const LIVE_ON_ANOTHER_TABLE: Record<string, string> = {
+  // 083 dropped the per-package split from order_package_delivery and shop_fulfillment. The ORDER's
+  // own fee column is the one every service reads. Held by: the container suites (real migrations),
+  // and commerce's store, which writes no fee on a package (077).
+  delivery_fee_amount: 'live on public."order"; dropped from order_package_delivery / shop_fulfillment (083)',
+  // 083 dropped driver_zone_capability.method. Held by: fleet/src/driver-method.guard.test.ts, which
+  // fails any reader of a clearance's method.
+  method: "live on public.order_package_delivery; dropped from driver_zone_capability (083)",
+};
+
 describe("no source references a column a migration dropped", () => {
   const dropped = columnsLeftDropped();
   const services = readdirSync(edgeApi).filter((d) => {
@@ -140,10 +158,20 @@ describe("no source references a column a migration dropped", () => {
     }
   });
 
+  it("a name exempted as live elsewhere really was dropped somewhere, and is still read", () => {
+    for (const name of Object.keys(LIVE_ON_ANOTHER_TABLE)) {
+      expect(dropped, `${name} is exempted but its last action is no longer a drop — remove the exemption`).toContain(name);
+      const used = files.some((f) => codeLines(readFileSync(f, "utf8")).some((l) => new RegExp(`\\b${name}\\b`).test(l)));
+      expect(used, `${name} is exempted but nothing reads it`).toBe(true);
+    }
+    // ⚠ The founding case can never be put here.
+    expect(Object.keys(LIVE_ON_ANOTHER_TABLE)).not.toContain("display_name");
+  });
+
   it("every dropped column is absent from every service", () => {
     const offences: string[] = [];
     for (const column of dropped) {
-      if (column in NOT_A_COLUMN_HERE) continue;
+      if (column in NOT_A_COLUMN_HERE || column in LIVE_ON_ANOTHER_TABLE) continue;
       const pattern = new RegExp(`\\b${column}\\b`);
       for (const file of files) {
         for (const line of codeLines(readFileSync(file, "utf8"))) {

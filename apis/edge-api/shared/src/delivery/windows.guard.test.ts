@@ -8,9 +8,8 @@ import { describe, expect, it } from "vitest";
  * 078 — three things about delivery windows that are true only while nobody adds a second copy, and
  * that every behavioural test would go on passing without.
  *
- *   1. THE SWITCH HAS ONE READER. `delivery_settings.delivery_model_v2_from` is read by the SQL
- *      function `public.delivery_model_v2_at`, and that function by `model.ts`. A second reader is a
- *      second opinion about which checkout a customer is in: one prices a window the other refuses.
+ *   1. NOTHING READS THE SWITCH TO DECIDE ANYTHING (083 stage 2). There is one delivery model; the
+ *      column is the record of when it began, and only the go-live repository names it.
  *   2. THE SWITCH HAS ONE WRITER (083): the back-office go-live setter, behind its readiness check
  *      and beside its audit row. Nothing else sets it.
  *   3. A WINDOW BECOMES AN INSTANT IN ONE PLACE (`clockOn` / `clockOnDate` in `slots.ts`). 058 found
@@ -61,13 +60,15 @@ describe("078 — the delivery-model switch", () => {
     expect(callers).toEqual(["admin/src/delivery/go-live.service.ts", "shared/src/delivery/readiness.ts"]);
   });
 
-  it("the SQL function has ONE caller", () => {
-    expect(naming("delivery_model_v2_at")).toEqual(["shared/src/delivery/model.ts"]);
-  });
-
-  it("and that caller is used by the quote alone: everything else is told by the quote", () => {
-    const callers = sources.filter((s) => /deliveryModelV2At\(/.test(s.src)).map((s) => s.file);
-    expect(callers.sort()).toEqual(["shared/src/delivery/model.ts", "shared/src/delivery/quote.ts"]);
+  /**
+   * ⚠ 083 stage 2 — THERE IS ONE DELIVERY MODEL, AND NOTHING ASKS WHICH. The old arrangement was
+   * removed; `public.delivery_model_v2_at` answers true for good and is called only from inside the
+   * database (`courier_delivery_state`). A service that asked again would be bringing back a second
+   * checkout to choose between.
+   */
+  it("no service asks the database which delivery model is on", () => {
+    expect(naming("delivery_model_v2_at")).toEqual([]);
+    expect(sources.filter((s) => /deliveryModelV2At/.test(s.src)).map((s) => s.file)).toEqual([]);
   });
 });
 

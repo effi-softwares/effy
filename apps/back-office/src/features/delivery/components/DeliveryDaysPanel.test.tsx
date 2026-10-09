@@ -17,7 +17,7 @@ vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")),
 const { DeliveryDaysPanel } = await import("./DeliveryDaysPanel");
 
 const DAYS: DeliveryDaysDTO = {
-  lookaheadDays: 7, noDeliveryWeekdays: [7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3,
+  noDeliveryWeekdays: [7], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3,
   dates: [{ day: "2026-12-25", label: "Christmas Day", affectedOrders: 0 }],
 };
 
@@ -40,22 +40,26 @@ beforeEach(() => {
 describe("DeliveryDaysPanel", () => {
   it("shows the saved settings, with the closed weekday pressed", async () => {
     renderPanel();
-    expect(await screen.findByLabelText(/days a customer can choose from/i)).toHaveValue("7");
+    expect(await screen.findByLabelText(/days offered after today/i)).toHaveValue("3");
     expect(screen.getByRole("button", { name: "Sun" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Mon" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("2026-12-25")).toBeInTheDocument();
     expect(screen.getByText("Christmas Day")).toBeInTheDocument();
   });
 
-  it("⚠ labels the two unmeasured timings as estimates, not facts", async () => {
+  it("⚠ labels the unmeasured hub turnaround as an estimate, not a fact — and has no carrier lead time", async () => {
     renderPanel();
-    await screen.findByLabelText(/carrier lead time/i);
-    expect(screen.getAllByText(/^Estimate — not yet (measured|timed)/)).toHaveLength(2);
+    await screen.findByLabelText(/hub turnaround/i);
+    expect(screen.getAllByText(/^Estimate — not yet timed/)).toHaveLength(1);
+    // 083 — the settings that only served the old checkout are gone.
+    expect(screen.queryByLabelText(/carrier lead time/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/days a customer can choose from/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Standard delivery days")).not.toBeInTheDocument();
   });
 
   it("saves what the form holds, weekdays toggled", async () => {
     renderPanel();
-    const lookahead = await screen.findByLabelText(/days a customer can choose from/i);
+    const lookahead = await screen.findByLabelText(/days offered after today/i);
     await userEvent.clear(lookahead);
     await userEvent.type(lookahead, "5");
     await userEvent.click(screen.getByRole("button", { name: "Sat" }));
@@ -63,7 +67,7 @@ describe("DeliveryDaysPanel", () => {
 
     await waitFor(() =>
       expect(repo.putDeliveryDays).toHaveBeenCalledWith({
-        lookaheadDays: 5, noDeliveryWeekdays: [6, 7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3,
+        effyLookaheadDays: 5, noDeliveryWeekdays: [6, 7], slotHoldMin: 10, hubTurnaroundMin: 60,
       }),
     );
     expect(await screen.findByText(/the next checkout uses these/i)).toBeInTheDocument();
@@ -76,7 +80,7 @@ describe("DeliveryDaysPanel", () => {
     await userEvent.clear(offered);
     await userEvent.type(offered, "5");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(repo.putDeliveryDays).toHaveBeenCalledWith(expect.objectContaining({ effyLookaheadDays: 5, lookaheadDays: 7 })));
+    await waitFor(() => expect(repo.putDeliveryDays).toHaveBeenCalledWith(expect.objectContaining({ effyLookaheadDays: 5, noDeliveryWeekdays: [7] })));
 
     repo.putDeliveryDays.mockRejectedValue({ kind: "unknown", status: 400, title: "Refused", fields: [{ field: "effyLookaheadDays", message: "SERVER PROSE" }] });
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -131,7 +135,7 @@ describe("DeliveryDaysPanel", () => {
 
   it("a role that cannot manage delivery sees everything and can change nothing", async () => {
     renderPanel(false);
-    expect(await screen.findByLabelText(/days a customer can choose from/i)).toBeDisabled();
+    expect(await screen.findByLabelText(/days offered after today/i)).toBeDisabled();
     expect(screen.getByRole("button", { name: "Sun" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Close date" })).not.toBeInTheDocument();

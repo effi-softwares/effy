@@ -8,9 +8,8 @@ import { describe, expect, it } from "vitest";
  * 082 P12 — driver work no longer knows a delivery METHOD, which every behavioural test would go on
  * passing without:
  *
- *   1. Nothing in fleet reads `driver_zone_capability.method`. A clearance is (function, area); a
- *      reader that came back would quietly stop offering work to drivers cleared under the "other"
- *      old value, with nothing failing.
+ *   1. Nothing in fleet names a clearance's method. A clearance is (function, area), and since 083
+ *      the column does not exist — a reader that came back would fail at run time, in production.
  *   2. Nothing in fleet or the orders console decides driver work from `delivery_method = 'same_day'`.
  *      Who delivers a parcel is 079's one definition (`package_delivered_by`); since 078 a later-day
  *      window is sold as `standard`, and a method test gives it no delivery round at all.
@@ -44,10 +43,11 @@ describe("082 — driver work has no delivery method", () => {
     expect(naming(fleet, /'method',\s*c\.method/)).toEqual([]);
   });
 
-  it("the unread column is written in ONE place, with one fixed value", () => {
+  it("a clearance is written in ONE place, and names no method (083: the column is gone)", () => {
     expect(naming(fleet, /INSERT INTO public\.driver_zone_capability/)).toEqual(["fleet/src/capabilities/repository.ts"]);
     const repo = fleet.find((s) => s.file === "fleet/src/capabilities/repository.ts")!.src;
-    expect(repo).toMatch(/UNREAD_METHOD/);
+    expect(repo).toMatch(/INSERT INTO public\.driver_zone_capability \(driver_id, function, zone_id, granted_by_sub\)/);
+    expect(naming(fleet, /UNREAD_METHOD/)).toEqual([]);
   });
 
   it("no driver work is decided from delivery_method = 'same_day'", () => {
@@ -58,8 +58,7 @@ describe("082 — driver work has no delivery method", () => {
 
   it("the planner, dispatch and assignments carry no method literal at all", () => {
     const scoped = fleet.filter((s) => /fleet\/src\/(planner|dispatch|assignments|capabilities|coverage)\//.test(s.file));
-    // `'standard'` survives once: the fixed value written into the unread column.
     expect(naming(scoped, /'same_day'|"same_day"/)).toEqual([]);
-    expect(naming(scoped, /'standard'|"standard"/)).toEqual(["fleet/src/capabilities/sql.ts"]);
+    expect(naming(scoped, /'standard'|"standard"/)).toEqual([]);
   });
 });

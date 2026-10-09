@@ -103,7 +103,20 @@ d("067 — the migration over an existing catalogue", () => {
 
     // ── db-up ──
     await pool.query(upOf(mine));
-    for (const f of after) await pool.query(upOf(f));
+    for (const f of after) {
+      // ⚠ 083's removal of the old delivery arrangement REFUSES while an order sold the old way is
+      // still open, and on a database that has taken orders and was never switched over — and this
+      // pre-067 database is both. The order is finished and the switch set first, as the business would.
+      if (f.startsWith("20261009150000")) {
+        await pool.query(`INSERT INTO public.package_arrival (shop_fulfillment_id, source, recorded_by_sub) VALUES ($1, 'staff_recorded', 'seed')`, [fulfillmentId]);
+        await pool.query(
+          `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by, delivery_model_v2_from)
+           VALUES (1, -37.81, 144.96, 'seed', now() - interval '1 day')
+           ON CONFLICT (id) DO UPDATE SET delivery_model_v2_from = EXCLUDED.delivery_model_v2_from`,
+        );
+      }
+      await pool.query(upOf(f));
+    }
   }, 300_000);
 
   afterAll(async () => {

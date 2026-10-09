@@ -29,10 +29,8 @@ const SLOT_FIELD_COPY: Record<string, string> = {
   cutoffTime: "The cutoff can't be after the slot starts.",
   capacity: "Enter a limit as a whole number of at least 1, or untick the limit.",
   status: "Choose active or off.",
-  lookaheadDays: "Customers can be offered between 1 and 30 days.",
   effyLookaheadDays: "Customers can be offered between 1 and 14 delivery days after today.",
   noDeliveryWeekdays: "At least one day of the week must have delivery.",
-  carrierLeadDays: "The carrier lead time must be between 0 and 14 days.",
   slotHoldMin: "A place can be held for between 1 and 60 minutes.",
   hubTurnaroundMin: "The hub turnaround must be between 0 and 480 minutes.",
   day: "Enter a real date.",
@@ -130,7 +128,6 @@ export const COVERAGE_REASON_COPY: Record<string, string> = {
   courier_off: "Not on Effy's list. Courier delivery is switched off, so nobody delivers there.",
   courier_excluded: "Not on Effy's list, and excluded from courier delivery.",
   // 079 — on, and no customer is offered it yet.
-  courier_pending: "Not on Effy's list. Courier delivery is switched on and starts with the new delivery model — until then nobody delivers there.",
   courier_not_ready: "Not on Effy's list. Courier delivery is switched on but has no fee table or no default courier service, so nobody delivers there.",
   unknown_postcode: "Not a known postcode.",
 };

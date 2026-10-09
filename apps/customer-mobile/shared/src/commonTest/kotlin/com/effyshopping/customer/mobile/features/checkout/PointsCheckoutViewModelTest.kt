@@ -68,7 +68,13 @@ class PointsCheckoutViewModelTest {
         }
         override suspend fun confirm(orderId: String) = true
         override suspend fun quote(addressId: String) = DeliveryQuote(
-            serviced = true, sameDayAvailable = false, standardTotalAmount = "6.00", sameDayTotalAmount = null,
+            serviced = true,
+            // ⚠ A courier quote: one fee ($6.00) and nothing to choose — these tests are about points.
+            courier = com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery(
+                estimate = "2–4 business days",
+                fee = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee(listOf(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery, "6.00")), "6.00"),
+                noWindowLeft = false,
+            ),
             points = usable?.let { CheckoutPoints(usable = it, centsPerPoint = 1) },
         )
     }

@@ -139,16 +139,16 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          The time windows a customer can choose for same-day delivery (Australia/Melbourne). A slot is
+          The delivery windows a customer can choose — today, or on one of the next delivery days (Australia/Melbourne). A window is
           offered until its “order by” time and while a collection run can still bring the goods to the
-          hub before it starts. A slot has no limit on deliveries unless you set one. Changes apply to the next checkout; orders
+          hub before it starts. A window has no limit on deliveries unless you set one. Changes apply to the next checkout; orders
           already placed keep the window they were sold. Each day has its own count: the columns show
           how many deliveries are booked into each window today and on the delivery days after it.
         </p>
         {canManage ? (
           <Button onClick={() => setEditing("new")}>
             <Plus className="size-4" aria-hidden="true" />
-            New slot
+            New window
           </Button>
         ) : null}
       </div>
@@ -162,7 +162,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           {!anyActive ? (
             // ⚠ The one consequence an operator must not discover from a customer.
             <p role="status" className="rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
-              No slot is active, so same-day delivery is not being offered to anyone.
+              No window is active, so Effy delivery is not being offered to anyone.
             </p>
           ) : null}
           {slots.data && slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
@@ -235,7 +235,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
     <Dialog open onOpenChange={(o) => (o ? undefined : onClose())}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{slot ? "Edit slot" : "New same-day slot"}</DialogTitle>
+          <DialogTitle>{slot ? "Edit window" : "New delivery window"}</DialogTitle>
           <DialogDescription>
             Times are Melbourne time, 24-hour. {slot ? "Orders already placed keep the window they were sold." : "It is offered at checkout as soon as you save."}
           </DialogDescription>
@@ -250,20 +250,20 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
             <div className="flex items-center gap-2">
               <Checkbox id="slot-limited" checked={limited} onCheckedChange={(v) => setLimited(v === true)} />
               <Label htmlFor="slot-limited" className="font-normal">
-                Limit how many deliveries this slot takes
+                Limit how many deliveries this window takes
               </Label>
             </div>
             {limited ? (
               field("capacity", "Deliveries it can take", capacity, setCapacity, "20", { inputMode: "numeric" })
             ) : (
               <p className="text-sm text-muted-foreground">
-                No limit: the slot takes every order placed before its cutoff.
+                No limit: the window takes every order placed before its cutoff.
               </p>
             )}
           </div>
           {slot && limited && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">
-              {slot.bookedToday} deliveries are already booked today. They keep their place; the slot
+              {slot.bookedToday} deliveries are already booked today. They keep their place; the window
               takes no more until it is below this number.
             </p>
           ) : null}
@@ -273,7 +273,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
               Cancel
             </Button>
             <Button type="submit" disabled={pending}>
-              {slot ? "Save slot" : "Create slot"}
+              {slot ? "Save window" : "Create window"}
             </Button>
           </DialogFooter>
         </form>

@@ -5,10 +5,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { instantAtLocalTime } from "../lib/collection-deadline";
 import { migrationSql } from "../lib/load-migrations";
 import { searchLocalities } from "./locality";
-import { loadActivePlan, loadPlan, METHOD_SAME_DAY, NoActivePlanError } from "./plan";
-import { quote, SAME_DAY_NOT_ELIGIBLE } from "./quote";
+import { loadActivePlan, loadPlan, NoActivePlanError } from "./plan";
+import { quote } from "./quote";
 import { loadSlots, loadSlotSettings, lockSlot, slotLoad } from "./slots";
-import { serviceableForPostcode, zoneForPostcode } from "./zone";
+import { coverageForPostcode } from "./coverage";
+import { windowKey } from "./windows";
+import { serviceableForPostcode } from "./zone";
 
 /**
  * 070 — the delivery reads against the REAL schema.
@@ -46,9 +48,9 @@ d("070 — delivery reads against the real schema", () => {
     ).rows.map((r) => r.id) as [string, string];
 
     await pool.query(`
-      INSERT INTO public.delivery_zone (id, code, name, sameday_eligible, status, updated_by) VALUES
-        ('${ZONE}', 'T-Z1', 'Test zone', false, 'active', 'test'),
-        ('${ZONE_OFF}', 'T-Z2', 'Disabled zone', false, 'disabled', 'test');
+      INSERT INTO public.delivery_zone (id, code, name, status, updated_by) VALUES
+        ('${ZONE}', 'T-Z1', 'Test zone', 'active', 'test'),
+        ('${ZONE_OFF}', 'T-Z2', 'Disabled zone', 'disabled', 'test');
       INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by) VALUES
         ('${ZONE}', '3121', 3.40, 'manual', 'test'), ('${ZONE_OFF}', '3550', 130.00, 'manual', 'test');
       INSERT INTO public.delivery_fee_plan (id, name, is_active, base_amount, today_premium_amount, rounding_step, floor_amount, cap_amount, created_by)
@@ -100,11 +102,11 @@ d("070 — delivery reads against the real schema", () => {
     expect(await serviceableForPostcode(pool, "3999")).toBe(false);
   });
 
-  it("the quote's zone lookup agrees with serviceability", async () => {
-    expect(await zoneForPostcode(pool, "3121")).toEqual({ id: ZONE, sameDayEligible: false });
-    // In a removed group: listed, treated as ungrouped, same-day eligible.
-    expect(await zoneForPostcode(pool, "3550")).toEqual({ id: null, sameDayEligible: true });
-    expect(await zoneForPostcode(pool, "3999")).toBeNull();
+  it("the coverage answer the quote reads agrees with serviceability, and names the group", async () => {
+    expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", groupId: ZONE, distanceKm: 3.4 });
+    // In a removed group: listed, and treated as ungrouped.
+    expect(await coverageForPostcode(pool, "3550")).toMatchObject({ kind: "effy", groupId: null });
+    expect((await coverageForPostcode(pool, "3999")).kind).toBe("none");
   });
 
   it("locality search: name prefix (case-insensitive), postcode prefix, alphabetical, bounded", async () => {
@@ -123,52 +125,45 @@ d("070 — delivery reads against the real schema", () => {
     for (const w of s.noWeekdays) expect(typeof w).toBe("number");
   });
 
-  it("standard-only quote: not same-day eligible, ONE fee for the order, days offered", async () => {
+  it("no window switched on: still priced ONCE for the order, and says there is nothing to choose", async () => {
     const res = await quote(pool, null, "3121", [{ shopId: shopA, grams: 1500 }, { shopId: shopB, grams: 7000 }], new Date(), 5000);
     if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
     // 3.4 km → the first band; 8.5 kg in all → the top weight band: 1.00 + 5.00 + 5.50.
-    expect(res.standardFee.totalCents).toBe(1150);
-    expect(res.standardFee.breakdown).toMatchObject({ km: 3.4, grams: 8500, distanceBandUpperKm: 10, weightBandUpperGrams: 10000 });
-    expect(res.slotFees.size).toBe(0);
+    expect(res.baseFee.totalCents).toBe(1150);
+    expect(res.baseFee.breakdown).toMatchObject({ km: 3.4, grams: 8500, distanceBandUpperKm: 10, weightBandUpperGrams: 10000 });
+    expect(res.zoneId).toBe(ZONE);
+    expect(res.shopIds).toEqual([shopA, shopB]);
     expect(res.freeDeliveryRemainingCents).toBeNull();
-    expect(res.sameDayUntil).toBeNull();
-    expect(res.sameDayUnavailable).toBe(SAME_DAY_NOT_ELIGIBLE);
-    for (const p of res.packages) expect(p.options).toHaveLength(1);
-    expect(res.standardDays.length).toBeGreaterThan(0);
+    expect(res.effyWindows.unavailable).toBe("none_defined");
+    expect(res.effyWindows.fees.size).toBe(0);
+    expect(res.effyWindows.days[0]).toMatchObject({ isToday: true, windows: [] });
   });
 
   it("an unserved postcode quotes nothing", async () => {
     expect(await quote(pool, null, "3999", [{ shopId: shopA, grams: 1500 }], new Date(), 5000)).toEqual({ serviced: false, coverage: "none" });
   });
 
-  it("same-day appears on exactly the package whose shop does it, while a slot is open", async () => {
-    await pool.query(`UPDATE public.delivery_zone SET sameday_eligible = true WHERE id = '${ZONE}'`);
+  it("a window is open for the WHOLE order: one fee with it, dearer today by the plan's premium", async () => {
     await pool.query(`UPDATE public.delivery_settings SET sameday_prep_buffer_min = 0, sameday_hub_turnaround_min = 0 WHERE id = 1`);
     await pool.query(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('12:00', 'active', 'test')`);
     await pool.query(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, status, updated_by)
        VALUES ('17:00', '19:00', '15:00', 2, 'active', 'test')`,
     );
-    await pool.query(
-      `INSERT INTO public.shop_sameday_exception (shop_id, zone_id, mode, updated_by) VALUES ($1, '${ZONE}', 'off', 'test')`,
-      [shopB],
-    );
 
     const now = instantAtLocalTime(2026, 8, 24, 10, 0); // before the 12:00 run and the 15:00 cutoff
     const res = await quote(pool, null, "3121", [{ shopId: shopA, grams: 1500 }, { shopId: shopB, grams: 1500 }], now, 5000);
     if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
 
-    // One fee for the order with that window: the plain fee plus the today premium — once, though
-    // only one of the two packages can go today.
-    const slotFee = res.slotFees.get(res.sameDaySlots[0]!.id)!;
-    expect(res.standardFee.totalCents).toBe(800); // 1.00 + 5.00 + 2.00 (3 kg)
-    expect(slotFee.totalCents).toBe(1100);
-    expect(slotFee).toMatchObject({ windowIsToday: true, slotId: res.sameDaySlots[0]!.id });
-
-    expect(res.sameDaySlots).toHaveLength(1);
-    expect(res.sameDayUntil).not.toBeNull();
-    const sameDay = res.packages.filter((p) => p.options.some((o) => o.method === METHOD_SAME_DAY));
-    expect(sameDay.map((p) => p.shopId)).toEqual([shopA]); // shop B is excepted off
+    expect(res.effyWindows.unavailable).toBeNull();
+    const [today, tomorrow] = res.effyWindows.days;
+    expect(today).toMatchObject({ date: "2026-08-24", isToday: true, closedReason: null });
+    expect(today!.windows).toHaveLength(1);
+    const slotId = today!.windows[0]!.id;
+    // The plain fee, then the same window today (plus the today premium) and tomorrow (nothing added).
+    expect(res.baseFee.totalCents).toBe(800); // 1.00 + 5.00 + 2.00 (3 kg)
+    expect(res.effyWindows.fees.get(windowKey(slotId, today!.date))).toMatchObject({ totalCents: 1100, windowIsToday: true, slotId });
+    expect(res.effyWindows.fees.get(windowKey(slotId, tomorrow!.date))).toMatchObject({ totalCents: 800, windowIsToday: false, slotId });
 
     const slots = await loadSlots(pool);
     expect(slots[0]).toMatchObject({ start: { hour: 17, minute: 0 }, cutoff: { hour: 15, minute: 0 }, capacity: 2 });

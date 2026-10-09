@@ -101,6 +101,7 @@ export async function goLiveReadiness(q: Queryable): Promise<GoLiveReadiness> {
       `SELECT count(DISTINCT d.id) FILTER (WHERE c.function = 'delivery')   AS deliver,
               count(DISTINCT d.id) FILTER (WHERE c.function = 'collection') AS collect
          FROM public.driver d JOIN public.driver_zone_capability c ON c.driver_id = d.id
+        -- availability-exempt: public.driver — a driver's employment status, not a product's.
         WHERE d.status = 'active'`,
     )
   ).rows[0];

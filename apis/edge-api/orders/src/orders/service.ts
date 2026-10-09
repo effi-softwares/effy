@@ -161,7 +161,6 @@ export function toPackage(
     handoffDate: row.handoff_date,
     arrivedAt: row.arrival_at,
     arrivalDate: row.arrival_date,
-    carrierLeadDays: row.carrier_lead_days,
   });
   // A booked supplier pickup whose day has gone with no handover is late too.
   const pickupLate = row.courier_collection === "supplier" && !row.handoff_at && consignment?.pickup !== undefined && consignment?.pickup !== null
@@ -534,7 +533,7 @@ const melbourneDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: 
 
 function toCourierRow(r: repo.CourierParcelRow, now: Date): HandoverRowDTO & { _view: CourierView | null; _sort: number } {
   const dueOut = r.courier_collection === "hub" ? courierDueOut(r, now) : null;
-  const dueOn = dueOut ? melbourneDay(dueOut) : r.legacy_due_on ?? (r.placed_at ? melbourneDay(r.placed_at) : r.today);
+  const dueOn = dueOut ? melbourneDay(dueOut) : r.placed_at ? melbourneDay(r.placed_at) : r.today;
   const handed = r.handed_over_at !== null;
   const problem = r.consignment_state && (CONSIGNMENT_PROBLEMS as readonly string[]).includes(r.consignment_state) ? r.consignment_state : null;
 

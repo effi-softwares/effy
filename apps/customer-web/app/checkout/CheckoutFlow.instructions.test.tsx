@@ -75,13 +75,14 @@ beforeEach(() => {
         return jsonRes(addr({ id: "new1", recipientName: "New Person", isDefault: false }))
       }
       if (u.endsWith("/api/checkout/quote")) {
-        // 047: serviceability + the standard fee for the chosen address. Serviced with one $5 package.
+        // Serviced, $5 delivery. ⚠ A COURIER quote on purpose: one fee and nothing to choose, so
+        // these tests go straight to paying — they are not about picking a delivery window.
         return jsonRes({
           postcode: "3000",
           serviced: true,
-          sameDayAvailableUntil: null,
-          packages: [{ shopRef: "pkg-1", options: [{ method: "standard", feeAmount: "5.00", promisedFrom: null, promisedTo: null }] }],
+          coverage: "courier",
           expiresAt: "2026-08-22T12:00:00+10:00",
+          courier: { estimate: "2–4 business days", reason: "out_of_coverage", fee: { lines: [{ kind: "delivery", amount: "5.00" }], totalAmount: "5.00" } },
         })
       }
       if (u.endsWith("/api/checkout/intent")) {

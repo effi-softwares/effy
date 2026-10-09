@@ -165,7 +165,7 @@ export function removeCoverageGroup(id: string, confirmNoDrivers: boolean): Prom
   return api.delete<{ ungrouped: number }>(`/admin/v1/delivery/coverage/groups/${id}${confirmNoDrivers ? "?confirmNoDrivers=true" : ""}`);
 }
 /** 079 — courier delivery on or off, the estimate customers are shown, the no-window fallback. Any of the three. */
-export function updateCourier(change: CourierReachUpdateDTO): Promise<Pick<CourierReachDTO, "offered" | "estimateText" | "whenNoWindows">> {
+export function updateCourier(change: CourierReachUpdateDTO): Promise<Pick<CourierReachDTO, "offered" | "whenNoWindows">> {
   return api.put("/admin/v1/delivery/coverage/courier", change);
 }
 export function addCourierExclusion(postcode: string, reason: string): Promise<void> {

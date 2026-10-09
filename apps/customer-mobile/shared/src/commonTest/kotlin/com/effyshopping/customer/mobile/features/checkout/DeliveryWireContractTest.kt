@@ -36,16 +36,15 @@ class DeliveryWireContractTest {
         // What GET /storefront/v1/serviceability answers.
         const val SERVICEABILITY_WIRE = """{"postcode":"3121","serviced":true}"""
 
-        // Read by the backend's wire.contract.test.ts. ⚠ The per-option promise dates here are a
-        // DECODE case only: the platform has sent them as null since 069.
-        // ⚠ 077: the delivery charge is the ORDER's — `standardFee` for a later day, each slot's
-        // `fee` for that window. The per-option `feeAmount` is kept only for builds older than 077.
+        // Read by the backend's wire.contract.test.ts, byte for byte.
+        // ⚠ 083: a serviced address answers `effyWindows` (or `courier` — see CourierWireTest) and
+        // nothing else. The delivery charge is the ORDER's, one per window (077).
         const val DELIVERY_QUOTE_WIRE =
-            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":"2026-08-24T13:00:00+10:00","packages":[{"shopRef":"pkg-1","options":[{"method":"standard","feeAmount":"6.00","promisedFrom":null,"promisedTo":null},{"method":"same_day","feeAmount":"11.00","promisedFrom":"2026-08-24","promisedTo":"2026-08-24"}]}],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"},{"date":"2026-08-26"}],"standardFee":{"lines":[{"kind":"delivery","amount":"6.00"}],"totalAmount":"6.00"},"freeDeliveryRemainingAmount":"26.00"}"""
+            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":"26.00","effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"closedReason":null},{"date":"2026-08-25","section":"standard","windows":[],"closedReason":"full"}],"unavailable":null}}"""
 
-        // Read by the backend's wire.contract.test.ts, byte for byte (069).
-        const val DELIVERY_QUOTE_NO_SAME_DAY_WIRE =
-            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[],"sameDayUnavailableReason":"slots_closed","standardDays":[{"date":"2026-08-25"}],"standardFee":{"lines":[{"kind":"delivery","amount":"6.00"}],"totalAmount":"6.00"},"freeDeliveryRemainingAmount":null}"""
+        // Read by the backend's wire.contract.test.ts, byte for byte.
+        const val DELIVERY_QUOTE_NO_WINDOWS_WIRE =
+            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":null,"effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[],"closedReason":"closed"}],"unavailable":"no_windows"}}"""
     }
 
     @Test
@@ -56,97 +55,69 @@ class DeliveryWireContractTest {
     }
 
     @Test
-    fun `Kotlin decodes the server's delivery-quote bytes - with the fee as a String`() {
+    fun `Kotlin decodes the server's delivery-quote bytes - windows, with every amount a String`() {
         val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
 
         assertEquals("3121", dto.postcode)
         assertTrue(dto.serviced)
-        assertEquals("2026-08-24T13:00:00+10:00", dto.sameDayAvailableUntil)
-        assertEquals(1, dto.packages.size)
+        assertEquals("26.00", dto.freeDeliveryRemainingAmount)
 
-        val pkg = dto.packages[0]
-        // ⚠ shopRef is opaque — never a shop id (FR-033).
-        assertEquals("pkg-1", pkg.shopRef)
-        assertEquals(2, pkg.options.size)
+        val windows = dto.effyWindows!!
+        assertEquals(null, windows.unavailable)
+        val (today, later) = windows.days
+        assertEquals("2026-08-24", today.date)
+        assertEquals(DeliveryMethod.SameDay, today.section)
+        assertEquals(DeliveryMethod.Standard, later.section)
 
-        val standard = pkg.options[0]
-        assertEquals(DeliveryMethod.Standard, standard.method)
+        val window = today.windows.single()
+        assertEquals("33333333-3333-3333-3333-333333333333", window.slotID)
+        assertEquals("2026-08-24T17:00:00+10:00", window.startAt)
+        assertEquals("2026-08-24T19:00:00+10:00", window.endAt)
+        assertEquals("2026-08-24T13:00:00+10:00", window.cutoffAt)
         // ⚠ The 027 R13 guard: money is a String, not a number. If the contract ever regressed to a
-        // numeric type this would not compile / would fail to parse "6.00".
-        assertEquals("6.00", standard.feeAmount)
-
-        val sameDay = pkg.options[1]
-        assertEquals(DeliveryMethod.SameDay, sameDay.method)
-        assertEquals("11.00", sameDay.feeAmount)
-        assertEquals("2026-08-24", sameDay.promisedFrom)
-    }
-
-    @Test
-    fun `an unserviced quote carries no packages`() {
-        val dto = json.decodeFromString<DeliveryQuoteDTO>(
-            // What the quote mapper emits for an address Effy does not serve.
-            """{"postcode":"3999","serviced":false,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"","sameDaySlots":[],"sameDayUnavailableReason":null,"standardDays":[]}""",
-        )
-        assertFalse(dto.serviced)
-        assertTrue(dto.packages.isEmpty())
-    }
-
-    // ── 069: slots and days ─────────────────────────────────────────────────────────────────────────
-
-    @Test
-    fun `Kotlin decodes the slots and days the server emits`() {
-        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
-
-        val slot = dto.sameDaySlots.single()
-        assertEquals("33333333-3333-3333-3333-333333333333", slot.slotID)
-        assertEquals("2026-08-24", slot.date)
-        assertEquals("2026-08-24T17:00:00+10:00", slot.startAt)
-        assertEquals("2026-08-24T19:00:00+10:00", slot.endAt)
-        assertEquals("2026-08-24T13:00:00+10:00", slot.cutoffAt)
-        assertEquals(listOf("2026-08-25", "2026-08-26"), dto.standardDays.map { it.date })
-        assertEquals(null, dto.sameDayUnavailableReason)
-    }
-
-    // ── 077: one fee for the order, as lines ────────────────────────────────────────────────────────
-
-    @Test
-    fun `Kotlin decodes the order's delivery fee - lines and totals as Strings`() {
-        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_WIRE)
-
-        val later = dto.standardFee!!
-        assertEquals("6.00", later.totalAmount)
-        assertEquals(listOf(DeliveryFeeLineKind.Delivery to "6.00"), later.lines.map { it.kind to it.amount })
-
-        val slot = dto.sameDaySlots.single()
-        assertEquals("5.00", slot.surchargeAmount)
-        assertEquals("11.00", slot.fee!!.totalAmount)
+        // numeric type this would not compile / would fail to parse "5.00".
+        assertEquals("5.00", window.surchargeAmount)
+        assertEquals("11.00", window.fee.totalAmount)
         assertEquals(
             listOf(DeliveryFeeLineKind.Delivery to "6.00", DeliveryFeeLineKind.WindowSurcharge to "5.00"),
-            slot.fee!!.lines.map { it.kind to it.amount },
+            window.fee.lines.map { it.kind to it.amount },
         )
-        assertEquals("26.00", dto.freeDeliveryRemainingAmount)
+        // A full day is said to be full, with no windows — never how full.
+        assertTrue(later.windows.isEmpty())
+        assertEquals(com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.Full, later.closedReason)
     }
 
     @Test
-    fun `a quote from a server older than 077 still decodes - no fee, no surcharge`() {
+    fun `an unserviced quote says so and nothing else`() {
         val dto = json.decodeFromString<DeliveryQuoteDTO>(
-            """{"postcode":"3121","serviced":true,"sameDayAvailableUntil":null,"packages":[],"expiresAt":"2026-08-24T12:20:00+10:00","sameDaySlots":[{"slotId":"s","date":"2026-08-24","startAt":"a","endAt":"b","cutoffAt":"c"}],"sameDayUnavailableReason":null,"standardDays":[{"date":"2026-08-25"}]}""",
+            // What the quote mapper emits for an address nobody delivers to.
+            """{"postcode":"3999","serviced":false,"coverage":"none","expiresAt":""}""",
         )
-        assertEquals(null, dto.standardFee)
-        assertEquals(null, dto.sameDaySlots.single().fee)
+        assertFalse(dto.serviced)
+        assertEquals(null, dto.effyWindows)
+        assertEquals(null, dto.courier)
+    }
+
+    @Test
+    fun `Kotlin decodes a quote with no window anywhere`() {
+        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_NO_WINDOWS_WIRE)
+        val windows = dto.effyWindows!!
+        assertEquals(com.effyshopping.customer.mobile.commerce.contract.Unavailable.NoWindows, windows.unavailable)
+        assertTrue(windows.days.single().windows.isEmpty())
         assertEquals(null, dto.freeDeliveryRemainingAmount)
     }
 
+    /**
+     * ⚠ 083 — A SERVER THAT STILL SENDS THE REMOVED FIELDS IS STILL READ. The old slot/day/package
+     * fields are gone from the contract; `ignoreUnknownKeys` means a response that carries them (a
+     * deploy out of step) decodes, and they are simply not looked at.
+     */
     @Test
-    fun `Kotlin decodes a quote with no same-day - empty arrays and a reason`() {
-        // ⚠ The arrays are `[]`, never `null`: the generated DTO declares them non-null, and `null`
-        // there is a decode failure that would leave checkout saying "Checking delivery…" forever.
-        val dto = json.decodeFromString<DeliveryQuoteDTO>(DELIVERY_QUOTE_NO_SAME_DAY_WIRE)
-        assertTrue(dto.sameDaySlots.isEmpty())
-        assertEquals(listOf("2026-08-25"), dto.standardDays.map { it.date })
-        assertEquals(
-            com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason.SlotsClosed,
-            dto.sameDayUnavailableReason,
+    fun `fields the contract no longer has are ignored, not a decode failure`() {
+        val dto = json.decodeFromString<DeliveryQuoteDTO>(
+            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"x","packages":[{"shopRef":"pkg-1","options":[]}],"sameDaySlots":[],"standardDays":[{"date":"2026-08-25"}],"effyWindows":{"days":[],"unavailable":"none_defined"}}""",
         )
+        assertTrue(dto.serviced)
+        assertEquals(com.effyshopping.customer.mobile.commerce.contract.Unavailable.NoneDefined, dto.effyWindows!!.unavailable)
     }
 }

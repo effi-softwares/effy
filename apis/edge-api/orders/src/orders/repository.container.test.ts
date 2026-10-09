@@ -104,7 +104,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         promised_to date, slot_id uuid, window_start timestamptz, window_end timestamptz
       );
       CREATE TABLE public.delivery_slot_booking (order_id uuid NOT NULL, over_capacity boolean NOT NULL DEFAULT false);
-      CREATE TABLE public.delivery_settings (id int PRIMARY KEY, carrier_lead_days int NOT NULL DEFAULT 1);
+      CREATE TABLE public.delivery_settings (id int PRIMARY KEY);
       CREATE TABLE public.fulfillment_event (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id) ON DELETE CASCADE,

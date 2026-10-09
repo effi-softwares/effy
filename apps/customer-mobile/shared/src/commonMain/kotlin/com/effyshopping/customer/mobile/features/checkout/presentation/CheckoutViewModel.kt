@@ -15,7 +15,6 @@ import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceR
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
@@ -73,22 +72,14 @@ sealed interface CheckoutUiState {
          * them into payment again, with no way out but the app switcher.
          */
         val handedOffToPayment: Boolean = false,
-        // 047: the delivery quote for the selected address (null while none/loading), whether it is being
-        // fetched, and the shopper's method choice. serviced=false ⇒ "we don't deliver there yet".
+        // The delivery quote for the selected address (null while none/loading) and whether it is being
+        // fetched. serviced=false ⇒ nobody delivers there.
         val quote: DeliveryQuote? = null,
         val quoting: Boolean = false,
-        val method: DeliveryMethod = DeliveryMethod.STANDARD,
         /**
-         * 069 — WHEN. ⚠ A same-day slot is never selected for the shopper (FR-006): a window is a
-         * promise about when someone will be home. A standard day defaults to the earliest (FR-015).
-         * Both live here so they survive the hand-off to payment and a failed payment (FR-007).
-         */
-        val slotId: String? = null,
-        val standardDate: String? = null,
-        /**
-         * 078 — the ONE window for the order, once the new delivery model is on (the quote then
-         * carries its windows). ⚠ Never chosen for the shopper; kept across a failed payment while it
-         * is still offered; dropped when the address changes.
+         * WHEN — the ONE window for the order (078). ⚠ Never chosen for the shopper (069 FR-006): a
+         * window is a promise about when someone will be home. Lives here so it survives the hand-off
+         * to payment and a failed payment while it is still offered; dropped when the address changes.
          */
         val window: ChosenWindow? = null,
         /**
@@ -126,23 +117,7 @@ sealed interface CheckoutUiState {
         /** Serviced ⇔ a quote came back for a served address. Pay is blocked otherwise (047 FR-002). */
         val serviced: Boolean get() = quote?.serviced == true
 
-        /** Same-day is choosable when any delivery can go today and a slot is open (069 research R7). */
-        val sameDayOfferable: Boolean get() = quote?.sameDayAvailable == true
-
-        private val sameDayChosen: Boolean get() = method == DeliveryMethod.SAME_DAY && sameDayOfferable
-
-        /** A slot must be chosen: same-day was picked. */
-        val needsSlot: Boolean get() = sameDayChosen
-
-        /**
-         * A day must be chosen: something goes standard, and the server offered days. ⚠ False against
-         * a server older than 069, which sends none and defaults the day itself — blocking the pay
-         * button on a choice nobody was shown would stop every checkout between the two deploys.
-         */
-        val needsDay: Boolean
-            get() = quote?.standardDays?.isNotEmpty() == true && (!sameDayChosen || quote.mixed)
-
-        /** 078 — the new model's windows, when the quote carries them. Null is the 069 checkout. */
+        /** The windows Effy offers this order; null when a courier delivers or the address is not served. */
         val effyWindows: EffyWindows? get() = quote?.effyWindows?.takeIf { serviced }
 
         /** 079 — set when a courier delivers this order: then there is nothing to choose. */
@@ -150,14 +125,13 @@ sealed interface CheckoutUiState {
 
         /** Every delivery choice this order needs has been made. A courier order needs none. */
         val deliveryChosen: Boolean
-            get() = courier != null || (effyWindows?.let { it.unavailable == null && it.find(window) != null }
-                ?: ((!needsSlot || slotId != null) && (!needsDay || standardDate != null)))
+            get() = courier != null || effyWindows?.let { it.unavailable == null && it.find(window) != null } == true
 
         /**
-         * 077 — what delivery costs for what is chosen, as the lines the server priced. Null while
-         * same-day is chosen and no window is. ⚠ Picked, never added up: the server is the judge.
+         * 077 — what delivery costs for what is chosen, as the lines the server priced. Null until a
+         * window is chosen. ⚠ Picked, never added up: the server is the judge.
          */
-        val deliveryFee get() = quote?.feeFor(method, slotId, window)
+        val deliveryFee get() = quote?.feeFor(window)
     }
 
 }
@@ -215,14 +189,11 @@ class CheckoutViewModel(
     fun select(id: String) {
         val s = ready() ?: return
         if (s.selectedId == id) return
-        // A new address re-prices delivery (FR-004): reset the method to standard until the quote returns.
+        // A new address re-prices delivery (FR-004), and a window belongs to the address it was quoted
+        // for — nothing chosen for one address is carried to another.
         _state.value = s.copy(
             selectedId = id,
             quote = null,
-            method = DeliveryMethod.STANDARD,
-            // 069: a slot belongs to the address it was quoted for; the day is re-defaulted by the quote.
-            slotId = null,
-            // 078: so does a window — nothing chosen for one address is carried to another.
             window = null,
             error = null,
             // ⚠ 066 FR-015: REPLACED by the new address's saved instructions, even over something the
@@ -259,27 +230,6 @@ class CheckoutViewModel(
         _state.value = s.copy(saveInstructions = save)
     }
 
-    /** Choose standard vs same-day (047 US2). Only meaningful when same-day is on offer. */
-    fun setMethod(method: DeliveryMethod) {
-        val s = ready() ?: return
-        if (method == DeliveryMethod.SAME_DAY && !s.sameDayOfferable) return
-        _state.value = s.copy(method = method, error = null)
-    }
-
-    /** Choose a same-day slot (069). Ignored unless it is one the quote offers. */
-    fun setSlot(slotId: String) {
-        val s = ready() ?: return
-        if (s.quote?.slots?.none { it.id == slotId } != false) return
-        _state.value = s.copy(slotId = slotId, error = null)
-    }
-
-    /** Choose the standard delivery day (069). Ignored unless it is one the quote offers. */
-    fun setStandardDate(date: String) {
-        val s = ready() ?: return
-        if (s.quote?.standardDays?.contains(date) != true) return
-        _state.value = s.copy(standardDate = date, error = null)
-    }
-
     /** Choose the one window for the order (078). Ignored unless the quote offers it on that day. */
     fun setWindow(slotId: String, date: String) {
         val s = ready() ?: return
@@ -289,19 +239,14 @@ class CheckoutViewModel(
     }
 
     /**
-     * Fold a new quote into state, keeping a choice only while it is still on offer (069).
+     * Fold a new quote into state, keeping the window only while it is still on offer (069, 078).
      *
-     * ⚠ A SLOT THAT HAS GONE IS NOT REPLACED. Nothing is selected and the shopper chooses again
-     * (FR-010). A standard day falls back to the earliest, which is the default they would have been
-     * shown anyway (FR-015).
+     * ⚠ A WINDOW THAT HAS GONE IS NOT REPLACED. Nothing is selected and the shopper chooses again
+     * (FR-010).
      */
     private fun CheckoutUiState.Ready.withQuote(q: DeliveryQuote?): CheckoutUiState.Ready = copy(
         quote = q,
         quoting = false,
-        method = if (q?.sameDayAvailable == true) method else DeliveryMethod.STANDARD,
-        slotId = slotId?.takeIf { id -> q?.slots?.any { it.id == id } == true },
-        standardDate = standardDate?.takeIf { q?.standardDays?.contains(it) == true } ?: q?.standardDays?.firstOrNull(),
-        // 078 — kept only while still offered; a window that has gone is never replaced by another.
         window = window?.takeIf { q?.effyWindows?.find(it) != null },
     )
 
@@ -404,28 +349,16 @@ class CheckoutViewModel(
         // this only tells the shopper before the round trip.
         if (!s.deliveryChosen) {
             _state.value = s.copy(
-                error = when {
-                    s.effyWindows?.unavailable != null -> DeliveryWindowWords.NO_WINDOWS
-                    s.effyWindows != null || (s.needsSlot && s.slotId == null) -> "Choose a delivery time to continue."
-                    else -> "Choose a delivery day to continue."
-                },
+                error = if (s.effyWindows?.unavailable != null) DeliveryWindowWords.NO_WINDOWS else "Choose a delivery time to continue.",
             )
             return
         }
-        // 078 — under the new model the order carries ONE window and none of the 069 fields.
-        // 079 — and a courier order carries none of either: there was nothing to choose.
-        val windows = s.effyWindows
-        val courier = s.courier != null
-        val legacy = windows == null && !courier
-
         val order = PlaceOrder(
             addressId = addressId,
             billingAddressId = s.effectiveBillingId,
-            deliveryMethod = if (legacy) s.method else DeliveryMethod.STANDARD,
             deliveryInstructions = s.instructions.toInstructions(),
-            sameDaySlotId = s.slotId.takeIf { legacy && s.needsSlot },
-            standardDate = s.standardDate.takeIf { legacy && s.needsDay },
-            deliveryWindow = s.window.takeIf { windows != null && !courier },
+            // ONE window for an Effy order (078); a courier order has nothing to choose (079).
+            deliveryWindow = s.window.takeIf { s.courier == null },
             // 079 — who delivers, as this screen shows it. The server refuses a mismatch, unpaid.
             deliveryType = s.quote?.deliveryType,
             // 074 — "the most I can": the balance. If that is more than the order needs, the server says
@@ -473,14 +406,13 @@ class CheckoutViewModel(
                 if (changed.quote == null) refreshQuote(addressId)
                 return@launch
             } catch (refused: DeliveryChoiceRefused) {
-                // 069 — the slot or day could not be honoured. Nothing has been charged and no payment
+                // The window could not be honoured (069, 078). Nothing has been charged and no payment
                 // exists. ⚠ The choice is NOT replaced: the shopper is told, shown what is on offer
                 // now, and chooses again (FR-009, FR-010).
                 val cur = ready() ?: return@launch
-                val cleared = (if (refused.reason == DeliveryChoiceRefusal.DateUnavailable) cur else cur.copy(slotId = null))
-                    // 078 — the window is dropped whenever the refusal is about it, and never replaced.
-                    // 079 — and when who delivers has changed: nothing chosen for the old answer is kept.
-                    .let { if (refused.reason == DeliveryChoiceRefusal.SlotRequired) it else it.copy(window = null) }
+                // The window is dropped whenever the refusal is about it, and never replaced — and
+                // when who delivers has changed (079): nothing chosen for the old answer is kept.
+                val cleared = if (refused.reason == DeliveryChoiceRefusal.SlotRequired) cur else cur.copy(window = null)
                 _state.value = cleared.withQuote(refused.quote ?: cur.quote).copy(
                     paying = false,
                     error = when (refused.reason) {

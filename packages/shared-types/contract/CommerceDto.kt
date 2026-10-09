@@ -74,10 +74,8 @@ data class AddressDTO (
  * carries this value and NOTHING about why: no group, no distance, no reason, no hub
  * (FR-023). Staff contracts are in `delivery-admin.ts`.
  *
- * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only
- * when a courier order can be placed (079): the new delivery model is on, courier delivery
- * is on, a courier fee table is active and an estimate is set. The quote then carries
- * `courier`.
+ * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only
+ * when a courier order can be placed (079); the quote then carries `courier`.
  *
  * 076 — who delivers. Absent only from a server older than 076.
  */
@@ -604,14 +602,6 @@ data class CreateCheckoutIntentRequest (
     val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
-     * 047: the shopper's order-level delivery preference — "same_day" or "standard" (absent =
-     * standard). Applied per package where that method is offered, standard elsewhere (FR-044).
-     * The server prices the chosen method from the captured quote; the client NEVER sends a fee
-     * (SC-004).
-     */
-    val deliveryMethod: String? = null,
-
-    /**
      * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
      * writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this
      * differs from what applies now, or when a courier quote is answered without it — so nobody
@@ -623,8 +613,8 @@ data class CreateCheckoutIntentRequest (
     /**
      * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` +
      * `date`). REQUIRED when the quote carried `effyWindows` (refused with `slot_required`
-     * without it); the three 047/069 fields above are then ignored and the server derives
-     * same-day vs standard from the date. Ignored while the new model is off.
+     * without it); the server derives same-day vs standard from the date. ⚠ The server holds a
+     * place in the window when it accepts it — see `slotHeldUntil` on the response.
      */
     val deliveryWindow: DeliveryWindow? = null,
 
@@ -638,15 +628,6 @@ data class CreateCheckoutIntentRequest (
     val pointsToUse: Long? = null,
 
     /**
-     * 069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED
-     * when any package will go same-day; the intent is refused with `slot_required` without it
-     * and with `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for
-     * this order when it accepts the slot — see `slotHeldUntil` on the response.
-     */
-    @SerialName("sameDaySlotId")
-    val sameDaySlotID: String? = null,
-
-    /**
      * 077 — the delivery total the client is SHOWING (the chosen option's `totalAmount`). If
      * the server now works out a different one — a new fee plan went live, the basket crossed a
      * threshold — it writes nothing and refuses with 409 `delivery_fee_changed` and a fresh
@@ -654,13 +635,6 @@ data class CreateCheckoutIntentRequest (
      * client built before 077, which is priced without the check.
      */
     val shownDeliveryAmount: String? = null,
-
-    /**
-     * 069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the
-     * earliest available day, which is also what the UI preselects. Refused with
-     * `date_unavailable` if it is not among the days currently offered.
-     */
-    val standardDate: String? = null,
 
     /**
      * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile
@@ -825,11 +799,6 @@ data class CreateCheckoutIntentResponse (
  *
  * The order's delivery charge with this window chosen.
  *
- * 077 — the order's delivery charge with this window chosen.
- *
- * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent
- * when not serviced, and from a server older than 077.
- *
  * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
  * delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single
  * `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads
@@ -922,8 +891,7 @@ data class DeliveryChoiceRefusalDTO (
  * 069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a
  * 409 problem, with a fresh `quote` so the client can re-offer without a second request.
  *
- * ⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses
- * again.
+ * ⚠ A refusal NEVER substitutes a window or a day (FR-010). The customer chooses again.
  */
 @Serializable
 enum class DeliveryChoiceRefusalCode(val value: String) {
@@ -936,37 +904,38 @@ enum class DeliveryChoiceRefusalCode(val value: String) {
 
 /**
  * The delivery quote shown at checkout, captured server-side so the order is honoured at
- * the quoted fee — the client never sends a fee (FR-036). When `serviced` is false there
- * are NO packages and one reason: the postcode is in no served zone (FR-002).
+ * the quoted fee — the client never sends a fee (047 FR-036).
+ *
+ * A serviced address answers exactly one of two things (083): `effyWindows` — the windows
+ * to choose from — or `courier`. ⚠ Nothing about how the order splits across suppliers: no
+ * package list.
  */
 @Serializable
 data class DeliveryQuoteDTO (
     /**
-     * 079 — PRESENT EXACTLY WHEN `coverage` is `"courier"`. There is then nothing to choose:
-     * `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The
-     * client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
+     * PRESENT EXACTLY WHEN `coverage` is `"courier"` (079). There is then nothing to choose:
+     * the client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
      * "courier"` on the intent. ⚠ No distance, no courier company, nothing about how many
      * suppliers fill the order.
      */
     val courier: CourierQuoteDTO? = null,
 
     /**
-     * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only
-     * when a courier order can be placed (079): the new delivery model is on, courier delivery
-     * is on, a courier fee table is active and an estimate is set. The quote then carries
-     * `courier`.
+     * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only
+     * when a courier order can be placed (079); the quote then carries `courier`.
      */
     val coverage: CoverageKind? = null,
 
     /**
-     * 078 — the windows a customer may choose once the new delivery model is on: today's under
-     * "Same-day delivery", the following delivery days' under "Standard delivery". ⚠ ABSENT
-     * WHILE THE MODEL IS OFF — the response is then byte for byte what it was, and every field
-     * above means what it did. When present, the choice is sent back as `deliveryWindow` on the
-     * intent, and `standardDays` may be empty.
+     * PRESENT EXACTLY WHEN `coverage` is `"effy"` (078): today's windows under "Same-day
+     * delivery", the following delivery days' under "Standard delivery". The choice is sent
+     * back as `deliveryWindow` on the intent.
      */
     val effyWindows: EffyWindowsDTO? = null,
 
+    /**
+     * ISO datetime with the Australia/Melbourne offset; "" when not serviced.
+     */
     val expiresAt: String,
 
     /**
@@ -975,54 +944,18 @@ data class DeliveryQuoteDTO (
      */
     val freeDeliveryRemainingAmount: String? = null,
 
-    val packages: List<DeliveryPackageDTO>,
-
     /**
      * 074 — the customer's spendable points, when they have any.
      */
     val points: CheckoutPointsDTO? = null,
 
     val postcode: String,
-
-    /**
-     * ISO datetime with the Australia/Melbourne offset, or null. ⚠ Kept for clients built
-     * before 069; it now carries the latest OPEN SLOT's cutoff. New clients read `sameDaySlots`.
-     */
-    val sameDayAvailableUntil: String? = null,
-
-    /**
-     * 069 — the same-day time slots still open for THIS order, earliest first. Empty when there
-     * are none, and then no package carries a `same_day` option. A slot is offered only if it
-     * is open for every package that would go same-day, so one choice covers the order (FR-005).
-     */
-    val sameDaySlots: List<DeliverySlotOptionDTO>,
-
-    /**
-     * 069 — why same-day is not offered, when it is not (FR-004). The two are different
-     * sentences to a customer: "not in your area" will still be true tomorrow; "today's times
-     * are taken" will not.
-     */
-    val sameDayUnavailableReason: SameDayUnavailableReason? = null,
-
-    val serviced: Boolean,
-
-    /**
-     * 069 — the days a standard delivery can arrive, earliest first. The first is the default.
-     * ⚠ Never empty when `serviced` (FR-020) — while `effyWindows` is null.
-     */
-    val standardDays: List<StandardDayOptionDTO>,
-
-    /**
-     * 077 — the delivery charge for the order when NO window is chosen (a standard day). Absent
-     * when not serviced, and from a server older than 077.
-     */
-    val standardFee: DeliveryFeeDTO? = null
+    val serviced: Boolean
 )
 
 /**
- * 079 — PRESENT EXACTLY WHEN `coverage` is `"courier"`. There is then nothing to choose:
- * `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The
- * client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
+ * PRESENT EXACTLY WHEN `coverage` is `"courier"` (079). There is then nothing to choose:
+ * the client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
  * "courier"` on the intent. ⚠ No distance, no courier company, nothing about how many
  * suppliers fill the order.
  *
@@ -1108,9 +1041,11 @@ enum class EffyDayClosedReason(val value: String) {
 }
 
 /**
- * The two delivery methods. ⚠ Since 077 the method has no price of its own: the fee is ONE
- * amount for the order, and a delivery today costs more only through the plan's window
- * surcharge.
+ * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today,
+ * `standard` = a window on a later day (078). ⚠ No price of its own (077): the fee is ONE
+ * amount for the order. ⚠ On an order placed before delivery types (079) `standard` meant a
+ * day a carrier delivered — such an order is read through `deliveredBy`, never guessed from
+ * this word.
  */
 @Serializable
 enum class DeliveryMethod(val value: String) {
@@ -1166,35 +1101,6 @@ enum class Unavailable(val value: String) {
 }
 
 /**
- * One portion of the order and the methods it can have. `shopRef` is an OPAQUE handle —
- * never a shop id (FR-033). A served package ALWAYS carries a `standard` option (FR-029);
- * `same_day` appears only where it can go today (FR-044). ⚠ Not priced: see
- * `DeliveryOptionDTO.feeAmount`.
- */
-@Serializable
-data class DeliveryPackageDTO (
-    val options: List<DeliveryOptionDTO>,
-    val shopRef: String
-)
-
-/**
- * One method a package can have.
- *
- * ⚠ `feeAmount` IS COMPATIBILITY ONLY since 077. Delivery is priced once per order
- * (`DeliveryQuoteDTO.standardFee`, `DeliverySlotOptionDTO.fee`); these per-package figures
- * are an arrangement that makes a client built before 077 — which sums the chosen method
- * per package — show no less than it is charged. They mean nothing about any one package.
- * Removed by the checkout feature (E5).
- */
-@Serializable
-data class DeliveryOptionDTO (
-    val feeAmount: String,
-    val method: DeliveryMethod,
-    val promisedFrom: String? = null,
-    val promisedTo: String? = null
-)
-
-/**
  * 074 — the customer's spendable points, when they have any.
  *
  * 074 — what a customer can spend at checkout, on the delivery quote. Absent when they have
@@ -1206,74 +1112,6 @@ data class CheckoutPointsDTO (
     val cardMinimumAmount: String,
     val centsPerPoint: Long,
     val usable: Long
-)
-
-/**
- * One open same-day delivery window (069).
- *
- * ⚠ 077 REVERSED "a slot has no fee": the order's delivery charge with THIS window is
- * `fee`, and what the window adds over a standard day is `surchargeAmount` — shown before
- * it is chosen. ⚠ NO CAPACITY and no remaining count: how full a slot is is Effy's
- * operational business, and "2 left" would be a pressure tactic nobody asked for (FR-050).
- */
-@Serializable
-data class DeliverySlotOptionDTO (
-    /**
-     * After this the slot can no longer be chosen. Lets a client grey it out without a round
-     * trip.
-     */
-    val cutoffAt: String,
-
-    /**
-     * The delivery day, yyyy-mm-dd (Melbourne).
-     */
-    val date: String,
-
-    val endAt: String,
-
-    /**
-     * 077 — the order's delivery charge with this window chosen.
-     */
-    val fee: DeliveryFeeDTO? = null,
-
-    /**
-     * Opaque. Sent back as `sameDaySlotId` on the intent request (`deliveryWindow.slotId` once
-     * `effyWindows` is present).
-     */
-    @SerialName("slotId")
-    val slotID: String,
-
-    /**
-     * ISO datetimes with the Australia/Melbourne offset.
-     */
-    val startAt: String,
-
-    /**
-     * 077 — what this window adds to the delivery charge; "0.00" when nothing.
-     */
-    val surchargeAmount: String? = null
-)
-
-/**
- * Why same-day is not on offer: the zone or shop does not do it, or every slot today is
- * closed or full.
- */
-@Serializable
-enum class SameDayUnavailableReason(val value: String) {
-    @SerialName("not_eligible") NotEligible("not_eligible"),
-    @SerialName("slots_closed") SlotsClosed("slots_closed");
-}
-
-/**
- * One day a standard delivery can arrive (069). Its charge is the quote's `standardFee`
- * (077).
- */
-@Serializable
-data class StandardDayOptionDTO (
-    /**
-     * yyyy-mm-dd (Melbourne).
-     */
-    val date: String
 )
 
 /**

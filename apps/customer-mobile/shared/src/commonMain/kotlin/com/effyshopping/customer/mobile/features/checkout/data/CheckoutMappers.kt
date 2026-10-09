@@ -15,7 +15,6 @@ import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalC
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryType as ContractDeliveryType
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
-import com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason
 import com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
@@ -29,10 +28,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceR
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliverySlot
-import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.CustomerRefund
@@ -54,23 +50,16 @@ import com.effyshopping.customer.mobile.features.checkout.domain.PaymentSplit
 
 
 
-// domain → wire: the placement request. Selections carry the method (+ date), NEVER a fee (SC-004).
+// domain → wire: the placement request. NEVER a fee (SC-004).
 // `billingAddressID` is sent ONLY when the customer diverged billing (023 US4); null → same as shipping.
-/** Placement carries an address, an optional divergent billing address, and the delivery method (047). */
 internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckoutIntentRequest(
     addressID = addressId,
     billingAddressID = billingAddressId,
-    // Send same_day only when chosen; standard is the server default (a null keeps the wire minimal).
-    deliveryMethod = if (deliveryMethod == DeliveryMethod.SAME_DAY) "same_day" else null,
     // 066 — null is omitted from the wire (explicitNulls = false), and absent means "none".
     deliveryInstructions = deliveryInstructions?.toWire(),
-    // 069 — null is omitted from the wire; the server then requires a slot only when a package
-    // actually goes same-day, and defaults the standard day to the earliest.
-    sameDaySlotID = sameDaySlotId,
-    standardDate = standardDate,
-    // 078 — the one window for the order; null (omitted) while the new delivery model is off.
+    // 078 — the one window for the order; null (omitted) for a courier order.
     deliveryWindow = deliveryWindow?.let { com.effyshopping.customer.mobile.commerce.contract.DeliveryWindow(date = it.date, slotID = it.slotId) },
-    // 079 — who delivers, as shown. Null (omitted) under the checkout that predates delivery types.
+    // 079 — who delivers, as shown.
     deliveryType = when (deliveryType) {
         DeliveryType.EFFY -> ContractDeliveryType.Effy
         DeliveryType.COURIER -> ContractDeliveryType.Courier
@@ -87,105 +76,32 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     shownDeliveryAmount = shownDeliveryAmount,
 )
 
-// ── Delivery quote (047): DTO → domain ──────────────────────────────────────────────────────────────
-// Money crosses as 2-dp decimal strings; we sum in integer cents and format back (never a float).
-
-private fun centsOf(s: String): Long {
-    val neg = s.startsWith("-")
-    val body = if (neg) s.substring(1) else s
-    val dot = body.indexOf('.')
-    val whole = if (dot < 0) body else body.substring(0, dot)
-    val frac = if (dot < 0) "" else body.substring(dot + 1)
-    val f2 = (frac + "00").substring(0, 2)
-    val cents = (whole.toLongOrNull() ?: 0L) * 100 + (f2.toLongOrNull() ?: 0L)
-    return if (neg) -cents else cents
-}
-
-private fun formatCents(c: Long): String {
-    val neg = c < 0
-    val v = if (neg) -c else c
-    val s = "${v / 100}.${(v % 100).toString().padStart(2, '0')}"
-    return if (neg) "-$s" else s
-}
-
-/**
- * Sum the per-package fee for a method across the quote, falling back to standard per package where the
- * method is not offered (mirrors the server's per-package resolution, FR-044).
- */
-private fun DeliveryQuoteDTO.totalFor(method: DeliveryMethodDTO): Long =
-    packages.sumOf { pkg ->
-        val opt = pkg.options.firstOrNull { it.method == method }
-            ?: pkg.options.firstOrNull { it.method == DeliveryMethodDTO.Standard }
-            ?: pkg.options.firstOrNull()
-        opt?.let { centsOf(it.feeAmount) } ?: 0L
-    }
+// ── Delivery quote: DTO → domain ────────────────────────────────────────────────────────────────────
+// Money crosses as 2-dp decimal strings and is never recomputed here: the fee is the server's.
 
 internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
     if (!serviced) return DeliveryQuote.Unserviced
-    // 079 — a courier delivers. ⚠ FIRST: such a quote has no packages, slots, days or windows, and
-    // read as an Effy quote it would be a serviced order with a $0.00 delivery and nothing to choose.
+    val myPoints = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) }
+    // 079 — a courier delivers: one fee and an estimate, nothing to choose.
     courier?.let { c ->
-        val fee = c.fee.toDomain()
         return DeliveryQuote(
             serviced = true,
-            sameDayAvailable = false,
-            standardTotalAmount = fee.totalAmount,
-            sameDayTotalAmount = null,
-            standardFee = fee,
             freeDeliveryRemainingAmount = freeDeliveryRemainingAmount,
-            points = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) },
-            courier = CourierDelivery(estimate = c.estimate, fee = fee, noWindowLeft = c.reason == CourierQuoteReason.NoWindow),
+            points = myPoints,
+            courier = CourierDelivery(estimate = c.estimate, fee = c.fee.toDomain(), noWindowLeft = c.reason == CourierQuoteReason.NoWindow),
         )
     }
-    // 069: same-day is offerable when ANY delivery can go today AND a slot is open (research R7). The
-    // server resolves the method per package; a basket with one excepted shop is a MIXED order.
-    val sameDayPackages = packages.filter { pkg -> pkg.options.any { it.method == DeliveryMethodDTO.SameDay } }
-    val sameDayAvailable = sameDayPackages.isNotEmpty() && sameDaySlots.isNotEmpty()
-
-    // What each part costs when same-day is chosen: the same-day deliveries at the same-day fee, the
-    // rest at standard. ⚠ Summed from the fees the SERVER priced; nothing is added per slot or per day.
-    val sameDayPart = sameDayPackages.sumOf { pkg ->
-        pkg.options.first { it.method == DeliveryMethodDTO.SameDay }.let { centsOf(it.feeAmount) }
-    }
-    val standardPart = packages.filter { it !in sameDayPackages }.sumOf { pkg ->
-        (pkg.options.firstOrNull { it.method == DeliveryMethodDTO.Standard } ?: pkg.options.firstOrNull())
-            ?.let { centsOf(it.feeAmount) } ?: 0L
-    }
-    // 077 — the order's fee as the server priced it. ⚠ A server older than 077 sends none: the
-    // per-package sums stand in, as one Delivery line, so a deploy out of step never shows a blank.
-    val legacyStandard = totalFor(DeliveryMethodDTO.Standard)
-    val legacySameDay = totalFor(DeliveryMethodDTO.SameDay)
-    val standard = standardFee?.toDomain() ?: singleLine(legacyStandard)
+    // Effy delivers: the windows on offer. ⚠ A serviced quote with neither block is a server fault;
+    // it maps to a quote with nothing to choose, which cannot be paid for — never to a $0.00 order.
     return DeliveryQuote(
         serviced = true,
-        sameDayAvailable = sameDayAvailable,
-        standardFee = standard,
         freeDeliveryRemainingAmount = freeDeliveryRemainingAmount,
-        standardTotalAmount = formatCents(totalFor(DeliveryMethodDTO.Standard)),
-        sameDayTotalAmount = if (sameDayAvailable) formatCents(totalFor(DeliveryMethodDTO.SameDay)) else null,
-        slots = sameDaySlots.map {
-            DeliverySlot(
-                id = it.slotID, date = it.date, startAt = it.startAt, endAt = it.endAt, cutoffAt = it.cutoffAt,
-                surchargeAmount = it.surchargeAmount,
-                fee = it.fee?.toDomain() ?: singleLine(legacySameDay),
-            )
-        },
-        standardDays = standardDays.map { it.date },
-        sameDayUnavailable = when (sameDayUnavailableReason) {
-            SameDayUnavailableReason.SlotsClosed -> SameDayUnavailable.SlotsClosed
-            SameDayUnavailableReason.NotEligible -> SameDayUnavailable.NotEligible
-            null -> null
-        },
-        deliveries = packages.size,
-        sameDayDeliveries = sameDayPackages.size,
-        sameDayPartAmount = if (sameDayAvailable) formatCents(sameDayPart) else null,
-        standardPartAmount = if (sameDayAvailable) formatCents(standardPart) else null,
-        points = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) },
+        points = myPoints,
         effyWindows = effyWindows?.toDomain(),
     )
 }
 
-/** 078 — the new model's windows. ⚠ Exhaustive `when`s: a reason a newer server adds fails to compile here. */
+/** 078 — the windows Effy offers. ⚠ Exhaustive `when`s: a reason a newer server adds fails to compile here. */
 internal fun com.effyshopping.customer.mobile.commerce.contract.EffyWindowsDTO.toDomain(): EffyWindows = EffyWindows(
     days = days.map { day ->
         EffyDay(
@@ -211,9 +127,6 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.EffyWindowsDTO.t
         null -> null
     },
 )
-
-private fun singleLine(cents: Long): DeliveryFee =
-    DeliveryFee(lines = if (cents > 0) listOf(DeliveryFeeLine(DeliveryFeeLineKind.Delivery, formatCents(cents))) else emptyList(), totalAmount = formatCents(cents))
 
 internal fun com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO.toDomain(): DeliveryFee = DeliveryFee(
     // ⚠ An exhaustive `when` over the generated enum: a kind a newer server adds fails to compile

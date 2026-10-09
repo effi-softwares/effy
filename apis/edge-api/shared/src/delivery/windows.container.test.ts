@@ -3,7 +3,6 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { migrationSql } from "../lib/load-migrations";
-import { deliveryModelV2At } from "./model";
 import { loadSlotSettings, slotLoad, slotLoadByDate } from "./slots";
 
 /**
@@ -29,20 +28,22 @@ d("078 — delivery windows against the real schema", () => {
     await container?.stop();
   });
 
-  it("the switch is off with no settings row, off while NULL, and on from its instant — not before", async () => {
+  /**
+   * ⚠ 083 stage 2 — ONE MODEL. The database's own answer to "is the new delivery model on" is yes:
+   * with no settings row, with the switch column NULL, and at any instant. Nothing in the services
+   * asks it any more (`windows.guard.test.ts`); `courier_delivery_state` still does, inside the database.
+   */
+  it("the new delivery model is on for good — whatever the switch column holds, and with no settings row", async () => {
+    const on = async (at: Date) => (await pool.query<{ on: boolean }>(`SELECT public.delivery_model_v2_at($1) AS on`, [at])).rows[0]!.on;
     await pool.query(`DELETE FROM public.delivery_settings`);
-    expect(await deliveryModelV2At(pool, new Date())).toBe(false);
+    expect(await on(new Date())).toBe(true);
     expect((await loadSlotSettings(pool)).effyLookaheadDays).toBe(3);
 
     await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by) VALUES (1, -37.81, 144.96, 'test')`);
-    expect(await deliveryModelV2At(pool, new Date())).toBe(false);
+    expect(await on(new Date("2020-01-01T00:00:00Z"))).toBe(true);
     expect((await loadSlotSettings(pool)).effyLookaheadDays).toBe(3);
-
-    await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = '2026-11-01T00:00:00+11:00' WHERE id = 1`);
-    expect(await deliveryModelV2At(pool, new Date("2026-10-31T12:59:59Z"))).toBe(false);
-    expect(await deliveryModelV2At(pool, new Date("2026-10-31T13:00:00Z"))).toBe(true);
-    expect(await deliveryModelV2At(pool, new Date("2027-01-01T00:00:00Z"))).toBe(true);
-    await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = NULL WHERE id = 1`);
+    // A settings row created after the removal is marked removed from the start.
+    expect((await pool.query(`SELECT legacy_model_removed_at IS NOT NULL AS removed FROM public.delivery_settings WHERE id = 1`)).rows[0].removed).toBe(true);
   });
 
   it("the look-ahead is 1 to 14 days", async () => {

@@ -272,11 +272,6 @@ export interface CourierServiceListDTO {
 /** Courier reach: offered everywhere in the country except the exclusions. */
 export interface CourierReachDTO {
   offered: boolean;
-  /**
-   * 079 — the courier's usual timeframe, completing "Usually arrives in …" ("2–4 business days").
-   * Null until set. A customer reads it as an estimate, never a promise.
-   */
-  estimateText: string | null;
   /** 079 — offer courier to an address on Effy's list when no delivery window is available. */
   whenNoWindows: boolean;
   /** 080 — how new courier orders reach the courier. */
@@ -298,8 +293,6 @@ export interface CourierReachDTO {
 /** `PUT /admin/v1/delivery/coverage/courier` — any of the three; an absent field is left as it is. */
 export interface CourierReachUpdateDTO {
   offered?: boolean;
-  /** 3–60 characters, one line. `null` clears it — refused while courier delivery is on. */
-  estimateText?: string | null;
   whenNoWindows?: boolean;
   /** 080 */
   collectionDefault?: CourierCollection;
@@ -446,26 +439,22 @@ export interface NonDeliveryDateDTO {
   affectedOrders: number;
 }
 
-/** Which days standard delivery runs, and the timings the day rules depend on (069). */
+/** Which days Effy delivers, and the timings the window rules depend on (069, 078). */
 export interface DeliveryDaysDTO {
-  lookaheadDays: number;
   /** ISO weekdays, 1 = Monday … 7 = Sunday. */
   noDeliveryWeekdays: number[];
-  /** Hub handover → delivered. ⚠ A stated assumption until there is a carrier contract. */
-  carrierLeadDays: number;
   slotHoldMin: number;
   /** Collection run → ready to leave the hub. ⚠ A stated assumption until a round is timed. */
   hubTurnaroundMin: number;
   /**
-   * 078 — how many Effy DELIVERY days after today a customer may choose a window on (1–14).
-   * Non-delivery days do not count. Used once the new delivery model is on.
+   * How many Effy DELIVERY days after today a customer may choose a window on (1–14).
+   * Non-delivery days do not count.
    */
   effyLookaheadDays: number;
   dates: NonDeliveryDateDTO[];
 }
 
-/** ⚠ `effyLookaheadDays` is optional on input: absent keeps the stored value (a console built before 078). */
-export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates" | "effyLookaheadDays"> & { effyLookaheadDays?: number };
+export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates">;
 
 export interface NonDeliveryDateInput {
   day: string;

@@ -46,29 +46,10 @@ export interface CreateCheckoutIntentRequest {
    */
   deliveryInstructions?: DeliveryInstructionsDTO | null;
   /**
-   * 047: the shopper's order-level delivery preference — "same_day" or "standard" (absent = standard).
-   * Applied per package where that method is offered, standard elsewhere (FR-044). The server prices the
-   * chosen method from the captured quote; the client NEVER sends a fee (SC-004).
-   */
-  deliveryMethod?: string | null;
-  /**
-   * 069 — the same-day slot the customer chose (`DeliverySlotOptionDTO.slotId`). REQUIRED when any
-   * package will go same-day; the intent is refused with `slot_required` without it and with
-   * `slot_unavailable` if it has closed or filled. ⚠ The server holds a place for this order when it
-   * accepts the slot — see `slotHeldUntil` on the response.
-   */
-  sameDaySlotId?: string | null;
-  /**
-   * 069 — the day the customer chose for standard delivery (yyyy-mm-dd). Absent → the earliest
-   * available day, which is also what the UI preselects. Refused with `date_unavailable` if it is
-   * not among the days currently offered.
-   */
-  standardDate?: string | null;
-  /**
    * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` + `date`).
    * REQUIRED when the quote carried `effyWindows` (refused with `slot_required` without it); the
-   * three 047/069 fields above are then ignored and the server derives same-day vs standard from the
-   * date. Ignored while the new model is off.
+   * server derives same-day vs standard from the date. ⚠ The server holds a place in the window when
+   * it accepts it — see `slotHeldUntil` on the response.
    */
   deliveryWindow?: { slotId: string; date: string } | null;
   /**

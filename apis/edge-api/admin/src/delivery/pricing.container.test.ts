@@ -255,7 +255,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
           const sim = await svc.simulate({ planId: null, postcode, grams, basketAmount: (basket / 100).toFixed(2), slotId: null, windowIsToday: false });
           const real = await quote(pool, null, postcode, [{ shopId: shop, grams }], new Date(), basket);
           if (!real.serviced || real.coverage !== "effy") throw new Error("expected serviced");
-          expect(sim.fee!.totalAmount, `${postcode} ${grams}g $${basket / 100}`).toBe((real.standardFee.totalCents / 100).toFixed(2));
+          expect(sim.fee!.totalAmount, `${postcode} ${grams}g $${basket / 100}`).toBe((real.baseFee.totalCents / 100).toFixed(2));
           expect(sim.plan).toMatchObject({ id: plan.id, state: "active" });
         }
 
@@ -308,7 +308,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect((await sim(9000, "50.00")).note).toBe("3121 is delivered by Effy; this is what a courier would cost.");
   });
 
-  it("P19 / 080 — courier goes on only with a fee table AND a default courier service, and promises nobody anything before the new model", async () => {
+  it("P19 / 080 — courier goes on only with a fee table AND a default courier service, and is offered from then", async () => {
     await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE kind = 'courier'`);
     expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_plan_missing" });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
@@ -324,19 +324,12 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
       pickupWeekdays: [1, 2, 3, 4, 5], pickupCutoff: "14:00", collectsFromSupplier: true, isDefault: true,
     }, SUB);
     expect(await coverage.setCourier({ offered: true }, SUB)).toMatchObject({ offered: true });
-    // ⚠ ON AND READY — AND NOBODY IS OFFERED IT: the new delivery model is not on.
+    // ⚠ ON AND READY IS OFFERED (083): there is one delivery model, so nothing is "pending" on a switch.
     expect((await coverage.list({})).courier).toMatchObject({
-      offered: true, blockedBy: [], canBeOffered: true, pending: true,
+      offered: true, blockedBy: [], canBeOffered: true, pending: false,
       defaultService: { id: service.id, label: "Test Courier · Parcel", estimateText: "2–4 business days" },
     });
-    expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_pending" });
-
-    await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = now() - interval '1 minute' WHERE id = 1`);
-    try {
-      expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "courier", reason: "courier_offered" });
-    } finally {
-      await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = NULL WHERE id = 1`);
-    }
+    expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "courier", reason: "courier_offered" });
     await coverage.setCourier({ offered: false }, SUB);
     await pool.query(`DELETE FROM public.courier_service`);
   });

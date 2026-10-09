@@ -111,9 +111,9 @@ d("083 — going live", () => {
   it("P1 — drivers are advisory: named when missing, counted when there", async () => {
     expect((await item("drivers")).detail).toBe("No driver may deliver or collect yet");
     const driver = (await one<{ id: string }>(`INSERT INTO public.driver (cognito_sub, name, work_email) VALUES ('d1', 'Dana', 'dana@example.test') RETURNING id::text AS id`)).id;
-    await pool.query(`INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id) VALUES ($1, 'delivery', 'standard', NULL)`, [driver]);
+    await pool.query(`INSERT INTO public.driver_zone_capability (driver_id, function, zone_id) VALUES ($1, 'delivery', NULL)`, [driver]);
     expect(await item("drivers")).toMatchObject({ ready: false, detail: "No driver may collect yet" });
-    await pool.query(`INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id) VALUES ($1, 'collection', 'standard', NULL)`, [driver]);
+    await pool.query(`INSERT INTO public.driver_zone_capability (driver_id, function, zone_id) VALUES ($1, 'collection', NULL)`, [driver]);
     expect(await item("drivers")).toMatchObject({ ready: true, detail: "1 driver may deliver and 1 may collect" });
   });
 

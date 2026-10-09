@@ -28,7 +28,7 @@ vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")),
 const { CoveragePanel } = await import("./CoveragePanel");
 
 const courier = (over: Partial<CourierReachDTO> = {}): CourierReachDTO => ({
-  offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
+  offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
   blockedBy: [], pending: false, canBeOffered: true, exclusions: [], ...over,
 });
 
@@ -36,7 +36,7 @@ const service = (over: Partial<CourierServiceDTO> = {}): CourierServiceDTO => ({
   id: "s1", courierName: "Test Courier", serviceName: "Parcel", estimateText: "2–4 business days", maxBusinessDays: 5,
   pickupWeekdays: [1, 2, 3, 4, 5], pickupCutoff: "14:00", collectsFromSupplier: true, status: "active", isDefault: true, ...over,
 });
-const ready = courier({ estimateText: "2–4 business days", defaultService: { id: "s1", label: "Test Courier · Parcel", estimateText: "2–4 business days" } });
+const ready = courier({ defaultService: { id: "s1", label: "Test Courier · Parcel", estimateText: "2–4 business days" } });
 
 const list = (over: Partial<CoverageListDTO> = {}): CoverageListDTO => ({
   postcodes: [
@@ -269,7 +269,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
   });
 
   it("080 — how parcels reach the courier is a platform default, changed in one click", async () => {
-    repo.updateCourier.mockResolvedValue({ offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "supplier" });
+    repo.updateCourier.mockResolvedValue({ offered: false, whenNoWindows: false, collectionDefault: "supplier" });
     renderPanel();
     const hub = await screen.findByRole("radio", { name: "Via the hub" });
     expect(hub).toBeChecked();
@@ -277,9 +277,9 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ collectionDefault: "supplier" }));
   });
 
-  it("079 — ready: the switch works; on before the new delivery model, the screen says nobody is offered it yet", async () => {
+  it("079 — ready: the switch works, and on means offered", async () => {
     repo.listCoverage.mockResolvedValue(list({ courier: ready }));
-    repo.updateCourier.mockResolvedValue({ offered: true, estimateText: "2–4 business days", whenNoWindows: false });
+    repo.updateCourier.mockResolvedValue({ offered: true, whenNoWindows: false });
     const { unmount } = renderPanel();
     const sw = await screen.findByRole("switch", { name: /offer courier delivery/i });
     expect(sw).toBeEnabled();
@@ -288,13 +288,16 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ offered: true }));
     unmount();
 
-    repo.listCoverage.mockResolvedValue(list({ courier: { ...ready, offered: true, pending: true } }));
+    // ⚠ 083 — on is offered: there is no "starts with the new delivery model" notice any more.
+    repo.listCoverage.mockResolvedValue(list({ courier: { ...ready, offered: true } }));
     renderPanel();
-    expect(await screen.findByTestId("courier-pending")).toHaveTextContent("starts with the new delivery model");
+    await screen.findByRole("switch", { name: "Offer courier delivery" });
+    expect(screen.queryByTestId("courier-pending")).not.toBeInTheDocument();
+    expect(screen.queryByText(/starts with the new delivery model/)).not.toBeInTheDocument();
   });
 
   it("079 — the no-window fallback is its own switch, and a refusal is said in words", async () => {
-    repo.updateCourier.mockRejectedValueOnce(refusal(409, "courier_service_missing")).mockResolvedValue({ offered: false, estimateText: null, whenNoWindows: true });
+    repo.updateCourier.mockRejectedValueOnce(refusal(409, "courier_service_missing")).mockResolvedValue({ offered: false, whenNoWindows: true });
     renderPanel();
     const sw = await screen.findByRole("switch", { name: /offer courier when no delivery window is available/i });
     await userEvent.click(sw);

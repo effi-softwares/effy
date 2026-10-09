@@ -99,7 +99,6 @@ describe("P12 — coverage is decided in one place", () => {
    * Files that may name the list's table, each for a reason that is not "decide coverage again":
    */
   const MAY_READ_THE_LIST: Record<string, string> = {
-    "apis/edge-api/shared/src/delivery/zone.ts": "the LIVE fee tier and same-day flag of a listed postcode — the bridges 076 keeps until E3/E5",
     "apis/edge-api/admin/src/delivery/coverage.repository.ts": "maintains the list (add, remove, group, distance)",
     "apis/edge-api/admin/src/delivery/repository.ts": "recalculates distances when the hub moves",
     "apis/edge-api/shared/src/lib/load-migrations.ts": "TEST SUPPORT only — the fixture statement that lists a postcode for services forbidden to name its distance column",

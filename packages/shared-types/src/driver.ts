@@ -347,7 +347,9 @@ export interface HubCheckinResponse {
    * groups, "Effy delivery" (these) and "Courier", and the driver classifies nothing.
    * ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am – 12 pm"): the app has
    * no timezone database and never formats a day itself. A parcel sold no window has null instants.
-   * ⚠ `sameDayCount` / `standardCount` above stay for driver builds that predate these (E9 removes them).
+   * ⚠ `sameDayCount` / `standardCount` above are @deprecated — compatibility (083): kept so installed apps keep working
+   * (a driver build from before 082 reads them). So are the `same_day_delivery` values of
+   * `DriverPhase`, `DriverRunType` and a round's `kind`: they mean "an Effy delivery round".
    */
   effyCount?: WireInt;
   effyGroups?: HubCheckinEffyGroup[];

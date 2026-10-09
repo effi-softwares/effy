@@ -96,8 +96,8 @@ async function order(opts: { slotId?: string; state?: string; heldFor?: string; 
   );
   if (opts.slotId) {
     await pool.query(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to, slot_id, window_start, window_end)
-       VALUES ($1, $2, CASE WHEN $4::date IS NULL THEN 'same_day' ELSE 'standard' END, 8,
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, promised_from, promised_to, slot_id, window_start, window_end)
+       VALUES ($1, $2, CASE WHEN $4::date IS NULL THEN 'same_day' ELSE 'standard' END,
                COALESCE($4::date, (now() AT TIME ZONE 'Australia/Melbourne')::date), COALESCE($4::date, (now() AT TIME ZONE 'Australia/Melbourne')::date),
                $3, '2026-10-08T06:00:00Z', '2026-10-08T08:00:00Z')`,
       [o.id, shop.id, opts.slotId, opts.windowDay ?? null],
@@ -110,8 +110,8 @@ async function order(opts: { slotId?: string; state?: string; heldFor?: string; 
     );
   } else if (opts.standardDay) {
     await pool.query(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to)
-       VALUES ($1, $2, 'standard', 6, $3::date, $3::date)`,
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, promised_from, promised_to)
+       VALUES ($1, $2, 'standard', $3::date, $3::date)`,
       [o.id, shop.id, opts.standardDay],
     );
   }
@@ -274,8 +274,8 @@ d("069 — same-day delivery slots", () => {
   });
 });
 
-d("069 — the standard-delivery calendar", () => {
-  const SETTINGS = { lookaheadDays: 5, noDeliveryWeekdays: [7, 6], carrierLeadDays: 2, slotHoldMin: 15, hubTurnaroundMin: 45 };
+d("069 — the delivery calendar", () => {
+  const SETTINGS = { effyLookaheadDays: 5, noDeliveryWeekdays: [7, 6], slotHoldMin: 15, hubTurnaroundMin: 45 };
 
   async function hub() {
     await pool.query(
@@ -285,7 +285,7 @@ d("069 — the standard-delivery calendar", () => {
 
   it("reads the migration's defaults before anything is saved", async () => {
     expect(await getDeliveryDays()).toEqual({
-      lookaheadDays: 7, noDeliveryWeekdays: [], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, dates: [],
+      noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, dates: [],
     });
   });
 
@@ -293,7 +293,7 @@ d("069 — the standard-delivery calendar", () => {
     await hub();
     const saved = await putDeliveryDays(SETTINGS, ACTOR, scope);
     expect(saved).toMatchObject({ ...SETTINGS, noDeliveryWeekdays: [6, 7] });
-    expect(await getDeliveryDays()).toMatchObject({ lookaheadDays: 5, carrierLeadDays: 2 });
+    expect(await getDeliveryDays()).toMatchObject({ effyLookaheadDays: 5, slotHoldMin: 15 });
 
     const audit = await audits("delivery_days.updated");
     expect(audit[0]).toMatchObject({ actor_sub: ACTOR, target_type: "delivery_settings" });
@@ -307,13 +307,13 @@ d("069 — the standard-delivery calendar", () => {
     expect((await pool.query(`SELECT 1 FROM public.delivery_settings`)).rowCount).toBe(0);
   });
 
-  it("refuses all seven weekdays and a look-ahead outside 1–30, naming each", async () => {
+  it("refuses all seven weekdays and a look-ahead outside 1–14, naming each", async () => {
     await hub();
     const err = await refusal(
-      putDeliveryDays({ ...SETTINGS, lookaheadDays: 31, noDeliveryWeekdays: [1, 2, 3, 4, 5, 6, 7] }, ACTOR, scope),
+      putDeliveryDays({ ...SETTINGS, effyLookaheadDays: 15, noDeliveryWeekdays: [1, 2, 3, 4, 5, 6, 7] }, ACTOR, scope),
     );
     expect(err.kind).toBe("validation");
-    expect(err.fields?.map((f) => f.field).sort()).toEqual(["lookaheadDays", "noDeliveryWeekdays"]);
+    expect(err.fields?.map((f) => f.field).sort()).toEqual(["effyLookaheadDays", "noDeliveryWeekdays"]);
   });
 
   it("⚠ closing a date reports the orders that carry it and changes none of them (FR-043)", async () => {

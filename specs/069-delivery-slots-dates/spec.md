@@ -1,5 +1,10 @@
 # Feature Specification: Delivery Time Slots & Standard Delivery Date
 
+> ⚠ **SUPERSEDED (2026-10-10, feature 083).** The delivery model this describes — a same-day slot or a
+> standard day handed to a carrier — was replaced and removed. This document is kept as the record of
+> what was specified then. Current behaviour: "Delivery model" in [CLAUDE.md](../../CLAUDE.md); what the
+> old model was and how to read an order sold under it: [docs/archive/delivery-model-v1.md](../../docs/archive/delivery-model-v1.md).
+
 **Feature Branch**: `069-delivery-slots-dates`
 
 **Created**: 2026-10-04

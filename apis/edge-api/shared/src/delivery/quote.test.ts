@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { METHOD_SAME_DAY, METHOD_STANDARD, windowPremiumCents, type Plan } from "./plan";
-import { distinctShops, ListedPostcodeUnpricedError, offersSameDay, priceEffyOrder, type PackageQuote } from "./quote";
+import { windowPremiumCents, type Plan } from "./plan";
+import { distinctShops, ListedPostcodeUnpricedError, priceEffyOrder } from "./quote";
 
 const SLOT = "slot-evening";
 
@@ -72,14 +72,6 @@ describe("priceEffyOrder", () => {
 });
 
 describe("package quote helpers", () => {
-  const both: PackageQuote = { shopId: "s", options: [{ method: METHOD_STANDARD }, { method: METHOD_SAME_DAY }] };
-  const stdOnly: PackageQuote = { shopId: "s", options: [{ method: METHOD_STANDARD }] };
-
-  it("offersSameDay", () => {
-    expect(offersSameDay(both)).toBe(true);
-    expect(offersSameDay(stdOnly)).toBe(false);
-  });
-
   it("distinctShops keeps first-appearance order", () => {
     expect(distinctShops([{ shopId: "a", grams: 1 }, { shopId: "b", grams: 1 }, { shopId: "a", grams: 1 }])).toEqual(["a", "b"]);
   });

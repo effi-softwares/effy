@@ -23,9 +23,7 @@ const AFFECTED = `
 `;
 
 interface SettingsRow {
-  standard_lookahead_days: number;
   standard_no_delivery_weekdays: number[];
-  carrier_lead_days: number;
   slot_hold_min: number;
   sameday_hub_turnaround_min: number;
   effy_lookahead_days: number;
@@ -34,9 +32,7 @@ interface SettingsRow {
 /** The migrations' own defaults, used only until the operator has saved the delivery settings. */
 const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
   effyLookaheadDays: 3,
-  lookaheadDays: 7,
   noDeliveryWeekdays: [],
-  carrierLeadDays: 1,
   slotHoldMin: 10,
   hubTurnaroundMin: 60,
 };
@@ -53,16 +49,14 @@ async function dates(): Promise<NonDeliveryDateDTO[]> {
 
 export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolean }> {
   const res = await query<SettingsRow>(
-    `SELECT standard_lookahead_days, standard_no_delivery_weekdays, carrier_lead_days,
+    `SELECT standard_no_delivery_weekdays,
             slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days
        FROM public.delivery_settings WHERE id = 1`,
   );
   const r = res.rows[0];
   const settings: Omit<DeliveryDaysDTO, "dates"> = r
     ? {
-        lookaheadDays: r.standard_lookahead_days,
         noDeliveryWeekdays: [...r.standard_no_delivery_weekdays].sort((a, b) => a - b),
-        carrierLeadDays: r.carrier_lead_days,
         slotHoldMin: r.slot_hold_min,
         hubTurnaroundMin: r.sameday_hub_turnaround_min,
         effyLookaheadDays: r.effy_lookahead_days,
@@ -85,13 +79,11 @@ export async function save(
   return withTransaction(async (tx) => {
     const res = await tx.query(
       `UPDATE public.delivery_settings
-          SET standard_lookahead_days = $1, standard_no_delivery_weekdays = $2::smallint[],
-              carrier_lead_days = $3, slot_hold_min = $4, sameday_hub_turnaround_min = $5,
-              -- 078 — absent keeps what is stored: a console built before it never sends this.
-              effy_lookahead_days = COALESCE($7::int, effy_lookahead_days),
-              updated_by = $6, updated_at = now()
+          SET effy_lookahead_days = $1, standard_no_delivery_weekdays = $2::smallint[],
+              slot_hold_min = $3, sameday_hub_turnaround_min = $4,
+              updated_by = $5, updated_at = now()
         WHERE id = 1`,
-      [v.lookaheadDays, v.noDeliveryWeekdays, v.carrierLeadDays, v.slotHoldMin, v.hubTurnaroundMin, actorSub, v.effyLookaheadDays ?? null],
+      [v.effyLookaheadDays, v.noDeliveryWeekdays, v.slotHoldMin, v.hubTurnaroundMin, actorSub],
     );
     if (res.rowCount === 0) return false;
     await audit(tx);

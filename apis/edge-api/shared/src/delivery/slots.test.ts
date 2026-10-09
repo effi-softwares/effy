@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { judgeSlot, openSlots, type Slot, type SlotVerdict } from "./slots";
-import type { CollectionRun } from "./schedule";
+import { judgeWindow, type Slot, type SlotVerdict } from "./slots";
+import { melbourneDate, type CollectionRun } from "./schedule";
 import { at, melbourne, wallClock } from "./test-clock";
 
 const c = (hour: number, minute: number) => ({ hour, minute });
 const evening: Slot = { id: "evening", start: c(17, 0), end: c(19, 0), cutoff: c(15, 0), capacity: 2 };
 const oneRun: CollectionRun[] = [{ hour: 14, minute: 0 }];
 const run = (hour: number, minute: number): CollectionRun[] => [{ hour, minute }];
+/** A window TODAY — the day on which the collection rule applies. Later days are in `windows.test.ts`. */
+const judgeToday = (now: Date, slot: Slot, booked: number, runs: readonly CollectionRun[], buffer: number, turnaround: number) =>
+  judgeWindow(now, melbourneDate(now), slot, booked, runs, buffer, turnaround);
 
-describe("judgeSlot", () => {
+describe("judgeWindow — a window today", () => {
   const cases: Array<[string, Date, number, CollectionRun[], number, number, SlotVerdict]> = [
     ["open well before everything", at(10, 0), 0, oneRun, 60, 60, "open"],
     ["open with one place left", at(10, 0), 1, oneRun, 60, 60, "open"],
@@ -27,18 +30,18 @@ describe("judgeSlot", () => {
   ];
 
   it.each(cases)("%s", (_name, now, booked, runs, buffer, turnaround, want) => {
-    expect(judgeSlot(now, evening, booked, runs, buffer, turnaround).verdict).toBe(want);
+    expect(judgeToday(now, evening, booked, runs, buffer, turnaround).verdict).toBe(want);
   });
 
   it("⚠ a slot with no limit never fills, and is still closed by its cutoff and the runs", () => {
     const unlimited: Slot = { ...evening, capacity: null };
-    expect(judgeSlot(at(10, 0), unlimited, 10_000, oneRun, 60, 60).verdict).toBe("open");
-    expect(judgeSlot(at(15, 1), unlimited, 0, run(16, 30), 0, 0).verdict).toBe("cutoff");
-    expect(judgeSlot(at(13, 1), unlimited, 0, oneRun, 60, 60).verdict).toBe("uncollectable");
+    expect(judgeToday(at(10, 0), unlimited, 10_000, oneRun, 60, 60).verdict).toBe("open");
+    expect(judgeToday(at(15, 1), unlimited, 0, run(16, 30), 0, 0).verdict).toBe("cutoff");
+    expect(judgeToday(at(13, 1), unlimited, 0, oneRun, 60, 60).verdict).toBe("uncollectable");
   });
 
   it("reports the window as instants and the EFFECTIVE cutoff", () => {
-    const j = judgeSlot(at(10, 0), evening, 0, oneRun, 60, 60);
+    const j = judgeToday(at(10, 0), evening, 0, oneRun, 60, 60);
     if (j.verdict !== "open") throw new Error(`verdict ${j.verdict}`);
     expect(j.slot.date).toBe("2026-08-24");
     expect(j.slot.start.getTime()).toBe(at(17, 0).getTime());
@@ -46,7 +49,7 @@ describe("judgeSlot", () => {
     // The run's last order time (13:00) comes before the slot's own 15:00.
     expect(j.slot.cutoff.getTime()).toBe(at(13, 0).getTime());
 
-    const own = judgeSlot(at(10, 0), evening, 0, run(16, 0), 0, 60);
+    const own = judgeToday(at(10, 0), evening, 0, run(16, 0), 0, 60);
     if (own.verdict !== "open") throw new Error(`verdict ${own.verdict}`);
     expect(own.slot.cutoff.getTime()).toBe(at(15, 0).getTime());
   });
@@ -56,7 +59,7 @@ describe("judgeSlot", () => {
     ["the day daylight saving ends", 2027, 4, 4, 10 * 60],
   ])("%s: the window keeps its wall-clock hours and its length", (_name, y, m, d, wantOffset) => {
     const now = melbourne(y, m, d, 10);
-    const j = judgeSlot(now, evening, 0, oneRun, 60, 60);
+    const j = judgeToday(now, evening, 0, oneRun, 60, 60);
     if (j.verdict !== "open") throw new Error(`verdict ${j.verdict}`);
     expect(wallClock(j.slot.start).hour).toBe(17);
     expect(wallClock(j.slot.end).hour).toBe(19);
@@ -66,17 +69,8 @@ describe("judgeSlot", () => {
   });
 
   it("is judged on the Melbourne day, not the UTC one", () => {
-    const j = judgeSlot(new Date(Date.UTC(2026, 7, 23, 23, 30)), evening, 0, oneRun, 60, 60);
+    const j = judgeToday(new Date(Date.UTC(2026, 7, 23, 23, 30)), evening, 0, oneRun, 60, 60);
     expect(j.verdict).toBe("open");
     if (j.verdict === "open") expect(j.slot.date).toBe("2026-08-24");
-  });
-});
-
-describe("openSlots", () => {
-  it("returns only open slots, earliest first", () => {
-    const late: Slot = { id: "late", start: c(19, 0), end: c(21, 0), cutoff: c(17, 0), capacity: 5 };
-    const full: Slot = { id: "full", start: c(18, 0), end: c(20, 0), cutoff: c(16, 0), capacity: 1 };
-    const got = openSlots(at(10, 0), [late, full, evening], new Map([["full", 1]]), oneRun, 60, 60);
-    expect(got.map((s) => s.id)).toEqual(["evening", "late"]);
   });
 });

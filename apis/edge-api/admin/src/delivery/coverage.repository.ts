@@ -163,7 +163,6 @@ export async function driversFor(groupId: string | null): Promise<number> {
 /** What staff have set for courier delivery, and where that leaves it right now. */
 export interface CourierSettings {
   offered: boolean;
-  estimateText: string | null;
   whenNoWindows: boolean;
   /** 080 */
   collectionDefault: "hub" | "supplier";
@@ -178,10 +177,10 @@ export interface CourierSettings {
 export async function courierSettings(): Promise<CourierSettings> {
   const row = (
     await query<{
-      courier_offered: boolean; courier_estimate_text: string | null; courier_when_no_windows: boolean; state: CourierSettings["state"];
+      courier_offered: boolean; courier_when_no_windows: boolean; state: CourierSettings["state"];
       courier_collection_default: "hub" | "supplier"; default_id: string | null; default_label: string | null; default_estimate: string | null;
     }>(
-      `SELECT s.courier_offered, s.courier_estimate_text, s.courier_when_no_windows, s.courier_collection_default,
+      `SELECT s.courier_offered, s.courier_when_no_windows, s.courier_collection_default,
               public.courier_delivery_state(now()) AS state,
               d.id::text AS default_id, d.courier_name || ' · ' || d.service_name AS default_label, d.estimate_text AS default_estimate
          FROM public.delivery_settings s
@@ -191,7 +190,6 @@ export async function courierSettings(): Promise<CourierSettings> {
   ).rows[0];
   return {
     offered: row?.courier_offered ?? false,
-    estimateText: row?.courier_estimate_text ?? null,
     whenNoWindows: row?.courier_when_no_windows ?? false,
     collectionDefault: row?.courier_collection_default ?? "hub",
     defaultService: row?.default_id ? { id: row.default_id, label: row.default_label!, estimateText: row.default_estimate! } : null,
@@ -421,9 +419,9 @@ export async function setDistance(postcode: string, change: DistanceChange, acto
 export async function createGroup(name: string, actorSub: string): Promise<string> {
   return withTransaction(async (client) => {
     const res = await client.query<{ id: string }>(
-      `INSERT INTO public.delivery_zone (code, name, sameday_eligible, status, updated_by)
+      `INSERT INTO public.delivery_zone (code, name, status, updated_by)
        VALUES (upper(regexp_replace($1, '[^A-Za-z0-9]+', '-', 'g')) || '-' || substr(gen_random_uuid()::text, 1, 8),
-               $1, true, 'active', $2)
+               $1, 'active', $2)
        RETURNING id::text AS id`,
       [name, actorSub],
     );
@@ -469,8 +467,6 @@ export async function removeGroup(id: string, actorSub: string): Promise<number>
 /** The courier settings a person can change. `undefined` = leave as it is. */
 export interface CourierChange {
   offered?: boolean;
-  /** @deprecated 080 — no longer read; kept writable for consoles built before 080. */
-  estimateText?: string | null;
   whenNoWindows?: boolean;
   /** 080 */
   collectionDefault?: "hub" | "supplier";
@@ -479,7 +475,7 @@ export interface CourierChange {
 /** Why a courier change was refused — decided under the settings row's lock. */
 export type CourierRefusal = "courier_plan_missing" | "courier_service_missing";
 
-type CourierRow = { courier_offered: boolean; courier_estimate_text: string | null; courier_when_no_windows: boolean; courier_collection_default: "hub" | "supplier" };
+type CourierRow = { courier_offered: boolean; courier_when_no_windows: boolean; courier_collection_default: "hub" | "supplier" };
 
 /**
  * Change the courier settings, each change audited on its own.
@@ -488,22 +484,20 @@ type CourierRow = { courier_offered: boolean; courier_estimate_text: string | nu
  * service" is about the row as it will be (080 — the default service's timeframe replaced 079's one
  * estimate text).
  */
-export async function changeCourier(change: CourierChange, actorSub: string): Promise<{ refused: CourierRefusal } | { settings: Pick<CourierSettings, "offered" | "estimateText" | "whenNoWindows" | "collectionDefault"> }> {
+export async function changeCourier(change: CourierChange, actorSub: string): Promise<{ refused: CourierRefusal } | { settings: Pick<CourierSettings, "offered" | "whenNoWindows" | "collectionDefault"> }> {
   return withTransaction(async (client) => {
     const was = (
       await client.query<CourierRow>(
-        `SELECT courier_offered, courier_estimate_text, courier_when_no_windows, courier_collection_default FROM public.delivery_settings WHERE id = 1 FOR UPDATE`,
+        `SELECT courier_offered, courier_when_no_windows, courier_collection_default FROM public.delivery_settings WHERE id = 1 FOR UPDATE`,
       )
     ).rows[0];
     const before = {
       offered: was?.courier_offered ?? false,
-      estimateText: was?.courier_estimate_text ?? null,
       whenNoWindows: was?.courier_when_no_windows ?? false,
       collectionDefault: was?.courier_collection_default ?? ("hub" as const),
     };
     const after = {
       offered: change.offered ?? before.offered,
-      estimateText: change.estimateText === undefined ? before.estimateText : change.estimateText,
       whenNoWindows: change.whenNoWindows ?? before.whenNoWindows,
       collectionDefault: change.collectionDefault ?? before.collectionDefault,
     };
@@ -519,13 +513,12 @@ export async function changeCourier(change: CourierChange, actorSub: string): Pr
 
     await client.query(
       `UPDATE public.delivery_settings
-          SET courier_offered = $1, courier_estimate_text = $2, courier_when_no_windows = $3, courier_collection_default = $4,
-              updated_by = $5, updated_at = now()
+          SET courier_offered = $1, courier_when_no_windows = $2, courier_collection_default = $3,
+              updated_by = $4, updated_at = now()
         WHERE id = 1`,
-      [after.offered, after.estimateText, after.whenNoWindows, after.collectionDefault, actorSub],
+      [after.offered, after.whenNoWindows, after.collectionDefault, actorSub],
     );
     if (after.offered !== before.offered) await audit(client, actorSub, "coverage.courier.switch", { before: before.offered, after: after.offered });
-    if (after.estimateText !== before.estimateText) await audit(client, actorSub, "coverage.courier.estimate", { before: before.estimateText, after: after.estimateText });
     if (after.whenNoWindows !== before.whenNoWindows) await audit(client, actorSub, "coverage.courier.when_no_windows", { before: before.whenNoWindows, after: after.whenNoWindows });
     if (after.collectionDefault !== before.collectionDefault) await audit(client, actorSub, "coverage.courier.collection_default", { before: before.collectionDefault, after: after.collectionDefault });
     return { settings: after };

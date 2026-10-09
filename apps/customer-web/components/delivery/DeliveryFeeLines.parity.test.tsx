@@ -26,7 +26,6 @@ const quote = JSON.parse(/const val DELIVERY_QUOTE_WIRE =\s*"""([^]*?)"""/.exec(
 
 /** What the app shows, as `DeliveryFeeParityTest.kt` writes it. */
 export const EXPECTED = {
-  later: ["Delivery: $6.00"],
   window: ["Delivery: $6.00", "Window surcharge: $5.00"],
 }
 
@@ -38,12 +37,13 @@ function shown(fee: NonNullable<ReturnType<typeof chosenFee>>): string[] {
   })
 }
 
-describe("P25 — the same lines on the web as in the app", () => {
-  it("a later day", () => {
-    expect(shown(chosenFee(quote, "standard", null)!)).toEqual(EXPECTED.later)
-  })
+const windowOf = (dayIndex: number) => {
+  const w = quote.effyWindows!.days[dayIndex]!.windows[0]!
+  return { slotId: w.slotId, date: w.date }
+}
 
-  it("the window", () => {
-    expect(shown(chosenFee(quote, "same_day", quote.sameDaySlots[0]!.slotId)!)).toEqual(EXPECTED.window)
+describe("P25 — the same lines on the web as in the app", () => {
+  it("the window today, with what it adds", () => {
+    expect(shown(chosenFee(quote, windowOf(0))!)).toEqual(EXPECTED.window)
   })
 })

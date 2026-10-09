@@ -29,8 +29,6 @@ import {
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import {
-  carryDay,
-  carrySlot,
   carryWindow,
   chosenFee,
   courierOf,
@@ -38,10 +36,7 @@ import {
   deliveryTypeOf,
   effyWindowsOf,
   isFreeDelivery,
-  needs,
-  shapeOf,
   type ChosenWindow,
-  type DeliveryMethodChoice,
 } from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
 import { getStripe, paymentElementsOptions } from "@/lib/stripe"
@@ -50,7 +45,8 @@ import { capture } from "@/lib/telemetry"
 import { AddressPicker } from "./AddressPicker"
 import { BillingSection } from "./BillingSection"
 import { DeliveryInstructions } from "./DeliveryInstructions"
-import { DeliveryOptions } from "./DeliveryOptions"
+import { CourierDelivery } from "./CourierDelivery"
+import { EffyWindowOptions } from "./EffyWindowOptions"
 import { PaymentStep } from "./PaymentStep"
 import { PointsControl } from "./_components/PointsControl"
 import { splitTotal } from "./_components/points"
@@ -113,16 +109,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // address changes (FR-004/033/036).
   const [quote, setQuote] = useState<DeliveryQuoteDTO | null>(null)
   const [quoting, setQuoting] = useState(false)
-  // 047 US2: the shopper's delivery-method choice. The server applies the preference per package and
-  // prices it (FR-044).
-  const [method, setMethod] = useState<DeliveryMethodChoice>("standard")
-  // 069: WHEN. A same-day slot is never selected for the shopper (FR-006); a standard day defaults to
-  // the earliest on offer (FR-015). Both are held here so they survive the move to the payment step
-  // and a failed payment (FR-007), and are carried across a re-quote only while still on offer.
-  const [slotId, setSlotId] = useState<string | null>(null)
-  const [standardDate, setStandardDate] = useState<string | null>(null)
-  // 078 — the ONE window for the order, once the new delivery model is on (the quote then carries
-  // `effyWindows`). Never chosen for the shopper; kept across steps and a failed payment while it is
+  // The ONE window for the order (078). Never chosen for the shopper — a window is a promise about
+  // when someone will be home; kept across steps and a failed payment while it is
   // still offered (FR-011); dropped when the address changes — nothing chosen for one address is
   // silently carried to another.
   const [chosenWindow, setChosenWindow] = useState<ChosenWindow | null>(null)
@@ -162,24 +150,15 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     }
   }, [selectedId, selectedPostcode, quoteEpoch])
 
-  // 069: what this quote lets the shopper choose. Same-day is offered when ANY delivery can go today
-  // and a slot is open — a basket with one excepted shop is a mixed order, and says so (research R7).
-  const shape = useMemo(() => shapeOf(quote), [quote])
-  const sameDayOfferable = shape.sameDayOffered
-  const need = needs(shape, method)
-
-  // A new quote (a new address, or a re-quote after a refusal) keeps a choice only while it is still
-  // on offer. ⚠ A slot that has gone is NOT replaced by another: nothing is selected, and the shopper
-  // chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe the choice.
+  // A new quote (a new address, or a re-quote after a refusal) keeps the window only while it is
+  // still on offer. ⚠ One that has gone is NOT replaced by another: nothing is selected, and the
+  // shopper chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe it.
   useEffect(() => {
     if (!quote) return
-    if (!sameDayOfferable) setMethod("standard")
-    setSlotId((prev) => carrySlot(quote, prev))
-    setStandardDate((prev) => carryDay(quote, prev))
     setChosenWindow((prev) => carryWindow(quote, prev))
-  }, [quote, sameDayOfferable])
+  }, [quote])
 
-  // 078 — the new model's windows, when the quote carries them. Told once per reason when there is
+  // The windows Effy offers, when the quote carries them. Told once per reason when there is
   // nothing to choose (lib/telemetry.ts).
   const effyWindows = useMemo(() => effyWindowsOf(quote), [quote])
   const windowsUnavailable = effyWindows?.unavailable ?? null
@@ -187,9 +166,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     if (windowsUnavailable) capture({ name: "checkout_windows_unavailable", props: { reason: windowsUnavailable } })
   }, [windowsUnavailable])
 
-  // 079 — WHO DELIVERS, as this page is showing it: a courier, Effy under the new delivery model, or
-  // null under the checkout that predates it. Sent back on the intent, which refuses if it is not
-  // what applies by then. Told once per distinct answer (lib/telemetry.ts).
+  // 079 — WHO DELIVERS, as this page is showing it: a courier, or Effy. Sent back on the intent,
+  // which refuses if it is not what applies by then. Told once per distinct answer (lib/telemetry.ts).
   const courier = useMemo(() => courierOf(quote), [quote])
   const deliveryType = useMemo(() => deliveryTypeOf(quote), [quote])
   const typeShown = deliveryType ? `${deliveryType}|${courier?.reason ?? "in_coverage"}` : null
@@ -199,10 +177,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     capture({ name: "checkout_delivery_type_shown", props: { type, reason } })
   }, [typeShown])
 
-  // 077 — ONE fee for the order, as the server priced it: the chosen window's when anything goes
-  // today, the later-day fee otherwise. Lines and a total; no distance, weight or plan ever reaches
-  // here (FR-032). Null while same-day is chosen and no window is — there is nothing to show yet.
-  const deliveryFee = useMemo(() => chosenFee(quote, method, slotId, chosenWindow), [quote, method, slotId, chosenWindow])
+  // 077 — ONE fee for the order, as the server priced it: the courier's, or the chosen window's.
+  // Lines and a total; no distance, weight or plan ever reaches here (FR-032). Null until a window is
+  // chosen — there is nothing to show yet.
+  const deliveryFee = useMemo(() => chosenFee(quote, chosenWindow), [quote, chosenWindow])
   const deliveryCents = deliveryFee ? parseCents(deliveryFee.totalAmount) : 0
 
   // 077 — once per fee the shopper is shown: whether it was free, had a small-order fee, or a
@@ -298,13 +276,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     (billingSameAsShipping || !!billingId) &&
     guestLines.length > 0 &&
     serviced &&
-    // 079 — a courier order has nothing to choose. 078 — under the new model the one thing needed is
-    // a window; the 069 slot and day do not apply.
-    (courier
-      ? true
-      : effyWindows
-        ? !effyWindows.unavailable && !!chosenWindow
-        : (!need.slot || !!slotId) && (!need.day || !!standardDate))
+    // A courier order has nothing to choose (079); an Effy order needs its one window (078).
+    (courier ? true : !!effyWindows && !effyWindows.unavailable && !!chosenWindow)
 
   /**
    * Place the order.
@@ -338,18 +311,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (deliveryType) body.deliveryType = deliveryType
       if (courier) {
         // Nothing to choose: no window, no slot, no day.
-      } else if (effyWindows) {
+      } else if (chosenWindow) {
         // 078 — ONE window for the order. The server works out same-day or standard from its date,
         // holds a place on that day, and refuses (409 + `code`) if it is no longer on offer.
-        if (chosenWindow) body.deliveryWindow = chosenWindow
-      } else {
-        if (method === "same_day" && sameDayOfferable) {
-          body.deliveryMethod = "same_day"
-        }
-        // 069 — the slot and the day the shopper chose. The server holds a place in the slot when it
-        // accepts this, and refuses (409 + `code`) if either is no longer on offer.
-        if (need.slot && slotId) body.sameDaySlotId = slotId
-        if (need.day && standardDate) body.standardDate = standardDate
+        body.deliveryWindow = chosenWindow
       }
       // 066 — sent on EVERY placement, including as null: a shopper who cleared the note and pays
       // must not have an earlier attempt's draft delivered with the order.
@@ -371,7 +336,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         error?: string
         code?: string
       }
-      // 069 — the slot or the day could not be honoured. Nothing has been charged and no payment
+      // The window could not be honoured (069, 078). Nothing has been charged and no payment
       // exists. ⚠ The choice is NOT replaced: the shopper is brought back to the options, told
       // plainly, and shown what is on offer now (FR-009, FR-010).
       // 079 — who delivers is not what this page showed (the address's coverage changed, or the last
@@ -380,7 +345,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (res.status === 409 && data.code === "delivery_type_changed") {
         capture({ name: "checkout_delivery_type_changed", props: {} })
         setChosenWindow(null)
-        setSlotId(null)
         setIntent(null)
         setStep("review")
         setError(DELIVERY_TYPE_CHANGED_MESSAGE)
@@ -390,8 +354,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       const refusal = res.status === 409 ? deliveryRefusal(data.code) : null
       if (refusal) {
         capture({ name: "checkout_delivery_choice_refused", props: { reason: refusal.reason } })
-        if (refusal.reason !== "date_unavailable") setSlotId(null)
-        // 078 — the window is never replaced: the re-quote keeps it only if it is still offered.
+        // The window is never replaced: the re-quote keeps it only if it is still offered.
         if (refusal.reason !== "slot_required") setChosenWindow(null)
         setIntent(null)
         setStep("review")
@@ -433,26 +396,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (effyWindows && chosenWindow) {
         const offset = dayOffset(effyWindows, chosenWindow.date)
         capture({ name: "checkout_window_selected", props: { section: offset === 0 ? "same_day" : "standard", day_offset: offset } })
-      }
-      if (!effyWindows && need.slot && slotId && quote) {
-        const slots = quote.sameDaySlots ?? []
-        const index = slots.findIndex((s) => s.slotId === slotId)
-        if (index >= 0) {
-          capture({
-            name: "checkout_delivery_slot_selected",
-            props: {
-              slotsOffered: slots.length,
-              position: index + 1,
-              hoursAhead: Math.max(0, Math.round((Date.parse(slots[index]!.startAt) - Date.now()) / 3_600_000)),
-            },
-          })
-        }
-      }
-      if (!effyWindows && need.day && standardDate && quote) {
-        const index = (quote.standardDays ?? []).findIndex((d) => d.date === standardDate)
-        if (index >= 0) {
-          capture({ name: "checkout_delivery_date_selected", props: { daysAhead: index, wasDefault: index === 0 } })
-        }
       }
       capture({
         name: "checkout_delivery_instructions_set",
@@ -538,21 +481,13 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           )}
         </section>
 
-        {quote?.serviced && (
-          <DeliveryOptions
-            quote={quote}
-            method={method}
-            onMethodChange={setMethod}
-            slotId={slotId}
-            onSlotChange={setSlotId}
-            standardDate={standardDate}
-            onStandardDateChange={setStandardDate}
-            window={chosenWindow}
-            onWindowChange={setChosenWindow}
-            currency={currency}
-            disabled={busy}
-          />
-        )}
+        {/* What the quote says, and nothing else (083): a courier delivers — nothing to choose — or
+            Effy does, and the shopper picks ONE window for the order. */}
+        {courier ? (
+          <CourierDelivery courier={courier} currency={currency} />
+        ) : effyWindows ? (
+          <EffyWindowOptions windows={effyWindows} chosen={chosenWindow} onChoose={setChosenWindow} currency={currency} disabled={busy} />
+        ) : null}
 
         {serviced && quote?.points ? (
           <PointsControl

@@ -102,8 +102,8 @@ async function addDrop(
     );
     await pool.query(
       `INSERT INTO public.order_package_delivery
-         (order_id, shop_id, method, delivery_fee_amount, slot_id, window_start, window_end)
-       VALUES ($1, $2, 'same_day', 8, $3, $4, $5)`,
+         (order_id, shop_id, method, slot_id, window_start, window_end)
+       VALUES ($1, $2, 'same_day', $3, $4, $5)`,
       [order.id, shop.id, slotId, window?.start ?? null, window?.end ?? null],
     );
     await pool.query(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id) VALUES ($1, $2)`, [drop.id, sf.id]);

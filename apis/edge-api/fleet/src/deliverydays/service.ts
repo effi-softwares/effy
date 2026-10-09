@@ -24,25 +24,18 @@ const wholeNumber = (v: unknown, min: number, max: number): v is number =>
 /** The same limits the migration's CHECKs enforce, with a name on each. */
 export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   const errors: FieldError[] = [];
-  if (!wholeNumber(v.lookaheadDays, 1, 30)) {
-    errors.push({ field: "lookaheadDays", message: "customers can be offered between 1 and 30 days" });
+  if (!wholeNumber(v.effyLookaheadDays, 1, 14)) {
+    errors.push({ field: "effyLookaheadDays", message: "customers can be offered between 1 and 14 delivery days after today" });
   }
   const w = v.noDeliveryWeekdays;
   if (!Array.isArray(w) || w.some((d) => !wholeNumber(d, 1, 7)) || new Set(w).size !== w.length) {
     errors.push({ field: "noDeliveryWeekdays", message: "weekdays must be numbers 1 (Monday) to 7 (Sunday), each once" });
   } else if (w.length === 7) {
-    // ⚠ FR-020: a served address must always be offered a standard day.
+    // ⚠ A served address must always have a delivery day ahead of it (069 FR-020).
     errors.push({ field: "noDeliveryWeekdays", message: "at least one day of the week must have delivery" });
-  }
-  if (!wholeNumber(v.carrierLeadDays, 0, 14)) {
-    errors.push({ field: "carrierLeadDays", message: "the carrier lead time must be between 0 and 14 days" });
   }
   if (!wholeNumber(v.slotHoldMin, 1, 60)) {
     errors.push({ field: "slotHoldMin", message: "a place can be held for between 1 and 60 minutes" });
-  }
-  // 078 — optional: a console built before it does not send it, and the stored value is kept.
-  if (v.effyLookaheadDays !== undefined && !wholeNumber(v.effyLookaheadDays, 1, 14)) {
-    errors.push({ field: "effyLookaheadDays", message: "customers can be offered between 1 and 14 delivery days after today" });
   }
   if (!wholeNumber(v.hubTurnaroundMin, 0, 480)) {
     errors.push({ field: "hubTurnaroundMin", message: "the hub turnaround must be between 0 and 480 minutes" });
@@ -59,12 +52,10 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
   if (problems.length > 0) throw validationError("check the delivery day settings", problems);
 
   const v: DeliveryDaysInput = {
-    lookaheadDays: body.lookaheadDays,
+    effyLookaheadDays: body.effyLookaheadDays,
     noDeliveryWeekdays: [...body.noDeliveryWeekdays].sort((a, b) => a - b),
-    carrierLeadDays: body.carrierLeadDays,
     slotHoldMin: body.slotHoldMin,
     hubTurnaroundMin: body.hubTurnaroundMin,
-    ...(body.effyLookaheadDays !== undefined ? { effyLookaheadDays: body.effyLookaheadDays } : {}),
   };
   const saved = await repo.save(v, actorSub, (tx) =>
     recordAudit({ actorSub, action: "delivery_days.updated", targetType: "delivery_settings", driverId: null, detail: { ...v } }, tx),

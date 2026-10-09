@@ -48,13 +48,13 @@ describe("slotProblems", () => {
 });
 
 describe("daysProblems", () => {
-  const DAYS = { lookaheadDays: 7, noDeliveryWeekdays: [7], carrierLeadDays: 1, slotHoldMin: 10, hubTurnaroundMin: 60 };
+  const DAYS = { effyLookaheadDays: 3, noDeliveryWeekdays: [7], slotHoldMin: 10, hubTurnaroundMin: 60 };
   const f = (v: Record<string, unknown>) => daysProblems({ ...DAYS, ...v } as never).map((e) => e.field);
 
   it("accepts the defaults and the edges", () => {
     expect(daysProblems(DAYS)).toEqual([]);
-    expect(f({ lookaheadDays: 1 })).toEqual([]);
-    expect(f({ lookaheadDays: 30, carrierLeadDays: 0, hubTurnaroundMin: 0, noDeliveryWeekdays: [] })).toEqual([]);
+    expect(f({ effyLookaheadDays: 1 })).toEqual([]);
+    expect(f({ effyLookaheadDays: 14, hubTurnaroundMin: 0, noDeliveryWeekdays: [] })).toEqual([]);
   });
 
   it("⚠ refuses closing every day of the week — a served address must always be offered a day", () => {
@@ -68,9 +68,10 @@ describe("daysProblems", () => {
   });
 
   it("refuses each number outside its range", () => {
-    expect(f({ lookaheadDays: 0 })).toEqual(["lookaheadDays"]);
-    expect(f({ lookaheadDays: 31 })).toEqual(["lookaheadDays"]);
-    expect(f({ carrierLeadDays: -1 })).toEqual(["carrierLeadDays"]);
+    expect(f({ effyLookaheadDays: 0 })).toEqual(["effyLookaheadDays"]);
+    expect(f({ effyLookaheadDays: 15 })).toEqual(["effyLookaheadDays"]);
+    // ⚠ Required now (083): it is the only look-ahead there is.
+    expect(f({ effyLookaheadDays: undefined })).toEqual(["effyLookaheadDays"]);
     expect(f({ slotHoldMin: 0 })).toEqual(["slotHoldMin"]);
     expect(f({ hubTurnaroundMin: 1.5 })).toEqual(["hubTurnaroundMin"]);
   });

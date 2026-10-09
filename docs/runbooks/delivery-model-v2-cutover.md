@@ -105,16 +105,65 @@ On the Go-live tab an administrator chooses **Turn back off…** and gives a rea
 Backing out is possible **only until stage 2**. After the removal there is nothing to go back to and the
 tab says so.
 
-## Stage 2 — when it may be released
+## Stage 2 — removing the old arrangement
+
+**Not reversible.** The migration drops columns and their data; going back means restoring a database
+backup taken before it. Take that backup first.
+
+### Before
 
 All of these, confirmed by a person:
 
-1. The Go-live tab says **No old order remains open**.
-2. Every app in use is on a build released after the switch — customer, shop and driver.
-3. The business does not intend to turn the new model back off.
+1. The Go-live tab says **On** and **No old order remains open**.
+2. ⚠ **The customer storefront and the customer app are released WITH this, not after.** The delivery
+   quote loses the fields the old checkout drew (the package list, the slot and day pickers). A customer
+   web build or app build from before this release **cannot read the new quote at all** — checkout stops
+   at the delivery step, before anything is charged — until that customer has the new build. Push the
+   storefront build with the `commerce` deploy, and have the app release approved and ready.
+   The shop and driver apps are unaffected: their fields were kept, and older builds keep working.
+3. The business does not intend to turn the new model back off. After this it cannot.
 
-Then stage 2 is built and released as its own change (083 tasks T022–T038). Its migration **refuses to
-run** while an old order is open, so releasing it early fails rather than stranding an order.
+The migration checks the first for itself and **refuses to run** — changing nothing — while an old order
+is open, or on a database that has taken orders and was never switched over.
+
+### Release order
+
+The services first, then the migration: the new code reads none of the columns being dropped, the old
+code reads several, so the columns must outlive the old code.
+
+```sh
+make edge-deploy SERVICE=commerce ENV=dev   # one checkout: windows or courier
+make edge-deploy SERVICE=orders ENV=dev     # no "day minus lead time" due date
+make edge-deploy SERVICE=fleet ENV=dev      # delivery-days settings; one row per clearance
+make edge-deploy SERVICE=admin ENV=dev      # courier settings without the old estimate text
+make db-up ENV=dev                          # 20261009150000_retire_delivery_model_v1
+```
+
+Only these four services changed. The driver, shop, storefront and notifications services read none of
+the dropped columns and need no deploy.
+
+⚠ **Between the `fleet` deploy and the migration, granting a driver clearance fails** (the new code no
+longer writes the dropped `method` column, which is still NOT NULL until the migration). Do the two close
+together, and do not edit clearances in between.
+
+The web builds (customer storefront, back-office) go out on the same push as the `commerce` deploy, and
+the customer app release with them (see "Before", 2). No `make apply`: stage 2 changes no infrastructure.
+
+### After
+
+- Go-live says the old arrangement was removed and when; there is nothing left to switch.
+- Delivery → **Delivery days** has no "Standard delivery days" or "Carrier lead time"; the tabs read
+  **Collection runs** and **Delivery windows**.
+- Place an order in a window on the web and in the app. Open an order from before the switch as a
+  customer and in back-office: it still shows the day or window it was sold.
+- A driver and a shop on their previous app builds complete their work as before.
+
+### If the migration refuses
+
+| It says | Do |
+|---|---|
+| "N order(s) sold under the old delivery arrangement are still open" | Go-live → the old orders still open. Finish, cancel or refund each, then run it again. |
+| "the new delivery model is not switched on" | Set the switch on the Go-live tab (stage 1), then run it again. On a database nobody uses, deleting its orders (`make purge-orders ENV=dev`) also clears this. |
 
 ## If something is wrong
 

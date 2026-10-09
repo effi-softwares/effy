@@ -16,17 +16,12 @@ const WEEKDAYS = [
 ] as const;
 
 /**
- * Which days standard delivery runs (069 US6), and the two timings the day rules rest on.
+ * Which days Effy delivers, how far ahead a customer may choose, and the timings the window rules
+ * rest on (069, 078).
  *
- * ⚠ TWO OF THESE NUMBERS ARE ASSUMPTIONS, AND THE SCREEN SAYS SO. The carrier lead time and the hub
- * turnaround have never been measured — there is no carrier contract and no timed round. They decide
- * what a customer is promised, so they are labelled as estimates rather than presented as facts an
- * operator might assume someone verified.
- *
- * ⚠ 078 — THE DAYS WITH NO DELIVERY NOW MEAN EFFY'S OWN DAYS TOO. Once the new delivery model is on,
- * a customer picks a window today or on one of the next few DELIVERY days; "Days offered after
- * today" is how many. Until then it changes nothing a customer sees, and the screen says so — the
- * look-ahead and the carrier lead time below it still drive the day picker that is live now.
+ * ⚠ THE HUB TURNAROUND IS AN ASSUMPTION, AND THE SCREEN SAYS SO. It has never been measured — there
+ * is no timed round — and it decides what a customer is offered today, so it is labelled an estimate
+ * rather than presented as a fact an operator might assume someone verified.
  *
  * Sectioned rows and a list — no cards (Principle V).
  */
@@ -46,10 +41,8 @@ export function DeliveryDaysPanel({ canManage }: { canManage: boolean }) {
 
 function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage: boolean }) {
   const save = usePutDeliveryDays();
-  const [lookahead, setLookahead] = useState(String(value.lookaheadDays));
-  const [effyLookahead, setEffyLookahead] = useState(String(value.effyLookaheadDays ?? 3));
+  const [effyLookahead, setEffyLookahead] = useState(String(value.effyLookaheadDays));
   const [closed, setClosed] = useState<number[]>(value.noDeliveryWeekdays);
-  const [lead, setLead] = useState(String(value.carrierLeadDays));
   const [hold, setHold] = useState(String(value.slotHoldMin));
   const [turnaround, setTurnaround] = useState(String(value.hubTurnaroundMin));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -58,10 +51,8 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
 
   // The server's values replace the form's after a save or a refetch.
   useEffect(() => {
-    setLookahead(String(value.lookaheadDays));
-    setEffyLookahead(String(value.effyLookaheadDays ?? 3));
+    setEffyLookahead(String(value.effyLookaheadDays));
     setClosed(value.noDeliveryWeekdays);
-    setLead(String(value.carrierLeadDays));
     setHold(String(value.slotHoldMin));
     setTurnaround(String(value.hubTurnaroundMin));
   }, [value]);
@@ -78,12 +69,10 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
     setSaved(false);
     try {
       await save.mutateAsync({
-        lookaheadDays: Number(lookahead),
+        effyLookaheadDays: Number(effyLookahead),
         noDeliveryWeekdays: closed,
-        carrierLeadDays: Number(lead),
         slotHoldMin: Number(hold),
         hubTurnaroundMin: Number(turnaround),
-        effyLookaheadDays: Number(effyLookahead),
       });
       setSaved(true);
     } catch (err) {
@@ -118,19 +107,14 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
       <section className="space-y-4">
-        <h2 className="text-base font-semibold">Effy delivery days</h2>
+        <h2 className="text-base font-semibold">Delivery days</h2>
         {number(
           "effyLookaheadDays",
           "Days offered after today",
-          "Used once the new delivery model is switched on: a customer chooses a delivery window today or on this many delivery days after it. Days with no delivery are skipped and don't count.",
+          "A customer chooses a delivery window today or on this many delivery days after it. Days with no delivery are skipped and don't count.",
           effyLookahead,
           setEffyLookahead,
         )}
-      </section>
-
-      <section className="space-y-4 border-t pt-6">
-        <h2 className="text-base font-semibold">Standard delivery days</h2>
-        {number("lookaheadDays", "Days a customer can choose from", "Days with no delivery are skipped and don't count.", lookahead, setLookahead)}
 
         <fieldset disabled={!canManage}>
           <legend className="text-sm font-medium">No delivery on</legend>
@@ -163,22 +147,15 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
       <section className="space-y-4 border-t pt-6">
         <h2 className="text-base font-semibold">Timings</h2>
         {number(
-          "carrierLeadDays",
-          "Carrier lead time (days)",
-          "Estimate — not yet measured. Hub handover to delivered. Sets the earliest day offered and when a package is due for handover.",
-          lead,
-          setLead,
-        )}
-        {number(
           "hubTurnaroundMin",
           "Hub turnaround (minutes)",
-          "Estimate — not yet timed. Collection run to ready to leave the hub. A same-day slot is offered only while a run can still make it.",
+          "Estimate — not yet timed. Collection run to ready to leave the hub. A window today is offered only while a run can still make it.",
           turnaround,
           setTurnaround,
         )}
         {number(
           "slotHoldMin",
-          "Hold a same-day place for (minutes)",
+          "Hold a place in a window for (minutes)",
           "From when a customer continues to payment. An unpaid place is offered to others after this.",
           hold,
           setHold,

@@ -122,33 +122,29 @@ describe("the delivery quote", () => {
     ],
   });
 
-  it("with no open same-day slot — byte for byte", () => {
-    const q = {
-      serviced: true, sameDayUntil: null, packages: [], sameDaySlots: [], sameDayUnavailable: "slots_closed", standardDays: ["2026-08-25"],
-      standardFee: priced(600), slotFees: new Map(), freeDeliveryRemainingCents: null,
-    } as unknown as QuoteResult;
-    expect(JSON.stringify(toQuoteDTO("3121", q, now))).toBe(kotlinFixture(DELIVERY, "DELIVERY_QUOTE_NO_SAME_DAY_WIRE"));
+  /** The quote as the shared library hands it over when Effy delivers (083: windows, nothing else). */
+  const effy = (over: Record<string, unknown>) => ({
+    serviced: true, coverage: "effy", zoneId: null, shopIds: ["a-shop", "b-shop"], baseFee: priced(600), freeDeliveryRemainingCents: null, ...over,
+  }) as unknown as QuoteResult;
+  const day = (date: string, isToday: boolean, windows: unknown[], closedReason: string | null) => ({ date, isToday, nonDelivery: false, windows, closedReason });
+
+  it("windows on offer — byte for byte: one fee per window, every time with the Melbourne offset, nothing about suppliers", () => {
+    const q = effy({
+      freeDeliveryRemainingCents: 2600,
+      effyWindows: {
+        days: [day("2026-08-24", true, [slot], null), day("2026-08-25", false, [], "full")],
+        fees: new Map([[`${slot.id}|2026-08-24`, priced(1100, 600)]]),
+        unavailable: null,
+      },
+    });
+    const got = JSON.stringify(toQuoteDTO("3121", q, now));
+    expect(got).toBe(kotlinFixture(DELIVERY, "DELIVERY_QUOTE_WIRE"));
+    expect(got).not.toMatch(/shop|package|pkg-/);
   });
 
-  it("with same-day on offer — every key the app reads is present, and every time carries the Melbourne offset", () => {
-    const q = {
-      serviced: true, sameDayUntil: slot.cutoff, sameDayUnavailable: null, standardDays: ["2026-08-25", "2026-08-26"], sameDaySlots: [slot],
-      packages: [{ shopId: "a-shop", options: [{ method: "standard" }, { method: "same_day" }] }],
-      standardFee: priced(600), slotFees: new Map([[slot.id, priced(1100, 600)]]), freeDeliveryRemainingCents: 2600,
-    } as unknown as QuoteResult;
-    const got = wire(toQuoteDTO("3121", q, now)) as Record<string, unknown>;
-    const want = kotlinFixtureJson(DELIVERY, "DELIVERY_QUOTE_WIRE") as Record<string, unknown>;
-
-    expect(keyPaths(got)).toEqual(keyPaths(want));
-    // Everything except the per-option promise dates, which the fixture fills by hand and the
-    // platform has sent as null since 069 moved the promise to the slot and the day.
-    const { packages: gotPackages, ...gotRest } = got;
-    const { packages: _wantPackages, ...wantRest } = want;
-    expect(gotRest).toEqual(wantRest);
-    expect(gotPackages).toEqual([{ shopRef: "pkg-1", options: [
-      { method: "standard", feeAmount: "6.00", promisedFrom: null, promisedTo: null },
-      { method: "same_day", feeAmount: "11.00", promisedFrom: null, promisedTo: null },
-    ] }]);
+  it("no window anywhere — byte for byte", () => {
+    const q = effy({ effyWindows: { days: [day("2026-08-24", true, [], "closed")], fees: new Map(), unavailable: "no_windows" } });
+    expect(JSON.stringify(toQuoteDTO("3121", q, now))).toBe(kotlinFixture(DELIVERY, "DELIVERY_QUOTE_NO_WINDOWS_WIRE"));
   });
 });
 

@@ -31,7 +31,8 @@ WITH ranked AS (
     FROM public.driver
    WHERE status = 'active'
 ),
--- Driver 1: DELIVERY, EVERYWHERE. ⚠ Two rows, each with zone_id NULL — the "every zone" fact.
+-- Driver 1: DELIVERY, EVERYWHERE. ⚠ One row with zone_id NULL — the "every zone" fact. (A clearance
+-- is a function and an area; the method column went with 083.)
 --
 -- ⚠ DELIVERY ONLY, AND THAT IS WHAT MAKES FR-030 TRUE BY CONSTRUCTION. If this driver were cleared
 -- for everything, an every-zone grant would cover every zone for every kind of work and the coverage
@@ -39,25 +40,26 @@ WITH ranked AS (
 -- the state the screen exists for. Clearing them for delivery only leaves COLLECTION uncovered
 -- everywhere, so both gap reasons are visible the moment the seed loads.
 everywhere AS (
-  INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id, granted_by_sub)
-  SELECT r.id, 'delivery', m.method, NULL, 'seed:062'
+  INSERT INTO public.driver_zone_capability (driver_id, function, zone_id, granted_by_sub)
+  SELECT r.id, 'delivery', NULL, 'seed:062'
     FROM ranked r
-    CROSS JOIN (VALUES ('standard'), ('same_day')) AS m(method)
    WHERE r.n = 1
+  ON CONFLICT DO NOTHING
   RETURNING 1
 ),
--- Driver 2: NARROW. Same-day delivery, in exactly one zone — the closest active zone by name, so the
--- seed does not depend on which zones happen to exist.
+-- Driver 2: NARROW. Delivery, in exactly one group — the first active group by name, so the seed
+-- does not depend on which groups happen to exist.
 narrow AS (
-  INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id, granted_by_sub)
-  SELECT r.id, 'delivery', 'same_day', z.id, 'seed:062'
+  INSERT INTO public.driver_zone_capability (driver_id, function, zone_id, granted_by_sub)
+  SELECT r.id, 'delivery', z.id, 'seed:062'
     FROM ranked r
     CROSS JOIN LATERAL (
       SELECT id FROM public.delivery_zone
-       WHERE status = 'active' AND sameday_eligible
+       WHERE status = 'active'
        ORDER BY name LIMIT 1
     ) z
    WHERE r.n = 2
+  ON CONFLICT DO NOTHING
   RETURNING 1
 )
 -- Driver 3 and beyond: cleared for NOTHING. ⚠ Deliberately no rows — a walker needs to see that an

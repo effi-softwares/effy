@@ -64,6 +64,8 @@ jobs:
       # the customer's words. A restored label compiles and renders; only this fails.
       - name: "Gate: no customer delivery words on driver or dispatch screens (082 FR-012)"
         run: bash scripts/check-driver-delivery-words.sh
+      - name: The old delivery arrangement is not named in live source (083)
+        run: bash scripts/check-no-legacy-delivery.sh
 
   # The customer storefront's own gates (011). These are the reason this workflow exists.
   storefront-gates:

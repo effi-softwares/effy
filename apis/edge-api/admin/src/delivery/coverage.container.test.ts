@@ -72,7 +72,7 @@ async function driver(name: string, zoneId: string | null): Promise<void> {
     `INSERT INTO public.driver (cognito_sub, name, work_email, status) VALUES ($1, $2, $3, 'active') RETURNING id::text AS id`,
     [`sub-${name}`, name, `${name}@drivers.test`],
   ))[0]!.id;
-  await q(`INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id) VALUES ($1, 'delivery', 'same_day', $2)`, [id, zoneId]);
+  await q(`INSERT INTO public.driver_zone_capability (driver_id, function, zone_id) VALUES ($1, 'delivery', $2)`, [id, zoneId]);
 }
 
 describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", () => {
@@ -159,7 +159,7 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(all.ungrouped).toEqual({ postcodeCount: 2, driverCount: 1 });
     // 079 — nothing is set yet, and the screen is told BOTH things that must be done before courier can go on.
     expect(all.courier).toEqual({
-      offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
+      offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
       blockedBy: ["no_fee_table", "no_service"], pending: false, canBeOffered: false, exclusions: [],
     });
     expect((await svc.list({ source: "manual" })).postcodes.map((p) => p.postcode)).toEqual(["3900"]);
@@ -262,15 +262,15 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     // No courier fee table exists in this database: on is refused for that, first.
     expect(await refusal(svc.setCourier({ offered: true }, SUB))).toEqual({ status: 409, code: "courier_plan_missing", extra: undefined });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
-    expect(await svc.setCourier({ offered: false }, SUB)).toEqual({ offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "hub" });
+    expect(await svc.setCourier({ offered: false }, SUB)).toEqual({ offered: false, whenNoWindows: false, collectionDefault: "hub" });
 
-    // The estimate: one trimmed line of 3–60 characters, or null to clear it.
-    for (const bad of ["", "  ", "2d", "x".repeat(61), "2–4 days\nmaybe", 7]) {
-      expect(await refusal(svc.setCourier({ estimateText: bad }, SUB)), String(bad)).toMatchObject({ status: 422, code: "invalid_estimate" });
-    }
-    expect(await svc.setCourier({ estimateText: "  2–4 business days " }, SUB)).toEqual({ offered: false, estimateText: "2–4 business days", whenNoWindows: false, collectionDefault: "hub" });
-    expect(await svc.setCourier({ whenNoWindows: true }, SUB)).toEqual({ offered: false, estimateText: "2–4 business days", whenNoWindows: true, collectionDefault: "hub" });
-    expect((await svc.list({})).courier).toMatchObject({ estimateText: "2–4 business days", whenNoWindows: true, blockedBy: ["no_fee_table", "no_service"], pending: false, canBeOffered: false });
+    // ⚠ 083 — there is no platform-wide estimate to set: the default courier service carries the
+    // timeframe (080). One sent by a console built before that changes nothing and is not a change.
+    expect(await refusal(svc.setCourier({ estimateText: "2–4 business days" } as never, SUB))).toMatchObject({ status: 400, code: "invalid_request" });
+    expect(await svc.setCourier({ whenNoWindows: true }, SUB)).toEqual({ offered: false, whenNoWindows: true, collectionDefault: "hub" });
+    const reach = (await svc.list({})).courier;
+    expect(reach).toMatchObject({ whenNoWindows: true, blockedBy: ["no_fee_table", "no_service"], pending: false, canBeOffered: false });
+    expect(reach).not.toHaveProperty("estimateText");
     // 080 — how new courier orders reach the courier.
     expect(await svc.setCourier({ collectionDefault: "supplier" }, SUB)).toMatchObject({ collectionDefault: "supplier" });
     expect(await refusal(svc.setCourier({ collectionDefault: "drone" }, SUB))).toMatchObject({ status: 400 });
@@ -279,10 +279,8 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(await refusal(svc.setCourier({}, SUB))).toMatchObject({ status: 400, code: "invalid_request" });
     expect(await refusal(svc.setCourier({ whenNoWindows: "yes" }, SUB))).toMatchObject({ status: 400, code: "invalid_request" });
     // Each change is its own audit row, with what it was.
-    expect((await audits("coverage.courier.estimate")).at(-1)?.detail).toEqual({ before: null, after: "2–4 business days" });
     expect((await audits("coverage.courier.when_no_windows")).at(-1)?.detail).toEqual({ before: false, after: true });
-    // Off: the estimate may be cleared.
-    expect(await svc.setCourier({ estimateText: null, whenNoWindows: false }, SUB)).toEqual({ offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "hub" });
+    expect(await svc.setCourier({ whenNoWindows: false }, SUB)).toEqual({ offered: false, whenNoWindows: false, collectionDefault: "hub" });
 
     expect(await refusal(svc.addExclusion({ postcode: "7000", reason: "no" }, SUB))).toMatchObject({ code: "reason_required" });
     expect(await refusal(svc.addExclusion({ postcode: "9999", reason: "No such place" }, SUB))).toMatchObject({ code: "unknown_postcode" });

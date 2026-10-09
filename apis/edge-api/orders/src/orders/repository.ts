@@ -396,7 +396,6 @@ export interface PackageRow {
   today: string;
   handoff_date: string | null;
   arrival_date: string | null;
-  carrier_lead_days: number;
   /** 080 — how a courier order's parcels reach the courier; null unless a courier delivers. */
   courier_collection: "hub" | "supplier" | null;
   /** 080 — when it was checked in at the hub; null when it has not been (or never goes there). */
@@ -408,12 +407,6 @@ export interface PackageRow {
 
 /** Melbourne's calendar date for a timestamptz expression, as text. */
 const MEL_DATE = (expr: string) => `(${expr} AT TIME ZONE 'Australia/Melbourne')::date::text`;
-
-/**
- * The carrier lead time. ⚠ COALESCE to the migration's own default: the settings row is created by
- * the operator, and an order can exist before a hub is configured.
- */
-const CARRIER_LEAD_DAYS = `COALESCE((SELECT carrier_lead_days FROM public.delivery_settings WHERE id = 1), 1)`;
 
 export async function packages(orderId: string): Promise<PackageRow[]> {
   const res = await query<PackageRow>(
@@ -433,7 +426,6 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
             ${MEL_DATE("now()")} AS today,
             ${MEL_DATE("h.handed_over_at")} AS handoff_date,
             ${MEL_DATE("pa.arrived_at")} AS arrival_date,
-            ${CARRIER_LEAD_DAYS}::int AS carrier_lead_days,
             ${COURIER_FACTS}
        FROM public.shop_fulfillment sf
        JOIN public."order" o ON o.id = sf.order_id
@@ -543,8 +535,6 @@ export interface CourierParcelRow {
   order_number: string;
   /** Null for an order sold as a courier delivery (079): it was told an estimate, not a day. */
   promised_date: string | null;
-  /** 069's day for a pre-080 carrier package: the promised day less the carrier lead time. */
-  legacy_due_on: string | null;
   today: string;
   at_hub: boolean;
   courier_order: boolean;
@@ -567,9 +557,9 @@ export interface CourierParcelRow {
  * delivered. The service decides which Courier-tab view each belongs to and when it is due — the
  * calendar rule lives in `nextCourierPickup`, not here.
  *
- * ⚠ A package Effy delivers itself never appears (`package_delivered_by`). An order from before 069
- * that promised no day and was never a courier order is not listed: there is nothing to be due by —
- * the "awaiting handover" filter on the order list still finds it.
+ * ⚠ A package Effy delivers itself never appears (`package_delivered_by`). ⚠ Only an order SOLD as a
+ * courier delivery is listed (083): a carrier's package from before delivery types was due by a rule
+ * that went with the old arrangement, and every such order was finished before it did.
  */
 export async function courierParcels(): Promise<CourierParcelRow[]> {
   const res = await query<CourierParcelRow>(
@@ -577,7 +567,6 @@ export async function courierParcels(): Promise<CourierParcelRow[]> {
             o.id AS order_id,
             o.order_number,
             opd.promised_to::text AS promised_date,
-            (opd.promised_to - ${CARRIER_LEAD_DAYS}::int)::text AS legacy_due_on,
             ${MEL_DATE("now()")} AS today,
             (sf.status = 'collected') AS at_hub,
             (o.delivery_type = 'courier') IS TRUE AS courier_order,
@@ -599,7 +588,7 @@ export async function courierParcels(): Promise<CourierParcelRow[]> {
   ${COURIER_SERVICE_JOIN}
       WHERE o.status = 'paid'
         AND ${COURIER_PACKAGE} = 'courier'
-        AND (opd.promised_to IS NOT NULL OR o.delivery_type = 'courier')
+        AND o.delivery_type = 'courier'
         AND pa.id IS NULL
         AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
       ORDER BY o.order_number

@@ -51,8 +51,8 @@ export function DeliveryScreen() {
         <TabsList>
           <TabsTrigger value="coverage">Coverage</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
-          <TabsTrigger value="schedule">Same-day</TabsTrigger>
-          <TabsTrigger value="slots">Time slots</TabsTrigger>
+          <TabsTrigger value="schedule">Collection runs</TabsTrigger>
+          <TabsTrigger value="slots">Delivery windows</TabsTrigger>
           <TabsTrigger value="days">Delivery days</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="go-live">Go-live</TabsTrigger>
@@ -91,16 +91,16 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
   return (
     <div className="max-w-xl space-y-4">
       <p className="text-sm text-muted-foreground">
-        Effy's drivers collect from shops on these runs (Australia/Melbourne). Same-day is offered while a
-        run is still makeable today, allowing the prep buffer set in Settings. One run behaves as a single
-        daily cutoff; several extend availability through the day.
+        Effy's drivers collect from shops on these runs (Australia/Melbourne). A delivery window today is
+        offered while a run can still be made and reaches the hub before the window starts, allowing the
+        prep buffer set in Settings. Several runs extend what can be offered through the day.
       </p>
       {runs.isError ? (
         <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
       ) : runs.isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : runs.data.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No runs yet — same-day is offered nowhere until one is added.</p>
+        <p className="text-sm text-muted-foreground">No runs yet — no delivery window today can be offered until one is added.</p>
       ) : (
         <ul className="divide-y rounded-md border">
           {runs.data.map((r) => (
@@ -187,7 +187,7 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="buffer">Same-day prep buffer (minutes)</Label>
+        <Label htmlFor="buffer">Shop prep buffer (minutes)</Label>
         <Input id="buffer" inputMode="numeric" value={buffer} onChange={(e) => setBuffer(e.target.value)} placeholder="60" disabled={!canManage} />
       </div>
       {note ? <p className="text-sm">{note}</p> : null}

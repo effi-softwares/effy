@@ -115,11 +115,15 @@ async function makeDriver(
   return id;
 }
 
-async function clear(driverId: string, fn: string, method: string, zoneId: string | null) {
+/**
+ * ⚠ `_method` is ignored: a clearance is (function, area) and the column is gone (083). The parameter
+ * stays so the tests written when there were two methods still read as what they were about.
+ */
+async function clear(driverId: string, fn: string, _method: string, zoneId: string | null) {
   await q(
-    `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
-     VALUES ($1, $2, $3, $4)`,
-    [driverId, fn, method, zoneId],
+    `INSERT INTO public.driver_zone_capability (driver_id, function, zone_id)
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+    [driverId, fn, zoneId],
   );
 }
 
@@ -690,8 +694,8 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
       slotId = slot.rows[0].id;
     }
     await q(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, slot_id, window_start, window_end)
-       VALUES ($1, $2, $6, 8, $3, $4, $5)`,
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+       VALUES ($1, $2, $6, $3, $4, $5)`,
       [order.rows[0].order_id, shopId, slotId, window?.start ?? null, window?.end ?? null, method],
     );
     return sfId;
@@ -828,8 +832,8 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
          RETURNING id`, [slotSeq])).rows[0].id;
     }
     await q(
-      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, slot_id, window_start, window_end)
-       VALUES ($1, $2, $3, 8, $4, $5, $6)`,
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [order.rows[0].order_id, shopId, method, slotId, window?.start ?? null, window?.end ?? null],
     );
     return sfId;

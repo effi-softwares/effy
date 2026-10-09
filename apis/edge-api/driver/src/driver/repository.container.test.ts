@@ -80,7 +80,6 @@ const SCHEMA = `
     id        uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE CASCADE,
     function  text NOT NULL CHECK (function IN ('collection', 'delivery')),
-    method    text NOT NULL CHECK (method   IN ('standard', 'same_day')),
     zone_id   uuid NULL REFERENCES public.delivery_zone (id) ON DELETE CASCADE
   );
 `;
@@ -104,8 +103,8 @@ async function seedZone(name: string, postcode: string, status = "active"): Prom
 
 async function grant(driverId: string, zoneId: string | null): Promise<void> {
   await holder.pool!.query(
-    `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
-     VALUES ($1, 'delivery', 'standard', $2)`,
+    `INSERT INTO public.driver_zone_capability (driver_id, function, zone_id)
+     VALUES ($1, 'delivery', $2)`,
     [driverId, zoneId],
   );
 }

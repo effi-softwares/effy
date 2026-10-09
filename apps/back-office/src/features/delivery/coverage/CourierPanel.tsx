@@ -20,9 +20,8 @@ const BLOCKER_COPY: Record<CourierBlocker, string> = {
  * everywhere in the country except the places excluded here — what a customer is told about when it
  * arrives, and whether an address WITH Effy delivery may go by courier when no window is left.
  *
- * ⚠ SWITCHING IT ON PROMISES NOBODY ANYTHING BEFORE THE NEW DELIVERY MODEL IS ON. The coverage answer
- * itself says "courier" only once a courier order can be placed, so courier delivery can be set up
- * ahead of the cutover; the screen says it is waiting (`courier.pending`).
+ * ⚠ ON MEANS OFFERED (083): an address off Effy's list is sold a courier order from the moment this
+ * is switched on with a fee table and a default courier service.
  *
  * ⚠ THE ESTIMATE IS SHOWN AS THE CUSTOMER WILL READ IT — the whole sentence, with "an estimate, not a
  * guaranteed date" on the end — because the field alone ("2–4 business days") reads like a promise.
@@ -91,11 +90,6 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
               {courier.blockedBy.map((b) => <li key={b}>{BLOCKER_COPY[b]}</li>)}
             </ul>
           </div>
-        ) : null}
-        {courier.pending ? (
-          <p className="text-sm text-warning" data-testid="courier-pending">
-            Switched on, and starts with the new delivery model. Until then an address off Effy's list is still told Effy can't deliver there.
-          </p>
         ) : null}
       </div>
 

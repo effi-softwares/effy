@@ -10,163 +10,126 @@ it **spec-first** using **GitHub Spec Kit**. Read this before doing anything.
 - **Drivers and back-office staff are Effy employees**, working in internal apps (no public signup).
 - Four audiences, each with its own trust level: **customer, driver, shop/operator, admin/back-office.**
 
-### Driver logistics model (hub-and-spoke — settled 2026-08-22, feature 049)
-⚠ **BEING REPLACED (decided 2026-10-07).** The same-day vs standard split below gives way to **who
-delivers**: **Delivered by Effy** (default — any postcode on Effy's list, a window today or on the
-next 3 delivery days) or **Courier delivery** (out of area, or a back-office override). Planned as
-epics E0–E10 / specs 074–082 in
-[docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md). The
-text below still describes the **live** code until E9 (cutover) lands — do not build new work on
-same-day/standard.
-⚠ **COVERAGE IS ALREADY THE NEW MODEL (076).** Where Effy delivers is **one flat list of postcodes**,
-and "who delivers to this address" — `effy` | `courier` | `none` — is decided by
-`public.coverage_for_postcode` **only** (read through `coverageForPostcode`): never stored against an
-address, never re-derived by a join. Zones, distance tiers and per-shop same-day exceptions have **no
-controls** any more.
-- ⚠ **`delivery_zone_postcode` IS the list and `delivery_zone` IS an optional GROUP** — the tables were
-  evolved in place (a copied list would have let the address book and the live checkout disagree) and
-  keep their 047 names until E9. A group's `status` no longer decides coverage; removing a group never
-  removes its postcodes.
-- ⚠ **Two frozen bridges keep the live checkout selling**, each removed by the epic named: the same-day
-  flag (**E9** — moved from E5 by 079: today's checkout still reads it), and driver clearances keyed on the group —
-  since **082** a clearance is (function, group-or-everywhere) and an **ungrouped postcode is cleared by any
-  clearance for the function**. (The fee-tier bridge went with **077**; the tiers are dropped.)
-- ⚠ **"COURIER" MEANS A COURIER ORDER CAN BE PLACED THERE NOW (079).** `coverage_for_postcode` answers
-  `courier` only when the new delivery model is on (`delivery_model_v2_at`), courier delivery is on, a
-  courier fee table is active and an estimate text is set — `public.courier_reaches_postcode` /
-  `courier_delivery_state` are the one definition. The `COURIER_ORDERING_AVAILABLE` constant is **gone**.
-  So courier delivery can be armed in back-office before the cutover and promises nobody anything until
-  the switch (the console says "starts with the new delivery model").
+### Delivery model (one model since 083 — who delivers, then when)
+Every order is one of two things, decided from the delivery address:
+- **Delivered by Effy** — the postcode is on Effy's list. The customer picks **ONE window for the whole
+  order**: today's (shown under **"Same-day delivery"**) or one on the next N delivery days
+  (`effy_lookahead_days`, 3 — shown under **"Standard delivery"**). Effy's own drivers deliver it.
+- **Courier delivery** — the postcode is not on the list and courier delivery is on (or, if the business
+  allows it, an in-area address with no window left). Nothing to choose: an **estimate** and one fee.
+- Neither → refused with the one sentence.
+
+⚠ **THE OLD ARRANGEMENT IS GONE (083).** Until then an order could also be sold a same-day slot or a
+"standard day" a carrier delivered, chosen per package. That checkout, its settings and its columns were
+removed; what it was, and how to read an order sold that way, is
+[docs/archive/delivery-model-v1.md](docs/archive/delivery-model-v1.md). ⚠ `same_day` / `standard` on a
+package are **not** legacy: for an Effy order they are the customer's words for *a window today* / *a
+window on a later day*. `scripts/check-no-legacy-delivery.sh` fails the old path's identifiers, not those words.
+- ⚠ **AN ORDER FROM BEFORE DELIVERY TYPES HAS NO `delivery_type`, AND NEVER GETS ONE.** It reads through
+  `public.package_delivered_by(type, method, slot)` (same-day or sold a window = Effy; else a carrier's)
+  and shows the day or window it was sold. "Still open" for such orders is `LEGACY_OPEN_ORDER_SQL`
+  (`shared/src/delivery/legacy.ts`); the removal migration refused to run while one was.
+- ⚠ **`public.delivery_model_v2_at` ANSWERS TRUE FOR GOOD** and no service calls it
+  (`windows.guard.test.ts`); `delivery_settings.delivery_model_v2_from` is the record of when the model
+  began and `legacy_model_removed_at` of when the old one went. The go-live route
+  (`admin/src/delivery/go-live.*`) is still the switch's one writer, and after the removal it refuses
+  everything (409 `removed`). ⚠ A database that took orders and was never switched over cannot run the
+  removal migration; one with no orders (a new environment) can.
+
+**Coverage (076).** Where Effy delivers is **one flat list of postcodes**; "who delivers to this address" —
+`effy` | `courier` | `none` — is decided by `public.coverage_for_postcode` **only** (read through
+`coverageForPostcode`): never stored against an address, never re-derived by a join.
+- ⚠ **`delivery_zone_postcode` IS the list and `delivery_zone` IS an optional GROUP** (047's names, kept).
+  A group organises the list and scopes driver clearances; its `status` decides nothing about coverage,
+  and removing a group never removes its postcodes.
+- ⚠ **"COURIER" MEANS A COURIER ORDER CAN BE PLACED THERE NOW (079):** courier delivery on, a courier fee
+  table active, a default courier service — `public.courier_reaches_postcode` / `courier_delivery_state`
+  are the one definition.
 - ⚠ **The refusal is ONE sentence in ONE file** — `COVERAGE_REFUSAL_SENTENCE` in
-  `packages/shared-types/src/delivery.ts`, mirrored in the customer app's `CoverageWords.kt` and held
-  to it by a test. `coverage.guard.test.ts` fails a second wording, a customer contract that carries a
+  `packages/shared-types/src/delivery.ts`, mirrored in the customer app's `CoverageWords.kt` and held to it
+  by a test. `coverage.guard.test.ts` fails a second wording, a customer contract that carries a
   group/distance/reason, or a new reader of the list's table.
-Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one-drop flow). They run a
-**hub-and-spoke** operation built on 047's collection-run + operating-hub concepts:
-- **Collection run (shops → hub):** an on-duty driver is assigned **packages to collect** and drives a
-  round of fulfillment shops, picking up **all** assigned packages (both same-day and standard), then
-  **checks them in at a single central Effy hub/warehouse**. Collection runs follow the **configurable
-  collection schedule** 047 already defines (e.g. a 2 pm cutoff), which is what gates same-day
-  eligibility at checkout.
-- **Sortation is a known fact, not a manual step:** each package's method (**same-day vs standard**) is
-  already chosen at **checkout** (047). The hub check-in surfaces the split; the driver does not
-  classify anything.
-- **Same-day delivery run (hub → customers):** the driver takes the **same-day** packages and does a
-  multi-drop delivery round, completing each drop with proof.
-- **Standard delivery is (mostly) an external carrier's job.** This **evolves 047's "Effy does all
-  delivery"**: Effy drivers own **collection + same-day delivery**; a **standard** package's driver-app
-  lifecycle **ends at "checked in at hub"**, after which it is handed to a third-party delivery company.
-- **Work is typed tasks, not driver roles** (`collection` / `same_day_delivery`); one driver typically
-  does a collection run then a same-day round in one shift, but neither is a hard-coded role.
-- **One hub for now** (matches 047's single operating-hub point); multi-hub is deferred.
-- ⚠ **DELIVERY IS PRICED ONCE PER ORDER, NEVER PER SHOP (077).** base + distance band (the postcode's own
-  distance) + weight band (the whole basket) + window surcharge, rounded UP, clamped; $0 at the plan's
-  free-delivery amount (surcharge included); + a small-order fee below its amount. **One sum**: `effyFee`
-  / `courierFee` in `shared/src/delivery/engine.ts` (`fee.guard.test.ts` P22). Same-day costs more by the
-  plan's **fixed "Delivery today" surcharge** — the method multiplier is gone. The order stores its
-  breakdown (`delivery_fee_breakdown`; customers get `->'lines'` only); the intent refuses a total the
-  client did not show (409 `delivery_fee_changed`). Per-package `feeAmount` on the quote is compatibility
-  only (E9 removes it, with the checkout that reads it). A shop never sees delivery money.
-- **A same-day order is sold a TIME WINDOW; a standard order a DAY (069).** Back-office defines daily
-  **slots** (start, end, cutoff, capacity). ⚠ **Same-day is offered only while a slot is open** — its
-  cutoff has not passed, it has room, and a collection run can still reach the hub before it starts —
-  so with no active slot, same-day is offered to nobody. A place is **held at the payment-intent call**
-  (the client confirms payment with the provider directly, so that is the last server moment before
-  the charge) and confirmed at payment. The delivery wave is planned **per window**, to the window's
-  end. A standard order's chosen day is honoured **through the carrier**: hub staff hand it over on
-  day − carrier lead time. ⚠ Since 077 a window **may** cost more (its plan surcharge); a day does not.
-- **Work is assigned the moment a driver can take it, and OPENS on time (072).** Every 5-minute pass
-  gives ready work to a qualifying driver (first come, first served, no rebalancing). A round opens at
-  its run time — or window start — less `planning_lead_min`; before that the driver sees it in full
-  and the driver service refuses every action (409 `round_not_open`). ⚠ The opening time is derived
-  by `public.round_opens_at` only — never stored, never recomputed elsewhere. Off-duty drivers' uncollected
-  work returns to the pool on the next pass.
-- ⚠ **EFFY DELIVERY WINDOWS ARE LIVE IN DEV AND SWITCHED OFF (078).** One window per order: today's under
-  **"Same-day delivery"**, one of the next N delivery days' (`effy_lookahead_days`, 3) under **"Standard
-  delivery"** — the customer words STAY; "standard" now also means *Effy, on a later day, in a window*.
-  - ⚠ **THE SWITCH** is `delivery_settings.delivery_model_v2_from` (NULL = off), read ONLY through
-    `public.delivery_model_v2_at` → `deliveryModelV2At` (`shared/src/delivery/model.ts`), and called by
-    the quote alone (`windows.guard.test.ts`). ⚠ **IT HAS ONE WRITER (083, stage 1 — built, not yet
-    deployed)**: `admin/src/delivery/go-live.repository.ts` — back-office → Delivery → Go-live, **admins
-    only**, in one transaction with its audit row, and **refused while `goLiveReadiness`
-    (`shared/src/delivery/readiness.ts`) says not ready**. A 5-minute sweep clears a scheduled switch that
-    stops being ready within 10 minutes of its moment; it never undoes a passed one. ⚠ Never set it by
-    hand or in code — a person does, per `docs/runbooks/delivery-model-v2-cutover.md`.
-  - ⚠ **AN OLD-KIND ORDER IS ONE WITH NO `delivery_type`; "STILL OPEN" IS `LEGACY_OPEN_ORDER_SQL`**
-    (`shared/src/delivery/legacy.ts`) — the go-live count, the order list's `open=true` filter and the
-    alert all read it. ⚠ The type is recorded at CAPTURE, so an order captured before the moment and
-    paid after it is still old. Old orders finish as sold; nothing on that path reads the switch.
-  - ⛔ **083 STAGE 2 (removing the old arrangement) IS NOT STARTED** and waits for the operator: stage 1
-    live and walked, no old order open, every app updated.
-  - ⚠ **Which checkout a client is in, the QUOTE says**: `effyWindows` present → send `deliveryWindow
-    {slotId, date}`; absent → the 069 fields. Absent, not null — the quote is then byte-identical.
-  - ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` (cutoff every day; collection
-    TODAY only; room per `(slot, date)` — `delivery_slot_load` was always per day). The quote, the hold
-    and 069's `judgeSlot` all call it. The calendar is `effyDays` / `openWindows` (`windows.ts`).
-  - ⚠ **WHO DELIVERS IS `order.delivery_type` (`effy` | `courier`, 079) — read through
-    `public.package_delivered_by(type, method, slot)`**, which also answers for every order placed before
-    079 (NULL type, never backfilled: same-day or sold a window = Effy, else a carrier's). Carrier
-    handover, the handover list, "needs handover", the on-time check, the shop's label and the back-office
-    column all call it (`deliveredBySql` / `fulfilmentDeliveredBySql`); `delivery-type.guard.test.ts` fails
-    a reader that decides from `slot_id` again. ⚠ A courier package is stored `standard`, no window, no
-    day — that word is ROUTING; a courier order's customer DTO carries `delivery` and **empty**
-    `arrivalEstimates`.
-  - ⚠ **THE TYPE'S HISTORY HAS ONE WRITER** — `recordDeliveryType` (`shared/src/delivery/delivery-type.ts`):
-    payment finalisation writes the first entry; E7 will write staff changes through it. Append-only
-    (`order_delivery_type_change`).
-  - ⚠ **THE CLIENT SAYS WHICH TYPE IT SHOWED** (`deliveryType` on the intent); a mismatch — or a courier
-    quote answered without it — is 409 `delivery_type_changed`, nothing written. The quote's `courier`
-    block is present exactly when `coverage === "courier"`. Offered to an in-area address only when no
-    window is open AND `delivery_settings.courier_when_no_windows` (off by default).
-  - ⚠ **ONE WORDING**: `DELIVERY_TYPE_WORDS` / `courierLines` / `deliverySummary`
-    (`packages/shared-types/src/delivery-type.ts`), Kotlin twins pinned to `delivery-type.fixtures.json`.
-    The estimate is ALWAYS said as an estimate; an order keeps the text it was sold
-    (`order.courier_estimate`).
-  - ⚠ **SHOPS ARE TOLD "Effy driver" / "Courier" AND NOTHING ELSE** (`deliveredBy`, `DELIVERED_BY_WORDS`).
-    "Same-day" / "standard" are the CUSTOMER'S words: `scripts/check-shop-delivery-words.sh` fails one on
-    a shop screen. `deliveryMethod` stays on the shop wire, deprecated, until E9.
-  - ⚠ **The picker's words are `effyWindowsView`'s** (`packages/shared-types/src/effy-windows.ts`) and
-    its Kotlin twin, both pinned to `effy-windows.fixtures.json`; the sentences are
-    `DELIVERY_WINDOW_WORDS`. ⚠ An order's arrivals are said once per DISTINCT promise
-    (`distinctArrivals`) — one per package told the customer how many suppliers there were.
-- ⚠ **COURIER PARCELS HAVE CONSIGNMENTS (080).** A courier order's parcels reach the courier **via the hub**
-  or by **pickup from the supplier** (`order.courier_collection`, from `delivery_settings.courier_collection_default`;
-  staff may switch one order until its first parcel leaves). The business keeps **courier services**
-  (operator-entered, never seeded; ONE default — checkout tells its timeframe, the order keeps it and
-  `courier_service_id`). Each parcel handed over gets a `courier_consignment` (service, reference,
-  tracking link, label, progress).
-  - ⚠ **ONE WRITER** — `@effy/edge-shared/delivery` `consignment.ts` writes the consignment, its events,
-    `carrier_handoff` (053's "handed over") and the mode; "delivered" still writes `package_arrival`
-    through it, so status, arrival and completion read what they always did. `consignment.guard.test.ts`
-    fails a second writer, and `courier_parcel_collection(` outside its one fragment (`COURIER_COLLECTION_SQL`).
-  - ⚠ **A supplier-pickup parcel is never driver work** — `GATHER_COLLECTION` excludes it through the
-    fragment. A hub parcel is **due out by its service's next pickup** (`nextCourierPickup`).
-  - ⚠ **Customers get ONE link or "by email", never a count** (`trackingOf`, commerce). Shops see their
-    own pickup only (`courierPickup`: no fee, estimate, tracking link or other parcel). Labels live under
-    `courier-label/` in the media bucket, read only through presigned URLs.
-- ⚠ **BACK-OFFICE CAN MOVE A PAID ORDER BETWEEN EFFY AND COURIER (081)** — an emergency tool, through
-  ONE function: `@effy/edge-shared/delivery` `override.ts` (`moveToCourier` / `moveToEffy`), one
-  transaction that writes through the one writers (`changeDeliveryType`, `setCourierRouting`,
-  `removeAssignment` — now in `delivery/driver-work.ts` — `points.credit` quiet, `recordRefundIn` then
-  `submitRecorded`). `delivery_override` is append-only (`override.guard.test.ts`). Compensation is staff's
-  choice, previewed and confirmed with the expected amount (a stale amount is 409 `compensation_changed`);
-  the difference never goes below zero. Only typed orders move; a parcel out for delivery blocks it.
-- ⚠ **DRIVER WORK FOLLOWS WHO DELIVERS, NOT A METHOD (082).** The delivery gather, dispatch and "needs a
-  driver" ask `package_delivered_by = 'effy'` — never `delivery_method = 'same_day'`
-  (`fleet/src/driver-method.guard.test.ts`). A delivery round is planned **on its window's day** (one
-  predicate in `GATHER_DELIVERY`; a later-day parcel waits at the hub on no round, and "Assign to…" answers
-  `not_yet`). A parcel is collected on the **latest run that makes its window** — `collectionRunFor`
-  (`shared/src/lib/collection-deadline.ts`), the planner's `dueRun`. A clearance is **(function, area)**:
-  nothing reads `driver_zone_capability.method` (dropped at E9). Hub check-in returns `effyGroups` (by day
-  and window, `dueToday`) + `courierCount`. ⚠ The driver wire is ADDITIVE until E9 (`same_day_delivery`,
-  `sameDayCount`, `standardCount` stay). ⚠ Drivers and dispatch never read "same-day"/"standard":
-  `scripts/check-driver-delivery-words.sh`.
-- **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out
-  for delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the
-  dispatch rows, never from `shop_fulfillment.status` alone (which stops at `collected` by design), and
-  shown only through `STATUS_WORD` / `PackageStatusPill`. Back-office can **Assign to…** (also how a
-  package is moved) or **Unassign**; area clearance and "may run late" are a person's call, the rest are
-  refused. ⚠ The round lock is gone (`locked_by_sub` unused, to be dropped).
+
+**The fee (077).** ⚠ **DELIVERY IS PRICED ONCE PER ORDER, NEVER PER SHOP.** base + distance band (the
+postcode's own distance) + weight band (the whole basket) + window surcharge, rounded UP, clamped; $0 at
+the plan's free-delivery amount (surcharge included); + a small-order fee below its amount. **One sum**:
+`effyFee` / `courierFee` in `shared/src/delivery/engine.ts` (`fee.guard.test.ts`). A window today costs
+more by the plan's **fixed "Delivery today" surcharge**. The order stores its breakdown
+(`delivery_fee_breakdown`; customers get `->'lines'` only); the intent refuses a total the client did not
+show (409 `delivery_fee_changed`). A package carries no fee; a shop never sees delivery money.
+
+**Windows (069, 078).** Back-office defines daily windows (start, end, cutoff, capacity).
+- ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` — its cutoff has not passed (any day), a
+  collection run can still reach the hub before it starts (**today only**), and it has room per
+  `(window, date)`. The quote, the hold and back-office's move to Effy all call it. The calendar is
+  `effyDays` / `openWindows` (`windows.ts`).
+- A place is **held at the payment-intent call** (the client confirms payment with the provider directly,
+  so that is the last server moment before the charge) and confirmed at payment. ⚠ A window is never
+  substituted: one that has gone is a refusal (`slot_unavailable`, `slot_required`, …) and the customer chooses again.
+- ⚠ **WHAT A CLIENT IS OFFERED, THE QUOTE SAYS**: `effyWindows` → send `deliveryWindow {slotId, date}`;
+  `courier` → send `deliveryType: "courier"`. A serviced address answers exactly one. ⚠ The quote carries
+  **no package list** — nothing tells a customer how many suppliers fill the order.
+- ⚠ **THE CLIENT SAYS WHICH TYPE IT SHOWED** (`deliveryType` on the intent); a mismatch is 409
+  `delivery_type_changed`, nothing written.
+- ⚠ **ONE WORDING**: the picker's words are `effyWindowsView`'s (`packages/shared-types/src/effy-windows.ts`)
+  and its Kotlin twin, pinned to `effy-windows.fixtures.json`; the sentences are `DELIVERY_WINDOW_WORDS`;
+  `DELIVERY_TYPE_WORDS` / `courierLines` / `deliverySummary` (`delivery-type.ts`) say who delivers, Kotlin
+  twins pinned to `delivery-type.fixtures.json`. A courier estimate is ALWAYS said as an estimate; an order
+  keeps the text it was sold. An order's arrivals are said once per DISTINCT promise (`distinctArrivals`).
+
+**Who delivers an order (079).** ⚠ `order.delivery_type` (`effy` | `courier`), read through
+`public.package_delivered_by` (`deliveredBySql` / `fulfilmentDeliveredBySql`); `delivery-type.guard.test.ts`
+fails a reader that decides from `slot_id` again. A courier package is stored `standard`, no window, no
+day — that word is ROUTING; a courier order's customer DTO carries `delivery` and **empty**
+`arrivalEstimates`. ⚠ **THE TYPE'S HISTORY HAS ONE WRITER** — `recordDeliveryType` / `changeDeliveryType`
+(`shared/src/delivery/delivery-type.ts`); `order_delivery_type_change` is append-only.
+- ⚠ **SHOPS ARE TOLD "Effy driver" / "Courier" AND NOTHING ELSE** (`deliveredBy`, `DELIVERED_BY_WORDS`);
+  `scripts/check-shop-delivery-words.sh` fails "same-day"/"standard" on a shop screen. Drivers and dispatch
+  likewise: `scripts/check-driver-delivery-words.sh`.
+- ⚠ **COMPATIBILITY FIELDS ARE KEPT ON THE DRIVER AND SHOP WIRE (083)** so installed apps keep working —
+  there is no app-update mechanism: driver `kind: "same_day_delivery"`, `sameDayCount`, `standardCount`;
+  shop `deliveryMethod`. Marked `@deprecated — compatibility (083)`. Do not remove them without one.
+
+**Courier parcels (080).** A courier order's parcels reach the courier **via the hub** or by **pickup from
+the supplier** (`order.courier_collection`; staff may switch one order until its first parcel leaves). The
+business keeps **courier services** (operator-entered, never seeded; ONE default — checkout tells its
+timeframe, the order keeps it and `courier_service_id`). Each parcel handed over gets a
+`courier_consignment`.
+- ⚠ **ONE WRITER** — `@effy/edge-shared/delivery` `consignment.ts` writes the consignment, its events,
+  `carrier_handoff` and the mode; "delivered" still writes `package_arrival` through it.
+  `consignment.guard.test.ts` fails a second writer, and `courier_parcel_collection(` outside its one fragment.
+- ⚠ **A supplier-pickup parcel is never driver work.** A hub parcel is **due out by its service's next
+  pickup** (`nextCourierPickup`) — the only due-out rule there is.
+- ⚠ **Customers get ONE link or "by email", never a count** (`trackingOf`). Shops see their own pickup
+  only. Labels live under `courier-label/` in the media bucket, read only through presigned URLs.
+- ⚠ **BACK-OFFICE CAN MOVE A PAID ORDER BETWEEN EFFY AND COURIER (081)** — an emergency tool, through ONE
+  function: `override.ts` (`moveToCourier` / `moveToEffy`), one transaction through the one writers.
+  `delivery_override` is append-only. Compensation is staff's choice, previewed and confirmed with the
+  expected amount (409 `compensation_changed`). Only typed orders move; a parcel out for delivery blocks it.
+
+**Driver operations (049, 063, 072, 082) — hub and spoke.** Effy's drivers are **not per-delivery
+couriers**. They are Effy employees working typed tasks, not roles:
+- **Collection run (shops → hub):** on the configurable collection schedule, a driver collects assigned
+  parcels from fulfilment shops and **checks them in at the one hub**. ⚠ A parcel is collected on the
+  **latest run that makes its window** — `collectionRunFor` (`shared/src/lib/collection-deadline.ts`).
+- **Hub check-in** shows what the customer already chose — `effyGroups` (by day and window, `dueToday`)
+  and `courierCount`. The driver classifies nothing.
+- **Delivery round (hub → customers):** planned **per window, on its window's day**, to the window's end; a
+  later-day parcel waits at the hub on no round. ⚠ Driver work asks `package_delivered_by = 'effy'` —
+  never a method (`fleet/src/driver-method.guard.test.ts`).
+- ⚠ **A clearance is (function, area), one row each** — collection or delivery, in a group or everywhere
+  (`zone_id` NULL, including groups created later). An ungrouped postcode is cleared by any clearance for
+  the function.
+- **Work is assigned the moment a driver can take it, and OPENS on time (072).** Every 5-minute pass gives
+  ready work to a qualifying driver. A round opens at its run time — or window start — less
+  `planning_lead_min`; before that the driver service refuses every action (409 `round_not_open`). ⚠ The
+  opening time is derived by `public.round_opens_at` only.
+- **One hub** (multi-hub is deferred).
+- **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out for
+  delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the dispatch
+  rows, never from `shop_fulfillment.status` alone, and shown only through `STATUS_WORD` /
+  `PackageStatusPill`. Back-office can **Assign to…** or **Unassign**; area clearance and "may run late"
+  are a person's call, the rest are refused.
 
 ## Platform shape (the vision)
 The full platform is **six client surfaces + one backend + DB migrations + infrastructure**. The
@@ -503,7 +466,8 @@ built on stable Material 3, Nav3-migration-ready).
 
 **The commerce path is built and live in dev**: catalogue, search and facets, cart and promo, saved
 items and lists, checkout and payment, orders, refunds and cancellation, delivery zones, slots and
-days, stock, the shop and back-office consoles, the driver operation. ⚠ **Since 070 all of it is
+days, stock, the shop and back-office consoles, the driver operation. ⚠ **Delivery is ONE model since 083**
+— Delivered by Effy in a window, or Courier delivery (see "Delivery model" above). ⚠ **Since 070 all of it is
 served by the one serverless backend** — `storefront` and `commerce` for shoppers, beside the staff,
 shop and driver services — at `edge-api.dev.effyshopping.com`, with back-office at
 `staff-api.dev.effyshopping.com` (075, moved 2026-10-08). The Go service that 040 deployed at
@@ -542,7 +506,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **083-delivery-model-cutover** — Delivery Model Cutover — stage 1 (the switch, Go-live tab) built, not yet migrated or deployed; stage 2 (the removal) not started
+- **083-delivery-model-cutover** — Delivery Model Cutover — stage 1 (the switch) deployed to dev; stage 2 (the old arrangement removed) built, not yet migrated or deployed
 - **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
 - **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off, migrated and deployed to dev
 - **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev

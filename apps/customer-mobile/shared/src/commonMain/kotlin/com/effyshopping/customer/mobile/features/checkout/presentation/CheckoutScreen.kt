@@ -18,7 +18,6 @@ import com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
-import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
@@ -65,7 +64,6 @@ import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressFormSheet
 import com.effyshopping.customer.mobile.features.cart.domain.formatCents
 import com.effyshopping.customer.mobile.features.cart.domain.parseCents
@@ -298,8 +296,7 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             CourierSection(quote.courier)
             DeliveryFeeSummary(quote.courier.fee, quote.freeDeliveryRemainingAmount)
         }
-        // 078 — WHICH CHECKOUT THIS IS, THE QUOTE SAYS. With windows the shopper picks ONE for the
-        // order; everything below this branch is the 069 method / slot / day picker.
+        // Effy delivers: the shopper picks ONE window for the order (078).
         quote.effyWindows != null -> {
             EffyWindowsSection(
                 view = effyWindowsView(quote.effyWindows, nowEpochMillis()),
@@ -307,108 +304,17 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                 enabled = !s.paying,
                 onChoose = vm::setWindow,
             )
+            // What is charged for delivery, line by line, before Pay (077 FR-028), and how close the
+            // basket is to free delivery (FR-029). Nothing to show until a window is chosen.
             s.deliveryFee?.let { fee -> DeliveryFeeSummary(fee, quote.freeDeliveryRemainingAmount) }
         }
-        else -> {
-            // 077 — ONE fee for the order: a later day's, or the chosen window's. Same-day is shown
-            // "from" its cheapest window when the windows differ, so its price is never understated.
-            val standardTotal = quote.standardFee?.totalAmount ?: quote.standardTotalAmount
-            val windowTotals = quote.slots.mapNotNull { it.fee?.totalAmount }
-            val sameDayFrom = windowTotals.minByOrNull { it.toDoubleOrNull() ?: 0.0 } ?: quote.sameDayTotalAmount ?: standardTotal
-            if (s.sameDayOfferable) {
-                DeliveryOptionRow(
-                    label = "Same-day delivery",
-                    fee = if (windowTotals.distinct().size > 1) "from \$$sameDayFrom" else "\$$sameDayFrom",
-                    selected = s.method == DeliveryMethod.SAME_DAY,
-                    onSelect = { vm.setMethod(DeliveryMethod.SAME_DAY) },
-                )
-                DeliveryOptionRow(
-                    label = "Standard delivery",
-                    fee = "\$$standardTotal",
-                    selected = s.method == DeliveryMethod.STANDARD,
-                    onSelect = { vm.setMethod(DeliveryMethod.STANDARD) },
-                )
-            } else {
-                // ⚠ TWO DIFFERENT SENTENCES (FR-004). "Not in your area" will still be true tomorrow;
-                // "today's times are taken" will not.
-                Text(
-                    if (quote.sameDayUnavailable == SameDayUnavailable.SlotsClosed) {
-                        "Today’s same-day delivery times are closed or full. Standard delivery is available."
-                    } else {
-                        "Same-day delivery isn’t available for this address."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            if (s.needsSlot) {
-                Text("Choose a delivery time", style = MaterialTheme.typography.labelLarge)
-                if (quote.mixed) {
-                    Text(
-                        "${quote.sameDayDeliveries} of your ${quote.deliveries} deliveries can arrive today.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth().selectableGroup(),
-                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-                ) {
-                    quote.slots.forEach { slot ->
-                        val label = DeliveryWindowText.formatWindow(slot.startAt, slot.endAt) ?: slot.date
-                        FilterChip(
-                            selected = slot.id == s.slotId,
-                            onClick = { vm.setSlot(slot.id) },
-                            // 077 FR-030 — what this window ADDS, before it is chosen; else its fee.
-                            label = {
-                                val surcharge = slot.surchargeAmount?.takeIf { (it.toDoubleOrNull() ?: 0.0) > 0.0 }
-                                Text(if (surcharge != null) "Today, $label · +$$surcharge" else "Today, $label · $${slot.fee?.totalAmount ?: sameDayFrom}")
-                            },
-                            // ⚠ 48dp: a fat-finger target, and the difference between two adjacent
-                            // windows is exactly the mistake a small chip invites.
-                            modifier = Modifier.heightIn(min = 48.dp).semantics { role = Role.RadioButton },
-                        )
-                    }
-                }
-            }
-
-            if (s.needsDay) {
-                Text(
-                    if (quote.mixed && s.needsSlot) "Choose a day for the rest" else "Choose a delivery day",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                // 077 — a same-day order pays its window's fee; the rest arrives later at no extra
-                // charge, so the days for it carry no price.
-                val dayFee = if (s.needsSlot) null else "\$$standardTotal"
-                val today = DeliveryWindowText.melbourneDay(nowEpochMillis())
-                Column(modifier = Modifier.selectableGroup()) {
-                    quote.standardDays.forEach { day ->
-                        DeliveryOptionRow(
-                            label = DeliveryWindowText.relativeDay(day, today),
-                            fee = dayFee,
-                            selected = day == s.standardDate,
-                            onSelect = { vm.setStandardDate(day) },
-                        )
-                    }
-                }
-            } else if (!s.sameDayOfferable) {
-                // A server older than 069 offers no days: the one standard fee, as before.
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
-                    Text("$$standardTotal", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            // 077 — what is charged for delivery, line by line, before Pay (FR-028), and how close
-            // the basket is to free delivery (FR-029).
-            s.deliveryFee?.let { fee -> DeliveryFeeSummary(fee, quote.freeDeliveryRemainingAmount) }
-        }
+        // A serviced quote with neither block is a server fault: nothing is drawn, and nothing can be paid for.
+        else -> Unit
     }
 }
 
 /**
- * The delivery-window picker of the new delivery model (078): ONE window for the whole order.
+ * The delivery-window picker (078): ONE window for the whole order.
  *
  *   Same-day delivery   today's open windows, each with the time to order by;
  *   Standard delivery   the next delivery days as a strip, each with its own windows.
@@ -544,25 +450,6 @@ private fun DeliveryFeeSummary(fee: DeliveryFee, freeRemaining: String?) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-    }
-}
-
-@Composable
-private fun DeliveryOptionRow(label: String, fee: String?, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        // The WHOLE row is the target, announced as one radio button with its label and fee.
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = null)
-            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = EffySpacing.s))
-        }
-        fee?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
     }
 }
 

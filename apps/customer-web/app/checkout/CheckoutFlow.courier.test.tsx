@@ -38,11 +38,9 @@ const far = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString()
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
 const fee = (amount: string) => ({ lines: [{ kind: "delivery" as const, amount }], totalAmount: amount })
 
-const base = { sameDayAvailableUntil: null, expiresAt: far(1), packages: [], sameDaySlots: [], sameDayUnavailableReason: null, standardDays: [] }
+const base = { expiresAt: far(1) }
 const EFFY: DeliveryQuoteDTO = {
   ...base, postcode: "3121", serviced: true, coverage: "effy",
-  packages: [{ shopRef: "pkg-1", options: [{ method: "standard", feeAmount: "6.00", promisedFrom: null, promisedTo: null }] }],
-  standardFee: fee("6.00"),
   effyWindows: {
     unavailable: null,
     days: [

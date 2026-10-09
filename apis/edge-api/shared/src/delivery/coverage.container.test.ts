@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrationSql } from "../lib/load-migrations";
 import { courierReachesPostcode, coverageForPostcode } from "./coverage";
 import { quote } from "./quote";
-import { serviceableForPostcode, zoneForPostcode } from "./zone";
+import { serviceableForPostcode } from "./zone";
 
 /**
  * 076 — the coverage migration against REAL data, and the one function that decides.
@@ -131,12 +131,8 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     expect(audit.rows.map((r) => r.detail.postcodes)).toEqual([["3550"]]);
   });
 
-  it("P7 — every postcode served before keeps its same-day flag", async () => {
-    for (const row of before) {
-      const zone = await zoneForPostcode(pool, row.postcode);
-      expect(zone?.sameDayEligible, `${row.postcode}: same-day flag moved`).toBe(row.sameday_eligible);
-    }
-  });
+  // ⚠ P7 (every postcode keeps its same-day flag) ENDED WITH 083: the flag was a bridge for the old
+  // checkout and went with it. Under one checkout every listed postcode is offered the same windows.
 
   // ⚠ 077 ENDED THE FEE-TIER HALF OF P7, deliberately. Until the fee engine, a pre-076 postcode kept
   // its zone's tier and this asserted that nobody's fee moved. Delivery is now priced from each
@@ -147,7 +143,7 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     const fee = async (postcode: string) => {
       const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date(), 5000);
       if (!res.serviced || res.coverage !== "effy") throw new Error(`${postcode} not serviced`);
-      return res.standardFee.totalCents;
+      return res.baseFee.totalCents;
     };
     expect(await fee("3121")).toBe(600); // 3.3 km — inner, as before
     expect(await fee("3900")).toBe(900); // 18.5 km by hand — mid, as before
@@ -197,26 +193,17 @@ d("076 — the coverage migration changes nothing for anyone", () => {
         INSERT INTO public.delivery_fee_plan (id, kind, name, is_active, base_amount, rounding_step, floor_amount, cap_amount, created_by)
           VALUES ('${COURIER_PLAN}', 'courier', 'Courier table', true, 9.00, 0.50, 0.00, 90.00, 'test');
         INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${COURIER_PLAN}', 100000, 0.00);`);
-      // 080 P10 — a fee table and no default service: not ready, whatever 079's estimate text says.
+      // 080 P10 — a fee table and no default service: not ready.
       await pool.query(`UPDATE public.courier_service SET is_default = false`);
-      await settings(`courier_estimate_text = '2–4 business days'`);
       expect(await at("7000"), "a fee table and no default service").toMatchObject({ kind: "none", reason: "courier_not_ready" });
       await pool.query(`UPDATE public.courier_service SET is_default = true`);
-      await settings(`courier_estimate_text = NULL`);
-      expect(await at("7000"), "079's estimate text is no longer read").toMatchObject({ kind: "none", reason: "courier_pending" });
 
-      // ⚠ ON AND READY, AND STILL NOBODY IS PROMISED IT: the new delivery model is off, and the
-      // checkout customers are using has no courier order to sell (079 FR-035).
-      expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_pending" });
-      expect(await serviceableForPostcode(pool, "7000")).toBe(false);
-
-      // The switch set for a moment in the FUTURE: pending until that moment, a courier from it.
-      const from = new Date("2027-01-10T00:00:00Z");
-      await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = $1 WHERE id = 1`, [from]);
-      expect(await at("7000", new Date(from.getTime() - 1))).toMatchObject({ kind: "none", reason: "courier_pending" });
-      expect(await at("7000", from)).toMatchObject({ kind: "courier", reason: "courier_offered", distanceKm: null, groupId: null });
-
-      await settings(`delivery_model_v2_from = now() - interval '1 minute'`);
+      // ⚠ 083 — ON AND READY IS OFFERED. Until the old arrangement was removed this answered
+      // "pending" while the delivery-model switch was off; there is one model now, whatever the
+      // switch column holds and whatever instant is asked about.
+      expect(await at("7000")).toMatchObject({ kind: "courier", reason: "courier_offered", distanceKm: null, groupId: null });
+      expect(await at("7000", new Date("2020-01-01T00:00:00Z"))).toMatchObject({ kind: "courier" });
+      await settings(`delivery_model_v2_from = NULL`);
       expect(await at("7000")).toMatchObject({ kind: "courier", reason: "courier_offered" });
       expect(await serviceableForPostcode(pool, "7000")).toBe(true);
       expect(await at("9999")).toMatchObject({ kind: "none", reason: "unknown_postcode" });
@@ -241,22 +228,20 @@ d("076 — the coverage migration changes nothing for anyone", () => {
       await pool.query(`DELETE FROM public.courier_excluded_postcode`);
       await pool.query(`DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}'`);
       await pool.query(`DELETE FROM public.courier_service`);
-      await settings(`courier_offered = false, courier_estimate_text = NULL, delivery_model_v2_from = NULL`);
+      await settings(`courier_offered = false, delivery_model_v2_from = NULL`);
     }
   });
 
-  it("P8 — a postcode listed AFTER 076, with no group, is same-day eligible and quotes a fee from its distance", async () => {
+  it("P8 — a postcode listed AFTER 076, with no group, quotes a fee from its distance", async () => {
     await pool.query(
       `INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by)
        VALUES (NULL, '3220', public.coverage_computed_distance_km('3220'), 'computed', 'test')`,
     );
-    const zone = await zoneForPostcode(pool, "3220");
-    expect(zone).toEqual({ id: null, sameDayEligible: true });
     const res = await quote(pool, null, "3220", [{ shopId, grams: 1500 }], new Date(), 5000);
     if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
     expect(res.coverage).toBe("effy");
     expect(res.zoneId).toBeNull();
-    expect(res.standardFee.totalCents).toBe(1500); // Geelong, ~65 km → the open-ended band
+    expect(res.baseFee.totalCents).toBe(1500); // Geelong, ~65 km → the open-ended band
   });
 
   it("P8 — and so is one in a group created after 076", async () => {
@@ -264,7 +249,6 @@ d("076 — the coverage migration changes nothing for anyone", () => {
       await pool.query<{ id: string }>(`INSERT INTO public.delivery_zone (code, name, updated_by) VALUES ('T-NEW', 'New group', 'test') RETURNING id::text AS id`)
     ).rows[0]!.id;
     await pool.query(`UPDATE public.delivery_zone_postcode SET zone_id = $1 WHERE postcode = '3220'`, [group]);
-    expect(await zoneForPostcode(pool, "3220")).toEqual({ id: group, sameDayEligible: true });
     expect(await coverageForPostcode(pool, "3220")).toMatchObject({ kind: "effy", groupId: group, groupName: "New group" });
   });
 
@@ -277,7 +261,6 @@ d("076 — the coverage migration changes nothing for anyone", () => {
   it("P15 — nothing about a shop changes any answer", async () => {
     const answers = async () => Promise.all(allPostcodes.map(async (p) => `${p}:${(await coverageForPostcode(pool, p)).kind}`));
     const was = await answers();
-    await pool.query(`INSERT INTO public.shop_sameday_exception (shop_id, zone_id, mode, updated_by) VALUES ($1, '${Z_INNER}', 'off', 'test')`, [shopId]);
     await pool.query(`UPDATE public.shop SET status = 'suspended' WHERE id = $1`, [shopId]).catch(() => undefined);
     expect(await answers()).toEqual(was);
   });

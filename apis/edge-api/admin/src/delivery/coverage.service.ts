@@ -111,7 +111,6 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
     ungrouped: { postcodeCount: totals.ungrouped, driverCount: totals.ungroupedDrivers },
     courier: {
       offered: courier.offered,
-      estimateText: courier.estimateText,
       whenNoWindows: courier.whenNoWindows,
       collectionDefault: courier.collectionDefault,
       defaultService: courier.defaultService,
@@ -273,16 +272,6 @@ const COURIER_REFUSALS: Record<repo.CourierRefusal, string> = {
   courier_service_missing: "add a courier service and make it the default before switching courier delivery on",
 };
 
-/** 3–60 characters on one line, trimmed; `null` clears it. Anything else is a field error. */
-function estimateOf(v: unknown): string | null {
-  if (v === null) return null;
-  const text = typeof v === "string" ? v.trim() : "";
-  if (text.length < 3 || text.length > 60 || /[\n\r]/.test(text)) {
-    throw new CoverageError(422, "invalid_estimate", "the estimate is 3 to 60 characters on one line, like \"2–4 business days\"");
-  }
-  return text;
-}
-
 /**
  * Change courier delivery (076 FR-016; 079; 080): on or off, whether an address with no delivery
  * window left may be sent by courier, and how new courier orders reach the courier.
@@ -291,9 +280,9 @@ function estimateOf(v: unknown): string | null {
  * before the new delivery model is on — the console says it is pending.
  */
 export async function setCourier(
-  body: { offered?: unknown; estimateText?: unknown; whenNoWindows?: unknown; collectionDefault?: unknown },
+  body: { offered?: unknown; whenNoWindows?: unknown; collectionDefault?: unknown },
   sub: string,
-): Promise<Pick<CourierReachDTO, "offered" | "estimateText" | "whenNoWindows" | "collectionDefault">> {
+): Promise<Pick<CourierReachDTO, "offered" | "whenNoWindows" | "collectionDefault">> {
   const change: repo.CourierChange = {};
   if (body?.offered !== undefined) {
     if (typeof body.offered !== "boolean") throw new CoverageError(400, "invalid_request", "offered must be true or false");
@@ -309,7 +298,6 @@ export async function setCourier(
     }
     change.collectionDefault = body.collectionDefault;
   }
-  if (body?.estimateText !== undefined) change.estimateText = estimateOf(body.estimateText);
   if (Object.keys(change).length === 0) throw new CoverageError(400, "invalid_request", "nothing to change");
 
   const result = await repo.changeCourier(change, sub);

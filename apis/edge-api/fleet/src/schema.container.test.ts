@@ -120,8 +120,7 @@ RETURNS text LANGUAGE sql IMMUTABLE AS $$
 $$;
 CREATE TABLE public.delivery_zone (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL,
-  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
-  sameday_eligible boolean NOT NULL DEFAULT true
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled'))
 );
 CREATE TABLE public.delivery_settings (
   id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -145,19 +144,18 @@ CREATE TABLE public.driver (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
--- ── 062: clearances. Mirrors 20260920190000_driver_zone_capability.sql exactly. ────────────────
+-- ── 062: clearances, as 083 left them: one row per (driver, function, area), no method. ───────
 CREATE TABLE public.driver_zone_capability (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE CASCADE,
   function text NOT NULL CHECK (function IN ('collection','delivery')),
-  method text NOT NULL CHECK (method IN ('standard','same_day')),
   zone_id uuid NULL REFERENCES public.delivery_zone (id) ON DELETE CASCADE,
   granted_by_sub text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 -- ⚠ FR-005 AND FR-011 BOTH LIVE IN THIS INDEX. A plain UNIQUE does not deduplicate NULLs.
 CREATE UNIQUE INDEX driver_zone_capability_uq
-  ON public.driver_zone_capability (driver_id, function, method, zone_id) NULLS NOT DISTINCT;
+  ON public.driver_zone_capability (driver_id, function, zone_id) NULLS NOT DISTINCT;
 CREATE INDEX driver_zone_capability_driver_idx ON public.driver_zone_capability (driver_id);
 CREATE INDEX driver_zone_capability_zone_idx ON public.driver_zone_capability (zone_id);
 
@@ -266,9 +264,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     opts: { status?: string; sameDay?: boolean } = {},
   ): Promise<string> {
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.delivery_zone (name, status, sameday_eligible)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [name, opts.status ?? "active", opts.sameDay ?? true],
+      `INSERT INTO public.delivery_zone (name, status) VALUES ($1, $2) RETURNING id`,
+      [name, opts.status ?? "active"],
     );
     return r.rows[0]!.id;
   }
@@ -280,10 +277,13 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     method: "standard" | "same_day",
     zoneId: string | null,
   ): Promise<void> {
+    // ⚠ `method` is ignored: the column is gone (083). A second row for the same (function, area)
+    // is the same clearance, so it is not an error here.
+    void method;
     await pool.query(
-      `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
-       VALUES ($1, $2, $3, $4)`,
-      [driverId, fn, method, zoneId],
+      `INSERT INTO public.driver_zone_capability (driver_id, function, zone_id)
+       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+      [driverId, fn, zoneId],
     );
   }
 
@@ -843,8 +843,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       // And the raw insert is refused by the database, not merely absorbed by the service.
       await expect(
         pool.query(
-          `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
-           VALUES ($1, 'delivery', 'standard', $2)`, [d, z],
+          `INSERT INTO public.driver_zone_capability (driver_id, function, zone_id)
+           VALUES ($1, 'delivery', $2)`, [d, z],
         ),
       ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
     });
@@ -863,8 +863,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
       await expect(
         pool.query(
-          `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
-           VALUES ($1, 'collection', 'standard', NULL)`, [d],
+          `INSERT INTO public.driver_zone_capability (driver_id, function, zone_id)
+           VALUES ($1, 'collection', NULL)`, [d],
         ),
       ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
 
@@ -1059,35 +1059,28 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /**
-     * ⚠ 082 P6 — NOBODY LOST A CLEARANCE, AND NOBODY HOLDS ONE TWICE. Rows written before 082 carry one
-     * of two methods, and a driver may hold both for one function and area. No row was rewritten: each
-     * (function, area) reads as ONE clearance, granting it again adds nothing, and revoking it removes
-     * every row behind it — otherwise the driver would still be cleared by the row left over.
+     * ⚠ 083 P14 — ONE ROW PER CLEARANCE. 082 read rows of either old method as one clearance; 083's
+     * migration removed the duplicates and the column (`retire.container.test.ts` proves which row is
+     * kept). Here: granting what is held adds no row, and revoking it removes the one there is.
      */
-    it("⚠ 082 P6 — old rows of either method are one clearance; grant adds none; revoke removes them all", async () => {
-      const z = await seedZone("P6 Zone");
-      const both = await seedDriver("P6 Both Methods");
-      const one = await seedDriver("P6 Same-day Only");
-      await pool.query(
-        `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id) VALUES
-           ($1, 'delivery', 'standard', $3), ($1, 'delivery', 'same_day', $3), ($2, 'delivery', 'same_day', $3)`,
-        [both, one, z],
-      );
-      for (const d of [both, one]) {
-        const list = await capRepo.listForDriver(d);
-        expect(list.map((c) => [c.function, c.zoneId])).toEqual([["delivery", z]]);
-      }
-      const summary = await capRepo.summariseForDrivers([both]);
-      expect(summary.get(both)!.total).toBe(1);
+    it("⚠ 083 P14 — one row per clearance: grant twice adds none, revoke removes it", async () => {
+      const z = await seedZone("P14 Zone");
+      const d = await seedDriver("P14 Driver");
+      const first = await capRepo.grant(d, "delivery", z, "actor-1");
+      expect(await capRepo.grant(d, "delivery", z, "actor-2")).toBe(first);
+      const everywhere = await capRepo.grant(d, "collection", null, "actor-1");
+      expect(await capRepo.grant(d, "collection", null, "actor-1")).toBe(everywhere);
+      expect((await pool.query(`SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d])).rowCount).toBe(2);
+      expect((await capRepo.summariseForDrivers([d])).get(d)!.total).toBe(2);
 
-      // Granting what is held — under whichever old method — adds no row.
-      await capRepo.grant(one, "delivery", z, "actor-1");
-      expect((await pool.query(`SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [one])).rowCount).toBe(1);
-
-      // Revoking the one clearance removes BOTH rows behind it.
-      const [held] = await capRepo.listForDriver(both);
-      expect(await capRepo.revoke(both, held!.id)).toBe(true);
-      expect((await pool.query(`SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [both])).rowCount).toBe(0);
+      expect(await capRepo.revoke(d, first)).toBe(true);
+      expect(await capRepo.revoke(d, first)).toBe(false); // already gone: a no-op, not a failure
+      expect((await capRepo.listForDriver(d)).map((c) => [c.function, c.zoneId])).toEqual([["collection", null]]);
+      // ⚠ Another driver's clearance is never removed by naming its id under the wrong driver.
+      const other = await seedDriver("P14 Other");
+      const theirs = await capRepo.grant(other, "delivery", z, "actor-1");
+      expect(await capRepo.revoke(d, theirs)).toBe(false);
+      expect(await capRepo.listForDriver(other)).toHaveLength(1);
     });
 
     /** ⚠ C13 — FR-020. The two views read ONE availability rule, so they cannot disagree. */

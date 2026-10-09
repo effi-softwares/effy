@@ -1,42 +1,47 @@
--- 047 delivery — realistic dev seed (Melbourne-first). Idempotent: clears the delivery CONFIG and
--- re-inserts. ⚠ Touches ONLY delivery configuration — never public.locality, never orders.
+-- Delivery — realistic dev seed (Melbourne-first), for the one delivery model (083). Idempotent:
+-- clears the delivery CONFIG and re-inserts. ⚠ Touches ONLY delivery configuration — never
+-- public.locality, never orders.
 --
--- Values are grounded in AU metro grocery/courier norms (research 2026-08):
---   • Distance bands from the CBD hub: ≤10 km, ≤25 km, ≤50 km, then everything beyond (regional VIC).
---   • Grocery metro delivery sits ~$5–$15. Same-day costs a FIXED amount more than a later day (077 —
---     it replaced the old 1.6× multiplier); this DEV seed uses $3.00. ⚠ A dev value only: the real
---     amount is the operator's, asked for by the 077 migration (EFFY_TODAY_PREMIUM).
---   • Weight adds in slabs; a typical grocery basket is ≤10 kg, big shops 10–20 kg.
---   • Same-day only near the hub (inner/middle); regional is standard-only (can't reach 65–130 km today).
+-- What it sets up — exactly what the go-live checklist (back-office: Delivery, Go-live) asks for:
+--   • Effy's postcode list, in a few named groups, each postcode with its distance from the hub;
+--   • one active Effy fee plan: ONE fee per order — base + distance band + weight band + what the
+--     window adds, rounded up, clamped. A window TODAY costs a fixed amount more ($3.00 here — a dev
+--     value; the real amount is the operator's);
+--   • the hub and the shop prep buffer;
+--   • collection runs, and delivery windows a customer can choose today or on the next delivery days.
 --
--- ⚠ Zones use postcodes present in the loaded sample locality set (17 rows). Load the full G-NAF-derived
---   CSV and re-run to widen coverage.
+-- ⚠ NO COURIER SERVICE IS SEEDED, and courier delivery is left off: a courier's name, timeframe and
+-- pickup days are real-world facts the operator enters (Delivery, Coverage, Courier delivery). An
+-- address off the list is refused at checkout until they do.
+--
+-- ⚠ Groups use postcodes present in the loaded sample locality set (17 rows). Load the full
+--   G-NAF-derived CSV and re-run to widen coverage.
 
 BEGIN;
 
 -- ── 1. Clear existing delivery config (FK-safe order) ───────────────────────────────────────────────
-DELETE FROM public.shop_sameday_exception;
 -- ⚠ Since 076 removing a group UNGROUPS its postcodes rather than deleting them, so the list is
 -- cleared on its own first — without this a second run of this seed fails on a duplicate postcode.
 DELETE FROM public.delivery_zone_postcode;
-DELETE FROM public.delivery_zone;            -- cascades shop_sameday_exception
+DELETE FROM public.delivery_zone;
 DELETE FROM public.delivery_fee_plan;        -- cascades its bands and window premiums
 DELETE FROM public.delivery_collection_run;
 
 -- ── 2. (077: there are no distance tiers any more — a postcode is priced from its own distance.) ───
 
 -- ── 3. Coverage groups (real Melbourne/VIC areas) + their postcodes ─────────────────────────────────
--- same-day eligible: inner + middle only (realistic — driver runs can reach these same day).
-INSERT INTO public.delivery_zone (id, code, name, sameday_eligible, status, updated_by) VALUES
-  ('22222222-0000-0000-0000-000000000001', 'MEL-CBD',      'Melbourne CBD',         true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000002', 'MEL-INNER-E',  'Inner East',            true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000003', 'MEL-INNER-S',  'Inner South (bayside)', true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000004', 'MEL-INNER-W',  'Inner West',            true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000005', 'MEL-MIDDLE-W', 'Middle West',           true,  'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000006', 'MEL-OUTER-W',  'Outer West (Wyndham)',  false, 'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000007', 'GEELONG',      'Geelong',               false, 'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000008', 'BALLARAT',     'Ballarat',              false, 'active', 'seed:047'),
-  ('22222222-0000-0000-0000-000000000009', 'BENDIGO',      'Bendigo',               false, 'active', 'seed:047');
+-- A group organises the list and scopes driver clearances. It decides nothing about coverage or
+-- about which windows are offered: every listed postcode is offered the same windows.
+INSERT INTO public.delivery_zone (id, code, name, status, updated_by) VALUES
+  ('22222222-0000-0000-0000-000000000001', 'MEL-CBD',      'Melbourne CBD',         'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000002', 'MEL-INNER-E',  'Inner East',            'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000003', 'MEL-INNER-S',  'Inner South (bayside)', 'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000004', 'MEL-INNER-W',  'Inner West',            'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000005', 'MEL-MIDDLE-W', 'Middle West',           'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000006', 'MEL-OUTER-W',  'Outer West (Wyndham)',  'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000007', 'GEELONG',      'Geelong',               'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000008', 'BALLARAT',     'Ballarat',              'active', 'seed:047'),
+  ('22222222-0000-0000-0000-000000000009', 'BENDIGO',      'Bendigo',               'active', 'seed:047');
 
 -- ⚠ 076 — a listed postcode always has a distance. Worked out from the place's location where one is
 -- known (load the localities first); otherwise this dev seed falls back to a round 10 km, marked as
@@ -88,7 +93,7 @@ INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUE
 
 SELECT public.delivery_plan_activate('33333333-0000-0000-0000-000000000001', 'seed:047', false);
 
--- ── 5. Hub + same-day prep buffer (settings singleton) ─────────────────────────────────────────────
+-- ── 5. Hub + shop prep buffer (settings singleton) ──────────────────────────────────────────────────
 -- Hub = Melbourne CBD. Prep buffer 120 min: a shop needs ~2h to pick + pack before a collection run.
 INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, sameday_prep_buffer_min, updated_by)
 VALUES (1, -37.813600, 144.963100, 120, 'seed:047')
@@ -98,12 +103,25 @@ ON CONFLICT (id) DO UPDATE
       updated_at = now();
 
 -- ── 6. Collection runs (drivers collect from shops; Australia/Melbourne wall clock) ────────────────
--- Three runs: with the 120-min buffer, the cutoffs are 10:00, 14:00 and 19:00. Same-day is offered while
--- the latest still-makeable cutoff is in the future — i.e. up to 19:00 (via the evening run). ⚠ The
--- evening run keeps same-day testable into the evening; drop it for a stricter afternoon-only cutoff.
+-- Three runs. With the 120-minute buffer, an order can still make today's 12:00 run until 10:00, the
+-- 16:00 run until 14:00 and the 21:00 run until 19:00.
 INSERT INTO public.delivery_collection_run (run_time, label, status, updated_by) VALUES
   ('12:00', 'Midday run',    'active', 'seed:047'),
   ('16:00', 'Afternoon run', 'active', 'seed:047'),
   ('21:00', 'Evening run',   'active', 'seed:047');
+
+-- ── 7. Delivery windows (what a customer chooses: today, or one of the next delivery days) ─────────
+-- A window TODAY is offered while its cutoff has not passed, it has room, and a run can still be made
+-- that reaches the hub before it starts (the hub turnaround is 60 minutes by default). So today the
+-- afternoon window rides the 12:00 run and the evening window the 16:00 run; on a later day both are
+-- always collectable. ⚠ Added only when no window exists: placed orders reference a window, so this
+-- seed never deletes one.
+INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, status, updated_by)
+SELECT v.start_time::time, v.end_time::time, v.cutoff_time::time, v.capacity, 'active', 'seed:047'
+  FROM (VALUES
+    ('14:00', '17:00', '10:00', 20),   -- afternoon
+    ('18:00', '21:00', '14:00', 20)    -- evening
+  ) AS v (start_time, end_time, cutoff_time, capacity)
+ WHERE NOT EXISTS (SELECT 1 FROM public.delivery_slot);
 
 COMMIT;

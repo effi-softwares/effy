@@ -19,11 +19,13 @@ const ADDRESS: AddressDTO = {
   id: "a1", label: null, recipientName: "Pat", phone: null, line1: "1 Test St", line2: null,
   city: "Melbourne", region: "VIC", postalCode: "3000", country: "AU", isDefault: true,
 }
-const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+/**
+ * ⚠ A COURIER quote on purpose: it has one fee ($6.00) and NOTHING TO CHOOSE, so these tests can go
+ * straight to paying — they are about the points split, not about picking a delivery window.
+ */
 const QUOTE = (usable: number): DeliveryQuoteDTO => ({
-  postcode: "3000", serviced: true, sameDayAvailableUntil: null, expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-  packages: [{ shopRef: "pkg-1", options: [{ method: "standard", feeAmount: "6.00", promisedFrom: null, promisedTo: null }] }],
-  sameDaySlots: [], sameDayUnavailableReason: "slots_closed", standardDays: [{ date: day(1) }],
+  postcode: "3000", serviced: true, coverage: "courier", expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+  courier: { estimate: "2–4 business days", reason: "out_of_coverage", fee: { lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" } },
   ...(usable > 0 ? { points: { usable, centsPerPoint: 1, cardMinimumAmount: "0.50" } } : {}),
 })
 const jsonRes = (body: unknown, ok = true, status = 200) => ({ ok, status, json: async () => body }) as Response

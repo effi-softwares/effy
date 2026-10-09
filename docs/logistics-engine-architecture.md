@@ -1,5 +1,13 @@
 # Effy Logistics Engine — Research Deliverable & Build Plan
 
+> ⚠ **PARTLY OUT OF DATE (2026-10-10, feature 083).** There is now ONE delivery model: an order is
+> **Delivered by Effy** in a window (today, or one of the next delivery days) or sent by **Courier
+> delivery**. Anything below about a same-day/standard method choice, a standard day handed to a carrier,
+> the carrier lead time, the standard look-ahead, same-day zones or per-shop same-day exceptions, or a
+> driver cleared "for same-day" describes the arrangement that was removed. The current model is in
+> "Delivery model" in [CLAUDE.md](../CLAUDE.md); the old one in
+> [archive/delivery-model-v1.md](archive/delivery-model-v1.md). This guide has not yet been rewritten.
+
 **Written 2026-09-20**, after the 049 driver work model was torn down
 (`db/migrations/20260920101500_remove_driver_work_model.sql`) and before the replacement is specified.
 

@@ -1,5 +1,13 @@
 # Effy Driver App — Design Brief for Claude Design
 
+> ⚠ **PARTLY OUT OF DATE (2026-10-10, feature 083).** There is now ONE delivery model: an order is
+> **Delivered by Effy** in a window (today, or one of the next delivery days) or sent by **Courier
+> delivery**. Anything below about a same-day/standard method choice, a standard day handed to a carrier,
+> the carrier lead time, the standard look-ahead, same-day zones or per-shop same-day exceptions, or a
+> driver cleared "for same-day" describes the arrangement that was removed. The current model is in
+> "Delivery model" in [CLAUDE.md](../CLAUDE.md); the old one in
+> [archive/delivery-model-v1.md](archive/delivery-model-v1.md). This guide has not yet been rewritten.
+
 > **Purpose of this document.** This is a complete prompt/brief to hand to **Claude Design** to
 > generate the FULL visual design (all screens, all states) of the **Effy Driver** mobile app. It
 > defines the product, the audience, the theme/design system, every feature and screen, and the

@@ -143,7 +143,7 @@ export interface ShopOrderRowDTO {
   deliveredBy: DeliveredBy
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
+  /** @deprecated — compatibility (083): kept so installed apps keep working. The customer's word (079); shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null
   /** Open (pending/received/picking) and within 15 minutes of — or past — its ready-by. */
   atRisk: boolean
@@ -263,7 +263,7 @@ export interface ShopOrderDetailDTO {
   deliveredBy: DeliveredBy
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
+  /** @deprecated — compatibility (083): kept so installed apps keep working. The customer's word (079); shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO

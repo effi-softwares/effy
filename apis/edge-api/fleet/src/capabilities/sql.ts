@@ -13,7 +13,7 @@
  * are cleared for it. That is why C3 proves the behaviour by CREATING a zone mid-test rather than by
  * asserting the clause exists, and why NP2 removes it and confirms C3 goes red.
  *
- * 082 — a clearance is (function, area); the method column is no longer read by anything.
+ * A clearance is (function, area) — one row each since 083 dropped the method column.
  *
  * Parameters: $1 driver, $2 function, $3 zone.
  */
@@ -40,10 +40,3 @@ export const CLEARED_DRIVERS_FOR_ZONE = `
      AND (cap.zone_id = needed.zone_id OR cap.zone_id IS NULL)`;
 
 export const CAPABILITY_FUNCTIONS = ["collection", "delivery"] as const;
-/**
- * ⚠ 082 — THE VALUE WRITTEN INTO THE UNREAD `method` COLUMN OF A NEW GRANT. The column is NOT NULL and
- * part of the unique index until E9 drops it; nothing reads it, and every existing row — whichever of
- * the two old values it holds — counts as its (function, area). One fixed value for new rows keeps
- * "grant twice" idempotent.
- */
-export const UNREAD_METHOD = "standard";
