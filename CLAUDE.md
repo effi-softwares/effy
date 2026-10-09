@@ -87,8 +87,8 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   - ⚠ **THE SWITCH** is `delivery_settings.delivery_model_v2_from` (NULL = off), read ONLY through
     `public.delivery_model_v2_at` → `deliveryModelV2At` (`shared/src/delivery/model.ts`), and called by
     the quote alone (`windows.guard.test.ts`). **Nothing sets it; E9 adds the setter.** ⚠ Do not turn
-    it on before **082 is deployed**: until then the planner gathers `same_day` only, so a later-day
-    order gets no driver round.
+    it on by hand: since **082** (deployed to dev) the planner gives a later-day order its round, so the
+    driver side no longer blocks it — but the cutover and its readiness check are E9's.
   - ⚠ **Which checkout a client is in, the QUOTE says**: `effyWindows` present → send `deliveryWindow
     {slotId, date}`; absent → the 069 fields. Absent, not null — the quote is then byte-identical.
   - ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` (cutoff every day; collection
@@ -533,8 +533,8 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — built, not deployed
-- **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off; not yet migrated or deployed to dev
+- **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
+- **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off, migrated and deployed to dev
 - **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev
 - **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — migrated and deployed to dev; not walked or signed off; rides 078's switch
 - **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — signed off, deployed to dev, switched off until the cutover

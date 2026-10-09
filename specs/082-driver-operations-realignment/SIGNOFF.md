@@ -1,7 +1,9 @@
 # Sign-off notes: 082 — Driver Operations Realignment
 
-**Status (2026-10-09)**: **built and checked by machine. NOT deployed, NOT walked, NOT signed off.**
-Everything below ran on local containers and test runners; nothing touched AWS. 29/29 tasks ticked, with
+✅ **SIGNED OFF by the operator (2026-10-09) — deployed to dev** (`fleet`, `driver`, `orders`; operator-reported). ⚠ Walks V1–V7 not recorded; the deviations and the known gap below stand as built. The model switch stays NULL until E9.
+
+**Status (2026-10-09)**: **built, checked by machine and deployed to dev (operator-reported). Not walked.**
+Every check below ran on local containers and test runners. 29/29 tasks ticked, with
 the gaps listed under "Not done". **No migration.**
 
 ⚠ This is the last thing 078's model switch waited for. The switch itself is still E9's to turn on.

@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**082-driver-operations-realignment — Driver Operations Realignment.** ⚠ **BUILT AND CHECKED BY MACHINE (2026-10-09).
-NOT DEPLOYED, NOT WALKED, NOT SIGNED OFF. No migration.** Eighth slice of the delivery model v2 programme
+**082-driver-operations-realignment — Driver Operations Realignment.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
+DEPLOYED TO DEV. ⚠ Walks V1–V7 were not recorded. No migration.** Eighth slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E8) — the last
 thing 078's model switch waited for. Sign-off notes:
 [specs/082-driver-operations-realignment/SIGNOFF.md](specs/082-driver-operations-realignment/SIGNOFF.md).
@@ -27,7 +27,7 @@ thing 078's model switch waited for. Sign-off notes:
   [quickstart.md](specs/082-driver-operations-realignment/quickstart.md).
 
 **081-courier-override-compensation — Back-Office Courier Override & Compensation.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
-built and checked by machine. ⚠ Not yet migrated or deployed to dev; walks V1–V7 not recorded; rides 078's switch.** Seventh slice of the delivery model v2 programme
+MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V7 were not recorded; rides 078's switch.** Seventh slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E7).
 Sign-off notes: [specs/081-courier-override-compensation/SIGNOFF.md](specs/081-courier-override-compensation/SIGNOFF.md).
 Runbook: [docs/runbooks/courier-override.md](docs/runbooks/courier-override.md).

@@ -1,9 +1,9 @@
 # Sign-off notes: 081 — Back-Office Courier Override & Compensation
 
-✅ **SIGNED OFF by the operator (2026-10-09)** — on the machine checks below. ⚠ Not yet migrated or deployed to dev, and walks V1–V7 not recorded; the seven deviations below stand as built.
+✅ **SIGNED OFF by the operator (2026-10-09) — migrated and deployed to dev** (operator-reported, the same day, together with 082). ⚠ Walks V1–V7 not recorded; the seven deviations below stand as built.
 
-**Status (2026-10-09)**: **built and checked by machine. NOT migrated, NOT deployed, NOT walked.**
-Everything below ran on local containers and test runners; nothing touched AWS. 35/35 tasks ticked, with
+**Status (2026-10-09)**: **built, checked by machine, migrated and deployed to dev (operator-reported). Not walked.**
+Every check below ran on local containers and test runners. 35/35 tasks ticked, with
 the gaps listed under "Not done". Rides 078's model switch: only orders sold under the new delivery model
 have a delivery type, so nothing in dev can be moved until the switch is on.
 

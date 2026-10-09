@@ -90,8 +90,8 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09 (switched off) | E2 |
 | E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
-| E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 | E1, E5, E6 |
-| E8 | 082 | Driver Operations Realignment — ✅ built 2026-10-09 | E4, E5 |
+| E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 (deployed to dev) | E1, E5, E6 |
+| E8 | 082 | Driver Operations Realignment — ✅ signed off 2026-10-09 (deployed to dev) | E4, E5 |
 | E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
 | E10 | later | Deferred items | — |
 
@@ -131,8 +131,12 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 > **2026-10-09 — E6 (spec 080, Courier Fulfilment) is signed off: built, migrated and deployed to dev**
 > (`specs/080-courier-fulfilment/SIGNOFF.md`) — details under E6. Rides 078's switch. **Next: E7 (spec 081).**
 
-> **2026-10-09 — E7 (spec 081, Courier Override & Compensation) is signed off: built and checked by machine, not yet deployed**
+> **2026-10-09 — E7 (spec 081, Courier Override & Compensation) is signed off: built, migrated and deployed to dev**
 > (`specs/081-courier-override-compensation/SIGNOFF.md`) — details under E7. Rides 078's switch. **Next: E8 (spec 082).**
+
+> **2026-10-09 — E8 (spec 082, Driver Operations Realignment) is signed off: built and deployed to dev, no migration**
+> (`specs/082-driver-operations-realignment/SIGNOFF.md`) — details under E8. The driver side no longer blocks 078's switch.
+> **Next: E9 (spec 083, cutover).**
 
 ## E0 — Cleanup & decision record (no spec)
 
@@ -761,10 +765,10 @@ by email for each parcel.
 
 ---
 
-## E7 — Back-Office Courier Override & Compensation · spec 081 — ✅ signed off 2026-10-09 (not yet deployed)
+## E7 — Back-Office Courier Override & Compensation · spec 081 — ✅ signed off 2026-10-09 (deployed to dev)
 
-> **2026-10-09 — SIGNED OFF by the operator: built and checked by machine** (`specs/081-courier-override-compensation/SIGNOFF.md`);
-> not yet migrated or deployed to dev, walks V1–V7 not recorded. Rides 078's switch. Deviations: only orders with a
+> **2026-10-09 — SIGNED OFF by the operator: built, migrated and deployed to dev** (`specs/081-courier-override-compensation/SIGNOFF.md`);
+> walks V1–V7 not recorded. Rides 078's switch. Deviations: only orders with a
 > delivery type move; out for delivery blocks a move; consignments are made at booking, not at the move; one
 > `POST …/delivery-move` (both directions, compensation in the call) + one `GET` preview; a quiet points credit (one
 > message); "nothing" needs a note; `changeDeliveryType` returns the history row. **Next: E8 (spec 082).**
@@ -851,14 +855,17 @@ Only admins and managers can move orders; customer-service agents can view.
 *Tests, docs*
 - [x] E7-T14 Container tests: each compensation kind; courier dearer → no charge; override after handover refused; window released frees capacity; driver round updated. — *All but the refusal for an order with no delivery type were in the list; that is covered too.*
 - [x] E7-T15 Metrics: overrides per day (alarm if above threshold — emergencies should be rare).
-- [x] E7-T16 FEATURE-HISTORY entry + operator steps. — *Operator steps in `specs/081-courier-override-compensation/SIGNOFF.md`; not yet migrated or deployed.*
+- [x] E7-T16 FEATURE-HISTORY entry + operator steps. — *Operator steps in `specs/081-courier-override-compensation/SIGNOFF.md`; migrated and deployed to dev 2026-10-09.*
 
 ---
 
-## E8 — Driver Operations Realignment · spec 082 — ✅ built 2026-10-09 (not deployed, not signed off)
+## E8 — Driver Operations Realignment · spec 082 — ✅ signed off 2026-10-09 (deployed to dev)
 
-> **2026-10-09 — BUILT and checked by machine** (`specs/082-driver-operations-realignment/SIGNOFF.md`); not deployed
-> or walked. No migration. The driver side no longer blocks 078's switch once deployed. **Next: E9 (spec 083).**
+> **2026-10-09 — SIGNED OFF by the operator: built and deployed to dev** (`specs/082-driver-operations-realignment/SIGNOFF.md`);
+> walks V1–V7 not recorded. No migration. The driver side no longer blocks 078's switch. Deviations: no migration
+> (the method column is unread until E9); `same_day_delivery` stays on the driver wire until E9; dispatch's
+> unassigned list hides parcels not yet due on a run. Known gap: the orders list's "needs a driver" lists a
+> supplier-ready parcel before its run is due. **Next: E9 (spec 083).**
 
 > **2026-10-09 — specified (`specs/082-driver-operations-realignment/spec.md`).** The specify prompt below was
 > amended with what 076, 079 and 081 left for E8: areas are postcode groups and an ungrouped postcode is
@@ -927,7 +934,7 @@ planned time and is assigned as soon as a qualifying driver can take it.
 - [x] E8-T13 Port driver container tests (`hub-stop`, `checkin`, `drop-window`, `manifest`, `open`, `drop-progress`). — *Ported where they asserted a method; `checkin` extended.*
 - [x] E8-T14 Port `CollectionViewModelTest.kt` and add Today tests for future-day rounds. — *`HubSplitTest` extended; the Today screens only changed words.*
 - [x] E8-T15 Update `docs/logistics-engine-architecture.md`, `docs/driver-app-design-brief.md`.
-- [x] E8-T16 FEATURE-HISTORY entry + operator steps (driver app release needed). — *Operator steps in the SIGNOFF; not yet deployed.*
+- [x] E8-T16 FEATURE-HISTORY entry + operator steps (driver app release needed). — *Operator steps in the SIGNOFF; deployed to dev 2026-10-09.*
 
 ---
 
