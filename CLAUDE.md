@@ -86,9 +86,18 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   delivery"** — the customer words STAY; "standard" now also means *Effy, on a later day, in a window*.
   - ⚠ **THE SWITCH** is `delivery_settings.delivery_model_v2_from` (NULL = off), read ONLY through
     `public.delivery_model_v2_at` → `deliveryModelV2At` (`shared/src/delivery/model.ts`), and called by
-    the quote alone (`windows.guard.test.ts`). **Nothing sets it; E9 adds the setter.** ⚠ Do not turn
-    it on by hand: since **082** (deployed to dev) the planner gives a later-day order its round, so the
-    driver side no longer blocks it — but the cutover and its readiness check are E9's.
+    the quote alone (`windows.guard.test.ts`). ⚠ **IT HAS ONE WRITER (083, stage 1 — built, not yet
+    deployed)**: `admin/src/delivery/go-live.repository.ts` — back-office → Delivery → Go-live, **admins
+    only**, in one transaction with its audit row, and **refused while `goLiveReadiness`
+    (`shared/src/delivery/readiness.ts`) says not ready**. A 5-minute sweep clears a scheduled switch that
+    stops being ready within 10 minutes of its moment; it never undoes a passed one. ⚠ Never set it by
+    hand or in code — a person does, per `docs/runbooks/delivery-model-v2-cutover.md`.
+  - ⚠ **AN OLD-KIND ORDER IS ONE WITH NO `delivery_type`; "STILL OPEN" IS `LEGACY_OPEN_ORDER_SQL`**
+    (`shared/src/delivery/legacy.ts`) — the go-live count, the order list's `open=true` filter and the
+    alert all read it. ⚠ The type is recorded at CAPTURE, so an order captured before the moment and
+    paid after it is still old. Old orders finish as sold; nothing on that path reads the switch.
+  - ⛔ **083 STAGE 2 (removing the old arrangement) IS NOT STARTED** and waits for the operator: stage 1
+    live and walked, no old order open, every app updated.
   - ⚠ **Which checkout a client is in, the QUOTE says**: `effyWindows` present → send `deliveryWindow
     {slotId, date}`; absent → the 069 fields. Absent, not null — the quote is then byte-identical.
   - ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` (cutoff every day; collection
@@ -533,6 +542,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **083-delivery-model-cutover** — Delivery Model Cutover — stage 1 (the switch, Go-live tab) built, not yet migrated or deployed; stage 2 (the removal) not started
 - **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
 - **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off, migrated and deployed to dev
 - **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev
@@ -593,5 +603,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/082-driver-operations-realignment/plan.md
+at specs/083-delivery-model-cutover/plan.md
 <!-- SPECKIT END -->

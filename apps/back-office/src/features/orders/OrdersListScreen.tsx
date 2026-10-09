@@ -4,7 +4,8 @@ import { Badge } from "@effy/design-system/ui";
 import { OrdersTabs } from "./OrdersTabs";
 import { PackageStatusPill } from "@effy/web-kit/console";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
+import { X } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import {
@@ -123,7 +124,10 @@ const columns: ColumnDef<OrderSummary>[] = [
 export function OrdersListScreen() {
   const [search, setSearch] = useState("");
   const [awaiting, setAwaiting] = useState<string>(ALL);
-  const [delivery, setDelivery] = useState<string>(ALL);
+  // 083 — the go-live page links here with `?delivery=legacy&open=true`: the old orders still open.
+  const fromUrl = useSearch({ strict: false }) as { delivery?: "legacy"; open?: boolean };
+  const [delivery, setDelivery] = useState<string>(fromUrl.delivery === "legacy" ? "legacy" : ALL);
+  const [stillOpen, setStillOpen] = useState<boolean>(fromUrl.delivery === "legacy" && fromUrl.open === true);
   /**
    * Keyset paging, so a stack rather than a page number.
    *
@@ -142,9 +146,10 @@ export function OrdersListScreen() {
       needsDriver: awaiting === NEEDS_DRIVER ? true : undefined,
       // 079 — who delivers the order.
       deliveryType: delivery === ALL ? undefined : (delivery as AdminOrderDeliveryFilter),
+      stillOpen: delivery === "legacy" && stillOpen ? true : undefined,
       cursor: cursors[cursors.length - 1],
     }),
-    [search, awaiting, delivery, cursors],
+    [search, awaiting, delivery, stillOpen, cursors],
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params));
@@ -192,6 +197,8 @@ export function OrdersListScreen() {
           value={delivery}
           onValueChange={(v) => {
             setDelivery(v);
+            // "Still open" narrows the old orders only.
+            if (v !== "legacy") setStillOpen(false);
             setCursors([]);
           }}
         >
@@ -207,6 +214,22 @@ export function OrdersListScreen() {
             ))}
           </SelectContent>
         </Select>
+        {delivery === "legacy" && stillOpen ? (
+          <Badge variant="secondary" className="gap-1" data-testid="still-open-chip">
+            Still open
+            <button
+              type="button"
+              aria-label="Show closed old orders too"
+              className="rounded-full p-0.5 hover:bg-muted"
+              onClick={() => {
+                setStillOpen(false);
+                setCursors([]);
+              }}
+            >
+              <X className="size-3" aria-hidden />
+            </button>
+          </Badge>
+        ) : null}
       </div>
 
       {isError ? (

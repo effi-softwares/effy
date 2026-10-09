@@ -1063,6 +1063,40 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  # ── 083: going live with the new delivery model ─────────────────────────────────────────────────
+  deliveryGoLiveGetV1:
+    handler: src/functions/delivery-go-live-v1-get.handler
+    description: The go-live checklist, the model switch and the old orders still open — 083
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/go-live
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  # ⚠ Admin only (decided from the staff record), and refused while the checklist is not ready.
+  deliveryGoLiveSwitchPutV1:
+    handler: src/functions/delivery-go-live-switch-v1-put.handler
+    description: Set, change, cancel or turn back off the new delivery model — 083
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery/go-live/switch
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  # ⚠ No route. Clears a scheduled switch the platform is no longer ready for, and counts the old
+  # orders still open. Its failed-invocation alarm is infra/envs/<env>/background-functions.tf
+  # (delivery-model-switch-sweep); the alarms on what it reports are delivery-model-alarms.tf.
+  deliveryModelSwitchSweep:
+    handler: src/functions/delivery-model-switch-sweep.handler
+    description: Every 5 minutes — is a scheduled delivery-model switch still safe; old orders still open → Effy/Platform (083)
+    timeout: 30
+    events:
+      - schedule: rate(5 minutes)
+
   deliveryCollectionRunsListV1:
     handler: src/functions/delivery-collection-runs-list-v1-get.handler
     description: List daily collection runs — 047 US2

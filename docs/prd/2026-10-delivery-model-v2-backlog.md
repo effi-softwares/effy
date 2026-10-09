@@ -92,7 +92,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
 | E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 (deployed to dev) | E1, E5, E6 |
 | E8 | 082 | Driver Operations Realignment — ✅ signed off 2026-10-09 (deployed to dev) | E4, E5 |
-| E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
+| E9 | 083 | Cutover & Retirement of Same-Day/Standard — 🟡 stage 1 (the switch) built 2026-10-09, not yet deployed; stage 2 (the removal) waits for no old order open | E5–E8 |
 | E10 | later | Deferred items | — |
 
 Numbering assumes nothing else takes 074–082 first; renumber freely.
@@ -137,6 +137,12 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 > **2026-10-09 — E8 (spec 082, Driver Operations Realignment) is signed off: built and deployed to dev, no migration**
 > (`specs/082-driver-operations-realignment/SIGNOFF.md`) — details under E8. The driver side no longer blocks 078's switch.
 > **Next: E9 (spec 083, cutover).**
+
+> **2026-10-09 — E9 (spec 083) STAGE 1 is built and checked by machine: not yet migrated, deployed or walked**
+> (`specs/083-delivery-model-cutover/SIGNOFF.md`). The switch has its one writer (back-office → Delivery →
+> Go-live, admins only, refused while not ready), a 5-minute sweep that stops a scheduled switch the platform
+> is no longer ready for, the old-order count and its list. **Nothing was switched on.** Stage 2 (the removal,
+> 083 T022–T038) does not start until the operator confirms stage 1 is live and no old order is open.
 
 ## E0 — Cleanup & decision record (no spec)
 
@@ -938,7 +944,37 @@ planned time and is assigned as soon as a qualifying driver can take it.
 
 ---
 
-## E9 — Cutover & Retirement of Same-Day/Standard · spec 083
+## E9 — Cutover & Retirement of Same-Day/Standard · spec 083 — stage 1 built 2026-10-09 (not deployed); stage 2 not started
+
+> **2026-10-09 — specified (`specs/083-delivery-model-cutover/spec.md`).** The specify prompt below was amended with
+> what 078–082 left: the customer words "Same-day delivery" / "Standard delivery" STAY (078's decision — the
+> old ARRANGEMENT goes, not those two names); the readiness check requires courier delivery to be off or fully
+> armed (079); collection runs and the hub location are readiness items; the removal waits for updated apps.
+> Settled by default, for the operator to confirm: **two stages released separately** (the switch; then the
+> removal once no old order is open); **admins only** set the switch; it **can be turned back, with a reason,
+> until the removal**; "open" = paid and not completed, cancelled or fully refunded; an alert if old orders are
+> still open 7 days after the switch.
+>
+> **2026-10-09 — planned (`specs/083-delivery-model-cutover/plan.md`).** Corrections to the tasks below:
+> **E9-T02** — readiness is ONE shared function used by the page, the setter and a 5-minute sweep that blocks
+> a scheduled switch whose readiness has broken. **E9-T03** — no work: old orders already render from
+> `package_delivered_by` and their method. **E9-T06** — the two tables are NOT dropped or renamed (076 evolved
+> them in place; they are the list). **E9-T09** — the method columns STAY: for an Effy order they are the
+> customer's word (same-day = today's window). **E9-T13/T14** — the driver wire's `same_day_delivery`,
+> `sameDayCount`, `standardCount` and the shop wire's `deliveryMethod` are KEPT as compatibility values:
+> there is no app-update mechanism, so installed apps must keep working. **E9-T15** — the script is
+> `check-no-legacy-delivery.sh` and names the old PATH's identifiers, not the words `same_day`/`standard`.
+> **Stage 2's migration refuses while an old order is open.**
+>
+> **2026-10-09 — stage 1 built (083 T001–T021).** One migration (a settings column for the alert age). The
+> switch's ONE writer is `admin/src/delivery/go-live.repository.ts`; `goLiveReadiness` (shared) is the one
+> definition the page, the setter and the sweep ask; `LEGACY_OPEN_ORDER_SQL` is the one definition of "an old
+> order still open" for the count, the list filter and the alert. `GET /admin/v1/delivery/go-live`,
+> `PUT /admin/v1/delivery/go-live/switch` (staff gateway +2). Done differently: **P7** ("old orders finish as
+> sold") is proven in the planner and handover suites that already hold the fixtures, not in a new
+> cross-service test; **E9-T03 / T015** needed no change — every surface already asserted an old order renders.
+> Found while proving P6: an order's type is recorded when it is **captured**, so an order captured the old way
+> and paid just after the moment is still an old order — the runbook says to expect a few.
 
 > **2026-10-09 — three removals moved here from E5 (079 research R10).** Today's live checkout still
 > reads them, so they go with the legacy quote, not before: the same-day bridge
@@ -954,24 +990,31 @@ delete the old model's code, columns and docs.
 
 ```
 /speckit-specify Cutover to the new delivery model. From a moment the business chooses, every new
-order uses "Delivered by Effy" or "Courier delivery"; orders placed before that moment keep exactly
-what they were sold ("same-day" with its window, or "standard" with its day) and finish their journey
-unchanged — customers, suppliers, drivers and staff can still see and complete them. Once no order of
-the old kind remains open, the old arrangement is removed entirely: nothing anyone sees mentions
-"same-day" or "standard" except the history of old orders, which still reads correctly. Before the
-switch, staff can check that the new setup is complete — delivery area listed, fee plans active,
-windows defined, courier services and settings in place — and the switch refuses to happen if
-anything is missing.
+order uses "Delivered by Effy" (a delivery window today or on one of the next delivery days) or "Courier
+delivery"; orders placed before that moment keep exactly what they were sold (a same-day window, or a
+standard day handed to a carrier) and finish their journey unchanged — customers, suppliers, drivers and
+staff can still see and complete them. Before the switch, staff can check that the new setup is complete
+— delivery area listed, an Effy fee plan active, delivery windows defined, collection runs scheduled, and
+courier delivery either switched off or fully set up (fee table, default courier service, how parcels
+reach the courier) — and the switch refuses to happen if anything is missing. Staff choose the moment
+(now, or a future time), can change or cancel it until it arrives, and can see afterwards when it
+happened and who set it. After the switch staff can see how many orders of the old kind are still open.
+Once none remains open and every app in use has been updated, the old arrangement is removed entirely in
+a second step: the old checkout choices, the old settings and screens that only served it, and the old
+words for staff, suppliers and drivers all go, while the history of old orders still reads correctly.
+Customers keep reading "Same-day delivery" and "Standard delivery" as the names of an Effy window today
+or on a later day. The business's documentation is rewritten to describe only the new model, with a short
+record of what the old one was and how to read an old order.
 ```
 
 **Tasks**
 
 *Cutover*
-- [ ] E9-T01 **The switch already exists (078)** — `delivery_settings.delivery_model_v2_from`, read only via `public.delivery_model_v2_at` → `deliveryModelV2At`. Add ONLY the setter route (staff gateway) behind E9-T02's readiness check; do not create `delivery_model_for`.
-- [ ] E9-T02 Readiness check route + back-office "Go-live checklist" panel (coverage non-empty, Effy plan active and complete, courier plan active, ≥1 active slot, courier service defined, collection mode set).
-- [ ] E9-T03 Legacy rendering: `delivery_type IS NULL` orders render from `delivery_method` everywhere (status, receipts, apps) until closed.
-- [ ] E9-T04 Report: open legacy orders count (back-office + metric) — the trigger for the retirement step.
-- [ ] E9-T05 Runbook `docs/runbooks/delivery-model-v2-cutover.md` (order: migrations → deploy shared → services → web → mobile releases → set the date).
+- [x] E9-T01 **The switch already exists (078)** — `delivery_settings.delivery_model_v2_from`, read only via `public.delivery_model_v2_at` → `deliveryModelV2At`. Add ONLY the setter route (staff gateway) behind E9-T02's readiness check; do not create `delivery_model_for`. — **Done (stage 1).** `PUT /admin/v1/delivery/go-live/switch`, admin only, with `expected` so two admins cannot overwrite each other; set / change / cancel / turn back off (reason required), each audited.
+- [x] E9-T02 Readiness check route + back-office "Go-live checklist" panel (coverage non-empty, Effy plan active and complete, courier plan active, ≥1 active slot, courier service defined, collection mode set). — **Done (stage 1).** One shared `goLiveReadiness`; Go-live tab; a 5-minute sweep clears a scheduled switch that is no longer ready within 10 minutes of its moment and alarms.
+- [x] E9-T03 Legacy rendering: `delivery_type IS NULL` orders render from `delivery_method` everywhere (status, receipts, apps) until closed. — **No work (stage 1):** already true; proven with the switch ON (planner + handover suites).
+- [x] E9-T04 Report: open legacy orders count (back-office + metric) — the trigger for the retirement step. — **Done (stage 1).** Count on the Go-live tab linking to the order list's "Still open" filter; metrics `LegacyOrdersOpen` / `LegacyOrdersOpenPastDue` + alarm.
+- [x] E9-T05 Runbook `docs/runbooks/delivery-model-v2-cutover.md` (order: migrations → deploy shared → services → web → mobile releases → set the date). — **Done (stage 1).** Written for the real order of work: migration → `admin`, `orders` → `apply` → back-office → readiness → the moment.
 *Retirement (after legacy count = 0)*
 - [ ] E9-T06 Migration: drop `delivery_ring`, `delivery_zone.ring_id`, `ring_is_overridden`, `hub_distance_km`, `sameday_eligible`; drop `delivery_zone` + `delivery_zone_postcode` if E2 replaced them.
 - [ ] E9-T07 Migration: drop `shop_sameday_declaration`, `shop_sameday_area`, `shop_sameday_exception` (if still present in the live schema — verify).

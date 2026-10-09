@@ -138,3 +138,21 @@ export const COVERAGE_REASON_COPY: Record<string, string> = {
 export const NO_DRIVER_GROUP = "No driver is cleared to deliver to that group. Orders placed there could not be given to anyone until a driver is cleared for it.";
 export const NO_DRIVER_UNGROUPED =
   "These postcodes would be in no group, and no driver is cleared to deliver everywhere. Orders placed there could not be given to anyone.";
+
+// ── 083: going live ────────────────────────────────────────────────────────────────────────────────
+
+/** The console's own words for each way the switch is refused; keyed on the contract's `code`. */
+const GO_LIVE_COPY: Record<string, string> = {
+  not_ready: "The platform is not ready: something the new delivery model needs is missing. The items marked Not ready below say what.",
+  changed: "Someone else changed the switch a moment ago. This page now shows what they set — check it and try again.",
+  removed: "The old delivery arrangement has been removed, so the new model is on for good.",
+};
+
+export function goLiveError(err: unknown): string {
+  if (isDomainError(err)) {
+    if (err.kind === "forbidden") return "Only an administrator can switch the delivery model.";
+    if (err.code && GO_LIVE_COPY[err.code]) return GO_LIVE_COPY[err.code]!;
+    if (err.status === 400) return "Enter a date and time — and, to turn the model back off, say why.";
+  }
+  return deliveryMutationError(err);
+}

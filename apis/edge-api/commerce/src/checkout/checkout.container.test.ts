@@ -1332,6 +1332,61 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   const ordersOf = (customerId: string) => count(`SELECT 1 FROM public."order" WHERE customer_id = $1`, [customerId]);
   const courier = (addressId: string, over: Partial<IntentInput> = {}) => input(addressId, { deliveryType: "courier", ...over });
 
+  /**
+   * ⚠ 083 P6 — ACROSS THE MOMENT. The switch is an instant, set ahead of time: one clock decides which
+   * checkout a shopper is in, and an order is whichever kind it was when it was PAID FOR — never half
+   * of each. Nothing here is new behaviour; it is the proof the cutover leans on.
+   */
+  it("083 P6 — before the moment the old checkout, after it the new one; an unpaid order is re-captured; an old client is refused", async () => {
+    const before = new Date();
+    const after = new Date(before.getTime() + 6 * 60_000);
+    await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = $1 WHERE id = 1`, [new Date(before.getTime() + 5 * 60_000)]);
+    try {
+      const quoteAt = (s: { customerId: string; addressId: string }, now: Date) =>
+        quoteForCheckout({ store, quoter: defaultQuoter(pool), promos: noPromo }, s.customerId, s.addressId, now);
+      const typeOf = async (orderId: string) => (await one<{ t: string | null }>(`SELECT delivery_type AS t FROM public."order" WHERE id = $1`, [orderId])).t;
+
+      // One shopper, one basket, either side of the moment.
+      const s = await shopper({ Milk: 2 });
+      expect(await quoteAt(s, before)).not.toHaveProperty("effyWindows");
+      const q = await quoteAt(s, after);
+      expect(q.effyWindows!.days.length).toBeGreaterThan(0);
+
+      // Captured before, never paid: the old kind of order, pending.
+      const old = await svc.createIntent(s.customerId, input(s.addressId), before);
+      expect((await packagesOf(old.orderId))[0]).toMatchObject({ method: "standard", slot: null });
+      expect(await typeOf(old.orderId)).toBeNull();
+
+      // ⚠ The same shopper comes back after the moment with a client that has not re-read the quote.
+      const created = gateway.created();
+      expect(await refusal(svc.createIntent(s.customerId, input(s.addressId), after))).toBe("slot_required");
+      expect(await refusal(svc.createIntent(s.customerId, sameDay(s.addressId), after))).toBe("slot_required");
+      expect(gateway.created()).toBe(created); // nothing charged
+      expect((await packagesOf(old.orderId))[0]).toMatchObject({ method: "standard", slot: null }); // nothing rewritten
+
+      // Re-submitted the new way: the SAME order, re-captured whole as a window order, and typed when paid.
+      const day = effyDays(after, 3)[1]!.date;
+      const again = await svc.createIntent(s.customerId, windowOn(s.addressId, day), after);
+      expect(again.orderId).toBe(old.orderId);
+      expect(await packagesOf(old.orderId)).toEqual([expect.objectContaining({ method: "standard", day, slot: slotId })]);
+      // The type is the capture's: it was untyped while captured the old way, and is "effy" now.
+      expect(await typeOf(old.orderId)).toBe("effy");
+      await pay(old.orderId);
+      expect(await typeOf(old.orderId)).toBe("effy");
+
+      // And an order captured the old way stays the old kind when it is paid — even if the payment
+      // lands after the moment (the client confirms with the provider directly; nothing re-reads the
+      // clock). ⚠ So an old-kind order can still appear in the minutes after the switch.
+      const e = await shopper({ Milk: 1 });
+      const paidBefore = await svc.createIntent(e.customerId, input(e.addressId), before);
+      await pay(paidBefore.orderId);
+      expect(await typeOf(paidBefore.orderId)).toBeNull();
+      expect((await packagesOf(paidBefore.orderId))[0]).toMatchObject({ method: "standard", slot: null });
+    } finally {
+      await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = NULL WHERE id = 1`);
+    }
+  });
+
   it("079 P3 — the switch OFF, courier fully armed: nobody is offered a courier and today's checkout is untouched", async () => {
     await courierArmed(async () => {
       const s = await shopper({ Milk: 2 });

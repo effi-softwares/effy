@@ -765,6 +765,30 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
   });
 
   /**
+   * ⚠ 083 P7 — WITH THE NEW MODEL ON, AN ORDER SOLD THE OLD WAY IS STILL PLANNED THE OLD WAY. It has
+   * no recorded delivery type and never will; the gather answers "whose is it" from what it was sold
+   * (`package_delivered_by`), not from a type it does not have and not from the switch.
+   */
+  it("⚠ 083 P7 — the new model on: an old same-day parcel still gets its delivery round; an old standard one is still not ours", async () => {
+    const { shopId, driverId } = await world();
+    await q(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by, delivery_model_v2_from)
+             VALUES (1, -37.81, 144.96, 'test', '2026-10-01T00:00:00Z')
+             ON CONFLICT (id) DO UPDATE SET delivery_model_v2_from = EXCLUDED.delivery_model_v2_from`);
+    try {
+      const sameDay = await atHub(driverId, shopId, EARLY);          // sold a same-day window, before the switch
+      await atHub(driverId, shopId, null, "standard");                // sold a standard day: a carrier's
+      expect((await q(`SELECT count(*)::int AS n FROM public."order" WHERE delivery_type IS NOT NULL`)).rows[0].n).toBe(0);
+
+      const outcome = await runPass(THU_NOON);
+      expect(outcome.delivery).toMatchObject({ considered: 1, assigned: 1 });
+      expect((await q(`SELECT rp.shop_fulfillment_id AS id FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+                        JOIN public.driver_round dr ON dr.id = rs.round_id WHERE dr.kind = 'delivery'`)).rows.map((r) => r.id)).toEqual([sameDay]);
+    } finally {
+      await q(`UPDATE public.delivery_settings SET delivery_model_v2_from = NULL WHERE id = 1`);
+    }
+  });
+
+  /**
    * 082 P11 — an order back-office moved from courier back to Effy for a later day (081) is stored as
    * an Effy order whose parcels carry the new window (`moveToEffy`: method by the day, slot, window).
    * It gets a round on that day like any other.

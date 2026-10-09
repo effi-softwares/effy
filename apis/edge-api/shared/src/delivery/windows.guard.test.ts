@@ -11,8 +11,8 @@ import { describe, expect, it } from "vitest";
  *   1. THE SWITCH HAS ONE READER. `delivery_settings.delivery_model_v2_from` is read by the SQL
  *      function `public.delivery_model_v2_at`, and that function by `model.ts`. A second reader is a
  *      second opinion about which checkout a customer is in: one prices a window the other refuses.
- *   2. NOTHING SETS THE SWITCH. It is turned on by the cutover, behind its readiness check — until
- *      the driver side can hold a parcel for a later day, a later-day order has nobody to deliver it.
+ *   2. THE SWITCH HAS ONE WRITER (083): the back-office go-live setter, behind its readiness check
+ *      and beside its audit row. Nothing else sets it.
  *   3. A WINDOW BECOMES AN INSTANT IN ONE PLACE (`clockOn` / `clockOnDate` in `slots.ts`). 058 found
  *      two calendar defects from rebuilding an instant out of wall-clock fields in more than one.
  */
@@ -40,8 +40,25 @@ describe("078 — the delivery-model switch", () => {
     expect(sources.length).toBeGreaterThan(300);
   });
 
-  it("no code names the switch column — it is read through the SQL function only", () => {
-    expect(naming("delivery_model_v2_from")).toEqual([]);
+  /**
+   * ⚠ 083 — THE SWITCH HAS ONE WRITER, and it is the only code that names the column. It writes
+   * behind the readiness check and beside its audit row; a second writer is a way to turn the new
+   * checkout on with no plan to price it and nobody on the record for having done it.
+   */
+  it("one file names the switch column — its writer; everything else reads the SQL function", () => {
+    expect(naming("delivery_model_v2_from")).toEqual(["admin/src/delivery/go-live.repository.ts"]);
+    const writers = sources.filter((s) => /SET\s+delivery_model_v2_from/.test(s.src)).map((s) => s.file);
+    expect(writers).toEqual(["admin/src/delivery/go-live.repository.ts"]);
+  });
+
+  it("⚠ 083 — 'ready' is defined once, and the page, the setter and the sweep all ask it", () => {
+    const defined = sources.filter((s) => /function goLiveReadiness\b/.test(s.src)).map((s) => s.file);
+    expect(defined).toEqual(["shared/src/delivery/readiness.ts"]);
+    const service = sources.find((s) => s.file === "admin/src/delivery/go-live.service.ts")!.src;
+    // Three uses: readGoLive (the page), setSwitch (the refusal), sweep (until the moment).
+    expect(service.match(/goLiveReadiness\(/g)).toHaveLength(3);
+    const callers = sources.filter((s) => /goLiveReadiness\(/.test(s.src)).map((s) => s.file).sort();
+    expect(callers).toEqual(["admin/src/delivery/go-live.service.ts", "shared/src/delivery/readiness.ts"]);
   });
 
   it("the SQL function has ONE caller", () => {

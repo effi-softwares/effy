@@ -15,6 +15,11 @@ import { appRoute } from "./app";
 export const ordersIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders",
+  // 083 — the go-live page links here for the old orders still open.
+  validateSearch: (search: Record<string, unknown>): { delivery?: "legacy"; open?: boolean } => ({
+    ...(search.delivery === "legacy" ? { delivery: "legacy" as const } : {}),
+    ...(search.open === true || search.open === "true" ? { open: true } : {}),
+  }),
   component: OrdersListScreen,
 });
 

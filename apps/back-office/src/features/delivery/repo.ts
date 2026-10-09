@@ -21,6 +21,7 @@ import type {
   CoverageCheckResultDTO,
   CoverageListDTO,
   CoveragePlaceSearchDTO,
+  GoLiveDTO, GoLiveSwitch, GoLiveSwitchRequest,
   PatchCoveragePostcodesRequest, CourierReachDTO, CourierReachUpdateDTO, CourierServiceDTO, CourierServiceInput, CourierServiceListDTO,
 } from "@effy/shared-types";
 
@@ -183,4 +184,14 @@ export function createCourierService(body: CourierServiceInput): Promise<Courier
 }
 export function updateCourierService(id: string, body: CourierServiceInput): Promise<CourierServiceDTO> {
   return api.put<CourierServiceDTO>(`/admin/v1/delivery/courier-services/${id}`, body);
+}
+
+// ── going live with the new delivery model (083) ───────────────────────────────────────────────────
+
+export function getGoLive(): Promise<GoLiveDTO> {
+  return api.get<GoLiveDTO>("/admin/v1/delivery/go-live");
+}
+/** Admin only. `at`: an instant, "now", or null (cancel — or, once on, turn back off with a reason). */
+export function putGoLiveSwitch(body: GoLiveSwitchRequest): Promise<GoLiveSwitch> {
+  return api.put<GoLiveSwitch>("/admin/v1/delivery/go-live/switch", body);
 }

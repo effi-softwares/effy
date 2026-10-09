@@ -37,6 +37,10 @@ export const handler = async (
     return problem(400, VALIDATION_FAILED, "Bad delivery type", "deliveryType is effy, courier or legacy", guard.scope);
   }
   const deliveryType = qs.deliveryType as AdminOrderDeliveryFilter | undefined;
+  // 083 — "still open" narrows the old-kind orders only; anywhere else it would quietly mean nothing.
+  if (qs.open !== undefined && (qs.open !== "true" || deliveryType !== "legacy")) {
+    return problem(400, VALIDATION_FAILED, "Bad filter", "open=true is used with deliveryType=legacy", guard.scope);
+  }
 
   const parsed = Number(qs.limit);
   const limit = Number.isFinite(parsed)
@@ -51,6 +55,7 @@ export const handler = async (
       // 073 — "Needs a driver".
       needsDriver: qs.needsDriver === "true",
       deliveryType,
+      stillOpen: qs.open === "true",
       cursor: qs.cursor || undefined,
       limit,
     });

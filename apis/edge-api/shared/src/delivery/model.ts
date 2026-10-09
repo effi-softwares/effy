@@ -9,8 +9,9 @@ import type { Queryable } from "../lib/db";
  * column behind it (`windows.guard.test.ts`). Two readers would be two opinions about which
  * checkout a customer is in — one prices a window the other refuses.
  *
- * ⚠ NOTHING SETS IT YET. The switch is turned on by the cutover (E9), behind its readiness check:
- * until the driver side can hold a parcel for a later day, a later-day order has nobody to deliver it.
+ * ⚠ IT HAS ONE WRITER (083): the back-office go-live setter (`admin/src/delivery/go-live.repository.ts`),
+ * behind the readiness check. The moment may be in the future — which is why this takes `now`:
+ * a quote a second before it is the old checkout, a quote a second after is the new one.
  */
 export async function deliveryModelV2At(q: Queryable, now: Date): Promise<boolean> {
   const row = (await q.query<{ on: boolean }>(`SELECT public.delivery_model_v2_at($1::timestamptz) AS "on"`, [now])).rows[0];

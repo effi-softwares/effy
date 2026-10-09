@@ -25,6 +25,8 @@ export interface OrderListParams {
   needsDriver?: boolean;
   /** 079 — who delivers the order; `legacy` = placed before orders had a delivery type. */
   deliveryType?: AdminOrderDeliveryFilter;
+  /** 083 — with `deliveryType: "legacy"`: only the old orders that are still open. */
+  stillOpen?: boolean;
   cursor?: string;
 }
 

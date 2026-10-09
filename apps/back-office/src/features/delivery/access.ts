@@ -6,3 +6,8 @@ import type { BackOfficeRole } from "@effy/shared-types";
 export function canManageDelivery(roles: readonly BackOfficeRole[]): boolean {
   return roles.includes("admin") || roles.includes("manager");
 }
+
+/** 083 — the delivery-model switch changes what every customer is sold: an administrator's alone. */
+export function canSwitchDeliveryModel(roles: readonly BackOfficeRole[]): boolean {
+  return roles.includes("admin");
+}

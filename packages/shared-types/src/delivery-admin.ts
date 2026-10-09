@@ -479,3 +479,78 @@ export interface ProductWeightDTO {
 }
 
 export type { DeliveryMethod };
+
+// ── 083 — going live with the new delivery model ─────────────────────────────────────────────────
+// Contract: `specs/083-delivery-model-cutover/contracts/routes.md`.
+
+/** What the platform needs before the new delivery model can sell and deliver an order. */
+export type GoLiveItemKey =
+  | "coverage" | "hub" | "effy_plan" | "windows" | "collection_runs" | "courier"
+  | "drivers" | "out_of_area";
+
+export interface GoLiveReadinessItem {
+  key: GoLiveItemKey;
+  /** A required item blocks the switch; an advisory one is a warning. */
+  required: boolean;
+  ready: boolean;
+  /** One plain line: what is there, or what is missing. */
+  detail: string;
+  /** Where in back-office it is fixed. */
+  fixAt: string;
+}
+
+export interface GoLiveReadiness {
+  /** Every REQUIRED item is ready. */
+  ready: boolean;
+  items: GoLiveReadinessItem[];
+}
+
+export interface GoLiveSwitch {
+  /** off = no moment set; scheduled = a moment in the future; on = the moment has passed. */
+  state: "off" | "scheduled" | "on";
+  at: string | null;
+  setBy: string | null;
+  setAt: string | null;
+  /** On, and the old arrangement has not been removed: an admin may turn it back off, with a reason. */
+  canTurnBack: boolean;
+  /** When the old arrangement was removed (stage 2); from then the model is on for good. */
+  removedAt: string | null;
+}
+
+/** Orders sold the old way that are still open. Null while the switch is off. */
+export interface GoLiveLegacy {
+  open: number;
+  /** When the last one closed — shown once none remains. */
+  lastClosedAt: string | null;
+  alertAfterDays: number;
+}
+
+export interface GoLiveHistoryEntry {
+  at: string;
+  action: "set" | "changed" | "cancelled" | "turned_off" | "blocked";
+  /** The moment it was set to; null for a cancel, a turn-off or a block. */
+  value: string | null;
+  by: string;
+  reason: string | null;
+}
+
+/** `GET /admin/v1/delivery/go-live` */
+export interface GoLiveDTO {
+  readiness: GoLiveReadiness;
+  switch: GoLiveSwitch;
+  legacy: GoLiveLegacy | null;
+  history: GoLiveHistoryEntry[];
+}
+
+/**
+ * `PUT /admin/v1/delivery/go-live/switch` — admin only.
+ * `at`: an instant, `"now"`, or `null` (cancel a scheduled moment; or, once it has passed, turn the
+ * model back off — which needs a `reason`). `expected` is the `switch.at` the page showed.
+ */
+export interface GoLiveSwitchRequest {
+  at: string | null;
+  reason?: string | null;
+  expected: string | null;
+}
+
+export type GoLiveRefusal = "not_ready" | "changed" | "removed";

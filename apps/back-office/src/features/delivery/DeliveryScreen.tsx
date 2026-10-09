@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
 
@@ -12,21 +13,29 @@ import { DataTable, ErrorState } from "@effy/web-kit/console";
 
 import { sessionQuery } from "@/features/auth/queries";
 
-import { canManageDelivery } from "./access";
+import { canManageDelivery, canSwitchDeliveryModel } from "./access";
 import { deliveryMutationError } from "./errorText";
 import { DeliveryDaysPanel } from "./components/DeliveryDaysPanel";
 import { SlotsPanel } from "./components/SlotsPanel";
 import { CoveragePanel } from "./coverage/CoveragePanel";
+import { GoLivePanel } from "./golive/GoLivePanel";
 import { PricingPanel } from "./pricing/PricingPanel";
 import {
   collectionRunsQuery, settingsQuery, useCreateCollectionRun,
   useDeleteCollectionRun, usePutSettings,
 } from "./queries";
 
+const TABS: readonly string[] = ["coverage", "pricing", "schedule", "slots", "days", "settings", "go-live"];
+
 export function DeliveryScreen() {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
   const canManage = canManageDelivery(roles);
+  // 083 — the tab is in the URL, so the go-live checklist can link to the tab that fixes each item.
+  const search = useSearch({ strict: false }) as { tab?: string };
+  const navigate = useNavigate();
+  const tab = TABS.includes(search.tab ?? "") ? search.tab! : "coverage";
+  const goTo = (next: string) => void navigate({ to: "/delivery", search: { tab: next } });
 
   return (
     <div className="space-y-6">
@@ -38,7 +47,7 @@ export function DeliveryScreen() {
         </p>
       </div>
 
-      <Tabs defaultValue="coverage">
+      <Tabs value={tab} onValueChange={goTo}>
         <TabsList>
           <TabsTrigger value="coverage">Coverage</TabsTrigger>
           <TabsTrigger value="pricing">Pricing</TabsTrigger>
@@ -46,6 +55,7 @@ export function DeliveryScreen() {
           <TabsTrigger value="slots">Time slots</TabsTrigger>
           <TabsTrigger value="days">Delivery days</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="go-live">Go-live</TabsTrigger>
         </TabsList>
         <TabsContent value="coverage" className="mt-4"><CoveragePanel canManage={canManage} /></TabsContent>
         <TabsContent value="pricing" className="mt-4"><PricingPanel canManage={canManage} /></TabsContent>
@@ -53,6 +63,7 @@ export function DeliveryScreen() {
         <TabsContent value="slots" className="mt-4"><SlotsPanel canManage={canManage} /></TabsContent>
         <TabsContent value="days" className="mt-4"><DeliveryDaysPanel canManage={canManage} /></TabsContent>
         <TabsContent value="settings" className="mt-4"><SettingsPanel canManage={canManage} /></TabsContent>
+        <TabsContent value="go-live" className="mt-4"><GoLivePanel canSwitch={canSwitchDeliveryModel(roles)} onGoToTab={goTo} /></TabsContent>
       </Tabs>
     </div>
   );

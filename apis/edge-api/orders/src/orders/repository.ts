@@ -4,7 +4,7 @@
 // or an order detail in any internal console, which is why a customer told "contact support and
 // we'll sort it out" (020 FR-018b) reached people who could not see what they were being asked about.
 
-import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
+import { COURIER_COLLECTION_SQL, deliveredBySql, LEGACY_OPEN_ORDER_SQL } from "@effy/edge-shared/delivery";
 import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
 import { query } from "@effy/edge-shared";
@@ -93,6 +93,11 @@ export interface ListParams {
   needsDriver?: boolean;
   /** 079 — who delivers the order. `legacy` = placed before 079 (it has no delivery type). */
   deliveryType?: "effy" | "courier" | "legacy";
+  /**
+   * 083 — with `deliveryType: "legacy"`: only the old-kind orders that are STILL OPEN. The one
+   * definition (`LEGACY_OPEN_ORDER_SQL`), so this list is exactly what the go-live page counts.
+   */
+  stillOpen?: boolean;
   cursor?: string;
   limit: number;
 }
@@ -121,7 +126,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
     where.push(`o.status = $${args.length}`);
   }
   if (params.deliveryType === "legacy") {
-    where.push(`o.delivery_type IS NULL`);
+    where.push(params.stillOpen ? LEGACY_OPEN_ORDER_SQL("o") : `o.delivery_type IS NULL`);
   } else if (params.deliveryType) {
     args.push(params.deliveryType);
     where.push(`o.delivery_type = $${args.length}`);

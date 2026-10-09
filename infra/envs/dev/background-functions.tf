@@ -106,6 +106,13 @@ locals {
       threshold = 1
       stops     = "080 - late courier parcels (at the hub, at a supplier, with the courier) are no longer being counted, so the courier-late alarms cannot fire on a real parcel (they will fire on the missing data instead)."
     }
+    delivery-model-switch-sweep = {
+      function  = "effy-edge-admin-${var.env}-deliveryModelSwitchSweep"
+      period    = 900
+      periods   = 2
+      threshold = 1
+      stops     = "083 - nobody is checking that a scheduled switch to the new delivery model is still safe, and old orders still open are no longer counted. A switch scheduled while this is failing happens whether or not the platform is ready."
+    }
   }
 }
 

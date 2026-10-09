@@ -25,13 +25,15 @@ import type { OrderListParams } from "./model";
 // directly (Principle VI). Every endpoint lives on the orders cold-path service behind the shared
 // gateway — see specs/053-order-lifecycle-completion/contracts/back-office-orders.contract.md.
 
-function encodeListQuery({ q, status, awaiting, needsDriver, deliveryType, cursor }: OrderListParams): string {
+function encodeListQuery({ q, status, awaiting, needsDriver, deliveryType, stillOpen, cursor }: OrderListParams): string {
   const params = new URLSearchParams();
   if (needsDriver) params.set("needsDriver", "true");
   if (q && q.trim()) params.set("q", q.trim());
   if (status) params.set("status", status);
   if (awaiting) params.set("awaiting", awaiting);
   if (deliveryType) params.set("deliveryType", deliveryType);
+  // 083 — the service refuses `open` anywhere but with the old-order filter, so it is sent only there.
+  if (stillOpen && deliveryType === "legacy") params.set("open", "true");
   if (cursor) params.set("cursor", cursor);
   return params.toString();
 }
