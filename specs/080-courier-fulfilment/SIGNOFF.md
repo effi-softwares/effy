@@ -1,8 +1,9 @@
 # Sign-off notes: 080 — Courier Fulfilment (via the hub or pickup from the supplier)
 
-**NOT SIGNED OFF.** This is the builder's record for the operator to sign against.
+✅ **SIGNED OFF by the operator (2026-10-09).**
 
-**Status (2026-10-09)**: **built and checked by machine. NOT migrated, NOT deployed, NOT walked.**
+**Status (2026-10-09)**: **built, checked by machine, migrated and deployed to dev (operator-reported).
+Walks V1–V6 not recorded.** The three deviations below stand as built.
 Every check below ran on local containers and test runners. 40/40 tasks ticked, with the gaps listed
 under "Not done". Rides 078's model switch: no customer is offered courier delivery until the cutover.
 

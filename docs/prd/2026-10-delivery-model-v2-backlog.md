@@ -89,7 +89,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E3 | 077 | Delivery Fee Engine v2 | E2 |
 | E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09 (switched off) | E2 |
 | E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
-| E6 | 080 | Courier Fulfilment (hub handover or shop pickup) | E5 |
+| E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
 | E7 | 081 | Back-Office Courier Override & Compensation | E1, E5, E6 |
 | E8 | 082 | Driver Operations Realignment | E4, E5 |
 | E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
@@ -127,6 +127,9 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 
 > **2026-10-09 — E4 (spec 078, Effy Delivery Windows) is signed off: built and deployed to dev, switched off**
 > (`specs/078-effy-delivery-windows/SIGNOFF.md`) — details under E4. **Next: E5 (spec 079).**
+
+> **2026-10-09 — E6 (spec 080, Courier Fulfilment) is signed off: built, migrated and deployed to dev**
+> (`specs/080-courier-fulfilment/SIGNOFF.md`) — details under E6. Rides 078's switch. **Next: E7 (spec 081).**
 
 ## E0 — Cleanup & decision record (no spec)
 
@@ -650,7 +653,7 @@ unchanged.
 
 ---
 
-## E6 — Courier Fulfilment (hub handover or shop pickup) · spec 080
+## E6 — Courier Fulfilment (hub handover or shop pickup) · spec 080 — ✅ signed off 2026-10-09 (deployed to dev)
 
 > **2026-10-09 — specified and planned (`specs/080-courier-fulfilment/plan.md`).** Corrections to the tasks
 > below: E6-T04 — the consignment sits BESIDE `carrier_handoff` (handed over) and `package_arrival`
@@ -659,7 +662,8 @@ unchanged.
 > next pickup. Courier services also replace 079's single estimate text. The courier survey (E6-T01) is
 > in research R12, from general knowledge and unverified — the operator chooses and enters services.
 >
-> **2026-10-09 — BUILT (not yet migrated or deployed).** Record: `FEATURE-HISTORY.md` 080 and
+> **2026-10-09 — SIGNED OFF by the operator: built, migrated and deployed to dev** (walks V1–V6 not
+> recorded; rides 078's switch, so no customer is offered courier delivery until the cutover). Record: `FEATURE-HISTORY.md` 080 and
 > `specs/080-courier-fulfilment/SIGNOFF.md`. Deviations: E6-T09 — a switch to supplier pickup is
 > **refused** while a driver is assigned to collect (unassign first, 073), not silently withdrawn;
 > E6-T18 — "Courier problem" is an open failed/lost/damaged/returned only, a parcel merely overdue with

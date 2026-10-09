@@ -514,7 +514,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — built, not deployed
+- **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev
 - **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — migrated and deployed to dev; not walked or signed off; rides 078's switch
 - **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — signed off, deployed to dev, switched off until the cutover
 - **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab) — deployed to dev

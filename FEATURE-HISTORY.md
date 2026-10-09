@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**080-courier-fulfilment — Courier Fulfilment: via the hub or pickup from the supplier.** ⚠ **BUILT (2026-10-09).
-NOT MIGRATED, NOT DEPLOYED, NOT WALKED.** Sixth slice of the delivery model v2 programme
+**080-courier-fulfilment — Courier Fulfilment: via the hub or pickup from the supplier.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
+MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V6 were not recorded; rides 078's switch.** Sixth slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E6).
 Sign-off notes: [specs/080-courier-fulfilment/SIGNOFF.md](specs/080-courier-fulfilment/SIGNOFF.md).
 Runbook: [docs/runbooks/courier-handover.md](docs/runbooks/courier-handover.md).
