@@ -27,7 +27,6 @@ function cap(over: Partial<DriverCapability> = {}): DriverCapability {
   return {
     id: "c-1",
     function: "delivery",
-    method: "same_day",
     zoneId: "z-1",
     zoneName: "Inner North",
     grantedAt: "2026-09-01T00:00:00.000Z",
@@ -54,7 +53,7 @@ beforeEach(() => {
 });
 
 describe("CapabilityEditor — what a driver is cleared for", () => {
-  it("lists each clearance with its work, method and place", async () => {
+  it("lists each clearance with its work and place", async () => {
     renderEditor();
     // ⚠ ANCHOR ON THE REVOKE BUTTON, which exists ONLY once the list has rendered. Both the work
     // label and the zone name also appear as <option>s in the grant form below, so awaiting either
@@ -64,8 +63,18 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
     // ⚠ `getAllBy` throughout: every one of these strings ALSO appears as an <option> in the grant
     // form below the list, and `getBy` would fail on the ambiguity rather than on the behaviour.
     expect(screen.getAllByText("Inner North").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Same-day").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Deliver to customers").length).toBeGreaterThan(0);
+    // 082 — two sections, Collects and Delivers; the clearance sits under what it is for.
+    expect(screen.getByRole("region", { name: "Delivers" })).toHaveTextContent("Inner North");
+    expect(screen.getByRole("region", { name: "Collects" })).toHaveTextContent("Nowhere.");
+  });
+
+  it("082 — there is no delivery method anywhere on the screen", async () => {
+    listCapabilities.mockResolvedValue({ items: [cap({})] });
+    const { container } = renderEditor();
+    await screen.findByRole("button", { name: "Revoke" });
+    expect(container.textContent).not.toMatch(/same[- ]day|standard/i);
+    expect(screen.queryByLabelText("Method")).not.toBeInTheDocument();
   });
 
   /**
@@ -73,12 +82,12 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
    * everything today. An operator reading this screen has to be able to tell the two apart, because
    * only one of them stays true when a zone is added next month.
    */
-  it("⚠ renders an every-zone grant as 'Every zone', not as a list", async () => {
+  it("⚠ renders an everywhere grant as 'Everywhere', not as a list", async () => {
     listCapabilities.mockResolvedValue({
       items: [cap({ zoneId: null, zoneName: null })],
     });
     renderEditor();
-    expect(await screen.findByText("Every zone")).toBeInTheDocument();
+    expect(await screen.findByText("Everywhere")).toBeInTheDocument();
   });
 
   /**
@@ -107,7 +116,6 @@ describe("CapabilityEditor — what a driver is cleared for", () => {
     await waitFor(() => {
       expect(grantCapability).toHaveBeenCalledWith("d-1", {
         function: "delivery",
-        method: "standard",
         zoneId: null,
       });
     });

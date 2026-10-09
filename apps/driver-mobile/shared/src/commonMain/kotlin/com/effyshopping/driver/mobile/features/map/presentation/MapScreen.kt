@@ -94,7 +94,7 @@ fun MapScreen(
                 Text(
                     when (state.mode) {
                         MapMode.COLLECTION -> "No collection run assigned right now."
-                        MapMode.SAME_DAY -> "No same-day run yet — it unlocks at hub check-in."
+                        MapMode.SAME_DAY -> "No delivery run yet — it unlocks at hub check-in."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -141,7 +141,7 @@ private fun SegmentedModes(mode: MapMode, onModeChange: (MapMode) -> Unit) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            if (option == MapMode.COLLECTION) "Collection" else "Same-day",
+                            if (option == MapMode.COLLECTION) "Collection" else "Delivery",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = if (selected) {

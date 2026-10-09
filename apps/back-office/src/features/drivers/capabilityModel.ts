@@ -1,4 +1,4 @@
-import type { CapabilityFunction, CapabilityMethod, CoverageGapReason } from "@effy/shared-types";
+import type { CapabilityFunction, CoverageGapReason } from "@effy/shared-types";
 
 /** What a driver does at a stop. */
 export const FUNCTION_LABEL: Record<CapabilityFunction, string> = {
@@ -11,10 +11,13 @@ export const FUNCTION_SHORT: Record<CapabilityFunction, string> = {
   delivery: "Deliver",
 };
 
-/** Which promise the package carries. Chosen by the customer at checkout (047). */
-export const METHOD_LABEL: Record<CapabilityMethod, string> = {
-  standard: "Standard",
-  same_day: "Same-day",
+/**
+ * 082 — the two things a driver may do, as the section headings of their permissions. There is no
+ * delivery method here any more: a driver who delivers in an area delivers whatever Effy delivers there.
+ */
+export const FUNCTION_HEADING: Record<CapabilityFunction, string> = {
+  collection: "Collects",
+  delivery: "Delivers",
 };
 
 /**
@@ -29,7 +32,7 @@ export const COVERAGE_REASON_LABEL: Record<CoverageGapReason, string> = {
   all_cleared_unavailable: "Cleared drivers cannot work today",
 };
 
-/** ⚠ null means EVERY ZONE — rendered from the value, never from a server-supplied string. */
+/** ⚠ null means EVERYWHERE — rendered from the value, never from a server-supplied string. */
 export function zoneLabel(zoneName: string | null): string {
-  return zoneName ?? "Every zone";
+  return zoneName ?? "Everywhere";
 }

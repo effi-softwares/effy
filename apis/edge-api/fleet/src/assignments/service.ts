@@ -22,6 +22,7 @@ import {
   type Queryable,
 } from "@effy/edge-shared";
 import { PLANNER_PASS_LOCK, removeAssignment } from "@effy/edge-shared/delivery";
+import { formatDeliveryDay, melbourneDate } from "@effy/shared-types";
 
 import { planWave } from "../planner/assign";
 import {
@@ -42,7 +43,7 @@ export type Stage = "collection" | "delivery";
 /** A refusal, always with ONE line a person can read. */
 export class AssignmentError extends Error {
   constructor(
-    readonly kind: "cannot_take" | "needs_confirm" | "changed" | "collected" | "not_needed" | "not_found",
+    readonly kind: "cannot_take" | "needs_confirm" | "changed" | "collected" | "not_needed" | "not_found" | "not_yet",
     readonly detail: string,
   ) {
     super(kind);
@@ -93,10 +94,23 @@ async function inVanWith(tx: Queryable, packageId: string, stage: Stage): Promis
 }
 
 /** The package as the planner sees it, for this stage — or null if it does not need a driver now. */
-async function asPlannable(tx: Queryable, packageId: string, stage: Stage): Promise<PlannablePackage | null> {
-  const found = stage === "collection" ? await gatherCollectionWork(tx, packageId) : await gatherDeliveryWork(tx, packageId);
-  return found[0] ?? null;
+async function asPlannable(tx: Queryable, packageId: string, stage: Stage, now: Date): Promise<PlannablePackage | null> {
+  if (stage === "collection") return (await gatherCollectionWork(tx, packageId))[0] ?? null;
+  // ⚠ 082 — A DELIVERY IS PLANNED ON ITS OWN DAY, by a person as well as by a pass. The package is
+  // looked up without the day limit only to say WHY it cannot be given out yet; a round for a later
+  // day would be handed to today's shift and taken back at clock-off.
+  const pkg = (await gatherDeliveryWork(tx, packageId, FAR_FUTURE))[0] ?? null;
+  if (pkg?.windowStart && pkg.windowStart.getTime() > endOfLocalDay(now).getTime()) {
+    throw new AssignmentError(
+      "not_yet",
+      `This delivery is for ${formatDeliveryDay(melbourneDate(pkg.windowStart))}. Its round is planned on the day.`,
+    );
+  }
+  return pkg;
 }
+
+/** "No day limit", for looking one package up. Never used to plan. */
+const FAR_FUTURE = new Date("9999-12-31T00:00:00Z");
 
 /** The run or window the package belongs to — computed exactly as the planner computes it. */
 async function bucketOf(tx: Queryable, stage: Stage, pkg: PlannablePackage, now: Date) {
@@ -146,7 +160,7 @@ function fitOf(reasons: readonly ExclusionReason[]): DriverFit["fit"] {
  */
 export async function driversFor(packageId: string, stage: Stage, now = new Date()): Promise<DriverFit[]> {
   return withTransaction(async (tx: Queryable) => {
-    const pkg = await asPlannable(tx, packageId, stage);
+    const pkg = await asPlannable(tx, packageId, stage, now);
     if (!pkg) throw new AssignmentError("not_needed", "This package doesn't need a driver for that right now.");
     const current = await currentAssignment(tx, packageId, stage);
     const all = await loadCandidates(tx);
@@ -217,7 +231,7 @@ export async function assignTo(input: {
       return { message: `Already with ${current.driver_name}`, driverIds: [] };
     }
 
-    const pkg = await asPlannable(tx, input.packageId, input.stage);
+    const pkg = await asPlannable(tx, input.packageId, input.stage, now);
     if (!pkg) throw new AssignmentError("not_needed", "This package doesn't need a driver for that right now.");
 
     // Asked BEFORE the current assignment is removed, so a refusal leaves everything as it was.

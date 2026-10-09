@@ -58,6 +58,9 @@ export interface PackageRow {
   package_id: string;
   order_number: string;
   method: "standard" | "same_day";
+  delivered_by: "effy" | "courier";
+  window_start: Date | null;
+  window_end: Date | null;
   destination_suburb: string | null;
 }
 

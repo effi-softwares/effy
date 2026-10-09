@@ -42,7 +42,8 @@ interface GatherRow {
   suburb: string | null;
   postcode: string | null;
   state: string | null;
-  method: "standard" | "same_day";
+  /** The collection gather selects it; a delivery row is Effy's by construction. */
+  delivered_by?: "effy" | "courier";
   zone_id: string | null;
   zone_name: string | null;
   ready_since: Date;
@@ -50,7 +51,6 @@ interface GatherRow {
   item_count: string;
   requires_chilled: boolean | null;
   requires_frozen: boolean | null;
-  /** Selected by the delivery gather only; absent from collection rows. */
   window_start?: Date | null;
   window_end?: Date | null;
 }
@@ -71,7 +71,7 @@ function mapPackage(r: GatherRow): PlannablePackage {
     address: addressLine(r),
     orderId: r.order_id ?? null,
     recipientName: r.recipient_name ?? null,
-    method: r.method,
+    deliveredBy: r.delivered_by ?? "effy",
     zoneId: r.zone_id,
     zoneName: r.zone_name,
     readySince: r.ready_since.toISOString(),
@@ -91,8 +91,13 @@ export async function gatherCollectionWork(db: Queryable = pooled, onlyPackageId
   return res.rows.map(mapPackage);
 }
 
-export async function gatherDeliveryWork(db: Queryable = pooled, onlyPackageId: string | null = null): Promise<PlannablePackage[]> {
-  const res = await db.query<GatherRow>(GATHER_DELIVERY, [onlyPackageId]);
+/**
+ * ⚠ `throughEndOf` IS THE LOCAL DAY BEING PLANNED (082): a parcel whose window starts after it is not
+ * gathered — it is waiting at the hub for its own day. Required, never defaulted: a caller that forgot
+ * it would put Thursday's parcel on today's round.
+ */
+export async function gatherDeliveryWork(db: Queryable, onlyPackageId: string | null, throughEndOf: Date): Promise<PlannablePackage[]> {
+  const res = await db.query<GatherRow>(GATHER_DELIVERY, [onlyPackageId, throughEndOf]);
   return res.rows.map(mapPackage);
 }
 
@@ -107,7 +112,7 @@ interface CandidateRow {
   payload_kg: number | null;
   can_carry_chilled: boolean;
   can_carry_frozen: boolean;
-  clearances: Array<{ function: "collection" | "delivery"; method: "standard" | "same_day"; zoneId: string | null }>;
+  clearances: Array<{ function: "collection" | "delivery"; zoneId: string | null }>;
   packages_assigned_today: string;
 }
 
@@ -142,6 +147,8 @@ export async function loadSchedule(
     sameday_prep_buffer_min: number;
     planning_lead_min: number;
     per_stop_allowance_min: number;
+    sameday_hub_turnaround_min: number | null;
+    standard_no_delivery_weekdays: number[] | null;
   }>(PLANNER_SETTINGS);
   const s = setRes.rows[0];
   return {
@@ -152,6 +159,9 @@ export async function loadSchedule(
       prepBufferMin: s?.sameday_prep_buffer_min ?? 0,
       planningLeadMin: s?.planning_lead_min ?? 45,
       perStopAllowanceMin: s?.per_stop_allowance_min ?? 12,
+      // 082 — what `collectionRunFor` needs: how long the hub takes, and the weekdays with no deliveries.
+      hubTurnaroundMin: s?.sameday_hub_turnaround_min ?? 60,
+      noDeliveryWeekdays: s?.standard_no_delivery_weekdays ?? [],
     },
   };
 }

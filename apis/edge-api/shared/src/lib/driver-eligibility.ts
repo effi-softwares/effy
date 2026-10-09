@@ -43,7 +43,6 @@ export interface CandidateDriver {
   /** Clearances (062). ⚠ `zoneId: null` means EVERY zone, including zones created later. */
   clearances: ReadonlyArray<{
     function: "collection" | "delivery";
-    method: "standard" | "same_day";
     zoneId: string | null;
   }>;
   /** Packages already assigned to them today — the load balance input (FR-014, research R7). */
@@ -53,7 +52,7 @@ export interface CandidateDriver {
 /** The work being considered. */
 export interface WorkUnit {
   function: "collection" | "delivery";
-  method: "standard" | "same_day";
+  /** The postcode group the work's delivery address is in; null when it is in none. */
   zoneId: string | null;
   totalWeightGrams: number;
   requiresChilled: boolean;
@@ -77,16 +76,21 @@ export interface EligibilityInput {
 }
 
 /**
- * ⚠ A clearance with `zoneId === null` covers EVERY zone, including zones created after the grant
+ * ⚠ A clearance with `zoneId === null` covers EVERY area, including areas created after the grant
  * (062 FR-011). This is the single most important line of the matching rule: enumerating today's
- * zones instead is correct when written and quietly wrong the first time a zone is added.
+ * areas instead is correct when written and quietly wrong the first time one is added.
+ *
+ * ⚠ 082 — A CLEARANCE IS (function, area). There is no method: who delivers a parcel is the ORDER's
+ * decision (079), and a driver who may deliver in an area may deliver whatever Effy delivers there.
+ *
+ * ⚠ 082 — WORK IN NO AREA (`work.zoneId === null`: a postcode filed under no group) IS CLEARED BY ANY
+ * CLEARANCE FOR THE FUNCTION. Until 082 only an everywhere-driver qualified, so a postcode added to
+ * Effy's list without a group could be delivered by almost nobody. Groups are a convenience for
+ * naming where a driver works; a postcode outside all of them is not a place nobody may go.
  */
 function isCleared(driver: CandidateDriver, work: WorkUnit): boolean {
   return driver.clearances.some(
-    (c) =>
-      c.function === work.function &&
-      c.method === work.method &&
-      (c.zoneId === null || c.zoneId === work.zoneId),
+    (c) => c.function === work.function && (work.zoneId === null || c.zoneId === null || c.zoneId === work.zoneId),
   );
 }
 

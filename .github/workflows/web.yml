@@ -60,6 +60,10 @@ jobs:
       # customer's words for the delivery. A restored label compiles and renders; only this fails.
       - name: "Gate: no customer delivery words on shop screens (079 FR-028)"
         run: bash scripts/check-shop-delivery-words.sh
+      # 082 — drivers and dispatch read "Effy delivery" / "Delivery" / "Collection" / "Courier", never
+      # the customer's words. A restored label compiles and renders; only this fails.
+      - name: "Gate: no customer delivery words on driver or dispatch screens (082 FR-012)"
+        run: bash scripts/check-driver-delivery-words.sh
 
   # The customer storefront's own gates (011). These are the reason this workflow exists.
   storefront-gates:

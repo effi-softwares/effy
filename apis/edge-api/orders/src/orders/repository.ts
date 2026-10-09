@@ -9,6 +9,8 @@ import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from 
 
 import { query } from "@effy/edge-shared";
 
+import { DELIVERY_DUE_SQL } from "./assignments";
+
 /**
  * 'effy' | 'courier' for the package joined as `opd` under the order `o` (079).
  *
@@ -129,17 +131,19 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
     where.push(`o.created_at < $${args.length}::timestamptz`);
   }
 
-  // 073 — "Needs a driver": a package ready at a shop with no collection driver, or a same-day package
-  // at the hub with no delivery driver. The same two conditions the assignment read shows as
-  // "Unassigned", so the filter and the column cannot disagree.
+  // 073 — "Needs a driver": a package ready at a shop with no collection driver, or a parcel Effy
+  // delivers, at the hub, whose round has opened, with no delivery driver. The same two conditions the
+  // assignment read shows as "Unassigned", so the filter and the column cannot disagree.
+  // ⚠ 082 — the second is `DELIVERY_DUE_SQL`, shared with that read: any day's window, once it is due.
   if (params.needsDriver) {
     where.push(`EXISTS (
       SELECT 1 FROM public.shop_fulfillment sf
+        LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
        WHERE sf.order_id = o.id
          AND NOT EXISTS (SELECT 1 FROM public.round_package rp
                           WHERE rp.shop_fulfillment_id = sf.id AND rp.state = 'assigned')
          AND (sf.status = 'ready_for_pickup'
-              OR (sf.status = 'collected' AND sf.delivery_method = 'same_day'
+              OR (sf.status = 'collected' AND ${DELIVERY_DUE_SQL}
                   AND EXISTS (SELECT 1 FROM public.round_package crp
                                 JOIN public.round_stop crs ON crs.id = crp.stop_id
                                 JOIN public.hub_checkin hc ON hc.round_id = crs.round_id

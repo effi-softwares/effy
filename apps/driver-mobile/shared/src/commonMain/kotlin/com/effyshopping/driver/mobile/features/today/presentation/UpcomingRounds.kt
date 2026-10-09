@@ -87,7 +87,7 @@ private fun UpcomingRow(round: UpcomingRound, onClick: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                if (isCollection) "Collection run" else "Same-day delivery",
+                if (isCollection) "Collection run" else "Delivery run",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,

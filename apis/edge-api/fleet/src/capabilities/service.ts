@@ -8,7 +8,7 @@ import * as driverRepo from "../drivers/repository";
 import { recordAudit } from "../shared/audit";
 import { notFound, validationError } from "../shared/errors";
 import * as repo from "./repository";
-import { CAPABILITY_FUNCTIONS, CAPABILITY_METHODS } from "./sql";
+import { CAPABILITY_FUNCTIONS } from "./sql";
 
 export async function listCapabilities(driverId: string): Promise<DriverCapability[]> {
   const driver = await driverRepo.getDriver(driverId);
@@ -37,9 +37,7 @@ export async function grantCapability(
   if (!CAPABILITY_FUNCTIONS.includes(body?.function as never)) {
     fields.push({ field: "function", message: `must be one of ${CAPABILITY_FUNCTIONS.join(", ")}` });
   }
-  if (!CAPABILITY_METHODS.includes(body?.method as never)) {
-    fields.push({ field: "method", message: `must be one of ${CAPABILITY_METHODS.join(", ")}` });
-  }
+  // 082 — a `method` an older console still sends is ignored: a clearance is (function, area).
   // ⚠ `zoneId` must be PRESENT, and may be explicitly null. A key absent and a key present-with-null
   // must not be conflated, or "every zone" becomes indistinguishable from "the operator forgot to
   // choose" — and the platform would silently grant the broadest possible clearance by accident.
@@ -69,14 +67,14 @@ export async function grantCapability(
     }
   }
 
-  await repo.grant(driverId, body.function, body.method, body.zoneId, actorSub);
+  await repo.grant(driverId, body.function, body.zoneId, actorSub);
   await recordAudit({
     actorSub,
     action: "driver.capability_granted",
     driverId,
-    detail: { function: body.function, method: body.method, zoneId: body.zoneId ?? "every_zone" },
+    detail: { function: body.function, zoneId: body.zoneId ?? "every_zone" },
   });
-  scope.log.info({ driverId, function: body.function, method: body.method }, "capability granted");
+  scope.log.info({ driverId, function: body.function }, "capability granted");
   return repo.listForDriver(driverId);
 }
 

@@ -14,7 +14,7 @@ function pkg(p: Partial<PlannablePackage> & { packageId: string }): PlannablePac
     address: "1 Test St, Fitzroy, VIC, 3065",
     orderId: null,
     recipientName: null,
-    method: "standard",
+    deliveredBy: "effy",
     zoneId: "zone-1",
     zoneName: "Inner North",
     readySince: "2026-07-15T01:00:00Z",
@@ -36,7 +36,7 @@ function driver(p: Partial<PlannerCandidate> & { driverId: string }): PlannerCan
     licenceExpiresOn: "2030-01-01",
     expectedEndAt: null,
     vehicle: { vehicleId: "v1", payloadKg: 900, canCarryChilled: true, canCarryFrozen: true },
-    clearances: [{ function: "collection", method: "standard", zoneId: "zone-1" }],
+    clearances: [{ function: "collection", zoneId: "zone-1" }],
     packagesAssignedToday: 0,
     ...p,
   };
@@ -137,7 +137,7 @@ describe("planWave — placing work (US1)", () => {
   it("treats a null-zone clearance as every zone, including a brand-new one", () => {
     const everywhere = driver({
       driverId: "d1",
-      clearances: [{ function: "collection", method: "standard", zoneId: null }],
+      clearances: [{ function: "collection", zoneId: null }],
     });
     const out = plan({ packages: [pkg({ packageId: "p1", zoneId: "zone-created-today" })], candidates: [everywhere] });
     expect(out.assignments.has("d1")).toBe(true);
@@ -202,8 +202,8 @@ describe("planWave — a package that becomes ready mid-round (FR-004a)", () => 
   it("never joins a DELIVERY round that is under way", () => {
     const out = plan({
       kind: "delivery",
-      packages: [pkg({ packageId: "p1", method: "same_day", orderId: "order-1" })],
-      candidates: [driver({ driverId: "d1", clearances: [{ function: "delivery", method: "same_day", zoneId: "zone-1" }] })],
+      packages: [pkg({ packageId: "p1", orderId: "order-1" })],
+      candidates: [driver({ driverId: "d1", clearances: [{ function: "delivery", zoneId: "zone-1" }] })],
       rounds: [round({ roundId: "r1", driverId: "d1", status: "in_progress", stops: [{ key: "order-1", outstanding: true }] })],
     });
     expect(out.additions.size).toBe(0);

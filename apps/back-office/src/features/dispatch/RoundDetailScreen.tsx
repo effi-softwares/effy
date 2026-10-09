@@ -62,7 +62,7 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
     <div className="space-y-6 p-6">
       <header>
         <h1 className="text-lg font-medium">
-          {round.kind === "collection" ? "Collection round" : "Same-day delivery round"}
+          {round.kind === "collection" ? "Collection round" : "Delivery round"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {round.status.replace("_", " ")}

@@ -3,7 +3,7 @@
 // Maps the new round/stop/package model into the 049 wire contract the app is already built against
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
-import { formatDeliveryWindow, formatMoment, type DeliveryWindow } from "@effy/shared-types";
+import { formatArrival, formatDeliveryWindow, formatMoment, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops } from "@effy/edge-shared";
 
 import { dropStatusOf } from "./drop-status";
@@ -265,6 +265,11 @@ export async function collectionStop(
         ref: p.order_number,
         destinationSuburb: p.destination_suburb ?? "",
         method: p.method,
+        // 082 — what the app says: who takes it from the hub, and (Effy's) the day and window it is for.
+        deliveredBy: p.delivered_by,
+        windowLabel: p.delivered_by === "effy" && p.window_start && p.window_end
+          ? formatArrival({ promisedFrom: null, promisedTo: null, windowStart: p.window_start.toISOString(), windowEnd: p.window_end.toISOString() }, new Date())
+          : null,
         items: manifest?.items ?? [],
         summary: manifest?.summary ?? { ...EMPTY_SUMMARY },
       };

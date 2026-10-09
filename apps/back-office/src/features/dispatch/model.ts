@@ -36,7 +36,7 @@ export function describeReasons(reasons: ExclusionReasonDTO[]): string {
 }
 
 export function roundLabel(kind: string): string {
-  return kind === "collection" ? "Collection" : "Same-day delivery";
+  return kind === "collection" ? "Collection" : "Delivery";
 }
 
 /**

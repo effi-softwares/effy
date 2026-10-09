@@ -4,6 +4,28 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**082-driver-operations-realignment — Driver Operations Realignment.** ⚠ **BUILT AND CHECKED BY MACHINE (2026-10-09).
+NOT DEPLOYED, NOT WALKED, NOT SIGNED OFF. No migration.** Eighth slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E8) — the last
+thing 078's model switch waited for. Sign-off notes:
+[specs/082-driver-operations-realignment/SIGNOFF.md](specs/082-driver-operations-realignment/SIGNOFF.md).
+
+- **What it is.** Driver work follows who delivers, not a method: the delivery gather asks
+  `package_delivered_by = 'effy'` (a later-day window is stored `standard` and had been getting NO
+  round), and plans each window's round **on the window's day**. A parcel is collected on the **latest run
+  that makes its window** (`collectionRunFor`). Permissions are (function, area). Hub check-in shows
+  **Effy delivery (by day and window)** and **Courier**. Dispatch gets a day view.
+- ⚠ **Nothing reads `driver_zone_capability.method`** (`driver-method.guard.test.ts`); no rows were
+  rewritten; the column goes at E9. A postcode in no group is cleared by any clearance for the function.
+- ⚠ **The driver wire is additive** — `effyGroups`, `deliveredBy`, `windowLabel`; `same_day_delivery`,
+  `sameDayCount` and `standardCount` stay until E9 so the previous app keeps working.
+- ⚠ **Drivers and dispatch never read "same-day" / "standard"** — `scripts/check-driver-delivery-words.sh`.
+- **Known gap**: the orders list's "needs a driver" still lists a parcel ready at its supplier before it
+  is due on a run (dispatch's list is right). See SIGNOFF.
+- **Operator steps (dev):** `make edge-deploy` for `fleet`, `driver`, `orders`; back-office build on push;
+  a driver app release. No migration, no `apply`. **Leave the model switch NULL.** Walks V1–V7 in
+  [quickstart.md](specs/082-driver-operations-realignment/quickstart.md).
+
 **081-courier-override-compensation — Back-Office Courier Override & Compensation.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
 built and checked by machine. ⚠ Not yet migrated or deployed to dev; walks V1–V7 not recorded; rides 078's switch.** Seventh slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E7).

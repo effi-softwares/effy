@@ -33,11 +33,22 @@ data class CollectionRun(
 data class CollectionPackage(
     val ref: String,
     val destinationSuburb: String,
+    /** Routing only since 082 — never shown. [toCourier] and [windowLabel] are what the screen says. */
     val method: PackageMethod,
     /** ⚠ This package's OWN lines (065) — not the stop's. */
     val items: List<ManifestLine>,
     val summary: ClassSummary,
-)
+    /**
+     * 082 — a courier takes it from the hub. Null from a server older than 082; the screen then falls
+     * back to the method (a parcel that is not same-day went to a carrier, as it did then).
+     */
+    val toCourier: Boolean? = null,
+    /** 082 — the day and window an Effy parcel is for, in the server's words; null when none. */
+    val windowLabel: String? = null,
+) {
+    /** Who takes it from the hub, in the two words a driver reads (082). */
+    val goesToCourier: Boolean get() = toCourier ?: (method != PackageMethod.SAME_DAY)
+}
 
 data class ShopStop(
     val stopId: String,
@@ -55,14 +66,39 @@ data class ShopStop(
 )
 
 /**
- * The split returned by hub check-in (FR-016): same-day parcels to deliver, and (080) parcels a
- * COURIER takes from the hub. [standardCount] is what this app was built on; [courierCount] is null
- * from a server older than 080, and the screen then falls back to it.
+ * The split returned by hub check-in (FR-016), as the driver reads it since 082: parcels EFFY delivers
+ * — grouped by the day and window each is for — and parcels a COURIER takes from the hub. The driver
+ * classifies nothing.
+ *
+ * [sameDayCount] / [standardCount] are what this app was built on. [courierCount] is null from a
+ * server older than 080 and [effyGroups] from one older than 082; the screen then falls back to them.
  */
-data class HubSplit(val scannedTotal: Int, val sameDayCount: Int, val standardCount: Int, val courierCount: Int? = null) {
+data class HubSplit(
+    val scannedTotal: Int,
+    val sameDayCount: Int,
+    val standardCount: Int,
+    val courierCount: Int? = null,
+    val effyGroups: List<EffyGroup>? = null,
+) {
     /** How many go to a courier — never called "standard" on screen (080). */
     val toCourier: Int get() = courierCount ?: standardCount
+
+    /** Effy's parcels, by day and window. From an older server: one group, today's. */
+    val effy: List<EffyGroup> get() = effyGroups
+        ?: if (sameDayCount > 0) listOf(EffyGroup(label = "Today", count = sameDayCount, dueToday = true)) else emptyList()
+
+    /** How many Effy delivers, on any day. */
+    val effyCount: Int get() = effy.sumOf { it.count }
+
+    /** How many this driver loads now for a delivery round; the rest are shelved for a later day. */
+    val dueToday: Int get() = effy.filter { it.dueToday }.sumOf { it.count }
 }
+
+/**
+ * 082 — the Effy parcels of one check-in that wait for one day and window. [label] is the server's
+ * ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am – 12 pm"): this app never formats a day.
+ */
+data class EffyGroup(val label: String, val count: Int, val dueToday: Boolean)
 
 interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun

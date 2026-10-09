@@ -174,6 +174,62 @@ export function nextRunInstant(runs: readonly CollectionRun[], now: Date): Date 
   return candidates[0] ?? null;
 }
 
+/** The days a collection may be planned on — 069's delivery calendar. */
+export interface RunCalendar {
+  /** ISO weekdays (1 = Monday … 7 = Sunday) with no deliveries. */
+  noWeekdays?: readonly number[];
+  /** yyyy-mm-dd local dates with no deliveries. */
+  noDates?: ReadonlySet<string>;
+}
+
+/**
+ * The collection run a parcel sold a WINDOW should travel on (082): the LATEST run that still reaches
+ * the hub in time — `run + turnaroundMin ≤ windowStart` — on the window's own day, or failing that on
+ * the nearest earlier delivery day. Null when no run in the last `maxDaysBack` days makes it (no runs
+ * configured, or a window sooner than any run can serve): the caller then treats the parcel as due on
+ * the next run, which is what happened before this rule existed.
+ *
+ * ⚠ LATEST, NOT EARLIEST. Chilled and frozen goods stay at the supplier as long as they can, and the
+ * hub holds as little as possible. A window before its own day's first workable run is collected the
+ * delivery day before and waits at the hub overnight.
+ *
+ * ⚠ THE SAME TEST CHECKOUT USES for a window today (`judgeWindow`: a run reaches the hub in time when
+ * `run + turnaround ≤ start`). The planner and the checkout cannot disagree about whether a run makes
+ * a window.
+ *
+ * ⚠ Calendar arithmetic on LOCAL DATES (`instantAtLocalTime` normalises day overflow), never on
+ * "minus 24 hours": the day the clocks change is 23 or 25 hours long.
+ */
+export function collectionRunFor(
+  windowStart: Date,
+  runs: readonly CollectionRun[],
+  turnaroundMin: number,
+  calendar: RunCalendar = {},
+  maxDaysBack = 7,
+): Date | null {
+  if (runs.length === 0) return null;
+  const { year, month, day } = localDateParts(windowStart);
+  const blocked = new Set(calendar.noWeekdays ?? []);
+  const latestBy = windowStart.getTime() - turnaroundMin * 60_000;
+
+  for (let back = 0; back <= maxDaysBack; back += 1) {
+    // Noon UTC of the local calendar date: safe for reading the date and weekday on any DST day.
+    const noon = new Date(Date.UTC(year, month - 1, day - back, 12));
+    const isoDate = noon.toISOString().slice(0, 10);
+    const weekday = noon.getUTCDay() === 0 ? 7 : noon.getUTCDay();
+    // The window's own day is a delivery day by construction (it was sold); earlier days must be too.
+    if (back > 0 && (blocked.has(weekday) || calendar.noDates?.has(isoDate))) continue;
+
+    let best: Date | null = null;
+    for (const r of runs) {
+      const at = instantAtLocalTime(year, month, day - back, r.hour, r.minute);
+      if (at.getTime() <= latestBy && (best === null || at.getTime() > best.getTime())) best = at;
+    }
+    if (best !== null) return best;
+  }
+  return null;
+}
+
 /**
  * The last instant of the local day containing `at` — 23:59:59 in the operating zone.
  *

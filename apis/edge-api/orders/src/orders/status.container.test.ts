@@ -222,5 +222,41 @@ describe.skipIf(!RUN)("073 — package status on the order reads (real migration
     expect(pkg.deliver).toMatchObject({ assignmentId: null, unassignedReason: "Waiting for auto-assign (every 5 minutes)" });
     expect((await listOrders({ limit: 10, needsDriver: true })).items.map((i) => i.id)).toEqual([p.orderId]);
   });
+  /**
+   * ⚠ 082 P8 — "needs a driver" is any Effy parcel at the hub whose ROUND HAS OPENED, whatever it was
+   * sold as and whichever day it was sold for. A later-day window is stored `standard` with a window
+   * (078): the old test (`delivery_method = 'same_day'`) never listed it. And a parcel waiting at the
+   * hub for a later day is WAITING — its round is planned on its day — so it is not listed either.
+   */
+  it("082 P8 — a later-day window at the hub needs a driver only once its round has opened", async () => {
+    const hubbed = async (windowStart: string, windowEnd: string) => {
+      const p = await aPackage("standard", "collected");
+      const ada = await aDriver(`Ada${Math.random()}`);
+      const c = await onRound("collection", p, ada, "picked_up", "done");
+      await pool.query(`INSERT INTO public.hub_checkin (round_id, driver_id, packages_expected, packages_arrived) VALUES ($1, $2, 1, 1)`, [c.roundId, ada]);
+      const slot = (await pool.query<{ id: string }>(
+        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+         VALUES ('00:00'::time + (floor(random() * 80000) || ' seconds')::interval, '23:59:59', '00:00', 9, 'test') RETURNING id::text AS id`)).rows[0]!.id;
+      await pool.query(
+        `INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+         SELECT sf.order_id, sf.shop_id, 'standard', $2, $3::timestamptz, $4::timestamptz FROM public.shop_fulfillment sf WHERE sf.id = $1
+         ON CONFLICT (order_id, shop_id) DO UPDATE SET method = 'standard', slot_id = EXCLUDED.slot_id, window_start = EXCLUDED.window_start, window_end = EXCLUDED.window_end`,
+        [p.sfId, slot, windowStart, windowEnd],
+      );
+      return p;
+    };
+    const iso = (ms: number) => new Date(Date.now() + ms).toISOString();
+    const HOUR = 3600_000;
+    // Its window started ten minutes ago: the round is open and nobody has it.
+    const due = await hubbed(iso(-HOUR / 6), iso(2 * HOUR));
+    // Its window is two days off: it is waiting at the hub for its day.
+    const waiting = await hubbed(iso(48 * HOUR), iso(50 * HOUR));
+
+    expect((await getOrder(due.orderId))!.packages[0]!.deliver).toMatchObject({ assignmentId: null, movable: true });
+    expect((await getOrder(waiting.orderId))!.packages[0]!.deliver).toBeNull();
+    const listed = (await listOrders({ limit: 50, needsDriver: true })).items.map((i) => i.id);
+    expect(listed).toContain(due.orderId);
+    expect(listed).not.toContain(waiting.orderId);
+  });
 });
 

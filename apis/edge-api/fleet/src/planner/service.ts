@@ -1,6 +1,7 @@
 // The planner (063, reshaped by 072) — the service that turns ready packages into a driver's day.
 
-import { endOfLocalDay, nextRunInstant, withTransaction, type Queryable } from "@effy/edge-shared";
+import { collectionRunFor, endOfLocalDay, localDateParts, nextRunInstant, withTransaction, type Queryable } from "@effy/edge-shared";
+import { nonDeliveryDates } from "@effy/edge-shared/delivery";
 
 import { planWave } from "./assign";
 import { releaseUnworkable } from "./release";
@@ -32,6 +33,11 @@ export interface KindOutcome {
   unassignedPastOpening: number;
   /** Set when the kind was not planned at all — and why. Null when it was. */
   skippedReason: "no_active_collection_runs" | null;
+  /**
+   * 082 — collection only: parcels still at a supplier AFTER the run that would have reached the hub
+   * in time for their window. They are on this pass's run (or unassigned); the window is at risk.
+   */
+  collectLate?: number;
 }
 
 export interface PassOutcome {
@@ -147,8 +153,22 @@ async function planCollection(
     return { outcome: { ...nothing("collection"), skippedReason: "no_active_collection_runs" }, exclusions: [], driverIds: [] };
   }
 
-  const packages = await gatherCollectionWork(tx);
-  if (packages.length === 0) return { outcome: nothing("collection"), exclusions: [], driverIds: [] };
+  // ⚠ 082 — NOT BEFORE IT NEEDS TO. An Effy parcel sold a window travels on the LATEST run that still
+  // reaches the hub in time (`collectionRunFor`): chilled goods stay at the supplier, and the hub holds
+  // as little as it can. It is taken from the run it is due on, and from every run after if it was
+  // missed — never from an earlier one. A courier parcel via the hub, and a parcel sold no window, go
+  // on the next run as they always did.
+  const ready = await gatherCollectionWork(tx);
+  const calendar = { noWeekdays: settings.noDeliveryWeekdays, noDates: await nonDeliveryDates(tx, isoDateOf(now, -8)) };
+  let collectLate = 0;
+  const packages = ready.filter((p) => {
+    const due = dueRun(p, runs, settings, calendar);
+    if (due === null) return true;
+    if (due.getTime() > deadlineAt.getTime()) return false;
+    if (due.getTime() < deadlineAt.getTime()) collectLate += 1;
+    return true;
+  });
+  if (packages.length === 0) return { outcome: { ...nothing("collection"), collectLate }, exclusions: [], driverIds: [] };
 
   const candidates = await loadCandidates(tx);
   const rounds = await loadBucketRounds(tx, "collection", deadlineAt, null);
@@ -165,11 +185,35 @@ async function planCollection(
     opensAt,
     rounds,
   });
-  return commitAndSummarise(tx, plan, isOpen(opensAt, now));
+  const done = await commitAndSummarise(tx, plan, isOpen(opensAt, now));
+  return { ...done, outcome: { ...done.outcome, collectLate } };
 }
 
 /**
- * Same-day delivery over whatever has reached the hub — one plan per delivery window.
+ * The run an Effy parcel sold a window is DUE on; null = no rule applies (the next run).
+ * Exported for the dispatch day view, which must call a parcel "late" by the planner's own rule.
+ */
+export function dueRun(
+  p: { deliveredBy: "effy" | "courier"; windowStart: Date | null },
+  runs: Awaited<ReturnType<typeof loadSchedule>>["runs"],
+  settings: Pick<PlannerSettings, "hubTurnaroundMin">,
+  calendar: { noWeekdays: readonly number[]; noDates: ReadonlySet<string> },
+): Date | null {
+  if (p.deliveredBy !== "effy" || p.windowStart === null) return null;
+  return collectionRunFor(p.windowStart, runs, settings.hubTurnaroundMin, calendar);
+}
+
+/** yyyy-mm-dd of the local date `offsetDays` from `at`. */
+export function isoDateOf(at: Date, offsetDays = 0): string {
+  const { year, month, day } = localDateParts(at);
+  return new Date(Date.UTC(year, month - 1, day + offsetDays, 12)).toISOString().slice(0, 10);
+}
+
+/**
+ * Effy delivery over whatever has reached the hub and is due today — one plan per delivery window.
+ *
+ * ⚠ 082 — ONLY WINDOWS WHOSE DAY HAS COME (`gatherDeliveryWork(…, end of today)`). A parcel for a later
+ * day is at the hub and on no round until that day's first pass.
  *
  * ⚠ ONE PLAN PER WINDOW (069), ASSIGNED AT ONCE (072). A customer is sold a window, so each window's
  * packages are planned together against the window's END. Until 072 they then waited at the hub,
@@ -181,7 +225,7 @@ async function planCollection(
  * are open immediately, exactly as before.
  */
 async function planDelivery(tx: Queryable, settings: PlannerSettings, now: Date): Promise<Planned> {
-  const packages = await gatherDeliveryWork(tx);
+  const packages = await gatherDeliveryWork(tx, null, endOfLocalDay(now));
   const total: Planned = { outcome: nothing("delivery"), exclusions: [], driverIds: [] };
   if (packages.length === 0) return total;
 

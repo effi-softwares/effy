@@ -16,6 +16,28 @@ this, catalogue every requirement, match them against what Effy already has, sel
 
 ---
 
+## ⚠ Read first — what 082 changed (2026-10-09)
+
+The sections below record the design as it was researched and built (056–073). Four things in them are
+**no longer how the engine works**; the code and `specs/082-driver-operations-realignment/` are current.
+
+1. **What Effy delivers is not "same-day".** The delivery gather asks 079's one definition —
+   `public.package_delivered_by(order.delivery_type, method, slot)` = `effy` — never
+   `delivery_method = 'same_day'`. Since 078 a later-day window is stored `standard` with a window, and
+   it is delivery work.
+2. **A delivery round is planned on its window's day.** The gather takes only windows whose day has
+   come; a parcel for a later day waits at the hub on no round. Work is given to drivers on duty now
+   and taken back at clock-off (072), so a round planned days early would change hands every shift.
+   `public.round_opens_at` is still the one definition of when a round opens.
+3. **A parcel is collected on the latest run that makes its window** —
+   `collectionRunFor(windowStart, runs, hubTurnaround, calendar)` in
+   `apis/edge-api/shared/src/lib/collection-deadline.ts`: the latest run with `run + turnaround ≤ window
+   start`, on the window's day or the nearest earlier delivery day. The same test checkout's
+   `judgeWindow` uses. Courier parcels via the hub, and parcels sold no window, go on the next run.
+4. **§3.2's capability matrix has no method.** A clearance is (function, area); `method` is still a
+   column (dropped at E9) and nothing reads it. Work for a postcode in no group is cleared by ANY
+   clearance for the function.
+
 ## §0 ⚠ How much of this is actually verified
 
 Six agents researched in parallel. **The session's shared WebSearch quota (200 calls) was exhausted

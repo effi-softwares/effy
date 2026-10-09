@@ -4,7 +4,23 @@
 // this only shows the result, so the order screens stay one service and one request.
 
 import { query, reasonWords, type ExclusionReason } from "@effy/edge-shared";
+import { deliveredBySql } from "@effy/edge-shared/delivery";
 import type { OrderAssignment } from "@effy/shared-types";
+
+/**
+ * ⚠ 082 — "THIS PARCEL IS DELIVERY WORK NOW", in ONE place: Effy delivers it (079's definition — never
+ * the method: since 078 a later-day window is sold as `standard`), and its round has OPENED (the
+ * database's one definition of that, `public.round_opens_at`). A parcel sold no window is due at once.
+ *
+ * A parcel at the hub waiting for a later day is NOT delivery work yet: it is waiting, not unassigned,
+ * and neither the order page nor the "needs a driver" filter says otherwise. Both read this fragment,
+ * over a fulfilment `sf`, its order `o` and its captured delivery row `opd`.
+ */
+export const DELIVERY_DUE_SQL = `(
+  ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} = 'effy'
+  AND (opd.window_start IS NULL
+       OR public.round_opens_at('delivery', opd.window_end, opd.window_start) <= now())
+)`;
 
 /**
  * Every package's current collection and delivery assignment — the LATEST round row of each kind —
@@ -19,7 +35,7 @@ import type { OrderAssignment } from "@effy/shared-types";
 const ASSIGNMENTS = `
   SELECT sf.id::text AS package_id,
          sf.status   AS shop_status,
-         COALESCE(sf.delivery_method, 'standard') AS method,
+         ${DELIVERY_DUE_SQL} AS delivery_due,
          stage.stage,
          a.round_package_id, a.state, a.driver_id, a.driver_name, a.round_id, a.round_status,
          a.opens_at, a.due_at, a.assigned_note,
@@ -33,6 +49,8 @@ const ASSIGNMENTS = `
          COALESCE((SELECT bool_or(ae.driver_id IS NULL) FROM public.assignment_exclusion ae
                     WHERE ae.shop_fulfillment_id = sf.id AND ae.kind = stage.stage), false) AS nobody
     FROM public.shop_fulfillment sf
+    JOIN public."order" o ON o.id = sf.order_id
+    LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
    CROSS JOIN (VALUES ('collection'), ('delivery')) AS stage(stage)
     LEFT JOIN LATERAL (
       SELECT rp.id::text AS round_package_id, rp.state, d.id::text AS driver_id, d.name AS driver_name,
@@ -53,7 +71,7 @@ const ASSIGNMENTS = `
 interface Row {
   package_id: string;
   shop_status: string;
-  method: string;
+  delivery_due: boolean;
   stage: "collection" | "delivery";
   round_package_id: string | null;
   state: string | null;
@@ -107,7 +125,7 @@ function toAssignment(r: Row): OrderAssignment | null {
   const waiting =
     r.stage === "collection"
       ? r.shop_status === "ready_for_pickup"
-      : r.method === "same_day" && r.shop_status === "collected" && r.at_hub;
+      : r.delivery_due && r.shop_status === "collected" && r.at_hub;
   if (!waiting) return null;
   return {
     assignmentId: null,

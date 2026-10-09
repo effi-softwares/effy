@@ -84,6 +84,8 @@ CREATE TABLE public."order" (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id uuid NOT NULL REFERENCES public.customer (id),
   order_number text NOT NULL, status text NOT NULL,
+  -- 079 — who delivers; NULL for an order placed before it.
+  delivery_type text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.shop (
@@ -98,6 +100,7 @@ CREATE TABLE public.shop_fulfillment (
   order_id uuid NOT NULL REFERENCES public."order" (id),
   shop_id uuid NOT NULL REFERENCES public.shop (id),
   status text NOT NULL DEFAULT 'pending',
+  delivery_method text,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (order_id, shop_id)
 );
@@ -105,8 +108,16 @@ CREATE TABLE public.order_package_delivery (
   order_id uuid NOT NULL REFERENCES public."order" (id),
   shop_id uuid NOT NULL REFERENCES public.shop (id),
   method text NOT NULL,
+  slot_id uuid,
   PRIMARY KEY (order_id, shop_id)
 );
+-- 079's one definition of who takes a package to the customer, verbatim from its migration.
+CREATE FUNCTION public.package_delivered_by(p_delivery_type text, p_method text, p_slot_id uuid)
+RETURNS text LANGUAGE sql IMMUTABLE AS $$
+    SELECT COALESCE(
+        p_delivery_type,
+        CASE WHEN p_method = 'same_day' OR p_slot_id IS NOT NULL THEN 'effy' ELSE 'courier' END);
+$$;
 CREATE TABLE public.delivery_zone (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL,
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
@@ -821,8 +832,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     it("C1 — granting the same clearance twice is refused by the index, and surfaces as a no-op", async () => {
       const z = await seedZone("C1 Zone");
       const d = await seedDriver("Alpha Cap");
-      await capRepo.grant(d, "delivery", "same_day", z, "actor-1");
-      await capRepo.grant(d, "delivery", "same_day", z, "actor-1");
+      await capRepo.grant(d, "delivery", z, "actor-1");
+      await capRepo.grant(d, "delivery", z, "actor-1");
 
       const rows = await pool.query(
         `SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d],
@@ -833,7 +844,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       await expect(
         pool.query(
           `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
-           VALUES ($1, 'delivery', 'same_day', $2)`, [d, z],
+           VALUES ($1, 'delivery', 'standard', $2)`, [d, z],
         ),
       ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
     });
@@ -848,7 +859,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
      */
     it("⚠ C2 — two identical EVERY-ZONE grants cannot both exist", async () => {
       const d = await seedDriver("Bravo Every");
-      await capRepo.grant(d, "collection", "standard", null, "actor-1");
+      await capRepo.grant(d, "collection", null, "actor-1");
 
       await expect(
         pool.query(
@@ -858,7 +869,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
 
       // The service path is idempotent rather than throwing.
-      await capRepo.grant(d, "collection", "standard", null, "actor-1");
+      await capRepo.grant(d, "collection", null, "actor-1");
       const rows = await pool.query(
         `SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d],
       );
@@ -881,7 +892,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const d = await seedDriver("Charlie Everywhere", { licenceExpires: "2030-01-01" });
       const v = await seedVehicle("EFY-C3", { regExpires: "2030-01-01" });
       await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
-      await capRepo.grant(d, "delivery", "standard", null, "actor-1");
+      await capRepo.grant(d, "delivery", null, "actor-1");
 
       // The zone does not exist at the moment the clearance is granted.
       const laterZone = await seedZone("Created Afterwards");
@@ -889,10 +900,10 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const cleared = await pool.query<{ ok: boolean }>(
         `SELECT EXISTS (
            SELECT 1 FROM public.driver_zone_capability c
-            WHERE c.driver_id = $1 AND c.function = $2 AND c.method = $3
-              AND (c.zone_id = $4 OR c.zone_id IS NULL)
+            WHERE c.driver_id = $1 AND c.function = $2
+              AND (c.zone_id = $3 OR c.zone_id IS NULL)
          ) AS ok`,
-        [d, "delivery", "standard", laterZone],
+        [d, "delivery", laterZone],
       );
       expect(cleared.rows[0]!.ok).toBe(true);
 
@@ -900,7 +911,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       // able driver cleared for EVERY zone covers a zone that did not exist when they were cleared.
       const gaps = await coverageRepo.coverageGaps();
       const newZoneDeliveryGap = gaps.find(
-        (g) => g.zoneId === laterZone && g.function === "delivery" && g.method === "standard",
+        (g) => g.zoneId === laterZone && g.function === "delivery",
       );
       expect(newZoneDeliveryGap).toBeUndefined();
     });
@@ -910,7 +921,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const a = await seedZone("C4 Alpha");
       const b = await seedZone("C4 Bravo");
       const d = await seedDriver("Delta Narrow");
-      await capRepo.grant(d, "delivery", "standard", a, "actor-1");
+      await capRepo.grant(d, "delivery", a, "actor-1");
 
       const inB = await pool.query<{ ok: boolean }>(
         `SELECT EXISTS (
@@ -925,8 +936,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     it("C5 — revoking one clearance leaves the driver's others intact", async () => {
       const z = await seedZone("C5 Zone");
       const d = await seedDriver("Echo Multi");
-      await capRepo.grant(d, "collection", "standard", z, "actor-1");
-      await capRepo.grant(d, "delivery", "same_day", z, "actor-1");
+      await capRepo.grant(d, "collection", z, "actor-1");
+      await capRepo.grant(d, "delivery", z, "actor-1");
 
       const before = await capRepo.listForDriver(d);
       expect(before).toHaveLength(2);
@@ -949,8 +960,8 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     it("C7 — DELETING a zone removes clearances naming it, and leaves every-zone grants untouched", async () => {
       const z = await seedZone("C7 Doomed");
       const d = await seedDriver("Golf Mixed");
-      await capRepo.grant(d, "delivery", "standard", z, "actor-1");
-      await capRepo.grant(d, "collection", "standard", null, "actor-1");
+      await capRepo.grant(d, "delivery", z, "actor-1");
+      await capRepo.grant(d, "collection", null, "actor-1");
 
       await pool.query(`DELETE FROM public.delivery_zone WHERE id = $1`, [z]);
 
@@ -969,7 +980,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     it("⚠ C8 — DISABLING a zone hides its clearances but does NOT delete them; re-enabling restores cover", async () => {
       const z = await seedZone("C8 Toggle");
       const d = await seedDriver("Hotel Toggle");
-      await capRepo.grant(d, "delivery", "standard", z, "actor-1");
+      await capRepo.grant(d, "delivery", z, "actor-1");
       expect(await capRepo.listForDriver(d)).toHaveLength(1);
 
       await pool.query(`UPDATE public.delivery_zone SET status = 'disabled' WHERE id = $1`, [z]);
@@ -1003,7 +1014,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const z = await seedZone("C10 Blocked", { sameDay: false });
       const d = await seedDriver("India Expired", { licenceExpires: "2020-01-01" });
       for (const fn of ["collection", "delivery"] as const) {
-        await capRepo.grant(d, fn, "standard", z, "actor-1");
+        await capRepo.grant(d, fn, z, "actor-1");
       }
 
       const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);
@@ -1022,7 +1033,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const d = await seedDriver("Juliet Able", { licenceExpires: "2030-01-01" });
       await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
       for (const fn of ["collection", "delivery"] as const) {
-        await capRepo.grant(d, fn, "standard", z, "actor-1");
+        await capRepo.grant(d, fn, z, "actor-1");
       }
 
       const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);
@@ -1030,23 +1041,53 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     /**
-     * ⚠⚠ C12 — SAME-DAY IS NOT SOLD EVERYWHERE, AND REPORTING IT WOULD POISON THE VIEW.
-     *
-     * `delivery_zone.sameday_eligible` (047) says outer and regional zones are standard-only by
-     * design. "Nobody is cleared for same-day in Ballarat" is a permanent, UNFIXABLE row in the one
-     * screen whose purpose is to be actionable — and an operator who cannot clear a gap learns to
-     * ignore the screen that shows it.
+     * ⚠ C12 — 082: ONE GAP PER AREA AND FUNCTION, whatever the area's old same-day flag says. Until 082
+     * this enumerated a delivery method too (and took care not to list same-day where it was not
+     * sold). A clearance has no method now, so the question is only whether anyone can collect for,
+     * and deliver in, each area.
      */
-    it("⚠⚠ C12 — same-day gaps appear ONLY for zones where same-day is actually offered", async () => {
-      const standardOnly = await seedZone("C12 Standard Only", { sameDay: false });
-      const sameDayZone = await seedZone("C12 Same Day", { sameDay: true });
+    it("⚠ C12 — a gap is per area and function, with no method, whether or not same-day was sold there", async () => {
+      const a = await seedZone("C12 Standard Only", { sameDay: false });
+      const b = await seedZone("C12 Same Day", { sameDay: true });
 
       const gaps = await coverageRepo.coverageGaps();
-      const methodsFor = (id: string) =>
-        new Set(gaps.filter((g) => g.zoneId === id).map((g) => g.method));
+      for (const id of [a, b]) {
+        const mine = gaps.filter((g) => g.zoneId === id);
+        expect(mine.map((g) => g.function).sort()).toEqual(["collection", "delivery"]);
+        expect(mine.every((g) => !("method" in g))).toBe(true);
+      }
+    });
 
-      expect(methodsFor(standardOnly)).toEqual(new Set(["standard"]));
-      expect(methodsFor(sameDayZone)).toEqual(new Set(["standard", "same_day"]));
+    /**
+     * ⚠ 082 P6 — NOBODY LOST A CLEARANCE, AND NOBODY HOLDS ONE TWICE. Rows written before 082 carry one
+     * of two methods, and a driver may hold both for one function and area. No row was rewritten: each
+     * (function, area) reads as ONE clearance, granting it again adds nothing, and revoking it removes
+     * every row behind it — otherwise the driver would still be cleared by the row left over.
+     */
+    it("⚠ 082 P6 — old rows of either method are one clearance; grant adds none; revoke removes them all", async () => {
+      const z = await seedZone("P6 Zone");
+      const both = await seedDriver("P6 Both Methods");
+      const one = await seedDriver("P6 Same-day Only");
+      await pool.query(
+        `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id) VALUES
+           ($1, 'delivery', 'standard', $3), ($1, 'delivery', 'same_day', $3), ($2, 'delivery', 'same_day', $3)`,
+        [both, one, z],
+      );
+      for (const d of [both, one]) {
+        const list = await capRepo.listForDriver(d);
+        expect(list.map((c) => [c.function, c.zoneId])).toEqual([["delivery", z]]);
+      }
+      const summary = await capRepo.summariseForDrivers([both]);
+      expect(summary.get(both)!.total).toBe(1);
+
+      // Granting what is held — under whichever old method — adds no row.
+      await capRepo.grant(one, "delivery", z, "actor-1");
+      expect((await pool.query(`SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [one])).rowCount).toBe(1);
+
+      // Revoking the one clearance removes BOTH rows behind it.
+      const [held] = await capRepo.listForDriver(both);
+      expect(await capRepo.revoke(both, held!.id)).toBe(true);
+      expect((await pool.query(`SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [both])).rowCount).toBe(0);
     });
 
     /** ⚠ C13 — FR-020. The two views read ONE availability rule, so they cannot disagree. */
@@ -1054,7 +1095,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const z = await seedZone("C13 Agree", { sameDay: false });
       const d = await seedDriver("Kilo Agree", { licenceExpires: "2020-01-01" });
       for (const fn of ["collection", "delivery"] as const) {
-        await capRepo.grant(d, fn, "standard", z, "actor-1");
+        await capRepo.grant(d, fn, z, "actor-1");
       }
 
       const blocked = await readinessRepo.blockedDrivers();
@@ -1070,7 +1111,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const z = await seedZone("C14 Departed", { sameDay: false });
       const d = await seedDriver("Lima Gone", { status: "offboarded" });
       for (const fn of ["collection", "delivery"] as const) {
-        await capRepo.grant(d, fn, "standard", z, "actor-1");
+        await capRepo.grant(d, fn, z, "actor-1");
       }
 
       const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);

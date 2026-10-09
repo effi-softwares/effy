@@ -6,7 +6,7 @@
 
 import { deliveredBySql } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
-import type { CollectRequest, HubCheckinResponse } from "@effy/shared-types";
+import { formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse } from "@effy/shared-types";
 
 import { assertRoundOpen } from "./open";
 import { NotFoundError } from "./service";
@@ -121,13 +121,19 @@ export async function collectStop(
 /**
  * Hub check-in (FR-022, FR-023).
  *
- * ⚠ THE SPLIT IS SHOWN, NEVER DECIDED. `delivery_method` was chosen by the shopper at checkout (047);
- * this reads it. The driver classifies nothing, and this function writes that column under no
- * circumstances.
+ * ⚠ THE SPLIT IS SHOWN, NEVER DECIDED. Who delivers a parcel was settled when the order was placed
+ * (079); this reads it. The driver classifies nothing.
  *
- * ⚠ A STANDARD PACKAGE'S DRIVER-SIDE WORK ENDS HERE (FR-024). It enters no delivery round — not by
- * being filtered out later, but because the delivery gather selects on `delivery_method = 'same_day'`
- * and can never see it.
+ * ⚠ 082 — TWO GROUPS, AND NEITHER IS A METHOD. "Effy delivery", by the day and window each parcel
+ * waits for (a window may be days away: the parcel is shelved for it), and "Courier". The answer is
+ * `package_delivered_by`, 079's one definition — a later-day window is stored `standard` and is Effy's
+ * all the same.
+ *
+ * ⚠ A COURIER PARCEL'S DRIVER-SIDE WORK ENDS HERE. It enters no delivery round: the delivery gather
+ * takes only what Effy delivers.
+ *
+ * `sameDayCount` / `standardCount` are still returned, by the method, for driver builds that predate
+ * `effyGroups` (E9 removes them). Nothing new reads them.
  */
 export async function hubCheckin(
   runId: string,
@@ -150,6 +156,8 @@ export async function hubCheckin(
               -- 080 — who takes it from the hub: what the driver is told ("Courier"), never the
               -- customer's word for the delivery.
               ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
+              opd.window_start                         AS window_start,
+              opd.window_end                           AS window_end,
               count(*)::int                            AS n
          FROM public.round_package rp
          JOIN public.round_stop       rs ON rs.id = rp.stop_id
@@ -157,7 +165,7 @@ export async function hubCheckin(
          JOIN public."order"          o  ON o.id = sf.order_id
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
         WHERE rs.round_id = $1
-        GROUP BY 1, 2, 3`,
+        GROUP BY 1, 2, 3, 4, 5`,
       [runId],
     );
 
@@ -170,6 +178,29 @@ export async function hubCheckin(
       .filter((r: any) => r.delivered_by === "courier" && r.state === "picked_up")
       .reduce((a: number, r: any) => a + Number(r.n), 0);
     const arrived = sameDay + standard;
+
+    // 082 — what the driver is shown: Effy's parcels by the day and window each waits for, earliest
+    // first, those sold no window last. The label is written here; the app never formats a day.
+    const at = new Date();
+    const effyRows = counts.rows.filter((r: any) => r.delivered_by === "effy" && r.state === "picked_up");
+    const byWindow = new Map<string, HubCheckinEffyGroup>();
+    for (const r of effyRows) {
+      const windowStart = r.window_start ? new Date(r.window_start).toISOString() : null;
+      const windowEnd = r.window_end ? new Date(r.window_end).toISOString() : null;
+      const key = `${windowStart}|${windowEnd}`;
+      const g = byWindow.get(key) ?? {
+        date: windowStart ? melbourneDate(new Date(windowStart)) : null,
+        windowStart, windowEnd,
+        label: windowStart && windowEnd ? formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, at) : "Effy delivery",
+        count: 0,
+        dueToday: windowStart === null || melbourneDate(new Date(windowStart)) <= melbourneDate(at),
+      };
+      g.count += Number(r.n);
+      byWindow.set(key, g);
+    }
+    const effyGroups = [...byWindow.values()].sort((a, b) =>
+      a.windowStart === null ? 1 : b.windowStart === null ? -1 : a.windowStart.localeCompare(b.windowStart));
+    const effyCount = effyGroups.reduce((a, g) => a + g.count, 0);
     const expected = counts.rows.reduce((a: number, r: any) => a + Number(r.n), 0);
 
     // ⚠ UNIQUE (round_id) makes a retry a retry. Without `DO NOTHING` a driver tapping twice in a
@@ -201,7 +232,7 @@ export async function hubCheckin(
       [runId],
     );
 
-    return { scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier };
+    return { scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier, effyCount, effyGroups };
   });
 }
 

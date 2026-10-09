@@ -182,6 +182,14 @@
     "CollectionPackage": {
       "additionalProperties": false,
       "properties": {
+        "deliveredBy": {
+          "description": "082 — who takes it from the hub: an Effy driver, or a courier. What the app says.",
+          "enum": [
+            "effy",
+            "courier"
+          ],
+          "type": "string"
+        },
         "destinationSuburb": {
           "type": "string"
         },
@@ -193,13 +201,21 @@
           "type": "array"
         },
         "method": {
-          "$ref": "#/definitions/PackageMethod"
+          "$ref": "#/definitions/PackageMethod",
+          "deprecated": "082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9)."
         },
         "ref": {
           "type": "string"
         },
         "summary": {
           "$ref": "#/definitions/ClassSummary"
+        },
+        "windowLabel": {
+          "description": "082 — the day and window an Effy parcel is for, in words written by the server; null when none.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1035,6 +1051,50 @@
       ],
       "type": "object"
     },
+    "HubCheckinEffyGroup": {
+      "additionalProperties": false,
+      "description": "082 — the Effy parcels of one check-in that wait for one day and window.",
+      "properties": {
+        "count": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "date": {
+          "description": "yyyy-mm-dd (Melbourne) of the window; null for a parcel sold no window.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dueToday": {
+          "description": "True when these go out TODAY (their window is today, or they were sold no window): the driver loads them for a delivery round. False = shelved at the hub for a later day. ⚠ Decided by the server, which knows the operating day; the app never compares dates.",
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "windowEnd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "windowStart": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "date",
+        "windowStart",
+        "windowEnd",
+        "label",
+        "count",
+        "dueToday"
+      ],
+      "type": "object"
+    },
     "HubCheckinRequest": {
       "additionalProperties": false,
       "description": "POST /driver/v1/hub/checkin",
@@ -1058,6 +1118,16 @@
         "courierCount": {
           "$ref": "#/definitions/WireInt",
           "description": "080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says \"Courier\"."
+        },
+        "effyCount": {
+          "$ref": "#/definitions/WireInt",
+          "description": "082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two groups, \"Effy delivery\" (these) and \"Courier\", and the driver classifies nothing. ⚠ `label` is written by the server (\"Today, 4 pm – 6 pm\", \"Thu 15 Oct, 10 am – 12 pm\"): the app has no timezone database and never formats a day itself. A parcel sold no window has null instants. ⚠ `sameDayCount` / `standardCount` above stay for driver builds that predate these (E9 removes them)."
+        },
+        "effyGroups": {
+          "items": {
+            "$ref": "#/definitions/HubCheckinEffyGroup"
+          },
+          "type": "array"
         },
         "sameDayCount": {
           "$ref": "#/definitions/WireInt"

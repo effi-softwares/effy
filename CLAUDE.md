@@ -28,8 +28,9 @@ controls** any more.
   keep their 047 names until E9. A group's `status` no longer decides coverage; removing a group never
   removes its postcodes.
 - ⚠ **Two frozen bridges keep the live checkout selling**, each removed by the epic named: the same-day
-  flag (**E9** — moved from E5 by 079: today's checkout still reads it), and driver clearances keyed on the group — an **ungrouped postcode is deliverable only
-  by an every-zone driver** (**E8**). (The fee-tier bridge went with **077**; the tiers are dropped.)
+  flag (**E9** — moved from E5 by 079: today's checkout still reads it), and driver clearances keyed on the group —
+  since **082** a clearance is (function, group-or-everywhere) and an **ungrouped postcode is cleared by any
+  clearance for the function**. (The fee-tier bridge went with **077**; the tiers are dropped.)
 - ⚠ **"COURIER" MEANS A COURIER ORDER CAN BE PLACED THERE NOW (079).** `coverage_for_postcode` answers
   `courier` only when the new delivery model is on (`delivery_model_v2_at`), courier delivery is on, a
   courier fee table is active and an estimate text is set — `public.courier_reaches_postcode` /
@@ -86,7 +87,8 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   - ⚠ **THE SWITCH** is `delivery_settings.delivery_model_v2_from` (NULL = off), read ONLY through
     `public.delivery_model_v2_at` → `deliveryModelV2At` (`shared/src/delivery/model.ts`), and called by
     the quote alone (`windows.guard.test.ts`). **Nothing sets it; E9 adds the setter.** ⚠ Do not turn
-    it on before E8: the planner gathers `same_day` only, so a later-day order gets no driver round.
+    it on before **082 is deployed**: until then the planner gathers `same_day` only, so a later-day
+    order gets no driver round.
   - ⚠ **Which checkout a client is in, the QUOTE says**: `effyWindows` present → send `deliveryWindow
     {slotId, date}`; absent → the 069 fields. Absent, not null — the quote is then byte-identical.
   - ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` (cutoff every day; collection
@@ -140,6 +142,16 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   `submitRecorded`). `delivery_override` is append-only (`override.guard.test.ts`). Compensation is staff's
   choice, previewed and confirmed with the expected amount (a stale amount is 409 `compensation_changed`);
   the difference never goes below zero. Only typed orders move; a parcel out for delivery blocks it.
+- ⚠ **DRIVER WORK FOLLOWS WHO DELIVERS, NOT A METHOD (082).** The delivery gather, dispatch and "needs a
+  driver" ask `package_delivered_by = 'effy'` — never `delivery_method = 'same_day'`
+  (`fleet/src/driver-method.guard.test.ts`). A delivery round is planned **on its window's day** (one
+  predicate in `GATHER_DELIVERY`; a later-day parcel waits at the hub on no round, and "Assign to…" answers
+  `not_yet`). A parcel is collected on the **latest run that makes its window** — `collectionRunFor`
+  (`shared/src/lib/collection-deadline.ts`), the planner's `dueRun`. A clearance is **(function, area)**:
+  nothing reads `driver_zone_capability.method` (dropped at E9). Hub check-in returns `effyGroups` (by day
+  and window, `dueToday`) + `courierCount`. ⚠ The driver wire is ADDITIVE until E9 (`same_day_delivery`,
+  `sameDayCount`, `standardCount` stay). ⚠ Drivers and dispatch never read "same-day"/"standard":
+  `scripts/check-driver-delivery-words.sh`.
 - **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out
   for delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the
   dispatch rows, never from `shop_fulfillment.status` alone (which stops at `collected` by design), and
@@ -521,6 +533,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — built, not deployed
 - **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off; not yet migrated or deployed to dev
 - **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev
 - **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — migrated and deployed to dev; not walked or signed off; rides 078's switch
@@ -580,5 +593,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/081-courier-override-compensation/plan.md
+at specs/082-driver-operations-realignment/plan.md
 <!-- SPECKIT END -->

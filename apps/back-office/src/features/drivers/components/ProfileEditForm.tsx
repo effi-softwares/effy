@@ -117,8 +117,8 @@ export function ProfileEditForm({
         </Field>
 
         {/* ⚠ 062 — THE ZONE PICKER IS GONE. A driver's coverage is a set of clearances now
-            (function × method × zone), granted on the Clearances section below, because one zone
-            could never express "same-day delivery here, standard collection everywhere". */}
+            (function × area), granted on the Clearances section below, because one zone could never
+            express "delivers here, collects everywhere". */}
 
         <Field id="f-licence-class" label="Licence class">
           <select

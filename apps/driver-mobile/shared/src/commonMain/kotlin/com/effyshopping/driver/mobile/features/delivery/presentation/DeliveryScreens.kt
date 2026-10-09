@@ -83,7 +83,7 @@ fun DeliveryRunScreen(
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         DeliveryHeader(
-            title = "Same-day run",
+            title = "Delivery run",
             subtitle = if (run != null) {
                 "$total drop${if (total == 1) "" else "s"} \u00b7 from the hub"
             } else {

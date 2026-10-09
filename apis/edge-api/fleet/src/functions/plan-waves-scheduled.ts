@@ -99,5 +99,8 @@ export const handler: ScheduledHandler = async (_event, context) => {
     DispatchPackagesUnassigned: unassigned,
     DispatchPackagesReleased: outcome.released,
     DispatchUnassignedPastOpening: pastOpening,
+    // 082 — parcels still at a supplier after the run that would have made their window. Counted, not
+    // alarmed: the dispatch day view shows each one, and a parcel a minute late for a run is a normal day.
+    DispatchParcelsCollectLate: outcome.collection.collectLate ?? 0,
   });
 };

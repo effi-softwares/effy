@@ -15,7 +15,10 @@ import {
   orderRoundStops,
 } from "@effy/edge-shared";
 
+import { nonDeliveryDates } from "@effy/edge-shared/delivery";
+
 import { loadCandidates, loadSchedule } from "../planner/repository";
+import { dueRun, isoDateOf } from "../planner/service";
 import { recordAudit, type DispatchAuditAction } from "../shared/audit";
 import {
   DAY_ROUNDS,
@@ -39,7 +42,8 @@ export class DispatchError extends Error {
 export async function readDay() {
   const [rounds, unassigned, schedule] = await Promise.all([
     query<any>(DAY_ROUNDS),
-    query<any>(UNASSIGNED_WORK),
+    // 082 — $1: the end of the local day. A hub parcel for a later day is waiting, not unassigned.
+    query<any>(UNASSIGNED_WORK, [endOfLocalDay(new Date())]),
     loadSchedule(),
   ]);
 
@@ -54,6 +58,19 @@ export async function readDay() {
     const end = u.window_end && u.window_end.getTime() > now ? u.window_end : endOfDay;
     return end.toISOString();
   };
+  // 082 — the planner's own rule for WHICH run a shop-side parcel travels on (`dueRun`). One not yet
+  // due on the next run is waiting at its supplier on purpose and is left out; one whose run has gone
+  // is listed and marked late.
+  const calendar = {
+    noWeekdays: schedule.settings.noDeliveryWeekdays,
+    noDates: await nonDeliveryDates({ query: (t, v) => query(t, v) }, isoDateOf(new Date(now), -8)),
+  };
+  const dueOf = (u: { stage: string; delivered_by: "effy" | "courier"; window_start: Date | null }): Date | null =>
+    u.stage === "collection" ? dueRun({ deliveredBy: u.delivered_by, windowStart: u.window_start }, schedule.runs, schedule.settings, calendar) : null;
+  const listed = unassigned.rows.filter((u: any) => {
+    const due = dueOf(u);
+    return due === null || nextRun === null || due.getTime() <= nextRun.getTime();
+  });
   return {
     rounds: rounds.rows.map((r) => ({
       round: {
@@ -75,13 +92,16 @@ export async function readDay() {
       // wrong every minute nothing wrote to it.
       isLate: r.status !== "completed" && r.status !== "cancelled" && r.deadline_at.getTime() < now,
     })),
-    unassigned: unassigned.rows.map((u) => ({
+    unassigned: listed.map((u: any) => ({
       packageId: u.package_id,
       orderNumber: u.order_number,
       shopName: u.shop_name,
       zoneName: u.zone_name,
-      method: u.method,
       readySince: u.ready_since.toISOString(),
+      collectLate: (() => {
+        const due = dueOf(u);
+        return due !== null && nextRun !== null && due.getTime() < nextRun.getTime();
+      })(),
       // ⚠ An EMPTY array means no candidate existed at all — a staffing problem, not a fixable list.
       reasons: u.no_candidate ? [] : (u.reasons ?? []),
       stage: u.stage,
@@ -168,7 +188,6 @@ export async function reassign(
     // could do what the planner would not: put a chilled round in a van that cannot carry chilled.
     const work: {
       rows: Array<{
-        method: "standard" | "same_day";
         zone_id: string | null;
         weight_grams: string;
         requires_chilled: boolean;
@@ -193,20 +212,19 @@ export async function reassign(
     // A round not yet begun cannot be worked before it opens (FR-005); one under way starts now.
     const startAt = r.status === "planned" && r.opens_at ? (r.opens_at as Date) : now;
 
-    // One question per distinct (method, zone) on the round — a driver must be cleared for ALL of it
+    // One question per distinct area on the round — a driver must be cleared for ALL of it
     // — each carrying the whole round's weight, stops and refrigeration. An empty round still asks
     // the conditions that are about the driver and not the work.
     const units =
       work.rows.length > 0
         ? work.rows
-        : [{ method: "standard" as const, zone_id: null, weight_grams: "0", requires_chilled: false, requires_frozen: false, stops: 0 }];
+        : [{ zone_id: null, weight_grams: "0", requires_chilled: false, requires_frozen: false, stops: 0 }];
     const found = new Set<ExclusionReason>();
     for (const u of units) {
       for (const reason of eligibilityReasons({
         driver: target,
         work: {
           function: r.kind,
-          method: u.method,
           zoneId: u.zone_id,
           totalWeightGrams: Number(u.weight_grams),
           requiresChilled: u.requires_chilled,

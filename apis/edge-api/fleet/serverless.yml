@@ -486,6 +486,18 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  dispatchWindowsV1:
+    handler: src/functions/dispatch-windows-v1-get.handler
+    description: >-
+      082 — a day's delivery windows with their parcels and rounds, for any day on sale. Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/dispatch/windows
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   dispatchRoundV1:
     handler: src/functions/dispatch-round-v1-get.handler
     description: 063 — one round's stops and order.

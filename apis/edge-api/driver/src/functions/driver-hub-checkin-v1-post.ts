@@ -13,9 +13,9 @@ import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 /**
  * POST /driver/v1/hub/checkin (063, FR-022/FR-023).
  *
- * ⚠ The same-day/standard split in the response is READ, never decided. The shopper chose the method
- * at checkout (047); the driver classifies nothing, and a standard package's driver-side work ends
- * here (FR-024).
+ * ⚠ The split in the response — Effy delivery (by day and window) and Courier — is READ, never
+ * decided: who delivers was settled when the order was placed (079). The driver classifies nothing,
+ * and a courier parcel's driver-side work ends here.
  */
 export const handler = async (
   event: AuthedEvent,

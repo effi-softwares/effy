@@ -14,6 +14,7 @@
 import type { WireInt } from "./cart";
 import type { DeliveryFailureReason } from "./driver";
 import type { DeliveryWindow } from "./delivery-window";
+import type { PackageStatusView } from "./package-status";
 
 /** Collecting from shops, or delivering to customers. Independent of method and zone. */
 export type RoundKind = "collection" | "delivery";
@@ -132,8 +133,12 @@ export interface UnassignedWorkDTO {
   orderNumber: string;
   shopName: string;
   zoneName: string | null;
-  method: "standard" | "same_day";
   readySince: string;
+  /**
+   * 082 — a parcel still at its supplier after the collection run that would have reached the hub in
+   * time for its window. It is offered on the next run; staff see it may miss the window.
+   */
+  collectLate?: boolean;
   /**
    * ⚠ Every reason, not the first (FR-026). A driver can be suspended AND holding a van with lapsed
    * registration; sending an operator to fix one of those wastes the trip.
@@ -286,4 +291,52 @@ export interface CustodyDTO {
   driverName: string;
   packages: CustodyPackageDTO[];
   packageCount: WireInt;
+}
+
+// ── 082 — dispatch across the days on sale ───────────────────────────────────────────────────────
+// Contract: `specs/082-driver-operations-realignment/contracts/routes.md`.
+
+/** A day that has delivery windows on sale (078's calendar), today first. */
+export interface DispatchCalendarDayDTO {
+  /** yyyy-mm-dd, Melbourne. */
+  date: string;
+  /** "Today" / "Wed 14 Oct". */
+  label: string;
+  isToday: boolean;
+}
+
+/** One Effy parcel sold a window on the chosen day. */
+export interface DispatchWindowParcelDTO {
+  packageId: string;
+  orderId: string;
+  orderNumber: string;
+  /** Where it is, in the platform's nine words (073). */
+  status: PackageStatusView;
+  /** Still at its supplier after the run that would have made its window. */
+  collectLate: boolean;
+  /** Holds chilled or frozen items and was checked in at the hub on a day before its window's. */
+  coldOvernight: boolean;
+  /** The postcode group its address is in; null when in none. */
+  group: string | null;
+}
+
+/** One window on the chosen day, with its parcels and its round. */
+export interface DispatchWindowDTO {
+  windowStart: string;
+  windowEnd: string;
+  /** "Wed 14 Oct, 4 pm – 6 pm". */
+  label: string;
+  /**
+   * The window's delivery rounds. ⚠ EMPTY BEFORE ITS DAY, and that is not a gap: a round is planned on
+   * its own day (082), so a later day's parcels are waiting, not unassigned.
+   */
+  rounds: { roundId: string; driver: { id: string; name: string }; opensAt: string | null; parcels: WireInt }[];
+  parcels: DispatchWindowParcelDTO[];
+}
+
+/** `GET /fleet/v1/dispatch/windows?date=` */
+export interface DispatchWindowsResponse {
+  days: DispatchCalendarDayDTO[];
+  date: string;
+  windows: DispatchWindowDTO[];
 }

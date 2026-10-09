@@ -44,7 +44,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
-import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
 import com.effyshopping.driver.mobile.features.manifest.presentation.ExpandableManifest
 import com.effyshopping.driver.mobile.features.manifest.presentation.StaleNotice
@@ -347,7 +346,8 @@ fun ShopStopScreen(
                             ref = pkg.ref,
                             line = "${pkg.destinationSuburb} · $units item${if (units == 1) "" else "s"}",
                             spokenContents = pkg.summary.spoken,
-                            method = pkg.method,
+                            toCourier = pkg.goesToCourier,
+                            windowLabel = pkg.windowLabel,
                             checked = pkg.ref in confirmed,
                             enabled = !done && open,
                             onToggle = { onTogglePackage(pkg.ref) },
@@ -405,12 +405,16 @@ private fun PackageRow(
     ref: String,
     line: String,
     spokenContents: String,
-    method: PackageMethod,
+    toCourier: Boolean,
+    windowLabel: String?,
     checked: Boolean,
     enabled: Boolean,
     onToggle: () -> Unit,
 ) {
-    val spoken = "$ref, $line, $spokenContents, ${if (method == PackageMethod.SAME_DAY) "same day" else "standard"}, " +
+    // 082 — who takes it from the hub, and (Effy's) the day and window it is for. Never the customer's
+    // word for the delivery.
+    val goes = if (toCourier) "courier" else listOfNotNull("Effy delivery", windowLabel).joinToString(", ")
+    val spoken = "$ref, $line, $spokenContents, $goes, " +
         if (checked) "confirmed" else "not confirmed"
     Row(
         Modifier
@@ -431,9 +435,17 @@ private fun PackageRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // 082 — the day and window an Effy parcel is for, so it can be shelved for it at the hub.
+            if (!toCourier && windowLabel != null) {
+                Text(
+                    windowLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Spacer(Modifier.width(10.dp))
-        MethodBadge(method)
+        DeliveredByBadge(toCourier)
     }
 }
 
@@ -458,8 +470,9 @@ private fun TickBox(checked: Boolean) {
 }
 
 @Composable
-private fun MethodBadge(method: PackageMethod) {
-    val sameDay = method == PackageMethod.SAME_DAY
+private fun DeliveredByBadge(toCourier: Boolean) {
+    // 082 — the driver's two words: who takes the parcel from the hub.
+    val sameDay = !toCourier
     Surface(
         shape = RoundedCornerShape(5.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -469,7 +482,7 @@ private fun MethodBadge(method: PackageMethod) {
         ),
     ) {
         Text(
-            if (sameDay) "SAME DAY" else "STANDARD",
+            if (sameDay) "EFFY" else "COURIER",
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
             color = if (sameDay) {
@@ -525,7 +538,9 @@ fun HubCheckinScreen(
             split == null -> Centered { Text(state.message ?: "Checking in\u2026") }
             else -> {
                 val shops = state.run?.stops?.size
-                val nothingSameDay = split.sameDayCount == 0
+                // 082 — "nothing to deliver today": no Effy parcel on this run goes out today. Parcels for
+                // a later day are shelved at the hub and are nobody's delivery round yet.
+                val nothingSameDay = split.dueToday == 0
 
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState())
@@ -543,34 +558,42 @@ fun HubCheckinScreen(
                     ScannedTotal(split.scannedTotal)
                     Spacer(Modifier.height(22.dp))
 
-                    SplitBar(sameDay = split.sameDayCount, standard = split.toCourier)
+                    SplitBar(effy = split.effyCount, courier = split.toCourier)
                     Spacer(Modifier.height(26.dp))
 
-                    if (nothingSameDay) {
+                    if (nothingSameDay && split.effyCount == 0) {
                         NothingSameDayBody(split.toCourier)
                     } else {
-                        SectionLabel("THE SPLIT")
+                        // 082 — TWO GROUPS, and the driver sorts nothing: Effy delivery, by the day and
+                        // window each parcel is for, and Courier. A group with nothing in it is not shown.
+                        SectionLabel("EFFY DELIVERY")
                         Spacer(Modifier.height(12.dp))
-                        SplitBlock(
-                            count = split.sameDayCount,
-                            title = "Same-day \u2014 yours to deliver",
-                            body = "Load these for your delivery run.",
-                            chip = "Loaded",
-                            emphasised = true,
-                        )
-                        Spacer(Modifier.height(11.dp))
+                        split.effy.forEach { g ->
+                            SplitBlock(
+                                count = g.count,
+                                title = g.label,
+                                body = if (g.dueToday) "Load these for your delivery run." else "Shelve these at the hub for that day.",
+                                chip = if (g.dueToday) "Loaded" else "Shelved",
+                                emphasised = g.dueToday,
+                            )
+                            Spacer(Modifier.height(11.dp))
+                        }
+                        if (split.toCourier > 0) {
+                        SectionLabel("COURIER")
+                        Spacer(Modifier.height(12.dp))
                         SplitBlock(
                             count = split.toCourier,
                             // 080 — the driver's word is who takes it, "Courier"; "Standard" is the customer's.
                             title = "Courier \u2014 handed to a courier at the hub",
                             body = "Labelled and staged at the dock. Out of your run from here.",
                             // \u26a0 NOT "Handed to carrier" \u2014 see the note on this screen.
-                            chip = "Staged for carrier",
+                            chip = "Staged for courier",
                             emphasised = false,
                         )
+                        }
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "The method was set at checkout \u2014 there is nothing to sort.",
+                            "This was set when each order was placed \u2014 there is nothing to sort.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -604,8 +627,8 @@ fun HubCheckinScreen(
                         )
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            "Unlocks your same-day delivery run \u00b7 ${split.sameDayCount} " +
-                                "package${if (split.sameDayCount == 1) "" else "s"}",
+                            "Unlocks your delivery run \u00b7 ${split.dueToday} " +
+                                "package${if (split.dueToday == 1) "" else "s"}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.fillMaxWidth(),
@@ -643,22 +666,22 @@ private fun ScannedTotal(total: Int) {
  * and a driver with a colour-vision difference reading a bar in a dim loading dock needs the numbers.
  */
 @Composable
-private fun SplitBar(sameDay: Int, standard: Int) {
-    val total = (sameDay + standard).coerceAtLeast(1)
+private fun SplitBar(effy: Int, courier: Int) {
+    val total = (effy + courier).coerceAtLeast(1)
     Column {
         Row(
             Modifier.fillMaxWidth().height(10.dp).clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            if (sameDay > 0) {
+            if (effy > 0) {
                 Box(
-                    Modifier.weight(sameDay.toFloat() / total).fillMaxHeight()
+                    Modifier.weight(effy.toFloat() / total).fillMaxHeight()
                         .background(MaterialTheme.colorScheme.primary),
                 )
             }
-            if (standard > 0) {
+            if (courier > 0) {
                 Box(
-                    Modifier.weight(standard.toFloat() / total).fillMaxHeight()
+                    Modifier.weight(courier.toFloat() / total).fillMaxHeight()
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 )
             }
@@ -666,12 +689,12 @@ private fun SplitBar(sameDay: Int, standard: Int) {
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "$sameDay same-day \u00b7 yours",
+                "$effy Effy delivery",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                "$standard standard \u00b7 carrier",
+                "$courier courier",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -742,16 +765,16 @@ private fun StateChip(label: String) {
  * had ended was shown the same screen as one about to start a delivery round.
  */
 @Composable
-private fun NothingSameDayBody(standardCount: Int) {
+private fun NothingSameDayBody(courierCount: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
-            "Nothing same-day today",
+            "Nothing to deliver today",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            "All $standardCount package${if (standardCount == 1) "" else "s"} on this run " +
-                "${if (standardCount == 1) "goes" else "go"} to a courier from the hub. Your run ends here \u2014 stay on duty and dispatch may assign " +
+            "All $courierCount package${if (courierCount == 1) "" else "s"} on this run " +
+                "${if (courierCount == 1) "goes" else "go"} to a courier from the hub. Your run ends here \u2014 stay on duty and dispatch may assign " +
                 "another collection round.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

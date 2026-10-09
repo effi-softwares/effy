@@ -5,6 +5,11 @@
 // before automation is even needed — Effy sits below where an SMB vendor says an engine is required.
 // The engine earns its place by making the common case automatic and the EXCEPTIONAL case visible.
 
+import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
+
+/** Who takes a parcel to the customer — 079's one definition, over these queries' aliases. */
+const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
+
 /** Every round today, with who holds it and how much is left. */
 export const DAY_ROUNDS = `
   SELECT dr.id, dr.kind, dr.status, dr.deadline_at, dr.changed_note,
@@ -45,9 +50,16 @@ export const DAY_ROUNDS = `
  * possibly for delivery; a join on the package alone would show a hub-side package its old
  * shop-side reasons. `standing-reasons.guard.test.ts` holds this.
  *
- * ⚠ HUB-SIDE PACKAGES ARE LISTED TOO (072). A same-day package checked in at the hub that nobody is
- * cleared to deliver was invisible on this screen; it is the more urgent of the two, because a
- * customer has been sold a window for it. Its WHERE clause is the delivery gather's, verbatim.
+ * ⚠ HUB-SIDE PACKAGES ARE LISTED TOO (072). A parcel Effy delivers, checked in at the hub, that nobody
+ * is cleared to deliver was invisible on this screen; it is the more urgent of the two, because a
+ * customer has been sold a window for it. Its WHERE clause is the delivery gather's, verbatim —
+ * including 082's two terms: Effy delivers it (079's definition, not the method), and its day has
+ * come ($1 = the end of the local day). A parcel waiting at the hub for a later day is WAITING, not
+ * unassigned, and is not listed here.
+ *
+ * ⚠ 082 — the shop-side half carries `delivered_by` and `window_start` so the service can leave out a
+ * parcel that is not yet due on a run, and mark one that has missed its run. A parcel a courier
+ * collects from the supplier is never listed: no driver goes for it (080's one fragment).
  *
  * ⚠ A row with `driver_id IS NULL` means NO CANDIDATE AT ALL, which the console must present
  * differently: "nobody is cleared for this" is a staffing decision, "everyone who is cleared failed a
@@ -58,7 +70,8 @@ export const UNASSIGNED_WORK = `
          o.order_number                          AS order_number,
          s.name                                  AS shop_name,
          z.name                                  AS zone_name,
-         COALESCE(sf.delivery_method, 'standard') AS method,
+         ${DELIVERED_BY}                         AS delivered_by,
+         opd.window_start                        AS window_start,
          sf.state_changed_at                     AS ready_since,
          'collection'::text                      AS stage,
          NULL::timestamptz                       AS window_end,
@@ -70,16 +83,19 @@ export const UNASSIGNED_WORK = `
     FROM public.shop_fulfillment sf
     JOIN public."order" o ON o.id = sf.order_id
     JOIN public.shop    s ON s.id = sf.shop_id
+    LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id
     LEFT JOIN public.assignment_exclusion   ae ON ae.shop_fulfillment_id = sf.id
                                               AND ae.kind = 'collection'
    WHERE sf.status = 'ready_for_pickup'
+     AND ${COURIER_COLLECTION_SQL("o")} <> 'supplier'
      AND NOT EXISTS (
            SELECT 1 FROM public.round_package rp
             WHERE rp.shop_fulfillment_id = sf.id AND rp.state = 'assigned'
          )
-   GROUP BY sf.id, o.order_number, s.name, z.name, sf.delivery_method, sf.state_changed_at
+   GROUP BY sf.id, o.order_number, o.delivery_type, s.name, z.name, sf.delivery_method, opd.method, opd.slot_id,
+            opd.window_start, sf.state_changed_at
 
   UNION ALL
 
@@ -87,7 +103,8 @@ export const UNASSIGNED_WORK = `
          o.order_number                          AS order_number,
          s.name                                  AS shop_name,
          z.name                                  AS zone_name,
-         'same_day'::text                        AS method,
+         'effy'::text                            AS delivered_by,
+         opd.window_start                        AS window_start,
          hc.checked_in_at                        AS ready_since,
          'delivery'::text                        AS stage,
          opd.window_end                          AS window_end,
@@ -109,13 +126,14 @@ export const UNASSIGNED_WORK = `
     LEFT JOIN public.assignment_exclusion   ae ON ae.shop_fulfillment_id = sf.id
                                               AND ae.kind = 'delivery'
    WHERE rp.state = 'picked_up'
-     AND sf.delivery_method = 'same_day'
+     AND ${DELIVERED_BY} = 'effy'
+     AND (opd.window_start IS NULL OR opd.window_start <= $1::timestamptz)
      AND sf.status = 'collected'
      AND NOT EXISTS (
            SELECT 1 FROM public.round_package open_rp
             WHERE open_rp.shop_fulfillment_id = sf.id AND open_rp.state = 'assigned'
          )
-   GROUP BY sf.id, o.order_number, s.name, z.name, hc.checked_in_at, opd.window_end
+   GROUP BY sf.id, o.order_number, s.name, z.name, hc.checked_in_at, opd.window_start, opd.window_end
 
    ORDER BY ready_since ASC
 `;
@@ -169,7 +187,7 @@ export { CUSTODY_BY_DRIVER } from "@effy/edge-shared";
 
 /**
  * What a round would ask of the driver taking it over (072, research R11) — one row per distinct
- * (method, zone) on it, each carrying the WHOLE round's weight, outstanding stops and refrigeration.
+ * area on it (082: a clearance has no method), each carrying the WHOLE round's weight, outstanding stops and refrigeration.
  *
  * ⚠ THIS REPLACED FOUR HARD-CODED ANSWERS. Until 072 the reassign check asked the shared rule about
  * a round that needed no refrigeration, had eight hours to finish, sat in its first zone only and
@@ -184,7 +202,6 @@ export const ROUND_WORK = `
   WITH pkg AS (
     SELECT rs.id AS stop_id,
            rs.zone_id,
-           COALESCE(sf.delivery_method, 'standard') AS method,
            COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
            COALESCE(bool_or(st.chilled), false) AS chilled,
            COALESCE(bool_or(st.frozen),  false) AS frozen
@@ -201,10 +218,9 @@ export const ROUND_WORK = `
          WHERE pav.product_id = p.id
       ) st ON TRUE
      WHERE rs.round_id = $1
-     GROUP BY rs.id, rs.zone_id, sf.id, sf.delivery_method
+     GROUP BY rs.id, rs.zone_id, sf.id
   )
-  SELECT pkg.method,
-         pkg.zone_id,
+  SELECT pkg.zone_id,
          (SELECT COALESCE(SUM(weight_grams), 0) FROM pkg)::bigint AS weight_grams,
          (SELECT COALESCE(bool_or(chilled), false) FROM pkg)       AS requires_chilled,
          (SELECT COALESCE(bool_or(frozen),  false) FROM pkg)       AS requires_frozen,
@@ -212,5 +228,5 @@ export const ROUND_WORK = `
            WHERE rs.round_id = $1 AND rs.kind <> 'hub_checkin'
              AND rs.status NOT IN ('done', 'skipped'))::int        AS stops
     FROM pkg
-   GROUP BY pkg.method, pkg.zone_id
+   GROUP BY pkg.zone_id
 `;

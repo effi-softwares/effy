@@ -14,6 +14,8 @@
 //
 // ⚠ NO COORDINATE IS SELECTED ANYWHERE, and none exists to select (D20/D22).
 
+import { deliveredBySql } from "@effy/edge-shared/delivery";
+
 /**
  * Every unfinished round the driver holds, the CURRENT one first (072).
  *
@@ -104,7 +106,12 @@ export const ROUND_STOPS = `
    ORDER BY rs.seq NULLS LAST, rs.id
 `;
 
-/** Packages at each stop of a round, with the order they belong to and their method. */
+/**
+ * Packages at each stop of a round, with the order they belong to.
+ *
+ * ⚠ 082 — `delivered_by` and the window are what the driver is TOLD ("Effy delivery, Thu 4–6 pm" /
+ * "Courier"); `method` is still selected only because driver builds that predate them read it (E9).
+ */
 export const ROUND_PACKAGES = `
   SELECT rp.id                                  AS round_package_id,
          rp.stop_id                             AS stop_id,
@@ -112,12 +119,16 @@ export const ROUND_PACKAGES = `
          sf.id                                  AS package_id,
          o.order_number                         AS order_number,
          COALESCE(sf.delivery_method, 'standard') AS method,
+         ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
+         opd.window_start                       AS window_start,
+         opd.window_end                         AS window_end,
          o.delivery_address ->> 'city'          AS destination_suburb
     FROM public.round_package rp
     JOIN public.round_stop       rs ON rs.id = rp.stop_id
     JOIN public.driver_round     dr ON dr.id = rs.round_id
     JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
     JOIN public."order"          o  ON o.id = sf.order_id
+    LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
    WHERE rs.round_id = $1
      AND dr.driver_id = $2
    ORDER BY rp.created_at

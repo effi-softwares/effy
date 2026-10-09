@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 
 import type { CoverageGap } from "@effy/shared-types";
 
-import { COVERAGE_REASON_LABEL, FUNCTION_SHORT, METHOD_LABEL } from "../capabilityModel";
+import { COVERAGE_REASON_LABEL, FUNCTION_SHORT } from "../capabilityModel";
 import { coverageQuery } from "../capabilityQueries";
 
 /**
@@ -44,7 +44,7 @@ export function CoveragePanel() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         {gaps.length} {gaps.length === 1 ? "gap" : "gaps"} across {byZone.size}{" "}
-        {byZone.size === 1 ? "zone" : "zones"}. A zone appears here only for work it actually offers.
+        {byZone.size === 1 ? "area" : "areas"}.
       </p>
 
       <ul className="divide-y border-y">
@@ -52,8 +52,8 @@ export function CoveragePanel() {
           <li key={zoneName} className="space-y-1 py-3">
             <p className="text-sm font-medium">{zoneName}</p>
             {zoneGaps.map((g) => (
-              <p key={`${g.function}-${g.method}`} className="text-sm text-muted-foreground">
-                {FUNCTION_SHORT[g.function]} · {METHOD_LABEL[g.method]} —{" "}
+              <p key={g.function} className="text-sm text-muted-foreground">
+                {FUNCTION_SHORT[g.function]} —{" "}
                 <span className="text-foreground">{COVERAGE_REASON_LABEL[g.reason]}</span>
                 {/* ⚠ The count is what makes the two reasons ACTIONABLE. Zero means grant somebody a
                     clearance, here. More than zero means the people who have it cannot work today,

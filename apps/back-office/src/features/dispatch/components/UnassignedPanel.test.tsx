@@ -11,7 +11,6 @@ function item(over: Partial<UnassignedWorkDTO> = {}): UnassignedWorkDTO {
     orderNumber: "EFY-ABC123",
     shopName: "Shop One",
     zoneName: "Inner North",
-    method: "standard",
     readySince: "2026-09-21T01:00:00Z",
     reasons: ["not_cleared"],
     stage: "collection",
@@ -64,7 +63,7 @@ describe("UnassignedPanel — the reader that makes an unassigned package explai
   it("says where the package is waiting, in words", () => {
     render(
       <UnassignedPanel
-        items={[item(), item({ packageId: "p-2", orderNumber: "EFY-HUB1", stage: "delivery", method: "same_day" })]}
+        items={[item(), item({ packageId: "p-2", orderNumber: "EFY-HUB1", stage: "delivery", })]}
       />,
     );
     expect(screen.getByText(/^At the shop · next collection /)).toBeInTheDocument();

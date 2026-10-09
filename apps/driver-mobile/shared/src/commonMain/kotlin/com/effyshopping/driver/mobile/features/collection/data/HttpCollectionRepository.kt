@@ -8,6 +8,7 @@ import com.effyshopping.driver.mobile.contract.CollectionStopStatus
 import com.effyshopping.driver.mobile.contract.DriverCollectionRunDTO
 import com.effyshopping.driver.mobile.contract.HubCheckinRequest
 import com.effyshopping.driver.mobile.contract.HubCheckinResponse
+import com.effyshopping.driver.mobile.contract.DeliveredBy as DtoDeliveredBy
 import com.effyshopping.driver.mobile.contract.PackageMethod as DtoMethod
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
@@ -21,6 +22,7 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectionPacka
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRepository
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
+import com.effyshopping.driver.mobile.features.collection.domain.EffyGroup
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
@@ -81,7 +83,11 @@ class HttpCollectionRepository(
         return request {
             offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in") {
                 val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
-                HubSplit(r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt(), r.courierCount?.toInt())
+                HubSplit(
+                    r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt(), r.courierCount?.toInt(),
+                    // 082 — null from a server that predates it; the domain falls back to the counts above.
+                    r.effyGroups?.map { g -> EffyGroup(g.label, g.count.toInt(), g.dueToday) },
+                )
             }
         }
     }
@@ -127,7 +133,11 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
     shopName = shopName,
     shopCode = shopCode,
     packages = packages.map { p ->
-        CollectionPackage(p.ref, p.destinationSuburb, method(p.method), p.items.map { it.toDomain() }, p.summary.toDomain())
+        CollectionPackage(
+            p.ref, p.destinationSuburb, method(p.method), p.items.map { it.toDomain() }, p.summary.toDomain(),
+            toCourier = p.deliveredBy?.let { it == DtoDeliveredBy.Courier },
+            windowLabel = p.windowLabel,
+        )
     },
     status = stopStatus(status),
     opening = opening.toOpening(),

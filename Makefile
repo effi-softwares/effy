@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards shop-words-guard driver-words-guard purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -407,6 +407,9 @@ live-guards: ## live updates: FAIL if any screen in the six apps refreshes its d
 
 shop-words-guard: ## shop surfaces: FAIL if a shop screen says "same-day" or "standard" — the customer's words (079 FR-028)
 	@bash scripts/check-shop-delivery-words.sh
+
+driver-words-guard: ## driver + dispatch surfaces: FAIL if a screen says "same-day" or "standard" — the customer's words (082 FR-012)
+	@bash scripts/check-driver-delivery-words.sh
 
 storefront-locks: ## storefront: FAIL if an operator-LOCKED file (header/nav/product card/footer) drifted (039 FR-002)
 	@bash scripts/check-storefront-locks.sh

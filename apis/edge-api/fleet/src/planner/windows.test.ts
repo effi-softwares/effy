@@ -11,7 +11,7 @@ const END_OF_DAY = at("2026-10-08T12:59:59Z");
 function pkg(id: string, window: { windowStart: Date | null; windowEnd: Date | null }): PlannablePackage {
   return {
     packageId: id, orderNumber: `EFY-${id}`, shopId: "shop-1", shopName: "Shop", address: "1 Test St",
-    orderId: `order-${id}`, recipientName: "Pat", method: "same_day", zoneId: "z", zoneName: "Zone",
+    orderId: `order-${id}`, recipientName: "Pat", deliveredBy: "effy", zoneId: "z", zoneName: "Zone",
     readySince: "2026-10-08T03:00:00Z", weightGrams: 1000, itemCount: 1,
     requiresChilled: false, requiresFrozen: false, ...window,
   };

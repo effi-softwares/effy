@@ -7,6 +7,18 @@
 
 ---
 
+## ⚠ Read first — the words changed (082, 2026-10-09)
+
+This brief was written for the same-day / standard model. The app no longer says either word:
+
+- Delivery work is **"Delivery run"**, with its day and window; collection is **"Collection run"**.
+- **Hub check-in shows two groups**: **Effy delivery** — one row per day and window ("Today, 4 pm –
+  6 pm"; "Thu 15 Oct, 10 am – 12 pm"), loaded now when it is for today and **shelved** when it is for a
+  later day — and **Courier**. The driver sorts nothing; the labels are written by the server.
+- Each parcel on a collection stop carries **EFFY** (with its window) or **COURIER**.
+- `scripts/check-driver-delivery-words.sh` fails the build if a driver screen says "same-day" or
+  "standard". Identifiers such as `same_day_delivery` stay until the cutover.
+
 ## 1. What to design (one sentence)
 
 Design a **native-feeling mobile app for delivery drivers** who are **employees** of Effy — a

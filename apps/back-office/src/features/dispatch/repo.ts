@@ -1,5 +1,6 @@
 import type {
   DispatchDayDTO,
+  DispatchWindowsResponse,
   ReassignRoundInput,
   ReorderStopsInput,
 } from "@effy/shared-types";
@@ -11,6 +12,11 @@ import { api } from "@/lib/api";
 
 export async function getDay(): Promise<DispatchDayDTO> {
   return api.get<DispatchDayDTO>("/fleet/v1/dispatch/day");
+}
+
+/** 082 — a day's delivery windows, their parcels and rounds. `date` omitted = today. */
+export async function getWindows(date: string | null): Promise<DispatchWindowsResponse> {
+  return api.get<DispatchWindowsResponse>(`/fleet/v1/dispatch/windows${date ? `?date=${date}` : ""}`);
 }
 
 export async function getRound(id: string): Promise<unknown> {

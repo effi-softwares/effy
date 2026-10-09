@@ -3,12 +3,12 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button, Label } from "@effy/design-system/ui";
-import type { CapabilityFunction, CapabilityMethod, DriverCapability } from "@effy/shared-types";
+import type { CapabilityFunction, DriverCapability } from "@effy/shared-types";
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { canManageDrivers } from "../access";
-import { FUNCTION_LABEL, METHOD_LABEL, zoneLabel } from "../capabilityModel";
+import { FUNCTION_HEADING, FUNCTION_LABEL, zoneLabel } from "../capabilityModel";
 import { driverCapabilitiesQuery, useGrantCapability, useRevokeCapability } from "../capabilityQueries";
 import { driverActionError } from "../errorText";
 import { zonesQuery } from "../queries";
@@ -17,6 +17,11 @@ const EVERY_ZONE = "__every__";
 
 /**
  * What a driver is cleared to do, and where (062 US1/US2).
+ *
+ * ⚠ 082 — TWO THINGS, EACH WITH ITS AREAS: **Collects** and **Delivers**. The old second half of a
+ * clearance ("standard" or "same-day") is gone from this screen and from the platform's decision:
+ * who delivers a parcel is settled by the order, and a driver who may deliver in an area delivers
+ * whatever Effy delivers there. A postcode filed under no area can go to any driver who delivers.
  *
  * ⚠ "EVERY ZONE" IS A CHOICE IN THE PICKER, NOT A SHORTCUT FOR SELECTING ALL OF THEM. Choosing it
  * sends `zoneId: null`, which the platform stores as a fact — so the driver covers a zone created
@@ -33,7 +38,6 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
   const revoke = useRevokeCapability(driverId);
 
   const [fn, setFn] = useState<CapabilityFunction>("delivery");
-  const [method, setMethod] = useState<CapabilityMethod>("standard");
   const [zone, setZone] = useState<string>(EVERY_ZONE);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,31 +53,41 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
           anything to do.
         </p>
       ) : (
-        <ul className="divide-y border-y">
-          {items.map((c: DriverCapability) => (
-            <li key={c.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3 text-sm">
-              <span className="font-medium">{FUNCTION_LABEL[c.function]}</span>
-              <span>{METHOD_LABEL[c.method]}</span>
-              {/* ⚠ Rendered from `zoneId === null`, never from a server-supplied label. */}
-              <span className={c.zoneId === null ? "font-medium" : "text-muted-foreground"}>
-                {zoneLabel(c.zoneName)}
-              </span>
-              {canManage ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={revoke.isPending}
-                  onClick={() => {
-                    setError(null);
-                    revoke.mutate(c.id, { onError: (e) => setError(driverActionError(e, "update")) });
-                  }}
-                >
-                  Revoke
-                </Button>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-4">
+          {(Object.keys(FUNCTION_HEADING) as CapabilityFunction[]).map((f) => {
+            const mine = items.filter((c: DriverCapability) => c.function === f);
+            return (
+              <section key={f} aria-label={FUNCTION_HEADING[f]}>
+                <h3 className="text-sm font-medium">{FUNCTION_HEADING[f]}</h3>
+                {mine.length === 0 ? (
+                  <p className="py-2 text-sm text-muted-foreground">Nowhere.</p>
+                ) : (
+                  <ul className="divide-y border-y">
+                    {mine.map((c: DriverCapability) => (
+                      <li key={c.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3 text-sm">
+                        {/* ⚠ Rendered from `zoneId === null`, never from a server-supplied label. */}
+                        <span className={c.zoneId === null ? "font-medium" : undefined}>{zoneLabel(c.zoneName)}</span>
+                        {canManage ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={revoke.isPending}
+                            onClick={() => {
+                              setError(null);
+                              revoke.mutate(c.id, { onError: (e) => setError(driverActionError(e, "update")) });
+                            }}
+                          >
+                            Revoke
+                          </Button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
+        </div>
       )}
 
       {canManage ? (
@@ -95,22 +109,6 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="cap-method">Method</Label>
-            <select
-              id="cap-method"
-              className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
-              value={method}
-              onChange={(e) => setMethod(e.target.value as CapabilityMethod)}
-            >
-              {(Object.keys(METHOD_LABEL) as CapabilityMethod[]).map((m) => (
-                <option key={m} value={m}>
-                  {METHOD_LABEL[m]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
             <Label htmlFor="cap-zone">Where</Label>
             <select
               id="cap-zone"
@@ -119,7 +117,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
               onChange={(e) => setZone(e.target.value)}
             >
               {/* ⚠ First, and stated as a fact — it is the broadest and the most useful. */}
-              <option value={EVERY_ZONE}>Every zone (including new ones)</option>
+              <option value={EVERY_ZONE}>Everywhere (including new areas)</option>
               {(zones.data ?? []).map((z) => (
                 <option key={z.id} value={z.id}>
                   {z.name}
@@ -134,7 +132,7 @@ export function CapabilityEditor({ driverId }: { driverId: string }) {
             onClick={() => {
               setError(null);
               grant.mutate(
-                { function: fn, method, zoneId: zone === EVERY_ZONE ? null : zone },
+                { function: fn, zoneId: zone === EVERY_ZONE ? null : zone },
                 { onError: (e) => setError(driverActionError(e, "update")) },
               );
             }}

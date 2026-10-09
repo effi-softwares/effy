@@ -91,7 +91,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
 | E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 | E1, E5, E6 |
-| E8 | 082 | Driver Operations Realignment | E4, E5 |
+| E8 | 082 | Driver Operations Realignment — ✅ built 2026-10-09 | E4, E5 |
 | E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
 | E10 | later | Deferred items | — |
 
@@ -855,7 +855,24 @@ Only admins and managers can move orders; customer-service agents can view.
 
 ---
 
-## E8 — Driver Operations Realignment · spec 082
+## E8 — Driver Operations Realignment · spec 082 — ✅ built 2026-10-09 (not deployed, not signed off)
+
+> **2026-10-09 — BUILT and checked by machine** (`specs/082-driver-operations-realignment/SIGNOFF.md`); not deployed
+> or walked. No migration. The driver side no longer blocks 078's switch once deployed. **Next: E9 (spec 083).**
+
+> **2026-10-09 — specified (`specs/082-driver-operations-realignment/spec.md`).** The specify prompt below was
+> amended with what 076, 079 and 081 left for E8: areas are postcode groups and an ungrouped postcode is
+> deliverable by any driver who delivers; dispatch sees every day on sale; "needs a driver" covers any
+> day's window; an order moved back to Effy for a later day gets a round. Settled by default, for the
+> operator to confirm: **collect on the LATEST run that makes the window** (E8-T02); **chilled/frozen may
+> wait at the hub overnight, marked for cold storage** (E8-T04); delivery rounds are created on their day.
+>
+> **2026-10-09 — planned (`specs/082-driver-operations-realignment/plan.md`).** Corrections to the tasks below:
+> **E8-T05 — NO migration**: nothing reads `driver_zone_capability.method` any more and existing rows keep
+> working as (function, area); the column is dropped at E9. **E8-T07** — the task kind stays
+> `same_day_delivery` on the wire until E9 (the previous app's enum would not parse a new value); the
+> check-in adds `effyGroups`. **E8-T09** — one new read, `GET /fleet/v1/dispatch/windows?date=`.
+> **E8-T01** — "on its day" is one predicate in the gather; "Effy's" is `package_delivered_by`.
 
 **Goal.** Driver work follows the new model: collection runs take Effy packages and hub-mode
 courier packages; delivery rounds are Effy windows, now on any of 4 days; "standard" disappears
@@ -883,29 +900,34 @@ a parcel may wait at the hub: it is collected in time for its window and deliver
 for its own day and window, never earlier. At hub check-in the driver sees two groups — parcels for
 Effy delivery (by day and window) and parcels for the courier — without classifying anything. Delivery
 rounds are planned per window on the window's day, as today. Driver permissions say whether a driver
-collects, delivers, or both, and where; the old split by "same-day" or "standard" goes away. Drivers
-and dispatch staff never see the words "same-day" or "standard". Work still opens at its planned time
-and is assigned as soon as a qualifying driver can take it.
+collects, delivers, or both, and where; the old split by "same-day" or "standard" goes away, and "where"
+is the business's named groups of postcodes or everywhere — a postcode in no group can be delivered by
+any driver cleared to deliver, not only by drivers cleared for everywhere. Drivers and dispatch staff
+never see the words "same-day" or "standard" (customers keep them). Dispatch staff can look at any of
+the days that have windows on sale, and "needs a driver" in the order list means any Effy parcel at the
+hub whose window is coming up with no driver, whichever day it was sold for. An order moved back from
+courier to Effy delivery for a later day gets a delivery round like any other. Work still opens at its
+planned time and is assigned as soon as a qualifying driver can take it.
 ```
 
 **Tasks**
 
-- [ ] E8-T01 ⚠ **This is what keeps 078's switch off.** `GATHER_DELIVERY` takes `delivery_method = 'same_day'` only; since 078 a later-day Effy package is `standard` WITH a window (`opd.slot_id`), so gather by the window, not the method. `fleet/src/planner/windows.ts` / `service.ts` / `sql.ts`: plan delivery waves for windows on future dates; only release a round on its date (`round_opens_at` unchanged, single source).
-- [ ] E8-T02 Collection eligibility: package due for collection by `window_start − hub_turnaround`; future-day packages collected on the latest run that makes it (or earliest — decide; earliest frees shop space, latest keeps chilled goods in shops).
-- [ ] E8-T03 Hub storage: package "At hub" across days; status derivation already handles it — test multi-day dwell.
-- [ ] E8-T04 Temperature classes (065): chilled/frozen dwell at hub overnight — product call; add an exception if storage is not allowed.
-- [ ] E8-T05 Migration: `driver_zone_capability.method` dropped; `zone_id` → coverage group id (or NULL = everywhere). Data migration from current grants.
-- [ ] E8-T06 `fleet/src/capabilities`, `fleet/src/drivers`: routes and validation without method.
-- [ ] E8-T07 `driver/src/work/*` (`repository.ts`, `sql.ts`, `service.ts`, `complete.ts`, `delivery.ts`): task type `same_day_delivery` → `effy_delivery` (enum change with legacy alias); hub check-in split Effy/courier.
-- [ ] E8-T08 `driver/src/proof/*`: completion rules unchanged; courier handover proof via hub staff (E6).
-- [ ] E8-T09 `fleet/src/dispatch/*`: day selector across 4 days.
-- [ ] E8-T10 Shared types `dispatch.ts`, `driver.ts`: rename types; Kotlin `contract-driver`.
-- [ ] E8-T11 driver-mobile: `features/collection/*`, `features/today/*` (`UpcomingRounds.kt`, `UpNextList.kt`, `TodayScreen.kt`), `features/delivery/*`, `features/map/*`, `features/history/*`, `core/nav/DriverRoutes.kt`: wording + hub check-in two groups.
-- [ ] E8-T12 back-office `features/dispatch/*`, `features/drivers/*` (capability editor without method).
-- [ ] E8-T13 Port driver container tests (`hub-stop`, `checkin`, `drop-window`, `manifest`, `open`, `drop-progress`).
-- [ ] E8-T14 Port `CollectionViewModelTest.kt` and add Today tests for future-day rounds.
-- [ ] E8-T15 Update `docs/logistics-engine-architecture.md`, `docs/driver-app-design-brief.md`.
-- [ ] E8-T16 FEATURE-HISTORY entry + operator steps (driver app release needed).
+- [x] E8-T01 ⚠ **This is what keeps 078's switch off.** `GATHER_DELIVERY` takes `delivery_method = 'same_day'` only; since 078 a later-day Effy package is `standard` WITH a window (`opd.slot_id`), so gather by the window, not the method. `fleet/src/planner/windows.ts` / `service.ts` / `sql.ts`: plan delivery waves for windows on future dates; only release a round on its date (`round_opens_at` unchanged, single source). — *Gather by `package_delivered_by`, plus one day predicate; `round_opens_at` unchanged.*
+- [x] E8-T02 Collection eligibility: package due for collection by `window_start − hub_turnaround`; future-day packages collected on the latest run that makes it (or earliest — decide; earliest frees shop space, latest keeps chilled goods in shops). — *LATEST run that makes the window (`collectionRunFor`), settled by default.*
+- [x] E8-T03 Hub storage: package "At hub" across days; status derivation already handles it — test multi-day dwell. — *Covered by the planner container tests (a parcel at the hub for two days).*
+- [x] E8-T04 Temperature classes (065): chilled/frozen dwell at hub overnight — product call; add an exception if storage is not allowed. — *Settled by default: allowed, flagged "Needs cold storage" on dispatch's day view.*
+- [x] E8-T05 Migration: `driver_zone_capability.method` dropped; `zone_id` → coverage group id (or NULL = everywhere). Data migration from current grants. — *NO migration: the method column is unread and dropped at E9; areas stay keyed on the group.*
+- [x] E8-T06 `fleet/src/capabilities`, `fleet/src/drivers`: routes and validation without method.
+- [x] E8-T07 `driver/src/work/*` (`repository.ts`, `sql.ts`, `service.ts`, `complete.ts`, `delivery.ts`): task type `same_day_delivery` → `effy_delivery` (enum change with legacy alias); hub check-in split Effy/courier. — *Wire value `same_day_delivery` kept until E9; check-in adds `effyGroups`.*
+- [x] E8-T08 `driver/src/proof/*`: completion rules unchanged; courier handover proof via hub staff (E6). — *No change needed.*
+- [x] E8-T09 `fleet/src/dispatch/*`: day selector across 4 days. — *`GET /fleet/v1/dispatch/windows?date=`.*
+- [x] E8-T10 Shared types `dispatch.ts`, `driver.ts`: rename types; Kotlin `contract-driver`.
+- [x] E8-T11 driver-mobile: `features/collection/*`, `features/today/*` (`UpcomingRounds.kt`, `UpNextList.kt`, `TodayScreen.kt`), `features/delivery/*`, `features/map/*`, `features/history/*`, `core/nav/DriverRoutes.kt`: wording + hub check-in two groups.
+- [x] E8-T12 back-office `features/dispatch/*`, `features/drivers/*` (capability editor without method).
+- [x] E8-T13 Port driver container tests (`hub-stop`, `checkin`, `drop-window`, `manifest`, `open`, `drop-progress`). — *Ported where they asserted a method; `checkin` extended.*
+- [x] E8-T14 Port `CollectionViewModelTest.kt` and add Today tests for future-day rounds. — *`HubSplitTest` extended; the Today screens only changed words.*
+- [x] E8-T15 Update `docs/logistics-engine-architecture.md`, `docs/driver-app-design-brief.md`.
+- [x] E8-T16 FEATURE-HISTORY entry + operator steps (driver app release needed). — *Operator steps in the SIGNOFF; not yet deployed.*
 
 ---
 

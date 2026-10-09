@@ -368,7 +368,7 @@ private fun PhaseBar(phase: Phase) {
             )
             PhaseHalf(
                 kicker = "PHASE 2",
-                title = "Same-day run",
+                title = "Delivery run",
                 meta = if (phase == Phase.SAME_DAY_DELIVERY) "In progress" else "Locked until check-in",
                 active = phase == Phase.SAME_DAY_DELIVERY,
                 modifier = Modifier.weight(1f),

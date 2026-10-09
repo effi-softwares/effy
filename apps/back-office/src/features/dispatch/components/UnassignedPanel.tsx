@@ -62,8 +62,9 @@ export function UnassignedPanel({
             </div>
             <div className="flex shrink-0 items-start gap-4">
               <div className="text-right text-sm text-muted-foreground">
-                <p>{item.zoneName ?? "No zone"}</p>
-                <p>{item.method === "same_day" ? "Same-day" : "Standard"}</p>
+                <p>{item.zoneName ?? "No area"}</p>
+                {/* 082 — still at its supplier after the run that would have made its window. */}
+                {item.collectLate ? <p className="font-medium text-foreground">Late for its run</p> : null}
               </div>
               {renderAssign?.(item)}
             </div>

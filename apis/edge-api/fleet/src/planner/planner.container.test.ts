@@ -44,6 +44,7 @@ vi.mock("@effy/edge-shared", async () => {
 
 import * as repo from "./repository";
 import * as svc from "../dispatch/service";
+import { readWindows } from "../dispatch/windows";
 import * as manual from "../assignments/service";
 import { planWave } from "./assign";
 import { runPass } from "./service";
@@ -389,6 +390,35 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect(ex.rows.some((r) => r.reason === "not_cleared" && r.driver_id === d)).toBe(true);
   });
 
+  /**
+   * ⚠ 082 P5/P6 — A CLEARANCE IS (function, area). A driver cleared under only the OLD "same-day" method
+   * takes a parcel the old model called "standard" (the method is not read), and a postcode filed
+   * under NO group goes to a driver cleared for one group only — until 082 only an everywhere-driver
+   * could take it, so a postcode added to Effy's list without a group had almost nobody.
+   */
+  it("⚠ 082 P5/P6 — the method is not read, and a postcode in no group goes to any driver cleared for the function", async () => {
+    const shop = await makeShop("Shop One", "S1");
+    const north = await makeZone("Inner North", "3065");
+    const d = await makeDriver("ada");
+    await clear(d, "collection", "same_day", north); // an old row, of the "other" method
+
+    const grouped = await makeReadyPackage(shop, "3065", "standard");
+    await q(LISTED_POSTCODE_FIXTURE_SQL, [null, "3999"]); // on Effy's list, in no group
+    const ungrouped = await makeReadyPackage(shop, "3999", "standard");
+
+    await runWave();
+    const assigned = (await q(`SELECT shop_fulfillment_id AS id FROM public.round_package`)).rows.map((r) => r.id);
+    expect(assigned.sort()).toEqual([grouped, ungrouped].sort());
+
+    // A driver with no clearance for the function still takes nothing, ungrouped or not.
+    const other = await makeDriver("bea");
+    await clear(other, "delivery", "standard", north);
+    const another = await makeReadyPackage(shop, "3999", "standard");
+    await q(`DELETE FROM public.driver_zone_capability WHERE driver_id = $1`, [d]);
+    await runWave();
+    expect((await q(`SELECT 1 FROM public.round_package WHERE shop_fulfillment_id = $1`, [another])).rowCount).toBe(0);
+  });
+
   it("C5c — no candidate at all is recorded with driver_id NULL, a different problem", async () => {
     const shop = await makeShop("Shop One", "S1");
     await makeZone("Inner North", "3065");
@@ -628,8 +658,8 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
   let slotSeq = 0;
 
   /** A same-day package that has been collected and checked in at the hub, sold `window` (or none). */
-  async function atHub(collector: string, shopId: string, window: { start: string; end: string } | null) {
-    const sfId = await makeReadyPackage(shopId, "3065", "same_day");
+  async function atHub(collector: string, shopId: string, window: { start: string; end: string } | null, method: "same_day" | "standard" = "same_day") {
+    const sfId = await makeReadyPackage(shopId, "3065", method);
     const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
     const round = await q(
       `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
@@ -661,8 +691,8 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
     }
     await q(
       `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, slot_id, window_start, window_end)
-       VALUES ($1, $2, 'same_day', 8, $3, $4, $5)`,
-      [order.rows[0].order_id, shopId, slotId, window?.start ?? null, window?.end ?? null],
+       VALUES ($1, $2, $6, 8, $3, $4, $5)`,
+      [order.rows[0].order_id, shopId, slotId, window?.start ?? null, window?.end ?? null, method],
     );
     return sfId;
   }
@@ -688,12 +718,189 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
     )).rows as Array<{ deadline_at: Date; window_start_at: Date | null; opens_at: Date | null; packages: number }>;
   }
 
+  // ─── 082 — Effy's parcels, on their own day ──────────────────────────────────────────────────────
+  // Sat 10 Oct 2026, 5–7 pm Melbourne — two days after the passes below.
+  const LATER_DAY = { start: "2026-10-10T06:00:00Z", end: "2026-10-10T08:00:00Z" };
+  const THU_NOON = new Date("2026-10-08T01:00:00Z");
+  const FRI_NOON = new Date("2026-10-09T01:00:00Z");
+  const SAT_NOON = new Date("2026-10-10T01:00:00Z");
+
+  /**
+   * ⚠ 082 P2/P3 — THE REASON THE NEW DELIVERY MODEL COULD NOT BE SWITCHED ON. Since 078 a window on a
+   * later day is sold as `standard` WITH a window. The gather selected `delivery_method = 'same_day'`,
+   * so such a parcel reached the hub and was never given a delivery round. It is Effy's (079's one
+   * definition), it waits at the hub, and its round is planned on its own day — never earlier.
+   */
+  it("⚠ 082 P2/P3 — a later-day window, sold as standard: on no round before its day, on its window's round on the day", async () => {
+    const { shopId, driverId } = await world();
+    const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
+
+    for (const before of [THU_NOON, FRI_NOON]) {
+      const early = await runPass(before);
+      expect(early.delivery).toMatchObject({ considered: 0, assigned: 0 });
+    }
+    expect(await deliveryRounds()).toEqual([]);
+
+    const onTheDay = await runPass(SAT_NOON);
+    expect(onTheDay.delivery).toMatchObject({ considered: 1, assigned: 1 });
+    const rounds = await deliveryRounds();
+    expect(rounds).toHaveLength(1);
+    expect(rounds[0]).toMatchObject({ deadline_at: new Date(LATER_DAY.end), window_start_at: new Date(LATER_DAY.start), packages: 1 });
+    expect((await q(`SELECT 1 FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id JOIN public.driver_round dr ON dr.id = rs.round_id
+                      WHERE dr.kind = 'delivery' AND rp.shop_fulfillment_id = $1`, [pkg])).rowCount).toBe(1);
+  });
+
+  it("082 P3 — a carrier's or a courier's parcel at the hub is never delivery work, whatever it is called", async () => {
+    const { shopId, driverId } = await world();
+    // Sold before the new model: standard, no window — a carrier's.
+    await atHub(driverId, shopId, null, "standard");
+    // A courier order (079): standard, no window, and the order says courier.
+    const courier = await atHub(driverId, shopId, null, "standard");
+    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = '2–4 business days', courier_collection = 'hub'
+              WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [courier]);
+
+    const outcome = await runPass(SAT_NOON);
+    expect(outcome.delivery).toMatchObject({ considered: 0, assigned: 0 });
+    expect(await deliveryRounds()).toEqual([]);
+  });
+
+  /**
+   * 082 P11 — an order back-office moved from courier back to Effy for a later day (081) is stored as
+   * an Effy order whose parcels carry the new window (`moveToEffy`: method by the day, slot, window).
+   * It gets a round on that day like any other.
+   */
+  it("082 P11 — an order moved back to Effy for a later day gets its round on that day", async () => {
+    const { shopId, driverId } = await world();
+    const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
+    await q(`UPDATE public."order" SET delivery_type = 'effy', delivery_type_reason = 'staff_change'
+              WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [pkg]);
+
+    expect((await runPass(FRI_NOON)).delivery.assigned).toBe(0);
+    expect((await runPass(SAT_NOON)).delivery.assigned).toBe(1);
+  });
+
+  it("082 P10 — a person cannot give out a later day's delivery either: its round is planned on the day", async () => {
+    const { shopId, driverId } = await world();
+    const pkg = await atHub(driverId, shopId, LATER_DAY, "standard");
+    const ask = { packageId: pkg, stage: "delivery" as const, driverId, expectedAssignmentId: null, acceptConcerns: false, actorSub: "staff-ann" };
+
+    await expect(manual.assignTo({ ...ask, now: FRI_NOON })).rejects.toMatchObject({ kind: "not_yet", detail: expect.stringContaining("planned on the day") });
+    expect(await deliveryRounds()).toEqual([]);
+    await expect(manual.assignTo({ ...ask, now: SAT_NOON })).resolves.toMatchObject({ driverIds: [driverId] });
+  });
+
+  // ─── 082 — which run a parcel is collected on ────────────────────────────────────────────────────
+
+  /** A parcel READY at its supplier, sold `window` (Effy) — or none. */
+  async function readySold(shopId: string, window: { start: string; end: string } | null, method: "same_day" | "standard" = "standard") {
+    const sfId = await makeReadyPackage(shopId, "3065", method);
+    const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+    let slotId: string | null = null;
+    if (window) {
+      slotSeq += 1;
+      slotId = (await q(
+        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+         VALUES ('00:00'::time + ($1 || ' minutes')::interval, '00:00'::time + ($1 || ' minutes')::interval + interval '30 seconds', '00:00', 9, 'test')
+         RETURNING id`, [slotSeq])).rows[0].id;
+    }
+    await q(
+      `INSERT INTO public.order_package_delivery (order_id, shop_id, method, delivery_fee_amount, slot_id, window_start, window_end)
+       VALUES ($1, $2, $3, 8, $4, $5, $6)`,
+      [order.rows[0].order_id, shopId, method, slotId, window?.start ?? null, window?.end ?? null],
+    );
+    return sfId;
+  }
+  const onCollection = async () =>
+    (await q(`SELECT rp.shop_fulfillment_id AS id FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+                JOIN public.driver_round dr ON dr.id = rs.round_id WHERE dr.kind = 'collection' AND rp.state = 'assigned'`)).rows.map((r) => r.id as string);
+
+  /**
+   * ⚠ 082 P4 — NOT BEFORE IT NEEDS TO. Runs at 9 am, 2 pm and 6 pm; the hub needs an hour. A parcel
+   * travels on the LATEST run that still makes its window: chilled goods stay at the supplier, and the
+   * hub holds as little as it can.
+   */
+  it("⚠ 082 P4 — a parcel is first offered on the latest run that makes its window, and on later ones if it was missed", async () => {
+    const { shopId, driverId } = await world();
+    await clear(driverId, "collection", "standard", null);
+    await q(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('09:00', 'active', 'test'), ('14:00', 'active', 'test'), ('18:00', 'active', 'test')`);
+
+    // Thu 8 Oct 2026, 11 am Melbourne. The next run is today's 2 pm.
+    const THU_11 = new Date("2026-10-08T00:00:00Z");
+    const satAfternoon = await readySold(shopId, { start: "2026-10-10T05:00:00Z", end: "2026-10-10T07:00:00Z" }); // Sat 4–6 pm → Sat 2 pm run
+    const friMorning = await readySold(shopId, { start: "2026-10-08T21:00:00Z", end: "2026-10-08T23:00:00Z" });   // Fri 8–10 am → Thu 6 pm run
+    const missed = await readySold(shopId, { start: "2026-10-08T02:30:00Z", end: "2026-10-08T04:30:00Z" }, "same_day"); // Thu 1:30 pm → Thu 9 am run, gone
+    const legacy = await readySold(shopId, null);                                                                  // sold no window → the next run
+    const courier = await readySold(shopId, null);
+    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = 'x', courier_collection = 'hub'
+              WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [courier]);
+    const fromSupplier = await readySold(shopId, null);
+    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = 'x', courier_collection = 'supplier'
+              WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [fromSupplier]);
+
+    const first = await runPass(THU_11);
+    // On today's 2 pm run: the one that missed its run (late), the windowless one, the courier's via the hub.
+    expect((await onCollection()).sort()).toEqual([missed, legacy, courier].sort());
+    expect(first.collection).toMatchObject({ considered: 3, assigned: 3, collectLate: 1 });
+
+    // Thu 3 pm: the next run is 6 pm — Friday morning's parcel is due on it. Saturday's still is not.
+    await runPass(new Date("2026-10-08T04:00:00Z"));
+    expect(await onCollection()).toContain(friMorning);
+    expect(await onCollection()).not.toContain(satAfternoon);
+
+    // Sat noon: the next run is Saturday's 2 pm — its own.
+    await runPass(new Date("2026-10-10T01:00:00Z"));
+    expect(await onCollection()).toContain(satAfternoon);
+    // A courier's own pickup was never anyone's.
+    expect(await onCollection()).not.toContain(fromSupplier);
+  });
+
+  /**
+   * 082 P9 — dispatch's day view: any day on sale, each window's parcels and where they are. A later
+   * day's window has NO round — it is planned on the day — and that is shown as such, not as a gap.
+   */
+  it("082 P9 — the day view lists a later day's windows, flags cold goods held overnight and late collections, and shows a round only on the day", async () => {
+    const { shopId, driverId } = await world();
+    await q(`INSERT INTO public.delivery_collection_run (run_time, status, updated_by) VALUES ('09:00', 'active', 'test'), ('14:00', 'active', 'test')`);
+
+    const chilled = await atHub(driverId, shopId, LATER_DAY, "standard");
+    await addLine(chilled, shopId, 500, "chilled");
+    await q(`UPDATE public.hub_checkin SET checked_in_at = '2026-10-08T03:00:00Z'`); // Thursday afternoon
+    const stillAtShop = await readySold(shopId, LATER_DAY);
+    // Thu 1:30 pm window: its run (Thu 9 am) has gone by Thu noon.
+    const late = await readySold(shopId, { start: "2026-10-08T02:30:00Z", end: "2026-10-08T04:30:00Z" }, "same_day");
+
+    const saturday = await readWindows("2026-10-10", THU_NOON, holder.pool!);
+    expect(saturday.days.map((d) => [d.date, d.label, d.isToday])).toEqual([
+      ["2026-10-08", "Today", true], ["2026-10-09", "Fri 9 Oct", false], ["2026-10-10", "Sat 10 Oct", false], ["2026-10-11", "Sun 11 Oct", false],
+    ]);
+    expect(saturday.windows).toHaveLength(1);
+    const [w] = saturday.windows;
+    expect(w!.label).toBe("Sat 10 Oct, 5 pm – 7 pm");
+    expect(w!.rounds).toEqual([]); // planned on the day
+    const byId = new Map(w!.parcels.map((p) => [p.packageId, p]));
+    expect(byId.get(chilled)).toMatchObject({ status: { status: "at_hub" }, coldOvernight: true, collectLate: false, group: "Inner North" });
+    expect(byId.get(stillAtShop)).toMatchObject({ status: { status: "ready" }, coldOvernight: false, collectLate: false });
+
+    // Today's view: the parcel that missed its run is marked.
+    const today = await readWindows(undefined, THU_NOON, holder.pool!);
+    expect(today.date).toBe("2026-10-08");
+    expect(today.windows.flatMap((x) => x.parcels).find((p) => p.packageId === late)).toMatchObject({ collectLate: true });
+
+    // On Saturday the round exists and names its driver.
+    await runPass(SAT_NOON);
+    const onTheDay = await readWindows("2026-10-10", SAT_NOON, holder.pool!);
+    expect(onTheDay.windows[0]!.rounds).toEqual([expect.objectContaining({ driver: { id: driverId, name: "dana" }, parcels: 1 })]);
+
+    // A day that is not on sale is refused, not answered empty.
+    await expect(readWindows("2026-11-30", THU_NOON, holder.pool!)).rejects.toMatchObject({ kind: "invalid" });
+  });
+
   it("the gather reads each package's window as stored instants", async () => {
     const { shopId, driverId } = await world();
     await atHub(driverId, shopId, EARLY);
     await atHub(driverId, shopId, null);
 
-    const work = await repo.gatherDeliveryWork();
+    const work = await repo.gatherDeliveryWork(holder.pool!, null, new Date("2026-10-08T12:59:59Z"));
     const windows = work.map((p) => (p.windowStart ? p.windowStart.toISOString() : null)).sort();
     expect(windows).toEqual(["2026-10-08T06:00:00.000Z", null].sort());
   });
@@ -825,7 +1032,8 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
 
     const day = await svc.readDay();
     expect(day.unassigned).toHaveLength(1);
-    expect(day.unassigned[0]).toMatchObject({ stage: "delivery", method: "same_day" });
+    expect(day.unassigned[0]).toMatchObject({ stage: "delivery" });
+    expect(day.unassigned[0]).not.toHaveProperty("method"); // 082 — no method on a dispatch row
     expect(day.unassigned[0]!.reasons).toEqual(["not_cleared"]);
   });
 });

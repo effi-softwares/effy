@@ -5,6 +5,8 @@
 // driver receive work". Two implementations of that rule would eventually disagree, and the register
 // would tell an operator a driver is fine while whatever assigns work passes over them.
 
+import { deliveredBySql } from "@effy/edge-shared/delivery";
+
 /**
  * Is the driver on duty right now? An open duty session (`ended_at IS NULL`) is what "on duty" means
  * on this platform — a partial unique index guarantees at most one per driver.
@@ -101,12 +103,17 @@ export const READY_TO_COLLECT = `
    WHERE sf.status = 'ready_for_pickup'`;
 
 /**
- * A same-day package that has been collected and not yet delivered. The mirror of READY_TO_COLLECT
+ * A parcel Effy delivers that has been collected and not yet delivered. The mirror of READY_TO_COLLECT
  * for the second half of a shift, and it lost the same `NOT EXISTS` term for the same reason.
+ *
+ * ⚠ 082 — "Effy delivers it" is 079's one definition (`package_delivered_by`), not the method: since
+ * 078 a later-day window is sold as `standard` with a window, and it is delivery work all the same.
  */
 export const READY_TO_DELIVER = `
   SELECT sf.id
     FROM public.shop_fulfillment sf
-    JOIN public.order_package_delivery opd
-      ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND opd.method = 'same_day'
-   WHERE sf.status = 'collected'`;
+    JOIN public."order" o ON o.id = sf.order_id
+    LEFT JOIN public.order_package_delivery opd
+      ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+   WHERE sf.status = 'collected'
+     AND ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} = 'effy'`;

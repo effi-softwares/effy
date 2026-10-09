@@ -119,6 +119,11 @@ enum class CollectionIssueKind(val value: String) {
 
 @Serializable
 data class CollectionPackage (
+    /**
+     * 082 — who takes it from the hub: an Effy driver, or a courier. What the app says.
+     */
+    val deliveredBy: DeliveredBy? = null,
+
     val destinationSuburb: String,
 
     /**
@@ -129,8 +134,23 @@ data class CollectionPackage (
 
     val method: PackageMethod,
     val ref: String,
-    val summary: ClassSummary
+    val summary: ClassSummary,
+
+    /**
+     * 082 — the day and window an Effy parcel is for, in words written by the server; null when
+     * none.
+     */
+    val windowLabel: String? = null
 )
+
+/**
+ * 082 — who takes it from the hub: an Effy driver, or a courier. What the app says.
+ */
+@Serializable
+enum class DeliveredBy(val value: String) {
+    @SerialName("courier") Courier("courier"),
+    @SerialName("effy") Effy("effy");
+}
 
 @Serializable
 data class ManifestLine (
@@ -710,9 +730,44 @@ data class HubCheckinResponse (
      */
     val courierCount: Long? = null,
 
+    /**
+     * 082 — parcels EFFY delivers, in all and by the day and window each waits for. The app
+     * shows two groups, "Effy delivery" (these) and "Courier", and the driver classifies
+     * nothing. ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am –
+     * 12 pm"): the app has no timezone database and never formats a day itself. A parcel sold
+     * no window has null instants. ⚠ `sameDayCount` / `standardCount` above stay for driver
+     * builds that predate these (E9 removes them).
+     */
+    val effyCount: Long? = null,
+
+    val effyGroups: List<HubCheckinEffyGroup>? = null,
     val sameDayCount: Long,
     val scannedTotal: Long,
     val standardCount: Long
+)
+
+/**
+ * 082 — the Effy parcels of one check-in that wait for one day and window.
+ */
+@Serializable
+data class HubCheckinEffyGroup (
+    val count: Long,
+
+    /**
+     * yyyy-mm-dd (Melbourne) of the window; null for a parcel sold no window.
+     */
+    val date: String? = null,
+
+    /**
+     * True when these go out TODAY (their window is today, or they were sold no window): the
+     * driver loads them for a delivery round. False = shelved at the hub for a later day. ⚠
+     * Decided by the server, which knows the operating day; the app never compares dates.
+     */
+    val dueToday: Boolean,
+
+    val label: String,
+    val windowEnd: String? = null,
+    val windowStart: String? = null
 )
 
 @Serializable

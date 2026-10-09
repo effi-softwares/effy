@@ -103,8 +103,9 @@ describe("P12 — coverage is decided in one place", () => {
     "apis/edge-api/admin/src/delivery/coverage.repository.ts": "maintains the list (add, remove, group, distance)",
     "apis/edge-api/admin/src/delivery/repository.ts": "recalculates distances when the hub moves",
     "apis/edge-api/shared/src/lib/load-migrations.ts": "TEST SUPPORT only — the fixture statement that lists a postcode for services forbidden to name its distance column",
-    "apis/edge-api/fleet/src/planner/sql.ts": "which GROUP a delivery belongs to, for driver clearances (until E8)",
-    "apis/edge-api/fleet/src/dispatch/sql.ts": "which GROUP a delivery belongs to, for the dispatch board (until E8)",
+    "apis/edge-api/fleet/src/planner/sql.ts": "which GROUP a delivery belongs to, for driver clearances (082: a clearance is a function and a group, or everywhere)",
+    "apis/edge-api/fleet/src/dispatch/sql.ts": "which GROUP a delivery belongs to, for the dispatch board",
+    "apis/edge-api/fleet/src/dispatch/windows.ts": "which GROUP a parcel's address is in, on dispatch's day view (082) — a name to read, never a coverage decision",
   };
 
   const readers = services

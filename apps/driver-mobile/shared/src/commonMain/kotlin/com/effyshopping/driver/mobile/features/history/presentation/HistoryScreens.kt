@@ -50,7 +50,7 @@ fun HistoryScreen(state: HistoryUiState, onOpenDrop: (String) -> Unit, onOpenRun
                         Text(day.date, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         day.runs.forEach { run ->
                             RecordRow(
-                                title = if (run.type == "collection") "Collection run" else "Same-day run",
+                                title = if (run.type == "collection") "Collection run" else "Delivery run",
                                 subtitle = "${run.stopCount} stop(s)",
                                 trailing = null,
                                 onClick = { onOpenRun(run.runId) },

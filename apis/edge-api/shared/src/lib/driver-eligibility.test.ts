@@ -18,7 +18,7 @@ function driver(p: Partial<CandidateDriver> = {}): CandidateDriver {
     licenceExpiresOn: "2030-01-01",
     expectedEndAt: null,
     vehicle: { vehicleId: "v1", payloadKg: 900, canCarryChilled: true, canCarryFrozen: true },
-    clearances: [{ function: "collection", method: "standard", zoneId: "zone-1" }],
+    clearances: [{ function: "collection", zoneId: "zone-1" }],
     packagesAssignedToday: 0,
     ...p,
   };
@@ -27,7 +27,6 @@ function driver(p: Partial<CandidateDriver> = {}): CandidateDriver {
 function work(p: Partial<WorkUnit> = {}): WorkUnit {
   return {
     function: "collection",
-    method: "standard",
     zoneId: "zone-1",
     totalWeightGrams: 10_000,
     requiresChilled: false,
@@ -63,15 +62,23 @@ describe("eligibilityReasons — hard gates (FR-009, FR-010)", () => {
     expect(ask({ driver: driver({ vehicle: null }) })).toContain("no_vehicle");
   });
 
-  it("refuses work the driver is not cleared for — wrong zone, function or method", () => {
+  it("refuses work the driver is not cleared for — the wrong area, or the wrong function", () => {
     expect(ask({ work: work({ zoneId: "zone-9" }) })).toContain("not_cleared");
     expect(ask({ work: work({ function: "delivery" }) })).toContain("not_cleared");
-    expect(ask({ work: work({ method: "same_day" }) })).toContain("not_cleared");
+  });
+
+  // 082 P5 — a postcode filed under no group is not a place nobody may go.
+  it("082 — work in NO area is cleared by any clearance for that function, and by none for another", () => {
+    // The fixture driver collects in zone-1 only.
+    expect(ask({ work: work({ zoneId: null }) })).not.toContain("not_cleared");
+    expect(ask({ work: work({ zoneId: null, function: "delivery" }) })).toContain("not_cleared");
+    const none = driver({ clearances: [] });
+    expect(ask({ driver: none, work: work({ zoneId: null }) })).toContain("not_cleared");
   });
 
   // ⚠ 062 FR-011 — the single most important line of the matching rule.
   it("treats a null-zone clearance as EVERY zone, including one that did not exist at grant time", () => {
-    const everywhere = driver({ clearances: [{ function: "collection", method: "standard", zoneId: null }] });
+    const everywhere = driver({ clearances: [{ function: "collection", zoneId: null }] });
     expect(ask({ driver: everywhere, work: work({ zoneId: "zone-created-yesterday" }) })).toEqual([]);
   });
 

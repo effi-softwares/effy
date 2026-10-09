@@ -4,7 +4,10 @@
 // to select (D20/D22). A shop has an ADDRESS so a driver knows where to drive; nothing computes how
 // far it is.
 
-import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
+import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
+
+/** Who takes a parcel to the customer — 079's one definition, over the gathers' aliases. */
+const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
 
 /**
  * Packages a wave may pick up: ready, not already in an open assignment, and — for a delivery wave —
@@ -14,8 +17,10 @@ import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
  * else; the planner never writes any other `shop_fulfillment` status, because the shop's lifecycle
  * belongs to the shop.
  *
- * ⚠ `delivery_method IS NULL` IS TREATED AS `standard` (research R9). A pre-047 package was never
- * sold as same-day, so defaulting it the other way would promise a shopper something nobody offered.
+ * ⚠ 082 — NO METHOD IS SELECTED. A run carries every parcel Effy delivers and every courier parcel
+ * that goes via the hub; which of the two a parcel is comes from 079's one definition
+ * (`delivered_by`), and WHEN an Effy parcel should travel comes from its window (`window_start`):
+ * the service keeps it off a run that is earlier than it needs (`collectionRunFor`).
  *
  * ⚠ The `NOT EXISTS` is a read-side filter and is NOT what makes assignment exclusive — the partial
  * unique index `round_package_open_uq` is (FR-005). Two passes can both pass this check and only one
@@ -27,7 +32,9 @@ export const GATHER_COLLECTION = `
          sf.shop_id                              AS shop_id,
          s.name                                  AS shop_name,
          s.address_line1, s.address_line2, s.suburb, s.postcode, s.state,
-         COALESCE(sf.delivery_method, 'standard') AS method,
+         ${DELIVERED_BY}                         AS delivered_by,
+         opd.window_start                        AS window_start,
+         opd.window_end                          AS window_end,
          z.id                                    AS zone_id,
          z.name                                  AS zone_name,
          sf.state_changed_at                     AS ready_since,
@@ -38,6 +45,7 @@ export const GATHER_COLLECTION = `
     FROM public.shop_fulfillment sf
     JOIN public."order"        o  ON o.id = sf.order_id
     JOIN public.shop           s  ON s.id = sf.shop_id
+    LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
     -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
@@ -67,22 +75,32 @@ export const GATHER_COLLECTION = `
              FROM public.round_package rp
             WHERE rp.shop_fulfillment_id = sf.id AND rp.state = 'assigned'
          ))
-   GROUP BY sf.id, o.order_number, sf.shop_id, s.name, s.address_line1, s.address_line2,
-            s.suburb, s.postcode, s.state, sf.delivery_method, z.id, z.name, sf.state_changed_at
+   GROUP BY sf.id, o.order_number, o.delivery_type, sf.shop_id, s.name, s.address_line1, s.address_line2,
+            s.suburb, s.postcode, s.state, sf.delivery_method, opd.method, opd.slot_id,
+            opd.window_start, opd.window_end, z.id, z.name, sf.state_changed_at
    ORDER BY sf.state_changed_at ASC
 `;
 
 /**
- * Same-day packages that have ARRIVED at the hub and are not already out for delivery.
+ * Parcels EFFY DELIVERS that have ARRIVED at the hub, whose day has come, and that are not already
+ * out for delivery.
+ *
+ * ⚠ 082 — "EFFY DELIVERS IT" IS 079's ONE DEFINITION (`package_delivered_by`), NOT THE METHOD. Until
+ * 082 this selected `delivery_method = 'same_day'`. Since 078 a window on a later day is sold as
+ * `standard` WITH a window, so that test gave such a parcel no delivery round at all — the reason the
+ * new delivery model could not be switched on. A carrier's or a courier's parcel is still
+ * structurally absent: the definition answers 'courier' for it.
+ *
+ * ⚠ 082 — AND ONLY ON ITS OWN DAY ($2 = the end of the local day). A parcel sold Thursday's window
+ * may reach the hub on Tuesday; it waits there, on no round, until Thursday's first pass. Work is
+ * given to drivers ON DUTY NOW and taken back when they clock off (072), so a round planned two days
+ * early would be handed to one shift after another. A parcel with no window (an order placed before
+ * 069) is due at once, as it always was.
  *
  * ⚠ THE HUB CHECK-IN IS THE PRECONDITION, not a `shop_fulfillment` status (research R9, and 053's
  * reasoning for `carrier_handoff`): a package on the hub floor and one in a driver's van are the same
  * fact to a shopper, so the status would exist only to be mapped. The check-in row's EXISTENCE is the
  * fact.
- *
- * ⚠ STANDARD PACKAGES ARE STRUCTURALLY ABSENT (FR-024), not filtered out downstream. A standard
- * package's driver-side work ends at check-in and it must enter no delivery round; making it
- * unselectable here is stronger than remembering to exclude it later.
  *
  * ⚠ FIVE COLUMN NAMES IN THE FIRST DRAFT OF THIS FILE DID NOT EXIST, and every one of them
  * typechecked perfectly. Found only by running the queries against real PostgreSQL:
@@ -112,7 +130,6 @@ export const GATHER_DELIVERY = `
          o.delivery_address ->> 'city'          AS suburb,
          o.delivery_address ->> 'postalCode'    AS postcode,
          o.delivery_address ->> 'region'        AS state,
-         'same_day'::text            AS method,
          z.id                        AS zone_id,
          z.name                      AS zone_name,
          hc.checked_in_at            AS ready_since,
@@ -150,7 +167,8 @@ export const GATHER_DELIVERY = `
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE rp.state = 'picked_up'
-     AND sf.delivery_method = 'same_day'
+     AND ${DELIVERED_BY} = 'effy'
+     AND (opd.window_start IS NULL OR opd.window_start <= $2::timestamptz)
      -- ⚠ 072 — STILL TO BE DELIVERED. Without this a package that HAS been delivered matches again:
      -- its collection row is 'picked_up' for ever and its delivery row is 'delivered', not 'assigned',
      -- so the NOT EXISTS below passes and the next pass puts it on a new delivery round. Proof moves
@@ -195,11 +213,15 @@ export const CANDIDATE_DRIVERS = `
          COALESCE(v.can_carry_chilled, false) AS can_carry_chilled,
          COALESCE(v.can_carry_frozen,  false) AS can_carry_frozen,
          COALESCE(
-           (SELECT json_agg(json_build_object('function', c.function, 'method', c.method, 'zoneId', c.zone_id))
-              FROM public.driver_zone_capability c
-              LEFT JOIN public.delivery_zone cz ON cz.id = c.zone_id
-             WHERE c.driver_id = d.id
-               AND (c.zone_id IS NULL OR cz.status = 'active')),
+           -- ⚠ 082 — (function, area) ONLY. The method column is unread: a driver cleared under either
+           -- old method for a function and area is cleared for that function there. DISTINCT, because
+           -- a driver cleared under both holds two rows for one clearance.
+           (SELECT json_agg(json_build_object('function', g.function, 'zoneId', g.zone_id))
+              FROM (SELECT DISTINCT c.function, c.zone_id
+                      FROM public.driver_zone_capability c
+                      LEFT JOIN public.delivery_zone cz ON cz.id = c.zone_id
+                     WHERE c.driver_id = d.id
+                       AND (c.zone_id IS NULL OR cz.status = 'active')) g),
            '[]'::json
          )                       AS clearances,
          COALESCE(
@@ -231,7 +253,8 @@ export const COLLECTION_SCHEDULE = `
 
 /** Planner configuration. ⚠ Values, never literals (research R11). */
 export const PLANNER_SETTINGS = `
-  SELECT sameday_prep_buffer_min, planning_lead_min, per_stop_allowance_min
+  SELECT sameday_prep_buffer_min, planning_lead_min, per_stop_allowance_min,
+         sameday_hub_turnaround_min, standard_no_delivery_weekdays
     FROM public.delivery_settings
    WHERE id = 1
 `;

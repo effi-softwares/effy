@@ -7,6 +7,7 @@ import { OrdersTabs } from "@/features/orders/OrdersTabs";
 
 import { RoundTable } from "./components/RoundTable";
 import { UnassignedPanel } from "./components/UnassignedPanel";
+import { WindowsByDay } from "./components/WindowsByDay";
 import { dispatchDayQuery } from "./queries";
 
 /**
@@ -67,6 +68,9 @@ export function DispatchDayScreen() {
             : undefined
         }
       />
+
+      {/* 082 — every day on sale: each window's parcels and who has its round. */}
+      <WindowsByDay />
 
       <section aria-labelledby="rounds-heading">
         <h2 id="rounds-heading" className="text-base font-medium">

@@ -267,7 +267,12 @@ export interface ManifestLine {
 export interface CollectionPackage {
   ref: string; // the order number the package belongs to
   destinationSuburb: string;
+  /** @deprecated 082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9). */
   method: PackageMethod;
+  /** 082 — who takes it from the hub: an Effy driver, or a courier. What the app says. */
+  deliveredBy?: "effy" | "courier";
+  /** 082 — the day and window an Effy parcel is for, in words written by the server; null when none. */
+  windowLabel?: string | null;
   /**
    * ⚠ THIS PACKAGE'S OWN LINES (065). Until 065 every package at a stop carried every line at the
    * stop, so three packages of 2, 5 and 1 items each read "8 items".
@@ -337,6 +342,31 @@ export interface HubCheckinResponse {
   standardCount: WireInt; // staged for the external carrier; leaves the driver's active work
   /** 080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says "Courier". */
   courierCount?: WireInt;
+  /**
+   * 082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two
+   * groups, "Effy delivery" (these) and "Courier", and the driver classifies nothing.
+   * ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am – 12 pm"): the app has
+   * no timezone database and never formats a day itself. A parcel sold no window has null instants.
+   * ⚠ `sameDayCount` / `standardCount` above stay for driver builds that predate these (E9 removes them).
+   */
+  effyCount?: WireInt;
+  effyGroups?: HubCheckinEffyGroup[];
+}
+
+/** 082 — the Effy parcels of one check-in that wait for one day and window. */
+export interface HubCheckinEffyGroup {
+  /** yyyy-mm-dd (Melbourne) of the window; null for a parcel sold no window. */
+  date: string | null;
+  windowStart: string | null;
+  windowEnd: string | null;
+  label: string;
+  count: WireInt;
+  /**
+   * True when these go out TODAY (their window is today, or they were sold no window): the driver
+   * loads them for a delivery round. False = shelved at the hub for a later day. ⚠ Decided by the
+   * server, which knows the operating day; the app never compares dates.
+   */
+  dueToday: boolean;
 }
 
 // ── Phase 2 — same-day delivery run ──────────────────────────────────────────────────────────────
@@ -861,8 +891,12 @@ export interface DutyResponseAdmin {
 // ⚠ BACK-OFFICE ONLY. None of these enter `driver-contract.ts`, so none reaches the generated Kotlin.
 // A driver does not grant their own clearances; they see only the derived `DriverMeDTO.zone` line.
 
+/**
+ * ⚠ 082 — A GRANT IS (function, area). The old second half — "standard" or "same-day" — is gone: who
+ * delivers a parcel is decided by the order (079), not by a method a driver is cleared for. A driver
+ * who held either method for a function and area holds that function for that area.
+ */
 export type CapabilityFunction = "collection" | "delivery";
-export type CapabilityMethod = "standard" | "same_day";
 
 /**
  * One grant: this driver may do this kind of work in this place.
@@ -875,7 +909,6 @@ export type CapabilityMethod = "standard" | "same_day";
 export interface DriverCapability {
   id: string;
   function: CapabilityFunction;
-  method: CapabilityMethod;
   /** ⚠ null = every zone. */
   zoneId: string | null;
   /** ⚠ null for an every-zone grant — NEVER a server-supplied "All zones" string. The label is
@@ -895,7 +928,6 @@ export interface DriverCapabilityListResponse {
  */
 export interface GrantCapabilityRequest {
   function: CapabilityFunction;
-  method: CapabilityMethod;
   zoneId: string | null;
 }
 
@@ -915,7 +947,6 @@ export interface CoverageGap {
   zoneId: string;
   zoneName: string;
   function: CapabilityFunction;
-  method: CapabilityMethod;
   reason: CoverageGapReason;
   /** ⚠ What makes the two reasons ACTIONABLE: 0 means grant somebody a clearance; more than 0 means
    *  the people who have it cannot work today, and the fix is in the readiness view. */
@@ -923,13 +954,10 @@ export interface CoverageGap {
 }
 
 /**
- * ⚠ A LIST OF PROBLEMS, NOT A MATRIX. A covered (zone, function, method) emits NO ROW at all
- * (FR-019) — a screen that lists everything and colours the bad ones is a screen an operator has to
- * scan.
+ * ⚠ A LIST OF PROBLEMS, NOT A MATRIX. A covered (area, function) emits NO ROW at all (FR-019) — a
+ * screen that lists everything and colours the bad ones is a screen an operator has to scan.
  *
- * ⚠ Only the work a zone can actually RECEIVE is enumerated: same-day appears only for zones whose
- * `sameday_eligible` is true. Otherwise "nobody is cleared for same-day in Ballarat" would be a
- * permanent, unfixable row in the one view whose purpose is to be actionable.
+ * 082 — one row per area and function; the method dimension is gone.
  */
 export interface CoverageResponse {
   gaps: CoverageGap[];

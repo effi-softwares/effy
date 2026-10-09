@@ -39,7 +39,7 @@ export function useUnassign(packageId: string) {
 }
 
 /** The refusals fleet writes for a PERSON to read, in one line (073 FR-017). */
-const OWN_WORDS = new Set(["cannot_take", "needs_confirm", "changed", "collected", "not_needed"]);
+const OWN_WORDS = new Set(["cannot_take", "needs_confirm", "changed", "collected", "not_needed", "not_yet"]);
 
 /**
  * One line for a failed action. ⚠ Only the assignment routes' own refusals are shown as the server

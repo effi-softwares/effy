@@ -114,7 +114,6 @@ export function planWave(input: AssignInput): WavePlan {
       driver: r.candidate,
       work: {
         function: kind,
-        method: pkg.method,
         zoneId: pkg.zoneId,
         // ⚠ 072 — THE WHOLE ROUND, not this pass's share of it. `r.weightGrams` and `r.stops` are
         // seeded from what the round already holds; without that, a van filled across six passes

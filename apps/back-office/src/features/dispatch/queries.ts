@@ -10,7 +10,12 @@ export const dispatchKeys = {
   all: ["dispatch"] as const,
   day: () => ["dispatch", "day"] as const,
   round: (id: string) => ["dispatch", "round", id] as const,
+  // 082 — under "dispatch": a pass, an assignment or a check-in changes what a window shows.
+  windows: (date: string | null) => ["dispatch", "windows", date ?? "today"] as const,
 };
+
+export const dispatchWindowsQuery = (date: string | null) =>
+  queryOptions({ queryKey: dispatchKeys.windows(date), queryFn: () => repo.getWindows(date) });
 
 export const dispatchDayQuery = () =>
   queryOptions({ queryKey: dispatchKeys.day(), queryFn: repo.getDay });

@@ -19,7 +19,6 @@ function gap(over: Partial<CoverageGap> = {}): CoverageGap {
     zoneId: "z-1",
     zoneName: "Inner North",
     function: "delivery",
-    method: "standard",
     reason: "no_driver_cleared",
     clearedDriverCount: 0,
     ...over,
@@ -70,10 +69,12 @@ describe("CoveragePanel — where the fleet has no cover", () => {
 
   it("names the kind of work, because a zone can be covered for one and not the other", async () => {
     getCoverage.mockResolvedValue({
-      gaps: [gap({ function: "collection", method: "same_day" })],
+      gaps: [gap({ function: "collection", })],
     });
     renderPanel();
-    expect(await screen.findByText(/Collect · Same-day/)).toBeInTheDocument();
+    expect(await screen.findByText(/^Collect —/)).toBeInTheDocument();
+    // 082 — a gap is per area and kind of work; no delivery method is named.
+    expect(document.body.textContent).not.toMatch(/same[- ]day|standard/i);
   });
 
   /** ⚠ FR-019 — a list of problems, not a matrix. Nothing covered appears at all. */

@@ -162,9 +162,41 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
 
     // The REAL delivery gather is the thing under test: a standard package must be STRUCTURALLY
     // absent from it, not filtered out somewhere later.
-    const eligible = await gatherDeliveryWork();
+    const eligible = await gatherDeliveryWork(holder.pool!, null, new Date("9999-12-31T00:00:00Z"));
     expect(eligible).toHaveLength(1);
-    expect(eligible[0]!.method).toBe("same_day");
+    expect(eligible[0]!.deliveredBy).toBe("effy");
+
+    // 082 P7 — and the driver is shown the two groups: one Effy parcel (sold no window), one courier's.
+    expect(res.effyCount).toBe(1);
+    expect(res.effyGroups).toEqual([{ date: null, windowStart: null, windowEnd: null, label: "Effy delivery", count: 1, dueToday: true }]);
+  });
+
+  /**
+   * ⚠ 082 P7 — EFFY'S PARCELS BY THE DAY AND WINDOW EACH WAITS FOR. A window sold for a later day is
+   * stored `standard` with a window (078); it is Effy's, it is shelved for that day, and the driver is
+   * told which — in words the SERVER wrote. Nothing is a courier's here, so that group is empty.
+   */
+  it("082 P7 — check-in groups Effy's parcels by day and window; a later-day window is Effy's, not a courier's", async () => {
+    const { runId, stopId, driverId, ids } = await aCollectedRound();
+    const slot = async (start: string) =>
+      (await q(`INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ($1::time, $1::time + interval '2 hours', '00:00', 9, 'test') RETURNING id`, [start])).rows[0].id;
+    const sell = async (sfId: string, method: string, slotId: string, start: string, end: string) =>
+      q(`INSERT INTO public.order_package_delivery (order_id, shop_id, method, slot_id, window_start, window_end)
+         SELECT order_id, shop_id, $2, $3, $4::timestamptz, $5::timestamptz FROM public.shop_fulfillment WHERE id = $1`, [sfId, method, slotId, start, end]);
+    // Far enough ahead that neither is "today" whenever this runs: fixed days in 2031.
+    await sell(ids[0]!, "same_day", await slot("16:00"), "2031-03-04T05:00:00Z", "2031-03-04T07:00:00Z"); // Tue 4 Mar, 4–6 pm
+    await sell(ids[1]!, "standard", await slot("10:00"), "2031-03-06T23:00:00Z", "2031-03-07T01:00:00Z"); // Fri 7 Mar, 10 am–12 pm
+    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+
+    const res = await hubCheckin(runId, driverId);
+    expect(res.courierCount).toBe(0);
+    expect(res.effyCount).toBe(2);
+    expect(res.effyGroups).toEqual([
+      { date: "2031-03-04", windowStart: "2031-03-04T05:00:00.000Z", windowEnd: "2031-03-04T07:00:00.000Z", label: "Tue 4 Mar, 4 pm – 6 pm", count: 1, dueToday: false },
+      { date: "2031-03-07", windowStart: "2031-03-06T23:00:00.000Z", windowEnd: "2031-03-07T01:00:00.000Z", label: "Fri 7 Mar, 10 am – 12 pm", count: 1, dueToday: false },
+    ]);
+    // The counts an older app reads are still there, by the method, unchanged.
+    expect(res).toMatchObject({ sameDayCount: 1, standardCount: 1, scannedTotal: 2 });
   });
 
   it("advances the fulfillment out of ready_for_pickup, or the planner re-collects it forever", async () => {

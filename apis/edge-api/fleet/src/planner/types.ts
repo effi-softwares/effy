@@ -14,7 +14,8 @@ export interface PlannablePackage {
   /** Delivery stops only — the order whose jsonb snapshot holds the destination. */
   orderId: string | null;
   recipientName: string | null;
-  method: "standard" | "same_day";
+  /** 082 — who takes it to the customer (079's definition). A delivery wave only ever holds `effy`. */
+  deliveredBy: "effy" | "courier";
   zoneId: string | null;
   zoneName: string | null;
   readySince: string;
@@ -23,8 +24,9 @@ export interface PlannablePackage {
   requiresChilled: boolean;
   requiresFrozen: boolean;
   /**
-   * 069 — the delivery window the customer was sold, as instants. Null for collection work, and for
-   * a same-day order placed before 069 (which was promised the day and nothing finer).
+   * 069 — the delivery window the customer was sold, as instants. Null for a parcel sold none: a
+   * courier parcel, or an order placed before 069 (promised the day and nothing finer). Since 082
+   * collection work carries it too — it decides which run the parcel travels on.
    */
   windowStart: Date | null;
   windowEnd: Date | null;
@@ -46,7 +48,6 @@ export interface PlannerCandidate {
   } | null;
   clearances: ReadonlyArray<{
     function: "collection" | "delivery";
-    method: "standard" | "same_day";
     zoneId: string | null;
   }>;
   packagesAssignedToday: number;
@@ -104,4 +105,8 @@ export interface PlannerSettings {
   prepBufferMin: number;
   planningLeadMin: number;
   perStopAllowanceMin: number;
+  /** 082 — minutes a parcel needs at the hub before its window starts (what checkout allows too). */
+  hubTurnaroundMin: number;
+  /** 082 — ISO weekdays with no deliveries (069's calendar). */
+  noDeliveryWeekdays: readonly number[];
 }

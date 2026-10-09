@@ -160,6 +160,27 @@ business has not earned.
 
 ---
 
+## Assignments across days (082)
+
+**Delivery windows** on the Assignments tab shows any day with windows on sale — today first. For each
+window: its parcels, where each is (the same status words as everywhere), and who has the round.
+
+- A **later day's window says "Planned on the day"**. A delivery round is planned on its own day, so
+  until then nobody's name is on it. Its parcels are waiting at the hub (or still at the supplier) —
+  they are not unassigned, and "Assign to…" for a delivery is refused before the day.
+- **Late for its run** — the parcel is still at its supplier after the collection run that would have
+  reached the hub in time for its window. It goes on the next run; the window is at risk. (A parcel is
+  collected on the latest run that makes its window, so one ready days early is not late.)
+- **Needs cold storage** — chilled or frozen goods that reached the hub on a day before the one they
+  go out on.
+
+**Needs a driver** in the order list now means: ready at a supplier with nobody to collect it, or — for
+any day's window — a parcel Effy delivers, at the hub, whose round has opened with nobody on it.
+
+Drivers' **permissions** (Drivers → a driver) are **Collects** and **Delivers**, each *Everywhere* or
+named areas. There is no "same-day" or "standard": a driver who delivers in an area delivers whatever
+Effy delivers there, and a postcode in no area can go to any driver who delivers.
+
 ## Moving an order between Effy and courier (081)
 
 **For emergencies only** — the van is off the road, a driver is missing. On a paid order Effy delivers,
