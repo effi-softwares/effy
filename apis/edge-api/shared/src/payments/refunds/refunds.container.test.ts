@@ -10,7 +10,7 @@ import {
   CeilingExceededError, LineOverRefundedError, LinesNotYoursError, NotCancellableError, ProviderRefusedError,
   RefundOrderNotFoundError, RequestAlreadyOpenError, RequestNotFoundError,
 } from "./errors";
-import { createRefundRepository } from "./repository";
+import { createRefundRepository, recordRefundIn } from "./repository";
 import { createRefundService, type IssueInput, type RefundService } from "./service";
 
 /**
@@ -519,6 +519,56 @@ d("070 — refunds and cancellation against the real schema", () => {
   });
 
   // ── 074 — refunds of orders paid with points ────────────────────────────────────────────────────
+
+  it("081 — a refund recorded in a transaction that rolls back leaves nothing", async () => {
+    const o = await paidOrder();
+    await expect(transact(async (tx) => {
+      await recordRefundIn(tx, {
+        orderId: o.orderId, kind: "delivery", amountCents: 600, currency: "AUD", reason: "courier_override", note: null,
+        idempotencyKey: `courier_override:rolled-back-${o.orderId}`, actorKind: "back_office", actorSub: "staff-1", lines: [],
+      });
+      throw new Error("the move failed after the refund was recorded");
+    })).rejects.toThrow("the move failed");
+    expect(await refunds(o.orderId)).toEqual([]);
+  });
+
+  it("081 — a recorded refund is submitted after commit, once however often it is asked", async () => {
+    const o = await paidOrder();
+    const rec = await transact((tx) => recordRefundIn(tx, {
+      orderId: o.orderId, kind: "delivery", amountCents: 600, currency: "AUD", reason: "courier_override", note: null,
+      idempotencyKey: `courier_override:${o.orderId}`, actorKind: "back_office", actorSub: "staff-1", lines: [],
+    }));
+    expect(rec.issued).toBe(true);
+    expect((await refunds(o.orderId))[0]).toMatchObject({ kind: "delivery", status: "submitting" });
+
+    expect(await svc.submitRecorded(rec.refundId)).toEqual({ status: "submitted" });
+    expect(await svc.submitRecorded(rec.refundId)).toEqual({ status: "submitted" });
+    expect(provider.calls).toHaveLength(1);
+    expect(provider.calls[0]).toMatchObject({ amountCents: 600, idempotencyKey: `courier_override:${o.orderId}` });
+  });
+
+  it("081 — a refused recorded refund is reported, not thrown", async () => {
+    const o = await paidOrder();
+    const rec = await transact((tx) => recordRefundIn(tx, {
+      orderId: o.orderId, kind: "delivery", amountCents: 250, currency: "AUD", reason: "courier_override", note: null,
+      idempotencyKey: `courier_override:refused-${o.orderId}`, actorKind: "back_office", actorSub: "staff-1", lines: [],
+    }));
+    provider.set("refuse");
+    expect(await svc.submitRecorded(rec.refundId)).toEqual({ status: "refused" });
+    expect((await refunds(o.orderId))[0]).toMatchObject({ status: "refused" });
+  });
+
+  it("081 — a delivery refund must carry its own reason, and only it may", async () => {
+    const o = await paidOrder();
+    await expect(pool.query(
+      `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, actor_sub) VALUES ($1, 'delivery', 1, 'goodwill', 'x-081-a', 'back_office', 's')`,
+      [o.orderId],
+    )).rejects.toThrow(/refund_delivery_reason_ck|refund_goodwill_reason_ck/);
+    await expect(pool.query(
+      `INSERT INTO public.refund (order_id, kind, amount, reason, note, idempotency_key, actor_kind, actor_sub) VALUES ($1, 'goodwill', 1, 'courier_override', 'n', 'x-081-b', 'back_office', 's')`,
+      [o.orderId],
+    )).rejects.toThrow(/refund_delivery_reason_ck|refund_goodwill_reason_ck/);
+  });
 
   it("074 — a mixed order's refund is split in proportion; only the card part reaches the provider; points come back on submission (P10)", async () => {
     const o = await pointsPaidOrder(1600); // 16.00 card + 1,000 points

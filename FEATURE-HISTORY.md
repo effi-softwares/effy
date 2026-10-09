@@ -4,6 +4,29 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**081-courier-override-compensation — Back-Office Courier Override & Compensation.** ⚠ **BUILT AND CHECKED BY MACHINE
+(2026-10-09). NOT MIGRATED, NOT DEPLOYED, NOT WALKED; rides 078's switch.** Seventh slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E7).
+Sign-off notes: [specs/081-courier-override-compensation/SIGNOFF.md](specs/081-courier-override-compensation/SIGNOFF.md).
+Runbook: [docs/runbooks/courier-override.md](docs/runbooks/courier-override.md).
+
+- **What it is.** Admins/managers move a paid Effy order to courier in an emergency (**Send by courier…**),
+  choosing how the customer is made whole — points for the difference (default), free delivery as points
+  or to the card, the difference to the card (last resort), or nothing with a note — and back
+  (**Deliver by Effy…**) before the courier has it. The customer is told by push and email; the order
+  page lists every move for every role.
+- ⚠ **One transaction, one writer** — `@effy/edge-shared/delivery` `override.ts`; `delivery_override` is
+  append-only and written nowhere else (`override.guard.test.ts`). It writes through the one writers:
+  `changeDeliveryType` (079), `setCourierRouting` (080), `removeAssignment` (073, moved to
+  `delivery/driver-work.ts`), `points.credit` (074, `quiet`), `recordRefundIn` + `submitRecorded` (055).
+- ⚠ **Only orders with a delivery type move** (pre-model orders are refused); **out for delivery blocks it**.
+- ⚠ **The customer is never charged more**; the difference clamps at zero and Effy bears a dearer courier.
+- **Deviations**: see SIGNOFF (seven, including one route for both directions and a quiet points credit).
+- **Operator steps (dev):** `make db-up ENV=dev`; `make edge-deploy` for `notifications` (first), `orders`,
+  `fleet`, `commerce`; `make apply ENV=dev` (daily moves alarm); web builds on push; customer mobile build.
+  **Leave the model switch NULL.** Walks V1–V7 in
+  [quickstart.md](specs/081-courier-override-compensation/quickstart.md).
+
 **080-courier-fulfilment — Courier Fulfilment: via the hub or pickup from the supplier.** ✅ **SIGNED OFF BY THE OPERATOR (2026-10-09) —
 MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V6 were not recorded; rides 078's switch.** Sixth slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E6).

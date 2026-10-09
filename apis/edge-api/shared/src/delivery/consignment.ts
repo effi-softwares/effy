@@ -455,6 +455,59 @@ export async function changeCourierCollection(
   return { changed: true, packageIds };
 }
 
+/**
+ * 081 — give an order its courier routing, or take it away, when back-office moves it between Effy and
+ * courier delivery (`@effy/edge-shared/delivery` override.ts, in its transaction).
+ *
+ *   to courier (`routing` given): the courier service the customer is told about and how its parcels
+ *     reach the courier. The order had no mode, so nothing is "changed" and no history row is written —
+ *     the move itself is the record (`delivery_override`).
+ *   back to Effy (`routing` null): both cleared, and every booking not yet handed over is cancelled.
+ *     ⚠ REFUSED once any parcel has been handed to a courier: the courier has it.
+ *
+ * ⚠ It does not announce; the caller does after commit.
+ */
+export async function setCourierRouting(
+  tx: Queryable,
+  orderId: string,
+  routing: { serviceId: string; collection: "hub" | "supplier" } | null,
+  actorSub: string,
+): Promise<void> {
+  if (routing) {
+    await tx.query(
+      `UPDATE public."order" SET courier_service_id = $2::uuid, courier_collection = $3, updated_at = now() WHERE id = $1`,
+      [orderId, routing.serviceId, routing.collection],
+    );
+    return;
+  }
+
+  const handed = (
+    await tx.query<{ handed: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM public.carrier_handoff h JOIN public.shop_fulfillment sf ON sf.id = h.shop_fulfillment_id WHERE sf.order_id = $1)
+           OR EXISTS (SELECT 1 FROM public.courier_consignment c JOIN public.shop_fulfillment sf ON sf.id = c.shop_fulfillment_id
+                       WHERE sf.order_id = $1 AND c.state NOT IN ('booked', 'cancelled')) AS handed`,
+      [orderId],
+    )
+  ).rows[0]!.handed;
+  if (handed) throw new ConsignmentRefusal("consignment_handed_over", "a parcel of this order is already with the courier");
+
+  const booked = (
+    await tx.query<{ id: string }>(
+      `SELECT c.id::text AS id FROM public.courier_consignment c JOIN public.shop_fulfillment sf ON sf.id = c.shop_fulfillment_id
+        WHERE sf.order_id = $1 AND c.state = 'booked'`,
+      [orderId],
+    )
+  ).rows;
+  for (const b of booked) {
+    await setState(tx, b.id, "cancelled");
+    await appendEvent(tx, b.id, "cancelled", { kind: "staff", sub: actorSub }, "moved to delivery by Effy");
+  }
+  await tx.query(
+    `UPDATE public."order" SET courier_service_id = NULL, courier_collection = NULL, updated_at = now() WHERE id = $1`,
+    [orderId],
+  );
+}
+
 // ── Reads ────────────────────────────────────────────────────────────────────────────────────────
 
 export interface ConsignmentRow {

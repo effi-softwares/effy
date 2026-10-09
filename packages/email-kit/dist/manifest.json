@@ -76,6 +76,13 @@
     "htmlSha": "5bc08843a7512e19",
     "textSha": "ee243f5dd0e7c10d"
   },
+  "order-delivery-changed": {
+    "htmlBytes": 17202,
+    "htmlChars": 17194,
+    "textBytes": 475,
+    "htmlSha": "20a25dd452194f48",
+    "textSha": "ae723223851b78a8"
+  },
   "order-refunded": {
     "htmlBytes": 16959,
     "htmlChars": 16951,

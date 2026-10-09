@@ -1,6 +1,12 @@
+import { useState } from "react";
+
 import { courierEstimateSentence } from "@effy/shared-types";
+import { Button } from "@effy/design-system/ui";
 
 import { CourierCollection } from "./CourierCollection";
+import { DeliverByEffyDialog } from "./DeliverByEffyDialog";
+import { DeliveryHistory } from "./DeliveryHistory";
+import { SendByCourierDialog } from "./SendByCourierDialog";
 import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, type OrderDetail } from "../model";
 
 /**
@@ -14,12 +20,15 @@ import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, type Order
  * Its packages still say who took them (the Packages section); a type and a history are not invented
  * for it.
  */
-export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection = false }: {
+export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection = false, canMove = false }: {
   order: OrderDetail;
   formatDateTime: (iso: string | null) => string;
   /** 080 — admin/manager: switch how a courier order's parcels reach the courier. */
   canChangeCollection?: boolean;
+  /** 081 — admin/manager: move the order to courier delivery, or back to Effy. The server enforces it too. */
+  canMove?: boolean;
 }) {
+  const [moving, setMoving] = useState<"courier" | "effy" | null>(null);
   if (!order.deliveryType) {
     return (
       <section className="space-y-3">
@@ -51,6 +60,24 @@ export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection
           </>
         ) : null}
       </dl>
+
+      {/* 081 — an emergency move, and back. Offered to admins and managers; the preview says if it may not. */}
+      {canMove && (order.status === "paid") ? (
+        <div className="flex flex-wrap gap-2">
+          {order.deliveryType === "effy" ? (
+            <Button variant="outline" size="sm" onClick={() => setMoving("courier")}>Send by courier…</Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setMoving("effy")}>Deliver by Effy…</Button>
+          )}
+        </div>
+      ) : null}
+      {canMove ? (
+        <>
+          <SendByCourierDialog orderId={order.id} open={moving === "courier"} onOpenChange={(o) => setMoving(o ? "courier" : null)} />
+          <DeliverByEffyDialog orderId={order.id} open={moving === "effy"} onOpenChange={(o) => setMoving(o ? "effy" : null)} />
+        </>
+      ) : null}
+      <DeliveryHistory moves={order.deliveryMoves ?? []} formatDateTime={(iso) => formatDateTime(iso)} />
 
       {/* 080 US3 — only on a courier order. */}
       <CourierCollection order={order} canChange={canChangeCollection} formatDateTime={(iso) => formatDateTime(iso)} />

@@ -86,6 +86,18 @@ d("074 — the points ledger against the real schema", () => {
     expect(await usable(pool, c, now)).toBe(300);
   });
 
+  it("081 — a quiet credit is the same lot, and sends no message (its caller says it)", async () => {
+    const c = await customer();
+    const now = new Date();
+    const { entryId } = await transact((tx) => credit(tx, {
+      customerId: c, points: 250, kind: "auto_credit", reason: "courier_override_compensation", author: staff,
+      dedupeKey: `quiet:${c}`, quiet: true, now,
+    }));
+    expect(await usable(pool, c, now)).toBe(250);
+    const n = await one<{ n: string }>(`SELECT count(*) AS n FROM public.notification_request WHERE type = 'points_credited' AND payload->>'entityId' = $1`, [entryId]);
+    expect(Number(n.n)).toBe(0);
+  });
+
   it("P2 — spends the soonest-expiring lot first", async () => {
     const c = await customer();
     const now = new Date();

@@ -14,6 +14,8 @@ export * from "./model";
 export * from "./delivery-type";
 export * from "./consignment";
 export * from "./courier-pickup";
+export * from "./driver-work";
+export * from "./override";
 export * from "./locality";
 export * from "./quote";
 export * from "./fee-wire";

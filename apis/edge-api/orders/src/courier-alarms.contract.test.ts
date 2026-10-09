@@ -31,3 +31,16 @@ describe("080 — late courier parcels are alarmed on what is emitted", () => {
     expect(tf).toMatch(/treat_missing_data\s*=\s*"breaching"/);
   });
 });
+
+describe("081 — moves to courier are alarmed on what the route emits", () => {
+  const service = readFileSync(resolve(here, "delivery-move/service.ts"), "utf8");
+  it("the metric, namespace and dimension are the delivery-move route's", () => {
+    const block = /resource "aws_cloudwatch_metric_alarm" "delivery_overrides_daily" \{[\s\S]*?\n\}/.exec(tf)?.[0] ?? "";
+    expect(block).toMatch(/metric_name\s*=\s*"DeliveryOverrides"/);
+    expect(block).toMatch(/dimensions\s*=\s*\{ to = "courier" \}/);
+    const namespace = /namespace\s*=\s*"([^"]+)"/.exec(block)?.[1];
+    expect(service).toContain(`NAMESPACE = "${namespace}"`);
+    expect(service).toMatch(/emitMetric\(NAMESPACE, "DeliveryOverrides", 1, \{ to: to! \}\)/);
+  });
+});
+

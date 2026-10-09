@@ -437,7 +437,22 @@ enum class DeliveryType { EFFY, COURIER }
 data class CourierDelivery(val estimate: String, val fee: DeliveryFee, val noWindowLeft: Boolean)
 
 /** 079 — who delivers a PLACED order, and a courier's timeframe as it was sold. */
-data class OrderDelivery(val type: DeliveryType, val courierEstimate: String?, val tracking: OrderTracking? = null)
+data class OrderDelivery(
+    val type: DeliveryType,
+    val courierEstimate: String?,
+    val tracking: OrderTracking? = null,
+    /** 081 — the latest move by back-office, and what the customer received; null when never moved. */
+    val moved: OrderDeliveryMove? = null,
+)
+
+/** 081 — back-office moved the order to [to]; [compensation] is null when nothing was given. */
+data class OrderDeliveryMove(val to: DeliveryType, val compensation: CustomerCompensation?)
+
+/** 081 — what a customer received for a move to courier. [amount] is a wire amount ("2.50"). */
+sealed interface CustomerCompensation {
+    data class Points(val amount: String, val points: Int) : CustomerCompensation
+    data class Refund(val amount: String) : CustomerCompensation
+}
 
 /** 080 — how a customer follows a courier order: one link, or "sent by email" for several parcels. */
 sealed interface OrderTracking {

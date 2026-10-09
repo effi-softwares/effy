@@ -133,6 +133,13 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   - ⚠ **Customers get ONE link or "by email", never a count** (`trackingOf`, commerce). Shops see their
     own pickup only (`courierPickup`: no fee, estimate, tracking link or other parcel). Labels live under
     `courier-label/` in the media bucket, read only through presigned URLs.
+- ⚠ **BACK-OFFICE CAN MOVE A PAID ORDER BETWEEN EFFY AND COURIER (081)** — an emergency tool, through
+  ONE function: `@effy/edge-shared/delivery` `override.ts` (`moveToCourier` / `moveToEffy`), one
+  transaction that writes through the one writers (`changeDeliveryType`, `setCourierRouting`,
+  `removeAssignment` — now in `delivery/driver-work.ts` — `points.credit` quiet, `recordRefundIn` then
+  `submitRecorded`). `delivery_override` is append-only (`override.guard.test.ts`). Compensation is staff's
+  choice, previewed and confirmed with the expected amount (a stale amount is 409 `compensation_changed`);
+  the difference never goes below zero. Only typed orders move; a parcel out for delivery blocks it.
 - **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out
   for delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the
   dispatch rows, never from `shop_fulfillment.status` alone (which stops at `collected` by design), and
@@ -514,6 +521,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **081-courier-override-compensation** — Back-Office Courier Override & Compensation — built, not migrated or deployed
 - **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev
 - **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — migrated and deployed to dev; not walked or signed off; rides 078's switch
 - **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — signed off, deployed to dev, switched off until the cutover
@@ -572,5 +580,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/080-courier-fulfilment/plan.md
+at specs/081-courier-override-compensation/plan.md
 <!-- SPECKIT END -->

@@ -465,3 +465,14 @@ variable "firebase_vapid_public_key" {
     error_message = "firebase_vapid_public_key must be the base64url PUBLIC key from Firebase → Cloud Messaging → Web Push certificates (~87 chars, characters A-Z a-z 0-9 _ -). ⚠ Do NOT paste the private key."
   }
 }
+
+variable "delivery_override_daily_alarm" {
+  description = "081 — alarm when more than this many orders are moved from Effy delivery to courier in one day. Moves are emergencies; a count above this says something is wrong."
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.delivery_override_daily_alarm >= 1 && floor(var.delivery_override_daily_alarm) == var.delivery_override_daily_alarm
+    error_message = "delivery_override_daily_alarm must be a whole number of at least 1."
+  }
+}

@@ -275,6 +275,44 @@ export function createRefundService(deps: { repo: RefundRepository; gateway: Pay
     },
 
     /**
+     * 081 — send a refund that was RECORDED inside another flow's transaction (`recordRefundIn`) —
+     * after that transaction has committed. The same submission as `issue`: the card part only, under
+     * the row's own key, retried once on an ambiguous failure, then the points part comes back.
+     *
+     * Already sent, or never needing the provider (no card part): reports the row's real state and
+     * sends nothing. ⚠ A definite refusal is recorded `refused` and RETURNED, not thrown — the flow
+     * that recorded it has already happened and must say so, not fail.
+     */
+    async submitRecorded(refundId: string): Promise<{ status: string; stalled?: true }> {
+      const r = await repo.recordedForSubmit(refundId);
+      if (!r) {
+        const row = (await repo.db.query<{ status: string }>(`SELECT status FROM public.refund WHERE id = $1`, [refundId])).rows[0];
+        return { status: row?.status ?? REFUND_SUBMITTING };
+      }
+      let provider: Refund;
+      try {
+        provider = await submit(r.id, r.paymentIntentId, r.cardCents, r.idempotencyKey);
+      } catch (err) {
+        if (err instanceof RefusedError) {
+          await quietly(repo.markRefused(r.id, err.reason));
+          emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "refused" });
+          await announceOrder(r.orderId, { db: repo.db });
+          return { status: "refused" };
+        }
+        emitMetric(ns(), "RefundSubmitFailures", 1, { failure: "ambiguous" });
+        return { status: REFUND_SUBMITTING, stalled: true };
+      }
+      await quietly(repo.markSubmitted(r.id, provider.id));
+      emitMetric(ns(), "RefundsIssued", 1, { kind: "delivery" });
+      if (r.pointsReturned > 0) {
+        emitMetric(ns(), "PointsReturned", 1);
+        await announcePointsForOrder(r.orderId, repo.db);
+      }
+      await announceOrder(r.orderId, { db: repo.db });
+      return { status: REFUND_SUBMITTED };
+    },
+
+    /**
      * Call off an order and return everything paid — INCLUDING delivery: nothing was delivered.
      *
      * ⚠ CANCELLATION *IS* A FULL REFUND. Payment is captured the moment an order exists, so there

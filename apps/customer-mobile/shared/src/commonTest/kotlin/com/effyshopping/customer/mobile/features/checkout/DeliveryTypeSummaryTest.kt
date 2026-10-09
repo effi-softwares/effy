@@ -1,9 +1,11 @@
 package com.effyshopping.customer.mobile.features.checkout
 
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
+import com.effyshopping.customer.mobile.features.checkout.domain.CustomerCompensation
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderDeliveryMove
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
 import com.effyshopping.customer.mobile.features.checkout.presentation.DeliverySummary
 import com.effyshopping.customer.mobile.features.checkout.presentation.DeliveryTypeWords
@@ -44,6 +46,15 @@ class DeliveryTypeSummaryTest {
                 courierEstimate = it.str("courierEstimate"),
                 tracking = it["tracking"]?.takeIf { t -> t !is JsonNull }?.jsonObject?.let { t ->
                     if (t.str("kind") == "email") OrderTracking.ByEmail else OrderTracking.Link(t.str("url")!!, t.str("courierName")!!)
+                },
+                moved = it["moved"]?.takeIf { m -> m !is JsonNull }?.jsonObject?.let { m ->
+                    OrderDeliveryMove(
+                        to = if (m.str("to") == "courier") DeliveryType.COURIER else DeliveryType.EFFY,
+                        compensation = m["compensation"]?.takeIf { c -> c !is JsonNull }?.jsonObject?.let { c ->
+                            if (c.str("kind") == "points") CustomerCompensation.Points(c.str("amount")!!, c.str("points")!!.toInt())
+                            else CustomerCompensation.Refund(c.str("amount")!!)
+                        },
+                    )
                 },
             )
         }
@@ -87,6 +98,8 @@ class DeliveryTypeSummaryTest {
                 "trackParcel" to DeliveryTypeWords.TRACK_PARCEL, "trackingByEmail" to DeliveryTypeWords.TRACKING_BY_EMAIL,
                 "withCourier" to DeliveryTypeWords.WITH_COURIER,
                 "sameDay" to DeliveryTypeWords.SAME_DAY, "standard" to DeliveryTypeWords.STANDARD, "scheduled" to DeliveryTypeWords.SCHEDULED,
+                "movedToCourier" to DeliveryTypeWords.MOVED_TO_COURIER, "movedToEffy" to DeliveryTypeWords.MOVED_TO_EFFY,
+                "compensationPoints" to DeliveryTypeWords.COMPENSATION_POINTS, "compensationRefund" to DeliveryTypeWords.COMPENSATION_REFUND,
             ),
             words.mapValues { it.value.jsonPrimitive.content },
         )

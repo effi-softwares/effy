@@ -139,6 +139,12 @@ export interface CreditInput {
   author: Author;
   /** For automatic flows: the same key twice is ONE credit (FR-009). */
   dedupeKey?: string | null;
+  /**
+   * 081 — send no "you received points" message. ⚠ ONLY for a flow that tells the customer itself, in
+   * the same transaction, what they received: a courier override's own message says the points, and a
+   * second one about the same points is noise. The entry, its expiry and the balance are unchanged.
+   */
+  quiet?: boolean;
   now: Date;
 }
 
@@ -183,7 +189,7 @@ RETURNING id::text AS id`,
     return { entryId: existing.id, created: false, expiresAt: existing.expires_at };
   }
 
-  await enqueueCredited(tx, c.customerId, inserted.id);
+  if (!c.quiet) await enqueueCredited(tx, c.customerId, inserted.id);
   return { entryId: inserted.id, created: true, expiresAt };
 }
 

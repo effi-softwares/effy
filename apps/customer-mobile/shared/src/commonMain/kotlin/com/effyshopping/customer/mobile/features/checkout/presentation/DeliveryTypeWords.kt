@@ -2,9 +2,11 @@ package com.effyshopping.customer.mobile.features.checkout.presentation
 
 import com.effyshopping.customer.mobile.core.platform.melbourneOffsetSeconds
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
+import com.effyshopping.customer.mobile.features.checkout.domain.CustomerCompensation
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderDeliveryMove
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
 
 /**
@@ -35,6 +37,12 @@ object DeliveryTypeWords {
     const val WITH_COURIER = "Your order is with the courier."
     const val SCHEDULED = "Scheduled delivery"
 
+    /** 081 — back-office moved the order. Said once, after the delivery lines; never why. */
+    const val MOVED_TO_COURIER = "We've changed this order to courier delivery."
+    const val MOVED_TO_EFFY = "We've changed this order back to delivery by Effy."
+    const val COMPENSATION_POINTS = "We've added %POINTS% points (%AMOUNT%) to your account to make up for it."
+    const val COMPENSATION_REFUND = "We've refunded %AMOUNT% to your card to make up for it."
+
     /**
      * Said when the server refuses a payment because who delivers is not what this screen showed.
      * ⚠ App-side wording (the website has its own sentence for the same refusal); it says what to do
@@ -47,6 +55,21 @@ object DeliveryTypeWords {
 
     /** The two lines a customer reads under "Courier delivery" — at checkout and on the order alike. */
     fun courierLines(estimate: String): List<String> = listOf(COURIER_PARTNER, courierEstimateSentence(estimate))
+
+    /** 081 — what a customer received for a move to courier; null when nothing was given. */
+    fun compensationLine(c: CustomerCompensation?): String? = when (c) {
+        null -> null
+        is CustomerCompensation.Points -> COMPENSATION_POINTS.replace("%POINTS%", c.points.toString()).replace("%AMOUNT%", "$" + c.amount)
+        is CustomerCompensation.Refund -> COMPENSATION_REFUND.replace("%AMOUNT%", "$" + c.amount)
+    }
+
+    /** 081 — the lines a move adds: what changed, then what the customer received (if anything). */
+    fun movedLines(m: OrderDeliveryMove?): List<String> {
+        if (m == null) return emptyList()
+        val said = if (m.to == DeliveryType.COURIER) MOVED_TO_COURIER else MOVED_TO_EFFY
+        val comp = if (m.to == DeliveryType.COURIER) compensationLine(m.compensation) else null
+        return listOfNotNull(said, comp)
+    }
 
     /** The customer's word for an Effy delivery. ⚠ Never for a courier order: its method is only routing. */
     fun methodWord(method: String?): String = when (method) {
@@ -83,10 +106,13 @@ fun deliverySummary(
         val lines = DeliveryTypeWords.courierLines(delivery.courierEstimate.orEmpty()).toMutableList()
         // 080 — several consignments: tracking comes by email. One link is drawn by the screen.
         if (delivery.tracking is OrderTracking.ByEmail) lines += DeliveryTypeWords.TRACKING_BY_EMAIL
+        // 081 — a move by back-office is said after the delivery lines.
+        lines += DeliveryTypeWords.movedLines(delivery.moved)
         return DeliverySummary(DeliveryTypeWords.COURIER, lines)
     }
     fun said(a: ArrivalEstimate?) = DeliveryWindowText.formatArrival(a?.promisedFrom, a?.promisedTo, a?.windowStart, a?.windowEnd, nowEpochMillis, offsetAt)
     val distinct = arrivals.distinctBy { listOf(it.method, it.promisedFrom, it.promisedTo, it.windowStart, it.windowEnd) }
-    val lines = if (distinct.isEmpty()) listOf(said(null)) else distinct.map { "${DeliveryTypeWords.methodWord(it.method)} · ${said(it)}" }
+    val lines = (if (distinct.isEmpty()) listOf(said(null)) else distinct.map { "${DeliveryTypeWords.methodWord(it.method)} · ${said(it)}" }) +
+        DeliveryTypeWords.movedLines(delivery?.moved)
     return DeliverySummary(if (delivery?.type == DeliveryType.EFFY) DeliveryTypeWords.EFFY else null, lines)
 }

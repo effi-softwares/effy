@@ -44,7 +44,9 @@ export type NotificationType =
   | "points_credited"
   | "points_expiring"
   // 080 — a parcel of a courier order was handed to the courier. Push + email, once per consignment.
-  | "order_with_courier";
+  | "order_with_courier"
+  // 081 — back-office moved the order to courier delivery, or back to Effy. Push + email, once per move.
+  | "order_delivery_changed";
 
 /**
  * Which notification group a type belongs to, for coalescing and badge counting on the web.
@@ -219,6 +221,20 @@ const COPY: Record<NotificationType, NotificationCopy> = {
   order_with_courier: {
     title: "With the courier",
     body: "Your order is with the courier.",
+    deepLinkPath: "order",
+    webPath: "/orders",
+    tag: "customer-order",
+    group: "customer",
+    entityInLink: false,
+  },
+
+  // ── 081 courier override ─────────────────────────────────────────────────────────────────────
+  // ⚠ The entity is the MOVE (one notice per move), not the order — the tap opens the orders list.
+  // ⚠ No reason and no amount in the banner: what changed and what they received are on the order page
+  // and in the email.
+  order_delivery_changed: {
+    title: "A change to your delivery",
+    body: "How your order is delivered has changed. Tap to see it.",
     deepLinkPath: "order",
     webPath: "/orders",
     tag: "customer-order",

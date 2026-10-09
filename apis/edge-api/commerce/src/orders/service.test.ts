@@ -54,6 +54,25 @@ describe("the receipt", () => {
     expect(o.arrivalEstimates).toEqual([]);
   });
 
+  it("081 P11 — a moved order says where to, when and what the customer got; never why, the fee or the difference", async () => {
+    const base = await repoWith().get("cust", ORDER);
+    const moved = (over: Record<string, unknown>) => read({ get: async () => ({ ...base!, delivery_type: "courier", courier_estimate: "2–4 business days", ...over }) });
+
+    const points = await moved({ moved_to: "courier", moved_at: "2026-10-09 03:00:00+00", moved_compensation: "points_difference", moved_amount_cents: 250, moved_points: 250 });
+    expect(points.delivery?.moved).toEqual({ to: "courier", at: "2026-10-09T03:00:00.000Z", compensation: { kind: "points", amount: "2.50", points: 250 } });
+    const said = JSON.stringify(points);
+    expect(said).not.toMatch(/reason|courierFee|difference|paid_delivery|staff/i);
+
+    const refund = await moved({ moved_to: "courier", moved_at: "2026-10-09 03:00:00+00", moved_compensation: "refund_difference", moved_amount_cents: 250, moved_points: null });
+    expect(refund.delivery?.moved?.compensation).toEqual({ kind: "refund", amount: "2.50" });
+
+    const nothing = await moved({ moved_to: "courier", moved_at: "2026-10-09 03:00:00+00", moved_compensation: "none", moved_amount_cents: 0, moved_points: null });
+    expect(nothing.delivery?.moved?.compensation).toBeNull();
+
+    // Never moved: no key at all.
+    expect((await moved({})).delivery).not.toHaveProperty("moved");
+  });
+
   it("billing is absent when it is the same as shipping, and returned when it diverges", async () => {
     expect(await read()).not.toHaveProperty("billingAddress");
     const o = await read({ get: async () => ({ ...(await repoWith().get("c", ORDER))!, billing_address: { line1: "9 Other Rd" } }) });

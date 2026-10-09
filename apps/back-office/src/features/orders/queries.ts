@@ -1,13 +1,14 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type {
-  ConsignmentEventInput, ConsignmentInput, CourierCollectionInput, CourierView, HandoverDueFilter, RecordArrivalRequest, RecordHandoffRequest,
+  ConsignmentEventInput, ConsignmentInput, CourierCollectionInput, CourierView, DeliveryMoveRequest, DeliveryType, HandoverDueFilter,
+  RecordArrivalRequest, RecordHandoffRequest,
 } from "@effy/shared-types";
 
 import type { OrderListParams } from "./model";
 import {
-  changeCourierCollection, getOrder, listCourierParcels, listHandovers, listOrders, recordArrival, recordConsignmentStep, recordHandoff,
-  saveConsignment,
+  changeCourierCollection, getOrder, listCourierParcels, listHandovers, listOrders, moveDelivery, previewDeliveryMove, recordArrival,
+  recordConsignmentStep, recordHandoff, saveConsignment,
 } from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI) — never hand-cached in
@@ -23,7 +24,18 @@ export const ordersKeys = {
   handovers: (due: HandoverDueFilter) => ["orders", "handovers", due] as const,
   // 080 — under "orders" too: every consignment change invalidates `ordersKeys.all`.
   courier: (view: CourierView) => ["orders", "courier", view] as const,
+  // 081 — under "orders" too: a move (or any order change) makes a preview stale.
+  deliveryMove: (orderId: string, to: DeliveryType) => ["orders", "delivery-move", orderId, to] as const,
 };
+
+/** 081 — read only while its dialog is open: a preview is a moment's figures, not a page's. */
+export const deliveryMovePreviewQuery = (orderId: string, to: DeliveryType, enabled: boolean) =>
+  queryOptions({
+    queryKey: ordersKeys.deliveryMove(orderId, to),
+    queryFn: () => previewDeliveryMove(orderId, to),
+    enabled,
+    staleTime: 0,
+  });
 
 export const courierParcelsQuery = (view: CourierView) =>
   queryOptions({ queryKey: ordersKeys.courier(view), queryFn: () => listCourierParcels(view) });
@@ -43,6 +55,9 @@ export const useSaveConsignment = (orderId: string) =>
   useOrderMutation(orderId, (v: { fulfillmentId: string; body: ConsignmentInput }) => saveConsignment(v.fulfillmentId, v.body));
 export const useConsignmentStep = (orderId: string) =>
   useOrderMutation(orderId, (v: { fulfillmentId: string; body: ConsignmentEventInput }) => recordConsignmentStep(v.fulfillmentId, v.body));
+/** 081 — moving the order invalidates the order and every list it is on (the preview too: under "orders"). */
+export const useDeliveryMove = (orderId: string) =>
+  useOrderMutation(orderId, (body: DeliveryMoveRequest) => moveDelivery(orderId, body));
 export const useCourierCollection = (orderId: string) =>
   useOrderMutation(orderId, (body: CourierCollectionInput) => changeCourierCollection(orderId, body));
 

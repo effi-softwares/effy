@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
 import androidx.compose.foundation.layout.heightIn
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
 import androidx.compose.ui.platform.LocalUriHandler
 import com.effyshopping.mobile.kit.live.LiveKind
@@ -467,6 +468,7 @@ private fun ArrivalSection(receipt: Receipt) {
                 OrderTracking.ByEmail -> Text(DeliveryTypeWords.TRACKING_BY_EMAIL, style = MaterialTheme.typography.bodyMedium)
                 null -> Unit
             }
+            MovedNote(delivery)
         }
         Text(
             stageLabel(receipt.stage),
@@ -490,6 +492,7 @@ private fun ArrivalSection(receipt: Receipt) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(arrivalLabel(arrival), style = MaterialTheme.typography.titleMedium)
+            MovedNote(delivery)
         }
         if (arrival != null && arrival.method == "same_day") {
             StatusDot(
@@ -505,6 +508,17 @@ private fun ArrivalSection(receipt: Receipt) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xs),
     )
+}
+
+/**
+ * 081 — Effy moved the order to courier delivery (or back): what changed, and what the customer
+ * received, in the one wording (`DeliveryTypeWords.movedLines`, pinned to the website's). ⚠ Never why.
+ */
+@Composable
+private fun MovedNote(delivery: OrderDelivery?) {
+    for (line in DeliveryTypeWords.movedLines(delivery?.moved)) {
+        Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = EffySpacing.xs))
+    }
 }
 
 /** One item row: image, name, unit price × qty, line total, and the save control (033 FR-008). */

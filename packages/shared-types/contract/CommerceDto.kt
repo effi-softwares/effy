@@ -1775,6 +1775,14 @@ data class OrderDeliveryDTO (
     val courierEstimate: String? = null,
 
     /**
+     * 081 — present only after back-office moved the order to the other delivery type: the
+     * LATEST move, and what the customer received for it. ⚠ Never the staff reason, the courier
+     * fee, the difference or Effy's cost — a customer is told what happened and what they got,
+     * nothing else.
+     */
+    val moved: OrderDeliveryMoveDTO? = null,
+
+    /**
      * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
      * consignment and the courier gave a tracking link. `email`: it travels as more than one,
      * and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link
@@ -1784,6 +1792,35 @@ data class OrderDeliveryDTO (
 
     val type: DeliveryType
 )
+
+/**
+ * 081 — present only after back-office moved the order to the other delivery type: the
+ * LATEST move, and what the customer received for it. ⚠ Never the staff reason, the courier
+ * fee, the difference or Effy's cost — a customer is told what happened and what they got,
+ * nothing else.
+ *
+ * 081 — the latest move of an order's delivery type by back-office, as the customer reads
+ * it.
+ */
+@Serializable
+data class OrderDeliveryMoveDTO (
+    val at: String,
+    val compensation: CustomerCompensationDTO? = null,
+    val to: DeliveryType
+)
+
+@Serializable
+data class CustomerCompensationDTO (
+    val amount: String,
+    val kind: CompensationKind,
+    val points: Double? = null
+)
+
+@Serializable
+enum class CompensationKind(val value: String) {
+    @SerialName("points") Points("points"),
+    @SerialName("refund") Refund("refund");
+}
 
 /**
  * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE

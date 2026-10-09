@@ -1,5 +1,5 @@
 import { logger, query } from "@effy/edge-shared";
-import { announce, type LiveChange } from "@effy/edge-shared/live";
+import { announceDispatch, announceSlots } from "@effy/edge-shared/live";
 
 /**
  * 071 — what a dispatcher's action (or a planning pass) changes on other screens.
@@ -8,21 +8,8 @@ import { announce, type LiveChange } from "@effy/edge-shared/live";
  * committed — never inside it. Nothing here throws: the assignment has already happened (FR-006).
  */
 
-/**
- * The dispatch console changed, and these drivers' work changed with it. A reassignment names BOTH
- * drivers — the one who lost the round must see it go as surely as the other sees it arrive
- * (FR-028). Nulls and repeats are dropped.
- */
-export async function announceDispatch(driverIds: ReadonlyArray<string | null | undefined> = []): Promise<void> {
-  const changes: LiveChange[] = [{ scope: "ops", kind: "dispatch" }];
-  for (const driverId of new Set(driverIds)) {
-    if (driverId) changes.push({ scope: "driver", driverId, kind: "work" });
-  }
-  await announce(changes);
-}
-
-/** Slot load or the delivery calendar changed — back-office's slot screen. */
-export const announceSlots = (): Promise<void> => announce([{ scope: "ops", kind: "slots" }]);
+// announceDispatch and announceSlots moved to @effy/edge-shared/live (081) — one definition.
+export { announceDispatch, announceSlots };
 
 /**
  * Who holds a round right now. Read BEFORE a reassignment or an unassignment so the driver losing

@@ -6,6 +6,7 @@ import {
   countsAsRefundedToCustomer, customerCancellable, customerRefundState, formatCents, imageUrlOrNull,
   operatingStamp, parseCents, stageFor, type RequestScope,
 } from "@effy/edge-shared";
+import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { distinctArrivals, type CustomerRefundDTO, type OrderDeliveryDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
@@ -88,11 +89,37 @@ function deliveryOf(row: {
   consignments_out?: number;
   only_tracking_url?: string | null;
   only_courier_name?: string | null;
+  moved_to?: "effy" | "courier" | null;
+  moved_at?: string | null;
+  moved_compensation?: string | null;
+  moved_amount_cents?: number | null;
+  moved_points?: number | null;
 }): { delivery?: OrderDeliveryDTO } {
   if (!row.delivery_type) return {};
   const courier = row.delivery_type === "courier";
   const tracking = courier ? trackingOf(row) : undefined;
-  return { delivery: { type: row.delivery_type, courierEstimate: courier ? row.courier_estimate ?? null : null, ...(tracking ? { tracking } : {}) } };
+  const moved = movedOf(row);
+  return {
+    delivery: {
+      type: row.delivery_type, courierEstimate: courier ? row.courier_estimate ?? null : null,
+      ...(tracking ? { tracking } : {}), ...(moved ? { moved } : {}),
+    },
+  };
+}
+
+/**
+ * 081 — the latest move by back-office, as the customer is told it: where to, when, and what they
+ * received (through the one mapping, `customerCompensationOf`). Absent when the order was never moved.
+ */
+function movedOf(row: {
+  moved_to?: "effy" | "courier" | null; moved_at?: string | null; moved_compensation?: string | null;
+  moved_amount_cents?: number | null; moved_points?: number | null;
+}): OrderDeliveryDTO["moved"] {
+  if (!row.moved_to || !row.moved_at) return undefined;
+  const compensation = row.moved_to === "courier"
+    ? customerCompensationOf({ compensation: row.moved_compensation ?? "none", amount_cents: row.moved_amount_cents ?? 0, points: row.moved_points ?? null })
+    : null;
+  return { to: row.moved_to, at: new Date(row.moved_at).toISOString(), compensation };
 }
 
 /**

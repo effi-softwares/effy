@@ -90,7 +90,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09 (switched off) | E2 |
 | E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
-| E7 | 081 | Back-Office Courier Override & Compensation | E1, E5, E6 |
+| E7 | 081 | Back-Office Courier Override & Compensation — ✅ built 2026-10-09 | E1, E5, E6 |
 | E8 | 082 | Driver Operations Realignment | E4, E5 |
 | E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
 | E10 | later | Deferred items | — |
@@ -758,7 +758,27 @@ by email for each parcel.
 
 ---
 
-## E7 — Back-Office Courier Override & Compensation · spec 081
+## E7 — Back-Office Courier Override & Compensation · spec 081 — ✅ built 2026-10-09 (not migrated, not deployed)
+
+> **2026-10-09 — BUILT and checked by machine** (`specs/081-courier-override-compensation/SIGNOFF.md`); not migrated,
+> deployed or walked. Rides 078's switch. **Next: E8 (spec 082).**
+
+> **2026-10-09 — specified (`specs/081-courier-override-compensation/spec.md`).** The specify prompt below
+> was amended with what 080 left: a moved order takes the default collection mode (via the hub if any
+> parcel is already collected) and the default courier service's timeframe. Settled by default, for the
+> operator to confirm: compensation is chosen once, with the move; "no compensation" needs a note;
+> pre-model same-day orders count as Effy orders; moving back gives no compensation and only to an
+> address on Effy's list; alert above 5 moves/day.
+>
+> **2026-10-09 — planned (`specs/081-courier-override-compensation/plan.md`).** Corrections from planning:
+> only orders WITH a recorded delivery type can be moved (`recordDeliveryType` never invents history),
+> so E7 is dormant until the cutover like 079/080; a parcel out for delivery on a round under way blocks
+> the move; collection work stays when the order goes via the hub. Task corrections: E7-T01 — the table
+> is `delivery_override`, 1:1 with the 079 history row, plus refund kind `delivery` / reason
+> `courier_override`; E7-T02 — consignments are NOT created at the move (they are created at booking,
+> 080); the mode is set through `consignment.ts`; E7-T05/T06/T07 — one `POST …/delivery-move` (both
+> directions, compensation in the same call) and one `GET …/delivery-move` preview, on `orders` (staff);
+> E7-T08 — fleet's `removeAssignment` moves into the shared library rather than being called over HTTP.
 
 **Goal.** In an emergency, back-office moves an Effy order to courier, the customer is told, and
 the admin picks compensation per order: points (default), free delivery, or refund (last resort).
@@ -785,7 +805,10 @@ back-office staff need an order that was sold as "Delivered by Effy" to go by co
 can move any such order to courier delivery, giving a reason, as long as it has not already been
 handed to a customer or a courier. The customer's delivery window is given up, the order leaves any
 Effy driver's work, and the customer is told straight away — by email and notification — that their
-order will now arrive by courier, with the new estimate. Staff then choose, for that order, how to make
+order will now arrive by courier, with the new estimate. Once moved, the order reaches the courier the
+way any courier order does: by the business's default (via the hub or pickup from the supplier), which
+staff can change for that order as for any other courier order, and with the business's default courier
+service and its timeframe. Staff then choose, for that order, how to make
 it right; nothing is decided automatically. The default is to credit the customer points worth the
 difference between what they paid for Effy delivery and the courier fee. Staff may instead make the
 delivery free (giving back the whole delivery fee, as points or to the card), or, as a last resort,

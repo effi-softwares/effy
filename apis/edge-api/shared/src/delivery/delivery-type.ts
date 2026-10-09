@@ -85,20 +85,38 @@ ON CONFLICT (order_id) WHERE from_type IS NULL DO NOTHING`,
     return (first.rowCount ?? 0) > 0;
   }
 
+  return (await changeDeliveryType(tx, { ...input, change: input.change })) !== null;
+}
+
+/**
+ * The same change as `recordDeliveryType` with a `change` — returning the history row it wrote, or
+ * null when nothing changed (no such order, an order with no type, or the type it already has).
+ *
+ * 081 — a staff move records what it adds (the window, the courier, the compensation) against the
+ * row that says the move happened, so it needs that row's id. ⚠ Still the one writer: this IS it.
+ */
+export async function changeDeliveryType(
+  tx: Queryable,
+  input: RecordDeliveryTypeInput & { change: DeliveryTypeChange },
+): Promise<{ changeId: string } | null> {
+  const actorSub = input.actor.kind === "staff" ? input.actor.sub : null;
   const { to, reason, note } = input.change;
   // The order row's lock is what makes "from" true: two changes at once are serialised, and the
   // second sees the first's result.
   const current = (
     await tx.query<{ delivery_type: DeliveryType | null }>(`SELECT delivery_type FROM public."order" WHERE id = $1 FOR UPDATE`, [input.orderId])
   ).rows[0];
-  if (!current || current.delivery_type === null || current.delivery_type === to) return false;
+  if (!current || current.delivery_type === null || current.delivery_type === to) return null;
 
-  await tx.query(
-    `
+  const written = (
+    await tx.query<{ id: string }>(
+      `
 INSERT INTO public.order_delivery_type_change (order_id, from_type, to_type, reason, actor_kind, actor_sub, note)
-VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [input.orderId, current.delivery_type, to, reason, input.actor.kind, actorSub, note],
-  );
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id::text AS id`,
+      [input.orderId, current.delivery_type, to, reason, input.actor.kind, actorSub, note],
+    )
+  ).rows[0]!;
   await tx.query(
     `
 UPDATE public."order"
@@ -106,5 +124,20 @@ UPDATE public."order"
  WHERE id = $1`,
     [input.orderId, to, reason, to === "courier" ? input.change.courierEstimate : null],
   );
-  return true;
+  return { changeId: written.id };
+}
+
+/**
+ * 081 — the staff note (the reason a person gave) on each of these history rows. ⚠ Staff only: the
+ * reason is never on a customer or shop contract.
+ */
+export async function deliveryTypeChangeNotes(q: Queryable, changeIds: readonly string[]): Promise<Map<string, string | null>> {
+  if (changeIds.length === 0) return new Map();
+  const rows = (
+    await q.query<{ id: string; note: string | null }>(
+      `SELECT id::text AS id, note FROM public.order_delivery_type_change WHERE id = ANY($1::uuid[])`,
+      [changeIds],
+    )
+  ).rows;
+  return new Map(rows.map((r) => [r.id, r.note]));
 }

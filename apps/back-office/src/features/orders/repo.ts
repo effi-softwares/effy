@@ -5,6 +5,10 @@ import type {
   CourierCollectionInput,
   CourierView,
   AdminOrderDetailDTO,
+  DeliveryMovePreviewDTO,
+  DeliveryMoveRequest,
+  DeliveryMoveResponse,
+  DeliveryType,
   AdminOrderListResponse,
   HandoverDueFilter,
   HandoverListResponse,
@@ -94,4 +98,14 @@ export function changeCourierCollection(orderId: string, body: CourierCollection
 /** The Courier tab: one view of the parcels a courier takes that are not finished (080). */
 export async function listCourierParcels(view: CourierView): Promise<HandoverRowDTO[]> {
   return (await api.get<HandoverListResponse>(`/orders/v1/handovers?view=${view}`)).items;
+}
+
+/** 081 — what moving the order to courier (or back to Effy) would do, and whether it may. */
+export function previewDeliveryMove(orderId: string, to: DeliveryType): Promise<DeliveryMovePreviewDTO> {
+  return api.get(`/orders/v1/orders/${orderId}/delivery-move?to=${to}`);
+}
+
+/** 081 — move it, with the compensation chosen (to courier) or the window chosen (back to Effy). */
+export function moveDelivery(orderId: string, body: DeliveryMoveRequest): Promise<DeliveryMoveResponse> {
+  return api.post(`/orders/v1/orders/${orderId}/delivery-move`, body);
 }

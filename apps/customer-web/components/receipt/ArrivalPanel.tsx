@@ -1,5 +1,5 @@
 import {
-  courierLines, DELIVERY_TYPE_WORDS, formatArrival, type ArrivalEstimateDTO, type OrderDeliveryDTO, type OrderStage,
+  courierLines, DELIVERY_TYPE_WORDS, formatArrival, movedLines, type ArrivalEstimateDTO, type OrderDeliveryDTO, type OrderStage,
 } from "@effy/shared-types"
 
 import { toneForDeliveryMethod } from "@/app/checkout/_components/status-palette"
@@ -47,6 +47,7 @@ export function ArrivalPanel({
           ) : delivery.tracking?.kind === "email" ? (
             <p className="text-sm" data-testid="tracking-by-email">{DELIVERY_TYPE_WORDS.trackingByEmail}</p>
           ) : null}
+          <MovedNote delivery={delivery} />
         </div>
         <div className="pt-4">
           <ProgressTrack stage={stage} />
@@ -64,6 +65,7 @@ export function ArrivalPanel({
           {arrivals.map((a, i) => (
             <Arrival key={`${a.method}-${i}`} arrival={a} multiple={arrivals.length > 1} index={i} label={label} />
           ))}
+          <MovedNote delivery={delivery} />
         </div>
       ) : null}
 
@@ -71,6 +73,22 @@ export function ArrivalPanel({
         <ProgressTrack stage={stage} />
       </div>
     </section>
+  )
+}
+
+/**
+ * 081 — Effy moved the order to courier delivery (or back): what changed, and what the customer
+ * received for it, in the one wording every surface prints (`movedLines`). ⚠ Never why.
+ */
+function MovedNote({ delivery }: { delivery: OrderDeliveryDTO | null }) {
+  const lines = movedLines(delivery?.moved)
+  if (lines.length === 0) return null
+  return (
+    <div className="flex flex-col gap-1 text-sm" data-testid="delivery-moved">
+      {lines.map((l) => (
+        <p key={l}>{l}</p>
+      ))}
+    </div>
   )
 }
 

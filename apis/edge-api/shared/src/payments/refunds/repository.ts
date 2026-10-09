@@ -168,6 +168,80 @@ export function splitFor(paid: PaidContext, amountCents: number): Split {
   });
 }
 
+/**
+ * Write a refund and its lines, having checked the ceiling under the payment lock — in the CALLER's
+ * transaction.
+ *
+ * ⚠ THE CEILING IS `payment.amount`, NOT the order total: the payment is the record of what was
+ * taken. ⚠ `FOR UPDATE` on the payment row is what serialises two staff refunding at once — the
+ * second sees the first's row when it sums, INCLUDING while that first one is still on its way
+ * to the provider (see COUNTS_AGAINST_CEILING). A read-then-write outside one lock is a way to
+ * refund an order twice, and the second refund is real money.
+ *
+ * 081 — exported so a flow that gives money back AS PART of a larger change (a courier override's
+ * compensation) records it in that change's transaction: the move and the refund it owes commit
+ * together or not at all. It is then submitted after commit (`submitRecorded`) — 055's
+ * record-then-submit, unchanged — and a crash in between leaves a `submitting` row the reconciler
+ * resolves.
+ */
+export async function recordRefundIn(tx: Queryable, input: InsertInput, beforeLock?: () => Promise<void>): Promise<RecordResult> {
+  if (beforeLock) await beforeLock();
+
+  const locked = (await tx.query<PaidRow>(PAID_UNDER_LOCK, [input.orderId])).rows[0];
+  if (!locked) throw new RefundOrderNotFoundError();
+  const refunded = (await tx.query<{ cents: string; card_cents: string; points: string }>(REFUNDED_CENTS, [input.orderId])).rows[0];
+  const paid = paidContext(locked, refunded);
+
+  const remaining = paid.paidCents - paid.refundedCents;
+  if (input.amountCents > remaining) throw new CeilingExceededError(remaining);
+
+  // 074 — how this refund is made up. ⚠ A refund with NO card part never reaches the provider:
+  // it is recorded `succeeded` and its points come back in this same transaction.
+  const split = splitFor(paid, input.amountCents);
+  const cardFree = split.cardCents === 0;
+
+  const inserted = (
+    await tx.query<{ id: string }>(
+      `
+INSERT INTO public.refund
+    (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub,
+     card_amount, points_returned, points_value_amount, status, settled_at)
+VALUES ($1, $2, $3::bigint / 100.0, $4, $5, $6, $7, $8, $9,
+        $10::bigint / 100.0, $11, $12::bigint / 100.0,
+        CASE WHEN $13 THEN 'succeeded' ELSE 'submitting' END, CASE WHEN $13 THEN now() END)
+ON CONFLICT (idempotency_key) DO NOTHING
+RETURNING id::text AS id`,
+      [
+        input.orderId, input.kind, input.amountCents, input.currency, input.reason, input.note,
+        input.idempotencyKey, input.actorKind, input.actorSub,
+        split.cardCents, split.points, split.pointsValueCents, cardFree,
+      ],
+    )
+  ).rows[0];
+  if (!inserted) {
+    // ⚠ THE IDEMPOTENT HIT. A double-click, a retry, a redelivered instruction all resolve to
+    // the row that already exists — with its REAL state, so an operator whose first attempt
+    // never got an answer is not told the same thing as one whose refund was accepted.
+    const existing = (
+      await tx.query<{ id: string; status: string }>(
+        `SELECT id::text AS id, status FROM public.refund WHERE idempotency_key = $1`,
+        [input.idempotencyKey],
+      )
+    ).rows[0];
+    if (!existing) throw new Error("refunds: idempotent hit with no existing row");
+    return { issued: false, refundId: existing.id, paid, existingStatus: existing.status };
+  }
+
+  for (const l of input.lines) {
+    await tx.query(
+      `INSERT INTO public.refund_line (refund_id, order_item_id, quantity, amount) VALUES ($1, $2, $3, $4::bigint / 100.0)`,
+      [inserted.id, l.orderItemId, l.quantity, l.amountCents],
+    );
+  }
+  if (cardFree) await returnForRefund(tx, inserted.id, new Date());
+  return { issued: true, refundId: inserted.id, paid, split };
+}
+
 export function createRefundRepository(
   db: Queryable = pooled,
   transact: Transactor = withTransaction,
@@ -227,64 +301,32 @@ SELECT round(oi.unit_price_amount * 100)::bigint AS unit,
      * to the provider (see COUNTS_AGAINST_CEILING). A read-then-write outside one lock is a way to
      * refund an order twice, and the second refund is real money.
      */
-    record: (input: InsertInput): Promise<RecordResult> =>
-      transact(async (tx) => {
-        if (beforeLock) await beforeLock();
+    /** Write a refund and its lines in ONE transaction of its own (see `recordRefundIn`). */
+    record: (input: InsertInput): Promise<RecordResult> => transact((tx) => recordRefundIn(tx, input, beforeLock)),
 
-        const locked = (await tx.query<PaidRow>(PAID_UNDER_LOCK, [input.orderId])).rows[0];
-        if (!locked) throw new RefundOrderNotFoundError();
-        const refunded = (await tx.query<{ cents: string; card_cents: string; points: string }>(REFUNDED_CENTS, [input.orderId])).rows[0];
-        const paid = paidContext(locked, refunded);
-
-        const remaining = paid.paidCents - paid.refundedCents;
-        if (input.amountCents > remaining) throw new CeilingExceededError(remaining);
-
-        // 074 — how this refund is made up. ⚠ A refund with NO card part never reaches the provider:
-        // it is recorded `succeeded` and its points come back in this same transaction.
-        const split = splitFor(paid, input.amountCents);
-        const cardFree = split.cardCents === 0;
-
-        const inserted = (
-          await tx.query<{ id: string }>(
-            `
-INSERT INTO public.refund
-    (order_id, kind, amount, currency, reason, note, idempotency_key, actor_kind, actor_sub,
-     card_amount, points_returned, points_value_amount, status, settled_at)
-VALUES ($1, $2, $3::bigint / 100.0, $4, $5, $6, $7, $8, $9,
-        $10::bigint / 100.0, $11, $12::bigint / 100.0,
-        CASE WHEN $13 THEN 'succeeded' ELSE 'submitting' END, CASE WHEN $13 THEN now() END)
-ON CONFLICT (idempotency_key) DO NOTHING
-RETURNING id::text AS id`,
-            [
-              input.orderId, input.kind, input.amountCents, input.currency, input.reason, input.note,
-              input.idempotencyKey, input.actorKind, input.actorSub,
-              split.cardCents, split.points, split.pointsValueCents, cardFree,
-            ],
-          )
-        ).rows[0];
-        if (!inserted) {
-          // ⚠ THE IDEMPOTENT HIT. A double-click, a retry, a redelivered instruction all resolve to
-          // the row that already exists — with its REAL state, so an operator whose first attempt
-          // never got an answer is not told the same thing as one whose refund was accepted.
-          const existing = (
-            await tx.query<{ id: string; status: string }>(
-              `SELECT id::text AS id, status FROM public.refund WHERE idempotency_key = $1`,
-              [input.idempotencyKey],
-            )
-          ).rows[0];
-          if (!existing) throw new Error("refunds: idempotent hit with no existing row");
-          return { issued: false, refundId: existing.id, paid, existingStatus: existing.status };
-        }
-
-        for (const l of input.lines) {
-          await tx.query(
-            `INSERT INTO public.refund_line (refund_id, order_item_id, quantity, amount) VALUES ($1, $2, $3, $4::bigint / 100.0)`,
-            [inserted.id, l.orderItemId, l.quantity, l.amountCents],
-          );
-        }
-        if (cardFree) await returnForRefund(tx, inserted.id, new Date());
-        return { issued: true, refundId: inserted.id, paid, split };
-      }),
+    /**
+     * 081 — a refund recorded in someone else's transaction and not yet sent: what `submitRecorded`
+     * needs. Null when it is not `submitting` (a card-free refund already succeeded, or it was sent).
+     */
+    async recordedForSubmit(refundId: string): Promise<(StuckRefund & { pointsReturned: number }) | null> {
+      const r = (
+        await db.query<{ id: string; order_id: string; cents: string; card_cents: string; key: string; actor_sub: string | null; intent: string | null; points: number }>(
+          `
+SELECT r.id::text AS id, r.order_id::text AS order_id, round(r.amount * 100)::bigint AS cents,
+       round(COALESCE(r.card_amount, r.amount) * 100)::bigint AS card_cents,
+       r.idempotency_key AS key, r.actor_sub, p.stripe_payment_intent_id AS intent, r.points_returned AS points
+  FROM public.refund r
+  JOIN public.payment p ON p.order_id = r.order_id
+ WHERE r.id = $1 AND r.status = 'submitting'`,
+          [refundId],
+        )
+      ).rows[0];
+      if (!r || !r.intent) return null;
+      return {
+        id: r.id, orderId: r.order_id, amountCents: cents(r.cents), cardCents: cents(r.card_cents),
+        idempotencyKey: r.key, actorSub: r.actor_sub, paymentIntentId: r.intent, pointsReturned: r.points,
+      };
+    },
 
     // ── Status transitions: the only mutation this table permits ──────────────────────────────────
 

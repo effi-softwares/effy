@@ -9,7 +9,9 @@
 // customer who later changes their account email does not retroactively redirect a message about an
 // order that has already arrived. This module is handed the address; it must never look one up.
 import { logger, query } from "@effy/edge-shared";
+import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { customerWords, type EntryKind } from "@effy/edge-shared/points";
+import { compensationLine, courierEstimateSentence, DELIVERY_TYPE_WORDS, formatArrival, movedLines } from "@effy/shared-types";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
 
@@ -36,6 +38,8 @@ const EMAIL_TEMPLATES = {
   points_expiring: "points-expiring",
   // 080 — one per consignment: the per-parcel tracking the order page says is sent by email.
   order_with_courier: "order-with-courier",
+  // 081 — one per move by back-office: what changed, when it now arrives, what the customer received.
+  order_delivery_changed: "order-delivery-changed",
 } as const satisfies Partial<Record<NotificationType, string>>;
 
 export function hasEmailTemplate(type: NotificationType): boolean {
@@ -139,6 +143,43 @@ async function loadWithCourier(consignmentId: string) {
   ).rows[0] ?? null;
 }
 
+// ── 081 courier override ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * One move, resolved at send time from its id, into the shared wording. ⚠ Selects nothing about the
+ * staff reason, the courier fee or the difference — the template has no var for them.
+ */
+async function loadDeliveryChanged(overrideId: string) {
+  const row = (
+    await query<{
+      order_id: string; order_number: string; to_type: "effy" | "courier"; compensation: string; amount_cents: number; points: number | null;
+      estimate: string | null; window_start: string | null; window_end: string | null;
+    }>(
+      `SELECT o.id::text AS order_id, o.order_number, x.to_type, x.compensation, x.amount_cents, x.points,
+              s.estimate_text AS estimate, x.window_start::text AS window_start, x.window_end::text AS window_end
+         FROM public.delivery_override x
+         JOIN public."order" o ON o.id = x.order_id
+         LEFT JOIN public.courier_service s ON s.id = x.courier_service_id
+        WHERE x.id = $1`,
+      [overrideId],
+    )
+  ).rows[0];
+  if (!row) return null;
+  const moved = { to: row.to_type, at: "", compensation: customerCompensationOf(row) };
+  const comp = row.to_type === "courier" ? compensationLine(moved.compensation) : null;
+  const arrivalLine = row.to_type === "courier"
+    ? courierEstimateSentence(row.estimate ?? "")
+    : `${DELIVERY_TYPE_WORDS.effy} · ${formatArrival({ promisedFrom: null, promisedTo: null, windowStart: row.window_start, windowEnd: row.window_end }, new Date())}`;
+  return {
+    orderId: row.order_id,
+    orderNumber: row.order_number,
+    movedLine: movedLines(moved)[0]!,
+    arrivalLine,
+    hasCompensation: comp !== null,
+    compensationLine: comp ?? "",
+  };
+}
+
 export interface EmailSenderOptions {
   /** Absolute base URL of the storefront, for the order link. */
   siteUrl: string;
@@ -177,6 +218,11 @@ export function createEmailSender(opts: EmailSenderOptions) {
           if (!loaded) return { ok: false, prune: false, errorClass: "points_notice_not_found" };
           res = await sendEmail("points-expiring", { ...loaded, pointsUrl, shopUrl: `${site}/` }, { to, audience: "customer" }, logger);
         }
+      } else if (type === "order_delivery_changed") {
+        const c = await loadDeliveryChanged(entityId);
+        if (!c) return { ok: false, prune: false, errorClass: "delivery_override_not_found" };
+        const { orderId, ...vars } = c;
+        res = await sendEmail("order-delivery-changed", { ...vars, orderUrl: `${site}/orders/${orderId}` }, { to, audience: "customer" }, logger);
       } else if (type === "order_with_courier") {
         const c = await loadWithCourier(entityId);
         if (!c) return { ok: false, prune: false, errorClass: "consignment_not_found" };

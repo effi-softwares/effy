@@ -331,6 +331,8 @@ export interface AdminOrderDetailDTO {
   courierCollection: "hub" | "supplier" | null;
   /** 080 — oldest first. */
   courierCollectionHistory: { from: "hub" | "supplier"; to: "hub" | "supplier"; actorSub: string; note: string | null; at: string }[];
+  /** 081 — every move of the delivery type by back-office, with its compensation; oldest first. */
+  deliveryMoves: AdminDeliveryMoveDTO[];
 
   customerId: string;
   customerEmail: string;
@@ -523,3 +525,108 @@ export interface OrderAssignment {
   movable: boolean;
 }
 
+
+// ── 081 — moving an order between Effy and courier delivery, and compensating the customer ────────
+// Contract: `specs/081-courier-override-compensation/contracts/routes.md`.
+
+/**
+ * How a customer is made whole for a move to courier. Staff choose one; nothing is chosen for them.
+ *   points_difference     points worth what they paid for Effy delivery less the courier fee (the default)
+ *   free_delivery_points  points worth the whole delivery charge they paid
+ *   free_delivery_refund  the whole delivery charge back to the card
+ *   refund_difference     the difference back to the card — the last resort
+ *   none                  nothing, with a note saying why (always, on a move back to Effy)
+ */
+export const DELIVERY_COMPENSATION_KINDS = [
+  "points_difference", "free_delivery_points", "free_delivery_refund", "refund_difference", "none",
+] as const;
+export type DeliveryCompensationKind = (typeof DELIVERY_COMPENSATION_KINDS)[number];
+
+/** Why a move is refused. Each is said to staff in one line (back-office `errorText.ts`). */
+export type DeliveryMoveRefusal =
+  | "not_found" | "not_paid" | "no_delivery_type" | "already_courier" | "already_effy"
+  | "handed_over" | "delivered" | "out_for_delivery" | "courier_not_ready"
+  | "not_in_area" | "window_unavailable" | "changed" | "compensation_changed";
+
+/** One move by back-office, as the order page lists it. */
+export interface AdminDeliveryMoveDTO {
+  id: string;
+  at: string;
+  to: DeliveryType;
+  /** What staff wrote. ⚠ Staff only — never on a customer or shop contract. */
+  reason: string;
+  actor: { sub: string; name: string };
+  /** The window released (to courier) or taken (back to Effy); null when there was none. */
+  window: { date: string; start: string; end: string } | null;
+  courier: { courierName: string; serviceName: string; collection: "hub" | "supplier" } | null;
+  paidDeliveryAmount: string;
+  courierFeeAmount: string | null;
+  differenceAmount: string | null;
+  compensation: DeliveryCompensationKind;
+  /** What was given ("0.00" for none). */
+  amount: string;
+  points: number | null;
+  /** The refund's state when the compensation went to the card (055's words: submitting, submitted, succeeded, failed, refused). */
+  refundStatus: string | null;
+  compensationNote: string | null;
+}
+
+/** One way to make it right, as the preview prices it. */
+export interface DeliveryMoveChoiceDTO {
+  kind: DeliveryCompensationKind;
+  amount: string;
+  points?: number;
+  /** Card refunds: the part returned to the card, and the points returned (an order paid partly in points). */
+  cardAmount?: string;
+  pointsReturned?: number;
+  default?: true;
+  lastResort?: true;
+  noteRequired?: true;
+}
+
+/** A window the order could be sold now, for a move back to Effy. */
+export interface DeliveryMoveWindowDTO {
+  slotId: string;
+  date: string;
+  start: string;
+  end: string;
+  label: string;
+}
+
+/** `GET /orders/v1/orders/{orderId}/delivery-move?to=` */
+export interface DeliveryMovePreviewDTO {
+  to: DeliveryType;
+  allowed: boolean;
+  refusal: { code: DeliveryMoveRefusal; message: string } | null;
+  /** Echo it back as `expectedUpdatedAt`. */
+  updatedAt: string;
+  paidDeliveryAmount: string;
+  courierFeeAmount: string | null;
+  differenceAmount: string | null;
+  refundableAmount: string;
+  centsPerPoint: number;
+  /** To courier: every choice, the default first. Empty back to Effy. */
+  choices: DeliveryMoveChoiceDTO[];
+  courier: { courierName: string; serviceName: string; estimate: string; collection: "hub" | "supplier" } | null;
+  /** Back to Effy: the windows open now with room. Null to courier. */
+  windows: DeliveryMoveWindowDTO[] | null;
+}
+
+/** `POST /orders/v1/orders/{orderId}/delivery-move` */
+export type DeliveryMoveRequest =
+  | {
+      to: "courier";
+      reason: string;
+      compensation: DeliveryCompensationKind;
+      compensationNote?: string | null;
+      expectedUpdatedAt: string;
+      /** The chosen compensation's amount as previewed; a different recomputation is refused. */
+      expectedAmount: string;
+    }
+  | { to: "effy"; reason: string; window: { slotId: string; date: string }; expectedUpdatedAt: string };
+
+export interface DeliveryMoveResponse {
+  move: AdminDeliveryMoveDTO;
+  /** When the compensation went to the card: where the refund stands. `stalled` = the provider did not answer. */
+  refund?: { status: string; stalled?: true };
+}

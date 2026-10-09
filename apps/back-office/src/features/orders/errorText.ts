@@ -69,3 +69,35 @@ export function consignmentError(err: unknown): string {
   if (err instanceof Error && err.message === "the label could not be uploaded") return "The label could not be uploaded. Try again.";
   return "That could not be saved. Try again.";
 }
+
+/**
+ * 081 — the server's refusals for a delivery move, in the console's own words. ⚠ Never the server's
+ * `detail`; keyed off its stable `code`.
+ */
+const DELIVERY_MOVE_COPY: Record<string, string> = {
+  not_paid: "Only a paid order can be moved.",
+  no_delivery_type: "This order was placed before the new delivery model and keeps how it was sold.",
+  already_courier: "This order is already going by courier.",
+  already_effy: "Effy already delivers this order.",
+  handed_over: "A parcel of this order is already with the courier.",
+  delivered: "A parcel of this order has already been delivered.",
+  out_for_delivery: "A parcel is out for delivery. Wait until the driver's round settles it.",
+  courier_not_ready: "Courier delivery is not set up: add an active courier fee table and a default courier service (Delivery → Pricing and Coverage).",
+  not_in_area: "Effy does not deliver to this address.",
+  window_unavailable: "That window is no longer open or has no room. Choose another.",
+  changed: "This order changed a moment ago. The figures below are the latest.",
+  compensation_changed: "The amounts changed since you looked. Check them and confirm again.",
+};
+
+export function deliveryMoveError(err: unknown): string {
+  if (isDomainError(err)) {
+    if (err.code && DELIVERY_MOVE_COPY[err.code]) return DELIVERY_MOVE_COPY[err.code]!;
+    if (err.kind === "forbidden") return "Moving an order needs a manager or an administrator.";
+    if (err.status === 400) return "Check the reason and the choice, then try again.";
+    if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment.";
+  }
+  return "That could not be done. Try again.";
+}
+
+/** The refusal line for a preview that says the move may not happen. */
+export const deliveryMoveRefusalText = (code: string): string => DELIVERY_MOVE_COPY[code] ?? "This order cannot be moved now.";

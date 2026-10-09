@@ -24,7 +24,7 @@ import { COUNTED_REFUND_STATUSES, imageUrlOrNull, operatingStamp, packageStatuse
 import { CONSIGNMENT_PROBLEMS, leastAdvanced, type OrderAssignment, type PackageStatusView } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
-import { consignmentsFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
+import { consignmentsFor, deliveryMovesFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
 import * as refundRepo from "./refunds";
 import { assignmentsFor } from "./assignments";
 import * as repo from "./repository";
@@ -269,12 +269,14 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
   const pkgIds = packageRows.map((p) => p.fulfillment_id);
-  const [statusById, assignmentById, consignmentById, collectionHistory] = await Promise.all([
+  const [statusById, assignmentById, consignmentById, collectionHistory, deliveryMoves] = await Promise.all([
     packageStatuses(db, pkgIds),
     assignmentsFor(pkgIds),
     // 080 — each courier parcel's live consignment, and the order's collection-mode history.
     order.delivery_type === "courier" ? consignmentsFor(db, pkgIds) : Promise.resolve(new Map()),
     order.delivery_type === "courier" ? repo.courierCollectionHistory(orderId) : Promise.resolve([]),
+    // 081 — every move by back-office, with its compensation; none for an order placed before 079.
+    order.delivery_type ? deliveryMovesFor(db, orderId) : Promise.resolve([]),
   ]);
   const consignments = new Map(
     await Promise.all([...consignmentById].map(async ([id, c]) => [id, await toConsignment(c)] as const)),
@@ -311,6 +313,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     deliveryTypeReason: order.delivery_type_reason,
     courierEstimate: order.courier_estimate,
     courierCollection: order.courier_collection ?? null,
+    deliveryMoves,
     courierCollectionHistory: collectionHistory.map((h) => ({
       from: h.from_mode, to: h.to_mode, actorSub: h.actor_sub, note: h.note, at: h.created_at.toISOString(),
     })),

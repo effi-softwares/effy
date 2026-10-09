@@ -23,7 +23,11 @@ internal const val DELIVERY_TYPE_FIXTURE = """
     "trackParcel": "Track your parcel",
     "trackingByEmail": "Tracking for each parcel is sent to you by email.",
     "withCourier": "Your order is with the courier.",
-    "scheduled": "Scheduled delivery"
+    "scheduled": "Scheduled delivery",
+    "movedToCourier": "We've changed this order to courier delivery.",
+    "movedToEffy": "We've changed this order back to delivery by Effy.",
+    "compensationPoints": "We've added %POINTS% points (%AMOUNT%) to your account to make up for it.",
+    "compensationRefund": "We've refunded %AMOUNT% to your card to make up for it."
   },
   "shopWords": {
     "effy_driver": "Effy driver",
@@ -244,6 +248,132 @@ internal const val DELIVERY_TYPE_FIXTURE = """
         "heading": null,
         "lines": [
           "We'll confirm your delivery date"
+        ]
+      }
+    },
+    {
+      "name": "081 — moved to courier, compensated in points",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "2–4 business days",
+          "moved": {
+            "to": "courier",
+            "at": "2026-10-08T08:30:00+11:00",
+            "compensation": {
+              "kind": "points",
+              "amount": "2.50",
+              "points": 250
+            }
+          }
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "We've changed this order to courier delivery.",
+          "We've added 250 points ($2.50) to your account to make up for it."
+        ]
+      }
+    },
+    {
+      "name": "081 — moved to courier, refunded to the card",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "2–4 business days",
+          "moved": {
+            "to": "courier",
+            "at": "2026-10-08T08:30:00+11:00",
+            "compensation": {
+              "kind": "refund",
+              "amount": "9.00"
+            }
+          }
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "We've changed this order to courier delivery.",
+          "We've refunded $9.00 to your card to make up for it."
+        ]
+      }
+    },
+    {
+      "name": "081 — moved to courier with nothing given says only what changed",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "2–4 business days",
+          "moved": {
+            "to": "courier",
+            "at": "2026-10-08T08:30:00+11:00",
+            "compensation": null
+          }
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "We've changed this order to courier delivery."
+        ]
+      }
+    },
+    {
+      "name": "081 — moved back to Effy: the window, then what changed (no compensation line)",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null,
+          "moved": {
+            "to": "effy",
+            "at": "2026-10-08T08:30:00+11:00",
+            "compensation": null
+          }
+        },
+        "arrivalEstimates": [
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T16:00:00+11:00",
+            "windowEnd": "2026-10-08T18:00:00+11:00"
+          },
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T16:00:00+11:00",
+            "windowEnd": "2026-10-08T18:00:00+11:00"
+          },
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T16:00:00+11:00",
+            "windowEnd": "2026-10-08T18:00:00+11:00"
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "Same-day delivery · Today, 4 pm – 6 pm",
+          "We've changed this order back to delivery by Effy."
         ]
       }
     }

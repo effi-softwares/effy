@@ -62,3 +62,21 @@ describe("079 — the order's delivery type, for staff", () => {
     expect(screen.queryByText("Delivered by")).not.toBeInTheDocument();
   });
 });
+
+describe("081 — moves by back-office, on the order", () => {
+  const moved = order({
+    id: "o1", status: "paid", deliveryType: "courier", deliveryTypeReason: "staff_change", courierEstimate: "2–4 business days",
+    deliveryMoves: [{
+      id: "m1", at: "2026-10-09T03:00:00.000Z", to: "courier", reason: "Van off the road", actor: { sub: "s", name: "Sam Manager" },
+      window: null, courier: { courierName: "Test Courier", serviceName: "Parcel", collection: "hub" },
+      paidDeliveryAmount: "9.00", courierFeeAmount: "6.50", differenceAmount: "2.50",
+      compensation: "points_difference", amount: "2.50", points: 250, refundStatus: null, compensationNote: null,
+    }],
+  } as Partial<OrderDetail>);
+
+  it("a customer-service agent reads every move and is offered no move", () => {
+    render(<DeliveryTypeSection formatDateTime={when} order={moved} />);
+    expect(screen.getByRole("table", { name: "Moves by back-office" })).toHaveTextContent("Van off the road");
+    expect(screen.queryByRole("button", { name: /Send by courier|Deliver by Effy/ })).not.toBeInTheDocument();
+  });
+});

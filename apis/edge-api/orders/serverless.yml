@@ -249,6 +249,29 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  orderDeliveryMovePreviewV1:
+    handler: src/functions/order-delivery-move-v1-get.handler
+    description: What moving an order between Effy and courier delivery would do, and whether it may (081). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/orders/{orderId}/delivery-move
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  orderDeliveryMoveV1:
+    handler: src/functions/order-delivery-move-v1-post.handler
+    description: Move an order to courier delivery with the compensation staff chose, or back to Effy, in one transaction; a refund is submitted after (081). Write = admin/manager.
+    timeout: 25
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/orders/{orderId}/delivery-move
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   orderCourierCollectionV1:
     handler: src/functions/order-courier-collection-v1-put.handler
     description: Change how a courier order reaches the courier (080). Write = admin/manager.

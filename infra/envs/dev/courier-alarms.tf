@@ -39,3 +39,30 @@ resource "aws_cloudwatch_metric_alarm" "courier_parcels_late" {
   alarm_actions      = [aws_sns_topic.alerts.arn]
   ok_actions         = [aws_sns_topic.alerts.arn]
 }
+
+# ---------------------------------------------------------------------------------------------
+# Orders moved to courier by back-office — 081-courier-override-compensation (Principle VII).
+#
+# ⚠ AN EMERGENCY TOOL USED AS A ROUTINE ONE IS THE SIGNAL. Moving a paid Effy order to courier
+# breaks a promise to a customer and costs Effy the compensation. A few a day is a bad day; more
+# than that means the operation has a problem nobody has named — or the tool is being used for
+# something it is not for. The metric is EMF from edge-orders' delivery-move route, one per move,
+# by direction; only moves TO courier are counted here.
+# ---------------------------------------------------------------------------------------------
+
+resource "aws_cloudwatch_metric_alarm" "delivery_overrides_daily" {
+  alarm_name          = "${module.shared.name_prefix}-delivery-overrides-daily"
+  alarm_description   = "081 — more than ${var.delivery_override_daily_alarm} orders were moved from Effy delivery to courier in a day. Moves are meant to be rare emergencies. Back-office → Orders: each moved order lists who moved it and why."
+  namespace           = "Effy/Orders"
+  metric_name         = "DeliveryOverrides"
+  dimensions          = { to = "courier" }
+  statistic           = "Sum"
+  period              = 86400
+  evaluation_periods  = 1
+  threshold           = var.delivery_override_daily_alarm
+  comparison_operator = "GreaterThanThreshold"
+  # No moves is no data, and no moves is the good day.
+  treat_missing_data = "notBreaching"
+  alarm_actions      = [aws_sns_topic.alerts.arn]
+  ok_actions         = [aws_sns_topic.alerts.arn]
+}

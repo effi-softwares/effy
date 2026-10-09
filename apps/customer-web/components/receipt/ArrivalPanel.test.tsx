@@ -209,3 +209,38 @@ describe("079 — who delivers the order", () => {
     expect(screen.queryByTestId("arrival-courier")).not.toBeInTheDocument()
   })
 })
+
+describe("081 — an order Effy moved to courier delivery (or back)", () => {
+  it("says what changed and what the customer received, under the courier lines — never why", () => {
+    render(
+      <ArrivalPanel
+        stage="packing"
+        arrivals={[]}
+        delivery={{
+          type: "courier", courierEstimate: "2–4 business days",
+          moved: { to: "courier", at: "2026-10-09T03:00:00.000Z", compensation: { kind: "points", amount: "2.50", points: 250 } },
+        }}
+      />,
+    )
+    const note = screen.getByTestId("delivery-moved")
+    expect(note).toHaveTextContent("We've changed this order to courier delivery.")
+    expect(note).toHaveTextContent("We've added 250 points ($2.50) to your account to make up for it.")
+  })
+
+  it("moved back to Effy: the window, then what changed, and no compensation line", () => {
+    render(
+      <ArrivalPanel
+        stage="packing"
+        arrivals={[est({ windowStart: "2026-10-10T05:00:00.000Z", windowEnd: "2026-10-10T07:00:00.000Z", promisedFrom: "2026-10-10", promisedTo: "2026-10-10" })]}
+        delivery={{ type: "effy", courierEstimate: null, moved: { to: "effy", at: "2026-10-09T03:00:00.000Z", compensation: null } }}
+      />,
+    )
+    expect(screen.getByTestId("delivery-moved")).toHaveTextContent("We've changed this order back to delivery by Effy.")
+    expect(screen.getByTestId("delivery-moved")).not.toHaveTextContent(/points|refunded/)
+  })
+
+  it("an order never moved says nothing about it", () => {
+    render(<ArrivalPanel stage="packing" arrivals={[est()]} delivery={{ type: "effy", courierEstimate: null }} />)
+    expect(screen.queryByTestId("delivery-moved")).not.toBeInTheDocument()
+  })
+})

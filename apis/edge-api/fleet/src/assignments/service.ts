@@ -21,6 +21,7 @@ import {
   type ExclusionReason,
   type Queryable,
 } from "@effy/edge-shared";
+import { PLANNER_PASS_LOCK, removeAssignment } from "@effy/edge-shared/delivery";
 
 import { planWave } from "../planner/assign";
 import {
@@ -57,7 +58,8 @@ export interface DriverFit {
   notes: string[];
 }
 
-const PASS_LOCK = `SELECT pg_advisory_xact_lock(72063001)`;
+// ⚠ The pass lock and the removal live in @effy/edge-shared/delivery since 081 (one implementation).
+const PASS_LOCK = PLANNER_PASS_LOCK;
 
 /** The package's current open assignment for a stage, with whether it may still move. */
 async function currentAssignment(tx: Queryable, packageId: string, stage: Stage) {
@@ -169,23 +171,6 @@ export async function driversFor(packageId: string, stage: Stage, now = new Date
 }
 
 /** Take a package off its round, tidying a stop or a not-yet-begun round it leaves empty. */
-async function removeAssignment(tx: Queryable, current: { id: string; stop_id: string; round_id: string; round_status: string }) {
-  await tx.query(`DELETE FROM public.round_package WHERE id = $1`, [current.id]);
-  await tx.query(
-    `DELETE FROM public.round_stop rs
-      WHERE rs.id = $1 AND NOT EXISTS (SELECT 1 FROM public.round_package rp WHERE rp.stop_id = rs.id)`,
-    [current.stop_id],
-  );
-  await tx.query(
-    `UPDATE public.driver_round dr SET status = 'cancelled', updated_at = now()
-      WHERE dr.id = $1 AND dr.status = 'planned'
-        AND NOT EXISTS (SELECT 1 FROM public.round_stop rs JOIN public.round_package rp ON rp.stop_id = rs.id
-                         WHERE rs.round_id = dr.id)`,
-    [current.round_id],
-  );
-  await tx.query(`UPDATE public.driver_round SET updated_at = now() WHERE id = $1`, [current.round_id]);
-}
-
 /** Lock, load, and refuse anything a person may not do to this package (shared by both actions). */
 async function prepare(tx: Queryable, packageId: string, stage: Stage, expectedAssignmentId: string | null) {
   await tx.query(PASS_LOCK);

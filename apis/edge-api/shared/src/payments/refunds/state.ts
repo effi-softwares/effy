@@ -31,6 +31,15 @@ export const REASON_ITEM_UNUSABLE = "item_unusable";
 export const REASON_ORDER_CANCELLED = "order_cancelled";
 export const REASON_GOODWILL = "goodwill";
 
+/**
+ * 081 — a refund that IS a courier override's compensation (the delivery charge, or the difference,
+ * back to the card). Its own kind, so its key is per move and staff read what it was.
+ * ⚠ NOT AN OPERATOR REASON: no refund dialog offers it; only `@effy/edge-shared/delivery` override.ts
+ * records it.
+ */
+export const KIND_DELIVERY = "delivery";
+export const REASON_COURIER_OVERRIDE = "courier_override";
+
 /** Reasons an operator may choose. EFFY's vocabulary; the provider is told only one thing. */
 export const OPERATOR_REASONS: ReadonlySet<string> = new Set([
   REASON_ITEM_NOT_SUPPLIED, REASON_ITEM_UNUSABLE, REASON_ORDER_CANCELLED, REASON_GOODWILL,

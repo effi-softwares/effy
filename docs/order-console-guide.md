@@ -88,7 +88,8 @@ old order is guessed. Their packages still say who delivered them, on the order 
 On an order, **Delivery type** shows who delivers it, **why** (the address is in Effy's area; it is
 outside; no Effy window was available; changed by staff), what a courier customer **was told** — the
 estimate as it stood when they ordered — and a short history: how it was decided at checkout, then any
-change with who and why. Nothing in this console changes an order's delivery type yet.
+change with who and why. Since 081 an admin or a manager can change it — see *Moving an order between
+Effy and courier* below.
 
 A **courier order** was promised no day. Since 080 a parcel at the hub is due out by **its courier
 service's next pickup** (the service's pickup days and cut-off), counted from when it was checked in.
@@ -158,6 +159,44 @@ the following day — and telling a customer it is "on the way" before it has le
 business has not earned.
 
 ---
+
+## Moving an order between Effy and courier (081)
+
+**For emergencies only** — the van is off the road, a driver is missing. On a paid order Effy delivers,
+**Delivery type → Send by courier…** opens a dialog with the figures the server worked out:
+
+- what the customer **paid for delivery**, what **courier delivery costs** for this order today, and
+  the **difference** (never below zero — if the courier costs more, Effy bears it and the customer pays
+  nothing more);
+- the courier service and how the parcels will reach it (the platform default, or **via the hub** once
+  a parcel has left a supplier), and the timeframe the customer will be told;
+- **how to make it right**, chosen by you — nothing is decided for you:
+  - **Points for the difference** (recommended, preselected);
+  - **Free delivery, as points** — the whole delivery charge as points;
+  - **Free delivery, back to the card** — the whole charge refunded;
+  - **Refund the difference to the card** — the last resort;
+  - **Nothing** — say why.
+
+Write **why** (staff only — the customer never sees it) and confirm. In one step: the window is given up
+(someone else can book it at once), the order leaves drivers' delivery rounds (and their collection
+rounds too when the courier collects from the supplier), the customer is credited or refunded, and they
+are emailed and notified that it now arrives by courier, with what they received.
+
+If the figures changed while the dialog was open, the confirm is refused and the new figures are shown —
+check them and confirm again. A refund that the payment provider has not answered is retried
+automatically; one it refused is shown, and can be issued from Refunds.
+
+**Refused** while a parcel is out for delivery on a round under way (wait until the driver settles it),
+once a parcel has been handed to a courier or delivered, and for an order placed before delivery types.
+Courier delivery must be set up (a courier fee table and a default courier service).
+
+**Deliver by Effy…** on a courier order moves it back, before any parcel is with the courier and only
+to an address on Effy's list: choose one of the windows open with room now. No money moves either way,
+and anything given when it went to courier stays with the customer.
+
+Every move is listed under Delivery type — when, who, why, the window given up or taken, the figures
+and what the customer received — for every role. Customer-service agents can read it; only admins and
+managers can move. More than 5 moves to courier in a day raises an alarm.
 
 ## Refunds and cancellation (055)
 

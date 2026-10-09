@@ -391,6 +391,31 @@ export const CATALOG = {
   },
 
   /**
+   * Back-office moved the order to courier delivery, or back to Effy (081 US1, US3).
+   *
+   * ⚠ NO REASON, NO COURIER FEE, NO COST: there is no var for them. `movedLine`, `arrivalLine` and
+   * `compensationLine` are worded by `@effy/shared-types` delivery-type.ts (the one wording) and
+   * passed in whole.
+   */
+  "order-delivery-changed": {
+    vars: {
+      orderNumber: "string",
+      movedLine: "string",
+      arrivalLine: "string",
+      hasCompensation: "boolean",
+      compensationLine: "string",
+      orderUrl: "string",
+    },
+    subject: (v, p) => `Your ${p.productName} order ${v.orderNumber}: a change to its delivery`,
+    preheader: (v) => String(v.movedLine),
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    category: "transactional",
+    // ⚠ `swallow`: the move is committed; the notification row records a failed send.
+    onSendFailure: "swallow",
+  },
+
+  /**
    * A refund was issued (055 US5, FR-027).
    *
    * ⚠ IT IS SENT WHEN THE MONEY IS ON ITS WAY, NOT WHEN IT ARRIVES, and the copy has to carry that

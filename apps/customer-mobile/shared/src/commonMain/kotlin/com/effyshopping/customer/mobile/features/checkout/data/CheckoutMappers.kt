@@ -247,6 +247,23 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.OrderDeliveryDTO
             com.effyshopping.customer.mobile.commerce.contract.TrackingKind.Email -> com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking.ByEmail
         }
     },
+    // 081 — the latest move by back-office, and what the customer received.
+    moved = moved?.let { m ->
+        com.effyshopping.customer.mobile.features.checkout.domain.OrderDeliveryMove(
+            to = when (m.to) {
+                ContractDeliveryType.Effy -> DeliveryType.EFFY
+                ContractDeliveryType.Courier -> DeliveryType.COURIER
+            },
+            compensation = m.compensation?.let { c ->
+                when (c.kind) {
+                    com.effyshopping.customer.mobile.commerce.contract.CompensationKind.Points ->
+                        com.effyshopping.customer.mobile.features.checkout.domain.CustomerCompensation.Points(c.amount, (c.points ?: 0.0).toInt())
+                    com.effyshopping.customer.mobile.commerce.contract.CompensationKind.Refund ->
+                        com.effyshopping.customer.mobile.features.checkout.domain.CustomerCompensation.Refund(c.amount)
+                }
+            },
+        )
+    },
 )
 
 internal fun DeliveryChoiceRefusalDTO.toDomain(): DeliveryChoiceRefused = DeliveryChoiceRefused(

@@ -1109,6 +1109,49 @@
       ],
       "type": "object"
     },
+    "CustomerCompensationDTO": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "points",
+              "type": "string"
+            },
+            "points": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "kind",
+            "amount",
+            "points"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "amount": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "refund",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "amount"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "081 — what a customer received when their order was moved to courier. Null when nothing was given."
+    },
     "CustomerRefundDTO": {
       "additionalProperties": false,
       "description": "One refund, as the CUSTOMER sees it.\n\n⚠ THREE states, not five, and no failure text. \"Your bank rejected the refund\" invites a shopper to argue with a message they cannot act on, and the difference between `submitting` and `submitted` is a fact about our integration.",
@@ -2023,6 +2066,10 @@
             "null"
           ]
         },
+        "moved": {
+          "$ref": "#/definitions/OrderDeliveryMoveDTO",
+          "description": "081 — present only after back-office moved the order to the other delivery type: the LATEST move, and what the customer received for it. ⚠ Never the staff reason, the courier fee, the difference or Effy's cost — a customer is told what happened and what they got, nothing else."
+        },
         "tracking": {
           "anyOf": [
             {
@@ -2069,6 +2116,34 @@
       "required": [
         "type",
         "courierEstimate"
+      ],
+      "type": "object"
+    },
+    "OrderDeliveryMoveDTO": {
+      "additionalProperties": false,
+      "description": "081 — the latest move of an order's delivery type by back-office, as the customer reads it.",
+      "properties": {
+        "at": {
+          "type": "string"
+        },
+        "compensation": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CustomerCompensationDTO"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "to": {
+          "$ref": "#/definitions/DeliveryType"
+        }
+      },
+      "required": [
+        "to",
+        "at",
+        "compensation"
       ],
       "type": "object"
     },

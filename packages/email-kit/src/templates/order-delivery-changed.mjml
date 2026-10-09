@@ -1,0 +1,57 @@
+<!-- order-delivery-changed — back-office moved the order to courier delivery, or back to Effy (081).
+
+     ⚠ IT SAYS WHAT CHANGED AND WHAT THE CUSTOMER RECEIVED, NEVER WHY. The staff reason is an internal
+     note; the courier fee and Effy's cost are never a customer's to read. The catalogue gives this
+     template no var for any of them.
+
+     ⚠ THE SENTENCES ARE NOT WRITTEN HERE. `movedLine` and `compensationLine` arrive already worded by
+     `@effy/shared-types` delivery-type.ts — the same words the order page, the receipt and the app
+     print. A second wording here is the drift that file exists to prevent.
+
+     ⚠ NO DATE PROMISE for a courier: the timeframe is said as an estimate. -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>Your {{effyProductName}} order {{orderNumber}}: a change to its delivery</mj-title>
+    <mj-preview>{{movedLine}}</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">
+          A change to your delivery
+        </mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          Order {{orderNumber}}. {{movedLine}}
+        </mj-text>
+
+        <mj-text mj-class="body" css-class="e-ink" padding="16px 0 0 0">
+          {{arrivalLine}}
+        </mj-text>
+
+        {{#if hasCompensation}}
+        <mj-text mj-class="body" css-class="e-ink" padding="16px 0 0 0">
+          {{compensationLine}}
+        </mj-text>
+        {{/if}}
+
+        <!-- Both dark classes named so the label inverts with the fill (038's dark-mode button). -->
+        <mj-button href="{{orderUrl}}" css-class="e-btn-bg e-btn-fg" align="left" padding="24px 0 0 0">
+          View your order
+        </mj-button>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="20px 0 0 0">
+          Sorry for the change. Something not right? Reply to this email or write to {{effySupportEmail}}
+          and we&rsquo;ll sort it out.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

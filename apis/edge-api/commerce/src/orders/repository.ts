@@ -56,6 +56,15 @@ export interface OrderRow {
   consignments_out?: number;
   only_tracking_url?: string | null;
   only_courier_name?: string | null;
+  /**
+   * 081 — the LATEST move by back-office, if any: where to, when, and what the customer received.
+   * ⚠ Never the staff reason, the courier fee or the difference — the SELECT does not name them.
+   */
+  moved_to?: "effy" | "courier" | null;
+  moved_at?: string | null;
+  moved_compensation?: string | null;
+  moved_amount_cents?: number | null;
+  moved_points?: number | null;
 }
 
 export interface ItemRow {
@@ -158,7 +167,9 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
          WHERE sf.order_id = o.id AND sf.status NOT IN ('withdrawn', 'unfulfillable'))::int AS parcel_count,
        out.n AS consignments_out,
        CASE WHEN out.n = 1 THEN out.url END AS only_tracking_url,
-       CASE WHEN out.n = 1 THEN out.courier END AS only_courier_name
+       CASE WHEN out.n = 1 THEN out.courier END AS only_courier_name,
+       mv.to_type AS moved_to, mv.created_at::text AS moved_at, mv.compensation AS moved_compensation,
+       mv.amount_cents AS moved_amount_cents, mv.points AS moved_points
 FROM public."order" o
 -- ⚠ A consignment counts once the parcel is WITH the courier: a booking is not yet something to track.
 CROSS JOIN LATERAL (
@@ -168,6 +179,14 @@ CROSS JOIN LATERAL (
     JOIN public.courier_service cs ON cs.id = cc.courier_service_id
    WHERE sf.order_id = o.id AND cc.state NOT IN ('booked', 'cancelled')
 ) out
+-- 081 — the latest move by back-office. ⚠ Only these five columns: never the reason, the fee or the difference.
+LEFT JOIN LATERAL (
+  SELECT x.to_type, x.created_at, x.compensation, x.amount_cents, x.points
+    FROM public.delivery_override x
+   WHERE x.order_id = o.id
+   ORDER BY x.created_at DESC, x.id DESC
+   LIMIT 1
+) mv ON true
 WHERE o.id = $1 AND o.customer_id = $2`,
             [orderId, customerId],
           )

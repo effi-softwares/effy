@@ -43,6 +43,14 @@ describe("deliverySummary — how an order is delivered, as words (079 P16)", ()
     expect(courierLines("2–4 business days")[1]).toMatch(/estimate, not a guaranteed date\.$/);
   });
 
+  it("081 — a move never says why, and says nothing was given by saying nothing", () => {
+    for (const c of fixtures.cases.filter((x) => x.input.delivery?.moved)) {
+      const said = c.expect.lines.join(" ");
+      expect(said).not.toMatch(/reason|because|courier fee|difference|cost/i);
+      if (!c.input.delivery?.moved?.compensation) expect(said).not.toMatch(/added|refunded/);
+    }
+  });
+
   it("one order is one line however many suppliers filled it", () => {
     const three = fixtures.cases.find((c) => c.name.includes("three suppliers"))!;
     expect(three.input.arrivalEstimates).toHaveLength(3);
@@ -73,6 +81,10 @@ describe("the apps are held to the same fixture and the same words (079 P16)", (
       sameDay: kotlinConstant(kt, "SAME_DAY"),
       standard: kotlinConstant(kt, "STANDARD"),
       scheduled: kotlinConstant(kt, "SCHEDULED"),
+      movedToCourier: kotlinConstant(kt, "MOVED_TO_COURIER"),
+      movedToEffy: kotlinConstant(kt, "MOVED_TO_EFFY"),
+      compensationPoints: kotlinConstant(kt, "COMPENSATION_POINTS"),
+      compensationRefund: kotlinConstant(kt, "COMPENSATION_REFUND"),
     }).toEqual(DELIVERY_TYPE_WORDS);
   });
 
