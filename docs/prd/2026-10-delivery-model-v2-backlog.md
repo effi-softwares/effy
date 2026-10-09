@@ -90,7 +90,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09 (switched off) | E2 |
 | E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
-| E7 | 081 | Back-Office Courier Override & Compensation — ✅ built 2026-10-09 | E1, E5, E6 |
+| E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 | E1, E5, E6 |
 | E8 | 082 | Driver Operations Realignment | E4, E5 |
 | E9 | 083 | Cutover & Retirement of Same-Day/Standard | E5–E8 |
 | E10 | later | Deferred items | — |
@@ -130,6 +130,9 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 
 > **2026-10-09 — E6 (spec 080, Courier Fulfilment) is signed off: built, migrated and deployed to dev**
 > (`specs/080-courier-fulfilment/SIGNOFF.md`) — details under E6. Rides 078's switch. **Next: E7 (spec 081).**
+
+> **2026-10-09 — E7 (spec 081, Courier Override & Compensation) is signed off: built and checked by machine, not yet deployed**
+> (`specs/081-courier-override-compensation/SIGNOFF.md`) — details under E7. Rides 078's switch. **Next: E8 (spec 082).**
 
 ## E0 — Cleanup & decision record (no spec)
 
@@ -758,10 +761,13 @@ by email for each parcel.
 
 ---
 
-## E7 — Back-Office Courier Override & Compensation · spec 081 — ✅ built 2026-10-09 (not migrated, not deployed)
+## E7 — Back-Office Courier Override & Compensation · spec 081 — ✅ signed off 2026-10-09 (not yet deployed)
 
-> **2026-10-09 — BUILT and checked by machine** (`specs/081-courier-override-compensation/SIGNOFF.md`); not migrated,
-> deployed or walked. Rides 078's switch. **Next: E8 (spec 082).**
+> **2026-10-09 — SIGNED OFF by the operator: built and checked by machine** (`specs/081-courier-override-compensation/SIGNOFF.md`);
+> not yet migrated or deployed to dev, walks V1–V7 not recorded. Rides 078's switch. Deviations: only orders with a
+> delivery type move; out for delivery blocks a move; consignments are made at booking, not at the move; one
+> `POST …/delivery-move` (both directions, compensation in the call) + one `GET` preview; a quiet points credit (one
+> message); "nothing" needs a note; `changeDeliveryType` returns the history row. **Next: E8 (spec 082).**
 
 > **2026-10-09 — specified (`specs/081-courier-override-compensation/spec.md`).** The specify prompt below
 > was amended with what 080 left: a moved order takes the default collection mode (via the hub if any
