@@ -43,4 +43,18 @@ describe("shop service delivery-config isolation (047 SC-008/SC-009)", () => {
     const offenders = files.filter((f) => /(fee-plan|ring|delivery-zone|sameday|collection-run)/.test(f))
     expect(offenders, `shop functions expose delivery config: ${offenders.join(", ")}`).toEqual([])
   })
+
+  // ⚠ 080 — a shop now hands parcels to couriers. It may say "handed over"; it may not configure
+  // courier services, change how an order reaches the courier, or record the courier's progress.
+  it("080 — the one courier route a shop has is the handover; no courier service, mode or progress route", () => {
+    const paths = [...yaml.matchAll(/path:\s*(\S+)/g)].map((m) => m[1] ?? "")
+    expect(paths.filter((p) => /courier|consignment/.test(p))).toEqual(["/shop/v1/fulfillments/{id}/courier-handover"])
+  })
+
+  it("080 — the courier pickup a shop is sent selects no fee, estimate or tracking link", () => {
+    const src = readFileSync(resolve(serviceRoot, "src/lib/courier-pickup.ts"), "utf8")
+    const select = src.slice(src.indexOf("const SELECT_PICKUPS"), src.indexOf("interface PickupRow"))
+    expect(select).not.toMatch(/tracking_url|estimate|fee|courier_estimate|max_business_days/)
+  })
 })
+

@@ -12,6 +12,7 @@ import com.effyshopping.shop.mobile.features.orders.domain.GetFulfillment
 import com.effyshopping.shop.mobile.features.orders.domain.ItemProgress
 import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.QueueState
+import com.effyshopping.shop.mobile.features.orders.domain.HandOverToCourier
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -80,6 +81,8 @@ class OrdersViewModel(
      * fifteen-second heartbeat this screen used to run. Empty by default (tests, previews).
      */
     private val liveChanges: Flow<Unit> = emptyFlow(),
+    /** 080 — null in previews and tests that do not exercise it. */
+    private val handOverToCourier: HandOverToCourier? = null,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(OrdersUiState())
     val state = mutableState.asStateFlow()
@@ -188,6 +191,25 @@ class OrdersViewModel(
                     loadQueue(silent = true)
                 },
                 onFailure = { failure -> handleFailure(failure, id, "That item couldn't be updated. Try again.") },
+            )
+        }
+    }
+
+    /** 080 — "Handed over to courier". Never retried: a refusal is said and the order re-read. */
+    fun requestCourierHandover() {
+        val id = mutableState.value.detail?.id ?: return
+        val handOver = handOverToCourier ?: return
+        if (mutableState.value.isBusy) return
+        mutableState.update { it.copy(isWorking = true, message = null) }
+        scope.launch {
+            runCatching { handOver(id) }.fold(
+                onSuccess = { detail ->
+                    mutableState.update { it.copy(detail = detail, isWorking = false) }
+                    loadQueue(silent = true)
+                },
+                onFailure = { failure ->
+                    handleFailure(failure, id, "That handover didn't go through. Check the pickup is still booked.")
+                },
             )
         }
     }

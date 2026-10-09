@@ -32,6 +32,13 @@ export interface OrderDeliveryDTO {
   type: DeliveryType;
   /** The courier's usual timeframe as it was sold ("2–4 business days"); null for an Effy order. */
   courierEstimate: string | null;
+  /**
+   * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
+   * consignment and the courier gave a tracking link. `email`: it travels as more than one, and each
+   * parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link given).
+   * ⚠ Never a count, a reference without a link, or anything per parcel.
+   */
+  tracking?: { kind: "link"; url: string; courierName: string } | { kind: "email" };
 }
 
 /**
@@ -54,6 +61,10 @@ export const DELIVERY_TYPE_WORDS = {
   courierInsteadOfWindows: "We can send this order by courier instead.",
   sameDay: DELIVERY_WINDOW_WORDS.sectionSameDay,
   standard: DELIVERY_WINDOW_WORDS.sectionStandard,
+  /** 080 — tracking a courier order. */
+  trackParcel: "Track your parcel",
+  trackingByEmail: "Tracking for each parcel is sent to you by email.",
+  withCourier: "Your order is with the courier.",
   /** A method no checkout has sold since 047; an old order may still carry it. */
   scheduled: "Scheduled delivery",
 } as const;
@@ -108,7 +119,11 @@ export function deliveryMethodWord(method: string | null | undefined): string {
  */
 export function deliverySummary(order: DeliverySummaryInput, now: Date): DeliverySummary {
   if (order.delivery?.type === "courier") {
-    return { heading: DELIVERY_TYPE_WORDS.courier, lines: courierLines(order.delivery.courierEstimate ?? "") };
+    const lines = courierLines(order.delivery.courierEstimate ?? "");
+    // 080 — several consignments: say tracking comes by email. One link is a link, not a sentence;
+    // surfaces render it from `delivery.tracking` themselves.
+    if (order.delivery.tracking?.kind === "email") lines.push(DELIVERY_TYPE_WORDS.trackingByEmail);
+    return { heading: DELIVERY_TYPE_WORDS.courier, lines };
   }
   const arrivals = distinctArrivals(order.arrivalEstimates);
   const lines = arrivals.length === 0

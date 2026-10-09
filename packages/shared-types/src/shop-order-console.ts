@@ -27,6 +27,25 @@ import type { FulfillmentDeliveryDTO, FulfillmentStatus } from "./shop-order"
 import type { PackageStatusView } from "./package-status"
 import type { DeliveredBy } from "./delivery-type"
 
+/**
+ * 080 — a courier will collect THIS package from the shop. ⚠ The shop's own parcel only: never a fee,
+ * the customer's estimate, a tracking link, or anything about another shop's parcel.
+ */
+export interface CourierPickupDTO {
+  /** arranging = staff have not booked it yet; the parcel is prepared and marked ready as usual. */
+  state: "arranging" | "booked" | "handed_over" | "cancelled"
+  /** yyyy-mm-dd */
+  pickupDate: string | null
+  /** "13:00" */
+  pickupFrom: string | null
+  pickupTo: string | null
+  courierName: string | null
+  serviceName: string | null
+  reference: string | null
+  /** Short-lived presigned read of the label to attach; null when none was attached. */
+  labelUrl: string | null
+}
+
 // ── The list ────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -122,6 +141,8 @@ export interface ShopOrderRowDTO {
    * new. ⚠ The ONLY thing a shop is told about delivery: never a window, a day, an estimate or a fee.
    */
   deliveredBy: DeliveredBy
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   /** Open (pending/received/picking) and within 15 minutes of — or past — its ready-by. */
@@ -240,6 +261,8 @@ export interface ShopOrderDetailDTO {
    * new. ⚠ The ONLY thing a shop is told about delivery: never a window, a day, an estimate or a fee.
    */
   deliveredBy: DeliveredBy
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   atRisk: boolean

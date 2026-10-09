@@ -44,3 +44,28 @@ export function orderActionError(err: unknown, action: "handoff" | "arrival"): s
   }
   return "Something went wrong. Please try again.";
 }
+
+/** 080 — the server's refusal codes for courier consignments, in the console's own words. */
+const CONSIGNMENT_COPY: Record<string, string> = {
+  not_courier: "Effy delivers this package — there is no courier to book.",
+  service_unavailable: "That courier service is no longer in use. Choose another.",
+  service_not_supplier: "That courier service does not collect from suppliers. Choose one that does.",
+  consignment_handed_over: "The parcel is already with the courier; its service can no longer change.",
+  not_booked: "Book the consignment first.",
+  invalid_step: "That step does not follow from where the parcel is now. Refresh and try again.",
+  collection_locked: "A parcel of this order has already left, so how it reaches the courier can no longer change.",
+  collection_assigned: "A driver is assigned to collect a parcel of this order. Unassign them (below, under Packages) first.",
+  pickup_in_past: "The pickup day has passed. Choose today or later.",
+  invalid_consignment: "Check the booking: a tracking link starts with https://, and a pickup window needs a start and a later end.",
+  not_collected: "A driver has not brought this package to the hub yet.",
+};
+
+export function consignmentError(err: unknown): string {
+  if (isDomainError(err)) {
+    const code = (err as { code?: string }).code;
+    if (code && CONSIGNMENT_COPY[code]) return CONSIGNMENT_COPY[code];
+    if (err.kind === "forbidden") return "Recording this needs a manager or an administrator.";
+  }
+  if (err instanceof Error && err.message === "the label could not be uploaded") return "The label could not be uploaded. Try again.";
+  return "That could not be saved. Try again.";
+}

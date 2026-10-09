@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { courierEstimateSentence, type CourierBlocker, type CourierReachDTO, type CourierReachUpdateDTO } from "@effy/shared-types";
-import { Button, Input, Label, Switch } from "@effy/design-system/ui";
+import { courierEstimateSentence, type CourierBlocker, type CourierCollection, type CourierReachDTO, type CourierReachUpdateDTO } from "@effy/shared-types";
+import { Button, Input, Label, RadioGroup, RadioGroupItem, Switch } from "@effy/design-system/ui";
 
 import { coverageError } from "../errorText";
 import { useAddCourierExclusion, useRemoveCourierExclusion, useUpdateCourier } from "../queries";
+import { CourierServicesPanel } from "./CourierServicesPanel";
 
 /** What has to be done before courier delivery can be switched on — said before anyone tries. */
 const BLOCKER_COPY: Record<CourierBlocker, string> = {
   no_fee_table: "Make a courier fee table active on the Pricing tab.",
-  no_estimate: "Say how long a courier usually takes, below.",
+  no_service: "Add a courier service below and make it the default.",
+  // Not returned since 080 — the default service carries the timeframe.
+  no_estimate: "Add a courier service below and make it the default.",
 };
 
 /**
@@ -23,6 +26,8 @@ const BLOCKER_COPY: Record<CourierBlocker, string> = {
  *
  * ⚠ THE ESTIMATE IS SHOWN AS THE CUSTOMER WILL READ IT — the whole sentence, with "an estimate, not a
  * guaranteed date" on the end — because the field alone ("2–4 business days") reads like a promise.
+ * ⚠ 080 — it is the DEFAULT COURIER SERVICE's timeframe now, edited on that service; 079's free-text
+ * estimate field is gone from the console.
  */
 export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO; canManage: boolean }) {
   const update = useUpdateCourier();
@@ -30,12 +35,7 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
   const removeExclusion = useRemoveCourierExclusion();
   const [postcode, setPostcode] = useState("");
   const [reason, setReason] = useState("");
-  const [estimate, setEstimate] = useState(courier.estimateText ?? "");
   const [error, setError] = useState<string | null>(null);
-
-  // The saved estimate is the server's: when it changes there (this save, or someone else's, told to
-  // us by the live channel), the field follows.
-  useEffect(() => setEstimate(courier.estimateText ?? ""), [courier.estimateText]);
 
   async function change(c: CourierReachUpdateDTO) {
     setError(null);
@@ -66,8 +66,6 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
     }
   }
 
-  const typed = estimate.trim();
-  const saved = courier.estimateText ?? "";
   // On needs a price and an estimate. Off is always allowed.
   const locked = !courier.offered && courier.blockedBy.length > 0;
 
@@ -101,29 +99,32 @@ export function CourierPanel({ courier, canManage }: { courier: CourierReachDTO;
         ) : null}
       </div>
 
-      <form
-        className="space-y-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void change({ estimateText: typed === "" ? null : typed });
-        }}
-      >
-        <Label htmlFor="courier-estimate">How long a courier usually takes</Label>
-        <div className="flex flex-wrap items-center gap-2">
-          <Input id="courier-estimate" className="w-64" placeholder="2–4 business days" maxLength={60} value={estimate}
-            disabled={!canManage} onChange={(e) => setEstimate(e.target.value)} />
-          {canManage ? (
-            <Button type="submit" variant="outline" disabled={update.isPending || typed === saved || (typed === "" && courier.offered)}>
-              Save
-            </Button>
-          ) : null}
-        </div>
-        <p className="max-w-2xl text-sm text-muted-foreground" data-testid="courier-estimate-preview">
-          {typed.length >= 3
-            ? <>Customers read: “{courierEstimateSentence(typed)}” An order keeps the estimate it was sold.</>
-            : "Customers are told this as an estimate, never as a promised date."}
+      <div className="space-y-1" data-testid="courier-estimate-preview">
+        <p className="text-sm font-medium">What a courier customer is told</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          {courier.defaultService
+            ? <>“{courierEstimateSentence(courier.defaultService.estimateText)}” — the timeframe of {courier.defaultService.label}, the default service. An order keeps the estimate it was sold.</>
+            : "Nothing yet — checkout tells a courier customer the default courier service's timeframe."}
         </p>
-      </form>
+      </div>
+
+      <div className="space-y-2">
+        <p id="courier-collection-label" className="text-sm font-medium">How courier parcels reach the courier</p>
+        <RadioGroup aria-labelledby="courier-collection-label" value={courier.collectionDefault} disabled={!canManage || update.isPending}
+          onValueChange={(v) => void change({ collectionDefault: v as CourierCollection })} className="gap-2">
+          <label className="flex items-start gap-2 text-sm">
+            <RadioGroupItem value="hub" aria-label="Via the hub" />
+            <span><span className="font-medium">Via the hub</span> — Effy's drivers collect from suppliers, and the hub hands parcels to the courier.</span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <RadioGroupItem value="supplier" aria-label="Pickup from the supplier" />
+            <span><span className="font-medium">Pickup from the supplier</span> — the courier collects each parcel from the supplier that packed it.</span>
+          </label>
+        </RadioGroup>
+        <p className="max-w-2xl text-sm text-muted-foreground">For new courier orders. Staff can change a single order until its first parcel leaves.</p>
+      </div>
+
+      <CourierServicesPanel canManage={canManage} />
 
       <div className="space-y-1">
         <div className="flex items-center gap-3">

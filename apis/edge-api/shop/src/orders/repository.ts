@@ -9,6 +9,8 @@
 // in a fixed map below; every value is a bind parameter.
 
 import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
+
+import { courierPickups, pickupOf } from "../lib/courier-pickup";
 import { STATUS_WORD, type PackageStatusView } from "@effy/shared-types";
 
 import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
@@ -234,9 +236,10 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
     byTab.all += Number(r.n);
   }
 
-  const statuses = await shopStatuses(page.rows.map((r) => r.id));
+  const ids = page.rows.map((r) => r.id);
+  const [statuses, pickups] = await Promise.all([shopStatuses(ids), courierPickups(shopId, ids)]);
   return {
-    items: page.rows.map((r) => ({ ...toRow(r), statusView: statuses.get(r.id) ?? fallbackView() })),
+    items: page.rows.map((r) => ({ ...toRow(r), ...pickupOf(pickups, r.id), statusView: statuses.get(r.id) ?? fallbackView() })),
     // ⚠ Past the last page the window function has no rows to ride on, so the total falls back to the
     // tab's count rather than claiming zero matches exist.
     total: page.rows[0] ? Number(page.rows[0].full_count) : byTab[q.tab],
@@ -445,8 +448,10 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   const refunded = cents(row.refunded);
 
   // 073 — where it really is, for the shop: never a driver's name.
-  const statusView = (await shopStatuses([fulfillmentId])).get(fulfillmentId) ?? fallbackView();
+  const [statuses, pickups] = await Promise.all([shopStatuses([fulfillmentId]), courierPickups(shopId, [fulfillmentId])]);
+  const statusView = statuses.get(fulfillmentId) ?? fallbackView();
   return {
+    ...pickupOf(pickups, fulfillmentId),
     id: row.id,
     orderId: row.order_id,
     orderNumber: row.order_number,

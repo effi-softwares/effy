@@ -164,6 +164,29 @@ describe("079 — who delivers the order", () => {
     expect(panel.textContent).not.toMatch(/standard|same-day|arriving|confirm your delivery date/i)
   })
 
+  it("080 — one consignment: the courier's tracking link; several: tracking by email; before handover: neither, never a count", () => {
+    const base = { type: "courier" as const, courierEstimate: "2–4 business days" }
+    const { unmount } = render(
+      <ArrivalPanel stage="confirmed" arrivals={[routed]}
+        delivery={{ ...base, tracking: { kind: "link", url: "https://track.example.test/A1", courierName: "Test Courier" } }} />,
+    )
+    const link = screen.getByTestId("tracking-link")
+    expect(link).toHaveAttribute("href", "https://track.example.test/A1")
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveTextContent("Track your parcel with Test Courier")
+    unmount()
+
+    const many = render(<ArrivalPanel stage="confirmed" arrivals={[routed]} delivery={{ ...base, tracking: { kind: "email" } }} />)
+    expect(screen.getByTestId("tracking-by-email")).toHaveTextContent("Tracking for each parcel is sent to you by email.")
+    expect(screen.queryByTestId("tracking-link")).not.toBeInTheDocument()
+    expect(screen.getByTestId("arrival-courier").textContent).not.toMatch(/\d+ parcels|of \d/)
+    many.unmount()
+
+    render(<ArrivalPanel stage="confirmed" arrivals={[routed]} delivery={base} />)
+    expect(screen.queryByTestId("tracking-link")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("tracking-by-email")).not.toBeInTheDocument()
+  })
+
   it("an Effy order is headed Delivered by Effy, with its window and the customer's word", () => {
     render(
       <ArrivalPanel

@@ -1,6 +1,6 @@
 import { createRoute } from "@tanstack/react-router";
 
-import { HandoverListScreen } from "@/features/orders/HandoverListScreen";
+import { CourierScreen } from "@/features/orders/CourierScreen";
 import { OrderDetailScreen } from "@/features/orders/OrderDetailScreen";
 import { OrdersListScreen } from "@/features/orders/OrdersListScreen";
 import { DispatchDayScreen } from "@/features/dispatch/DispatchDayScreen";
@@ -23,7 +23,7 @@ export const ordersIndexRoute = createRoute({
 export const ordersHandoverRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders/handover",
-  component: HandoverListScreen,
+  component: CourierScreen,
 });
 
 // 073 — the dispatcher's view lives inside Orders now, as the Assignments tab.

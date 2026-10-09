@@ -57,6 +57,7 @@ function toLiveDTO(o: LiveOrder): ShopLiveOrderDTO {
     paidAt: o.paidAt.toISOString(),
     itemCount: o.itemCount,
     deliveredBy: o.deliveredBy,
+    ...(o.courierPickup ? { courierPickup: o.courierPickup } : {}),
     deliveryMethod: o.deliveryMethod,
     total: o.total,
     currency: o.currency,

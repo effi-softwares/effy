@@ -336,9 +336,13 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     await seedPackage({ method: "standard", promisedDay: null });
 
     const today = await listHandovers("today");
-    expect(today).toEqual([
-      { fulfillmentId: courier.fulfillmentId, orderId: courier.orderId, orderNumber: courier.orderNumber, promisedDate: null, handoverDueOn: await melDay(0), atRisk: false, atHub: true },
-    ]);
+    expect(today).toHaveLength(1);
+    expect(today[0]).toMatchObject({
+      fulfillmentId: courier.fulfillmentId, orderId: courier.orderId, orderNumber: courier.orderNumber, promisedDate: null,
+      handoverDueOn: await melDay(0), atRisk: false, atHub: true,
+      // 080 — an order from before courier services (none on it): no service, no pickup to be due by.
+      service: null, dueOut: null, collection: "hub",
+    });
     const pkg = toPackage((await packages(courier.orderId))[0]!);
     expect(pkg).toMatchObject({ deliveredBy: "courier", promisedDate: null, window: null, handoverDueOn: await melDay(0), atRisk: false, onTime: null });
 

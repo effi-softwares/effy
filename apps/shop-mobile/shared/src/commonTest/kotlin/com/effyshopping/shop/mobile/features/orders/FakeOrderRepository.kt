@@ -38,6 +38,8 @@ class FakeOrderRepository(
     var failDetailWith: AppError? = null
     var failTransitionWith: AppError? = null
     var failProgressWith: AppError? = null
+    var failHandoverWith: AppError? = null
+    var handoverCalls = 0
 
     override suspend fun listFulfillments(state: QueueState): List<FulfillmentSummary> {
         lastState = state
@@ -67,6 +69,18 @@ class FakeOrderRepository(
                 FulfillmentTransition.READY_FOR_PICKUP -> FulfillmentState.READY_FOR_PICKUP
                 FulfillmentTransition.UNFULFILLABLE -> FulfillmentState.UNFULFILLABLE
             },
+        )
+        return detail
+    }
+
+    override suspend fun handOverToCourier(id: String): FulfillmentDetail {
+        handoverCalls++
+        failHandoverWith?.let { throw AppException(it) }
+        detail = detail.copy(
+            status = FulfillmentState.COLLECTED,
+            promise = detail.promise.copy(
+                courierPickup = detail.promise.courierPickup?.copy(state = com.effyshopping.shop.mobile.features.orders.domain.CourierPickupState.HANDED_OVER),
+            ),
         )
         return detail
     }

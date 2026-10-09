@@ -90,11 +90,53 @@ outside; no Effy window was available; changed by staff), what a courier custome
 estimate as it stood when they ordered — and a short history: how it was decided at checkout, then any
 change with who and why. Nothing in this console changes an order's delivery type yet.
 
-A **courier order** was promised no day. On the Handover tab it shows *No day — courier estimate* and is
-due out **the day it was placed**; from the next day it is at risk.
+A **courier order** was promised no day. Since 080 a parcel at the hub is due out by **its courier
+service's next pickup** (the service's pickup days and cut-off), counted from when it was checked in.
+
+### The Courier tab (080 — was "Handover")
+
+Every courier parcel, in five views:
+
+| View | What is in it |
+|---|---|
+| **Due at the hub** | At (or on its way to) the hub, going via the hub, not handed over. Sorted by when it is due out. |
+| **Late at the hub** | Past its service's pickup and still here. Hand it over, or find out why. |
+| **Supplier pickups** | Parcels the courier collects from the supplier. Shows the booked pickup; *Late* once the window has gone with no handover. |
+| **With the courier** | Handed over, not delivered. *Late* when it has been with the courier longer than the service's usual maximum. |
+| **Problems** | Delivery failed, lost, damaged or returned to sender — until resolved. These also show as **Courier problem** in the order list. |
+
+A parcel late at the hub or at a supplier for two hours raises an alarm to the operator (080).
+
+### The consignment (080)
+
+On the order page each courier parcel has a **Courier consignment** block: the service, where it is,
+how it reaches the courier, the pickup (supplier pickups), reference, tracking link and label.
+
+- **Book** — choose the service (only active ones; for a supplier pickup only services that collect from
+  suppliers), optionally the reference, the tracking link (https) and the label (PDF or PNG, up to 5 MB),
+  and for a supplier pickup the day and window. You book with the courier yourself, outside Effy; this
+  records it. ⚠ The label carries the customer's name and address — it is stored privately and opened
+  only through a short-lived link.
+- **Handed over** — via the hub you record it as before (it books with the order's service if you had
+  not); from a supplier, the supplier presses *Handed over to courier*. The customer is then emailed —
+  once per parcel — with the courier, the reference and the tracking link if there is one.
+- **Progress** — In transit, Delivered, Delivery failed, Lost, Damaged, Returned to sender, each with an
+  optional note. **Delivered** finishes the parcel exactly like recording an arrival. A problem stays a
+  problem until you press **Resolved** (or Delivered). Before handover you can **Cancel booking**.
+
+What the customer sees: one **Track your parcel** link when the order travels as a single parcel and you
+gave a link; *"Tracking for each parcel is sent to you by email"* when it travels as more than one.
+Never how many, and never who packed it.
+
+**How it reaches the courier** (Delivery type section) can be switched — *via the hub* ⇄ *pickup from
+the supplier* — until the first parcel has left. A switch to the supplier is refused while a driver is
+assigned to collect a parcel: **Unassign** them (Packages) first. Switching to the hub cancels any
+booked-but-not-handed-over supplier pickup. Every switch is kept with who, when and why.
 
 **Next step** is the working column:
 
+- **Needs a refund decision** — a shop said it cannot supply its part.
+- **Courier problem** (080) — a courier lost, damaged or returned a parcel, or could not deliver it.
 - **Needs handover** — collected, **a courier's package**, not yet handed over. Your queue. A package Effy
   delivers itself — today, or in a window on a later day — never appears here, whatever it is called.
 - **Awaiting arrival** — handed over, not yet confirmed.

@@ -4,6 +4,7 @@
 // that arrives without its response reaching them is ordinary, and the retry must not apply twice
 // (027's changeId-per-action rule). "Simplify the request shape" was never licence to drop that.
 
+import { deliveredBySql } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
 import type { CollectRequest, HubCheckinResponse } from "@effy/shared-types";
 
@@ -146,20 +147,28 @@ export async function hubCheckin(
     const counts = await tx.query(
       `SELECT COALESCE(sf.delivery_method, 'standard') AS method,
               rp.state                                 AS state,
+              -- 080 — who takes it from the hub: what the driver is told ("Courier"), never the
+              -- customer's word for the delivery.
+              ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
               count(*)::int                            AS n
          FROM public.round_package rp
          JOIN public.round_stop       rs ON rs.id = rp.stop_id
          JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
+         JOIN public."order"          o  ON o.id = sf.order_id
+    LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
         WHERE rs.round_id = $1
-        GROUP BY 1, 2`,
+        GROUP BY 1, 2, 3`,
       [runId],
     );
 
     const n = (method: string, state: string) =>
-      Number(counts.rows.find((r: any) => r.method === method && r.state === state)?.n ?? 0);
+      counts.rows.filter((r: any) => r.method === method && r.state === state).reduce((a: number, r: any) => a + Number(r.n), 0);
 
     const sameDay = n("same_day", "picked_up");
     const standard = n("standard", "picked_up");
+    const courier = counts.rows
+      .filter((r: any) => r.delivered_by === "courier" && r.state === "picked_up")
+      .reduce((a: number, r: any) => a + Number(r.n), 0);
     const arrived = sameDay + standard;
     const expected = counts.rows.reduce((a: number, r: any) => a + Number(r.n), 0);
 
@@ -192,7 +201,7 @@ export async function hubCheckin(
       [runId],
     );
 
-    return { scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard };
+    return { scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier };
   });
 }
 

@@ -135,6 +135,8 @@ export const AWAITING_LABEL: Record<OrderAwaiting, string> = {
   // named for the ACTION SOMEONE MUST TAKE, not for the shop's state: the other two are late
   // packages, this one is money the platform is holding for goods that will never be sent.
   refund_decision: "Needs a refund decision",
+  // ⚠ 080 US5 — a courier lost, damaged or returned a parcel, or could not deliver it.
+  courier_problem: "Courier problem",
   handover: "Needs handover",
   arrival: "Awaiting arrival",
 };

@@ -516,9 +516,9 @@ order was sold. Back-office sees, for each day and window, how full it is.
 
 ---
 
-## E5 — Checkout & Orders: Delivered by Effy vs Courier · spec 079 — ⚠ built 2026-10-09, not yet migrated or deployed
+## E5 — Checkout & Orders: Delivered by Effy vs Courier · spec 079 — ✅ built, migrated and deployed to dev 2026-10-09 (not walked, not signed off)
 
-> **2026-10-09 — E5 (spec 079) is BUILT and checked by machine; not migrated, deployed or walked**
+> **2026-10-09 — E5 (spec 079) is BUILT, MIGRATED AND DEPLOYED TO DEV (operator-reported); not walked or signed off**
 > (`specs/079-effy-vs-courier-checkout/SIGNOFF.md`). It rides 078's switch. What it leaves:
 > - **E6** — per-courier-service estimates (one platform text for now); courier timing proper (a courier
 >   order is simply due at the carrier the day it is placed); the driver app still says "Standard" at
@@ -652,6 +652,21 @@ unchanged.
 
 ## E6 — Courier Fulfilment (hub handover or shop pickup) · spec 080
 
+> **2026-10-09 — specified and planned (`specs/080-courier-fulfilment/plan.md`).** Corrections to the tasks
+> below: E6-T04 — the consignment sits BESIDE `carrier_handoff` (handed over) and `package_arrival`
+> (delivered), which keep their one writer each; E6-T06 — status gains a courier problem, nothing else;
+> E6-T10 — 079 already made a courier order due "the day placed"; E6 replaces that with the service's
+> next pickup. Courier services also replace 079's single estimate text. The courier survey (E6-T01) is
+> in research R12, from general knowledge and unverified — the operator chooses and enters services.
+>
+> **2026-10-09 — BUILT (not yet migrated or deployed).** Record: `FEATURE-HISTORY.md` 080 and
+> `specs/080-courier-fulfilment/SIGNOFF.md`. Deviations: E6-T09 — a switch to supplier pickup is
+> **refused** while a driver is assigned to collect (unassign first, 073), not silently withdrawn;
+> E6-T18 — "Courier problem" is an open failed/lost/damaged/returned only, a parcel merely overdue with
+> the courier is at-risk on the Courier tab and alarmed, not a Problem; E6-T24 — the alarm is on parcels
+> late at the hub or at a supplier (2 h), from a 30-minute sweep. E6-T10's 069 day−lead remains for
+> pre-080 carrier packages until E9.
+
 **Goal.** Courier orders physically reach the courier, either via Effy's hub (as today) or
 picked up straight from the shop, chosen by a back-office setting.
 
@@ -669,7 +684,8 @@ consignments per package, handover at hub (exists, 053 `carrier_handoff`), shop 
 - A two-shop order with shop pickup has two consignments; the customer still sees one order.
 - Staff can override the mode per order until the first parcel has been handed over.
 
-**`/speckit-specify` prompt**
+**`/speckit-specify` prompt** — *amended 2026-10-09 with what 079 left for E6: per-service estimates,
+courier due times, the driver app's word at hub check-in, and tracking per Q8.*
 
 ```
 /speckit-specify Courier Fulfilment. Orders delivered by courier reach the courier in one of two ways,
@@ -687,48 +703,54 @@ and record the handover. Staff can record courier progress (in transit, delivere
 and a delivered courier parcel completes like any other. When a courier cannot pick up from a supplier,
 staff can switch that order to "via the hub". Problems (lost, damaged, returned to sender) are raised
 to back-office with the order. In this feature bookings are made and recorded by staff; automatic
-booking with a courier company comes later.
+booking with a courier company comes later. The business keeps a list of the courier services it uses,
+each with its own usual timeframe; a courier order is told the timeframe of the service it will go
+with, and keeps what it was told. A courier parcel waiting at the hub is due to go out by the next
+pickup of its courier service, and staff see the ones that are late. Drivers checking parcels in at the
+hub see "Courier" for parcels that go to a courier, never "Standard". A customer sees one tracking link
+for their order only when it travels as a single consignment; otherwise they are told tracking is sent
+by email for each parcel.
 ```
 
 **Tasks**
 
 *Research (plan phase)*
-- [ ] E6-T01 Research couriers in Melbourne/Sydney with business-address pickup and an API: Sendle, CouriersPlease, Australia Post / StarTrack (MyPost Business / AP Shipping API), Aramex, Uber Direct, Zoom2u, DoorDash Drive. Compare: pickup from many addresses, same-day vs next-day, label API, tracking webhooks, pricing model, contract need. Write `specs/079-*/research.md`.
-- [ ] E6-T02 Decide what 053's "no carrier table because no contract" rule becomes once a courier is chosen (constitution: identifiers are asked for, never inferred — courier account details come from the operator).
+- [x] E6-T01 Research couriers in Melbourne/Sydney with business-address pickup and an API: Sendle, CouriersPlease, Australia Post / StarTrack (MyPost Business / AP Shipping API), Aramex, Uber Direct, Zoom2u, DoorDash Drive. Compare: pickup from many addresses, same-day vs next-day, label API, tracking webhooks, pricing model, contract need. Write `specs/079-*/research.md`.
+- [x] E6-T02 Decide what 053's "no carrier table because no contract" rule becomes once a courier is chosen (constitution: identifiers are asked for, never inferred — courier account details come from the operator).
 *Data*
-- [ ] E6-T03 Migration: `courier_service` (name, service code, estimate text, status) — operator-entered.
-- [ ] E6-T04 Migration: `courier_consignment` (shop_fulfillment id, courier_service id, collection mode `hub|shop_pickup`, reference nullable, label URL nullable, booked_at, handed_over_at, state `booked|handed_over|in_transit|delivered|failed|returned`, actor). Relationship with `carrier_handoff` (053): migrate it into consignment or keep both — decide in plan; one source of truth.
-- [ ] E6-T05 Settings: `courier_collection_mode_default` (`hub`); order column `courier_collection_mode` (nullable override).
-- [ ] E6-T06 `public.package_status` derivation (`shared/src/status/sql.ts`) reads consignments.
+- [x] E6-T03 Migration: `courier_service` (name, service code, estimate text, status) — operator-entered.
+- [x] E6-T04 Migration: `courier_consignment` (shop_fulfillment id, courier_service id, collection mode `hub|shop_pickup`, reference nullable, label URL nullable, booked_at, handed_over_at, state `booked|handed_over|in_transit|delivered|failed|returned`, actor). Relationship with `carrier_handoff` (053): migrate it into consignment or keep both — decide in plan; one source of truth.
+- [x] E6-T05 Settings: `courier_collection_mode_default` (`hub`); order column `courier_collection_mode` (nullable override).
+- [x] E6-T06 `public.package_status` derivation (`shared/src/status/sql.ts`) reads consignments.
 *Orders service* (`apis/edge-api/orders/src/handoff`, `arrival`)
-- [ ] E6-T07 Extend `handovers-v1-get.ts` / `fulfillment-handoff-v1-post.ts` for consignment create/handover at hub.
-- [ ] E6-T08 Routes: record courier progress (in transit/delivered/failed/returned) — staff-entered.
-- [ ] E6-T09 Route: change collection mode per order (guarded: before first handover).
-- [ ] E6-T10 Remove `carrier_lead_days` day−lead handover scheduling for Effy (069) — courier hub handover becomes "next courier pickup", not "chosen day minus lead".
+- [x] E6-T07 Extend `handovers-v1-get.ts` / `fulfillment-handoff-v1-post.ts` for consignment create/handover at hub.
+- [x] E6-T08 Routes: record courier progress (in transit/delivered/failed/returned) — staff-entered.
+- [x] E6-T09 Route: change collection mode per order (guarded: before first handover).
+- [x] E6-T10 Remove `carrier_lead_days` day−lead handover scheduling for Effy (069) — courier hub handover becomes "next courier pickup", not "chosen day minus lead".
 *Shop service*
-- [ ] E6-T11 Shop view: "Courier pickup" parcels for today (reference, courier, pickup time), mark handed over.
-- [ ] E6-T12 Delivery-isolation contract (`shop/src/delivery-isolation.contract.test.ts`): shop never sees fee/window/customer address beyond what a label requires — decide label content with D13.
+- [x] E6-T11 Shop view: "Courier pickup" parcels for today (reference, courier, pickup time), mark handed over.
+- [x] E6-T12 Delivery-isolation contract (`shop/src/delivery-isolation.contract.test.ts`): shop never sees fee/window/customer address beyond what a label requires — decide label content with D13.
 *Fleet / planner*
-- [ ] E6-T13 `fleet/src/planner/*`: courier packages in hub mode still go on collection runs; shop-pickup packages are **excluded** from collection runs.
-- [ ] E6-T14 Driver app: hub check-in shows "Courier" (not "Standard") for parcels to hand over.
+- [x] E6-T13 `fleet/src/planner/*`: courier packages in hub mode still go on collection runs; shop-pickup packages are **excluded** from collection runs.
+- [x] E6-T14 Driver app: hub check-in shows "Courier" (not "Standard") for parcels to hand over.
 *Back-office*
-- [ ] E6-T15 Courier services settings screen.
-- [ ] E6-T16 Handover console (hub): due parcels by courier, record reference + handover.
-- [ ] E6-T17 Order detail: consignments, mode, override control, progress entry.
-- [ ] E6-T18 Problems queue for failed/returned consignments (reuse 073's exceptions area if possible).
+- [x] E6-T15 Courier services settings screen.
+- [x] E6-T16 Handover console (hub): due parcels by courier, record reference + handover.
+- [x] E6-T17 Order detail: consignments, mode, override control, progress entry.
+- [x] E6-T18 Problems queue for failed/returned consignments (reuse 073's exceptions area if possible).
 *Shop web / shop mobile*
-- [ ] E6-T19 shop-web: Courier pickup list + handed-over action + label print/reference.
-- [ ] E6-T20 shop-mobile: same.
+- [x] E6-T19 shop-web: Courier pickup list + handed-over action + label print/reference.
+- [x] E6-T20 shop-mobile: same.
 *Customer surfaces*
-- [ ] E6-T21 Tracking display per Q8 (single-consignment link, or email per parcel).
-- [ ] E6-T22 "With carrier" notification (email + push).
+- [x] E6-T21 Tracking display per Q8 (single-consignment link, or email per parcel).
+- [x] E6-T22 "With carrier" notification (email + push).
 *Live updates, telemetry*
-- [ ] E6-T23 Announce on consignment changes (`orders`, `rounds` kinds) — `change-map.guard.test.ts`.
-- [ ] E6-T24 Metrics: consignments by state; alarm on parcels booked but not handed over after N hours.
+- [x] E6-T23 Announce on consignment changes (`orders`, `rounds` kinds) — `change-map.guard.test.ts`.
+- [x] E6-T24 Metrics: consignments by state; alarm on parcels booked but not handed over after N hours.
 *Tests, docs*
-- [ ] E6-T25 Container tests: hub path, shop-pickup path, two-shop order, mode switch, status derivation.
-- [ ] E6-T26 Runbook `docs/runbooks/courier-handover.md`.
-- [ ] E6-T27 FEATURE-HISTORY entry + operator steps.
+- [x] E6-T25 Container tests: hub path, shop-pickup path, two-shop order, mode switch, status derivation.
+- [x] E6-T26 Runbook `docs/runbooks/courier-handover.md`.
+- [x] E6-T27 FEATURE-HISTORY entry + operator steps.
 
 ---
 

@@ -28,6 +28,7 @@
  * (FR-030) and are terminal + immutable (FR-011f) — a placeholder for the real driver slice.
  */
 import type { DeliveredBy } from "./delivery-type";
+import type { CourierPickupDTO } from "./shop-order-console";
 
 export type FulfillmentStatus =
   | "pending"
@@ -103,6 +104,8 @@ export interface DeliveryPromiseDTO {
    * server older than 079. Print it through `DELIVERED_BY_WORDS`.
    */
   deliveredBy?: DeliveredBy;
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO;
   /** ISO-8601. The time by which THIS shop must be ready. */
   readyBy: string;
 }

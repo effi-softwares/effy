@@ -105,6 +105,11 @@ export async function addOrderNote(id: string, body: string): Promise<ShopOrderD
  * Item-level picking (A3 revision 2): one line for a tick or an Adjust, every line for Select all.
  * ⚠ Ticking a received order starts picking server-side — the tick is the start.
  */
+/** 080 — the courier collected this parcel from the shop. Booked pickups only; a repeat is the same answer. */
+export async function courierHandover(id: string): Promise<FulfillmentDetail> {
+  return api.post<FulfillmentDetail>(`/shop/v1/fulfillments/${id}/courier-handover`, {});
+}
+
 export async function setOrderPicks(id: string, body: ShopOrderPicksRequest): Promise<ShopOrderDetailDTO> {
   return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/picks`, body);
 }

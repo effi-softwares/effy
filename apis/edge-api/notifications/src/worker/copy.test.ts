@@ -35,6 +35,8 @@ const ALL: NotificationType[] = [
   // 074
   "points_credited",
   "points_expiring",
+  // 080
+  "order_with_courier",
 ];
 
 describe("notification copy + wire contract", () => {
@@ -174,6 +176,9 @@ describe("notification copy + wire contract", () => {
       expect(deepLinkFor(t, "entry-1")).toBe("effy://points");
       expect(webPathFor(t, "entry-1")).toBe("/account?tab=points");
     }
+    // 080 — the entity is a consignment; the tap opens the orders, never a consignment id as an order.
+    expect(deepLinkFor("order_with_courier", "consignment-1")).toBe("effy://order");
+    expect(webPathFor("order_with_courier", "consignment-1")).toBe("/orders");
     // Every other type still carries its entity.
     expect(deepLinkFor("order_paid", "o-1")).toBe("effy://order/o-1");
   });

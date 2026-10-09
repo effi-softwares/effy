@@ -45,3 +45,8 @@ class RecordItemProgress(private val repo: OrderRepository) {
     suspend operator fun invoke(id: String, orderItemId: String, progress: ItemProgress): FulfillmentDetail =
         repo.recordItemProgress(id, orderItemId, progress)
 }
+
+/** 080 — the courier collected this parcel from the shop. A 409 means it is not booked or not packed. */
+class HandOverToCourier(private val repo: OrderRepository) {
+    suspend operator fun invoke(id: String): FulfillmentDetail = repo.handOverToCourier(id)
+}

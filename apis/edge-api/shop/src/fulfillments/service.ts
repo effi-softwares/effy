@@ -1,6 +1,9 @@
 // Service for shop order fulfilment (020): state-machine rules and validation. No HTTP, no SQL
 // (constitution Principle VI). The repository owns shop-scoping; this module owns legality.
 
+import { withTransaction } from "@effy/edge-shared";
+import { ConsignmentRefusal, handOver } from "@effy/edge-shared/delivery";
+import { announceOrder } from "@effy/edge-shared/live";
 import { announceMoves } from "@effy/edge-shared/live";
 import * as repo from "./repository";
 import {
@@ -201,3 +204,40 @@ function parseProgress(body: Record<string, unknown>): ItemProgress {
 /** Re-exported for tests that assert legality without touching the database. */
 export { isLegalTransition };
 export type { FulfillmentStatus };
+
+/**
+ * 080 US2 — the shop hands a parcel to the courier that came to collect it.
+ *
+ * ⚠ OWN SHOP ONLY: the package is read through the shop-scoped status read first, so another shop's
+ * package — or one that does not exist — is the same 403. The write is the ONE writer's
+ * (`@effy/edge-shared/delivery` `handOver`, actor `shop`): `carrier_handoff`, the package leaving the
+ * shop (`collected`), the consignment and the customer's "on its way" notice, in one transaction.
+ *
+ * ⚠ It refuses a parcel that goes via the hub (`not_found` from the writer → 403 here, the same as
+ * someone else's) and one nobody has booked yet (`not_booked` → 409): a shop cannot tell the customer
+ * a courier has it before staff have arranged one.
+ */
+export async function courierHandover(actor: Actor, fulfillmentId: string, reference: string | null): Promise<FulfillmentDetail> {
+  const before = await repo.readStatus(fulfillmentId, actor.shopId);
+  if (before === null) throw notFound();
+  let out;
+  try {
+    out = await withTransaction((tx) =>
+      handOver(tx, { packageId: fulfillmentId, actor: { kind: "shop", sub: actor.sub, staffId: actor.staffId }, reference }),
+    );
+  } catch (err) {
+    if (err instanceof ConsignmentRefusal) {
+      if (err.code === "not_found" || err.code === "not_courier" || err.code === "not_standard") throw notFound();
+      throw new FulfillmentError("conflict", err.code === "not_booked"
+        ? "no courier pickup has been booked for this parcel yet"
+        : err.code === "not_ready" ? "mark the parcel ready first" : err.message);
+    }
+    throw err;
+  }
+  if (out.created) {
+    // 071 — committed: this shop's screens (the status moved), the customer, and back-office.
+    if (before !== "collected") await announceMoves([{ fulfillmentId, from: before }]);
+    await announceOrder(out.orderId);
+  }
+  return getDetail(actor, fulfillmentId);
+}

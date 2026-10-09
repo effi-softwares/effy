@@ -4,6 +4,8 @@
 // to select (D20/D22). A shop has an ADDRESS so a driver knows where to drive; nothing computes how
 // far it is.
 
+import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
+
 /**
  * Packages a wave may pick up: ready, not already in an open assignment, and — for a delivery wave —
  * already checked in at the hub.
@@ -53,6 +55,10 @@ export const GATHER_COLLECTION = `
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE sf.status = 'ready_for_pickup'
+     -- ⚠ 080 — A COURIER COLLECTS IT FROM THE SUPPLIER: no Effy driver goes for it, ever — not in a
+     -- pass and not when staff ask "who can take this one?". Asked through the ONE fragment, so the
+     -- planner and the shop console cannot disagree about which parcels are the supplier's to hand over.
+     AND ${COURIER_COLLECTION_SQL("o")} <> 'supplier'
      -- 073 — $1, when given, asks about ONE package and includes it even while it is assigned (the
      -- driver list for "Assign to…" is asked about a package somebody already has). NULL = the pass.
      AND ($1::uuid IS NULL OR sf.id = $1::uuid)

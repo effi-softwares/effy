@@ -114,8 +114,12 @@ export interface CourierQuote {
   coverage: "courier";
   /** The courier fee for the whole order — `courierFee`, nothing from Effy's plan. */
   fee: PricedFee;
-  /** The business's estimate text as it stands now; the order keeps a copy. */
+  /** The default courier service's timeframe as it stands now; the order keeps a copy. */
   estimate: string;
+  /** 080 — that service, recorded on the order. */
+  serviceId: string;
+  /** 080 — how the order's parcels will reach the courier (the platform default now). */
+  collection: "hub" | "supplier";
   /**
    * `out_of_coverage`: Effy does not deliver to the address. `no_window`: it does, but no window is
    * open on any offered day and the business sends such an order by courier (FR-011).
@@ -217,13 +221,15 @@ async function quoteCourier(
     if (err instanceof NoActivePlanError) throw new CourierNotPurchasableError(postcode, "no active courier fee table");
     throw err;
   }
-  const { estimateText } = await loadCourierSettings(q);
-  if (estimateText === null) throw new CourierNotPurchasableError(postcode, "no estimate text");
+  const { estimateText, defaultServiceId, collectionDefault } = await loadCourierSettings(q);
+  if (estimateText === null || defaultServiceId === null) throw new CourierNotPurchasableError(postcode, "no default courier service");
   return {
     serviced: true,
     coverage: "courier",
     fee: priceCourierOrder(plan, postcode, grams, basketCents),
     estimate: estimateText,
+    serviceId: defaultServiceId,
+    collection: collectionDefault,
     reason,
     freeDeliveryRemainingCents:
       plan.freeOverCents !== null && basketCents < plan.freeOverCents ? plan.freeOverCents - basketCents : null,

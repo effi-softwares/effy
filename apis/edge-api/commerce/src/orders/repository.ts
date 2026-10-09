@@ -48,6 +48,14 @@ export interface OrderRow {
    */
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
+  /**
+   * 080 — what tracking a customer may be shown: how many parcels the order is, how many have gone
+   * to a courier, and — only when exactly one has — its link and courier. Never per parcel.
+   */
+  parcel_count?: number;
+  consignments_out?: number;
+  only_tracking_url?: string | null;
+  only_courier_name?: string | null;
 }
 
 export interface ItemRow {
@@ -144,8 +152,22 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        (SELECT status FROM public.payment WHERE order_id = o.id) AS payment_status,
        o.points_used AS points_used, o.points_value_amount::text AS points_value_amount,
        (SELECT amount::text FROM public.payment WHERE order_id = o.id) AS card_paid_amount,
-       o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate
+       o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate,
+       -- 080 — the parcels still on their way to the customer (a withdrawn or unsupplied portion is not one).
+       (SELECT count(*) FROM public.shop_fulfillment sf
+         WHERE sf.order_id = o.id AND sf.status NOT IN ('withdrawn', 'unfulfillable'))::int AS parcel_count,
+       out.n AS consignments_out,
+       CASE WHEN out.n = 1 THEN out.url END AS only_tracking_url,
+       CASE WHEN out.n = 1 THEN out.courier END AS only_courier_name
 FROM public."order" o
+-- ⚠ A consignment counts once the parcel is WITH the courier: a booking is not yet something to track.
+CROSS JOIN LATERAL (
+  SELECT count(*)::int AS n, max(cc.tracking_url) AS url, max(cs.courier_name) AS courier
+    FROM public.courier_consignment cc
+    JOIN public.shop_fulfillment sf ON sf.id = cc.shop_fulfillment_id
+    JOIN public.courier_service cs ON cs.id = cc.courier_service_id
+   WHERE sf.order_id = o.id AND cc.state NOT IN ('booked', 'cancelled')
+) out
 WHERE o.id = $1 AND o.customer_id = $2`,
             [orderId, customerId],
           )

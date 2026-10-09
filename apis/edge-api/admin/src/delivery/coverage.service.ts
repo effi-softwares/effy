@@ -100,7 +100,8 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
   // tell a person what to do first instead of refusing them when they try.
   const blockedBy: CourierBlocker[] = [
     ...(courierPlan === null ? ["no_fee_table" as const] : []),
-    ...(courier.estimateText === null ? ["no_estimate" as const] : []),
+    // 080 — the default courier service carries the timeframe a customer is told.
+    ...(courier.defaultService === null ? ["no_service" as const] : []),
   ];
   const page = rows.slice(0, PAGE);
   return {
@@ -112,6 +113,8 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
       offered: courier.offered,
       estimateText: courier.estimateText,
       whenNoWindows: courier.whenNoWindows,
+      collectionDefault: courier.collectionDefault,
+      defaultService: courier.defaultService,
       blockedBy,
       // On and ready, waiting for the new delivery model: no customer is offered it yet (079 FR-035).
       pending: courier.state === "courier_pending",
@@ -267,8 +270,7 @@ export async function removeGroup(id: string, confirmNoDrivers: boolean, sub: st
 
 const COURIER_REFUSALS: Record<repo.CourierRefusal, string> = {
   courier_plan_missing: "make a courier fee table active before switching courier delivery on",
-  courier_estimate_missing: "say how long a courier usually takes before switching courier delivery on",
-  courier_estimate_in_use: "switch courier delivery off before removing its estimate",
+  courier_service_missing: "add a courier service and make it the default before switching courier delivery on",
 };
 
 /** 3–60 characters on one line, trimmed; `null` clears it. Anything else is a field error. */
@@ -282,17 +284,16 @@ function estimateOf(v: unknown): string | null {
 }
 
 /**
- * Change courier delivery (076 FR-016; 079): on or off, the estimate customers are shown, and
- * whether an address with no delivery window left may be sent by courier. Any of the three.
+ * Change courier delivery (076 FR-016; 079; 080): on or off, whether an address with no delivery
+ * window left may be sent by courier, and how new courier orders reach the courier.
  *
- * ⚠ ON NEEDS A PRICE AND AN ESTIMATE, AND NOTHING ELSE. It no longer waits for the courier checkout
- * to exist: `coverage_for_postcode` answers "courier" only once the new delivery model is on, so
- * switching it on early promises nobody anything — the console says it is pending.
+ * ⚠ ON NEEDS A PRICE AND A DEFAULT COURIER SERVICE, AND NOTHING ELSE. It promises nobody anything
+ * before the new delivery model is on — the console says it is pending.
  */
 export async function setCourier(
-  body: { offered?: unknown; estimateText?: unknown; whenNoWindows?: unknown },
+  body: { offered?: unknown; estimateText?: unknown; whenNoWindows?: unknown; collectionDefault?: unknown },
   sub: string,
-): Promise<Pick<CourierReachDTO, "offered" | "estimateText" | "whenNoWindows">> {
+): Promise<Pick<CourierReachDTO, "offered" | "estimateText" | "whenNoWindows" | "collectionDefault">> {
   const change: repo.CourierChange = {};
   if (body?.offered !== undefined) {
     if (typeof body.offered !== "boolean") throw new CoverageError(400, "invalid_request", "offered must be true or false");
@@ -301,6 +302,12 @@ export async function setCourier(
   if (body?.whenNoWindows !== undefined) {
     if (typeof body.whenNoWindows !== "boolean") throw new CoverageError(400, "invalid_request", "whenNoWindows must be true or false");
     change.whenNoWindows = body.whenNoWindows;
+  }
+  if (body?.collectionDefault !== undefined) {
+    if (body.collectionDefault !== "hub" && body.collectionDefault !== "supplier") {
+      throw new CoverageError(400, "invalid_request", "collectionDefault must be hub or supplier");
+    }
+    change.collectionDefault = body.collectionDefault;
   }
   if (body?.estimateText !== undefined) change.estimateText = estimateOf(body.estimateText);
   if (Object.keys(change).length === 0) throw new CoverageError(400, "invalid_request", "nothing to change");

@@ -1,0 +1,18 @@
+Your {{effyProductName}} order {{orderNumber}} is with the courier
+
+A parcel from order {{orderNumber}} has been handed to {{courierName}} and is on its way to you.
+{{#if hasReference}}
+
+Courier reference: {{reference}}{{/if}}
+{{#if hasTracking}}
+
+Track your parcel: {{trackingUrl}}{{/if}}
+
+View your order: {{orderUrl}}
+
+Something not right? Reply to this email or write to {{effySupportEmail}} and we'll sort it out.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

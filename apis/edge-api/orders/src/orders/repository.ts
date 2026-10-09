@@ -4,7 +4,7 @@
 // or an order detail in any internal console, which is why a customer told "contact support and
 // we'll sort it out" (020 FR-018b) reached people who could not see what they were being asked about.
 
-import { deliveredBySql } from "@effy/edge-shared/delivery";
+import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
 import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
 import { query } from "@effy/edge-shared";
@@ -17,6 +17,38 @@ import { query } from "@effy/edge-shared";
  * forgets the window hands an Effy parcel to a carrier.
  */
 const COURIER_PACKAGE = deliveredBySql("o", "opd.method", "opd.slot_id");
+
+/**
+ * 080 — what decides when a courier parcel is due out, for a package `sf` of order `o`: how it
+ * reaches the courier, when it was checked in at the hub, and the pickup days and cutoff of its
+ * service (the booked consignment's, else the one the order was sold). Computed into a moment by
+ * `nextCourierPickup` — never in SQL, so the calendar rule has one implementation.
+ */
+const COURIER_FACTS = `
+            ${COURIER_COLLECTION_SQL("o")} AS courier_collection,
+            (SELECT hc.checked_in_at FROM public.round_package rp
+               JOIN public.round_stop rs ON rs.id = rp.stop_id
+               JOIN public.driver_round dr ON dr.id = rs.round_id AND dr.kind = 'collection'
+               JOIN public.hub_checkin hc ON hc.round_id = dr.id
+              WHERE rp.shop_fulfillment_id = sf.id AND rp.state = 'picked_up'
+              ORDER BY hc.checked_in_at DESC LIMIT 1) AS checked_in_at,
+            cs.pickup_weekdays::int[] AS service_weekdays,
+            to_char(cs.pickup_cutoff, 'HH24:MI') AS service_cutoff`;
+
+/**
+ * 080 US5 — an OPEN courier problem on package `sf`: its live consignment's latest step is failed,
+ * lost, damaged or returned, and nobody has resolved it. ⚠ The same states `public` status reads as
+ * Problem (`shared/src/status/sql.ts`), so the badge, the filter and the package word agree. A parcel
+ * merely LATE with the courier is not a problem yet: it is "at risk" on the Courier tab and the alarm.
+ */
+const OPEN_COURIER_PROBLEM = `EXISTS (
+  SELECT 1 FROM public.courier_consignment cp
+   WHERE cp.shop_fulfillment_id = sf.id AND cp.state IN ('failed', 'lost', 'damaged', 'returned'))`;
+
+/** The courier service a package goes with: its live consignment's, else its order's. Join after `o`. */
+const COURIER_SERVICE_JOIN = `
+  LEFT JOIN public.courier_consignment cc ON cc.shop_fulfillment_id = sf.id AND cc.state <> 'cancelled'
+  LEFT JOIN public.courier_service cs ON cs.id = COALESCE(cc.courier_service_id, o.courier_service_id)`;
 
 export interface OrderSummaryRow {
   id: string;
@@ -40,6 +72,8 @@ export interface OrderSummaryRow {
   package_count: number;
   awaiting_handover: number;
   awaiting_arrival: number;
+  /** 080 — packages with an open courier problem. */
+  courier_problems: number;
   grand_total_amount: string;
   currency: string;
   statuses: string[];
@@ -135,6 +169,8 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
       SELECT 1 FROM public.shop_fulfillment sf
        WHERE sf.order_id = o.id AND sf.status = 'unfulfillable'
     )`);
+  } else if (params.awaiting === "courier_problem") {
+    where.push(`EXISTS (SELECT 1 FROM public.shop_fulfillment sf WHERE sf.order_id = o.id AND ${OPEN_COURIER_PROBLEM})`);
   } else if (params.awaiting === "arrival") {
     where.push(`EXISTS (
       SELECT 1 FROM public.shop_fulfillment sf
@@ -159,6 +195,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             COALESCE(p.package_count, 0)     AS package_count,
             COALESCE(p.awaiting_handover, 0) AS awaiting_handover,
             COALESCE(p.awaiting_arrival, 0)  AS awaiting_arrival,
+            COALESCE(p.courier_problems, 0)  AS courier_problems,
             COALESCE(p.statuses, ARRAY[]::text[]) AS statuses,
             COALESCE(p.package_ids, ARRAY[]::text[]) AS package_ids
        FROM public."order" o
@@ -172,6 +209,8 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
                        AND h.id IS NULL
                    )::int AS awaiting_handover,
                    count(*) FILTER (WHERE pa.id IS NULL)::int AS awaiting_arrival,
+                   -- ⚠ The same term as the filter above (080).
+                   count(*) FILTER (WHERE ${OPEN_COURIER_PROBLEM})::int AS courier_problems,
                    array_agg(sf.status ORDER BY sf.status) AS statuses,
                    array_agg(sf.id::text ORDER BY sf.id) AS package_ids
               FROM public.shop_fulfillment sf
@@ -215,6 +254,8 @@ export interface OrderDetailRow {
   delivery_type: "effy" | "courier" | null;
   delivery_type_reason: "in_coverage" | "out_of_coverage" | "no_window" | "staff_change" | null;
   courier_estimate: string | null;
+  /** 080 */
+  courier_collection: "hub" | "supplier" | null;
   payment_status: string | null;
   method_type: string | null;
   method_brand: string | null;
@@ -244,7 +285,7 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.billing_address,
             o.delivery_handover,
             o.delivery_note,
-            o.delivery_type, o.delivery_type_reason, o.courier_estimate,
+            o.delivery_type, o.delivery_type_reason, o.courier_estimate, o.courier_collection,
             pay.status AS payment_status,
             pay.method_type, pay.method_brand, pay.method_last4,
             o.points_used, o.points_value_amount::text AS points_value_amount, pay.amount::text AS card_paid_amount
@@ -256,6 +297,15 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
     [orderId],
   );
   return res.rows[0] ?? null;
+}
+
+/** 080 — a courier order's collection-mode changes, oldest first. Read only; consignment.ts writes. */
+export async function courierCollectionHistory(orderId: string): Promise<{ from_mode: "hub" | "supplier"; to_mode: "hub" | "supplier"; actor_sub: string; note: string | null; created_at: Date }[]> {
+  const res = await query<{ from_mode: "hub" | "supplier"; to_mode: "hub" | "supplier"; actor_sub: string; note: string | null; created_at: Date }>(
+    `SELECT from_mode, to_mode, actor_sub, note, created_at FROM public.order_courier_collection_change WHERE order_id = $1 ORDER BY created_at`,
+    [orderId],
+  );
+  return res.rows;
 }
 
 export interface DeliveryTypeChangeRow {
@@ -338,6 +388,13 @@ export interface PackageRow {
   handoff_date: string | null;
   arrival_date: string | null;
   carrier_lead_days: number;
+  /** 080 — how a courier order's parcels reach the courier; null unless a courier delivers. */
+  courier_collection: "hub" | "supplier" | null;
+  /** 080 — when it was checked in at the hub; null when it has not been (or never goes there). */
+  checked_in_at: Date | null;
+  /** 080 — the courier service it goes with (the booked one, else the one the order was sold). */
+  service_weekdays: number[] | null;
+  service_cutoff: string | null;
 }
 
 /** Melbourne's calendar date for a timestamptz expression, as text. */
@@ -367,7 +424,8 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
             ${MEL_DATE("now()")} AS today,
             ${MEL_DATE("h.handed_over_at")} AS handoff_date,
             ${MEL_DATE("pa.arrived_at")} AS arrival_date,
-            ${CARRIER_LEAD_DAYS}::int AS carrier_lead_days
+            ${CARRIER_LEAD_DAYS}::int AS carrier_lead_days,
+            ${COURIER_FACTS}
        FROM public.shop_fulfillment sf
        JOIN public."order" o ON o.id = sf.order_id
        JOIN public.shop s ON s.id = sf.shop_id
@@ -376,6 +434,7 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
   LEFT JOIN public.delivery_slot_booking b ON b.order_id = sf.order_id
   LEFT JOIN public.carrier_handoff h  ON h.shop_fulfillment_id = sf.id
   LEFT JOIN public.package_arrival pa ON pa.shop_fulfillment_id = sf.id
+  ${COURIER_SERVICE_JOIN}
       WHERE sf.order_id = $1
    ORDER BY s.name`,
     [orderId],
@@ -469,62 +528,73 @@ export async function history(orderId: string): Promise<HistoryRow[]> {
 
 // ── 069: the carrier handover list ───────────────────────────────────────────────────────────────
 
-export interface HandoverRow {
+export interface CourierParcelRow {
   fulfillment_id: string;
   order_id: string;
   order_number: string;
   /** Null for an order sold as a courier delivery (079): it was told an estimate, not a day. */
   promised_date: string | null;
-  due_on: string;
+  /** 069's day for a pre-080 carrier package: the promised day less the carrier lead time. */
+  legacy_due_on: string | null;
   today: string;
   at_hub: boolean;
+  courier_order: boolean;
+  courier_collection: "hub" | "supplier";
+  checked_in_at: Date | null;
+  placed_at: Date | null;
+  service_label: string | null;
+  service_weekdays: number[] | null;
+  service_cutoff: string | null;
+  max_business_days: number | null;
+  consignment_state: string | null;
+  pickup_date: string | null;
+  pickup_from: string | null;
+  pickup_to: string | null;
+  handed_over_at: Date | null;
 }
 
 /**
- * Standard packages with a promised day that have not been handed to the carrier (069 US7).
+ * Every courier parcel that is not finished (080): not yet handed over, or with the courier and not
+ * delivered. The service decides which Courier-tab view each belongs to and when it is due — the
+ * calendar rule lives in `nextCourierPickup`, not here.
  *
- * `due` selects against the day each must leave the hub — its promised day minus the carrier lead
- * time: "today" is due today, "overdue" should already have gone, "upcoming" is not due yet.
- *
- * ⚠ A PACKAGE WITH NO PROMISED DAY NEVER APPEARS. Every order placed before 069 was promised none
- * (research R1); listing it as overdue would be inventing a promise in order to have broken it. The
- * existing "awaiting handover" filter on the order list still finds those.
- *
- * ⚠ NOT LIMITED TO PACKAGES ALREADY AT THE HUB. A package due out today that the driver has not
- * collected yet is exactly the one staff most need to see; `at_hub` says which it is.
+ * ⚠ A package Effy delivers itself never appears (`package_delivered_by`). An order from before 069
+ * that promised no day and was never a courier order is not listed: there is nothing to be due by —
+ * the "awaiting handover" filter on the order list still finds it.
  */
-export async function handovers(due: "today" | "overdue" | "upcoming"): Promise<HandoverRow[]> {
-  const cmp = due === "today" ? "=" : due === "overdue" ? "<" : ">";
-  const res = await query<HandoverRow>(
-    `SELECT * FROM (
-       SELECT sf.id AS fulfillment_id,
-              o.id AS order_id,
-              o.order_number,
-              opd.promised_to::text AS promised_date,
-              -- ⚠ 079 — a courier ORDER was promised no day: it is due out the day it was placed,
-              -- and overdue from the next. (Courier pickup timing proper is the courier feature's.)
-              COALESCE((opd.promised_to - ${CARRIER_LEAD_DAYS}::int)::text, ${MEL_DATE("o.placed_at")}) AS due_on,
-              ${MEL_DATE("now()")} AS today,
-              (sf.status = 'collected') AS at_hub
-         FROM public.shop_fulfillment sf
-         JOIN public."order" o ON o.id = sf.order_id
-         JOIN public.order_package_delivery opd
-           ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
-    LEFT JOIN public.carrier_handoff h ON h.shop_fulfillment_id = sf.id
-        WHERE o.status = 'paid'
-          -- ⚠ 079 — a courier's package by the one definition: a package Effy delivers itself
-          -- (same-day, or sold a window on a later day) never appears here.
-          AND ${COURIER_PACKAGE} = 'courier'
-          -- Something to be due BY: a promised day (069), or an order sold as a courier delivery,
-          -- which goes out as soon as it can. An order from before 069 promised no day and is not
-          -- listed — the "awaiting handover" filter on the order list still finds it.
-          AND (opd.promised_to IS NOT NULL OR o.delivery_type = 'courier')
-          AND h.id IS NULL
-          AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
-     ) p
-     WHERE p.due_on ${cmp} p.today
-     ORDER BY p.due_on ASC, p.order_number ASC
-     LIMIT 200`,
+export async function courierParcels(): Promise<CourierParcelRow[]> {
+  const res = await query<CourierParcelRow>(
+    `SELECT sf.id AS fulfillment_id,
+            o.id AS order_id,
+            o.order_number,
+            opd.promised_to::text AS promised_date,
+            (opd.promised_to - ${CARRIER_LEAD_DAYS}::int)::text AS legacy_due_on,
+            ${MEL_DATE("now()")} AS today,
+            (sf.status = 'collected') AS at_hub,
+            (o.delivery_type = 'courier') IS TRUE AS courier_order,
+            ${COURIER_FACTS},
+            o.placed_at,
+            cs.courier_name || ' · ' || cs.service_name AS service_label,
+            cs.max_business_days,
+            cc.state AS consignment_state,
+            cc.pickup_date::text AS pickup_date,
+            to_char(cc.pickup_from, 'HH24:MI') AS pickup_from,
+            to_char(cc.pickup_to, 'HH24:MI') AS pickup_to,
+            h.handed_over_at
+       FROM public.shop_fulfillment sf
+       JOIN public."order" o ON o.id = sf.order_id
+       JOIN public.order_package_delivery opd
+         ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+  LEFT JOIN public.carrier_handoff h ON h.shop_fulfillment_id = sf.id
+  LEFT JOIN public.package_arrival pa ON pa.shop_fulfillment_id = sf.id
+  ${COURIER_SERVICE_JOIN}
+      WHERE o.status = 'paid'
+        AND ${COURIER_PACKAGE} = 'courier'
+        AND (opd.promised_to IS NOT NULL OR o.delivery_type = 'courier')
+        AND pa.id IS NULL
+        AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
+      ORDER BY o.order_number
+      LIMIT 1000`,
   );
   return res.rows;
 }

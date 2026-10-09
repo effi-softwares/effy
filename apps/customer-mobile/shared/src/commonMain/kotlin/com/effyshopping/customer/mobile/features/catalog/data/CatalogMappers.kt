@@ -5,7 +5,7 @@ import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as Banner
 import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as BannerPlacementDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
-import com.effyshopping.customer.mobile.commerce.contract.Kind
+import com.effyshopping.customer.mobile.commerce.contract.TargetKind as Kind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO

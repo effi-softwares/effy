@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-09
 
-**Status**: Built and checked by machine 2026-10-09 — not migrated, deployed or walked; rides 078's switch (see SIGNOFF.md)
+**Status**: Built, migrated and deployed to dev 2026-10-09 (operator-reported); not walked; rides 078's switch (see SIGNOFF.md)
 
 **Input**: "Checkout and Orders: Delivered by Effy vs Courier delivery. Every Effy order is delivered
 one of two ways, decided at checkout from the delivery address: 'Delivered by Effy' when the address

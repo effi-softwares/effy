@@ -54,8 +54,15 @@ data class ShopStop(
     val stale: Boolean = false,
 )
 
-/** The same-day/standard split returned by hub check-in (FR-016). */
-data class HubSplit(val scannedTotal: Int, val sameDayCount: Int, val standardCount: Int)
+/**
+ * The split returned by hub check-in (FR-016): same-day parcels to deliver, and (080) parcels a
+ * COURIER takes from the hub. [standardCount] is what this app was built on; [courierCount] is null
+ * from a server older than 080, and the screen then falls back to it.
+ */
+data class HubSplit(val scannedTotal: Int, val sameDayCount: Int, val standardCount: Int, val courierCount: Int? = null) {
+    /** How many go to a courier — never called "standard" on screen (080). */
+    val toCourier: Int get() = courierCount ?: standardCount
+}
 
 interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun

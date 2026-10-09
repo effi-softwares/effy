@@ -420,6 +420,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  fulfillmentCourierHandoverV1:
+    handler: src/functions/fulfillment-courier-handover-v1-post.handler
+    description: The courier collected this parcel from the shop — own shop, booked pickups only — 080
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/fulfillments/{id}/courier-handover
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   fulfillmentItemV1:
     handler: src/functions/fulfillment-item-v1-patch.handler
     description: Record picking progress / flag an item unavailable — no money moves (FR-010b) — 020

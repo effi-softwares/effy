@@ -188,15 +188,22 @@ d("076 — the coverage migration changes nothing for anyone", () => {
       // A courier cannot be booked to a place the data does not know, even with courier on.
       expect(await at("9999")).toMatchObject({ kind: "none", reason: "unknown_postcode" });
 
-      await settings(`courier_estimate_text = '2–4 business days'`);
-      expect(await at("7000"), "an estimate and no fee table").toMatchObject({ kind: "none", reason: "courier_not_ready" });
+      // 080 — a default courier service (its timeframe is what the customer is told); no fee table yet.
+      await pool.query(`
+        INSERT INTO public.courier_service (id, courier_name, service_name, estimate_text, max_business_days, pickup_weekdays, pickup_cutoff, is_default, updated_by)
+          VALUES ('00000000-0000-0000-0000-0000000000ca', 'Test Courier', 'Parcel', '2–4 business days', 4, '{1,2,3,4,5}', '14:00', true, 'test')`);
+      expect(await at("7000"), "a service and no fee table").toMatchObject({ kind: "none", reason: "courier_not_ready" });
       await pool.query(`
         INSERT INTO public.delivery_fee_plan (id, kind, name, is_active, base_amount, rounding_step, floor_amount, cap_amount, created_by)
           VALUES ('${COURIER_PLAN}', 'courier', 'Courier table', true, 9.00, 0.50, 0.00, 90.00, 'test');
         INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${COURIER_PLAN}', 100000, 0.00);`);
-      await settings(`courier_estimate_text = NULL`);
-      expect(await at("7000"), "a fee table and no estimate").toMatchObject({ kind: "none", reason: "courier_not_ready" });
+      // 080 P10 — a fee table and no default service: not ready, whatever 079's estimate text says.
+      await pool.query(`UPDATE public.courier_service SET is_default = false`);
       await settings(`courier_estimate_text = '2–4 business days'`);
+      expect(await at("7000"), "a fee table and no default service").toMatchObject({ kind: "none", reason: "courier_not_ready" });
+      await pool.query(`UPDATE public.courier_service SET is_default = true`);
+      await settings(`courier_estimate_text = NULL`);
+      expect(await at("7000"), "079's estimate text is no longer read").toMatchObject({ kind: "none", reason: "courier_pending" });
 
       // ⚠ ON AND READY, AND STILL NOBODY IS PROMISED IT: the new delivery model is off, and the
       // checkout customers are using has no courier order to sell (079 FR-035).
@@ -233,6 +240,7 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     } finally {
       await pool.query(`DELETE FROM public.courier_excluded_postcode`);
       await pool.query(`DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}'`);
+      await pool.query(`DELETE FROM public.courier_service`);
       await settings(`courier_offered = false, courier_estimate_text = NULL, delivery_model_v2_from = NULL`);
     }
   });

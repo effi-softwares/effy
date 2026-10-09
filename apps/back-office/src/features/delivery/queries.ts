@@ -7,10 +7,12 @@ import {
   addCourierExclusion, addCoveragePostcodes, createCoverageGroup, listCoverage, patchCoveragePostcodes,
   removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, updateCourier,
   type CoverageFilters,
+  createCourierService, listCourierServices, updateCourierService,
 } from "./repo";
 import type {
   AddCoveragePostcodesRequest, DeliveryDaysInput, DeliverySettingsDTO, DeliverySlotInput, DeliverySlotPatch,
   FeePlanInput, FeePlanKind, FeeSimulationRequest, NonDeliveryDateInput, PatchCoveragePostcodesRequest, CourierReachUpdateDTO,
+  CourierServiceInput,
 } from "@effy/shared-types";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
@@ -141,3 +143,9 @@ export const useRemoveCoverageGroup = () =>
 export const useUpdateCourier = () => useCoverageMutation((change: CourierReachUpdateDTO) => updateCourier(change));
 export const useAddCourierExclusion = () => useCoverageMutation((v: { postcode: string; reason: string }) => addCourierExclusion(v.postcode, v.reason));
 export const useRemoveCourierExclusion = () => useCoverageMutation((postcode: string) => removeCourierExclusion(postcode));
+
+// ── 080 — courier services ──────────────────────────────────────────────────────────────────────
+export const courierServicesQuery = () =>
+  queryOptions({ queryKey: ["delivery", "courier-services"] as const, queryFn: () => listCourierServices() });
+export const useCreateCourierService = () => useCoverageMutation((b: CourierServiceInput) => createCourierService(b));
+export const useUpdateCourierService = () => useCoverageMutation((v: { id: string; body: CourierServiceInput }) => updateCourierService(v.id, v.body));

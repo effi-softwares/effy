@@ -121,7 +121,11 @@ export function mapFulfillmentError(
 // ── Domain → wire DTOs. Nothing here selects a shop or a payment field. ────────────────────────
 
 function toPromiseDTO(p: DeliveryPromise): DeliveryPromiseDTO {
-  return { serviceLevel: p.serviceLevel, readyBy: p.readyBy.toISOString(), ...(p.deliveredBy ? { deliveredBy: p.deliveredBy } : {}) };
+  return {
+    serviceLevel: p.serviceLevel, readyBy: p.readyBy.toISOString(),
+    ...(p.deliveredBy ? { deliveredBy: p.deliveredBy } : {}),
+    ...(p.courierPickup ? { courierPickup: p.courierPickup } : {}),
+  };
 }
 
 export function toSummaryDTO(s: FulfillmentSummary): FulfillmentSummaryDTO {

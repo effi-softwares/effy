@@ -2023,6 +2023,45 @@
             "null"
           ]
         },
+        "tracking": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "courierName": {
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "link",
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "url",
+                "courierName"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "email",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object"
+            }
+          ],
+          "description": "080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE consignment and the courier gave a tracking link. `email`: it travels as more than one, and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link given). ⚠ Never a count, a reference without a link, or anything per parcel."
+        },
         "type": {
           "$ref": "#/definitions/DeliveryType"
         }

@@ -81,7 +81,7 @@ class HttpCollectionRepository(
         return request {
             offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in") {
                 val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
-                HubSplit(r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt())
+                HubSplit(r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt(), r.courierCount?.toInt())
             }
         }
     }

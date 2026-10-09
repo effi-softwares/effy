@@ -4,9 +4,45 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**079-effy-vs-courier-checkout — Checkout & Orders: Delivered by Effy vs Courier delivery.** ⚠ **BUILT AND
-CHECKED BY MACHINE (2026-10-09). NOT MIGRATED, NOT DEPLOYED, NOT WALKED — and it rides 078's switch, so
-nothing a customer sees changes until the cutover.** Fifth slice of the delivery model v2 programme
+**080-courier-fulfilment — Courier Fulfilment: via the hub or pickup from the supplier.** ⚠ **BUILT (2026-10-09).
+NOT MIGRATED, NOT DEPLOYED, NOT WALKED.** Sixth slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E6).
+Sign-off notes: [specs/080-courier-fulfilment/SIGNOFF.md](specs/080-courier-fulfilment/SIGNOFF.md).
+Runbook: [docs/runbooks/courier-handover.md](docs/runbooks/courier-handover.md).
+
+- **What it is.** Courier services (operator-entered, one default — its timeframe is what checkout
+  tells, and the order keeps it); a platform default + per-order switch for how parcels reach the
+  courier (**via the hub** or **pickup from the supplier**); a **consignment** per parcel handed over
+  (service, reference, tracking link, label, progress); a Courier tab in back-office; a supplier
+  "Handed over to courier" on shop-web and shop-mobile; "Courier" at the driver's hub check-in; one
+  tracking link (or "by email") for the customer, plus a push and an email per parcel.
+- ⚠ **One writer** — `@effy/edge-shared/delivery` `consignment.ts` writes consignments, their events,
+  `carrier_handoff` and the mode; "delivered" writes 053's `package_arrival` through it. The consignment
+  sits BESIDE the handoff and arrival rather than replacing them, so status and completion are unchanged.
+- ⚠ **A supplier-pickup parcel is excluded from the collection gather** through one SQL fragment; the
+  shop console and the planner cannot disagree about whose it is to hand over.
+- ⚠ **Nothing is seeded.** Courier delivery cannot be switched on until an active default service exists.
+- **Deviations** (recorded in the backlog and SIGNOFF): a mode switch to supplier is refused while a
+  driver is assigned (unassign first); "Courier problem" is an OPEN problem only — overdue with the
+  courier is "Late" on the Courier tab; the customer notification opens the orders list (its entity is
+  the consignment).
+- **Defects found while building:**
+  - ⚠ customer-mobile stopped compiling after the contract regeneration — quicktype renamed `Kind` →
+    `TargetKind` once a second `kind` enum appeared. Compile the customer app after every
+    `make cm-contract-gen`.
+  - The handover first queued a PUSH only (`appendNotification`); the per-parcel EMAIL the order page
+    promises was missing. Push + email now.
+  - The shop pick-list wire never sent 079's `deliveredBy`.
+  - Still open from 079: `recipientsForShop` (shop attention) names columns that do not exist.
+- **Operator steps (dev):** `make db-up ENV=dev`, then `make edge-deploy` for `notifications` (first),
+  `admin`, `orders`, `shop`, `fleet`, `driver`, `commerce`, `storefront`; `make apply ENV=dev` (alarms);
+  web builds on push; the three mobile builds. Add a courier service before switching courier on.
+  **Leave the model switch NULL.** Walks V1–V6 in
+  [quickstart.md](specs/080-courier-fulfilment/quickstart.md).
+
+**079-effy-vs-courier-checkout — Checkout & Orders: Delivered by Effy vs Courier delivery.** ⚠ **BUILT, MIGRATED AND
+DEPLOYED TO DEV (2026-10-09, operator-reported). NOT WALKED, NOT SIGNED OFF — and it rides 078's switch,
+so nothing a customer sees changes until the cutover.** Fifth slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E5).
 Sign-off notes: [specs/079-effy-vs-courier-checkout/SIGNOFF.md](specs/079-effy-vs-courier-checkout/SIGNOFF.md).
 

@@ -78,7 +78,37 @@ const COVERAGE_COPY: Record<string, string> = {
   courier_estimate_missing: "Say how long a courier usually takes before switching courier delivery on.",
   courier_estimate_in_use: "Switch courier delivery off before removing its estimate.",
   invalid_estimate: "The estimate is 3 to 60 characters on one line, like \"2–4 business days\".",
+  // 080 — courier services carry the timeframe now.
+  courier_service_missing: "Add a courier service and make it the default before switching courier delivery on.",
+  name_taken: "There is already a courier service with that courier and service name.",
+  default_service_required: "Make another service the default first — checkout tells courier customers the default's timeframe.",
+  invalid_service: "Check the highlighted fields.",
 };
+
+/** 080 — what staff read for each refused courier-service field, in the console's own words. */
+const COURIER_SERVICE_FIELD_COPY: Record<string, string> = {
+  courierName: "The courier's name is 2 to 60 characters.",
+  serviceName: "The service's name is 2 to 60 characters.",
+  estimateText: "3 to 60 characters on one line, like \"2–4 business days\".",
+  maxBusinessDays: "A whole number of business days, 1 to 30.",
+  pickupWeekdays: "Choose at least one pickup day.",
+  pickupCutoff: "A time, like 14:00.",
+  status: "The default service can't be retired — make another the default first.",
+};
+
+export const courierServiceError = (err: unknown): string => coverageError(err);
+
+/** Field → words for a refused courier-service save; empty when the refusal named no field. */
+export function courierServiceFieldErrors(err: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (isDomainError(err)) {
+    for (const f of err.fields ?? []) {
+      const copy = COURIER_SERVICE_FIELD_COPY[f.field];
+      if (copy && !out[f.field]) out[f.field] = copy;
+    }
+  }
+  return out;
+}
 
 /** The refusal's code, when the service named one. */
 export function coverageCode(err: unknown): string | undefined {
@@ -101,7 +131,7 @@ export const COVERAGE_REASON_COPY: Record<string, string> = {
   courier_excluded: "Not on Effy's list, and excluded from courier delivery.",
   // 079 — on, and no customer is offered it yet.
   courier_pending: "Not on Effy's list. Courier delivery is switched on and starts with the new delivery model — until then nobody delivers there.",
-  courier_not_ready: "Not on Effy's list. Courier delivery is switched on but has no fee table or no estimate, so nobody delivers there.",
+  courier_not_ready: "Not on Effy's list. Courier delivery is switched on but has no fee table or no default courier service, so nobody delivers there.",
   unknown_postcode: "Not a known postcode.",
 };
 

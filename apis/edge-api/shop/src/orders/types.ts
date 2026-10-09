@@ -1,3 +1,4 @@
+import type { CourierPickupDTO } from "@effy/shared-types";
 // Domain types for the shop ORDER CONSOLE (057 Amendment A3). Wire DTOs live in @effy/shared-types
 // (`shop-order-console`); nothing wire-shaped escapes the handler (Principle VI).
 //
@@ -88,6 +89,8 @@ export interface OrderRow {
   unavailableCount: number;
   /** 079 — who takes it away. The only thing a shop is told about delivery. */
   deliveredBy: "effy_driver" | "courier";
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO;
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
@@ -151,6 +154,8 @@ export interface OrderDetail {
   readyBy: Date;
   /** 079 — who takes it away. The only thing a shop is told about delivery. */
   deliveredBy: "effy_driver" | "courier";
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO;
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;

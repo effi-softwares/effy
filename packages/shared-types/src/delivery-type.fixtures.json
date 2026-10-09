@@ -10,6 +10,9 @@
     "courierInsteadOfWindows": "We can send this order by courier instead.",
     "sameDay": "Same-day delivery",
     "standard": "Standard delivery",
+    "trackParcel": "Track your parcel",
+    "trackingByEmail": "Tracking for each parcel is sent to you by email.",
+    "withCourier": "Your order is with the courier.",
     "scheduled": "Scheduled delivery"
   },
   "shopWords": {
@@ -58,6 +61,51 @@
         "lines": [
           "Delivered by a courier partner.",
           "Usually arrives in 3–5 business days — an estimate, not a guaranteed date."
+        ]
+      }
+    },
+    {
+      "name": "a courier order travelling as several consignments: tracking comes by email, and no count",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "2–4 business days",
+          "tracking": {
+            "kind": "email"
+          }
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+          "Tracking for each parcel is sent to you by email."
+        ]
+      }
+    },
+    {
+      "name": "a courier order with one tracking link: the lines are unchanged — the link is drawn by the surface",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "2–4 business days",
+          "tracking": {
+            "kind": "link",
+            "url": "https://track.example.test/ABC123",
+            "courierName": "Test Courier"
+          }
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date."
         ]
       }
     },

@@ -200,6 +200,78 @@
       ],
       "type": "object"
     },
+    "CourierPickupDTO": {
+      "additionalProperties": false,
+      "description": "080 — a courier will collect THIS package from the shop. ⚠ The shop's own parcel only: never a fee, the customer's estimate, a tracking link, or anything about another shop's parcel.",
+      "properties": {
+        "courierName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labelUrl": {
+          "description": "Short-lived presigned read of the label to attach; null when none was attached.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pickupDate": {
+          "description": "yyyy-mm-dd",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pickupFrom": {
+          "description": "\"13:00\"",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pickupTo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reference": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serviceName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "description": "arranging = staff have not booked it yet; the parcel is prepared and marked ready as usual.",
+          "enum": [
+            "arranging",
+            "booked",
+            "handed_over",
+            "cancelled"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "pickupDate",
+        "pickupFrom",
+        "pickupTo",
+        "courierName",
+        "serviceName",
+        "reference",
+        "labelUrl"
+      ],
+      "type": "object"
+    },
     "CreatePresignedUploadRequest": {
       "additionalProperties": false,
       "description": "POST /shop/v1/products/{id}/media — request a presigned direct-to-S3 upload.",
@@ -371,6 +443,10 @@
       "additionalProperties": false,
       "description": "What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).\n\nOwned by 021. While only one service level exists, `readyBy` is a constant offset from the order's placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).\n\n⚠ 079 — it says who takes the package away as ONE OF TWO WORDS (`deliveredBy`), and nothing more: there is still no driver's name, no courier company and no reference here, by design.",
       "properties": {
+        "courierPickup": {
+          "$ref": "#/definitions/CourierPickupDTO",
+          "description": "080 — present only when a courier collects this package from the shop."
+        },
         "deliveredBy": {
           "$ref": "#/definitions/DeliveredBy",
           "description": "079 — who takes this package away from the shop: an Effy driver or a courier. Absent from a server older than 079. Print it through `DELIVERED_BY_WORDS`."

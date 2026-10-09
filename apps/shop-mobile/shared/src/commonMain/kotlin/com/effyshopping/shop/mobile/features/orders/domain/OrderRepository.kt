@@ -47,4 +47,10 @@ interface OrderRepository {
      * Values are ABSOLUTE (idempotent under retry); legal only while the portion is `picking`.
      */
     suspend fun recordItemProgress(id: String, orderItemId: String, progress: ItemProgress): FulfillmentDetail
+
+    /**
+     * 080 — `POST /shop/v1/fulfillments/{id}/courier-handover`: the courier collected this parcel. Only a
+     * booked pickup on a packed parcel (409 → `AppError.Conflict` otherwise); a repeat is the same answer.
+     */
+    suspend fun handOverToCourier(id: String): FulfillmentDetail
 }

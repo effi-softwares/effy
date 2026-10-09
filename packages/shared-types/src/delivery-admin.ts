@@ -221,8 +221,53 @@ export interface CoverageGroupDTO {
   driverCount: number;
 }
 
-/** What stops courier delivery being switched on (079). */
-export type CourierBlocker = "no_fee_table" | "no_estimate";
+/**
+ * What stops courier delivery being switched on (079, 080). `no_service` — no active default courier
+ * service, so a customer would be told no timeframe. ⚠ `no_estimate` is no longer returned since 080
+ * (the default service carries the timeframe); kept in the union for consoles built before it.
+ */
+export type CourierBlocker = "no_fee_table" | "no_service" | "no_estimate";
+
+/** 080 — how a courier order's parcels reach the courier. */
+export type CourierCollection = "hub" | "supplier";
+
+/** 080 — a courier company's service Effy uses. Entered by the operator; never seeded. */
+export interface CourierServiceDTO {
+  id: string;
+  courierName: string;
+  serviceName: string;
+  /** What a customer reads, completing "Usually arrives in …" ("2–4 business days"). */
+  estimateText: string;
+  /** When a handed-over parcel with no progress is overdue. Staff only. */
+  maxBusinessDays: number;
+  /** ISO weekdays the courier collects (1 = Monday). */
+  pickupWeekdays: number[];
+  /** "14:00" — Melbourne wall clock. */
+  pickupCutoff: string;
+  collectsFromSupplier: boolean;
+  status: "active" | "retired";
+  isDefault: boolean;
+}
+
+/** `POST` / `PUT /admin/v1/delivery/courier-services[/{id}]` — every field on create; any on update. */
+export interface CourierServiceInput {
+  courierName?: string;
+  serviceName?: string;
+  estimateText?: string;
+  maxBusinessDays?: number;
+  pickupWeekdays?: number[];
+  pickupCutoff?: string;
+  collectsFromSupplier?: boolean;
+  status?: "active" | "retired";
+  /** true makes this the default (and un-makes the previous one). */
+  isDefault?: boolean;
+}
+
+export interface CourierServiceListDTO {
+  items: CourierServiceDTO[];
+  /** How new courier orders reach the courier. Changed through `PUT …/coverage/courier`. */
+  collectionDefault: CourierCollection;
+}
 
 /** Courier reach: offered everywhere in the country except the exclusions. */
 export interface CourierReachDTO {
@@ -234,6 +279,10 @@ export interface CourierReachDTO {
   estimateText: string | null;
   /** 079 — offer courier to an address on Effy's list when no delivery window is available. */
   whenNoWindows: boolean;
+  /** 080 — how new courier orders reach the courier. */
+  collectionDefault: CourierCollection;
+  /** 080 — the default courier service, whose timeframe checkout tells a customer; null when none. */
+  defaultService: { id: string; label: string; estimateText: string } | null;
   /** 079 — why `offered` cannot be switched on yet; empty when it can. */
   blockedBy: CourierBlocker[];
   /**
@@ -252,6 +301,8 @@ export interface CourierReachUpdateDTO {
   /** 3–60 characters, one line. `null` clears it — refused while courier delivery is on. */
   estimateText?: string | null;
   whenNoWindows?: boolean;
+  /** 080 */
+  collectionDefault?: CourierCollection;
 }
 
 export interface CourierExclusionDTO {

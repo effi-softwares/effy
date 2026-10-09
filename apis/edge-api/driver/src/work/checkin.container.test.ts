@@ -156,6 +156,9 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     const res = await hubCheckin(runId, driverId);
     expect(res.sameDayCount).toBe(1);
     expect(res.standardCount).toBe(1);
+    // 080 P14 — the driver is told "Courier" for the parcel a courier takes from the hub: an order
+    // from before delivery types, sold standard with no window, is a carrier's (package_delivered_by).
+    expect(res.courierCount).toBe(1);
 
     // The REAL delivery gather is the thing under test: a standard package must be STRUCTURALLY
     // absent from it, not filtered out somewhere later.

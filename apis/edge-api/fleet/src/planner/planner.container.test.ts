@@ -561,6 +561,29 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
 
   // ⚠ 072 — found while seeding a round's weight. The gather joined every attribute value a product
   // has, so a product with three contributed its weight three times.
+  it("⚠ 080 P2 — a courier parcel the courier collects from the supplier is never driver work", async () => {
+    const shop = await makeShop("Shop One", "S1");
+    const zone = await makeZone("Inner North", "3065");
+    const driver = await makeDriver("ada");
+    await clear(driver, "collection", "standard", zone);
+    const viaHub = await makeReadyPackage(shop);
+    const fromSupplier = await makeReadyPackage(shop);
+    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = '2–4 business days', courier_collection = 'hub'
+              WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [viaHub]);
+    await q(`UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage', courier_estimate = '2–4 business days', courier_collection = 'supplier'
+              WHERE id = (SELECT order_id FROM public.shop_fulfillment WHERE id = $1)`, [fromSupplier]);
+
+    const gathered = (await repo.gatherCollectionWork()).map((p) => p.packageId);
+    expect(gathered).toEqual([viaHub]);
+    // Asked about by name (073's "Assign to…"), it is still not anyone's to collect.
+    expect(await repo.gatherCollectionWork(undefined, fromSupplier)).toEqual([]);
+
+    const { result } = await runWave();
+    expect(result.assigned).toBe(1);
+    const assigned = await q(`SELECT shop_fulfillment_id FROM public.round_package`);
+    expect(assigned.rows.map((r) => r.shop_fulfillment_id)).toEqual([viaHub]);
+  });
+
   it("weighs an order line once, however many attributes its product has", async () => {
     const shop = await makeShop("Shop One", "S1");
     await makeZone("Inner North", "3065");

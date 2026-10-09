@@ -14,6 +14,7 @@ import {
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 import type { Backlog, LiveOrder, StockAttention } from "./types";
+import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
 /** Portions nobody has started picking — the Orders list's "Awaiting pick" tab, to the letter. */
 const AWAITING = `sf.status IN ('pending', 'received')`;
@@ -201,7 +202,9 @@ interface LiveRow {
 
 export async function readLiveOrders(shopId: string, limit: number): Promise<LiveOrder[]> {
   const res = await query<LiveRow>(SELECT_LIVE, [shopId, limit]);
+  const pickups = await courierPickups(shopId, res.rows.map((r) => r.fulfillment_id));
   return res.rows.map((r) => ({
+    ...pickupOf(pickups, r.fulfillment_id),
     fulfillmentId: r.fulfillment_id,
     orderNumber: r.order_number,
     customerName: r.customer_name,

@@ -21,7 +21,7 @@ import type {
   CoverageCheckResultDTO,
   CoverageListDTO,
   CoveragePlaceSearchDTO,
-  PatchCoveragePostcodesRequest, CourierReachDTO, CourierReachUpdateDTO,
+  PatchCoveragePostcodesRequest, CourierReachDTO, CourierReachUpdateDTO, CourierServiceDTO, CourierServiceInput, CourierServiceListDTO,
 } from "@effy/shared-types";
 
 import { api } from "@/lib/api";
@@ -172,4 +172,15 @@ export function addCourierExclusion(postcode: string, reason: string): Promise<v
 }
 export function removeCourierExclusion(postcode: string): Promise<void> {
   return api.delete<void>(`/admin/v1/delivery/coverage/courier/exclusions/${postcode}`);
+}
+
+// ── 080 — courier services ───────────────────────────────────────────────────────────────────────
+export function listCourierServices(): Promise<CourierServiceListDTO> {
+  return api.get<CourierServiceListDTO>("/admin/v1/delivery/courier-services");
+}
+export function createCourierService(body: CourierServiceInput): Promise<CourierServiceDTO> {
+  return api.post<CourierServiceDTO>("/admin/v1/delivery/courier-services", body);
+}
+export function updateCourierService(id: string, body: CourierServiceInput): Promise<CourierServiceDTO> {
+  return api.put<CourierServiceDTO>(`/admin/v1/delivery/courier-services/${id}`, body);
 }

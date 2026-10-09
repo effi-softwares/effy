@@ -29,6 +29,10 @@ export const handler = async (
           orderNumber: l.orderNumber,
           customerName: l.customerName,
           paidAt: l.paidAt.toISOString(),
+          // ⚠ 079 declared `deliveredBy` on the pick list and this mapping never sent it (the body is
+          // untyped here); 080 found it adding `courierPickup` beside it.
+          deliveredBy: l.deliveredBy,
+          ...(l.courierPickup ? { courierPickup: l.courierPickup } : {}),
           deliveryMethod: l.deliveryMethod,
           lines: l.lines,
         })),

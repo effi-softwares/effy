@@ -154,3 +154,25 @@ describe("packageStatus — a courier order's journey (079)", () => {
     expect(steps.map((f) => at(f).status)).toEqual(["with_driver", "at_hub", "at_hub", "out_for_delivery", "delivered"]);
   });
 });
+
+/** 080 — a courier's problem is a Problem until someone resolves it; the furthest fact still wins. */
+describe("packageStatus — a courier problem (080)", () => {
+  const handed = { shopStatus: "collected", checkedInAtHub: true, handedToCarrier: true } as const;
+
+  it.each([
+    ["lost", "With the courier — lost"],
+    ["damaged", "With the courier — damaged"],
+    ["failed", "With the courier — delivery failed"],
+    ["returned", "With the courier — returned to sender"],
+  ])("an open %s → Problem, saying so", (problem, detail) => {
+    expect(at({ ...handed, courierProblem: problem })).toEqual({ status: "problem", word: "Problem", detail, driverName: null });
+  });
+
+  it("no open problem → With carrier, as before", () => {
+    expect(at({ ...handed, courierProblem: null }).status).toBe("with_carrier");
+  });
+
+  it("delivered after all wins over a problem", () => {
+    expect(at({ ...handed, courierProblem: "lost", arrived: true }).status).toBe("delivered");
+  });
+});

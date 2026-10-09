@@ -17,6 +17,9 @@ const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   subtotalAmount: "20.00",
   // A carrier's package from an order placed before delivery types: who delivers is the SERVER's answer.
   deliveredBy: "courier",
+  consignment: null,
+  dueOut: null,
+  late: false,
   deliveryMethod: "standard",
   handoff: null,
   arrival: null,

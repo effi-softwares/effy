@@ -1,5 +1,7 @@
 package com.effyshopping.shop.mobile.features.orders.data
 
+import com.effyshopping.shop.mobile.contract.CourierPickupDTO
+import com.effyshopping.shop.mobile.contract.CourierPickupState as ContractCourierPickupState
 import com.effyshopping.shop.mobile.contract.DeliveredBy as ContractDeliveredBy
 import com.effyshopping.shop.mobile.contract.DeliveryPromiseDTO
 import com.effyshopping.shop.mobile.contract.FulfillmentDeliveryDTO
@@ -12,6 +14,8 @@ import com.effyshopping.shop.mobile.contract.FulfillmentSummaryDTO
 import com.effyshopping.shop.mobile.contract.ItemProgressRequest
 import com.effyshopping.shop.mobile.contract.RequestableTransition
 import com.effyshopping.shop.mobile.contract.TransitionRequest
+import com.effyshopping.shop.mobile.features.orders.domain.CourierPickup
+import com.effyshopping.shop.mobile.features.orders.domain.CourierPickupState
 import com.effyshopping.shop.mobile.features.orders.domain.DeliveredBy
 import com.effyshopping.shop.mobile.features.orders.domain.DeliveryContext
 import com.effyshopping.shop.mobile.features.orders.domain.DeliveryPromise
@@ -52,7 +56,24 @@ private fun DeliveryPromiseDTO.toDomain(): DeliveryPromise =
             ContractDeliveredBy.Courier -> DeliveredBy.COURIER
             null -> null
         },
+        courierPickup = courierPickup?.toDomain(),
     )
+
+internal fun CourierPickupDTO.toDomain(): CourierPickup = CourierPickup(
+    state = when (state) {
+        ContractCourierPickupState.Arranging -> CourierPickupState.ARRANGING
+        ContractCourierPickupState.Booked -> CourierPickupState.BOOKED
+        ContractCourierPickupState.HandedOver -> CourierPickupState.HANDED_OVER
+        ContractCourierPickupState.Cancelled -> CourierPickupState.CANCELLED
+    },
+    pickupDate = pickupDate,
+    pickupFrom = pickupFrom,
+    pickupTo = pickupTo,
+    courierName = courierName,
+    serviceName = serviceName,
+    reference = reference,
+    labelUrl = labelURL,
+)
 
 private fun FulfillmentDeliveryDTO.toDomain(): DeliveryContext = DeliveryContext(
     recipientName = recipientName,

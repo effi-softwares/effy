@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CoverageListDTO, CoveragePlaceResultDTO } from "@effy/shared-types";
+import type { CourierReachDTO, CourierServiceDTO, CoverageListDTO, CoveragePlaceResultDTO } from "@effy/shared-types";
 
 const repo = vi.hoisted(() => ({
   listCoverage: vi.fn(),
@@ -19,10 +19,24 @@ const repo = vi.hoisted(() => ({
   updateCourier: vi.fn(),
   addCourierExclusion: vi.fn(),
   removeCourierExclusion: vi.fn(),
+  listCourierServices: vi.fn(),
+  createCourierService: vi.fn(),
+  updateCourierService: vi.fn(),
 }));
 vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")), ...repo }));
 
 const { CoveragePanel } = await import("./CoveragePanel");
+
+const courier = (over: Partial<CourierReachDTO> = {}): CourierReachDTO => ({
+  offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
+  blockedBy: [], pending: false, canBeOffered: true, exclusions: [], ...over,
+});
+
+const service = (over: Partial<CourierServiceDTO> = {}): CourierServiceDTO => ({
+  id: "s1", courierName: "Test Courier", serviceName: "Parcel", estimateText: "2–4 business days", maxBusinessDays: 5,
+  pickupWeekdays: [1, 2, 3, 4, 5], pickupCutoff: "14:00", collectsFromSupplier: true, status: "active", isDefault: true, ...over,
+});
+const ready = courier({ estimateText: "2–4 business days", defaultService: { id: "s1", label: "Test Courier · Parcel", estimateText: "2–4 business days" } });
 
 const list = (over: Partial<CoverageListDTO> = {}): CoverageListDTO => ({
   postcodes: [
@@ -31,10 +45,10 @@ const list = (over: Partial<CoverageListDTO> = {}): CoverageListDTO => ({
   ],
   groups: [{ id: "g1", name: "Inner East", postcodeCount: 1, driverCount: 2 }],
   ungrouped: { postcodeCount: 1, driverCount: 0 },
-  courier: {
-    offered: false, estimateText: null, whenNoWindows: false, blockedBy: ["no_fee_table", "no_estimate"], pending: false, canBeOffered: false,
+  courier: courier({
+    blockedBy: ["no_fee_table", "no_service"],
     exclusions: [{ postcode: "7255", places: ["FLINDERS ISLAND"], reason: "No chilled courier service" }],
-  },
+  }),
   counts: { listed: 2, manualDistance: 1, needsReview: 1 },
   ...over,
 });
@@ -55,6 +69,7 @@ function renderPanel(canManage = true) {
 beforeEach(() => {
   vi.clearAllMocks();
   repo.listCoverage.mockResolvedValue(list());
+  repo.listCourierServices.mockResolvedValue({ items: [], collectionDefault: "hub" });
 });
 
 describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
@@ -232,31 +247,38 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.removeCoverageGroup).toHaveBeenCalledWith("g1", false));
   });
 
-  it("⚠ courier delivery cannot be switched on without a price and an estimate, and the screen says which; exclusions are listed", async () => {
+  it("⚠ courier delivery cannot be switched on without a price and a default service, and the screen says which; exclusions are listed", async () => {
     renderPanel();
     expect(await screen.findByRole("switch", { name: /offer courier delivery/i })).toBeDisabled();
     expect(screen.getByTestId("courier-locked")).toHaveTextContent("Make a courier fee table active on the Pricing tab.");
-    expect(screen.getByTestId("courier-locked")).toHaveTextContent("Say how long a courier usually takes");
+    expect(screen.getByTestId("courier-locked")).toHaveTextContent("Add a courier service below and make it the default.");
     expect(screen.getByTestId("courier-exclusions")).toHaveTextContent("7255");
     expect(screen.getByTestId("courier-exclusions")).toHaveTextContent("No chilled courier service");
+    // 080 — nothing is seeded: the list starts empty and says why it matters.
+    expect(await screen.findByTestId("courier-services-empty")).toHaveTextContent("can't be switched on until there is a default");
   });
 
-  it("079 — the estimate is previewed as the customer will read it, and saved trimmed", async () => {
-    repo.updateCourier.mockResolvedValue({ offered: false, estimateText: "2–4 business days", whenNoWindows: false });
+  it("080 — the customer's words are the default service's timeframe, as a whole sentence; 079's free-text field is gone", async () => {
+    repo.listCoverage.mockResolvedValue(list({ courier: ready }));
     renderPanel();
-    const field = await screen.findByLabelText("How long a courier usually takes");
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-    await userEvent.type(field, "  2–4 business days ");
-    // ⚠ The whole sentence — the field alone reads like a promise.
-    expect(screen.getByTestId("courier-estimate-preview")).toHaveTextContent("Usually arrives in 2–4 business days — an estimate, not a guaranteed date.");
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ estimateText: "2–4 business days" }));
+    expect(await screen.findByTestId("courier-estimate-preview")).toHaveTextContent(
+      "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+    );
+    expect(screen.getByTestId("courier-estimate-preview")).toHaveTextContent("Test Courier · Parcel, the default service");
+    expect(screen.queryByLabelText("How long a courier usually takes")).not.toBeInTheDocument();
+  });
+
+  it("080 — how parcels reach the courier is a platform default, changed in one click", async () => {
+    repo.updateCourier.mockResolvedValue({ offered: false, estimateText: null, whenNoWindows: false, collectionDefault: "supplier" });
+    renderPanel();
+    const hub = await screen.findByRole("radio", { name: "Via the hub" });
+    expect(hub).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Pickup from the supplier" }));
+    await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ collectionDefault: "supplier" }));
   });
 
   it("079 — ready: the switch works; on before the new delivery model, the screen says nobody is offered it yet", async () => {
-    repo.listCoverage.mockResolvedValue(list({
-      courier: { offered: false, estimateText: "2–4 business days", whenNoWindows: false, blockedBy: [], pending: false, canBeOffered: true, exclusions: [] },
-    }));
+    repo.listCoverage.mockResolvedValue(list({ courier: ready }));
     repo.updateCourier.mockResolvedValue({ offered: true, estimateText: "2–4 business days", whenNoWindows: false });
     const { unmount } = renderPanel();
     const sw = await screen.findByRole("switch", { name: /offer courier delivery/i });
@@ -266,23 +288,52 @@ describe("Coverage — the checker, groups and courier reach", () => {
     await waitFor(() => expect(repo.updateCourier).toHaveBeenCalledWith({ offered: true }));
     unmount();
 
-    repo.listCoverage.mockResolvedValue(list({
-      courier: { offered: true, estimateText: "2–4 business days", whenNoWindows: false, blockedBy: [], pending: true, canBeOffered: true, exclusions: [] },
-    }));
+    repo.listCoverage.mockResolvedValue(list({ courier: { ...ready, offered: true, pending: true } }));
     renderPanel();
     expect(await screen.findByTestId("courier-pending")).toHaveTextContent("starts with the new delivery model");
-    // On: the estimate cannot be emptied from under it.
-    await userEvent.clear(screen.getByLabelText("How long a courier usually takes"));
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("079 — the no-window fallback is its own switch, and a refusal is said in words", async () => {
-    repo.updateCourier.mockRejectedValueOnce(refusal(409, "courier_estimate_in_use")).mockResolvedValue({ offered: false, estimateText: null, whenNoWindows: true });
+    repo.updateCourier.mockRejectedValueOnce(refusal(409, "courier_service_missing")).mockResolvedValue({ offered: false, estimateText: null, whenNoWindows: true });
     renderPanel();
     const sw = await screen.findByRole("switch", { name: /offer courier when no delivery window is available/i });
     await userEvent.click(sw);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Switch courier delivery off before removing its estimate.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Add a courier service and make it the default before switching courier delivery on.");
     await userEvent.click(sw);
     await waitFor(() => expect(repo.updateCourier).toHaveBeenLastCalledWith({ whenNoWindows: true }));
+  });
+
+  it("080 — courier services: listed with the customer's words and pickups; the first added becomes the default; a refusal names the field", async () => {
+    repo.listCourierServices.mockResolvedValue({ items: [service(), service({ id: "s2", serviceName: "Express", isDefault: false, collectsFromSupplier: false, pickupWeekdays: [1, 3, 5] })], collectionDefault: "hub" });
+    repo.updateCourierService.mockResolvedValue(service({ id: "s2", isDefault: true }));
+    renderPanel();
+    const table = await screen.findByTestId("courier-services");
+    const first = within(table).getByText(/Test Courier · Parcel/).closest("tr")!;
+    expect(within(first).getByText("Default")).toBeInTheDocument();
+    expect(within(first).getByText("Mon, Tue, Wed, Thu, Fri, by 14:00")).toBeInTheDocument();
+    // ⚠ The default cannot be retired from under checkout — the button is not there.
+    expect(within(first).queryByRole("button", { name: "Retire" })).not.toBeInTheDocument();
+    const second = within(table).getByText(/Express/).closest("tr")!;
+    expect(within(second).getByText("Mon, Wed, Fri, by 14:00")).toBeInTheDocument();
+    await userEvent.click(within(second).getByRole("button", { name: "Make default" }));
+    await waitFor(() => expect(repo.updateCourierService).toHaveBeenCalledWith("s2", { isDefault: true }));
+  });
+
+  it("080 — adding the first service makes it the default; field refusals are shown beside the field", async () => {
+    repo.createCourierService
+      .mockRejectedValueOnce({ kind: "unknown", status: 422, title: "Refused", code: "invalid_service", fields: [{ field: "estimateText", message: "x" }] })
+      .mockResolvedValue(service());
+    renderPanel();
+    await userEvent.click(await screen.findByRole("button", { name: "Add a courier service" }));
+    const form = screen.getByRole("form", { name: "New courier service" });
+    await userEvent.type(within(form).getByLabelText("Courier"), "Test Courier");
+    await userEvent.type(within(form).getByLabelText("Service"), "Parcel");
+    await userEvent.click(within(form).getByRole("button", { name: "Add" }));
+    expect(await within(form).findByText("3 to 60 characters on one line, like \"2–4 business days\".")).toBeInTheDocument();
+    await userEvent.type(within(form).getByLabelText("Customers are told it usually arrives in"), "2–4 business days");
+    await userEvent.click(within(form).getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(repo.createCourierService).toHaveBeenLastCalledWith(expect.objectContaining({
+      courierName: "Test Courier", serviceName: "Parcel", estimateText: "2–4 business days", isDefault: true,
+    })));
   });
 });

@@ -1,3 +1,4 @@
+import type { CourierPickupDTO } from "@effy/shared-types";
 // Domain types for shop order fulfilment (020). Wire DTOs live in @effy/shared-types; nothing
 // wire-shaped appears here and nothing here escapes the handler (Principle VI).
 //
@@ -104,12 +105,17 @@ export function isLegalTransition(from: FulfillmentStatus, to: FulfillmentStatus
  * ⚠ 079 — it now says WHO TAKES THE PACKAGE AWAY, as one of two words: an Effy driver or a courier.
  * That is the whole of it. 020's rule stands in spirit: no driver's name, no courier company, no
  * tracking reference, nothing that models delivery execution (FR-002a, SC-021).
+ * ⚠ 080 — ONE EXCEPTION: a parcel a courier collects FROM THIS SHOP carries `courierPickup` (who
+ * comes, when, the label to attach), because the shop is the one handing it over. Never a tracking
+ * link, a fee or another shop's parcel.
  */
 export interface DeliveryPromise {
   serviceLevel: string;
   readyBy: Date;
   /** Absent only where a caller derives a promise without a fulfilment to ask about. */
   deliveredBy?: "effy_driver" | "courier";
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO;
 }
 
 /** A row in the shop's queue. Counts are THIS shop's portion only — never the order's totals. */

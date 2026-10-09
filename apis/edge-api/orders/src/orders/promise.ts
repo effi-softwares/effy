@@ -35,12 +35,28 @@ export interface PromiseFacts {
   arrivalDate: string | null;
   /** Hub handover → delivered, in days. A stated assumption until there is a carrier contract. */
   carrierLeadDays: number;
+  /**
+   * 080 — for an order sold as a courier delivery: the courier service's next pickup after the
+   * parcel reached (or can reach) the hub — `nextCourierPickup`. It is when the parcel is due out,
+   * and it replaces 079's "the day it was placed". Null when there is no service to ask (an order
+   * from before 080), and then 079's rule stands.
+   */
+  courierDueOut?: Date | null;
+  /** 080 — the moment it was handed over, to judge "late" by the instant rather than the day. */
+  handoffAt?: Date | null;
+  /** 080 — now; with `courierDueOut`. */
+  now?: Date;
 }
 
 export interface PromiseVerdict {
   handoverDueOn: string | null;
   atRisk: boolean;
   onTime: boolean | null;
+}
+
+/** The Melbourne date an instant falls on. */
+function melbourneDay(at: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(at);
 }
 
 /** `isoDate` minus `days`, as pure calendar arithmetic. */
@@ -55,17 +71,25 @@ export function judgePromise(f: PromiseFacts): PromiseVerdict {
   // Due: the promised day less the carrier's lead time (069). ⚠ An order sold as a courier delivery
   // (079) was promised no day — it is due out the day it was placed. A package from before 069 has
   // neither, and nothing to be late against.
+  // ⚠ 080 — a courier order with a service is due out by that service's next PICKUP, an instant:
+  // the day is that instant's, and late is past that instant.
+  const byPickup = f.deliveredBy === "courier" && f.courierOrder && f.courierDueOut ? f.courierDueOut : null;
   const handoverDueOn = f.deliveredBy !== "courier"
     ? null
-    : f.promisedDate !== null
-      ? minusDays(f.promisedDate, f.carrierLeadDays)
-      : f.courierOrder ? f.placedDate : null;
+    : byPickup
+      ? melbourneDay(byPickup)
+      : f.promisedDate !== null
+        ? minusDays(f.promisedDate, f.carrierLeadDays)
+        : f.courierOrder ? f.placedDate : null;
 
   // At risk: the day it had to leave the hub has gone and it had not left — or it left late.
   // ⚠ An arrived package is never at risk: `onTime` is the verdict from then on, and a list that
   // kept flagging a delivered package would train staff to ignore the flag.
   let atRisk = false;
-  if (handoverDueOn !== null && f.arrivedAt === null) {
+  if (byPickup && f.arrivedAt === null) {
+    const left = f.handoffAt ?? null;
+    atRisk = left === null ? (f.now ?? new Date()).getTime() > byPickup.getTime() : left.getTime() > byPickup.getTime();
+  } else if (handoverDueOn !== null && f.arrivedAt === null) {
     atRisk = f.handoffDate === null ? f.today > handoverDueOn : f.handoffDate > handoverDueOn;
   }
 

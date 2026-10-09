@@ -81,9 +81,40 @@ export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_a
  * timeframe AS SOLD (the order's own copy — never today's setting). ABSENT on an order placed before
  * 079, which has no delivery type; every surface prints the result through `deliverySummary`.
  */
-function deliveryOf(row: { delivery_type?: "effy" | "courier" | null; courier_estimate?: string | null }): { delivery?: OrderDeliveryDTO } {
+function deliveryOf(row: {
+  delivery_type?: "effy" | "courier" | null;
+  courier_estimate?: string | null;
+  parcel_count?: number;
+  consignments_out?: number;
+  only_tracking_url?: string | null;
+  only_courier_name?: string | null;
+}): { delivery?: OrderDeliveryDTO } {
   if (!row.delivery_type) return {};
-  return { delivery: { type: row.delivery_type, courierEstimate: row.delivery_type === "courier" ? row.courier_estimate ?? null : null } };
+  const courier = row.delivery_type === "courier";
+  const tracking = courier ? trackingOf(row) : undefined;
+  return { delivery: { type: row.delivery_type, courierEstimate: courier ? row.courier_estimate ?? null : null, ...(tracking ? { tracking } : {}) } };
+}
+
+/**
+ * 080 Q8 — how a customer follows a courier order, decided ONCE here:
+ *   nothing with the courier yet                 → absent;
+ *   more than one parcel (or consignment)        → "sent by email" — each parcel's tracking is emailed;
+ *   exactly one, and the courier gave a link     → that link;
+ *   exactly one, no link                         → absent (a reference without a link is not tracking).
+ *
+ * ⚠ NEVER A COUNT. "By email" is the one thing a customer learns about there being several parcels,
+ * and only once one has gone; how many suppliers filled the order is not theirs to know.
+ */
+export function trackingOf(row: {
+  parcel_count?: number;
+  consignments_out?: number;
+  only_tracking_url?: string | null;
+  only_courier_name?: string | null;
+}): OrderDeliveryDTO["tracking"] {
+  const out = row.consignments_out ?? 0;
+  if (out === 0) return undefined;
+  if (out > 1 || (row.parcel_count ?? 1) > 1) return { kind: "email" };
+  return row.only_tracking_url ? { kind: "link", url: row.only_tracking_url, courierName: row.only_courier_name ?? "" } : undefined;
 }
 
 export function createOrdersService(deps: { repo: OrdersRepository; presign?: Presign }) {

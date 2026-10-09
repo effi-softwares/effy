@@ -10,7 +10,7 @@ import { Link } from "@tanstack/react-router";
 const TABS = [
   { to: "/orders", label: "Orders", exact: true },
   { to: "/orders/assignments", label: "Assignments", exact: false },
-  { to: "/orders/handover", label: "Handover", exact: false },
+  { to: "/orders/handover", label: "Courier", exact: false },
 ] as const;
 
 export function OrdersTabs() {

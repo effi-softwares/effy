@@ -2,8 +2,9 @@
 
 **NOT SIGNED OFF.** This is the builder's record for the operator to sign against.
 
-**Status (2026-10-09)**: **built and checked by machine. NOT migrated, NOT deployed, NOT walked by a
-person.** Every check below ran on local containers and test runners; nothing here read or changed dev.
+**Status (2026-10-09)**: **built, checked by machine, committed (`b05b86a0`), migrated and deployed to
+dev — reported by the operator. NOT walked by a person, and still switched off.** Every check below ran
+on local containers and test runners; I did not read dev itself. Mobile builds not confirmed.
 61/61 tasks ticked, with the gaps listed under "Not done".
 
 ## What changed

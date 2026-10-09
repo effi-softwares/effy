@@ -333,7 +333,10 @@ export interface HubCheckinRequest {
 export interface HubCheckinResponse {
   scannedTotal: WireInt;
   sameDayCount: WireInt;
+  /** @deprecated 080 — read `courierCount`. Kept for driver builds that predate it. */
   standardCount: WireInt; // staged for the external carrier; leaves the driver's active work
+  /** 080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says "Courier". */
+  courierCount?: WireInt;
 }
 
 // ── Phase 2 — same-day delivery run ──────────────────────────────────────────────────────────────

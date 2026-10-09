@@ -234,7 +234,7 @@ enum class BannerPlacement(val value: String) {
 
 @Serializable
 data class BannerTarget (
-    val kind: Kind,
+    val kind: TargetKind,
     val categoryKey: String? = null,
 
     @SerialName("productId")
@@ -245,7 +245,7 @@ data class BannerTarget (
 )
 
 @Serializable
-enum class Kind(val value: String) {
+enum class TargetKind(val value: String) {
     @SerialName("category") Category("category"),
     @SerialName("product") Product("product"),
     @SerialName("promotion") Promotion("promotion"),
@@ -1774,8 +1774,35 @@ data class OrderDeliveryDTO (
      */
     val courierEstimate: String? = null,
 
+    /**
+     * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
+     * consignment and the courier gave a tracking link. `email`: it travels as more than one,
+     * and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link
+     * given). ⚠ Never a count, a reference without a link, or anything per parcel.
+     */
+    val tracking: Tracking? = null,
+
     val type: DeliveryType
 )
+
+/**
+ * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
+ * consignment and the courier gave a tracking link. `email`: it travels as more than one,
+ * and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link
+ * given). ⚠ Never a count, a reference without a link, or anything per parcel.
+ */
+@Serializable
+data class Tracking (
+    val courierName: String? = null,
+    val kind: TrackingKind,
+    val url: String? = null
+)
+
+@Serializable
+enum class TrackingKind(val value: String) {
+    @SerialName("email") Email("email"),
+    @SerialName("link") Link("link");
+}
 
 /**
  * An anonymous per-shop fulfillment portion — NO shop identity (FR-033).

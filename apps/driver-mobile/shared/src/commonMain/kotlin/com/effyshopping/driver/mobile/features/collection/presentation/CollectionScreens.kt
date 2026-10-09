@@ -489,7 +489,7 @@ private fun MethodBadge(method: PackageMethod) {
  *
  * Every package the driver collected is checked in here, and the **same-day / standard split** —
  * already decided at checkout, so there is nothing for the driver to sort — decides what happens
- * next. Same-day stays with them; standard is staged for an external carrier and leaves their run.
+ * next. Same-day stays with them; parcels a courier takes (080: "Courier", never "Standard") are staged at the dock and leave their run.
  *
  * ⚠ **A RECORDED CARD EXCEPTION** (Principle V, research R12): the two split blocks show two
  * mutually-exclusive outcomes of one quantity, each with its own state. A two-row table loses the
@@ -543,11 +543,11 @@ fun HubCheckinScreen(
                     ScannedTotal(split.scannedTotal)
                     Spacer(Modifier.height(22.dp))
 
-                    SplitBar(sameDay = split.sameDayCount, standard = split.standardCount)
+                    SplitBar(sameDay = split.sameDayCount, standard = split.toCourier)
                     Spacer(Modifier.height(26.dp))
 
                     if (nothingSameDay) {
-                        NothingSameDayBody(split.standardCount)
+                        NothingSameDayBody(split.toCourier)
                     } else {
                         SectionLabel("THE SPLIT")
                         Spacer(Modifier.height(12.dp))
@@ -560,8 +560,9 @@ fun HubCheckinScreen(
                         )
                         Spacer(Modifier.height(11.dp))
                         SplitBlock(
-                            count = split.standardCount,
-                            title = "Standard \u2014 external carrier",
+                            count = split.toCourier,
+                            // 080 — the driver's word is who takes it, "Courier"; "Standard" is the customer's.
+                            title = "Courier \u2014 handed to a courier at the hub",
                             body = "Labelled and staged at the dock. Out of your run from here.",
                             // \u26a0 NOT "Handed to carrier" \u2014 see the note on this screen.
                             chip = "Staged for carrier",
@@ -750,8 +751,7 @@ private fun NothingSameDayBody(standardCount: Int) {
         )
         Text(
             "All $standardCount package${if (standardCount == 1) "" else "s"} on this run " +
-                "${if (standardCount == 1) "is" else "are"} standard and stay${if (standardCount == 1) "s" else ""} " +
-                "with the carrier. Your run ends here \u2014 stay on duty and dispatch may assign " +
+                "${if (standardCount == 1) "goes" else "go"} to a courier from the hub. Your run ends here \u2014 stay on duty and dispatch may assign " +
                 "another collection round.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

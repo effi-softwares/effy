@@ -324,7 +324,8 @@ export function createCheckoutService(deps: {
       // What the order will be recorded as. Null under the checkout that predates the new delivery
       // model — such an order has no delivery type, exactly like every order before it.
       const sold: SoldDelivery | null =
-        quote.coverage === "courier" ? { type: "courier", reason: quote.reason, courierEstimate: quote.estimate }
+        quote.coverage === "courier"
+          ? { type: "courier", reason: quote.reason, courierEstimate: quote.estimate, courierServiceId: quote.serviceId, courierCollection: quote.collection }
         : quote.effyWindows ? { type: "effy", reason: "in_coverage", courierEstimate: null }
         : null;
 

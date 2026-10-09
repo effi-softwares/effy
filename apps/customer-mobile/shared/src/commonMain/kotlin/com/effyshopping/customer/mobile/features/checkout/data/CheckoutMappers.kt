@@ -240,6 +240,13 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.OrderDeliveryDTO
         ContractDeliveryType.Courier -> DeliveryType.COURIER
     },
     courierEstimate = courierEstimate,
+    tracking = tracking?.let { t ->
+        when (t.kind) {
+            com.effyshopping.customer.mobile.commerce.contract.TrackingKind.Link ->
+                t.url?.let { url -> com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking.Link(url, t.courierName.orEmpty()) }
+            com.effyshopping.customer.mobile.commerce.contract.TrackingKind.Email -> com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking.ByEmail
+        }
+    },
 )
 
 internal fun DeliveryChoiceRefusalDTO.toDomain(): DeliveryChoiceRefused = DeliveryChoiceRefused(

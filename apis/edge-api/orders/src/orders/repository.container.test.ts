@@ -74,6 +74,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         billing_address jsonb,
         promo_code_id uuid,
         delivery_type text, delivery_type_reason text, courier_estimate text,
+        courier_service_id uuid, courier_collection text,
         placed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TABLE public.promo_code (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), code text NOT NULL);
@@ -128,6 +129,17 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     // transcription. The function is therefore taken from the real migration, not copied here: a
     // copy would go on passing after the rule changed, which is the one thing these tests are for.
     await pool.query(functionFromMigrations("public.package_delivered_by"));
+    await pool.query(functionFromMigrations("public.courier_parcel_collection"));
+    // 080 — the courier tables the package read joins, as far as it reads them.
+    await pool.query(`
+      CREATE TABLE public.courier_service (id uuid PRIMARY KEY, courier_name text, service_name text,
+        pickup_weekdays int[], pickup_cutoff time, max_business_days int);
+      CREATE TABLE public.courier_consignment (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), shop_fulfillment_id uuid,
+        courier_service_id uuid, state text, pickup_date date, pickup_from time, pickup_to time);
+      CREATE TABLE public.driver_round (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), kind text);
+      CREATE TABLE public.round_stop (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), round_id uuid);
+      CREATE TABLE public.round_package (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), stop_id uuid, shop_fulfillment_id uuid, state text);
+      CREATE TABLE public.hub_checkin (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), round_id uuid, checked_in_at timestamptz);`);
   }, 180_000);
 
   afterAll(async () => {

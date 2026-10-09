@@ -59,8 +59,69 @@ export type OrderAwaiting =
    * the queue waits. A package awaiting handover or arrival is late; a package nobody can supply is
    * money the platform is holding for goods that will never be sent.
    */
-  | "refund_decision";
-export const ORDER_AWAITING: readonly OrderAwaiting[] = ["refund_decision", "handover", "arrival"];
+  | "refund_decision"
+  /**
+   * 080 — a courier parcel is failed, lost, damaged or returned, and nobody has resolved it. Ranked
+   * just after a refund decision: the customer has paid for something that is not coming.
+   */
+  | "courier_problem";
+export const ORDER_AWAITING: readonly OrderAwaiting[] = ["refund_decision", "courier_problem", "handover", "arrival"];
+
+/** 080 — where a consignment is. */
+export type ConsignmentState =
+  | "booked" | "handed_over" | "in_transit" | "delivered"
+  | "failed" | "lost" | "damaged" | "returned" | "cancelled";
+
+/** 080 — one step a person records. `resolved` closes an open problem; `cancelled` drops an unsent booking. */
+export type ConsignmentEventKind =
+  | "booked" | "handed_over" | "in_transit" | "delivered"
+  | "failed" | "lost" | "damaged" | "returned" | "resolved" | "cancelled";
+
+/** 080 — the problem steps: each puts the order on the needs-attention list until resolved. */
+export const CONSIGNMENT_PROBLEMS = ["failed", "lost", "damaged", "returned"] as const;
+
+/** 080 — one parcel's journey with a courier, for staff. */
+export interface ConsignmentDTO {
+  id: string;
+  service: { id: string; label: string };
+  collection: "hub" | "supplier";
+  reference: string | null;
+  trackingUrl: string | null;
+  /** Short-lived presigned read; null when no label was attached. */
+  labelUrl: string | null;
+  pickup: { date: string; from: string | null; to: string | null } | null;
+  state: ConsignmentState;
+  events: { kind: ConsignmentEventKind; actor: { kind: "staff" | "shop"; sub: string }; note: string | null; at: string }[];
+}
+
+/** `PUT /orders/v1/fulfillments/{id}/consignment` — book, or edit a booking. */
+export interface ConsignmentInput {
+  serviceId: string;
+  reference?: string | null;
+  trackingUrl?: string | null;
+  labelKey?: string | null;
+  pickup?: { date: string; from?: string | null; to?: string | null } | null;
+}
+
+/** `POST /orders/v1/fulfillments/{id}/consignment/events`. */
+export interface ConsignmentEventInput {
+  kind: Exclude<ConsignmentEventKind, "booked">;
+  note?: string | null;
+}
+
+/** `POST /orders/v1/fulfillments/{id}/consignment/label` — where to upload a label file. */
+export interface ConsignmentLabelUploadDTO {
+  labelKey: string;
+  uploadUrl: string;
+  /** The content type the upload must be sent with. */
+  contentType: string;
+}
+
+/** `PUT /orders/v1/orders/{id}/courier-collection`. */
+export interface CourierCollectionInput {
+  mode: "hub" | "supplier";
+  note?: string | null;
+}
 
 /** A row in the back-office order list. */
 export interface AdminOrderSummaryDTO {
@@ -130,6 +191,15 @@ export interface AdminOrderPackageDTO {
    * carrier handover applies: a "standard" package sold a window is Effy's.
    */
   deliveredBy: DeliveryType;
+  /** 080 — the parcel's live consignment, when a courier takes it and one is booked or handed over. */
+  consignment: ConsignmentDTO | null;
+  /**
+   * 080 — when a courier parcel is due out: the courier service's next pickup (ISO instant). Null for
+   * a parcel Effy delivers, or one already handed over.
+   */
+  dueOut: string | null;
+  /** 080 — past `dueOut` (or a booked supplier pickup's window) and not handed over. */
+  late: boolean;
   /** "same_day" | "standard" | null for a pre-047 order. The CUSTOMER'S word; see `deliveredBy`. */
   deliveryMethod: string | null;
   handoff: CarrierHandoffDTO | null;
@@ -165,9 +235,28 @@ export interface HandoverRowDTO {
   atRisk: boolean;
   /** Checked in at the hub. False means it has not arrived there yet and cannot be handed over. */
   atHub: boolean;
+  /** 080 — the courier service it goes with ("Courier · Service"), when known. */
+  service: string | null;
+  /** 080 — the next pickup of that service (ISO instant), for a hub parcel. */
+  dueOut: string | null;
+  /** 080 */
+  collection: "hub" | "supplier";
+  consignmentState: ConsignmentState | null;
+  /** 080 — a booked supplier pickup. */
+  pickup: { date: string; from: string | null; to: string | null } | null;
+  /** 080 — the latest problem step, for the `problems` view. */
+  problem: string | null;
 }
 
 export type HandoverDueFilter = "today" | "overdue" | "upcoming";
+
+/**
+ * 080 — the Courier tab's views. `hub_due` / `hub_late`: at (or due at) the hub, not handed over;
+ * `supplier`: supplier pickups not handed over; `with_courier`: handed over, not delivered (overdue
+ * first); `problems`: an open problem.
+ */
+export type CourierView = "hub_due" | "hub_late" | "supplier" | "with_courier" | "problems";
+export const COURIER_VIEWS: readonly CourierView[] = ["hub_due", "hub_late", "supplier", "with_courier", "problems"];
 
 export interface HandoverListResponse {
   items: HandoverRowDTO[];
@@ -238,6 +327,10 @@ export interface AdminOrderDetailDTO {
   courierEstimate: string | null;
   /** 079 — oldest first. Empty for an order placed before 079: its history is not invented. */
   deliveryTypeHistory: DeliveryTypeChangeDTO[];
+  /** 080 — how this courier order's parcels reach the courier; null unless a courier delivers. */
+  courierCollection: "hub" | "supplier" | null;
+  /** 080 — oldest first. */
+  courierCollectionHistory: { from: "hub" | "supplier"; to: "hub" | "supplier"; actorSub: string; note: string | null; at: string }[];
 
   customerId: string;
   customerEmail: string;

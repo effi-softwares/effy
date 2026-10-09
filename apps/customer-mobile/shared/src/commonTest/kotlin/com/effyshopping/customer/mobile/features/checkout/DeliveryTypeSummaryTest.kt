@@ -4,6 +4,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
 import com.effyshopping.customer.mobile.features.checkout.presentation.DeliverySummary
 import com.effyshopping.customer.mobile.features.checkout.presentation.DeliveryTypeWords
 import com.effyshopping.customer.mobile.features.checkout.presentation.deliverySummary
@@ -41,6 +42,9 @@ class DeliveryTypeSummaryTest {
             OrderDelivery(
                 type = if (it.str("type") == "courier") DeliveryType.COURIER else DeliveryType.EFFY,
                 courierEstimate = it.str("courierEstimate"),
+                tracking = it["tracking"]?.takeIf { t -> t !is JsonNull }?.jsonObject?.let { t ->
+                    if (t.str("kind") == "email") OrderTracking.ByEmail else OrderTracking.Link(t.str("url")!!, t.str("courierName")!!)
+                },
             )
         }
 
@@ -55,7 +59,7 @@ class DeliveryTypeSummaryTest {
 
     @Test
     fun `every case in the shared fixture is said the same here`() {
-        assertTrue(cases.size >= 7, "a fixture that loads empty proves nothing")
+        assertTrue(cases.size >= 9, "a fixture that loads empty proves nothing")
         for (case in cases) {
             val c = case.jsonObject
             val input = c.getValue("input").jsonObject
@@ -80,6 +84,8 @@ class DeliveryTypeSummaryTest {
                 "courierEstimateSuffix" to DeliveryTypeWords.COURIER_ESTIMATE_SUFFIX,
                 "noWindowsLeft" to DeliveryTypeWords.NO_WINDOWS_LEFT,
                 "courierInsteadOfWindows" to DeliveryTypeWords.COURIER_INSTEAD_OF_WINDOWS,
+                "trackParcel" to DeliveryTypeWords.TRACK_PARCEL, "trackingByEmail" to DeliveryTypeWords.TRACKING_BY_EMAIL,
+                "withCourier" to DeliveryTypeWords.WITH_COURIER,
                 "sameDay" to DeliveryTypeWords.SAME_DAY, "standard" to DeliveryTypeWords.STANDARD, "scheduled" to DeliveryTypeWords.SCHEDULED,
             ),
             words.mapValues { it.value.jsonPrimitive.content },
@@ -97,5 +103,17 @@ class DeliveryTypeSummaryTest {
         val said = (listOfNotNull(s.heading) + s.lines).joinToString(" ")
         for (word in listOf("standard", "same-day", "tomorrow", "Fri", "confirm")) assertFalse(said.contains(word, ignoreCase = true), said)
         assertTrue(s.lines.last().endsWith("an estimate, not a guaranteed date."), said)
+    }
+
+    @Test
+    fun the_receipt_s_tracking_link_says_the_website_s_words_with_the_courier_when_named() {
+        assertEquals(
+            "Track your parcel with Test Courier",
+            com.effyshopping.customer.mobile.features.checkout.presentation.trackingLinkLabel(OrderTracking.Link("https://track.example.test/A1", "Test Courier")),
+        )
+        assertEquals(
+            DeliveryTypeWords.TRACK_PARCEL,
+            com.effyshopping.customer.mobile.features.checkout.presentation.trackingLinkLabel(OrderTracking.Link("https://track.example.test/A1", "")),
+        )
     }
 }

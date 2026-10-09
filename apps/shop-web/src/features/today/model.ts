@@ -1,4 +1,6 @@
-import { DELIVERED_BY_WORDS, type DeliveredBy, type ShopAttentionItemDTO, type ShopTodayDTO } from "@effy/shared-types"
+import { DELIVERED_BY_WORDS, type CourierPickupDTO, type DeliveredBy, type ShopAttentionItemDTO, type ShopTodayDTO } from "@effy/shared-types"
+
+import { courierPickupLine } from "@/features/fulfillment/courierPickup"
 
 /**
  * Today's copy and time formatting (058).
@@ -72,9 +74,14 @@ export function cityOf(timezone: string): string {
  * be the customer's word for the delivery ("Same-day" / "Standard"), which stopped telling a shop
  * anything true once a "standard" order could be one an Effy driver delivers.
  */
-export function liveMeta(o: { paidAt: string; itemCount: number; deliveredBy: DeliveredBy }, now: number): string {
+export function liveMeta(
+  o: { paidAt: string; itemCount: number; deliveredBy: DeliveredBy; courierPickup?: CourierPickupDTO },
+  now: number,
+): string {
   const items = `${o.itemCount} ${o.itemCount === 1 ? "item" : "items"}`
-  return `${relativeTime(o.paidAt, now)} · ${items} · ${DELIVERED_BY_WORDS[o.deliveredBy]}`
+  // 080 — a courier collecting from this shop says so, with when.
+  const who = o.courierPickup ? courierPickupLine(o.courierPickup) : DELIVERED_BY_WORDS[o.deliveredBy]
+  return `${relativeTime(o.paidAt, now)} · ${items} · ${who}`
 }
 
 /** What a Needs attention row says, and which verb resolves it. */

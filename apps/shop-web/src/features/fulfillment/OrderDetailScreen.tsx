@@ -10,6 +10,7 @@ import { sessionQuery } from "@/features/auth/queries";
 import { track } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 
+import { CourierPickup } from "./components/CourierPickup";
 import { ItemsAndFulfilment } from "./components/ItemsAndFulfilment";
 import { OrderActivitySheet } from "./components/OrderActivitySheet";
 import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags";
@@ -195,6 +196,9 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
           </p>
         </div>
+        {detail.courierPickup ? (
+          <CourierPickup fulfillmentId={detail.id} status={detail.status} pickup={detail.courierPickup} />
+        ) : null}
         <div
           className="grid gap-10 pt-6"
           style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}

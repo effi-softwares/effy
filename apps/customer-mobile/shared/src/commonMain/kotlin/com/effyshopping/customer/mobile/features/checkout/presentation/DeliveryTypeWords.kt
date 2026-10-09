@@ -5,6 +5,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
 
 /**
  * Who delivers an order — Effy, or a courier — and how this app says it (079).
@@ -29,6 +30,9 @@ object DeliveryTypeWords {
     const val COURIER_INSTEAD_OF_WINDOWS = "We can send this order by courier instead."
     const val SAME_DAY = "Same-day delivery"
     const val STANDARD = "Standard delivery"
+    const val TRACK_PARCEL = "Track your parcel"
+    const val TRACKING_BY_EMAIL = "Tracking for each parcel is sent to you by email."
+    const val WITH_COURIER = "Your order is with the courier."
     const val SCHEDULED = "Scheduled delivery"
 
     /**
@@ -76,7 +80,10 @@ fun deliverySummary(
     offsetAt: (Long) -> Int = ::melbourneOffsetSeconds,
 ): DeliverySummary {
     if (delivery?.type == DeliveryType.COURIER) {
-        return DeliverySummary(DeliveryTypeWords.COURIER, DeliveryTypeWords.courierLines(delivery.courierEstimate.orEmpty()))
+        val lines = DeliveryTypeWords.courierLines(delivery.courierEstimate.orEmpty()).toMutableList()
+        // 080 — several consignments: tracking comes by email. One link is drawn by the screen.
+        if (delivery.tracking is OrderTracking.ByEmail) lines += DeliveryTypeWords.TRACKING_BY_EMAIL
+        return DeliverySummary(DeliveryTypeWords.COURIER, lines)
     }
     fun said(a: ArrivalEstimate?) = DeliveryWindowText.formatArrival(a?.promisedFrom, a?.promisedTo, a?.windowStart, a?.windowEnd, nowEpochMillis, offsetAt)
     val distinct = arrivals.distinctBy { listOf(it.method, it.promisedFrom, it.promisedTo, it.windowStart, it.windowEnd) }

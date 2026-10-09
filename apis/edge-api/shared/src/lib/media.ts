@@ -114,6 +114,36 @@ export async function presignUpload(
   return { uploadUrl, storageKey };
 }
 
+/** 080 — what a courier label may be: the courier's PDF, or an image of it. */
+const LABEL_CONTENT_TYPES: Record<string, string> = { "application/pdf": "pdf", "image/png": "png" };
+const MAX_LABEL_FILE_SIZE = 5 * 1024 * 1024;
+
+/**
+ * 080 — a presigned PUT for a courier label, under `courier-label/<packageId>/`.
+ *
+ * ⚠ A LABEL CARRIES THE CUSTOMER'S NAME AND ADDRESS. It is never public: it is read only through
+ * `presignRead`, by staff and by the one shop whose parcel it is.
+ */
+export async function presignLabelUpload(
+  packageId: string,
+  contentType: unknown,
+  fileSize: unknown,
+): Promise<{ uploadUrl: string; storageKey: string; contentType: string }> {
+  if (typeof contentType !== "string" || !LABEL_CONTENT_TYPES[contentType]) {
+    throw new MediaValidationError("unsupported label type", [{ field: "contentType", message: "must be application/pdf or image/png" }]);
+  }
+  if (typeof fileSize !== "number" || !Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX_LABEL_FILE_SIZE) {
+    throw new MediaValidationError("label too large", [{ field: "fileSize", message: `must be a positive number up to ${MAX_LABEL_FILE_SIZE} bytes` }]);
+  }
+  const storageKey = `courier-label/${packageId}/${randomToken()}.${LABEL_CONTENT_TYPES[contentType]}`;
+  const uploadUrl = await getSignedUrl(
+    client(),
+    new PutObjectCommand({ Bucket: bucket(), Key: storageKey, ContentType: contentType }),
+    { expiresIn: UPLOAD_URL_TTL },
+  );
+  return { uploadUrl, storageKey, contentType };
+}
+
 /**
  * Fetch the leading bytes of a stored object, so a header can be read without downloading the file.
  *

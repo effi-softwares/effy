@@ -2,7 +2,7 @@ package com.effyshopping.customer.mobile.features.catalog
 
 import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as BannerTargetDTO
-import com.effyshopping.customer.mobile.commerce.contract.Kind
+import com.effyshopping.customer.mobile.commerce.contract.TargetKind as Kind
 import com.effyshopping.customer.mobile.commerce.contract.ProductBadge as ProductBadgeDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontProductCardDTO

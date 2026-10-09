@@ -31,6 +31,8 @@ export interface PackageFacts {
   failedReason: string | null;
   handedToCarrier: boolean;
   arrived: boolean;
+  /** 080 — an open problem with the courier: failed | lost | damaged | returned; null when none. */
+  courierProblem?: string | null;
 }
 
 const FAILURE_WORDS: Record<string, string> = {
@@ -39,6 +41,13 @@ const FAILURE_WORDS: Record<string, string> = {
   customer_refused: "customer refused",
   access_blocked: "couldn't get access",
   other: "see the driver's note",
+};
+
+const COURIER_PROBLEM_WORDS: Record<string, string> = {
+  failed: "delivery failed",
+  lost: "lost",
+  damaged: "damaged",
+  returned: "returned to sender",
 };
 
 const IN_TRANSIT = new Set(["out_for_delivery", "en_route", "arrived"]);
@@ -56,6 +65,9 @@ export function packageStatus(f: PackageFacts): PackageStatusView {
   if (f.failedReason !== null) {
     return view("problem", `Delivery attempt failed — ${FAILURE_WORDS[f.failedReason] ?? f.failedReason}`, f.deliveryDriver);
   }
+  // 080 — a courier reported a problem and nobody has resolved it. After "delivered" (the furthest
+  // fact still wins), before "with carrier" — which is otherwise all a lost parcel would ever say.
+  if (f.courierProblem) return view("problem", `With the courier — ${COURIER_PROBLEM_WORDS[f.courierProblem] ?? f.courierProblem}`);
   if (f.handedToCarrier) return view("with_carrier");
   if (f.deliveryState === "assigned" && f.deliveryStopStatus !== null && IN_TRANSIT.has(f.deliveryStopStatus)) {
     return view("out_for_delivery", null, f.deliveryDriver);

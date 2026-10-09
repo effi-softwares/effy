@@ -1,5 +1,6 @@
 import { courierEstimateSentence } from "@effy/shared-types";
 
+import { CourierCollection } from "./CourierCollection";
 import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, type OrderDetail } from "../model";
 
 /**
@@ -13,7 +14,12 @@ import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, type Order
  * Its packages still say who took them (the Packages section); a type and a history are not invented
  * for it.
  */
-export function DeliveryTypeSection({ order, formatDateTime }: { order: OrderDetail; formatDateTime: (iso: string | null) => string }) {
+export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection = false }: {
+  order: OrderDetail;
+  formatDateTime: (iso: string | null) => string;
+  /** 080 — admin/manager: switch how a courier order's parcels reach the courier. */
+  canChangeCollection?: boolean;
+}) {
   if (!order.deliveryType) {
     return (
       <section className="space-y-3">
@@ -45,6 +51,9 @@ export function DeliveryTypeSection({ order, formatDateTime }: { order: OrderDet
           </>
         ) : null}
       </dl>
+
+      {/* 080 US3 — only on a courier order. */}
+      <CourierCollection order={order} canChange={canChangeCollection} formatDateTime={(iso) => formatDateTime(iso)} />
 
       {order.deliveryTypeHistory.length > 0 ? (
         <table className="w-full text-sm" aria-label="Delivery type history">

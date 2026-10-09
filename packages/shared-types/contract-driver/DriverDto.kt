@@ -704,6 +704,12 @@ data class HubCheckinRequest (
 
 @Serializable
 data class HubCheckinResponse (
+    /**
+     * 080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says
+     * "Courier".
+     */
+    val courierCount: Long? = null,
+
     val sameDayCount: Long,
     val scannedTotal: Long,
     val standardCount: Long

@@ -1,7 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrationSql, transactorFor, type Transactor } from "@effy/edge-shared";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
-import { effyDays, melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
+import { bookConsignment, effyDays, handOver, melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
 import {
   finalizeFailed, finalizeSucceeded, WebhookSignatureError,
   type IntentStatus, type PaymentGateway, type PaymentIntent, type WebhookEvent,
@@ -1286,6 +1286,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
   const COURIER_PLAN = "00000000-0000-0000-0000-0000000000c9";
   const ESTIMATE = "2–4 business days";
+  const COURIER_SERVICE = "00000000-0000-0000-0000-0000000000cb";
   /** $9.00 flat; a basket over 5 kg is $4.50 dearer. No distance, no window. */
   async function courierArmed<T>(fn: () => Promise<T>): Promise<T> {
     await pool.query(`
@@ -1294,13 +1295,19 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       INSERT INTO public.delivery_fee_plan (id, kind, name, is_active, base_amount, rounding_step, floor_amount, cap_amount, created_by)
         VALUES ('${COURIER_PLAN}', 'courier', 'Courier table', true, 9.00, 0.50, 0.00, 90.00, 'test');
       INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${COURIER_PLAN}', 5000, 0.00), ('${COURIER_PLAN}', 100000, 4.50);
-      UPDATE public.delivery_settings SET courier_offered = true, courier_estimate_text = '${ESTIMATE}' WHERE id = 1;`);
+      UPDATE public.delivery_settings SET courier_offered = true WHERE id = 1;
+      -- 080 — the timeframe a courier customer is told is the DEFAULT courier service's.
+      INSERT INTO public.courier_service (id, courier_name, service_name, estimate_text, max_business_days, pickup_weekdays, pickup_cutoff, is_default, updated_by)
+        VALUES ('${COURIER_SERVICE}', 'Test Courier', 'Parcel', '${ESTIMATE}', 4, '{1,2,3,4,5}', '14:00', true, 'test');`)
     try {
       return await fn();
     } finally {
       await pool.query(`
         DELETE FROM public.courier_excluded_postcode;
-        UPDATE public.delivery_settings SET courier_offered = false, courier_estimate_text = NULL, courier_when_no_windows = false WHERE id = 1;
+        UPDATE public.delivery_settings SET courier_offered = false, courier_estimate_text = NULL, courier_when_no_windows = false,
+                                            courier_collection_default = 'hub' WHERE id = 1;
+        UPDATE public."order" SET courier_service_id = NULL WHERE courier_service_id = '${COURIER_SERVICE}';
+        DELETE FROM public.courier_service WHERE id = '${COURIER_SERVICE}';
         UPDATE public."order" SET delivery_fee_breakdown = NULL WHERE delivery_fee_breakdown ->> 'planId' = '${COURIER_PLAN}';
         DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}';`);
     }
@@ -1400,6 +1407,13 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(r).toMatchObject({ deliveryType: "courier", grandTotalAmount: "19.00", deliveryFee: { totalAmount: "9.00" } });
       expect(r.slotHeldUntil ?? null).toBeNull();
       expect(await soldAs(r.orderId)).toEqual({ type: "courier", reason: "out_of_coverage", estimate: ESTIMATE });
+      // 080 P9 — the service whose timeframe they were told, and the platform's default way to the courier.
+      expect(await one(`SELECT courier_service_id::text AS service, courier_collection AS mode FROM public."order" WHERE id = $1`, [r.orderId]))
+        .toEqual({ service: COURIER_SERVICE, mode: "hub" });
+      await pool.query(`UPDATE public.delivery_settings SET courier_collection_default = 'supplier' WHERE id = 1`);
+      const s2 = await shopper({ CouA: 1 });
+      const r2 = await svc.createIntent(s2.customerId, courier(await addressAt(s2.customerId)), new Date());
+      expect((await one<{ mode: string }>(`SELECT courier_collection AS mode FROM public."order" WHERE id = $1`, [r2.orderId])).mode).toBe("supplier");
       // Two suppliers, ONE delivery type and ONE fee; each package is the shape the hub hands to a carrier.
       expect(await packagesOf(r.orderId)).toEqual(Array(2).fill({ method: "standard", day: null, slot: null, start: null }));
       expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId])).toBe(0);
@@ -1505,9 +1519,9 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       await refusedAt(far);
       await pool.query(`DELETE FROM public.courier_excluded_postcode`);
 
-      await pool.query(`UPDATE public.delivery_settings SET courier_estimate_text = NULL WHERE id = 1`);
-      await refusedAt(far); // on, and nothing to tell the customer
-      await pool.query(`UPDATE public.delivery_settings SET courier_estimate_text = '${ESTIMATE}' WHERE id = 1`);
+      await pool.query(`UPDATE public.courier_service SET is_default = false WHERE id = '${COURIER_SERVICE}'`);
+      await refusedAt(far); // on, and no courier service to tell the customer a timeframe from (080)
+      await pool.query(`UPDATE public.courier_service SET is_default = true WHERE id = '${COURIER_SERVICE}'`);
 
       await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE id = '${COURIER_PLAN}'`);
       await refusedAt(far); // on, and no price
@@ -1526,8 +1540,8 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const far = await addressAt(s.customerId);
       const r = await svc.createIntent(s.customerId, courier(far), new Date());
       await pay(r.orderId);
-      // The business changes its estimate afterwards.
-      await pool.query(`UPDATE public.delivery_settings SET courier_estimate_text = '5–7 business days' WHERE id = 1`);
+      // The business changes the service's timeframe afterwards.
+      await pool.query(`UPDATE public.courier_service SET estimate_text = '5–7 business days' WHERE id = '${COURIER_SERVICE}'`);
 
       const o = await orders.get(scope, s.customerId, r.orderId);
       expect(o.delivery).toEqual({ type: "courier", courierEstimate: ESTIMATE });
@@ -1552,6 +1566,63 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     await pay(ro.orderId);
     expect(await orders.get(scope, old.customerId, ro.orderId)).not.toHaveProperty("delivery");
     expect((await orders.list(old.customerId))[0]).not.toHaveProperty("delivery");
+  });
+
+  it("⚠ 080 P11 — a customer follows a courier order by ONE link, or is told tracking comes by email; never a count", async () => {
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    await modelOn(() => courierArmed(async () => {
+      const staff = { kind: "staff" as const, sub: "sub-staff" };
+      const sendOff = async (packageId: string, trackingUrl: string | null) => {
+        await pool.query(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [packageId]);
+        await transact(async (tx) => {
+          await bookConsignment(tx, { packageId, serviceId: COURIER_SERVICE, trackingUrl, actor: staff, now: new Date() });
+          await handOver(tx, { packageId, actor: staff });
+        });
+      };
+      const packagesOf = async (orderId: string) =>
+        (await pool.query<{ id: string }>(`SELECT id::text AS id FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at`, [orderId])).rows.map((r) => r.id);
+
+      // ONE parcel.
+      const s = await shopper({ Milk: 2 });
+      const r = await svc.createIntent(s.customerId, courier(await addressAt(s.customerId)), new Date());
+      await pay(r.orderId);
+      const [only] = await packagesOf(r.orderId);
+      // Booked is not yet anything to follow.
+      await transact((tx) => bookConsignment(tx, { packageId: only!, serviceId: COURIER_SERVICE, trackingUrl: "https://track.example.test/A1", actor: staff, now: new Date() }));
+      expect((await orders.get(scope, s.customerId, r.orderId)).delivery).toEqual({ type: "courier", courierEstimate: ESTIMATE });
+      await pool.query(`UPDATE public.shop_fulfillment SET status = 'collected' WHERE id = $1`, [only]);
+      await transact((tx) => handOver(tx, { packageId: only!, actor: staff }));
+      expect((await orders.get(scope, s.customerId, r.orderId)).delivery).toEqual({
+        type: "courier", courierEstimate: ESTIMATE, tracking: { kind: "link", url: "https://track.example.test/A1", courierName: "Test Courier" },
+      });
+
+      // TWO parcels (a second supplier): "by email" as soon as one has gone — and never a number.
+      const t = await shopper({ Milk: 1 });
+      const rt = await svc.createIntent(t.customerId, courier(await addressAt(t.customerId)), new Date());
+      await pay(rt.orderId);
+      const second = await otherShop("P11B");
+      await pool.query(
+        `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, item_count, subtotal_amount, delivery_method)
+         VALUES ($1, $2, 'ready_for_pickup', 1, 1, 'standard')`,
+        [rt.orderId, second],
+      );
+      const [first] = await packagesOf(rt.orderId);
+      expect((await orders.get(scope, t.customerId, rt.orderId)).delivery).not.toHaveProperty("tracking");
+      await sendOff(first!, "https://track.example.test/B1");
+      const two = await orders.get(scope, t.customerId, rt.orderId);
+      expect(two.delivery).toEqual({ type: "courier", courierEstimate: ESTIMATE, tracking: { kind: "email" } });
+      expect(JSON.stringify(two)).not.toMatch(/track\.example|B1|consignment/);
+
+      // A single parcel with no link: nothing to follow, and nothing invented.
+      const u = await shopper({ Milk: 1 });
+      const ru = await svc.createIntent(u.customerId, courier(await addressAt(u.customerId)), new Date());
+      await pay(ru.orderId);
+      await sendOff((await packagesOf(ru.orderId))[0]!, null);
+      expect((await orders.get(scope, u.customerId, ru.orderId)).delivery).not.toHaveProperty("tracking");
+
+      // Clean up what courierArmed's teardown cannot (the service is referenced).
+      await pool.query(`DELETE FROM public.courier_consignment WHERE courier_service_id = '${COURIER_SERVICE}'`);
+    }));
   });
 
   it("079 P10 — no window left: courier instead ONLY if the business allows it, a courier reaches it, and no window is open", async () => {

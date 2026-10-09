@@ -42,7 +42,9 @@ export type NotificationType =
   | "shop_product_sent_back"
   // 074 — the customer's points. `points_credited` is push + email; `points_expiring` is email only.
   | "points_credited"
-  | "points_expiring";
+  | "points_expiring"
+  // 080 — a parcel of a courier order was handed to the courier. Push + email, once per consignment.
+  | "order_with_courier";
 
 /**
  * Which notification group a type belongs to, for coalescing and badge counting on the web.
@@ -206,6 +208,20 @@ const COPY: Record<NotificationType, NotificationCopy> = {
     deepLinkPath: "points",
     webPath: "/account?tab=points",
     tag: "customer-points",
+    group: "customer",
+    entityInLink: false,
+  },
+
+  // ── 080 courier ───────────────────────────────────────────────────────────────────────────────
+  // ⚠ The entity is the CONSIGNMENT (one notice per parcel handed over), not the order, so the tap
+  // opens the customer's orders rather than `order/<consignment id>`, a page that does not exist.
+  // ⚠ "your order", never a count: how many parcels there are is not a customer's to learn here.
+  order_with_courier: {
+    title: "With the courier",
+    body: "Your order is with the courier.",
+    deepLinkPath: "order",
+    webPath: "/orders",
+    tag: "customer-order",
     group: "customer",
     entityInLink: false,
   },

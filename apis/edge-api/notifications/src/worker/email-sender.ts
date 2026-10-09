@@ -34,6 +34,8 @@ const EMAIL_TEMPLATES = {
   // 074 — a points credit, and the one warning before points expire.
   points_credited: "points-credited",
   points_expiring: "points-expiring",
+  // 080 — one per consignment: the per-parcel tracking the order page says is sent by email.
+  order_with_courier: "order-with-courier",
 } as const satisfies Partial<Record<NotificationType, string>>;
 
 export function hasEmailTemplate(type: NotificationType): boolean {
@@ -117,6 +119,26 @@ async function loadExpiring(noticeId: string) {
   return { points: points(row.points), valueAmount: dollars(row.points * row.cents_per_point), expiresOn: longDate(row.expiry_date) };
 }
 
+// ── 080 courier ───────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One consignment, resolved at send time from its id. ⚠ Selects nothing about the shop, the other
+ * parcels or the fee — the template has no var for them.
+ */
+async function loadWithCourier(consignmentId: string) {
+  return (
+    await query<{ order_id: string; order_number: string; courier_name: string; reference: string | null; tracking_url: string | null }>(
+      `SELECT o.id::text AS order_id, o.order_number, s.courier_name, c.reference, c.tracking_url
+         FROM public.courier_consignment c
+         JOIN public.courier_service s ON s.id = c.courier_service_id
+         JOIN public.shop_fulfillment sf ON sf.id = c.shop_fulfillment_id
+         JOIN public."order" o ON o.id = sf.order_id
+        WHERE c.id = $1`,
+      [consignmentId],
+    )
+  ).rows[0] ?? null;
+}
+
 export interface EmailSenderOptions {
   /** Absolute base URL of the storefront, for the order link. */
   siteUrl: string;
@@ -155,6 +177,23 @@ export function createEmailSender(opts: EmailSenderOptions) {
           if (!loaded) return { ok: false, prune: false, errorClass: "points_notice_not_found" };
           res = await sendEmail("points-expiring", { ...loaded, pointsUrl, shopUrl: `${site}/` }, { to, audience: "customer" }, logger);
         }
+      } else if (type === "order_with_courier") {
+        const c = await loadWithCourier(entityId);
+        if (!c) return { ok: false, prune: false, errorClass: "consignment_not_found" };
+        res = await sendEmail(
+          "order-with-courier",
+          {
+            orderNumber: c.order_number,
+            courierName: c.courier_name,
+            hasReference: c.reference !== null,
+            reference: c.reference ?? "",
+            hasTracking: c.tracking_url !== null,
+            trackingUrl: c.tracking_url ?? "",
+            orderUrl: `${site}/orders/${c.order_id}`,
+          },
+          { to, audience: "customer" },
+          logger,
+        );
       } else {
         const loaded = await loadDelivered(entityId);
         if (!loaded) return { ok: false, prune: false, errorClass: "order_not_found" };

@@ -1,0 +1,9 @@
+{
+  "orderNumber": "EFY-HVX2AE",
+  "courierName": "Example Couriers",
+  "hasReference": true,
+  "reference": "EX123456789AU",
+  "hasTracking": true,
+  "trackingUrl": "https://tracking.example.com/EX123456789AU",
+  "orderUrl": "https://dev.effyshopping.com/orders/8f1c2d3e-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
+}

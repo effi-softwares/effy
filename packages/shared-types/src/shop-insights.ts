@@ -21,6 +21,7 @@
 
 import type { WireInt } from "./cart"
 import type { DeliveredBy } from "./delivery-type"
+import type { CourierPickupDTO } from "./shop-order-console"
 
 // ── Today: the live operational snapshot ────────────────────────────────────────────────────────
 
@@ -87,6 +88,8 @@ export interface ShopLiveOrderDTO {
   itemCount: WireInt
   /** 079 — who takes this package away. The only thing a shop is told about delivery. */
   deliveredBy: DeliveredBy
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   /**
@@ -288,6 +291,8 @@ export interface ShopPickListDTO {
   paidAt: string
   /** 079 — who takes this package away. The only thing a shop is told about delivery. */
   deliveredBy: DeliveredBy
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   lines: Array<{ name: string; sku: string | null; quantity: WireInt }>

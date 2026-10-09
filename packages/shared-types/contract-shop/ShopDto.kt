@@ -244,6 +244,11 @@ data class CreateShopSectionRequest (
 @Serializable
 data class DeliveryPromiseDTO (
     /**
+     * 080 — present only when a courier collects this package from the shop.
+     */
+    val courierPickup: CourierPickupDTO? = null,
+
+    /**
      * 079 — who takes this package away from the shop: an Effy driver or a courier. Absent from
      * a server older than 079. Print it through `DELIVERED_BY_WORDS`.
      */
@@ -256,6 +261,56 @@ data class DeliveryPromiseDTO (
 
     val serviceLevel: String
 )
+
+/**
+ * 080 — present only when a courier collects this package from the shop.
+ *
+ * 080 — a courier will collect THIS package from the shop. ⚠ The shop's own parcel only:
+ * never a fee, the customer's estimate, a tracking link, or anything about another shop's
+ * parcel.
+ */
+@Serializable
+data class CourierPickupDTO (
+    val courierName: String? = null,
+
+    /**
+     * Short-lived presigned read of the label to attach; null when none was attached.
+     */
+    @SerialName("labelUrl")
+    val labelURL: String? = null,
+
+    /**
+     * yyyy-mm-dd
+     */
+    val pickupDate: String? = null,
+
+    /**
+     * "13:00"
+     */
+    val pickupFrom: String? = null,
+
+    val pickupTo: String? = null,
+    val reference: String? = null,
+    val serviceName: String? = null,
+
+    /**
+     * arranging = staff have not booked it yet; the parcel is prepared and marked ready as
+     * usual.
+     */
+    val state: CourierPickupState
+)
+
+/**
+ * arranging = staff have not booked it yet; the parcel is prepared and marked ready as
+ * usual.
+ */
+@Serializable
+enum class CourierPickupState(val value: String) {
+    @SerialName("arranging") Arranging("arranging"),
+    @SerialName("booked") Booked("booked"),
+    @SerialName("cancelled") Cancelled("cancelled"),
+    @SerialName("handed_over") HandedOver("handed_over");
+}
 
 /**
  * 079 — who takes this package away from the shop: an Effy driver or a courier. Absent from
@@ -682,7 +737,7 @@ data class ProductPendingChangeDTO (
 
     val proposed: ProductChangeProposalDTO,
     val reason: String? = null,
-    val state: State,
+    val state: ProductPendingChangeDTOState,
     val submittedAt: String
 )
 
@@ -716,7 +771,7 @@ data class ProductChangeProposalDTO (
 )
 
 @Serializable
-enum class State(val value: String) {
+enum class ProductPendingChangeDTOState(val value: String) {
     @SerialName("in_review") InReview("in_review"),
     @SerialName("sent_back") SentBack("sent_back");
 }

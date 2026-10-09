@@ -5,6 +5,7 @@ import {
 import { toneForDeliveryMethod } from "@/app/checkout/_components/status-palette"
 import { ProgressTrack } from "@/components/receipt/ProgressTrack"
 import { StatusPill } from "@/components/receipt/StatusPill"
+import { TrackingLink } from "@/components/receipt/TrackingLink"
 
 /**
  * When the order arrives, and how far along it is (052 FR-007 / FR-008).
@@ -39,6 +40,13 @@ export function ArrivalPanel({
           <p className="text-[13px] text-muted-foreground">{DELIVERY_TYPE_WORDS.courier}</p>
           <p className="text-xl font-semibold leading-tight tracking-[-0.01em]">{partner}</p>
           <p className="text-sm text-muted-foreground">{estimate}</p>
+          {/* 080 Q8 — one consignment: its link; several: each parcel's tracking comes by email.
+              ⚠ Never a count. */}
+          {delivery.tracking?.kind === "link" ? (
+            <TrackingLink url={delivery.tracking.url} courierName={delivery.tracking.courierName} />
+          ) : delivery.tracking?.kind === "email" ? (
+            <p className="text-sm" data-testid="tracking-by-email">{DELIVERY_TYPE_WORDS.trackingByEmail}</p>
+          ) : null}
         </div>
         <div className="pt-4">
           <ProgressTrack stage={stage} />

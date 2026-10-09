@@ -137,11 +137,13 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
         />
       </section>
 
-      <DeliveryTypeSection order={order} formatDateTime={formatDateTime} />
+      <DeliveryTypeSection order={order} formatDateTime={formatDateTime} canChangeCollection={canRecord} />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Packages</h2>
         <PackageRows
+          orderId={order.id}
+          courierCollection={order.courierCollection}
           packages={order.packages}
           canRecord={canRecord}
           busy={busy}

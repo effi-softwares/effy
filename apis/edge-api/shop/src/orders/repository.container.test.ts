@@ -39,11 +39,18 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
+vi.mock("@effy/edge-shared/live", () => ({ announce: vi.fn(), announceMoves: vi.fn(), announceOrder: vi.fn() }));
+
+import { bookConsignment } from "@effy/edge-shared/delivery";
+
 import { addNote, applyPicks, listOrders, readActivity, readOrder, replaceTags } from "./repository";
 import { parseListQuery, toEntry } from "./service";
 import { toListDTO, toOrderDTO } from "./handler-support";
 import { readPickLists } from "../pick-lists/repository";
 import { readLiveOrders } from "../today/repository";
+import { listQueue, readDetail } from "../fulfillments/repository";
+import { courierHandover } from "../fulfillments/service";
+import { toQueueDTO } from "../fulfillments/handler-support";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -452,4 +459,121 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     // the database for these orders. None of it may be in what a shop receives.
     expect(text).not.toMatch(/2026-10-08T0[57]|window|slot|promised|business days|estimate|in_coverage|out_of_coverage|deliveryFee|delivery_fee/i);
   });
+
+  // ── 080 US2 — pickup from the supplier ───────────────────────────────────────────────────────────
+
+  /** One courier order filled by BOTH shops, each parcel collected by the courier from its shop. */
+  async function supplierPickupOrder() {
+    await pool.query(`TRUNCATE public.courier_service CASCADE`);
+    const svc = (
+      await pool.query<{ id: string }>(
+        `INSERT INTO public.courier_service (courier_name, service_name, estimate_text, max_business_days,
+                                             pickup_weekdays, pickup_cutoff, collects_from_supplier, status, is_default, updated_by)
+         VALUES ('Test Courier', 'Parcel', '2–4 business days', 5, '{1,2,3,4,5}', '14:00', true, 'active', true, 'test')
+         RETURNING id::text AS id`,
+      )
+    ).rows[0]!.id;
+    const mine = await order({ number: "EFY-P1", recipient: "Pat", status: "ready_for_pickup" });
+    const theirs = await pool.query<{ id: string }>(
+      `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, item_count, subtotal_amount, delivery_method)
+       VALUES ($1, $2, 'ready_for_pickup', 1, 5, 'standard') RETURNING id`,
+      [mine.orderId, OTHER_SHOP],
+    );
+    await pool.query(
+      `UPDATE public."order" SET delivery_type = 'courier', delivery_type_reason = 'out_of_coverage',
+              courier_estimate = '2–4 business days', courier_service_id = $2, courier_collection = 'supplier'
+        WHERE id = $1`,
+      [mine.orderId, svc],
+    );
+    return { svc, mine: mine.fulfillmentId, theirs: theirs.rows[0]!.id, orderId: mine.orderId };
+  }
+  const SHOP_ACTOR = { sub: "sub-staff", shopId: SHOP, staffId: STAFF };
+
+  it("⚠ 080 P4 — each supplier sees its OWN courier pickup, and hands over only its own once booked", async () => {
+    const o = await supplierPickupOrder();
+
+    // Not booked yet: the shop is told a courier will collect, nothing more.
+    const before = (await listOrders(SHOP, parseListQuery({}))).items.find((r) => r.id === o.mine)!;
+    expect(before.courierPickup).toMatchObject({ state: "arranging", courierName: "Test Courier", serviceName: "Parcel", pickupDate: null });
+    await expect(courierHandover(SHOP_ACTOR, o.mine, null)).rejects.toMatchObject({ kind: "conflict" });
+    // Another shop's parcel is indistinguishable from a missing one.
+    await expect(courierHandover(SHOP_ACTOR, o.theirs, null)).rejects.toMatchObject({ kind: "not_found" });
+
+    const now = new Date();
+    const day = new Date(now.getTime() + 2 * 86_400_000).toISOString().slice(0, 10);
+    await withTx((tx) => bookConsignment(tx, {
+      packageId: o.mine, serviceId: o.svc, reference: "REF-MINE", trackingUrl: "https://track.example.test/REF-MINE",
+      labelKey: `courier-label/${o.mine}/label.pdf`, pickup: { date: day, from: "13:00", to: "15:00" },
+      actor: { kind: "staff", sub: "staff-1" }, now,
+    }));
+    await withTx((tx) => bookConsignment(tx, {
+      packageId: o.theirs, serviceId: o.svc, reference: "REF-THEIRS", trackingUrl: "https://track.example.test/REF-THEIRS",
+      pickup: { date: day, from: "09:00", to: "11:00" }, actor: { kind: "staff", sub: "staff-1" }, now,
+    }));
+
+    const booked = await readOrder(o.mine, SHOP);
+    expect(booked.courierPickup).toEqual({
+      state: "booked", pickupDate: day, pickupFrom: "13:00", pickupTo: "15:00", courierName: "Test Courier",
+      serviceName: "Parcel", reference: "REF-MINE", labelUrl: `https://signed.example/courier-label/${o.mine}/label.pdf`,
+    });
+    // The same on Today and the fulfilment queue. (A packed parcel is off the pick lists.)
+    expect((await readLiveOrders(SHOP, 50)).find((r) => r.fulfillmentId === o.mine)?.courierPickup?.state).toBe("booked");
+    expect((await listQueue(SHOP, "completed")).find((r) => r.id === o.mine)?.promise.courierPickup?.pickupFrom).toBe("13:00");
+
+    const after = await courierHandover(SHOP_ACTOR, o.mine, null);
+    expect(after.status).toBe("collected");
+    expect(after.promise.courierPickup?.state).toBe("handed_over");
+    // A repeat is the same answer, not an error.
+    expect((await courierHandover(SHOP_ACTOR, o.mine, null)).status).toBe("collected");
+
+    // ⚠ With the carrier — never At hub: it never went there.
+    const view = (await readOrder(o.mine, SHOP)).statusView;
+    expect(view.status).toBe("with_carrier");
+    const facts = await pool.query(
+      `SELECT (SELECT count(*) FROM public.carrier_handoff WHERE shop_fulfillment_id = $1)::int AS handoffs,
+              (SELECT count(*) FROM public.round_package WHERE shop_fulfillment_id = $1)::int AS driver_work,
+              (SELECT state FROM public.courier_consignment WHERE shop_fulfillment_id = $1) AS state`,
+      [o.mine],
+    );
+    expect(facts.rows[0]).toEqual({ handoffs: 1, driver_work: 0, state: "handed_over" });
+    // The other shop's parcel is untouched.
+    expect((await readOrder(o.theirs, OTHER_SHOP)).courierPickup?.state).toBe("booked");
+  });
+
+  it("⚠ 080 P12 — what a shop is sent about a courier pickup: never the fee, the estimate, a tracking link or the other parcel", async () => {
+    const o = await supplierPickupOrder();
+    const now = new Date();
+    for (const [id, ref] of [[o.mine, "REF-MINE"], [o.theirs, "REF-THEIRS"]] as const) {
+      await withTx((tx) => bookConsignment(tx, {
+        packageId: id, serviceId: o.svc, reference: ref, trackingUrl: `https://track.example.test/${ref}`,
+        actor: { kind: "staff", sub: "staff-1" }, now,
+      }));
+    }
+    await pool.query(`UPDATE public."order" SET delivery_fee_amount = 12.34 WHERE id = $1`, [o.orderId]);
+    const wire = JSON.stringify([
+      toListDTO(await listOrders(SHOP, parseListQuery({}))),
+      toOrderDTO(await readOrder(o.mine, SHOP)),
+      await readLiveOrders(SHOP, 50),
+      (await readPickLists(SHOP)).lists,
+      toQueueDTO(await listQueue(SHOP, "completed")),
+      await readDetail(o.mine, SHOP, STAFF),
+    ]);
+    expect(wire).toContain("REF-MINE");
+    expect(wire).not.toMatch(/REF-THEIRS|track\.example|trackingUrl|business days|estimate|12\.34|deliveryFee|Shop Two/i);
+  });
+
+  async function withTx<T>(fn: (tx: import("pg").PoolClient) => Promise<T>): Promise<T> {
+    const c = await pool.connect();
+    try {
+      await c.query("BEGIN");
+      const out = await fn(c);
+      await c.query("COMMIT");
+      return out;
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
+  }
 });

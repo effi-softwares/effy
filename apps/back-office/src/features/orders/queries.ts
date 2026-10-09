@@ -1,9 +1,14 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { HandoverDueFilter, RecordArrivalRequest, RecordHandoffRequest } from "@effy/shared-types";
+import type {
+  ConsignmentEventInput, ConsignmentInput, CourierCollectionInput, CourierView, HandoverDueFilter, RecordArrivalRequest, RecordHandoffRequest,
+} from "@effy/shared-types";
 
 import type { OrderListParams } from "./model";
-import { getOrder, listHandovers, listOrders, recordArrival, recordHandoff } from "./repo";
+import {
+  changeCourierCollection, getOrder, listCourierParcels, listHandovers, listOrders, recordArrival, recordConsignmentStep, recordHandoff,
+  saveConsignment,
+} from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI) — never hand-cached in
 // component state. The list query is keyed on its params so each filter/search combination caches
@@ -16,7 +21,30 @@ export const ordersKeys = {
   // ⚠ Under the "orders" root ON PURPOSE: recording a handover invalidates `ordersKeys.all`, and a
   // package just handed over must leave this list too.
   handovers: (due: HandoverDueFilter) => ["orders", "handovers", due] as const,
+  // 080 — under "orders" too: every consignment change invalidates `ordersKeys.all`.
+  courier: (view: CourierView) => ["orders", "courier", view] as const,
 };
+
+export const courierParcelsQuery = (view: CourierView) =>
+  queryOptions({ queryKey: ordersKeys.courier(view), queryFn: () => listCourierParcels(view) });
+
+/** 080 — every consignment change invalidates the whole order and every Courier-tab view. */
+function useOrderMutation<V, R>(orderId: string, fn: (v: V) => Promise<R>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ordersKeys.detail(orderId) });
+      await qc.invalidateQueries({ queryKey: ordersKeys.all });
+    },
+  });
+}
+export const useSaveConsignment = (orderId: string) =>
+  useOrderMutation(orderId, (v: { fulfillmentId: string; body: ConsignmentInput }) => saveConsignment(v.fulfillmentId, v.body));
+export const useConsignmentStep = (orderId: string) =>
+  useOrderMutation(orderId, (v: { fulfillmentId: string; body: ConsignmentEventInput }) => recordConsignmentStep(v.fulfillmentId, v.body));
+export const useCourierCollection = (orderId: string) =>
+  useOrderMutation(orderId, (body: CourierCollectionInput) => changeCourierCollection(orderId, body));
 
 export const handoversQuery = (due: HandoverDueFilter) =>
   queryOptions({ queryKey: ordersKeys.handovers(due), queryFn: () => listHandovers(due) });

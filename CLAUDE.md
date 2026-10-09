@@ -118,6 +118,21 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
     its Kotlin twin, both pinned to `effy-windows.fixtures.json`; the sentences are
     `DELIVERY_WINDOW_WORDS`. ⚠ An order's arrivals are said once per DISTINCT promise
     (`distinctArrivals`) — one per package told the customer how many suppliers there were.
+- ⚠ **COURIER PARCELS HAVE CONSIGNMENTS (080).** A courier order's parcels reach the courier **via the hub**
+  or by **pickup from the supplier** (`order.courier_collection`, from `delivery_settings.courier_collection_default`;
+  staff may switch one order until its first parcel leaves). The business keeps **courier services**
+  (operator-entered, never seeded; ONE default — checkout tells its timeframe, the order keeps it and
+  `courier_service_id`). Each parcel handed over gets a `courier_consignment` (service, reference,
+  tracking link, label, progress).
+  - ⚠ **ONE WRITER** — `@effy/edge-shared/delivery` `consignment.ts` writes the consignment, its events,
+    `carrier_handoff` (053's "handed over") and the mode; "delivered" still writes `package_arrival`
+    through it, so status, arrival and completion read what they always did. `consignment.guard.test.ts`
+    fails a second writer, and `courier_parcel_collection(` outside its one fragment (`COURIER_COLLECTION_SQL`).
+  - ⚠ **A supplier-pickup parcel is never driver work** — `GATHER_COLLECTION` excludes it through the
+    fragment. A hub parcel is **due out by its service's next pickup** (`nextCourierPickup`).
+  - ⚠ **Customers get ONE link or "by email", never a count** (`trackingOf`, commerce). Shops see their
+    own pickup only (`courierPickup`: no fee, estimate, tracking link or other parcel). Labels live under
+    `courier-label/` in the media bucket, read only through presigned URLs.
 - **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out
   for delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the
   dispatch rows, never from `shop_fulfillment.status` alone (which stops at `collected` by design), and
@@ -499,7 +514,8 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — built, checked by machine; not migrated or deployed; rides 078's switch
+- **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — built, not deployed
+- **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — migrated and deployed to dev; not walked or signed off; rides 078's switch
 - **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — signed off, deployed to dev, switched off until the cutover
 - **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab) — deployed to dev
 - **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
@@ -556,5 +572,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/079-effy-vs-courier-checkout/plan.md
+at specs/080-courier-fulfilment/plan.md
 <!-- SPECKIT END -->

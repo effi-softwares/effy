@@ -1,4 +1,9 @@
 import type {
+  ConsignmentEventInput,
+  ConsignmentInput,
+  ConsignmentLabelUploadDTO,
+  CourierCollectionInput,
+  CourierView,
   AdminOrderDetailDTO,
   AdminOrderListResponse,
   HandoverDueFilter,
@@ -57,4 +62,36 @@ export async function recordArrival(
 /** Standard packages to hand to the carrier, by the day each must leave the hub (069 US7). */
 export async function listHandovers(due: HandoverDueFilter): Promise<HandoverRowDTO[]> {
   return (await api.get<HandoverListResponse>(`/orders/v1/handovers?due=${due}`)).items;
+}
+
+// ── 080 — courier consignments ────────────────────────────────────────────────────────────────────
+
+export function saveConsignment(fulfillmentId: string, body: ConsignmentInput): Promise<{ consignmentId: string; created: boolean }> {
+  return api.put(`/orders/v1/fulfillments/${fulfillmentId}/consignment`, body);
+}
+
+export function recordConsignmentStep(fulfillmentId: string, body: ConsignmentEventInput): Promise<{ orderFinished: boolean }> {
+  return api.post(`/orders/v1/fulfillments/${fulfillmentId}/consignment/events`, body);
+}
+
+/**
+ * Upload a courier label: the service presigns a PUT under this package's own prefix, the file goes
+ * straight to storage, and the key it lands at is returned for the booking to name.
+ */
+export async function uploadConsignmentLabel(fulfillmentId: string, file: File): Promise<string> {
+  const target = await api.post<ConsignmentLabelUploadDTO>(`/orders/v1/fulfillments/${fulfillmentId}/consignment/label`, {
+    contentType: file.type, fileSize: file.size,
+  });
+  const res = await fetch(target.uploadUrl, { method: "PUT", body: file, headers: { "content-type": target.contentType } });
+  if (!res.ok) throw new Error("the label could not be uploaded");
+  return target.labelKey;
+}
+
+export function changeCourierCollection(orderId: string, body: CourierCollectionInput): Promise<{ changed: boolean }> {
+  return api.put(`/orders/v1/orders/${orderId}/courier-collection`, body);
+}
+
+/** The Courier tab: one view of the parcels a courier takes that are not finished (080). */
+export async function listCourierParcels(view: CourierView): Promise<HandoverRowDTO[]> {
+  return (await api.get<HandoverListResponse>(`/orders/v1/handovers?view=${view}`)).items;
 }

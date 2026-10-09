@@ -1,5 +1,8 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import androidx.compose.foundation.layout.heightIn
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
+import androidx.compose.ui.platform.LocalUriHandler
 import com.effyshopping.mobile.kit.live.LiveKind
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
@@ -452,6 +455,18 @@ private fun ArrivalSection(receipt: Receipt) {
             )
             Text(partner, style = MaterialTheme.typography.titleMedium)
             Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // 080 Q8 — one consignment: its tracking link; several: each parcel's tracking by email.
+            // ⚠ Never a count.
+            when (val t = delivery.tracking) {
+                is OrderTracking.Link -> {
+                    val uriHandler = LocalUriHandler.current
+                    TextButton(onClick = { uriHandler.openUri(t.url) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(trackingLinkLabel(t))
+                    }
+                }
+                OrderTracking.ByEmail -> Text(DeliveryTypeWords.TRACKING_BY_EMAIL, style = MaterialTheme.typography.bodyMedium)
+                null -> Unit
+            }
         }
         Text(
             stageLabel(receipt.stage),
@@ -951,3 +966,7 @@ private sealed interface RequestUiState {
     data class Done(val text: String) : RequestUiState
     data class Error(val text: String) : RequestUiState
 }
+
+/** "Track your parcel with Test Courier" — the website's words, with the courier's name when given. */
+internal fun trackingLinkLabel(t: OrderTracking.Link): String =
+    if (t.courierName.isBlank()) DeliveryTypeWords.TRACK_PARCEL else "${DeliveryTypeWords.TRACK_PARCEL} with ${t.courierName}"

@@ -74,21 +74,37 @@ export async function courierReachesPostcode(q: Queryable, postcode: string, now
 
 /** What the business has set for courier delivery that the checkout tells a customer or acts on. */
 export interface CourierSettings {
-  /** The courier's usual timeframe ("2–4 business days"); null while unset. */
+  /**
+   * The DEFAULT courier service's timeframe ("2–4 business days") — what a courier customer is told
+   * (080; 079's single platform text is no longer read). Null when there is no active default.
+   */
   estimateText: string | null;
+  /** 080 — the default service the order records it was told about. */
+  defaultServiceId: string | null;
+  /** 080 — how new courier orders reach the courier. */
+  collectionDefault: "hub" | "supplier";
   /** Send an order by courier when its address has no Effy delivery window left (079 FR-011). */
   whenNoWindows: boolean;
 }
 
 /**
  * ⚠ Read ONLY on the courier paths of the quote — never by the checkout customers are using before
- * the cutover, which must keep working against a database that has not had 079's migration.
+ * the cutover.
  */
 export async function loadCourierSettings(q: Queryable): Promise<CourierSettings> {
   const row = (
-    await q.query<{ courier_estimate_text: string | null; courier_when_no_windows: boolean }>(
-      `SELECT courier_estimate_text, courier_when_no_windows FROM public.delivery_settings WHERE id = 1`,
+    await q.query<{ courier_when_no_windows: boolean; courier_collection_default: "hub" | "supplier"; id: string | null; estimate_text: string | null }>(
+      `SELECT s.courier_when_no_windows, s.courier_collection_default, d.id::text AS id, d.estimate_text
+         FROM public.delivery_settings s
+    -- availability-exempt: public.courier_service — a courier service's lifecycle, not a product's.
+    LEFT JOIN public.courier_service d ON d.is_default AND d.status = 'active'
+        WHERE s.id = 1`,
     )
   ).rows[0];
-  return { estimateText: row?.courier_estimate_text ?? null, whenNoWindows: row?.courier_when_no_windows ?? false };
+  return {
+    estimateText: row?.estimate_text ?? null,
+    defaultServiceId: row?.id ?? null,
+    collectionDefault: row?.courier_collection_default ?? "hub",
+    whenNoWindows: row?.courier_when_no_windows ?? false,
+  };
 }

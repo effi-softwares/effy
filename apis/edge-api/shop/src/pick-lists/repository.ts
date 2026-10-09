@@ -4,6 +4,9 @@
 // on screen by operator decision (057 A3); a sheet that goes out to the shelves does not need it and
 // should not carry it — pick lists get left on benches.
 import { query } from "@effy/edge-shared";
+import type { CourierPickupDTO } from "@effy/shared-types";
+
+import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 
@@ -17,6 +20,8 @@ export interface PickListRow {
   paidAt: Date;
   /** 079 — who takes it away: what the printed sheet says, never "same-day" or "standard". */
   deliveredBy: DeliveredBy;
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO;
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   lines: Array<{ name: string; sku: string | null; quantity: number }>;
@@ -76,7 +81,9 @@ export async function readPickLists(
     query<{ n: number }>(COUNT_AWAITING, [shopId]),
   ]);
 
+  const pickups = await courierPickups(shopId, rows.rows.map((r) => r.fulfillment_id));
   const lists = rows.rows.map((r) => ({
+    ...pickupOf(pickups, r.fulfillment_id),
     fulfillmentId: r.fulfillment_id,
     orderNumber: r.order_number,
     customerName: r.customer_name,

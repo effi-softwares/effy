@@ -64,6 +64,8 @@ provider:
     # the value is fetched at runtime through the secrets extension. ⚠ The SECRET KEY ONLY — this
     # service verifies no webhook, so it is not granted the webhook signing secret.
     STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
+    # 080 — courier labels: uploaded by staff under courier-label/, read through presigned URLs only.
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
@@ -71,6 +73,12 @@ provider:
         - Effect: Allow
           Action: appsync:EventPublish
           Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
+        # 080 — courier labels, and nothing else in the media bucket.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/courier-label/*
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource:
@@ -208,6 +216,50 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  fulfillmentConsignmentV1:
+    handler: src/functions/fulfillment-consignment-v1-put.handler
+    description: Book or edit a courier consignment (080). Write = admin/manager.
+    events:
+      - httpApi:
+          method: PUT
+          path: /orders/v1/fulfillments/{fulfillmentId}/consignment
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  fulfillmentConsignmentEventsV1:
+    handler: src/functions/fulfillment-consignment-events-v1-post.handler
+    description: Record a courier consignment step (080). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/fulfillments/{fulfillmentId}/consignment/events
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  fulfillmentConsignmentLabelV1:
+    handler: src/functions/fulfillment-consignment-label-v1-post.handler
+    description: Presigned upload for a courier label (080). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/fulfillments/{fulfillmentId}/consignment/label
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  orderCourierCollectionV1:
+    handler: src/functions/order-courier-collection-v1-put.handler
+    description: Change how a courier order reaches the courier (080). Write = admin/manager.
+    events:
+      - httpApi:
+          method: PUT
+          path: /orders/v1/orders/{orderId}/courier-collection
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   fulfillmentArrivalV1:
     handler: src/functions/fulfillment-arrival-v1-post.handler
     description: Record that a handed-over package arrived; completes the order when it is the last one (053 US2, FR-004). Write = admin/manager only.
@@ -298,3 +350,10 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  # ── 080 — courier parcels that are late, by where they are ─────────────────────────────────────
+  courierLateSweep:
+    handler: src/functions/courier-late-sweep.handler
+    description: Counts courier parcels late at the hub, at a supplier, or with the courier (080) — emits CourierParcelsLate {where}.
+    events:
+      - schedule: rate(30 minutes)

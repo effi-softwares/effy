@@ -5,10 +5,11 @@ import { toast } from "@effy/design-system/ui";
 
 import { track } from "@/lib/telemetry";
 
-import { fulfillmentMutationError } from "./errorText";
+import { courierHandoverError, fulfillmentMutationError } from "./errorText";
 import type { FulfillmentQueueState, FulfillmentStatus } from "./model";
 import { toListQuery, type OrdersSearch } from "./orderConsole";
 import {
+  courierHandover,
   addOrderNote,
   getFulfillment,
   getOrder,
@@ -186,6 +187,22 @@ export function useAddOrderNote(id: string) {
     mutationFn: (body: string) => addOrderNote(id, body),
     onSuccess: (detail) => {
       toast.success("Note added", { description: detail.orderNumber });
+      invalidateOrders(queryClient);
+    },
+  });
+}
+
+/** 080 — "Handed over to courier". */
+export function useCourierHandover(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => courierHandover(id),
+    onSuccess: (detail) => {
+      toast.success("Handed over to courier", { description: detail.orderNumber });
+      invalidateOrders(queryClient);
+    },
+    onError: (err) => {
+      toast.error(courierHandoverError(err));
       invalidateOrders(queryClient);
     },
   });

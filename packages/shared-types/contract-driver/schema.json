@@ -1055,6 +1055,10 @@
     "HubCheckinResponse": {
       "additionalProperties": false,
       "properties": {
+        "courierCount": {
+          "$ref": "#/definitions/WireInt",
+          "description": "080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says \"Courier\"."
+        },
         "sameDayCount": {
           "$ref": "#/definitions/WireInt"
         },
@@ -1062,7 +1066,8 @@
           "$ref": "#/definitions/WireInt"
         },
         "standardCount": {
-          "$ref": "#/definitions/WireInt"
+          "$ref": "#/definitions/WireInt",
+          "deprecated": "080 — read `courierCount`. Kept for driver builds that predate it."
         }
       },
       "required": [

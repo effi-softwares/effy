@@ -8,6 +8,9 @@ import type {
   AdminOrderSummaryDTO,
   AdminPaymentMethodDTO,
   ArrivalSource,
+  ConsignmentDTO,
+  ConsignmentState,
+  CourierView,
   HandoverDueFilter,
   HandoverRowDTO,
   OrderAwaiting,
@@ -17,10 +20,11 @@ import type {
   RefundRequestDTO,
 } from "@effy/shared-types";
 
-import { COUNTED_REFUND_STATUSES, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
-import { leastAdvanced, type OrderAssignment, type PackageStatusView } from "@effy/shared-types";
+import { COUNTED_REFUND_STATUSES, imageUrlOrNull, operatingStamp, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
+import { CONSIGNMENT_PROBLEMS, leastAdvanced, type OrderAssignment, type PackageStatusView } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
+import { consignmentsFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
 import * as refundRepo from "./refunds";
 import { assignmentsFor } from "./assignments";
 import * as repo from "./repository";
@@ -42,8 +46,11 @@ export { COUNTED_REFUND_STATUSES, stageFor };
  * platform is holding for goods that will never be sent. An order can genuinely be waiting on more
  * than one thing, and this says which one an operator should act on.
  */
-function awaitingFor(handover: number, arrival: number, unfulfillable = 0): OrderAwaiting | null {
+function awaitingFor(handover: number, arrival: number, unfulfillable = 0, courierProblems = 0): OrderAwaiting | null {
   if (unfulfillable > 0) return "refund_decision";
+  // 080 — a parcel the courier lost, damaged, returned or could not deliver: the customer is waiting
+  // on someone at Effy to act, before anything that is merely late.
+  if (courierProblems > 0) return "courier_problem";
   if (handover > 0) return "handover";
   if (arrival > 0) return "arrival";
   return null;
@@ -92,7 +99,7 @@ export function toSummary(
     packageCount: row.package_count,
     grandTotalAmount: row.grand_total_amount,
     currency: row.currency,
-    awaiting: awaitingFor(row.awaiting_handover, row.awaiting_arrival),
+    awaiting: awaitingFor(row.awaiting_handover, row.awaiting_arrival, 0, row.courier_problems ?? 0),
   };
 }
 
@@ -115,14 +122,36 @@ export async function listOrders(params: repo.ListParams): Promise<{
   return { items: page.map((r) => toSummary(r, statuses, assignments)), nextCursor };
 }
 
+/** 080 — a consignment for staff. The label is a short-lived presigned read; never public. */
+export async function toConsignment(c: import("@effy/edge-shared/delivery").ConsignmentRow): Promise<ConsignmentDTO> {
+  return {
+    id: c.id,
+    service: { id: c.service_id, label: `${c.courier_name} · ${c.service_name}` },
+    collection: c.collection,
+    reference: c.reference,
+    trackingUrl: c.tracking_url,
+    labelUrl: await imageUrlOrNull(c.label_key),
+    pickup: c.pickup_date ? { date: c.pickup_date, from: c.pickup_from, to: c.pickup_to } : null,
+    state: c.state,
+    events: c.events.map((e) => ({ kind: e.kind, actor: { kind: e.actor_kind, sub: e.actor_sub }, note: e.note, at: new Date(e.at).toISOString() })),
+  };
+}
+
 /** Exported so the promise fields can be proven against the real schema without the whole order read. */
 export function toPackage(
   row: repo.PackageRow,
   statusView: PackageStatusView | null = null,
   assignment: { collect: OrderAssignment | null; deliver: OrderAssignment | null } = { collect: null, deliver: null },
+  consignment: ConsignmentDTO | null = null,
+  now: Date = new Date(),
 ): AdminOrderPackageDTO {
+  // 080 — a hub courier parcel is due out by its service's next pickup.
+  const dueOut = row.courier_collection === "hub" && !row.handoff_at ? courierDueOut(row, now) : null;
   // 069 — what it was promised and whether that is being kept. Derived, never stored.
   const verdict = judgePromise({
+    courierDueOut: row.courier_collection === "hub" ? courierDueOut(row, now) : null,
+    handoffAt: row.handoff_at,
+    now,
     deliveredBy: row.delivered_by,
     courierOrder: row.courier_order,
     placedDate: row.placed_date,
@@ -134,6 +163,9 @@ export function toPackage(
     arrivalDate: row.arrival_date,
     carrierLeadDays: row.carrier_lead_days,
   });
+  // A booked supplier pickup whose day has gone with no handover is late too.
+  const pickupLate = row.courier_collection === "supplier" && !row.handoff_at && consignment?.pickup !== undefined && consignment?.pickup !== null
+    && consignment.pickup.date < row.today;
   return {
     // 073 — where it really is. ⚠ Not derived from `status` below: that is the SHOP's status, which
     // stops at `collected` by design. Null only where the read was not asked for it.
@@ -156,6 +188,9 @@ export function toPackage(
     itemCount: row.item_count,
     subtotalAmount: row.subtotal_amount,
     deliveredBy: row.delivered_by,
+    consignment,
+    dueOut: dueOut ? operatingStamp(dueOut) : null,
+    late: verdict.atRisk || pickupLate,
     deliveryMethod: row.method,
     handoff: row.handoff_at
       ? {
@@ -234,9 +269,18 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
   const pkgIds = packageRows.map((p) => p.fulfillment_id);
-  const [statusById, assignmentById] = await Promise.all([packageStatuses(db, pkgIds), assignmentsFor(pkgIds)]);
+  const [statusById, assignmentById, consignmentById, collectionHistory] = await Promise.all([
+    packageStatuses(db, pkgIds),
+    assignmentsFor(pkgIds),
+    // 080 — each courier parcel's live consignment, and the order's collection-mode history.
+    order.delivery_type === "courier" ? consignmentsFor(db, pkgIds) : Promise.resolve(new Map()),
+    order.delivery_type === "courier" ? repo.courierCollectionHistory(orderId) : Promise.resolve([]),
+  ]);
+  const consignments = new Map(
+    await Promise.all([...consignmentById].map(async ([id, c]) => [id, await toConsignment(c)] as const)),
+  );
   const packages = packageRows.map((p) =>
-    toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id)),
+    toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id), consignments.get(p.fulfillment_id) ?? null),
   );
   const statuses = packageRows.map((p) => p.status);
   const awaitingHandover = packageRows.filter(
@@ -250,6 +294,10 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   const awaitingRefundDecision = packageRows.filter(
     (p) => p.status === "unfulfillable",
   ).length;
+  // 080 — the same states the list's badge counts (`OPEN_COURIER_PROBLEM`).
+  const courierProblems = [...consignments.values()].filter(
+    (c) => c !== null && (CONSIGNMENT_PROBLEMS as readonly string[]).includes(c.state),
+  ).length;
 
   return {
     id: order.id,
@@ -262,6 +310,10 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     deliveryType: order.delivery_type,
     deliveryTypeReason: order.delivery_type_reason,
     courierEstimate: order.courier_estimate,
+    courierCollection: order.courier_collection ?? null,
+    courierCollectionHistory: collectionHistory.map((h) => ({
+      from: h.from_mode, to: h.to_mode, actorSub: h.actor_sub, note: h.note, at: h.created_at.toISOString(),
+    })),
     deliveryTypeHistory: typeRows.map((r) => ({
       from: r.from_type,
       to: r.to_type,
@@ -302,7 +354,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
 
     // FR-007 — a rollup: finished only when EVERY package has arrived.
     finished: packageRows.length > 0 && awaitingArrival === 0,
-    awaiting: awaitingFor(awaitingHandover, awaitingArrival, awaitingRefundDecision),
+    awaiting: awaitingFor(awaitingHandover, awaitingArrival, awaitingRefundDecision, courierProblems),
 
     ...refundView(order.grand_total_amount, itemRows, refundRows, refundLineRows),
     ...paymentSplitView(order, refundRows),
@@ -452,17 +504,106 @@ function toRefundRequest(
 
 // ── 069: the carrier handover list ───────────────────────────────────────────────────────────────
 
-/** Standard packages due to be handed to the carrier, by when they must leave the hub (069 US7). */
-export async function listHandovers(due: HandoverDueFilter): Promise<HandoverRowDTO[]> {
-  const rows = await repo.handovers(due);
-  return rows.map((r) => ({
+/**
+ * 080 — when a courier parcel is due out: its service's next pickup after it reached the hub (or
+ * from now, if it has not yet), or null when there is no service to ask (an order from before 080).
+ */
+export function courierDueOut(
+  r: { courier_order: boolean; checked_in_at: Date | null; service_weekdays: number[] | null; service_cutoff: string | null },
+  now: Date,
+): Date | null {
+  if (!r.courier_order || !r.service_weekdays || r.service_weekdays.length === 0 || !r.service_cutoff) return null;
+  return nextCourierPickup(r.checked_in_at ?? now, r.service_weekdays, parseClock(r.service_cutoff));
+}
+
+const BUSINESS_DAY_MS = 24 * 3600_000;
+/** Handed over longer ago than the service's maximum, counting weekdays only. */
+function overdueWithCourier(handedAt: Date, maxBusinessDays: number, now: Date): boolean {
+  let days = 0;
+  for (let t = handedAt.getTime() + BUSINESS_DAY_MS; t <= now.getTime(); t += BUSINESS_DAY_MS) {
+    const wd = new Date(t).getUTCDay();
+    if (wd !== 0 && wd !== 6) days += 1;
+  }
+  return days > maxBusinessDays;
+}
+
+const melbourneDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(at);
+
+function toCourierRow(r: repo.CourierParcelRow, now: Date): HandoverRowDTO & { _view: CourierView | null; _sort: number } {
+  const dueOut = r.courier_collection === "hub" ? courierDueOut(r, now) : null;
+  const dueOn = dueOut ? melbourneDay(dueOut) : r.legacy_due_on ?? (r.placed_at ? melbourneDay(r.placed_at) : r.today);
+  const handed = r.handed_over_at !== null;
+  const problem = r.consignment_state && (CONSIGNMENT_PROBLEMS as readonly string[]).includes(r.consignment_state) ? r.consignment_state : null;
+
+  // A booked supplier pickup whose window (or day) has gone with no handover.
+  const pickupLate = r.courier_collection === "supplier" && !handed && r.pickup_date !== null
+    && (r.pickup_date < r.today || (r.pickup_date === r.today && r.pickup_to !== null && new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Australia/Melbourne", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).format(now) > r.pickup_to));
+  const hubLate = r.courier_collection === "hub" && !handed && (dueOut ? now.getTime() > dueOut.getTime() : r.today > dueOn);
+  const overdue = handed && !problem && r.max_business_days !== null && overdueWithCourier(r.handed_over_at!, r.max_business_days, now);
+
+  const view: CourierView | null =
+    problem ? "problems"
+    : handed ? "with_courier"
+    : r.courier_collection === "supplier" ? "supplier"
+    : hubLate ? "hub_late"
+    : "hub_due";
+  return {
     fulfillmentId: r.fulfillment_id,
     orderId: r.order_id,
     orderNumber: r.order_number,
     promisedDate: r.promised_date,
-    handoverDueOn: r.due_on,
-    // The same rule judgePromise applies to one package: its due day has passed and it has not left.
-    atRisk: r.today > r.due_on,
+    handoverDueOn: dueOn,
+    atRisk: hubLate || pickupLate || overdue,
     atHub: r.at_hub,
-  }));
+    service: r.service_label,
+    dueOut: dueOut ? operatingStamp(dueOut) : null,
+    collection: r.courier_collection,
+    consignmentState: (r.consignment_state as ConsignmentState | null) ?? null,
+    pickup: r.pickup_date ? { date: r.pickup_date, from: r.pickup_from, to: r.pickup_to } : null,
+    problem,
+    _view: view,
+    _sort: dueOut?.getTime() ?? Date.parse(`${dueOn}T00:00:00Z`),
+  };
+}
+
+const strip = ({ _view, _sort, ...row }: ReturnType<typeof toCourierRow>): HandoverRowDTO => row;
+
+/**
+ * 069 US7, kept: courier parcels at (or due at) the hub, by the day they must leave it. Since 080 that
+ * day is the courier service's next pickup for a courier order, 069's promised day less the carrier
+ * lead time for an older carrier package. ⚠ Supplier pickups never appear: they do not pass the hub.
+ */
+export async function listHandovers(due: HandoverDueFilter, now: Date = new Date()): Promise<HandoverRowDTO[]> {
+  const rows = (await repo.courierParcels()).map((r) => toCourierRow(r, now))
+    .filter((r) => r.collection === "hub" && r._view !== "with_courier" && r._view !== "problems")
+    .filter((r) => {
+      const today = melbourneDay(now);
+      return due === "today" ? r.handoverDueOn === today : due === "overdue" ? r.handoverDueOn < today : r.handoverDueOn > today;
+    });
+  return rows.sort((a, b) => a._sort - b._sort || a.orderNumber.localeCompare(b.orderNumber)).slice(0, 200).map(strip);
+}
+
+/** 080 — the Courier tab: one view of the parcels a courier takes that are not finished. */
+/**
+ * 080 US5 — how many courier parcels are late, by where they are: at the HUB past their service's
+ * next pickup, at a SUPPLIER past a booked pickup, or WITH THE COURIER longer than the service's
+ * usual maximum. The same rules the Courier tab shows (one classification, `toCourierRow`).
+ */
+export async function courierLateCounts(now: Date = new Date()): Promise<{ hub: number; supplier: number; courier: number }> {
+  const out = { hub: 0, supplier: 0, courier: 0 };
+  for (const r of (await repo.courierParcels()).map((p) => toCourierRow(p, now))) {
+    if (!r.atRisk) continue;
+    if (r._view === "hub_late") out.hub += 1;
+    else if (r._view === "supplier") out.supplier += 1;
+    else if (r._view === "with_courier") out.courier += 1;
+  }
+  return out;
+}
+
+export async function listCourierParcels(view: CourierView, now: Date = new Date()): Promise<HandoverRowDTO[]> {
+  const rows = (await repo.courierParcels()).map((r) => toCourierRow(r, now)).filter((r) => r._view === view);
+  // Late first, then soonest due.
+  return rows.sort((a, b) => Number(b.atRisk) - Number(a.atRisk) || a._sort - b._sort || a.orderNumber.localeCompare(b.orderNumber)).slice(0, 200).map(strip);
 }

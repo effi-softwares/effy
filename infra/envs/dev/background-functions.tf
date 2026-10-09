@@ -99,6 +99,13 @@ locals {
       threshold = 1
       stops     = "The age of the product review queue is no longer being measured, so the stale-review alarm cannot fire."
     }
+    courier-late-sweep = {
+      function  = "effy-edge-orders-${var.env}-courierLateSweep"
+      period    = 1800
+      periods   = 2
+      threshold = 1
+      stops     = "080 - late courier parcels (at the hub, at a supplier, with the courier) are no longer being counted, so the courier-late alarms cannot fire on a real parcel (they will fire on the missing data instead)."
+    }
   }
 }
 

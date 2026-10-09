@@ -437,7 +437,13 @@ enum class DeliveryType { EFFY, COURIER }
 data class CourierDelivery(val estimate: String, val fee: DeliveryFee, val noWindowLeft: Boolean)
 
 /** 079 — who delivers a PLACED order, and a courier's timeframe as it was sold. */
-data class OrderDelivery(val type: DeliveryType, val courierEstimate: String?)
+data class OrderDelivery(val type: DeliveryType, val courierEstimate: String?, val tracking: OrderTracking? = null)
+
+/** 080 — how a customer follows a courier order: one link, or "sent by email" for several parcels. */
+sealed interface OrderTracking {
+    data class Link(val url: String, val courierName: String) : OrderTracking
+    data object ByEmail : OrderTracking
+}
 
 /** Why same-day is not on offer (069 FR-004) — two different sentences to a shopper. */
 enum class SameDayUnavailable { NotEligible, SlotsClosed }

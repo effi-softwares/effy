@@ -47,6 +47,10 @@ export interface SoldDelivery {
   reason: "in_coverage" | "out_of_coverage" | "no_window";
   /** The courier's timeframe as the customer was shown it; null unless a courier delivers. */
   courierEstimate: string | null;
+  /** 080 — the default courier service whose timeframe that was; null unless a courier delivers. */
+  courierServiceId?: string | null;
+  /** 080 — how the order's parcels reach the courier; null unless a courier delivers. */
+  courierCollection?: "hub" | "supplier" | null;
 }
 
 export interface SlotHold {
@@ -401,9 +405,12 @@ UPDATE public."order"
        -- two attempts the shopper may have changed address, and with it the answer. ⚠ This is the
        -- PENDING order. Once it is paid, only the delivery-type writer changes these three.
        delivery_type = $4, delivery_type_reason = $5, courier_estimate = $6,
+       -- 080 — the service whose timeframe the customer was told, and how the parcels reach the courier.
+       courier_service_id = $7::uuid, courier_collection = $8,
        updated_at = now()
 WHERE id = $1`,
-          [orderId, JSON.stringify(quote), expiresAt, sold?.type ?? null, sold?.reason ?? null, sold?.courierEstimate ?? null],
+          [orderId, JSON.stringify(quote), expiresAt, sold?.type ?? null, sold?.reason ?? null, sold?.courierEstimate ?? null,
+           sold?.courierServiceId ?? null, sold?.courierCollection ?? null],
         );
         await tx.query(`DELETE FROM public.order_package_delivery WHERE order_id = $1`, [orderId]);
         for (const p of pkgs) {

@@ -108,7 +108,9 @@ describe("orders service deployment contract", () => {
     }
     // Belt and braces: no route outside the health probes may be unauthenticated. Counting means a
     // route added later without an authorizer fails here rather than shipping open.
-    const routeCount = (yaml.match(/^ {4}handler:/gm) ?? []).length;
+    // 080 — a scheduled function is not a route and takes no authorizer.
+    const scheduledCount = (yaml.match(/^ {6}- schedule:/gm) ?? []).length;
+    const routeCount = (yaml.match(/^ {4}handler:/gm) ?? []).length - scheduledCount;
     const authorizerCount = (yaml.match(/authorizer:/g) ?? []).length;
     expect(authorizerCount).toBe(routeCount - PUBLIC.length);
   });

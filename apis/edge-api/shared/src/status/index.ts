@@ -21,6 +21,7 @@ export function factsOf(r: PackageStatusFactsRow): PackageFacts {
     deliveryDriver: r.delivery_driver,
     failedReason: r.failed_reason,
     handedToCarrier: r.handed_to_carrier === true,
+    courierProblem: r.courier_problem ?? null,
     arrived: r.arrived === true,
   };
 }

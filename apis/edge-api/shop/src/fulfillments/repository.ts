@@ -10,6 +10,8 @@
 // This is single-statement atomic: no advisory locks, no SELECT ... FOR UPDATE, no extra round trip.
 
 import { query, withTransaction } from "@effy/edge-shared";
+
+import { courierPickups, pickupOf } from "../lib/courier-pickup";
 import type pg from "pg";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
@@ -111,8 +113,9 @@ export async function listQueue(
 ): Promise<FulfillmentSummary[]> {
   const statuses = state === "completed" ? COMPLETED_STATUSES : ACTIVE_STATUSES;
   const res = await query<SummaryRow>(LIST_QUEUE, [shopId, statuses]);
+  const pickups = await courierPickups(shopId, res.rows.map((r) => r.id));
   return res.rows.map((r) => {
-    const promise = { ...promiseFrom(r.placed_at, null, null), deliveredBy: r.delivered_by };
+    const promise = { ...promiseFrom(r.placed_at, null, null), deliveredBy: r.delivered_by, ...pickupOf(pickups, r.id) };
     return {
       id: r.id,
       orderNumber: r.order_number,
@@ -244,7 +247,7 @@ export async function readDetail(
   // this into 403, so response codes cannot be used to enumerate other shops' portions.
   if (!row) throw new FulfillmentError("not_found", "fulfillment not found");
 
-  const items = await query<ItemRow>(READ_ITEMS, [fulfillmentId, shopId]);
+  const [items, pickups] = await Promise.all([query<ItemRow>(READ_ITEMS, [fulfillmentId, shopId]), courierPickups(shopId, [fulfillmentId])]);
 
   return {
     id: row.id,
@@ -255,7 +258,7 @@ export async function readDetail(
     placedAt: row.placed_at,
     status: row.status,
     stateChangedAt: row.state_changed_at,
-    promise: { ...promiseFrom(row.placed_at, null, null), deliveredBy: row.delivered_by },
+    promise: { ...promiseFrom(row.placed_at, null, null), deliveredBy: row.delivered_by, ...pickupOf(pickups, fulfillmentId) },
     delivery: mapDelivery(row.delivery_address ?? {}),
     items: items.rows.map(mapItem),
   };

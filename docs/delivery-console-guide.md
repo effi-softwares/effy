@@ -97,15 +97,32 @@ the list, in no group.
 An address **not** on Effy's list will be offered courier delivery — everywhere in the country except the
 postcodes you exclude here (each with a reason, e.g. "No chilled courier service").
 
-**Three things to set (079), and an order they are needed in:**
+**Three things to set (079, 080), and an order they are needed in:**
 
 1. **A courier fee table**, made active on the Pricing tab. Without a price there is nothing to charge.
-2. **How long a courier usually takes** — a few words such as *2–4 business days*. The screen shows the
-   whole sentence the customer will read: *"Usually arrives in 2–4 business days — an estimate, not a
-   guaranteed date."* It is always said as an estimate. **An order keeps the estimate it was sold**:
-   changing the text later changes what new customers are told, never a placed order.
+2. **A courier service, made the default** (080) — under **Courier services** on this tab. Each service
+   is one courier company's product Effy books: the courier's name, the service's name, **what customers
+   are told** (*2–4 business days*), when a parcel with the courier counts as **late** (business days),
+   its **pickup days and cut-off time**, and whether it **collects from suppliers**. Nothing is
+   pre-filled — courier names are yours to enter. Checkout tells a courier customer the **default**
+   service's timeframe, as the whole sentence: *"Usually arrives in 2–4 business days — an estimate, not
+   a guaranteed date."* **An order keeps the estimate (and the service) it was sold**: editing a service
+   changes what new customers are told, never a placed order. The default cannot be retired — make
+   another the default first.
 3. **Offer courier delivery** — the switch. It is locked until 1 and 2 are done, and the screen says
-   which is missing. While it is on, the estimate cannot be emptied (switch it off first).
+   which is missing.
+
+**How courier parcels reach the courier** (080) — the platform default for new courier orders:
+
+- **Via the hub** — Effy's drivers collect each parcel from its supplier, and the hub hands it to the
+  courier (how it worked before 080). A parcel at the hub is **due out by its service's next pickup**.
+- **Pickup from the supplier** — the courier collects each parcel straight from the supplier that packed
+  it. No Effy driver is sent for it; the supplier sees the pickup in their console and marks it handed
+  over. Book these on the order (Orders → the order → Packages → Courier consignment), with the pickup
+  day and window — the supplier sees nothing to hand over until you do.
+
+Staff can switch a single order either way until its first parcel leaves (Orders → the order →
+Delivery type). See [the courier handover runbook](runbooks/courier-handover.md).
 
 > ⚠ **Switching it on promises nobody anything before the new delivery model is on.** A courier order
 > can only be placed by the new checkout, so until the cutover the screen says *"Switched on, and starts
@@ -396,6 +413,9 @@ the order — one fee per order is what makes that true.
 4b. **Delivery days** (069) → set the days with no delivery and check the two estimated timings.
 5. Test as a shopper: an address on the list says "Delivered by Effy" and shows a fee before pay; an
    address off it says "Sorry, we can't deliver to this address."
+6. **Courier delivery** (080) → a courier fee table on Pricing, then **Courier services** → add the
+   service you use and make it the default, choose how parcels reach the courier, then **Offer courier
+   delivery**.
 
 *Spec & implementation detail: `specs/076-effy-delivery-coverage/` (coverage),
 `specs/077-delivery-fee-engine-v2/` (pricing) and `specs/047-delivery-shipping-engine/` (collection runs). Realistic dev seed:

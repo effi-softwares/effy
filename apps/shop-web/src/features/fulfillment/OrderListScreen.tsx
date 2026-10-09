@@ -40,6 +40,7 @@ import {
   type OrderRowTone,
   type OrdersSearch,
 } from "./orderConsole"
+import { courierPickupLine } from "./courierPickup"
 import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
 import { orderListQuery } from "./queries"
 import { listOrders } from "./repo"
@@ -335,6 +336,11 @@ export function OrderListScreen({
                           <span className="text-[13.5px] font-medium break-words">{o.customerName || "—"}</span>
                           <RowFlag row={o} tone={tone} />
                         </div>
+                        {o.courierPickup ? (
+                          <div className="text-muted-foreground mt-0.5 text-[12px]" data-testid="row-courier-pickup">
+                            {courierPickupLine(o.courierPickup)}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="text-muted-foreground overflow-hidden px-3.5 py-3 text-[13px] text-ellipsis whitespace-nowrap">
                         {o.itemsSummary}

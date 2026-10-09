@@ -52,6 +52,7 @@ import com.effyshopping.shop.mobile.features.orders.domain.AdvanceFulfillment
 import com.effyshopping.shop.mobile.features.orders.domain.GetFulfillment
 import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.OrderRepository
+import com.effyshopping.shop.mobile.features.orders.domain.HandOverToCourier
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import com.effyshopping.shop.mobile.features.home.domain.GetHomeDashboard
 import com.effyshopping.shop.mobile.features.home.domain.HomeDashboardRepository
@@ -153,6 +154,7 @@ class AppContainer(
     val getFulfillment by lazy { GetFulfillment(orders) }
     val advanceFulfillment by lazy { AdvanceFulfillment(orders) }
     val recordItemProgress by lazy { RecordItemProgress(orders) }
+    val handOverToCourier by lazy { HandOverToCourier(orders) }
 
     // ── app services / presentation wiring ──────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getOperator, appScope) }

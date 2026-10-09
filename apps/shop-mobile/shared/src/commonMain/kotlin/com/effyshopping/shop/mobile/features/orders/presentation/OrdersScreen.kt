@@ -58,6 +58,12 @@ import com.effyshopping.shop.mobile.features.orders.domain.GetFulfillment
 import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.QueueState
 import com.effyshopping.shop.mobile.features.orders.domain.promiseLine
+import com.effyshopping.shop.mobile.features.orders.domain.CourierPickup
+import com.effyshopping.shop.mobile.features.orders.domain.CourierPickupState
+import com.effyshopping.shop.mobile.features.orders.domain.HandOverToCourier
+import com.effyshopping.shop.mobile.features.orders.domain.canHandOver
+import com.effyshopping.shop.mobile.features.orders.domain.courierPickupLine
+import com.effyshopping.shop.mobile.features.orders.domain.pickupWhen
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import com.effyshopping.mobile.kit.live.LiveClient
 import com.effyshopping.mobile.kit.live.LiveKind
@@ -67,6 +73,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalUriHandler
 
 /**
  * The Orders route (020). Owns the ViewModel and the queue heartbeat; everything below it is stateless.
@@ -81,6 +88,8 @@ fun OrdersRoute(
     getFulfillment: GetFulfillment,
     advanceFulfillment: AdvanceFulfillment,
     recordItemProgress: RecordItemProgress,
+    /** 080 — null in previews: the handover button is then not offered. */
+    handOverToCourier: HandOverToCourier? = null,
     initialOrderId: String? = null,
     onOpenOrder: (String) -> Unit = {},
     onCloseOrder: () -> Unit = {},
@@ -93,6 +102,7 @@ fun OrdersRoute(
         OrdersViewModel(
             listFulfillments, getFulfillment, advanceFulfillment, recordItemProgress, initialOrderId,
             liveChanges = live?.changes(LiveKind.ORDERS) ?: emptyFlow(),
+            handOverToCourier = handOverToCourier,
         )
     }
     val state by viewModel.state.collectAsState()
@@ -116,6 +126,7 @@ fun OrdersRoute(
             onTransition = viewModel::requestTransition,
             onItemProgress = viewModel::recordProgress,
             onDismissMessage = viewModel::dismissMessage,
+            onCourierHandover = if (handOverToCourier != null) viewModel::requestCourierHandover else null,
         )
     }
 }
@@ -141,6 +152,7 @@ fun OrdersScreen(
     onTransition: (FulfillmentTransition, String?) -> Unit,
     onItemProgress: (orderItemId: String, gathered: Int?, unavailable: Int?) -> Unit,
     onDismissMessage: () -> Unit,
+    onCourierHandover: (() -> Unit)? = null,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -176,6 +188,7 @@ fun OrdersScreen(
                         onBack = onCloseOrder,
                         onTransition = onTransition,
                         onItemProgress = onItemProgress,
+                        onCourierHandover = onCourierHandover,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
@@ -186,6 +199,7 @@ fun OrdersScreen(
                     onBack = onCloseOrder,
                     onTransition = onTransition,
                     onItemProgress = onItemProgress,
+                    onCourierHandover = onCourierHandover,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -321,6 +335,9 @@ private fun OrderQueueRow(order: FulfillmentSummary, selected: Boolean, onClick:
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
             )
+            order.promise.courierPickup?.let {
+                Text(courierPickupLine(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            }
             if (order.settledCount > 0 && order.status == FulfillmentState.PICKING) {
                 Text(
                     "${order.gatheredCount} gathered" + if (order.unavailableCount > 0) " · ${order.unavailableCount} unavailable" else "",
@@ -340,6 +357,7 @@ private fun OrderDetailPane(
     onBack: () -> Unit,
     onTransition: (FulfillmentTransition, String?) -> Unit,
     onItemProgress: (orderItemId: String, gathered: Int?, unavailable: Int?) -> Unit,
+    onCourierHandover: (() -> Unit)?,
     modifier: Modifier,
 ) {
     Column(
@@ -361,6 +379,7 @@ private fun OrderDetailPane(
                 isBusy = state.isBusy,
                 onTransition = onTransition,
                 onItemProgress = onItemProgress,
+                onCourierHandover = onCourierHandover,
             )
             // Deliberately NOT auto-selecting the first row: reading a portion acknowledges it (FR-011a), so
             // a portion is only ever opened by a human tap.
@@ -376,6 +395,7 @@ private fun OrderDetailContent(
     isBusy: Boolean,
     onTransition: (FulfillmentTransition, String?) -> Unit,
     onItemProgress: (orderItemId: String, gathered: Int?, unavailable: Int?) -> Unit,
+    onCourierHandover: (() -> Unit)? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), verticalAlignment = Alignment.CenterVertically) {
@@ -400,6 +420,10 @@ private fun OrderDetailContent(
         )
     }
 
+    detail.promise.courierPickup?.let { pickup ->
+        CourierPickupSection(pickup, detail.status, isBusy, onCourierHandover)
+    }
+
     DeliverySection(detail.delivery)
 
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
@@ -417,6 +441,47 @@ private fun OrderDetailContent(
     }
 
     TransitionActions(detail = detail, isBusy = isBusy, onTransition = onTransition)
+}
+
+/**
+ * 080 US2 — a courier collects this parcel from the shop. Rows, then the one action. The parcel is
+ * packed and marked ready exactly as before; "Handed over to courier" is the only new step.
+ */
+@Composable
+private fun CourierPickupSection(
+    pickup: CourierPickup,
+    status: FulfillmentState,
+    isBusy: Boolean,
+    onCourierHandover: (() -> Unit)?,
+) {
+    val uriHandler = LocalUriHandler.current
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+        Text("COURIER PICKUP", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text(courierPickupLine(pickup), style = MaterialTheme.typography.titleMedium)
+        listOfNotNull(pickup.courierName, pickup.serviceName).joinToString(" · ").takeIf { it.isNotEmpty() }?.let {
+            Text("Courier: $it", style = MaterialTheme.typography.bodyMedium)
+        }
+        pickupWhen(pickup)?.let { Text("Pickup: $it", style = MaterialTheme.typography.bodyMedium) }
+        pickup.reference?.let { Text("Reference: $it", style = MaterialTheme.typography.bodyMedium) }
+        pickup.labelUrl?.let { url ->
+            TextButton(onClick = { uriHandler.openUri(url) }, modifier = Modifier.heightIn(min = 52.dp)) { Text("Open label to print") }
+        }
+        if (pickup.state == CourierPickupState.ARRANGING || pickup.state == CourierPickupState.CANCELLED) {
+            Text(
+                "Pack it and mark it ready as usual. Effy will book the pickup and the time will show here.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (onCourierHandover != null && canHandOver(pickup, status)) {
+            Button(onClick = onCourierHandover, enabled = !isBusy, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                Text("Handed over to courier")
+            }
+        } else if (pickup.state == CourierPickupState.BOOKED && status != FulfillmentState.READY_FOR_PICKUP && status != FulfillmentState.COLLECTED) {
+            Text("Mark it ready before the courier arrives.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable

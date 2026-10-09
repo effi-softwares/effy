@@ -46,6 +46,7 @@ import { migrationSql } from "@effy/edge-shared";
 import { quote } from "@effy/edge-shared/delivery";
 
 import * as coverage from "./coverage.service";
+import * as services from "./courier-services.service";
 import * as svc from "./pricing.service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -307,37 +308,37 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect((await sim(9000, "50.00")).note).toBe("3121 is delivered by Effy; this is what a courier would cost.");
   });
 
-  it("P19 / 079 P20 — courier goes on only with a fee table AND an estimate, and promises nobody anything before the new model", async () => {
+  it("P19 / 080 — courier goes on only with a fee table AND a default courier service, and promises nobody anything before the new model", async () => {
     await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE kind = 'courier'`);
     expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_plan_missing" });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
 
     const c = await svc.createPlan(courier(), SUB);
     await svc.activatePlan(c.id, {}, SUB);
-    // A price, and still nothing to tell the customer about when it arrives.
-    expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_estimate_missing" });
-    expect((await coverage.list({})).courier).toMatchObject({ blockedBy: ["no_estimate"], canBeOffered: false });
+    // A price, and no courier service to tell the customer a timeframe from.
+    expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_service_missing" });
+    expect((await coverage.list({})).courier).toMatchObject({ blockedBy: ["no_service"], canBeOffered: false, defaultService: null });
 
-    // Both in one request: on, with its estimate.
-    expect(await coverage.setCourier({ offered: true, estimateText: "2–4 business days" }, SUB)).toEqual({ offered: true, estimateText: "2–4 business days", whenNoWindows: false });
-    // ⚠ ON AND READY — AND NOBODY IS OFFERED IT: the new delivery model is not on (079 FR-035).
-    expect((await coverage.list({})).courier).toMatchObject({ offered: true, blockedBy: [], canBeOffered: true, pending: true });
+    const service = await services.create({
+      courierName: "Test Courier", serviceName: "Parcel", estimateText: "2–4 business days", maxBusinessDays: 4,
+      pickupWeekdays: [1, 2, 3, 4, 5], pickupCutoff: "14:00", collectsFromSupplier: true, isDefault: true,
+    }, SUB);
+    expect(await coverage.setCourier({ offered: true }, SUB)).toMatchObject({ offered: true });
+    // ⚠ ON AND READY — AND NOBODY IS OFFERED IT: the new delivery model is not on.
+    expect((await coverage.list({})).courier).toMatchObject({
+      offered: true, blockedBy: [], canBeOffered: true, pending: true,
+      defaultService: { id: service.id, label: "Test Courier · Parcel", estimateText: "2–4 business days" },
+    });
     expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_pending" });
 
-    // While it is on, the estimate cannot be taken away from under it.
-    expect(await refusal(coverage.setCourier({ estimateText: null }, SUB))).toMatchObject({ status: 409, code: "courier_estimate_in_use" });
-    expect((await q(`SELECT courier_estimate_text FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_estimate_text: "2–4 business days" });
-
-    // The new model on (set in the database — nothing in the platform sets it before the cutover):
-    // the same unlisted postcode is now "Courier delivery", and the screen stops saying pending.
     await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = now() - interval '1 minute' WHERE id = 1`);
     try {
       expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "courier", reason: "courier_offered" });
-      expect((await coverage.list({})).courier.pending).toBe(false);
     } finally {
       await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = NULL WHERE id = 1`);
     }
-    expect(await coverage.setCourier({ offered: false, estimateText: null }, SUB)).toEqual({ offered: false, estimateText: null, whenNoWindows: false });
+    await coverage.setCourier({ offered: false }, SUB);
+    await pool.query(`DELETE FROM public.courier_service`);
   });
 });
 

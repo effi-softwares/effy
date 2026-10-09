@@ -366,6 +366,31 @@ export const CATALOG = {
   },
 
   /**
+   * A parcel from the order has been handed to a courier (080 US4) — one per consignment.
+   *
+   * ⚠ NO COUNT AND NO SHOP: there is no var to say "1 of 2" or who packed it. ⚠ The courier's name,
+   * reference and tracking link are the operator's entries for that consignment, resolved at send.
+   */
+  "order-with-courier": {
+    vars: {
+      orderNumber: "string",
+      courierName: "string",
+      hasReference: "boolean",
+      reference: "string",
+      hasTracking: "boolean",
+      trackingUrl: "string",
+      orderUrl: "string",
+    },
+    subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} is with the courier`,
+    preheader: (v) => `A parcel from your order is on its way with ${v.courierName}.`,
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    category: "transactional",
+    // ⚠ `swallow`: the handover is committed; the notification row records a failed send.
+    onSendFailure: "swallow",
+  },
+
+  /**
    * A refund was issued (055 US5, FR-027).
    *
    * ⚠ IT IS SENT WHEN THE MONEY IS ON ITS WAY, NOT WHEN IT ARRIVES, and the copy has to carry that

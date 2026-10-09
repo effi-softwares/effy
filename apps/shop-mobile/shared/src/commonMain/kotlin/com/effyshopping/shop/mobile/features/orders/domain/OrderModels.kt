@@ -99,7 +99,35 @@ enum class FulfillmentTransition(val key: String) {
  * meant something; it is the customer's word, and the day a "standard" order is one an Effy driver
  * delivers it would be wrong on the screen of the person handing the package over.
  */
-data class DeliveryPromise(val serviceLevel: String, val readyBy: String, val deliveredBy: DeliveredBy? = null)
+data class DeliveryPromise(
+    val serviceLevel: String,
+    val readyBy: String,
+    val deliveredBy: DeliveredBy? = null,
+    /** 080 — present only when a courier collects this package from the shop. */
+    val courierPickup: CourierPickup? = null,
+)
+
+/**
+ * 080 US2 — a courier collects this parcel from the shop: who comes, when, and the label to attach.
+ *
+ * ⚠ The shop's own parcel only: never the customer's estimate, a tracking link, a fee, or anything
+ * about another supplier's parcel on the same order.
+ */
+data class CourierPickup(
+    val state: CourierPickupState,
+    /** yyyy-mm-dd */
+    val pickupDate: String?,
+    /** "13:00" */
+    val pickupFrom: String?,
+    val pickupTo: String?,
+    val courierName: String?,
+    val serviceName: String?,
+    val reference: String?,
+    /** Short-lived; opened, never stored. */
+    val labelUrl: String?,
+)
+
+enum class CourierPickupState { ARRANGING, BOOKED, HANDED_OVER, CANCELLED }
 
 /** Who takes a package away from the shop (079). */
 enum class DeliveredBy { EFFY_DRIVER, COURIER }

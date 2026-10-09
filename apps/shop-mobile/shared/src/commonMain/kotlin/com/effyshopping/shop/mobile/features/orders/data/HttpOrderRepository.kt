@@ -67,6 +67,11 @@ class HttpOrderRepository(private val shopApi: HttpClient) : OrderRepository {
             .ensureSuccess().body<FulfillmentDetailDTO>().toDomain()
     }
 
+    override suspend fun handOverToCourier(id: String): FulfillmentDetail = request {
+        shopApi.post("shop/v1/fulfillments/$id/courier-handover") { setBody(emptyMap<String, String>()) }
+            .ensureSuccess().body<FulfillmentDetailDTO>().toDomain()
+    }
+
     /** Uniform failure mapping (mirrors `HttpCatalogRepository`): AppException passes through; IO → Network. */
     private suspend inline fun <T> request(block: () -> T): T =
         try {

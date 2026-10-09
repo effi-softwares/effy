@@ -20,7 +20,7 @@
 // progress word, for the same reason: a customer has not received their order until all
 // of it has arrived.
 
-import type pg from "pg";
+import type { Queryable } from "./db";
 
 /**
  * Enqueue the customer's "your order arrived" intents — but ONLY if this was the last package.
@@ -42,7 +42,7 @@ import type pg from "pg";
  * @returns true when the order is now complete (whether or not this call was the one to enqueue).
  */
 export async function enqueueOrderDeliveredIfComplete(
-  tx: pg.PoolClient,
+  tx: Queryable,
   orderId: string,
 ): Promise<boolean> {
   // Complete ⇔ no package of this order is still without an arrival row. Asked as "does an

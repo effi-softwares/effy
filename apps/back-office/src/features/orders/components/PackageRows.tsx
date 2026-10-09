@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { OrderAssignment } from "@effy/shared-types";
 import { AssignmentLine } from "./AssignmentLine";
+import { ConsignmentBlock } from "./ConsignmentBlock";
 import { PackageStatusPill } from "@effy/web-kit/console";
 import { Button, Input } from "@effy/design-system/ui";
 
@@ -34,6 +35,9 @@ export type AssignmentActions = (
 ) => React.ReactNode;
 
 interface Props {
+  /** 080 — the order, and how its courier parcels reach the courier (null unless a courier delivers). */
+  orderId?: string;
+  courierCollection?: "hub" | "supplier" | null;
   renderActions?: AssignmentActions;
   packages: OrderPackage[];
   canRecord: boolean;
@@ -42,7 +46,7 @@ interface Props {
   onArrival(fulfillmentId: string): void;
 }
 
-export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions }: Props) {
+export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions, orderId, courierCollection = null }: Props) {
   return (
     <div className="divide-y rounded-lg border">
       {packages.map((pkg) => (
@@ -54,6 +58,8 @@ export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, r
           onHandoff={onHandoff}
           onArrival={onArrival}
           renderActions={renderActions}
+          orderId={orderId}
+          courierCollection={courierCollection}
         />
       ))}
       {packages.length === 0 ? (
@@ -72,7 +78,11 @@ function PackageRow({
   onHandoff,
   onArrival,
   renderActions,
+  orderId,
+  courierCollection,
 }: {
+  orderId?: string;
+  courierCollection: "hub" | "supplier" | null;
   renderActions?: AssignmentActions;
   pkg: OrderPackage;
   canRecord: boolean;
@@ -185,7 +195,22 @@ function PackageRow({
         </dl>
       ) : null}
 
-      {canRecord && action === "handoff" ? (
+      {/* 080 — when it is due out by its courier service's next pickup, and whether that has gone. */}
+      {pkg.dueOut || pkg.late ? (
+        <p className={`text-sm ${pkg.late ? "text-warning" : "text-muted-foreground"}`}>
+          {pkg.dueOut
+            ? `Due out ${new Intl.DateTimeFormat("en-AU", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Australia/Melbourne" }).format(new Date(pkg.dueOut))}`
+            : "Pickup day has passed"}
+          {pkg.late ? " — late" : ""}
+        </p>
+      ) : null}
+
+      {/* 080 — a courier order sold since courier services: its consignment. */}
+      {orderId && pkg.deliveredBy === "courier" && (courierCollection !== null || pkg.consignment) ? (
+        <ConsignmentBlock orderId={orderId} pkg={pkg} canRecord={canRecord} collection={courierCollection} />
+      ) : null}
+
+      {canRecord && action === "handoff" && courierCollection !== "supplier" ? (
         <div className="flex flex-wrap items-end gap-2">
           <label className="space-y-1 text-sm">
             <span className="text-muted-foreground">Carrier (optional)</span>

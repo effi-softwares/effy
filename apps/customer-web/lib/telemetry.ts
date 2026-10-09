@@ -344,6 +344,8 @@ export type StorefrontEvent =
   | { name: "saved_list_created"; props: { source: "chooser" | "lists_page"; withProduct: boolean } }
   | { name: "saved_list_entry_added"; props: { listKind: "default" | "named"; source: "chooser" | "undo" } }
   | { name: "saved_list_add_all"; props: { listKind: "default" | "named"; addedCount: number; skippedCount: number } }
+  // 080 — the customer opened their courier tracking link. ⚠ No URL, reference or courier name.
+  | { name: "courier_tracking_opened"; props?: Record<string, never> }
 
   // ── 046: customer feedback ────────────────────────────────────────────────────────────────────
   //

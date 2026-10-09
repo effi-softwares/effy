@@ -47,3 +47,13 @@ export function orderEditError(err: unknown): string {
   }
   return "Something went wrong. Please try again.";
 }
+
+/** 080 — a refused "Handed over to courier". */
+export function courierHandoverError(err: unknown): string {
+  if (isConflict(err)) return "This pickup isn't booked any more, or the parcel isn't marked ready. Refresh and check with Effy."
+  if (isDomainError(err)) {
+    if (err.kind === "forbidden") return "This parcel isn't collected by a courier from your shop any more."
+    if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment."
+  }
+  return "Something went wrong. Please try again."
+}

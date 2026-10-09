@@ -12,6 +12,8 @@ export * from "./standard-days";
 export * from "./windows";
 export * from "./model";
 export * from "./delivery-type";
+export * from "./consignment";
+export * from "./courier-pickup";
 export * from "./locality";
 export * from "./quote";
 export * from "./fee-wire";

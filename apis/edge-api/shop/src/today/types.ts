@@ -1,3 +1,4 @@
+import type { CourierPickupDTO } from "@effy/shared-types";
 // Domain types for TODAY — the shop console's live operational snapshot (058, US1/US2).
 //
 // ⚠ A SIBLING OF `orders/` AND `fulfillments/`, reading the same tables and answering a different
@@ -43,6 +44,8 @@ export interface LiveOrder {
   itemCount: number;
   /** 079 — who takes it away. The only thing a shop is told about delivery. */
   deliveredBy: "effy_driver" | "courier";
+  /** 080 — present only when a courier collects this package from the shop. */
+  courierPickup?: CourierPickupDTO;
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   total: string;

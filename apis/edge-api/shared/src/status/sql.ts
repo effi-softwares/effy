@@ -18,7 +18,11 @@ export const PACKAGE_STATUS_FACTS = `
          del.driver_name                               AS delivery_driver,
          fail.reason                                   AS failed_reason,
          EXISTS (SELECT 1 FROM public.carrier_handoff ch WHERE ch.shop_fulfillment_id = sf.id) AS handed_to_carrier,
-         EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id) AS arrived
+         EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id) AS arrived,
+         -- 080 — an OPEN courier problem on the live consignment: its latest step is failed, lost,
+         -- damaged or returned (a later resolved or delivered closes it, and moves the state on).
+         (SELECT c.state FROM public.courier_consignment c
+           WHERE c.shop_fulfillment_id = sf.id AND c.state IN ('failed', 'lost', 'damaged', 'returned')) AS courier_problem
     FROM public.shop_fulfillment sf
     LEFT JOIN LATERAL (
       SELECT rp.state, d.name AS driver_name,
@@ -69,4 +73,6 @@ export interface PackageStatusFactsRow {
   failed_reason: string | null;
   handed_to_carrier: boolean;
   arrived: boolean;
+  /** 080 */
+  courier_problem: string | null;
 }

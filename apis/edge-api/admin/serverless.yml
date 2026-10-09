@@ -923,6 +923,39 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  deliveryCourierServicesListV1:
+    handler: src/functions/delivery-courier-services-v1-get.handler
+    description: The courier services Effy uses — 080
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/courier-services
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCourierServicesCreateV1:
+    handler: src/functions/delivery-courier-services-v1-post.handler
+    description: Add a courier service — 080
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/courier-services
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  deliveryCourierServiceUpdateV1:
+    handler: src/functions/delivery-courier-service-v1-put.handler
+    description: Edit, retire or make default a courier service — 080
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery/courier-services/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   deliveryCoverageCourierExclusionAddV1:
     handler: src/functions/delivery-coverage-courier-exclusion-add-v1-post.handler
     description: Exclude a postcode from courier delivery — 076
