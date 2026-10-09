@@ -56,6 +56,10 @@ jobs:
       # sweeps above: a guard nothing runs is a rule nothing enforces.
       - name: "Gate: no data refresh timers (071 FR-009)"
         run: bash scripts/check-no-refresh-timers.sh
+      # 079 — a shop is told who takes the package away ("Effy driver" / "Courier"), never the
+      # customer's words for the delivery. A restored label compiles and renders; only this fails.
+      - name: "Gate: no customer delivery words on shop screens (079 FR-028)"
+        run: bash scripts/check-shop-delivery-words.sh
 
   # The customer storefront's own gates (011). These are the reason this workflow exists.
   storefront-gates:

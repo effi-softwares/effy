@@ -125,7 +125,7 @@ d("070 — delivery reads against the real schema", () => {
 
   it("standard-only quote: not same-day eligible, ONE fee for the order, days offered", async () => {
     const res = await quote(pool, null, "3121", [{ shopId: shopA, grams: 1500 }, { shopId: shopB, grams: 7000 }], new Date(), 5000);
-    if (!res.serviced) throw new Error("expected serviced");
+    if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
     // 3.4 km → the first band; 8.5 kg in all → the top weight band: 1.00 + 5.00 + 5.50.
     expect(res.standardFee.totalCents).toBe(1150);
     expect(res.standardFee.breakdown).toMatchObject({ km: 3.4, grams: 8500, distanceBandUpperKm: 10, weightBandUpperGrams: 10000 });
@@ -156,7 +156,7 @@ d("070 — delivery reads against the real schema", () => {
 
     const now = instantAtLocalTime(2026, 8, 24, 10, 0); // before the 12:00 run and the 15:00 cutoff
     const res = await quote(pool, null, "3121", [{ shopId: shopA, grams: 1500 }, { shopId: shopB, grams: 1500 }], now, 5000);
-    if (!res.serviced) throw new Error("expected serviced");
+    if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
 
     // One fee for the order with that window: the plain fee plus the today premium — once, though
     // only one of the two packages can go today.

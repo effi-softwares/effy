@@ -29,6 +29,7 @@ import type {
   PaymentState,
 } from "./types";
 import { ORDER_TABS } from "./types";
+import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 
 // ── Shared SQL fragments — ONE definition each, used by the list and the detail ────────────────
 
@@ -94,6 +95,7 @@ WITH base AS (
          COALESCE(fi.gathered, 0)::int    AS gathered_count,
          COALESCE(fi.unavailable, 0)::int AS unavailable_count,
          sf.delivery_method,
+         ${DELIVERED_BY_SQL} AS delivered_by,
          COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
          o.grand_total_amount AS total,
          o.currency,
@@ -138,6 +140,9 @@ WITH base AS (
           OR ($3::text = 'on_track' AND NOT at_risk AND unavailable_count = 0))
      AND ($4::text = 'any' OR payment = $4)
      AND ($5::text = 'any' OR delivery_method = $5)
+     -- 079 — who takes it away. ⚠ The filter shop staff use; $5 is the customer's word, kept for
+     -- shop apps installed before 079.
+     AND ($7::text = 'any' OR delivered_by = $7)
      AND (   $6::text = 'any'
           -- ⚠ "Today" is the Melbourne day (047's timezone rule), not the server's UTC day — a 9am
           -- order in Melbourne is still "yesterday" in UTC.
@@ -169,6 +174,7 @@ interface RowRecord {
   gathered_count: number;
   unavailable_count: number;
   delivery_method: "same_day" | "standard" | null;
+  delivered_by: DeliveredBy;
   customer_name: string;
   total: string;
   currency: string;
@@ -201,7 +207,7 @@ async function shopStatuses(ids: readonly string[]): Promise<Map<string, Package
 }
 
 export async function listOrders(shopId: string, q: OrderListQuery): Promise<OrderList> {
-  const filterArgs = [shopId, likePattern(q.q), q.attention, q.payment, q.method, q.range];
+  const filterArgs = [shopId, likePattern(q.q), q.attention, q.payment, q.method, q.range, q.deliveredBy];
   const direction = q.dir === "asc" ? "ASC" : "DESC";
   const offset = (q.page - 1) * q.pageSize;
 
@@ -210,9 +216,9 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
       `${FILTERED}
        SELECT *, count(*) OVER () AS full_count
          FROM filtered
-        WHERE ($7::text = 'all' OR tab = $7::text)
+        WHERE ($8::text = 'all' OR tab = $8::text)
         ORDER BY ${ORDER_BY[q.sort]} ${direction}, id ${direction}
-        LIMIT $8 OFFSET $9`,
+        LIMIT $9 OFFSET $10`,
       [...filterArgs, q.tab, q.pageSize, offset],
     ),
     query<{ tab: OrderTab; n: string }>(
@@ -250,6 +256,7 @@ function toRow(r: RowRecord): Omit<OrderRow, "statusView"> {
     itemCount: r.item_count,
     gatheredCount: r.gathered_count,
     unavailableCount: r.unavailable_count,
+    deliveredBy: r.delivered_by,
     deliveryMethod: r.delivery_method,
     atRisk: r.at_risk,
     payment: r.payment,
@@ -271,6 +278,7 @@ interface HeadRecord {
   status: FulfillmentStatus;
   state_changed_at: Date;
   delivery_method: "same_day" | "standard" | null;
+  delivered_by: DeliveredBy;
   unfulfillable_reason: string | null;
   delivery_address: Record<string, unknown> | null;
   item_subtotal_amount: string;
@@ -301,6 +309,7 @@ const READ_HEAD = `
 SELECT sf.id, sf.order_id, o.order_number,
        ${PLACED} AS placed_at, o.placed_at AS paid_at,
        sf.status, sf.state_changed_at, sf.delivery_method, sf.unfulfillable_reason,
+       ${DELIVERED_BY_SQL} AS delivered_by,
        o.delivery_address,
        o.item_subtotal_amount, o.discount_amount, o.promo_code,
        o.grand_total_amount, o.currency,
@@ -446,6 +455,7 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
     statusView,
     stateChangedAt: row.state_changed_at,
     readyBy: new Date(row.placed_at.getTime() + DEFAULT_READY_WINDOW_MS),
+    deliveredBy: row.delivered_by,
     deliveryMethod: row.delivery_method,
     atRisk: row.at_risk,
     delivery: mapDelivery(row.delivery_address ?? {}),

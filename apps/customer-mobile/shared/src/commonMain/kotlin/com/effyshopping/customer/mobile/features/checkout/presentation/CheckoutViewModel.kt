@@ -145,10 +145,13 @@ sealed interface CheckoutUiState {
         /** 078 — the new model's windows, when the quote carries them. Null is the 069 checkout. */
         val effyWindows: EffyWindows? get() = quote?.effyWindows?.takeIf { serviced }
 
-        /** Every delivery choice this order needs has been made. */
+        /** 079 — set when a courier delivers this order: then there is nothing to choose. */
+        val courier get() = quote?.courier?.takeIf { serviced }
+
+        /** Every delivery choice this order needs has been made. A courier order needs none. */
         val deliveryChosen: Boolean
-            get() = effyWindows?.let { it.unavailable == null && it.find(window) != null }
-                ?: ((!needsSlot || slotId != null) && (!needsDay || standardDate != null))
+            get() = courier != null || (effyWindows?.let { it.unavailable == null && it.find(window) != null }
+                ?: ((!needsSlot || slotId != null) && (!needsDay || standardDate != null)))
 
         /**
          * 077 — what delivery costs for what is chosen, as the lines the server priced. Null while
@@ -410,16 +413,21 @@ class CheckoutViewModel(
             return
         }
         // 078 — under the new model the order carries ONE window and none of the 069 fields.
+        // 079 — and a courier order carries none of either: there was nothing to choose.
         val windows = s.effyWindows
+        val courier = s.courier != null
+        val legacy = windows == null && !courier
 
         val order = PlaceOrder(
             addressId = addressId,
             billingAddressId = s.effectiveBillingId,
-            deliveryMethod = if (windows != null) DeliveryMethod.STANDARD else s.method,
+            deliveryMethod = if (legacy) s.method else DeliveryMethod.STANDARD,
             deliveryInstructions = s.instructions.toInstructions(),
-            sameDaySlotId = s.slotId.takeIf { windows == null && s.needsSlot },
-            standardDate = s.standardDate.takeIf { windows == null && s.needsDay },
-            deliveryWindow = s.window.takeIf { windows != null },
+            sameDaySlotId = s.slotId.takeIf { legacy && s.needsSlot },
+            standardDate = s.standardDate.takeIf { legacy && s.needsDay },
+            deliveryWindow = s.window.takeIf { windows != null && !courier },
+            // 079 — who delivers, as this screen shows it. The server refuses a mismatch, unpaid.
+            deliveryType = s.quote?.deliveryType,
             // 074 — "the most I can": the balance. If that is more than the order needs, the server says
             // so with the most it will take, and that is sent instead (below).
             pointsToUse = if (s.usePoints) s.points?.usable ?: 0 else 0,
@@ -471,6 +479,7 @@ class CheckoutViewModel(
                 val cur = ready() ?: return@launch
                 val cleared = (if (refused.reason == DeliveryChoiceRefusal.DateUnavailable) cur else cur.copy(slotId = null))
                     // 078 — the window is dropped whenever the refusal is about it, and never replaced.
+                    // 079 — and when who delivers has changed: nothing chosen for the old answer is kept.
                     .let { if (refused.reason == DeliveryChoiceRefusal.SlotRequired) it else it.copy(window = null) }
                 _state.value = cleared.withQuote(refused.quote ?: cur.quote).copy(
                     paying = false,
@@ -479,6 +488,7 @@ class CheckoutViewModel(
                         DeliveryChoiceRefusal.SlotRequired -> "Choose a delivery time to continue."
                         DeliveryChoiceRefusal.DateUnavailable -> "That delivery day is no longer available. Please choose another."
                         DeliveryChoiceRefusal.NoWindowsAvailable -> DeliveryWindowWords.NO_WINDOWS
+                        DeliveryChoiceRefusal.DeliveryTypeChanged -> DeliveryTypeWords.TYPE_CHANGED
                     },
                 )
                 // The server sends the fresh options with the refusal; without them, ask.

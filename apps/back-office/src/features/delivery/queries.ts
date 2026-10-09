@@ -5,12 +5,12 @@ import {
   putSettings, replacePlan, simulateFee,
   addNonDeliveryDate, createSlot, getDeliveryDays, listSlotGrid, listSlots, patchSlot, putDeliveryDays, removeNonDeliveryDate,
   addCourierExclusion, addCoveragePostcodes, createCoverageGroup, listCoverage, patchCoveragePostcodes,
-  removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, setCourierOffered,
+  removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, updateCourier,
   type CoverageFilters,
 } from "./repo";
 import type {
   AddCoveragePostcodesRequest, DeliveryDaysInput, DeliverySettingsDTO, DeliverySlotInput, DeliverySlotPatch,
-  FeePlanInput, FeePlanKind, FeeSimulationRequest, NonDeliveryDateInput, PatchCoveragePostcodesRequest,
+  FeePlanInput, FeePlanKind, FeeSimulationRequest, NonDeliveryDateInput, PatchCoveragePostcodesRequest, CourierReachUpdateDTO,
 } from "@effy/shared-types";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
@@ -138,6 +138,6 @@ export const useCreateCoverageGroup = () => useCoverageMutation((name: string) =
 export const useRenameCoverageGroup = () => useCoverageMutation((v: { id: string; name: string }) => renameCoverageGroup(v.id, v.name));
 export const useRemoveCoverageGroup = () =>
   useCoverageMutation((v: { id: string; confirmNoDrivers: boolean }) => removeCoverageGroup(v.id, v.confirmNoDrivers));
-export const useSetCourierOffered = () => useCoverageMutation((offered: boolean) => setCourierOffered(offered));
+export const useUpdateCourier = () => useCoverageMutation((change: CourierReachUpdateDTO) => updateCourier(change));
 export const useAddCourierExclusion = () => useCoverageMutation((v: { postcode: string; reason: string }) => addCourierExclusion(v.postcode, v.reason));
 export const useRemoveCourierExclusion = () => useCoverageMutation((postcode: string) => removeCourierExclusion(postcode));

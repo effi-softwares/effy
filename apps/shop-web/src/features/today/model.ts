@@ -1,4 +1,4 @@
-import type { ShopAttentionItemDTO, ShopTodayDTO } from "@effy/shared-types"
+import { DELIVERED_BY_WORDS, type DeliveredBy, type ShopAttentionItemDTO, type ShopTodayDTO } from "@effy/shared-types"
 
 /**
  * Today's copy and time formatting (058).
@@ -65,19 +65,16 @@ export function cityOf(timezone: string): string {
   return last.replace(/_/g, " ")
 }
 
-export const METHOD_LABEL: Record<"same_day" | "standard", string> = {
-  same_day: "Same-day",
-  standard: "Standard",
-}
-
-/** "3 min ago · 4 items · Same-day" — the meta line under a live order. */
-export function liveMeta(
-  o: { paidAt: string; itemCount: number; deliveryMethod: "same_day" | "standard" | null },
-  now: number,
-): string {
+/**
+ * "3 min ago · 4 items · Effy driver" — the meta line under a live order.
+ *
+ * ⚠ 079 — the last part is WHO TAKES THE PACKAGE AWAY, in `DELIVERED_BY_WORDS`' two words. It used to
+ * be the customer's word for the delivery ("Same-day" / "Standard"), which stopped telling a shop
+ * anything true once a "standard" order could be one an Effy driver delivers.
+ */
+export function liveMeta(o: { paidAt: string; itemCount: number; deliveredBy: DeliveredBy }, now: number): string {
   const items = `${o.itemCount} ${o.itemCount === 1 ? "item" : "items"}`
-  const method = o.deliveryMethod ? METHOD_LABEL[o.deliveryMethod] : "Delivery"
-  return `${relativeTime(o.paidAt, now)} · ${items} · ${method}`
+  return `${relativeTime(o.paidAt, now)} · ${items} · ${DELIVERED_BY_WORDS[o.deliveredBy]}`
 }
 
 /** What a Needs attention row says, and which verb resolves it. */

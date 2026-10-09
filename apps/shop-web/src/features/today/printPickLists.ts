@@ -21,7 +21,7 @@ export async function printAwaitingPickLists(): Promise<{ printed: number; more:
     data.lists.map((l) => ({
       orderNumber: l.orderNumber,
       recipientName: l.customerName,
-      deliveryMethod: l.deliveryMethod,
+      deliveredBy: l.deliveredBy,
       readyBy: null,
       lines: l.lines.map((line) => ({
         name: line.name,

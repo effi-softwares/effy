@@ -56,7 +56,7 @@ import { listOrders } from "./repo"
  * ⚠ WHERE IT DEPARTS FROM THE MOCKUP, IT IS FOR EFFY'S MODEL, NOT FOR TASTE:
  *   • the tabs are Effy's states (Awaiting pick · Picking · Ready · Collected · Delivered · Can't supply
  *     · Cancelled), not "Packed / Shipped" — a shop never ships anything (049);
- *   • the design's Channel filter is Delivery (same-day / standard) — Effy has one sales channel, and
+ *   • the design's Channel filter is "Goes with" (Effy driver / Courier, 079) — Effy has one sales channel, and
  *     how the package travels is the dimension that actually splits a shop's orders;
  *   • the row's flag is "At risk" against the ready-by promise — Effy has no fraud score.
  *
@@ -229,7 +229,7 @@ export function OrderListScreen({
         search={search}
         countLabel={countLabel}
         onChange={(patch) => update(patch)}
-        onClearAll={() => update({ range: undefined, payment: undefined, method: undefined, attention: undefined })}
+        onClearAll={() => update({ range: undefined, payment: undefined, deliveredBy: undefined, attention: undefined })}
       />
 
       {selected.size > 0 ? (

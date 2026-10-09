@@ -14,6 +14,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow
+import com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.SameDayUnavailable
@@ -265,9 +267,19 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
 private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     if (s.selectedId == null) return
     HorizontalDivider()
-    Text("Delivery", style = MaterialTheme.typography.titleSmall)
-
     val quote = s.quote
+    // 079 — the section is headed by WHO DELIVERS, once the quote says: "Courier delivery", or
+    // "Delivered by Effy" under the new delivery model. Plain "Delivery" while it is loading, when
+    // nobody delivers, and under the checkout that predates delivery types.
+    Text(
+        when (quote?.takeUnless { s.quoting }?.deliveryType) {
+            DeliveryType.COURIER -> DeliveryTypeWords.COURIER
+            DeliveryType.EFFY -> DeliveryTypeWords.EFFY
+            null -> "Delivery"
+        },
+        style = MaterialTheme.typography.titleSmall,
+    )
+
     when {
         s.quoting || quote == null -> Text(
             "Checking delivery…",
@@ -280,6 +292,12 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )
+        // 079 — a courier delivers: NOTHING TO CHOOSE. Before the pickers — a courier quote carries no
+        // windows, slots or days, and the branches below would draw an empty section for it.
+        quote.courier != null -> {
+            CourierSection(quote.courier)
+            DeliveryFeeSummary(quote.courier.fee, quote.freeDeliveryRemainingAmount)
+        }
         // 078 — WHICH CHECKOUT THIS IS, THE QUOTE SAYS. With windows the shopper picks ONE for the
         // order; everything below this branch is the 069 method / slot / day picker.
         quote.effyWindows != null -> {
@@ -476,6 +494,33 @@ private fun EffyDayWindows(day: EffyDayView, chosen: ChosenWindow?, enabled: Boo
 
 @OptIn(kotlin.time.ExperimentalTime::class)
 private fun nowEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
+
+/**
+ * 079 — the delivery section when a COURIER delivers the order: who, and roughly when.
+ *
+ * ⚠ THERE IS NOTHING TO CHOOSE, AND SO NOTHING TO TAP. No window, no day, no method — a disabled
+ * picker would only suggest one was meant to be there.
+ * ⚠ EVERY WORD IS [DeliveryTypeWords]' — the twin of what the website prints. The estimate is always
+ * said AS an estimate.
+ * ⚠ When the address IS one Effy delivers to and no window is left, the shopper is told that FIRST:
+ * they were expecting a time to pick.
+ * ⚠ Text in a column — no card (Principle V).
+ */
+@Composable
+private fun CourierSection(courier: CourierDelivery) {
+    val (partner, estimate) = DeliveryTypeWords.courierLines(courier.estimate)
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+        if (courier.noWindowLeft) {
+            Text(
+                "${DeliveryTypeWords.NO_WINDOWS_LEFT} ${DeliveryTypeWords.COURIER_INSTEAD_OF_WINDOWS}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Text(partner, style = MaterialTheme.typography.bodyMedium)
+        Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
 
 /** 077 — the delivery lines, in the shared words, and the free-delivery hint. A list, not a card. */
 @Composable

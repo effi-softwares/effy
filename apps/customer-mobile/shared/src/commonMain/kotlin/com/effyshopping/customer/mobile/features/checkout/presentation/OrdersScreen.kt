@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 
 private sealed interface OrdersUiState {
     data object Loading : OrdersUiState
@@ -214,7 +215,13 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
         Column {
             Text(order.orderNumber, style = MaterialTheme.typography.bodyMedium)
             Text(
-                "${order.itemCount} item${if (order.itemCount == 1) "" else "s"} · ${statusLabel(order.status)}",
+                // 079 — who delivers it, in the same two names as everywhere else; nothing for an order
+                // placed before orders had a delivery type.
+                listOfNotNull(
+                    "${order.itemCount} item${if (order.itemCount == 1) "" else "s"}",
+                    statusLabel(order.status),
+                    order.delivery?.let { if (it.type == DeliveryType.COURIER) DeliveryTypeWords.COURIER else DeliveryTypeWords.EFFY },
+                ).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -157,7 +157,10 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(all.postcodes[0]).toMatchObject({ places: ["RICHMOND", "BURNLEY"], state: "VIC", groupId: null, distanceSource: "computed", needsReview: false });
     expect(all.counts).toEqual({ listed: 2, manualDistance: 1, needsReview: 0 });
     expect(all.ungrouped).toEqual({ postcodeCount: 2, driverCount: 1 });
-    expect(all.courier).toMatchObject({ offered: false, canBeOffered: false, exclusions: [] });
+    // 079 — nothing is set yet, and the screen is told BOTH things that must be done before courier can go on.
+    expect(all.courier).toEqual({
+      offered: false, estimateText: null, whenNoWindows: false, blockedBy: ["no_fee_table", "no_estimate"], pending: false, canBeOffered: false, exclusions: [],
+    });
     expect((await svc.list({ source: "manual" })).postcodes.map((p) => p.postcode)).toEqual(["3900"]);
     expect((await svc.list({ q: "burn" })).postcodes.map((p) => p.postcode)).toEqual(["3121"]);
     expect((await svc.list({ q: "39" })).postcodes.map((p) => p.postcode)).toEqual(["3900"]);
@@ -254,10 +257,26 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     await putSettings({ hubLatitude: HUB.lat, hubLongitude: HUB.lon, samedayPrepBufferMin: 60 }, SUB);
   });
 
-  it("P9 — courier delivery cannot be switched on yet; switching it off and exclusions work", async () => {
-    expect(await refusal(svc.setCourier({ offered: true }, SUB))).toEqual({ status: 409, code: "courier_ordering_unavailable", extra: undefined });
+  it("P9 / 079 P20 — courier needs a fee table and an estimate; its settings; exclusions", async () => {
+    // No courier fee table exists in this database: on is refused for that, first.
+    expect(await refusal(svc.setCourier({ offered: true }, SUB))).toEqual({ status: 409, code: "courier_plan_missing", extra: undefined });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
-    expect(await svc.setCourier({ offered: false }, SUB)).toEqual({ offered: false });
+    expect(await svc.setCourier({ offered: false }, SUB)).toEqual({ offered: false, estimateText: null, whenNoWindows: false });
+
+    // The estimate: one trimmed line of 3–60 characters, or null to clear it.
+    for (const bad of ["", "  ", "2d", "x".repeat(61), "2–4 days\nmaybe", 7]) {
+      expect(await refusal(svc.setCourier({ estimateText: bad }, SUB)), String(bad)).toMatchObject({ status: 422, code: "invalid_estimate" });
+    }
+    expect(await svc.setCourier({ estimateText: "  2–4 business days " }, SUB)).toEqual({ offered: false, estimateText: "2–4 business days", whenNoWindows: false });
+    expect(await svc.setCourier({ whenNoWindows: true }, SUB)).toEqual({ offered: false, estimateText: "2–4 business days", whenNoWindows: true });
+    expect((await svc.list({})).courier).toMatchObject({ estimateText: "2–4 business days", whenNoWindows: true, blockedBy: ["no_fee_table"], pending: false, canBeOffered: false });
+    expect(await refusal(svc.setCourier({}, SUB))).toMatchObject({ status: 400, code: "invalid_request" });
+    expect(await refusal(svc.setCourier({ whenNoWindows: "yes" }, SUB))).toMatchObject({ status: 400, code: "invalid_request" });
+    // Each change is its own audit row, with what it was.
+    expect((await audits("coverage.courier.estimate")).at(-1)?.detail).toEqual({ before: null, after: "2–4 business days" });
+    expect((await audits("coverage.courier.when_no_windows")).at(-1)?.detail).toEqual({ before: false, after: true });
+    // Off: the estimate may be cleared.
+    expect(await svc.setCourier({ estimateText: null, whenNoWindows: false }, SUB)).toEqual({ offered: false, estimateText: null, whenNoWindows: false });
 
     expect(await refusal(svc.addExclusion({ postcode: "7000", reason: "no" }, SUB))).toMatchObject({ code: "reason_required" });
     expect(await refusal(svc.addExclusion({ postcode: "9999", reason: "No such place" }, SUB))).toMatchObject({ code: "unknown_postcode" });
@@ -265,10 +284,13 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(await refusal(svc.addExclusion({ postcode: "7000", reason: "Again" }, SUB))).toMatchObject({ status: 409, code: "already_excluded" });
     expect((await svc.list({})).courier.exclusions).toEqual([{ postcode: "7000", places: ["HOBART"], reason: "No chilled courier service" }]);
 
-    // With courier on (set in the database — the service will not), the checker gives the exclusion's own reason.
+    // With courier on (set in the database — this database has no fee table, so the service will not),
+    // the checker gives the exclusion's own reason; and an unexcluded place is NOT promised a courier,
+    // because nothing could sell one: no fee table, no estimate (079 — `pricing.container.test.ts`
+    // P19 carries it through to "courier").
     await q(`UPDATE public.delivery_settings SET courier_offered = true WHERE id = 1`);
     expect((await svc.check("7000")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_excluded", exclusionReason: "No chilled courier service" });
-    expect((await svc.check("2753")).matches[0]).toMatchObject({ coverage: "courier", reason: "courier_offered" });
+    expect((await svc.check("2753")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_not_ready" });
     await q(`UPDATE public.delivery_settings SET courier_offered = false WHERE id = 1`);
 
     await svc.removeExclusion("7000", SUB);

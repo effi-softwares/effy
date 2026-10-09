@@ -79,6 +79,7 @@ export function toSummary(
       const a = assignments.get(id);
       return a?.collect?.assignmentId === null || a?.deliver?.assignmentId === null;
     }),
+    deliveryType: row.delivery_type ?? null,
     // 073 — the least advanced package's status, in the words every staff screen uses.
     statusView: leastAdvanced(views),
     id: row.id,
@@ -122,7 +123,9 @@ export function toPackage(
 ): AdminOrderPackageDTO {
   // 069 — what it was promised and whether that is being kept. Derived, never stored.
   const verdict = judgePromise({
-    method: row.method,
+    deliveredBy: row.delivered_by,
+    courierOrder: row.courier_order,
+    placedDate: row.placed_date,
     promisedDate: row.promised_date,
     windowEnd: row.window_end,
     today: row.today,
@@ -152,6 +155,7 @@ export function toPackage(
     status: row.status,
     itemCount: row.item_count,
     subtotalAmount: row.subtotal_amount,
+    deliveredBy: row.delivered_by,
     deliveryMethod: row.method,
     handoff: row.handoff_at
       ? {
@@ -212,11 +216,13 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   // ⚠ PARALLEL, not four serial round trips. A Sydney RDS hop measures ~135 ms and this detail reads
   // from six tables — 029 found the storefront home intermittently 503-ing at 3.007 s from exactly
   // this mistake (8 serial queries), and that was on the customer's critical path.
-  const [itemRows, packageRows, historyRows, refundRows, refundLineRows, proposedRows, requestRow] =
+  const [itemRows, packageRows, historyRows, typeRows, refundRows, refundLineRows, proposedRows, requestRow] =
     await Promise.all([
       repo.items(orderId),
       repo.packages(orderId),
       repo.history(orderId),
+      // 079 — one more read in the same wave; nothing for an order placed before 079.
+      order.delivery_type ? repo.deliveryTypeHistory(orderId) : Promise.resolve([]),
       refundRepo.refunds(orderId),
       refundRepo.refundLines(orderId),
       refundRepo.proposedRefunds(orderId),
@@ -234,7 +240,9 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   );
   const statuses = packageRows.map((p) => p.status);
   const awaitingHandover = packageRows.filter(
-    (p) => p.status === "collected" && (p.method ?? "standard") === "standard" && !p.handoff_at,
+    // ⚠ 079 — the same definition the list's badge and filter use. Until then this one line had
+    // missed 078's rule and counted an Effy later-day package as awaiting a carrier.
+    (p) => p.status === "collected" && p.delivered_by === "courier" && !p.handoff_at,
   ).length;
   const awaitingArrival = packageRows.filter((p) => !p.arrival_at).length;
   // ⚠ 055 US6 — a portion the shop cannot supply, with no refund yet covering it. `refundedCents > 0`
@@ -250,6 +258,18 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     stage: stageFor(statuses),
     placedAt: order.placed_at ? order.placed_at.toISOString() : null,
     createdAt: order.created_at.toISOString(),
+    // 079 — who delivers it, why, and every change since. All empty for an order placed before 079.
+    deliveryType: order.delivery_type,
+    deliveryTypeReason: order.delivery_type_reason,
+    courierEstimate: order.courier_estimate,
+    deliveryTypeHistory: typeRows.map((r) => ({
+      from: r.from_type,
+      to: r.to_type,
+      reason: r.reason,
+      actor: r.actor_kind === "staff" && r.actor_sub ? { kind: "staff" as const, sub: r.actor_sub } : { kind: "checkout" as const },
+      note: r.note,
+      at: r.created_at.toISOString(),
+    })),
 
     customerId: order.customer_id,
     customerEmail: order.customer_email,

@@ -43,8 +43,17 @@ export interface RecordArrivalInput {
  */
 export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalResult> {
   return withTransaction(async (tx) => {
-    // FOR UPDATE: serialise concurrent attempts on this package so two operators pressing at once
-    // resolve to one winner and one idempotent replay, rather than racing the status guard.
+    // ⚠ THE LOCK IS TAKEN FIRST, IN ITS OWN STATEMENT (079). It used to be `FOR UPDATE OF sf` on the
+    // read below — one statement that both waited for the row and read the joined tables. A second
+    // caller that waited there was handed the UPDATED package row (re-checked after the wait) beside
+    // the joined rows as they stood when its statement BEGAN: status already moved on, and no sign
+    // of the record the first caller had just written. So the replay it was meant to be was refused
+    // instead. Locking first means the read below starts after the winner has committed and sees
+    // everything it wrote. (Found when a test that races two callers began failing every run.)
+    await tx.query(`SELECT 1 FROM public.shop_fulfillment WHERE id = $1 FOR UPDATE`, [input.fulfillmentId]);
+
+    // Serialised by the lock above: two operators pressing at once resolve to one winner and one
+    // idempotent replay, rather than racing the status guard.
     const pkg = await tx.query<{
       id: string;
       order_id: string;

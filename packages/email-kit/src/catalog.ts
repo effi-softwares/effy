@@ -235,9 +235,21 @@ export const CATALOG = {
     vars: {
       orderNumber: "string",
       placedAt: "string",
-      /** ⚠ A DATE OR DATE RANGE, never a time — the platform has no delivery window (research R4). */
+      /**
+       * 079 — the small label over the delivery line: "Arriving" for an order Effy delivers (and every
+       * order placed before 079), "Courier delivery" for one a courier does.
+       */
+      deliveryLabel: "string",
+      /**
+       * When it arrives, in the words the data supports — a window, a day, or "a date we'll confirm".
+       * ⚠ For a courier order it is the two sentences of `courierLines` (shared-types): who delivers,
+       * and the business's ESTIMATE said as an estimate. Never a date the platform did not promise.
+       */
       deliveryEstimate: "string",
+      /** "Same-day" / "Standard" / "Multiple deliveries". ⚠ EMPTY for a courier order, which is neither. */
       deliveryMethod: "string",
+      /** 079 — the inbox preview line, whole: "Arriving today, 5 pm – 7 pm." or the courier estimate. */
+      deliveryPreheader: "string",
       /** ⚠ Money and quantity arrive PRE-FORMATTED (FR-048). `unitPrice` is 052's addition. */
       items: {
         of: { name: "string", quantity: "string", unitPrice: "string", lineTotal: "string" },
@@ -280,7 +292,7 @@ export const CATALOG = {
     },
     subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} is confirmed`,
     // ⚠ Does not repeat the subject and does not restate the amount (FR-025).
-    preheader: (v) => `Arriving ${v.deliveryEstimate}.`,
+    preheader: (v) => String(v.deliveryPreheader),
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
 

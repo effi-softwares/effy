@@ -41,6 +41,9 @@ export interface LiveOrder {
   customerName: string;
   paidAt: Date;
   itemCount: number;
+  /** 079 — who takes it away. The only thing a shop is told about delivery. */
+  deliveredBy: "effy_driver" | "courier";
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   total: string;
   currency: string;

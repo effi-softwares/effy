@@ -12,6 +12,7 @@
 import { query, withTransaction } from "@effy/edge-shared";
 import type pg from "pg";
 
+import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 import { promiseFrom, isAtRisk } from "./promise";
 import {
   ACTIVE_STATUSES,
@@ -36,6 +37,7 @@ interface SummaryRow {
   item_count: number;
   gathered_count: string | null;
   unavailable_count: string | null;
+  delivered_by: DeliveredBy;
 }
 
 interface DetailRow {
@@ -46,6 +48,7 @@ interface DetailRow {
   status: FulfillmentStatus;
   state_changed_at: Date;
   delivery_address: Record<string, unknown>;
+  delivered_by: DeliveredBy;
 }
 
 interface ItemRow {
@@ -86,6 +89,8 @@ SELECT sf.id,
        sf.status,
        sf.state_changed_at,
        sf.item_count,
+       -- 079 — who takes the package away: the one thing a shop is told about delivery.
+       ${DELIVERED_BY_SQL} AS delivered_by,
        COALESCE(SUM(fi.gathered_quantity), 0)    AS gathered_count,
        COALESCE(SUM(fi.unavailable_quantity), 0) AS unavailable_count
   FROM public.shop_fulfillment sf
@@ -93,7 +98,7 @@ SELECT sf.id,
   LEFT JOIN public.fulfillment_item fi ON fi.shop_fulfillment_id = sf.id
  WHERE sf.shop_id = $1
    AND sf.status = ANY($2::text[])
- GROUP BY sf.id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, sf.item_count
+ GROUP BY sf.id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, sf.item_count, o.delivery_type
  -- ⚠ Ordered by placed_at alone. sf.promised_ready_at was a per-package delivery promise and
 -- was dropped with delivery; this is the ordering the queue had before 021.
 ORDER BY o.placed_at ASC, sf.id ASC
@@ -107,7 +112,7 @@ export async function listQueue(
   const statuses = state === "completed" ? COMPLETED_STATUSES : ACTIVE_STATUSES;
   const res = await query<SummaryRow>(LIST_QUEUE, [shopId, statuses]);
   return res.rows.map((r) => {
-    const promise = promiseFrom(r.placed_at, null, null);
+    const promise = { ...promiseFrom(r.placed_at, null, null), deliveredBy: r.delivered_by };
     return {
       id: r.id,
       orderNumber: r.order_number,
@@ -133,7 +138,8 @@ export async function listQueue(
  * (FR-007, FR-008). An order-level total would itself leak the existence of other shops' items.
  */
 const READ_DETAIL = `
-SELECT sf.id, sf.order_id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, o.delivery_address
+SELECT sf.id, sf.order_id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, o.delivery_address,
+       ${DELIVERED_BY_SQL} AS delivered_by
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
  WHERE sf.id = $1 AND sf.shop_id = $2
@@ -249,7 +255,7 @@ export async function readDetail(
     placedAt: row.placed_at,
     status: row.status,
     stateChangedAt: row.state_changed_at,
-    promise: promiseFrom(row.placed_at, null, null),
+    promise: { ...promiseFrom(row.placed_at, null, null), deliveredBy: row.delivered_by },
     delivery: mapDelivery(row.delivery_address ?? {}),
     items: items.rows.map(mapItem),
   };

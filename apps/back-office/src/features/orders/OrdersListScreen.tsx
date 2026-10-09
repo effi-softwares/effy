@@ -18,7 +18,9 @@ import {
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
 
-import { AWAITING_LABEL, STAGE_LABEL, type OrderSummary } from "./model";
+import { ADMIN_ORDER_DELIVERY_FILTERS, type AdminOrderDeliveryFilter } from "@effy/shared-types";
+
+import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, STAGE_LABEL, type OrderSummary } from "./model";
 import { ordersListQuery } from "./queries";
 
 const ALL = "all";
@@ -77,6 +79,14 @@ const columns: ColumnDef<OrderSummary>[] = [
       row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} /> : "—",
   },
   {
+    id: "delivery",
+    header: "Delivery",
+    // 079 — who delivers the order: Effy, or a courier. A dash for an order placed before orders
+    // had a delivery type — nothing about an old order is guessed.
+    cell: ({ row }) =>
+      row.original.deliveryType ? deliveryTypeText(row.original.deliveryType) : <span className="text-muted-foreground">—</span>,
+  },
+  {
     id: "driver",
     header: "Driver",
     // 073 — who has it: "Ada → Ben" (collect → deliver), or "Needs a driver".
@@ -113,6 +123,7 @@ const columns: ColumnDef<OrderSummary>[] = [
 export function OrdersListScreen() {
   const [search, setSearch] = useState("");
   const [awaiting, setAwaiting] = useState<string>(ALL);
+  const [delivery, setDelivery] = useState<string>(ALL);
   /**
    * Keyset paging, so a stack rather than a page number.
    *
@@ -129,9 +140,11 @@ export function OrdersListScreen() {
       awaiting: awaiting === ALL || awaiting === NEEDS_DRIVER ? undefined : (awaiting as "handover" | "arrival"),
       // 073 — orders with a package nobody is collecting or delivering.
       needsDriver: awaiting === NEEDS_DRIVER ? true : undefined,
+      // 079 — who delivers the order.
+      deliveryType: delivery === ALL ? undefined : (delivery as AdminOrderDeliveryFilter),
       cursor: cursors[cursors.length - 1],
     }),
-    [search, awaiting, cursors],
+    [search, awaiting, delivery, cursors],
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params));
@@ -172,6 +185,26 @@ export function OrdersListScreen() {
             {/* The operator's work queue — derived from what is missing, never a stored state. */}
             <SelectItem value="handover">Needs handover</SelectItem>
             <SelectItem value="arrival">Awaiting arrival</SelectItem>
+          </SelectContent>
+        </Select>
+        {/* 079 — who delivers the order. Its own control: it narrows the list, it is not a work queue. */}
+        <Select
+          value={delivery}
+          onValueChange={(v) => {
+            setDelivery(v);
+            setCursors([]);
+          }}
+        >
+          <SelectTrigger className="w-60" aria-label="Delivery type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Any delivery</SelectItem>
+            {ADMIN_ORDER_DELIVERY_FILTERS.map((f) => (
+              <SelectItem key={f} value={f}>
+                {DELIVERY_FILTER_LABEL[f]}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

@@ -18,6 +18,7 @@ import {
   type DeliveryMethodChoice,
 } from "@/lib/delivery-choice"
 
+import { CourierDelivery } from "./CourierDelivery"
 import { EffyWindowOptions } from "./EffyWindowOptions"
 import { formatMoney } from "@/lib/money"
 
@@ -70,6 +71,9 @@ export function DeliveryOptions({
   now?: Date
 }) {
   const group = useId()
+  // 079 — a courier delivers this order: nothing to choose. Checked FIRST — a courier quote carries no
+  // windows, slots or days, and the pickers below would draw an empty "Delivery" section for it.
+  if (quote.courier) return <CourierDelivery courier={quote.courier} currency={currency} />
   // 078 — WHICH CHECKOUT THIS IS, THE QUOTE SAYS. With `effyWindows` the shopper picks one window for
   // the order; everything below is the 069 method / slot / day picker, live until the switch.
   if (quote.effyWindows) {

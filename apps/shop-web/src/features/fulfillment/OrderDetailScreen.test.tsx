@@ -142,7 +142,7 @@ describe("layout", () => {
 describe("item-level picking", () => {
   it("summarises lines picked in full, and labels each line's state", async () => {
     open(orderDetail({ lines: [line({ gatheredQuantity: 2 }), line({ orderItemId: "oi2", name: "Oat milk 1L", orderedQuantity: 3, gatheredQuantity: 1, unavailableQuantity: 2 }), line({ orderItemId: "oi3", name: "Bread", gatheredQuantity: 0, unavailableQuantity: 2, pickNote: "supplier short" }), line({ orderItemId: "oi4", name: "Tea", gatheredQuantity: 0 })] }));
-    expect(await screen.findByText("1 of 4 items picked · Standard delivery")).toBeInTheDocument();
+    expect(await screen.findByText("1 of 4 items picked · Courier")).toBeInTheDocument();
     expect(screen.getByText("Picked")).toBeInTheDocument();
     expect(screen.getByText("1 of 3 picked")).toBeInTheDocument();
     expect(screen.getByText("Unavailable · supplier short")).toBeInTheDocument();

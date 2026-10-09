@@ -15,6 +15,7 @@ const paid = (over: Partial<FinalizeOutcome> = {}): FinalizeOutcome => ({
   stockShopIds: [],
   pointsSpent: 0,
   pointsShortfall: 0,
+  deliveryType: null,
   ...over,
 });
 

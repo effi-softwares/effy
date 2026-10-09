@@ -90,7 +90,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         <div className="flex flex-col gap-5">
           {/* ⚠ `dto.stage` is SERVER-DERIVED. This page used to recompute it from `fulfillments`; see
               lib/fulfillment-progress.ts for why that is gone (052 FR-008). */}
-          <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} />
+          <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />
 
           {/* ⚠ NOTHING AT ALL when there are no refunds (FR-028) — the server omits the fields, so an
               unrefunded order renders exactly as it did before 055 (SC-011). */}

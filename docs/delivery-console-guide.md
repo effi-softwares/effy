@@ -23,7 +23,7 @@ days), 076 (coverage) and 077 (pricing).
 ```
    Address ─► postcode ─► on the Coverage list?  ── yes ─► DELIVERED BY EFFY ─► fee + delivery times
                                  │
-                                 no ─► courier delivery offered there?  ── yes ─► COURIER DELIVERY (not yet switched on)
+                                 no ─► can a courier order be placed there? ── yes ─► COURIER DELIVERY ─► estimate + courier fee
                                                      │
                                                      no ─► "Sorry, we can't deliver to this address."
 ```
@@ -74,6 +74,10 @@ The **Check a postcode or place** box is for everyone in back-office, including 
 answers in words you can repeat to a customer's question:
 - *Delivered by Effy — On Effy's list. Group: Inner East. 3.40 km from the hub (worked out).*
 - *Cannot deliver — Not on Effy's list. Courier delivery is switched off, so nobody delivers there.*
+- *Cannot deliver — Not on Effy's list. Courier delivery is switched on and starts with the new delivery
+  model — until then nobody delivers there.*
+- *Cannot deliver — Not on Effy's list. Courier delivery is switched on but has no fee table or no
+  estimate, so nobody delivers there.*
 - *Cannot deliver — Not a known postcode.*
 
 The group, the distance and the reason are for staff. **A customer is told the answer only.**
@@ -93,9 +97,28 @@ the list, in no group.
 An address **not** on Effy's list will be offered courier delivery — everywhere in the country except the
 postcodes you exclude here (each with a reason, e.g. "No chilled courier service").
 
-> ⚠ **The switch is locked for now.** Customers cannot place a courier order yet, so courier delivery
-> cannot be switched on: every address in the country would be promised something checkout cannot sell.
-> You can prepare the exclusions list in the meantime.
+**Three things to set (079), and an order they are needed in:**
+
+1. **A courier fee table**, made active on the Pricing tab. Without a price there is nothing to charge.
+2. **How long a courier usually takes** — a few words such as *2–4 business days*. The screen shows the
+   whole sentence the customer will read: *"Usually arrives in 2–4 business days — an estimate, not a
+   guaranteed date."* It is always said as an estimate. **An order keeps the estimate it was sold**:
+   changing the text later changes what new customers are told, never a placed order.
+3. **Offer courier delivery** — the switch. It is locked until 1 and 2 are done, and the screen says
+   which is missing. While it is on, the estimate cannot be emptied (switch it off first).
+
+> ⚠ **Switching it on promises nobody anything before the new delivery model is on.** A courier order
+> can only be placed by the new checkout, so until the cutover the screen says *"Switched on, and starts
+> with the new delivery model"* and an address off Effy's list is still told Effy can't deliver there —
+> on the address book, at checkout, and in the checker above. You can set courier delivery up ahead of
+> time; it takes effect at the cutover and not a moment earlier.
+
+**Offer courier when no delivery window is available** — a separate switch, off by default. It is about
+addresses Effy **does** deliver to: when every window on every offered day is closed or taken, the
+customer is told there are no windows and offered courier delivery instead (same estimate, same courier
+fee). Off: they are told there are no windows and cannot pay. A postcode on the exclusions list is never
+offered this. While any window is open, a customer is never offered a courier — they do not choose
+between the two.
 
 ### What is frozen (until later delivery features)
 | Was controlled by | Now |
@@ -111,8 +134,9 @@ postcodes you exclude here (each with a reason, e.g. "No chilled courier service
 **What it is:** what delivery costs. Two kinds of plan, each with **exactly one in force**:
 
 - **Delivered by Effy** — every order to a postcode on the Coverage list.
-- **Courier** — a courier fee table. Nothing is charged from it until customers can place courier orders,
-  but courier delivery **cannot be switched on** without one in force.
+- **Courier** — a courier fee table: a flat amount per order plus a weight band; no distance, no window,
+  and its own optional free-delivery amount (Effy's never applies). It is what a courier order is
+  charged (079), and courier delivery **cannot be switched on** without one in force.
 
 You can keep several plans of each kind (a launch plan, a summer plan) — drafts, the one in force, and
 retired ones kept as the record of what was charged.

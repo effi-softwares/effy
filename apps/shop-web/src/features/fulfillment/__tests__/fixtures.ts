@@ -13,6 +13,7 @@ export function orderRow(over: Partial<OrderRow> = {}): OrderRow {
     itemCount: 4,
     gatheredCount: 0,
     unavailableCount: 0,
+    deliveredBy: "courier",
     deliveryMethod: "standard",
     atRisk: false,
     payment: "paid",
@@ -54,6 +55,7 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
     statusView: { status: "preparing", word: "Preparing", detail: null, driverName: null },
     stateChangedAt: "2026-09-10T02:15:11Z",
     readyBy: "2026-09-10T03:14:05Z",
+    deliveredBy: "courier",
     deliveryMethod: "standard",
     atRisk: false,
     delivery: {

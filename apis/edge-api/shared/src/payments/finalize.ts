@@ -27,6 +27,7 @@
  */
 import type { Queryable } from "../lib/db";
 import { formatCents, parseCents } from "../lib/money";
+import { recordDeliveryType } from "../delivery/delivery-type";
 import { slotLoad } from "../delivery/slots";
 import { emitMetric } from "../lib/metrics";
 import { announce, type LiveChange } from "../live";
@@ -61,11 +62,16 @@ export interface FinalizeOutcome {
    * payment landed. The order stands and Effy absorbs the value; the alarm watches this.
    */
   pointsShortfall: number;
+  /**
+   * 079 — who delivers the order just placed; null for one sold by the checkout that predates the
+   * new delivery model (it has no delivery type), and when nothing was applied.
+   */
+  deliveryType: "effy" | "courier" | null;
 }
 
 const NOT_APPLIED: FinalizeOutcome = {
   applied: false, slotConfirmed: false, slotOverCapacity: false, stockShortfall: false, shopIds: [], customerSub: null, stockShopIds: [],
-  pointsSpent: 0, pointsShortfall: 0,
+  pointsSpent: 0, pointsShortfall: 0, deliveryType: null,
 };
 
 /**
@@ -155,6 +161,12 @@ FROM public.order_package_delivery opd
 WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = $1`,
     [orderId],
   );
+
+  // 2b″. 079 — the order's delivery type becomes a fact with a history: the first entry, "decided by
+  //      the checkout". ⚠ Through the one writer, in THIS transaction — the order is paid and has its
+  //      history, or neither. Nothing is written for an order with no type (sold by the checkout
+  //      that predates the new delivery model): its history is not invented.
+  await recordDeliveryType(tx, { orderId, actor: { kind: "checkout" } });
 
   // 2c. The same-day place becomes a booking (069).
   const slot = await confirmSlotBooking(tx, orderId);
@@ -271,9 +283,9 @@ FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY shop_id`,
     )
   ).rows.map((r) => ({ shopId: r.shop_id, itemCount: r.item_count, subtotal: r.subtotal }));
   const meta = (
-    await tx.query<{ order_number: string; currency: string; grand_total: string; cognito_sub: string }>(
+    await tx.query<{ order_number: string; currency: string; grand_total: string; cognito_sub: string; delivery_type: "effy" | "courier" | null }>(
       `
-SELECT o.order_number, o.currency, o.grand_total_amount::text AS grand_total, c.cognito_sub
+SELECT o.order_number, o.currency, o.grand_total_amount::text AS grand_total, c.cognito_sub, o.delivery_type
 FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
       [orderId],
     )
@@ -348,6 +360,7 @@ DELETE FROM public.cart_item WHERE cart_id = (
     stockShopIds: [...new Set(stockMoved.rows.map((r) => r.shop_id))],
     pointsSpent: points.spent,
     pointsShortfall: points.shortfallPoints,
+    deliveryType: meta.delivery_type,
   };
 }
 
@@ -369,6 +382,8 @@ export function meterFinalize(namespace: string, out: FinalizeOutcome): void {
     if (out.slotOverCapacity) emitMetric(namespace, "SlotBookings", 1, { outcome: "over_capacity" });
   }
   if (out.applied) emitMetric(namespace, "StockDeducted", 1, { outcome: out.stockShortfall ? "partial" : "full" });
+  // 079 FR-039 — orders placed, by who delivers them. Nothing for an order with no delivery type.
+  if (out.applied && out.deliveryType) emitMetric(namespace, "OrdersPlaced", 1, { deliveryType: out.deliveryType });
   if (out.pointsSpent > 0) emitMetric(namespace, "PointsSpent", 1);
   // ⚠ Alarmed (PointsHoldShortfall ≥ 1): Effy absorbed value it did not plan to.
   if (out.pointsShortfall > 0) emitMetric(namespace, "PointsHoldShortfall", 1);

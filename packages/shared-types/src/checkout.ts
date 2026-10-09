@@ -72,6 +72,13 @@ export interface CreateCheckoutIntentRequest {
    */
   deliveryWindow?: { slotId: string; date: string } | null;
   /**
+   * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server writes
+   * nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this differs from
+   * what applies now, or when a courier quote is answered without it — so nobody pays a courier fee
+   * for a screen that showed Effy's windows, or the reverse. Optional for an Effy order.
+   */
+  deliveryType?: "effy" | "courier";
+  /**
    * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile in-app element)
    * and therefore needs a customer session. Web renders Effy's own list and leaves this unset.
    *
@@ -124,6 +131,8 @@ export interface CreateCheckoutIntentResponse {
    * customer is charged.
    */
   slotHeldUntil?: string | null;
+  /** 079 — the delivery type the order was written with. Absent while the new delivery model is off. */
+  deliveryType?: "effy" | "courier";
   /**
    * 051 — authorizes a provider-owned payment-method list for THIS shopper only.
    *

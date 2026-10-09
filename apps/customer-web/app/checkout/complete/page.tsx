@@ -182,7 +182,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
         </div>
 
         <div className="flex flex-col gap-5">
-          <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} />
+          <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />
 
           {/* One primary action, then the alternatives (FR-012). */}
           <div className="flex flex-col gap-2.5">

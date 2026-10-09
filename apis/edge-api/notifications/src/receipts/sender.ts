@@ -3,7 +3,10 @@
 // ⚠ EVERY MONEY VALUE, QUANTITY AND DATE IS FORMATTED HERE, not in the template (email-kit FR-048).
 // SES has no formatting helpers and a template handed a raw number cannot format it, so the catalogue
 // declares every one of these as a pre-formatted string. This module is where "3.60" becomes "$3.60".
-import { ARRIVAL_UNCONFIRMED, DELIVERY_FEE_LINE_LABEL, distinctArrivals, formatArrival, type DeliveryFeeLineKind } from "@effy/shared-types";
+import {
+  ARRIVAL_UNCONFIRMED, courierEstimateSentence, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, distinctArrivals, formatArrival,
+  type DeliveryFeeLineKind,
+} from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
 import { identityFromEnv, MailConfigError } from "@effy/email-kit";
 import { sendEmail } from "@effy/email-kit/send";
@@ -118,6 +121,35 @@ export function arrivalText(
   return { estimate: said.map(midSentence).join(" and "), method };
 }
 
+/**
+ * The receipt's delivery block: the label, the line under it, and the inbox preview (079).
+ *
+ * ⚠ A COURIER ORDER NEVER READS ITS PACKAGES. It was sold no window and no day, and a package's own
+ * word for the delivery ("standard") is how it is routed, not what the customer bought: read here,
+ * the receipt would say "Arriving on a date we'll confirm · Standard" for a parcel a courier is
+ * carrying. It says who delivers and the ESTIMATE THE ORDER WAS SOLD (the order's own copy, never
+ * today's setting), in the same two sentences the checkout and the order page print (`courierLines`).
+ *
+ * An order Effy delivers — and every order placed before 079 — reads exactly as it did.
+ */
+export function deliveryVars(
+  order: { delivery_type?: string | null; courier_estimate?: string | null },
+  arrivals: ReceiptArrivalRow[],
+  now: Date = new Date(),
+): { deliveryLabel: string; deliveryEstimate: string; deliveryMethod: string; deliveryPreheader: string } {
+  if (order.delivery_type === "courier" && order.courier_estimate) {
+    return {
+      deliveryLabel: DELIVERY_TYPE_WORDS.courier,
+      deliveryEstimate: courierLines(order.courier_estimate).join(" "),
+      // ⚠ Empty, and the template then prints no "· method": a courier order is neither word.
+      deliveryMethod: "",
+      deliveryPreheader: courierEstimateSentence(order.courier_estimate),
+    };
+  }
+  const arrival = arrivalText(arrivals, now);
+  return { deliveryLabel: "Arriving", deliveryEstimate: arrival.estimate, deliveryMethod: arrival.method, deliveryPreheader: `Arriving ${arrival.estimate}.` };
+}
+
 /** What the receipt says when the platform has promised no day. Every order placed before 069. */
 const UNCONFIRMED = "a date we'll confirm";
 
@@ -173,13 +205,11 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
 
       const { order, items, arrivals } = loaded;
       const currency = order.currency || "AUD";
-      const arrival = arrivalText(arrivals);
 
       const vars = {
         orderNumber: order.order_number,
         placedAt: formatPlacedAt(order.placed_at),
-        deliveryEstimate: arrival.estimate,
-        deliveryMethod: arrival.method,
+        ...deliveryVars(order, arrivals),
         items: items.map((i: ReceiptItemRow) => ({
           name: i.product_name,
           quantity: String(i.quantity),

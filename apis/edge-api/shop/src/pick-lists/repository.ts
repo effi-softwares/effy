@@ -5,6 +5,8 @@
 // should not carry it — pick lists get left on benches.
 import { query } from "@effy/edge-shared";
 
+import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
+
 /** A hard ceiling: a shop with 400 orders waiting needs help, not 400 sheets of paper. */
 export const MAX_PICK_LISTS = 100;
 
@@ -13,6 +15,9 @@ export interface PickListRow {
   orderNumber: string;
   customerName: string;
   paidAt: Date;
+  /** 079 — who takes it away: what the printed sheet says, never "same-day" or "standard". */
+  deliveredBy: DeliveredBy;
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   lines: Array<{ name: string; sku: string | null; quantity: number }>;
 }
@@ -27,6 +32,7 @@ SELECT sf.id::text AS fulfillment_id,
        COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
        COALESCE(o.placed_at, o.created_at) AS paid_at,
        sf.delivery_method,
+       ${DELIVERED_BY_SQL} AS delivered_by,
        COALESCE(
          json_agg(
            json_build_object('name', oi.product_name, 'sku', p.sku, 'quantity', oi.quantity)
@@ -40,7 +46,7 @@ SELECT sf.id::text AS fulfillment_id,
   LEFT JOIN public.product p ON p.id = oi.product_id
  WHERE sf.shop_id = $1
    AND sf.status IN ('pending', 'received')
- GROUP BY sf.id, o.order_number, o.delivery_address, o.placed_at, o.created_at, sf.delivery_method
+ GROUP BY sf.id, o.order_number, o.delivery_address, o.placed_at, o.created_at, sf.delivery_method, o.delivery_type
  ORDER BY COALESCE(o.placed_at, o.created_at) ASC
  LIMIT $2
 `;
@@ -57,6 +63,7 @@ interface PickListDbRow {
   customer_name: string;
   paid_at: Date;
   delivery_method: "same_day" | "standard" | null;
+  delivered_by: DeliveredBy;
   lines: Array<{ name: string; sku: string | null; quantity: number }>;
 }
 
@@ -74,6 +81,7 @@ export async function readPickLists(
     orderNumber: r.order_number,
     customerName: r.customer_name,
     paidAt: r.paid_at,
+    deliveredBy: r.delivered_by,
     deliveryMethod: r.delivery_method,
     lines: r.lines,
   }));

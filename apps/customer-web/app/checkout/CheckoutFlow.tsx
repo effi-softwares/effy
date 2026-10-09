@@ -33,7 +33,9 @@ import {
   carrySlot,
   carryWindow,
   chosenFee,
+  courierOf,
   dayOffset,
+  deliveryTypeOf,
   effyWindowsOf,
   isFreeDelivery,
   needs,
@@ -124,9 +126,13 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // still offered (FR-011); dropped when the address changes — nothing chosen for one address is
   // silently carried to another.
   const [chosenWindow, setChosenWindow] = useState<ChosenWindow | null>(null)
+  // 079 — WHERE the order is going, as far as delivery cares: the address AND its postcode. Who
+  // delivers, the fee and the windows are all decided from the postcode, so a different one under the
+  // same address id is a different destination and must be re-decided like any other (FR-016).
+  const selectedPostcode = addresses.find((a) => a.id === selectedId)?.postalCode ?? null
   useEffect(() => {
     setChosenWindow(null)
-  }, [selectedId])
+  }, [selectedId, selectedPostcode])
   // Bumped to ask for a fresh quote for the SAME address — after a refused slot or day.
   const [quoteEpoch, setQuoteEpoch] = useState(0)
 
@@ -154,7 +160,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     return () => {
       cancelled = true
     }
-  }, [selectedId, quoteEpoch])
+  }, [selectedId, selectedPostcode, quoteEpoch])
 
   // 069: what this quote lets the shopper choose. Same-day is offered when ANY delivery can go today
   // and a slot is open — a basket with one excepted shop is a mixed order, and says so (research R7).
@@ -180,6 +186,18 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   useEffect(() => {
     if (windowsUnavailable) capture({ name: "checkout_windows_unavailable", props: { reason: windowsUnavailable } })
   }, [windowsUnavailable])
+
+  // 079 — WHO DELIVERS, as this page is showing it: a courier, Effy under the new delivery model, or
+  // null under the checkout that predates it. Sent back on the intent, which refuses if it is not
+  // what applies by then. Told once per distinct answer (lib/telemetry.ts).
+  const courier = useMemo(() => courierOf(quote), [quote])
+  const deliveryType = useMemo(() => deliveryTypeOf(quote), [quote])
+  const typeShown = deliveryType ? `${deliveryType}|${courier?.reason ?? "in_coverage"}` : null
+  useEffect(() => {
+    if (!typeShown) return
+    const [type, reason] = typeShown.split("|") as ["effy" | "courier", "in_coverage" | "out_of_coverage" | "no_window"]
+    capture({ name: "checkout_delivery_type_shown", props: { type, reason } })
+  }, [typeShown])
 
   // 077 — ONE fee for the order, as the server priced it: the chosen window's when anything goes
   // today, the later-day fee otherwise. Lines and a total; no distance, weight or plan ever reaches
@@ -280,8 +298,13 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     (billingSameAsShipping || !!billingId) &&
     guestLines.length > 0 &&
     serviced &&
-    // 078 — under the new model the one thing needed is a window; the 069 slot and day do not apply.
-    (effyWindows ? !effyWindows.unavailable && !!chosenWindow : (!need.slot || !!slotId) && (!need.day || !!standardDate))
+    // 079 — a courier order has nothing to choose. 078 — under the new model the one thing needed is
+    // a window; the 069 slot and day do not apply.
+    (courier
+      ? true
+      : effyWindows
+        ? !effyWindows.unavailable && !!chosenWindow
+        : (!need.slot || !!slotId) && (!need.day || !!standardDate))
 
   /**
    * Place the order.
@@ -310,7 +333,12 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (!billingSameAsShipping && billingId && billingId !== selectedId) {
         body.billingAddressId = billingId
       }
-      if (effyWindows) {
+      // 079 — who delivers, as shown. A courier order is refused without it; one that says "courier"
+      // for an address Effy now delivers to is refused too (409 `delivery_type_changed`).
+      if (deliveryType) body.deliveryType = deliveryType
+      if (courier) {
+        // Nothing to choose: no window, no slot, no day.
+      } else if (effyWindows) {
         // 078 — ONE window for the order. The server works out same-day or standard from its date,
         // holds a place on that day, and refuses (409 + `code`) if it is no longer on offer.
         if (chosenWindow) body.deliveryWindow = chosenWindow
@@ -346,6 +374,19 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       // 069 — the slot or the day could not be honoured. Nothing has been charged and no payment
       // exists. ⚠ The choice is NOT replaced: the shopper is brought back to the options, told
       // plainly, and shown what is on offer now (FR-009, FR-010).
+      // 079 — who delivers is not what this page showed (the address's coverage changed, or the last
+      // window went and courier is offered instead). Nothing was written or charged. The fresh quote
+      // re-draws the delivery section — a different one — and nothing chosen for the old one is kept.
+      if (res.status === 409 && data.code === "delivery_type_changed") {
+        capture({ name: "checkout_delivery_type_changed", props: {} })
+        setChosenWindow(null)
+        setSlotId(null)
+        setIntent(null)
+        setStep("review")
+        setError(DELIVERY_TYPE_CHANGED_MESSAGE)
+        setQuoteEpoch((n) => n + 1)
+        return false
+      }
       const refusal = res.status === 409 ? deliveryRefusal(data.code) : null
       if (refusal) {
         capture({ name: "checkout_delivery_choice_refused", props: { reason: refusal.reason } })
@@ -687,6 +728,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     </div>
   )
 }
+
+/** 079 — who delivers changed under the shopper. Says what to do, and that nothing was taken. */
+export const DELIVERY_TYPE_CHANGED_MESSAGE =
+  "How this order is delivered has changed. Please check the delivery option below — you haven't been charged."
 
 /** The three reasons the server refuses a checkout over the delivery choice (069), in our own words. */
 function deliveryRefusal(

@@ -1,11 +1,11 @@
 // Service for Effy's delivery coverage (076): validation, the refusals, and the two confirmations a
 // person must give in words. No SQL, no HTTP (Principle VI).
 import { pooled } from "@effy/edge-shared";
-import { COURIER_ORDERING_AVAILABLE, coverageForPostcode, normalizePostcode } from "@effy/edge-shared/delivery";
+import { coverageForPostcode, normalizePostcode } from "@effy/edge-shared/delivery";
 import { announce } from "@effy/edge-shared/live";
 import type {
-  AddCoveragePostcodesRequest, AddCoveragePostcodesResult, AustralianState, CoverageCheckDTO, CoverageCheckResultDTO,
-  CoverageListDTO, CoveragePlaceSearchDTO, PatchCoveragePostcodesRequest,
+  AddCoveragePostcodesRequest, AddCoveragePostcodesResult, AustralianState, CourierBlocker, CourierReachDTO, CoverageCheckDTO,
+  CoverageCheckResultDTO, CoverageListDTO, CoveragePlaceSearchDTO, PatchCoveragePostcodesRequest,
 } from "@effy/shared-types";
 
 import * as repo from "./coverage.repository";
@@ -88,20 +88,36 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
   const q = input.q?.trim() || undefined;
   const after = input.cursor && /^[0-9]{4}$/.test(input.cursor) ? input.cursor : undefined;
 
-  const [rows, groups, totals, offered, exclusions] = await Promise.all([
+  const [rows, groups, totals, courier, courierPlan, exclusions] = await Promise.all([
     repo.listPostcodes({ group, q, source, review: input.review === "true", after, limit: PAGE + 1 }),
     repo.listGroups(),
     repo.totals(),
-    repo.courierOffered(),
+    repo.courierSettings(),
+    activePlanId("courier"),
     repo.listExclusions(),
   ]);
+  // What stops courier delivery being switched ON — said whether it is on or off, so the screen can
+  // tell a person what to do first instead of refusing them when they try.
+  const blockedBy: CourierBlocker[] = [
+    ...(courierPlan === null ? ["no_fee_table" as const] : []),
+    ...(courier.estimateText === null ? ["no_estimate" as const] : []),
+  ];
   const page = rows.slice(0, PAGE);
   return {
     postcodes: page.map((r) => ({ ...r, state: r.state as AustralianState | null })),
     ...(rows.length > PAGE ? { nextCursor: page[page.length - 1]!.postcode } : {}),
     groups,
     ungrouped: { postcodeCount: totals.ungrouped, driverCount: totals.ungroupedDrivers },
-    courier: { offered, canBeOffered: COURIER_ORDERING_AVAILABLE, exclusions },
+    courier: {
+      offered: courier.offered,
+      estimateText: courier.estimateText,
+      whenNoWindows: courier.whenNoWindows,
+      blockedBy,
+      // On and ready, waiting for the new delivery model: no customer is offered it yet (079 FR-035).
+      pending: courier.state === "courier_pending",
+      canBeOffered: blockedBy.length === 0,
+      exclusions,
+    },
     counts: { listed: totals.listed, manualDistance: totals.manualDistance, needsReview: totals.needsReview },
   };
 }
@@ -249,21 +265,50 @@ export async function removeGroup(id: string, confirmNoDrivers: boolean, sub: st
 
 // ── courier reach ───────────────────────────────────────────────────────────────────────────────
 
-export async function setCourier(body: { offered?: unknown }, sub: string): Promise<{ offered: boolean }> {
-  if (typeof body?.offered !== "boolean") throw new CoverageError(400, "invalid_request", "offered must be true or false");
-  // ⚠ See COURIER_ORDERING_AVAILABLE: on, every unlisted address in the country would be told
-  // "Courier delivery" by a checkout that cannot sell one.
-  if (body.offered && !COURIER_ORDERING_AVAILABLE) {
-    throw new CoverageError(409, "courier_ordering_unavailable", "courier delivery can be switched on once customers can place courier orders");
+const COURIER_REFUSALS: Record<repo.CourierRefusal, string> = {
+  courier_plan_missing: "make a courier fee table active before switching courier delivery on",
+  courier_estimate_missing: "say how long a courier usually takes before switching courier delivery on",
+  courier_estimate_in_use: "switch courier delivery off before removing its estimate",
+};
+
+/** 3–60 characters on one line, trimmed; `null` clears it. Anything else is a field error. */
+function estimateOf(v: unknown): string | null {
+  if (v === null) return null;
+  const text = typeof v === "string" ? v.trim() : "";
+  if (text.length < 3 || text.length > 60 || /[\n\r]/.test(text)) {
+    throw new CoverageError(422, "invalid_estimate", "the estimate is 3 to 60 characters on one line, like \"2–4 business days\"");
   }
-  // 077 FR-013 — and never without a price: switched on with no courier table in force, every
-  // courier order would fail to price (or, worse, be priced at nothing).
-  if (body.offered && (await activePlanId("courier")) === null) {
-    throw new CoverageError(409, "courier_plan_missing", "make a courier fee table active before switching courier delivery on");
+  return text;
+}
+
+/**
+ * Change courier delivery (076 FR-016; 079): on or off, the estimate customers are shown, and
+ * whether an address with no delivery window left may be sent by courier. Any of the three.
+ *
+ * ⚠ ON NEEDS A PRICE AND AN ESTIMATE, AND NOTHING ELSE. It no longer waits for the courier checkout
+ * to exist: `coverage_for_postcode` answers "courier" only once the new delivery model is on, so
+ * switching it on early promises nobody anything — the console says it is pending.
+ */
+export async function setCourier(
+  body: { offered?: unknown; estimateText?: unknown; whenNoWindows?: unknown },
+  sub: string,
+): Promise<Pick<CourierReachDTO, "offered" | "estimateText" | "whenNoWindows">> {
+  const change: repo.CourierChange = {};
+  if (body?.offered !== undefined) {
+    if (typeof body.offered !== "boolean") throw new CoverageError(400, "invalid_request", "offered must be true or false");
+    change.offered = body.offered;
   }
-  await repo.setCourierOffered(body.offered, sub);
+  if (body?.whenNoWindows !== undefined) {
+    if (typeof body.whenNoWindows !== "boolean") throw new CoverageError(400, "invalid_request", "whenNoWindows must be true or false");
+    change.whenNoWindows = body.whenNoWindows;
+  }
+  if (body?.estimateText !== undefined) change.estimateText = estimateOf(body.estimateText);
+  if (Object.keys(change).length === 0) throw new CoverageError(400, "invalid_request", "nothing to change");
+
+  const result = await repo.changeCourier(change, sub);
+  if ("refused" in result) throw new CoverageError(409, result.refused, COURIER_REFUSALS[result.refused]);
   await changed();
-  return { offered: body.offered };
+  return result.settings;
 }
 
 export async function addExclusion(body: { postcode?: unknown; reason?: unknown }, sub: string): Promise<void> {

@@ -9,8 +9,18 @@
 // from an instant — the shape 058's two DST defects were made of. ISO dates compare correctly as text.
 
 export interface PromiseFacts {
-  /** "same_day" | "standard" | null for a pre-047 package. */
-  method: string | null;
+  /**
+   * Who takes it to the customer — `public.package_delivered_by` (079). ⚠ Not the method: a
+   * "standard" package sold a window is Effy's, and this file is not where that is decided.
+   */
+  deliveredBy: "effy" | "courier";
+  /**
+   * The ORDER was sold as a courier delivery (079): told an estimate, promised no day, and due at
+   * the carrier as soon as it can go. False for every order placed before 079.
+   */
+  courierOrder: boolean;
+  /** The Melbourne date the order was placed; null while unpaid. */
+  placedDate: string | null;
   /** The delivery day the customer was promised. Null for every order placed before 069. */
   promisedDate: string | null;
   /** The end of the window the package was sold — same-day, or since 078 a later day's — or null. */
@@ -41,12 +51,15 @@ export function minusDays(isoDate: string, days: number): string {
 }
 
 export function judgePromise(f: PromiseFacts): PromiseVerdict {
-  // ⚠ 078 — a standard package that was sold a WINDOW is delivered by Effy on its day; only one
-  // with no window goes to a carrier. The window is the fact; the method is the customer's word.
-  const carrier = f.method === "standard" && f.promisedDate !== null && f.windowEnd === null;
-
-  // Only a carrier package is handed over; anything with a window is Effy's own driver's.
-  const handoverDueOn = carrier ? minusDays(f.promisedDate!, f.carrierLeadDays) : null;
+  // Only a courier's package is handed over; one Effy delivers itself never is.
+  // Due: the promised day less the carrier's lead time (069). ⚠ An order sold as a courier delivery
+  // (079) was promised no day — it is due out the day it was placed. A package from before 069 has
+  // neither, and nothing to be late against.
+  const handoverDueOn = f.deliveredBy !== "courier"
+    ? null
+    : f.promisedDate !== null
+      ? minusDays(f.promisedDate, f.carrierLeadDays)
+      : f.courierOrder ? f.placedDate : null;
 
   // At risk: the day it had to leave the hub has gone and it had not left — or it left late.
   // ⚠ An arrived package is never at risk: `onTime` is the verdict from then on, and a list that

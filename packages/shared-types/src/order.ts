@@ -15,6 +15,7 @@ import type { OrderPaymentSplitDTO } from "./points";
 import type { CustomerRefundDTO } from "./refund";
 import type { DeliveryFeeDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
+import type { OrderDeliveryDTO } from "./delivery-type";
 
 /** Order lifecycle mirrored to the client (payment-driven). */
 export type OrderStatus = "pending_payment" | "paid" | "failed" | "canceled";
@@ -54,6 +55,8 @@ export interface OrderSummaryDTO {
   currency: string;
   /** 027 — set when a promotional code was used, so history can mark a discounted order. */
   promoCode?: string | null;
+  /** 079 — who delivers it. ⚠ ABSENT on an order placed before 079. */
+  delivery?: OrderDeliveryDTO;
 }
 
 /** A line on the receipt (product snapshot — never a shop). */
@@ -259,8 +262,17 @@ export interface OrderDTO {
    * ⚠ More than one entry means the order arrives in more than one delivery — a fact about the
    * CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference of any kind
    * (FR-009), and the entries are deliberately unordered with respect to any internal grouping.
+   *
+   * ⚠ 079 — EMPTY for a courier order, which has no window and no day: read `delivery` and print
+   * `deliverySummary`. (Empty, not "standard", so a client built before 079 prints no arrival
+   * rather than a wrong one.)
    */
   arrivalEstimates: ArrivalEstimateDTO[];
+  /**
+   * 079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an order
+   * placed before 079. Every surface prints this through `deliverySummary` (`delivery-type.ts`).
+   */
+  delivery?: OrderDeliveryDTO;
 }
 
 /**

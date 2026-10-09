@@ -48,7 +48,13 @@ const columns: ColumnDef<HandoverRowDTO>[] = [
   {
     accessorKey: "promisedDate",
     header: "Customer's day",
-    cell: ({ row }) => <span className="tabular-nums">{formatDeliveryDay(row.original.promisedDate)}</span>,
+    // 079 — an order sold as a courier delivery was told an estimate, not a day.
+    cell: ({ row }) =>
+      row.original.promisedDate ? (
+        <span className="tabular-nums">{formatDeliveryDay(row.original.promisedDate)}</span>
+      ) : (
+        <span className="text-muted-foreground">No day — courier estimate</span>
+      ),
   },
   {
     accessorKey: "handoverDueOn",

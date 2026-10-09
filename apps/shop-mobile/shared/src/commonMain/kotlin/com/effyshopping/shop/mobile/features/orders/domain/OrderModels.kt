@@ -89,10 +89,20 @@ enum class FulfillmentTransition(val key: String) {
 }
 
 /**
- * What the customer bought and when this shop must be ready — READ-ONLY to the shop (FR-009a); owned by 021.
- * Says NOTHING about who delivers: there is no carrier, driver or provider concept here, by design (FR-002a).
+ * When this shop must be ready, and who takes the package away — READ-ONLY to the shop (FR-009a).
+ *
+ * ⚠ 079 — `deliveredBy` is the ONLY thing a shop is told about delivery, as one of two words. There is
+ * still no driver's name, no courier company and no reference here, by design (FR-002a). Null from a
+ * server older than 079, and the screen then says nothing rather than guess.
+ *
+ * ⚠ `serviceLevel` IS NO LONGER SHOWN. It was a constant ("standard") printed to shop staff as if it
+ * meant something; it is the customer's word, and the day a "standard" order is one an Effy driver
+ * delivers it would be wrong on the screen of the person handing the package over.
  */
-data class DeliveryPromise(val serviceLevel: String, val readyBy: String)
+data class DeliveryPromise(val serviceLevel: String, val readyBy: String, val deliveredBy: DeliveredBy? = null)
+
+/** Who takes a package away from the shop (079). */
+enum class DeliveredBy { EFFY_DRIVER, COURIER }
 
 /**
  * A row in the shop's queue (US1). Counts are THIS shop's alone — never the order's totals (FR-007).

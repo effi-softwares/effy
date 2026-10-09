@@ -20,12 +20,14 @@ import type { DeliveryInstructionsDTO } from "@effy/shared-types";
 import { createHash } from "node:crypto";
 
 import { isUuid } from "../lib/ids";
-import { DeliveryChoiceError, preferredMethod, resolveDeliveryChoice, resolveEffyWindow, type ChosenWindow } from "./delivery-choice";
+import {
+  DeliveryChoiceError, preferredMethod, resolveCourier, resolveDeliveryChoice, resolveEffyWindow, type ChosenWindow,
+} from "./delivery-choice";
 import {
   AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
   type PromoSource,
 } from "./quote";
-import { SlotUnavailableError, type CheckoutStore, type PackageDelivery, type SlotHold } from "./store";
+import { SlotUnavailableError, type CheckoutStore, type PackageDelivery, type SlotHold, type SoldDelivery } from "./store";
 
 export { AddressNotFoundError };
 
@@ -85,6 +87,12 @@ export interface IntentInput {
    * delivery model is on (the three fields above are then ignored), ignored while it is off.
    */
   deliveryWindow?: ChosenWindow | null;
+  /**
+   * 079 — the delivery type the client is SHOWING; null/absent when it said nothing. A courier order
+   * requires "courier"; a type that is not the one that applies now is refused before anything is
+   * written, so nobody pays a courier fee for a screen that showed Effy's windows, or the reverse.
+   */
+  deliveryType?: "effy" | "courier" | null;
   /** ALREADY validated and normalised. The only source of an order's instructions (066). */
   deliveryInstructions: DeliveryInstructionsDTO;
   /** Set only by a client that renders a provider-owned payment-method list (mobile). */
@@ -129,6 +137,8 @@ export function paymentStatusFor(s: IntentStatus): string {
 
 function deliveryOutcome(q: QuoteResult): string {
   if (!q.serviced) return "unserviced";
+  // 079 — a courier delivers: because Effy does not go there, or because Effy has no window left.
+  if (q.coverage === "courier") return q.reason === "no_window" ? "courier_fallback" : "courier";
   // 078 — the new model: whether any window can be chosen, and if not, which kind of nothing.
   if (q.effyWindows) return q.effyWindows.unavailable ?? "windows_offered";
   return q.packages.some((p) => p.options.some((o) => o.method === METHOD_SAME_DAY)) ? "same_day_and_standard" : "standard_only";
@@ -234,6 +244,7 @@ export function createCheckoutService(deps: {
   }
 
   function meterChoiceRefusal(e: DeliveryChoiceError, verdict?: string): void {
+    if (e.code === "delivery_type_changed") return emitMetric(ns(), "DeliveryTypeChanged");
     if (e.code === "date_unavailable") return emitMetric(ns(), "StandardDateRefused");
     if (e.code === "no_windows_available") return emitMetric(ns(), "SlotBookings", 1, { outcome: "refused_no_windows" });
     if (e.code === "slot_required") return emitMetric(ns(), "SlotBookings", 1, { outcome: "refused_no_choice" });
@@ -299,7 +310,23 @@ export function createCheckoutService(deps: {
       emitMetric(ns(), "DeliveryQuotes", 1, { outcome: deliveryOutcome(quote) });
       if (!quote.serviced) throw new NotServiceableError();
       // ⚠ A page, not a number to watch: a covered address and not one window switched on (078 FR-020).
-      if (quote.effyWindows?.unavailable === "none_defined") emitMetric(ns(), "EffyWindowsNoneDefined");
+      if (quote.coverage === "effy" && quote.effyWindows?.unavailable === "none_defined") emitMetric(ns(), "EffyWindowsNoneDefined");
+
+      // ⚠ 079 FR-005 — WHO DELIVERS MUST BE WHAT THE SHOPPER WAS SHOWN. Refused HERE, before anything
+      // is written: a courier order has to be asked for by name (a client built before 079 cannot
+      // draw one, so it cannot buy one), and a client showing "Courier delivery" for an address Effy
+      // now delivers to is shown the windows first. Same idea as the shown delivery total below.
+      if (quote.coverage === "courier" ? input.deliveryType !== "courier" : input.deliveryType === "courier") {
+        const changed = new DeliveryChoiceError("delivery_type_changed");
+        meterChoiceRefusal(changed);
+        throw changed;
+      }
+      // What the order will be recorded as. Null under the checkout that predates the new delivery
+      // model — such an order has no delivery type, exactly like every order before it.
+      const sold: SoldDelivery | null =
+        quote.coverage === "courier" ? { type: "courier", reason: quote.reason, courierEstimate: quote.estimate }
+        : quote.effyWindows ? { type: "effy", reason: "in_coverage", courierEstimate: null }
+        : null;
 
       // ⚠ Refused HERE, before the order is written and long before a payment intent exists, when
       // the slot or the day is no longer on offer (069).
@@ -308,9 +335,12 @@ export function createCheckoutService(deps: {
       let fee: PricedFee;
       try {
         // 078 — which checkout this is was decided with the quote, by the one reader of the switch.
-        ({ packages, hold, fee } = quote.effyWindows
-          ? resolveEffyWindow({ ...quote, effyWindows: quote.effyWindows }, input.deliveryWindow ?? null, now)
-          : resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
+        ({ packages, hold, fee } = quote.coverage === "courier"
+          // 079 — nothing to choose, nothing to hold: the cart's shops, each sent by courier.
+          ? resolveCourier(quote, packagesFromLines(lines))
+          : quote.effyWindows
+            ? resolveEffyWindow({ ...quote, effyWindows: quote.effyWindows }, input.deliveryWindow ?? null, now)
+            : resolveDeliveryChoice(quote, preferredMethod(input.deliveryMethod), input.sameDaySlotId, input.standardDate, now));
       } catch (err) {
         if (err instanceof DeliveryChoiceError) meterChoiceRefusal(err);
         throw err;
@@ -369,7 +399,7 @@ export function createCheckoutService(deps: {
       // a shopper who loses the last place is refused while there is still nothing for them to pay.
       let slotHeldUntil: Date | null;
       try {
-        slotHeldUntil = await store.captureDelivery(orderId, capturedQuote(quote), new Date(now.getTime() + QUOTE_VALIDITY_MS), packages, hold);
+        slotHeldUntil = await store.captureDelivery(orderId, capturedQuote(quote), new Date(now.getTime() + QUOTE_VALIDITY_MS), packages, hold, sold);
       } catch (err) {
         if (err instanceof SlotUnavailableError) {
           const choice = new DeliveryChoiceError("slot_unavailable");
@@ -426,6 +456,7 @@ export function createCheckoutService(deps: {
           billingDetails: null,
           // Already confirmed by the paid transition above; carried for a client that shows it.
           ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
+          ...(sold ? { deliveryType: sold.type } : {}),
         };
       }
 
@@ -473,6 +504,8 @@ export function createCheckoutService(deps: {
         paidWithPoints: false,
         // Omitted when no package is same-day.
         ...(slotHeldUntil ? { slotHeldUntil: operatingStamp(slotHeldUntil) } : {}),
+        // 079 — who delivers the order as written. Absent under the checkout that predates the model.
+        ...(sold ? { deliveryType: sold.type } : {}),
       };
     },
 

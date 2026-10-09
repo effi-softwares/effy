@@ -19,6 +19,8 @@ const CHOICE_DETAIL = {
   date_unavailable: "that delivery day is no longer available — choose another",
   // 078 — the one sentence, from the one place it is written.
   no_windows_available: DELIVERY_WINDOW_WORDS.noWindows,
+  // 079 — who delivers to this address is not what the screen showed; the fresh quote says who does.
+  delivery_type_changed: "how this order is delivered has changed — check the delivery option and try again",
 } as const;
 
 /**

@@ -57,6 +57,7 @@ import com.effyshopping.shop.mobile.features.orders.domain.FulfillmentTransition
 import com.effyshopping.shop.mobile.features.orders.domain.GetFulfillment
 import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.QueueState
+import com.effyshopping.shop.mobile.features.orders.domain.promiseLine
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import com.effyshopping.mobile.kit.live.LiveClient
 import com.effyshopping.mobile.kit.live.LiveKind
@@ -392,7 +393,8 @@ private fun OrderDetailContent(
             modifier = Modifier.semantics { heading() },
         )
         Text(
-            "${detail.promise.serviceLevel} · ready by ${clockTime(detail.promise.readyBy)}",
+            // 079 — who takes it away, then when it must be ready. Never the customer's word for the delivery.
+            promiseLine(detail.promise.deliveredBy, clockTime(detail.promise.readyBy)),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
         )

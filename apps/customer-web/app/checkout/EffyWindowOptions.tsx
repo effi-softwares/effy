@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from "react"
 
-import { effyWindowsView, type EffyDayView, type EffyWindowsDTO } from "@effy/shared-types"
+import { DELIVERY_TYPE_WORDS, effyWindowsView, type EffyDayView, type EffyWindowsDTO } from "@effy/shared-types"
 
 import { formatCents, parseCents } from "@/lib/cart-totals"
 import type { ChosenWindow } from "@/lib/delivery-choice"
@@ -13,6 +13,10 @@ import { formatMoney } from "@/lib/money"
  *
  *   Same-day delivery   today's open windows, each with the time to order by;
  *   Standard delivery   the next delivery days as tabs, each with its own windows.
+ *
+ * 079 — the section is headed "Delivered by Effy": every window on this screen, today's or a later
+ * day's, is one Effy's own drivers deliver in. (An address Effy does not deliver to never reaches
+ * this component — it gets `CourierDelivery`, with no window to pick.)
  *
  * ⚠ "STANDARD" KEPT ITS NAME AND CHANGED ITS MEANING: it is Effy, on a later day, in a window — the
  * customer chooses a time on either side of the page.
@@ -65,7 +69,7 @@ export function EffyWindowOptions({
   if (view.unavailable) {
     return (
       <section aria-label="Delivery">
-        <h2 className="mb-3 text-xl font-semibold">Delivery</h2>
+        <h2 className="mb-3 text-xl font-semibold">{DELIVERY_TYPE_WORDS.effy}</h2>
         <p role="status" className="rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
           {view.unavailable}
         </p>
@@ -113,7 +117,7 @@ export function EffyWindowOptions({
 
   return (
     <section aria-label="Delivery">
-      <h2 className="mb-3 text-xl font-semibold">Delivery</h2>
+      <h2 className="mb-3 text-xl font-semibold">{DELIVERY_TYPE_WORDS.effy}</h2>
 
       {today ? (
         <fieldset disabled={disabled}>

@@ -6,7 +6,12 @@ import type { Queryable } from "../lib/db";
  * Why a postcode has the answer it has — for STAFF. A customer is told the answer and never the
  * reason (076 FR-023).
  */
-export type CoverageReason = "listed" | "courier_offered" | "courier_off" | "courier_excluded" | "unknown_postcode";
+export type CoverageReason =
+  | "listed" | "courier_offered" | "courier_off" | "courier_excluded" | "unknown_postcode"
+  /** 079 — courier delivery is on and ready, and starts when the new delivery model does. */
+  | "courier_pending"
+  /** 079 — courier delivery is on, but no courier fee table is active or no estimate is set. */
+  | "courier_not_ready";
 
 /** Who delivers to a postcode, with what staff may see about it. */
 export interface Coverage {
@@ -20,34 +25,25 @@ export interface Coverage {
 }
 
 /**
- * ⚠ CAN A CUSTOMER PLACE A COURIER ORDER YET? No — and until they can, courier delivery cannot be
- * switched on (076 research R7).
- *
- * `coverage_for_postcode` answers "courier" for every unlisted postcode in the country the moment
- * `delivery_settings.courier_offered` is true. The checkout cannot sell one until the courier
- * checkout exists (the delivery programme's E5). Turned on early, every address screen would say
- * "Courier delivery" and every checkout would refuse — the one-answer rule (FR-020) broken by a
- * setting. So the admin service refuses the switch while this is false, and the quote treats a
- * courier answer as a broken invariant rather than as something to sell.
- *
- * E5 flips this to true in the same change that makes the order placeable.
- */
-export const COURIER_ORDERING_AVAILABLE: boolean = false;
-
-/**
- * THE coverage answer for a postcode (076 FR-019/FR-020).
+ * THE coverage answer for a postcode (076 FR-019/FR-020) at `now`.
  *
  * ⚠ One query on `public.coverage_for_postcode`, which is the ONLY place the decision is made. Do
  * not join `delivery_zone_postcode` to work it out somewhere else: `coverage.guard.test.ts` fails a
  * new reader of that table, because a second implementation is how the address book and the
  * checkout come to disagree. The caller passes a normalised four-digit postcode.
+ *
+ * ⚠ "courier" MEANS A COURIER ORDER CAN BE PLACED THERE NOW (079 FR-010): the new delivery model is
+ * on at `now`, courier delivery is on, a courier fee table is active and an estimate is set. Until
+ * 079 that was held by a constant three callers had to remember to check; it is now part of the
+ * answer, so there is nothing to remember — and courier delivery can be switched on ahead of the
+ * cutover without promising anything.
  */
-export async function coverageForPostcode(q: Queryable, postcode: string): Promise<Coverage> {
+export async function coverageForPostcode(q: Queryable, postcode: string, now: Date = new Date()): Promise<Coverage> {
   const row = (
     await q.query<{ kind: CoverageKind; reason: CoverageReason; distance_km: string | null; group_id: string | null; group_name: string | null }>(
       `SELECT kind, reason, distance_km::text AS distance_km, group_id::text AS group_id, group_name
-         FROM public.coverage_for_postcode($1)`,
-      [postcode],
+         FROM public.coverage_for_postcode($1, $2::timestamptz)`,
+      [postcode, now],
     )
   ).rows[0];
   // The function always returns exactly one row; this is for a database that predates it.
@@ -59,4 +55,40 @@ export async function coverageForPostcode(q: Queryable, postcode: string): Promi
     groupId: row.group_id,
     groupName: row.group_name,
   };
+}
+
+/**
+ * Can a courier order be placed to this postcode at `now` — whether or not Effy delivers there?
+ *
+ * ⚠ `coverageForPostcode` never asks this of a postcode on Effy's list (Effy delivers; nothing else
+ * is consulted). The checkout asks it for exactly one case: a listed address with no delivery
+ * window left, when the business sends such an order by courier (079 FR-011). Same SQL function the
+ * coverage answer uses for an unlisted postcode — one definition of "a courier can be booked there".
+ */
+export async function courierReachesPostcode(q: Queryable, postcode: string, now: Date): Promise<boolean> {
+  const row = (
+    await q.query<{ reason: string }>(`SELECT public.courier_reaches_postcode($1, $2::timestamptz) AS reason`, [postcode, now])
+  ).rows[0];
+  return row?.reason === "courier_offered";
+}
+
+/** What the business has set for courier delivery that the checkout tells a customer or acts on. */
+export interface CourierSettings {
+  /** The courier's usual timeframe ("2–4 business days"); null while unset. */
+  estimateText: string | null;
+  /** Send an order by courier when its address has no Effy delivery window left (079 FR-011). */
+  whenNoWindows: boolean;
+}
+
+/**
+ * ⚠ Read ONLY on the courier paths of the quote — never by the checkout customers are using before
+ * the cutover, which must keep working against a database that has not had 079's migration.
+ */
+export async function loadCourierSettings(q: Queryable): Promise<CourierSettings> {
+  const row = (
+    await q.query<{ courier_estimate_text: string | null; courier_when_no_windows: boolean }>(
+      `SELECT courier_estimate_text, courier_when_no_windows FROM public.delivery_settings WHERE id = 1`,
+    )
+  ).rows[0];
+  return { estimateText: row?.courier_estimate_text ?? null, whenNoWindows: row?.courier_when_no_windows ?? false };
 }

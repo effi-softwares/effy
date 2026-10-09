@@ -13,14 +13,14 @@ export function normalizePostcode(input: string): string | null {
 }
 
 /**
- * Can an order be placed for delivery to this postcode TODAY? (047 FR-001, rebuilt by 076.)
+ * Can an order be placed for delivery to this postcode now? (047 FR-001, rebuilt by 076.)
  *
  * ⚠ It asks `coverageForPostcode` — it has no join of its own — so the up-front answer, the address
- * book and the quote cannot disagree. True only for `effy`: a `courier` answer is not something the
- * checkout can sell until the courier checkout exists (`COURIER_ORDERING_AVAILABLE`).
+ * book and the quote cannot disagree. True when Effy delivers, or (079) when a courier order can be
+ * placed there: the coverage answer is "courier" only then.
  */
 export async function serviceableForPostcode(q: Queryable, postcode: string): Promise<boolean> {
-  return (await coverageForPostcode(q, postcode)).kind === "effy";
+  return (await coverageForPostcode(q, postcode)).kind !== "none";
 }
 
 /**

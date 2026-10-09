@@ -88,6 +88,12 @@ export interface ReceiptOrderRow {
    * `lines` key of `delivery_fee_breakdown`: the rest is the business's pricing, never mailed.
    */
   delivery_fee_lines?: { kind: string; amount: string }[] | null;
+  /**
+   * 079 — who delivers the order, and a courier's timeframe AS SOLD (the order's own copy). Both
+   * null on an order placed before 079. ⚠ Never the reason: a customer is not told why.
+   */
+  delivery_type?: "effy" | "courier" | null;
+  courier_estimate?: string | null;
   grand_total_amount: string;
   delivery_address: Record<string, unknown> | null;
   billing_address: Record<string, unknown> | null;
@@ -135,6 +141,7 @@ export async function loadReceipt(orderId: string): Promise<{
             o.promo_code,
             o.delivery_fee_amount::text  AS delivery_fee_amount,
             o.delivery_fee_breakdown -> 'lines' AS delivery_fee_lines,
+            o.delivery_type, o.courier_estimate,
             o.grand_total_amount::text   AS grand_total_amount,
             o.delivery_address, o.billing_address,
             p.method_type, p.method_brand, p.method_last4,

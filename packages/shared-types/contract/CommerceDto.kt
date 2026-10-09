@@ -74,9 +74,10 @@ data class AddressDTO (
  * carries this value and NOTHING about why: no group, no distance, no reason, no hub
  * (FR-023). Staff contracts are in `delivery-admin.ts`.
  *
- * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be
- * purchased until the courier checkout exists, and until then the server never returns it
- * here.
+ * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only
+ * when a courier order can be placed (079): the new delivery model is on, courier delivery
+ * is on, a courier fee table is active and an estimate is set. The quote then carries
+ * `courier`.
  *
  * 076 — who delivers. Absent only from a server older than 076.
  */
@@ -611,6 +612,15 @@ data class CreateCheckoutIntentRequest (
     val deliveryMethod: String? = null,
 
     /**
+     * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
+     * writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this
+     * differs from what applies now, or when a courier quote is answered without it — so nobody
+     * pays a courier fee for a screen that showed Effy's windows, or the reverse. Optional for
+     * an Effy order.
+     */
+    val deliveryType: DeliveryType? = null,
+
+    /**
      * 078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` +
      * `date`). REQUIRED when the quote carried `effyWindows` (refused with `slot_required`
      * without it); the three 047/069 fields above are then ignored and the server derives
@@ -666,6 +676,24 @@ data class CreateCheckoutIntentRequest (
      */
     val wantsProviderMethodList: Boolean? = null
 )
+
+/**
+ * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
+ * writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this
+ * differs from what applies now, or when a courier quote is answered without it — so nobody
+ * pays a courier fee for a screen that showed Effy's windows, or the reverse. Optional for
+ * an Effy order.
+ *
+ * 079 — the delivery type the order was written with. Absent while the new delivery model
+ * is off.
+ *
+ * Who delivers an order. One per order, whatever number of suppliers fill it.
+ */
+@Serializable
+enum class DeliveryType(val value: String) {
+    @SerialName("courier") Courier("courier"),
+    @SerialName("effy") Effy("effy");
+}
 
 @Serializable
 data class DeliveryWindow (
@@ -733,6 +761,12 @@ data class CreateCheckoutIntentResponse (
      */
     val deliveryFee: DeliveryFeeDTO? = null,
 
+    /**
+     * 079 — the delivery type the order was written with. Absent while the new delivery model
+     * is off.
+     */
+    val deliveryType: DeliveryType? = null,
+
     val grandTotalAmount: String,
 
     @SerialName("orderId")
@@ -786,6 +820,8 @@ data class CreateCheckoutIntentResponse (
  * ⚠ Lines and a total — nothing else. No distance, band, weight or plan may be added: a
  * customer must not be able to work out where the hub is or how the business prices
  * (FR-032).
+ *
+ * The courier fee for the whole order (077): lines and a total.
  *
  * The order's delivery charge with this window chosen.
  *
@@ -892,6 +928,7 @@ data class DeliveryChoiceRefusalDTO (
 @Serializable
 enum class DeliveryChoiceRefusalCode(val value: String) {
     @SerialName("date_unavailable") DateUnavailable("date_unavailable"),
+    @SerialName("delivery_type_changed") DeliveryTypeChanged("delivery_type_changed"),
     @SerialName("no_windows_available") NoWindowsAvailable("no_windows_available"),
     @SerialName("slot_required") SlotRequired("slot_required"),
     @SerialName("slot_unavailable") SlotUnavailable("slot_unavailable");
@@ -905,9 +942,19 @@ enum class DeliveryChoiceRefusalCode(val value: String) {
 @Serializable
 data class DeliveryQuoteDTO (
     /**
-     * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be
-     * purchased until the courier checkout exists, and until then the server never returns it
-     * here.
+     * 079 — PRESENT EXACTLY WHEN `coverage` is `"courier"`. There is then nothing to choose:
+     * `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The
+     * client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
+     * "courier"` on the intent. ⚠ No distance, no courier company, nothing about how many
+     * suppliers fill the order.
+     */
+    val courier: CourierQuoteDTO? = null,
+
+    /**
+     * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only
+     * when a courier order can be placed (079): the new delivery model is on, courier delivery
+     * is on, a courier fee table is active and an estimate is set. The quote then carries
+     * `courier`.
      */
     val coverage: CoverageKind? = null,
 
@@ -971,6 +1018,50 @@ data class DeliveryQuoteDTO (
      */
     val standardFee: DeliveryFeeDTO? = null
 )
+
+/**
+ * 079 — PRESENT EXACTLY WHEN `coverage` is `"courier"`. There is then nothing to choose:
+ * `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The
+ * client shows "Courier delivery", the estimate and the fee, and sends `deliveryType:
+ * "courier"` on the intent. ⚠ No distance, no courier company, nothing about how many
+ * suppliers fill the order.
+ *
+ * 079 — what a customer is told and charged when a courier delivers the order.
+ */
+@Serializable
+data class CourierQuoteDTO (
+    /**
+     * The courier's usual timeframe, in the business's words ("2–4 business days"). ⚠ An
+     * estimate, never a promise: print it through `courierLines` (`delivery-type.ts`), never on
+     * its own.
+     */
+    val estimate: String,
+
+    /**
+     * The courier fee for the whole order (077): lines and a total.
+     */
+    val fee: DeliveryFeeDTO,
+
+    /**
+     * `out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no
+     * window is available on any offered day and the business sends such an order by courier:
+     * the client says there are no delivery windows FIRST, then offers this.
+     */
+    val reason: CourierQuoteReason
+)
+
+/**
+ * `out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no
+ * window is available on any offered day and the business sends such an order by courier:
+ * the client says there are no delivery windows FIRST, then offers this.
+ *
+ * 079 — why a courier delivers this order. Named, so the generated Kotlin enum is too.
+ */
+@Serializable
+enum class CourierQuoteReason(val value: String) {
+    @SerialName("no_window") NoWindow("no_window"),
+    @SerialName("out_of_coverage") OutOfCoverage("out_of_coverage");
+}
 
 @Serializable
 data class EffyWindowsDTO (
@@ -1452,6 +1543,10 @@ data class OrderDTO (
      * the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference
      * of any kind (FR-009), and the entries are deliberately unordered with respect to any
      * internal grouping.
+     *
+     * ⚠ 079 — EMPTY for a courier order, which has no window and no day: read `delivery` and
+     * print `deliverySummary`. (Empty, not "standard", so a client built before 079 prints no
+     * arrival rather than a wrong one.)
      */
     val arrivalEstimates: List<ArrivalEstimateDTO>,
 
@@ -1481,6 +1576,13 @@ data class OrderDTO (
     val cancellable: Boolean,
 
     val currency: String,
+
+    /**
+     * 079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an
+     * order placed before 079. Every surface prints this through `deliverySummary`
+     * (`delivery-type.ts`).
+     */
+    val delivery: OrderDeliveryDTO? = null,
 
     /**
      * The SHIPPING address snapshot (the main one — where the order is delivered).
@@ -1652,6 +1754,27 @@ data class OrderAddressDTO (
     val postalCode: String,
     val recipientName: String,
     val region: String? = null
+)
+
+/**
+ * 079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an
+ * order placed before 079. Every surface prints this through `deliverySummary`
+ * (`delivery-type.ts`).
+ *
+ * An order's delivery, as a customer contract carries it. ABSENT on an order placed before
+ * 079.
+ *
+ * 079 — who delivers it. ⚠ ABSENT on an order placed before 079.
+ */
+@Serializable
+data class OrderDeliveryDTO (
+    /**
+     * The courier's usual timeframe as it was sold ("2–4 business days"); null for an Effy
+     * order.
+     */
+    val courierEstimate: String? = null,
+
+    val type: DeliveryType
 )
 
 /**
@@ -1846,6 +1969,12 @@ enum class OrderStatus(val value: String) {
 @Serializable
 data class OrderSummaryDTO (
     val currency: String,
+
+    /**
+     * 079 — who delivers it. ⚠ ABSENT on an order placed before 079.
+     */
+    val delivery: OrderDeliveryDTO? = null,
+
     val grandTotalAmount: String,
     val id: String,
     val itemCount: Double,

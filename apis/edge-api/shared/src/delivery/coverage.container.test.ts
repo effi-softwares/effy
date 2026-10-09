@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { migrationSql } from "../lib/load-migrations";
-import { coverageForPostcode } from "./coverage";
+import { courierReachesPostcode, coverageForPostcode } from "./coverage";
 import { quote } from "./quote";
 import { serviceableForPostcode, zoneForPostcode } from "./zone";
 
@@ -146,7 +146,7 @@ d("076 — the coverage migration changes nothing for anyone", () => {
   it("since 077 — a listed postcode is priced from its own distance", async () => {
     const fee = async (postcode: string) => {
       const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date(), 5000);
-      if (!res.serviced) throw new Error(`${postcode} not serviced`);
+      if (!res.serviced || res.coverage !== "effy") throw new Error(`${postcode} not serviced`);
       return res.standardFee.totalCents;
     };
     expect(await fee("3121")).toBe(600); // 3.3 km — inner, as before
@@ -169,25 +169,71 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     expect(by["3900"]).toMatchObject({ km: "18.50", distance_source: "manual", distance_review: true });
   });
 
-  it("P3 — the five answers, each with its reason", async () => {
-    expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", reason: "listed", groupId: Z_INNER, groupName: "Inner East" });
-    expect((await coverageForPostcode(pool, "3121")).distanceKm).toBeGreaterThan(3);
-    expect(await coverageForPostcode(pool, "9999")).toEqual({ kind: "none", reason: "unknown_postcode", distanceKm: null, groupId: null, groupName: null });
-    expect(await coverageForPostcode(pool, "7000")).toMatchObject({ kind: "none", reason: "courier_off" });
+  it("P3 / 079 P1–P2 — every answer, each with its reason: a courier is promised only where one can be sold", async () => {
+    const COURIER_PLAN = "00000000-0000-0000-0000-0000000000c9";
+    const settings = (sql: string) => pool.query(`UPDATE public.delivery_settings SET ${sql} WHERE id = 1`);
+    const at = (postcode: string, now = new Date()) => coverageForPostcode(pool, postcode, now);
 
-    await pool.query(`UPDATE public.delivery_settings SET courier_offered = true WHERE id = 1`);
+    expect(await at("3121")).toMatchObject({ kind: "effy", reason: "listed", groupId: Z_INNER, groupName: "Inner East" });
+    expect((await at("3121")).distanceKm).toBeGreaterThan(3);
+    expect(await at("9999")).toEqual({ kind: "none", reason: "unknown_postcode", distanceKm: null, groupId: null, groupName: null });
+    expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_off" });
+    // ⚠ The one-argument call every pre-079 reader makes (the address book's SQL) still resolves.
+    expect((await pool.query(`SELECT kind FROM public.coverage_for_postcode('3121')`)).rows[0]).toEqual({ kind: "effy" });
+
+    await settings(`courier_offered = true`);
     try {
-      expect(await coverageForPostcode(pool, "7000")).toMatchObject({ kind: "courier", reason: "courier_offered" });
+      // On — with no price and no estimate. Nothing could sell it, so nobody is promised it.
+      expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_not_ready" });
       // A courier cannot be booked to a place the data does not know, even with courier on.
-      expect(await coverageForPostcode(pool, "9999")).toMatchObject({ kind: "none", reason: "unknown_postcode" });
+      expect(await at("9999")).toMatchObject({ kind: "none", reason: "unknown_postcode" });
+
+      await settings(`courier_estimate_text = '2–4 business days'`);
+      expect(await at("7000"), "an estimate and no fee table").toMatchObject({ kind: "none", reason: "courier_not_ready" });
+      await pool.query(`
+        INSERT INTO public.delivery_fee_plan (id, kind, name, is_active, base_amount, rounding_step, floor_amount, cap_amount, created_by)
+          VALUES ('${COURIER_PLAN}', 'courier', 'Courier table', true, 9.00, 0.50, 0.00, 90.00, 'test');
+        INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${COURIER_PLAN}', 100000, 0.00);`);
+      await settings(`courier_estimate_text = NULL`);
+      expect(await at("7000"), "a fee table and no estimate").toMatchObject({ kind: "none", reason: "courier_not_ready" });
+      await settings(`courier_estimate_text = '2–4 business days'`);
+
+      // ⚠ ON AND READY, AND STILL NOBODY IS PROMISED IT: the new delivery model is off, and the
+      // checkout customers are using has no courier order to sell (079 FR-035).
+      expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_pending" });
+      expect(await serviceableForPostcode(pool, "7000")).toBe(false);
+
+      // The switch set for a moment in the FUTURE: pending until that moment, a courier from it.
+      const from = new Date("2027-01-10T00:00:00Z");
+      await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = $1 WHERE id = 1`, [from]);
+      expect(await at("7000", new Date(from.getTime() - 1))).toMatchObject({ kind: "none", reason: "courier_pending" });
+      expect(await at("7000", from)).toMatchObject({ kind: "courier", reason: "courier_offered", distanceKm: null, groupId: null });
+
+      await settings(`delivery_model_v2_from = now() - interval '1 minute'`);
+      expect(await at("7000")).toMatchObject({ kind: "courier", reason: "courier_offered" });
+      expect(await serviceableForPostcode(pool, "7000")).toBe(true);
+      expect(await at("9999")).toMatchObject({ kind: "none", reason: "unknown_postcode" });
+      // …and the same question asked of the function the checkout's no-window fallback uses.
+      expect(await courierReachesPostcode(pool, "7000", new Date())).toBe(true);
+      // Effy's own postcode: Effy delivers, AND a courier could be booked there — two different questions.
+      expect(await at("3121")).toMatchObject({ kind: "effy", reason: "listed" });
+      expect(await courierReachesPostcode(pool, "3121", new Date())).toBe(true);
 
       await pool.query(`INSERT INTO public.courier_excluded_postcode (postcode, reason, added_by) VALUES ('7000', 'No chilled courier service', 'test'), ('3121', 'irrelevant', 'test')`);
-      expect(await coverageForPostcode(pool, "7000")).toMatchObject({ kind: "none", reason: "courier_excluded" });
-      // On Effy's list AND excluded from couriers: still Effy. The exclusion is about couriers only.
-      expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", reason: "listed" });
+      expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_excluded" });
+      // On Effy's list AND excluded from couriers: still Effy. The exclusion is about couriers only —
+      expect(await at("3121")).toMatchObject({ kind: "effy", reason: "listed" });
+      // — which is exactly why it gets no courier fallback when its windows run out.
+      expect(await courierReachesPostcode(pool, "3121", new Date())).toBe(false);
+
+      // Switched off again: every courier answer goes, whatever else is set.
+      await settings(`courier_offered = false`);
+      await pool.query(`DELETE FROM public.courier_excluded_postcode`);
+      expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_off" });
     } finally {
       await pool.query(`DELETE FROM public.courier_excluded_postcode`);
-      await pool.query(`UPDATE public.delivery_settings SET courier_offered = false WHERE id = 1`);
+      await pool.query(`DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}'`);
+      await settings(`courier_offered = false, courier_estimate_text = NULL, delivery_model_v2_from = NULL`);
     }
   });
 
@@ -199,7 +245,7 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     const zone = await zoneForPostcode(pool, "3220");
     expect(zone).toEqual({ id: null, sameDayEligible: true });
     const res = await quote(pool, null, "3220", [{ shopId, grams: 1500 }], new Date(), 5000);
-    if (!res.serviced) throw new Error("expected serviced");
+    if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
     expect(res.coverage).toBe("effy");
     expect(res.zoneId).toBeNull();
     expect(res.standardFee.totalCents).toBe(1500); // Geelong, ~65 km → the open-ended band
@@ -233,8 +279,8 @@ d("076 — the coverage migration changes nothing for anyone", () => {
       const coverage = await coverageForPostcode(pool, postcode);
       const upFront = await serviceableForPostcode(pool, postcode);
       const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date(), 5000);
-      expect(upFront, `${postcode}: up-front vs coverage`).toBe(coverage.kind === "effy");
-      expect(res.serviced, `${postcode}: quote vs coverage`).toBe(coverage.kind === "effy");
+      expect(upFront, `${postcode}: up-front vs coverage`).toBe(coverage.kind !== "none");
+      expect(res.serviced, `${postcode}: quote vs coverage`).toBe(coverage.kind !== "none");
       expect(res.coverage, `${postcode}: the quote's own coverage`).toBe(coverage.kind);
     }
   });

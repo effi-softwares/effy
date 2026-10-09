@@ -1,0 +1,193 @@
+{
+  "_comment": "079 — shared by packages/shared-types (TypeScript: deliverySummary) and customer-mobile (Kotlin: deliverySummary). `input` is an order's `delivery` and `arrivalEstimates`; `expect` is what every customer surface prints at `now`. A case that passes in one and fails in the other is the defect this file exists to catch.",
+  "words": {
+    "effy": "Delivered by Effy",
+    "courier": "Courier delivery",
+    "courierPartner": "Delivered by a courier partner.",
+    "courierEstimatePrefix": "Usually arrives in",
+    "courierEstimateSuffix": "— an estimate, not a guaranteed date.",
+    "noWindowsLeft": "There are no Effy delivery windows available in the next few days.",
+    "courierInsteadOfWindows": "We can send this order by courier instead.",
+    "sameDay": "Same-day delivery",
+    "standard": "Standard delivery",
+    "scheduled": "Scheduled delivery"
+  },
+  "shopWords": {
+    "effy_driver": "Effy driver",
+    "courier": "Courier"
+  },
+  "cases": [
+    {
+      "name": "a courier order: the estimate, said as an estimate, and no arrival",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "2–4 business days"
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 2–4 business days — an estimate, not a guaranteed date."
+        ]
+      }
+    },
+    {
+      "name": "a courier order never reads a package's method, even if one is sent",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "courier",
+          "courierEstimate": "3–5 business days"
+        },
+        "arrivalEstimates": [
+          {
+            "method": "standard",
+            "promisedFrom": null,
+            "promisedTo": null,
+            "windowStart": null,
+            "windowEnd": null
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Courier delivery",
+        "lines": [
+          "Delivered by a courier partner.",
+          "Usually arrives in 3–5 business days — an estimate, not a guaranteed date."
+        ]
+      }
+    },
+    {
+      "name": "Effy, a window today, three suppliers: one line",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null
+        },
+        "arrivalEstimates": [
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T16:00:00+11:00",
+            "windowEnd": "2026-10-08T18:00:00+11:00"
+          },
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T16:00:00+11:00",
+            "windowEnd": "2026-10-08T18:00:00+11:00"
+          },
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T16:00:00+11:00",
+            "windowEnd": "2026-10-08T18:00:00+11:00"
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "Same-day delivery · Today, 4 pm – 6 pm"
+        ]
+      }
+    },
+    {
+      "name": "Effy, a window on a later day",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null
+        },
+        "arrivalEstimates": [
+          {
+            "method": "standard",
+            "promisedFrom": "2026-10-10",
+            "promisedTo": "2026-10-10",
+            "windowStart": "2026-10-10T18:00:00+11:00",
+            "windowEnd": "2026-10-10T20:30:00+11:00"
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "Standard delivery · Sat 10 Oct, 6 pm – 8:30 pm"
+        ]
+      }
+    },
+    {
+      "name": "placed before 079, split across today and a carrier day: no heading, both promises",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "arrivalEstimates": [
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T12:00:00+11:00",
+            "windowEnd": "2026-10-08T14:00:00+11:00"
+          },
+          {
+            "method": "standard",
+            "promisedFrom": "2026-10-09",
+            "promisedTo": "2026-10-09",
+            "windowStart": null,
+            "windowEnd": null
+          }
+        ]
+      },
+      "expect": {
+        "heading": null,
+        "lines": [
+          "Same-day delivery · Today, 12 pm – 2 pm",
+          "Standard delivery · Tomorrow"
+        ]
+      }
+    },
+    {
+      "name": "placed before 069, no promise at all: said so, never invented",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": null,
+        "arrivalEstimates": [
+          {
+            "method": "standard",
+            "promisedFrom": null,
+            "promisedTo": null,
+            "windowStart": null,
+            "windowEnd": null
+          }
+        ]
+      },
+      "expect": {
+        "heading": null,
+        "lines": [
+          "Standard delivery · We'll confirm your delivery date"
+        ]
+      }
+    },
+    {
+      "name": "no arrival recorded at all",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": null,
+        "lines": [
+          "We'll confirm your delivery date"
+        ]
+      }
+    }
+  ]
+}

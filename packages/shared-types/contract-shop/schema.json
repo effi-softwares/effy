@@ -359,16 +359,28 @@
       ],
       "type": "object"
     },
+    "DeliveredBy": {
+      "description": "Who takes a package away from the shop, as SHOP staff read it. Never a window, a day or a fee.",
+      "enum": [
+        "effy_driver",
+        "courier"
+      ],
+      "type": "string"
+    },
     "DeliveryPromiseDTO": {
       "additionalProperties": false,
-      "description": "What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).\n\nOwned by 021. While only one service level exists, `readyBy` is a constant offset from the order's placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).\n\nSays NOTHING about who delivers. There is no carrier, driver, or provider field here, by design.",
+      "description": "What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).\n\nOwned by 021. While only one service level exists, `readyBy` is a constant offset from the order's placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).\n\n⚠ 079 — it says who takes the package away as ONE OF TWO WORDS (`deliveredBy`), and nothing more: there is still no driver's name, no courier company and no reference here, by design.",
       "properties": {
+        "deliveredBy": {
+          "$ref": "#/definitions/DeliveredBy",
+          "description": "079 — who takes this package away from the shop: an Effy driver or a courier. Absent from a server older than 079. Print it through `DELIVERED_BY_WORDS`."
+        },
         "readyBy": {
           "description": "ISO-8601. The time by which THIS shop must be ready.",
           "type": "string"
         },
         "serviceLevel": {
-          "description": "e.g. \"standard\". A service level the customer bought — never a fulfillment mechanism.",
+          "deprecated": "079 — a constant (\"standard\") that was printed to shop staff as if it meant\nsomething. It is the customer's word, and a shop is shown `deliveredBy`. Kept on the wire for\nshop apps installed before 079.",
           "type": "string"
         }
       },
@@ -546,7 +558,6 @@
       "type": "string"
     },
     "FulfillmentStatus": {
-      "description": "The fulfillment state machine (FR-011).\n\n`pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until now — it means a human acknowledged the order, which is what distinguishes untouched work from work in progress. `collected` (picked up) and `delivered` are reachable ONLY via the dev-only driver stubs (FR-030) and are terminal + immutable (FR-011f) — a placeholder for the real driver slice.",
       "enum": [
         "pending",
         "received",

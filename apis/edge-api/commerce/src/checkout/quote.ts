@@ -52,7 +52,9 @@ export function packagesFromLines(lines: readonly CheckoutLine[]): PackageInput[
   return [...grams].map(([shopId, g]) => ({ shopId, grams: g }));
 }
 
-type ServicedQuote = Extract<QuoteResult, { serviced: true }>;
+/** A quote Effy itself delivers. A courier quote has no packages, slots, days or windows. */
+type ServicedQuote = Extract<QuoteResult, { coverage: "effy" }>;
+type SellableQuote = Extract<QuoteResult, { serviced: true }>;
 
 /**
  * ⚠ COMPATIBILITY ONLY (077 research R4) — the per-package `feeAmount` a client built before 077
@@ -125,6 +127,20 @@ export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): Deliver
       sameDaySlots: [], sameDayUnavailableReason: null, standardDays: [],
     };
   }
+  // ⚠ With the Melbourne offset, like every other time in this document (069 FR-029) — one
+  // rule for a client to read, not one field that is the odd one out.
+  const expiresAt = operatingStamp(new Date(now.getTime() + QUOTE_VALIDITY_MS));
+  if (q.coverage === "courier") {
+    // 079 — a courier delivers. NOTHING TO CHOOSE: every picker is empty, and what the customer is
+    // told and charged is in `courier`. ⚠ No distance, no courier company, no package list — how
+    // many suppliers fill the order is not part of what a courier order is sold as.
+    return {
+      postcode, serviced: true, coverage: "courier", sameDayAvailableUntil: null, packages: [], expiresAt,
+      sameDaySlots: [], sameDayUnavailableReason: null, standardDays: [],
+      freeDeliveryRemainingAmount: q.freeDeliveryRemainingCents === null ? null : formatCents(q.freeDeliveryRemainingCents),
+      courier: { estimate: q.estimate, fee: feeDTO(q.fee), reason: q.reason },
+    };
+  }
   const compat = compatibilityFees(q);
   const standardTotal = q.standardFee.totalCents;
   return {
@@ -140,9 +156,7 @@ export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): Deliver
         promisedFrom: null, promisedTo: null,
       })),
     })),
-    // ⚠ With the Melbourne offset, like every other time in this document (069 FR-029) — one
-    // rule for a client to read, not one field that is the odd one out.
-    expiresAt: operatingStamp(new Date(now.getTime() + QUOTE_VALIDITY_MS)),
+    expiresAt,
     sameDaySlots: q.sameDaySlots.map((s) => {
       const fee = q.slotFees.get(s.id) ?? q.standardFee;
       return {
@@ -167,7 +181,11 @@ export function toQuoteDTO(postcode: string, q: QuoteResult, now: Date): Deliver
  * What is captured on the order: the SHOP-keyed quote, for the platform's own later use — which
  * packages could go today, and every delivery charge the shopper was offered, with how it was built.
  */
-export function capturedQuote(q: ServicedQuote) {
+export function capturedQuote(q: SellableQuote) {
+  // 079 — a courier order: the one charge it was offered, the estimate it was told, and why.
+  if (q.coverage === "courier") {
+    return { serviced: true, coverage: "courier", reason: q.reason, estimate: q.estimate, fee: storedBreakdown(q.fee) };
+  }
   return {
     serviced: true,
     packages: q.packages.map((p) => ({ shopId: p.shopId, methods: p.options.map((o) => o.method) })),
@@ -204,7 +222,7 @@ export async function quoteForCheckout(
   ]);
   // ⚠ A page, not a number to watch (078 FR-020): a covered address and not one window switched on.
   // Emitted HERE, on the read — a shopper who is shown "no windows" never reaches the intent call.
-  if (delivery.serviced && delivery.effyWindows?.unavailable === "none_defined") emitMetric(metricNamespace(), "EffyWindowsNoneDefined");
+  if (delivery.serviced && delivery.coverage === "effy" && delivery.effyWindows?.unavailable === "none_defined") emitMetric(metricNamespace(), "EffyWindowsNoneDefined");
   return {
     ...toQuoteDTO(postcode, delivery, now),
     // 074 — what the shopper can spend. ABSENT when they have none, so the control is not shown.

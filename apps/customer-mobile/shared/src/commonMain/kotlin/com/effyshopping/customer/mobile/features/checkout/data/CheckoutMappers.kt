@@ -10,11 +10,16 @@ import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
 import com.effyshopping.customer.mobile.commerce.contract.State as DtoRefundState
 import com.effyshopping.customer.mobile.commerce.contract.OrderStage as DtoOrderStage
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryMethod as DeliveryMethodDTO
+import com.effyshopping.customer.mobile.commerce.contract.CourierQuoteReason
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalCode
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryType as ContractDeliveryType
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.commerce.contract.SameDayUnavailableReason
+import com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyDay
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyDayClosed
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindow
@@ -65,6 +70,12 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     standardDate = standardDate,
     // 078 — the one window for the order; null (omitted) while the new delivery model is off.
     deliveryWindow = deliveryWindow?.let { com.effyshopping.customer.mobile.commerce.contract.DeliveryWindow(date = it.date, slotID = it.slotId) },
+    // 079 — who delivers, as shown. Null (omitted) under the checkout that predates delivery types.
+    deliveryType = when (deliveryType) {
+        DeliveryType.EFFY -> ContractDeliveryType.Effy
+        DeliveryType.COURIER -> ContractDeliveryType.Courier
+        null -> null
+    },
     // ⚠ 051 — MOBILE ASKS FOR A CUSTOMER SESSION; WEB DOES NOT. The in-app element renders the
     // provider's own saved-card list and needs a session to do it. The web card route renders Effy's
     // list and confirms by payment-method id, so minting one there would be an unused provider round
@@ -111,6 +122,21 @@ private fun DeliveryQuoteDTO.totalFor(method: DeliveryMethodDTO): Long =
 
 internal fun DeliveryQuoteDTO.toDomain(): DeliveryQuote {
     if (!serviced) return DeliveryQuote.Unserviced
+    // 079 — a courier delivers. ⚠ FIRST: such a quote has no packages, slots, days or windows, and
+    // read as an Effy quote it would be a serviced order with a $0.00 delivery and nothing to choose.
+    courier?.let { c ->
+        val fee = c.fee.toDomain()
+        return DeliveryQuote(
+            serviced = true,
+            sameDayAvailable = false,
+            standardTotalAmount = fee.totalAmount,
+            sameDayTotalAmount = null,
+            standardFee = fee,
+            freeDeliveryRemainingAmount = freeDeliveryRemainingAmount,
+            points = points?.let { CheckoutPoints(usable = it.usable, centsPerPoint = it.centsPerPoint) },
+            courier = CourierDelivery(estimate = c.estimate, fee = fee, noWindowLeft = c.reason == CourierQuoteReason.NoWindow),
+        )
+    }
     // 069: same-day is offerable when ANY delivery can go today AND a slot is open (research R7). The
     // server resolves the method per package; a basket with one excepted shop is a MIXED order.
     val sameDayPackages = packages.filter { pkg -> pkg.options.any { it.method == DeliveryMethodDTO.SameDay } }
@@ -207,12 +233,22 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO.t
 )
 
 /** 069 — the server's refusal, as the domain exception the ViewModel acts on. */
+/** 079 — who delivers a placed order. */
+internal fun com.effyshopping.customer.mobile.commerce.contract.OrderDeliveryDTO.toDomain(): OrderDelivery = OrderDelivery(
+    type = when (type) {
+        ContractDeliveryType.Effy -> DeliveryType.EFFY
+        ContractDeliveryType.Courier -> DeliveryType.COURIER
+    },
+    courierEstimate = courierEstimate,
+)
+
 internal fun DeliveryChoiceRefusalDTO.toDomain(): DeliveryChoiceRefused = DeliveryChoiceRefused(
     reason = when (code) {
         DeliveryChoiceRefusalCode.SlotRequired -> DeliveryChoiceRefusal.SlotRequired
         DeliveryChoiceRefusalCode.SlotUnavailable -> DeliveryChoiceRefusal.SlotUnavailable
         DeliveryChoiceRefusalCode.DateUnavailable -> DeliveryChoiceRefusal.DateUnavailable
         DeliveryChoiceRefusalCode.NoWindowsAvailable -> DeliveryChoiceRefusal.NoWindowsAvailable
+        DeliveryChoiceRefusalCode.DeliveryTypeChanged -> DeliveryChoiceRefusal.DeliveryTypeChanged
     },
     quote = quote?.toDomain(),
 )
@@ -261,6 +297,7 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.OrderSummaryDTO.
         itemCount = itemCount.toInt(),
         grandTotalAmount = grandTotalAmount,
         currency = currency,
+        delivery = delivery?.toDomain(),
     )
 
 /** Format a snapshotted order address into one display line (shared by shipping + billing, 023 US5). */
@@ -321,6 +358,8 @@ internal fun OrderDTO.toReceipt(): Receipt {
         grandTotalAmount = grandTotalAmount,
         currency = currency,
         placedAt = placedAt.orEmpty(),
+        // 079 — MAPPED (see `cancellable` below for why that needs saying).
+        delivery = delivery?.toDomain(),
         stage = stage.toDomainStage(),
         paymentMethod = paymentMethod?.let {
             PaymentMethodSummary(type = it.type.value, brand = it.brand, last4 = it.last4)

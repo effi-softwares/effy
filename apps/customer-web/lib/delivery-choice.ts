@@ -1,4 +1,4 @@
-import type { DeliveryFeeDTO, DeliveryQuoteDTO, EffyWindowDTO, EffyWindowsDTO } from "@effy/shared-types"
+import type { CourierQuoteDTO, DeliveryFeeDTO, DeliveryQuoteDTO, DeliveryType, EffyWindowDTO, EffyWindowsDTO } from "@effy/shared-types"
 
 import { parseCents } from "@/lib/cart-totals"
 
@@ -29,6 +29,26 @@ export interface ChosenWindow {
 /** The new model's windows, or null while it is off (or the address is not served). */
 export const effyWindowsOf = (quote: DeliveryQuoteDTO | null): EffyWindowsDTO | null =>
   quote?.serviced ? (quote.effyWindows ?? null) : null
+
+/**
+ * 079 — what a courier order is told and charged, when the quote says a courier delivers; else null.
+ * There is then NOTHING to choose: no window, no day, no method.
+ */
+export const courierOf = (quote: DeliveryQuoteDTO | null): CourierQuoteDTO | null =>
+  quote?.serviced && quote.coverage === "courier" ? (quote.courier ?? null) : null
+
+/**
+ * 079 — who delivers the order this quote is for, as the checkout SHOWS it and sends it back
+ * (`deliveryType` on the intent): a courier, Effy under the new delivery model, or null under the
+ * checkout that predates it (which says nothing — the order then has no delivery type).
+ *
+ * ⚠ THE QUOTE SAYS, as with everything else here. The server refuses the intent if this is not what
+ * applies by then, so nobody pays a courier fee for a screen that showed Effy's windows.
+ */
+export function deliveryTypeOf(quote: DeliveryQuoteDTO | null): DeliveryType | null {
+  if (courierOf(quote)) return "courier"
+  return effyWindowsOf(quote) ? "effy" : null
+}
 
 /** The chosen window as the quote offers it NOW; null when nothing is chosen or it is no longer offered. */
 export function findWindow(quote: DeliveryQuoteDTO | null, chosen: ChosenWindow | null): EffyWindowDTO | null {
@@ -95,6 +115,9 @@ export function chosenFee(
   window: ChosenWindow | null = null,
 ): DeliveryFeeDTO | null {
   if (!quote?.serviced) return null
+  // 079 — a courier delivers: ONE fee, already decided. ⚠ Before anything else here: a courier quote
+  // has no `standardFee` and no packages, and the pre-077 fallback below would price it at $0.00.
+  if (quote.courier) return quote.courier.fee
   // 078 — the new model: the chosen window's fee, and nothing to show until there is a window.
   if (quote.effyWindows) return findWindow(quote, window)?.fee ?? null
   const sameDay = method === "same_day" && shapeOf(quote).sameDayOffered

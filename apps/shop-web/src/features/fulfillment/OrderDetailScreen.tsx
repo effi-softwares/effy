@@ -21,7 +21,7 @@ import { canDeclareUnfulfillable } from "./model";
 import {
   formatMoney,
   formatWhen,
-  methodText,
+  deliveredByText,
   paymentMethodText,
   refundableQuantity,
   type OrderDetail,
@@ -192,7 +192,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           <h2 className="text-[15px] font-semibold tracking-[-.01em]">Customer and delivery</h2>
           {/* ⚠ The design's "Customer since {date}" is account history, which a shop is not given. */}
           <p className="text-muted-foreground text-[12.5px]">
-            {methodText(detail.deliveryMethod)} delivery · ready by {formatWhen(detail.readyBy)}
+            {deliveredByText(detail.deliveredBy)} · ready by {formatWhen(detail.readyBy)}
           </p>
         </div>
         <div
@@ -315,7 +315,7 @@ function printPickList(detail: OrderDetail) {
       {
         orderNumber: detail.orderNumber,
         recipientName: detail.delivery.recipientName,
-        deliveryMethod: detail.deliveryMethod,
+        deliveredBy: detail.deliveredBy,
         readyBy: detail.readyBy,
         lines: detail.lines.map((l) => ({
           name: l.name,

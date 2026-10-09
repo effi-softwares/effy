@@ -24,9 +24,10 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
+import { recordDeliveryType } from "@effy/edge-shared/delivery";
 
-import { packages } from "../orders/repository";
-import { listHandovers, toPackage } from "../orders/service";
+import { deliveryTypeHistory, findOrder, packages } from "../orders/repository";
+import { listHandovers, listOrders, toPackage } from "../orders/service";
 import { OrderActionError } from "../lib/errors";
 import { recordHandoff } from "./repository";
 
@@ -304,5 +305,114 @@ d("069 — the promise on the back-office order detail", () => {
       onTime: null,
       overCapacity: false,
     });
+  });
+});
+
+/** Make a seeded order one placed under 079: who delivers it, why, and the first history entry. */
+async function sell(orderId: string, type: "effy" | "courier", reason: "in_coverage" | "out_of_coverage" | "no_window", estimate: string | null = null) {
+  await pool.query(`UPDATE public."order" SET delivery_type = $2, delivery_type_reason = $3, courier_estimate = $4 WHERE id = $1`, [orderId, type, reason, estimate]);
+  await recordDeliveryType(pool, { orderId, actor: { kind: "checkout" } });
+}
+
+d("079 — who delivers a package is one answer, for old orders and new (P12, P19)", () => {
+  beforeEach(async () => {
+    await pool.query(`TRUNCATE public."order", public.delivery_slot CASCADE`);
+    await pool.query(`DELETE FROM public.delivery_settings`);
+  });
+
+  const everywhere = async () =>
+    [...(await listHandovers("today")), ...(await listHandovers("overdue")), ...(await listHandovers("upcoming"))].map((p) => p.orderNumber).sort();
+  const refusal = (fulfillmentId: string) =>
+    recordHandoff({ fulfillmentId, actorSub: "staff-1" } as never).then(() => null, (e: unknown) => (e as OrderActionError).reason);
+  const later = (hours: number) => {
+    const start = new Date(Date.now() + hours * 3_600_000);
+    return { start: start.toISOString(), end: new Date(start.getTime() + 7_200_000).toISOString() };
+  };
+
+  it("a courier ORDER has no day and no window: it is listed, due the day it was placed, and can be handed over", async () => {
+    const courier = await seedPackage({ method: "standard", promisedDay: null });
+    await sell(courier.orderId, "courier", "out_of_coverage", "2–4 business days");
+    // The same package shape from before 069 — no day, no type — is still NOT listed: nothing to be due by.
+    await seedPackage({ method: "standard", promisedDay: null });
+
+    const today = await listHandovers("today");
+    expect(today).toEqual([
+      { fulfillmentId: courier.fulfillmentId, orderId: courier.orderId, orderNumber: courier.orderNumber, promisedDate: null, handoverDueOn: await melDay(0), atRisk: false, atHub: true },
+    ]);
+    const pkg = toPackage((await packages(courier.orderId))[0]!);
+    expect(pkg).toMatchObject({ deliveredBy: "courier", promisedDate: null, window: null, handoverDueOn: await melDay(0), atRisk: false, onTime: null });
+
+    // A day later with no handover it is overdue and at risk.
+    await pool.query(`UPDATE public."order" SET placed_at = now() - interval '2 days' WHERE id = $1`, [courier.orderId]);
+    expect((await listHandovers("overdue")).map((p) => [p.orderNumber, p.atRisk])).toEqual([[courier.orderNumber, true]]);
+    expect(toPackage((await packages(courier.orderId))[0]!).atRisk).toBe(true);
+
+    expect(await refusal(courier.fulfillmentId)).toBeNull();
+    expect(await everywhere()).toEqual([]);
+  });
+
+  it("an Effy order is never a carrier's — today's window or a later day's — and a handover is refused by name", async () => {
+    const today = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(2) });
+    const thursday = await seedPackage({ method: "standard", promisedDay: await melDay(2), window: later(50) });
+    await sell(today.orderId, "effy", "in_coverage");
+    await sell(thursday.orderId, "effy", "in_coverage");
+
+    expect(await everywhere()).toEqual([]);
+    expect(await refusal(today.fulfillmentId)).toBe("not_standard");
+    expect(await refusal(thursday.fulfillmentId)).toBe("not_carrier");
+    expect(toPackage((await packages(thursday.orderId))[0]!)).toMatchObject({ deliveredBy: "effy", handoverDueOn: null, atRisk: false });
+  });
+
+  it("⚠ the ORDER's type decides, not the package: a paid Effy order moved to a courier becomes a carrier's, window and all", async () => {
+    const moved = await seedPackage({ method: "standard", promisedDay: await melDay(1), window: later(26) });
+    await sell(moved.orderId, "effy", "in_coverage");
+    expect(await everywhere()).toEqual([]);
+    expect(await refusal(moved.fulfillmentId)).toBe("not_carrier");
+
+    await recordDeliveryType(pool, {
+      orderId: moved.orderId, actor: { kind: "staff", sub: "sub-manager" },
+      change: { to: "courier", reason: "staff_change", courierEstimate: "3–5 business days", note: "Van off the road" },
+    });
+    expect(await everywhere()).toEqual([moved.orderNumber]);
+    expect(toPackage((await packages(moved.orderId))[0]!).deliveredBy).toBe("courier");
+    expect(await refusal(moved.fulfillmentId)).toBeNull();
+  });
+
+  it("the order list: filter by who delivers — and an order from before 079 is `legacy`, never guessed", async () => {
+    const effy = await seedPackage({ method: "standard", promisedDay: await melDay(2), window: later(50) });
+    const courier = await seedPackage({ method: "standard", promisedDay: null });
+    const old = await seedPackage({ method: "standard", promisedDay: await melDay(3) });
+    await sell(effy.orderId, "effy", "in_coverage");
+    await sell(courier.orderId, "courier", "no_window", "2–4 business days");
+
+    const numbers = async (deliveryType?: "effy" | "courier" | "legacy") =>
+      (await listOrders({ limit: 50, deliveryType })).items.map((o) => `${o.orderNumber}:${o.deliveryType}`).sort();
+    expect(await numbers()).toEqual([`${effy.orderNumber}:effy`, `${courier.orderNumber}:courier`, `${old.orderNumber}:null`].sort());
+    expect(await numbers("effy")).toEqual([`${effy.orderNumber}:effy`]);
+    expect(await numbers("courier")).toEqual([`${courier.orderNumber}:courier`]);
+    expect(await numbers("legacy")).toEqual([`${old.orderNumber}:null`]);
+    // "Awaiting handover" finds the courier's and the old carrier's package, never Effy's.
+    expect((await listOrders({ limit: 50, awaiting: "handover" })).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber, old.orderNumber].sort());
+  });
+
+  it("the order detail: type, why, the estimate as sold, and the history — nothing invented for an old order", async () => {
+    const courier = await seedPackage({ method: "standard", promisedDay: null });
+    await sell(courier.orderId, "courier", "out_of_coverage", "2–4 business days");
+    // The business changes its estimate afterwards; the order keeps the one it was sold.
+    await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, courier_estimate_text, updated_by) VALUES (1, -37.81, 144.96, '5–7 business days', 'test')`);
+
+    // ⚠ The reads, not `getOrder`: that also reads refund proposals through the shared library's own
+    // pool, which this file does not replace (as `delivery-instructions.container.test.ts` found).
+    expect(await findOrder(courier.orderId)).toMatchObject({ delivery_type: "courier", delivery_type_reason: "out_of_coverage", courier_estimate: "2–4 business days" });
+    expect(await deliveryTypeHistory(courier.orderId)).toEqual([
+      { from_type: null, to_type: "courier", reason: "out_of_coverage", actor_kind: "checkout", actor_sub: null, note: null, created_at: expect.any(Date) },
+    ]);
+    expect(toPackage((await packages(courier.orderId))[0]!)).toMatchObject({ deliveredBy: "courier" });
+
+    const old = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(2) });
+    expect(await findOrder(old.orderId)).toMatchObject({ delivery_type: null, delivery_type_reason: null, courier_estimate: null });
+    expect(await deliveryTypeHistory(old.orderId)).toEqual([]);
+    // …and its package still says who took it.
+    expect(toPackage((await packages(old.orderId))[0]!)).toMatchObject({ deliveredBy: "effy", deliveryMethod: "same_day" });
   });
 });

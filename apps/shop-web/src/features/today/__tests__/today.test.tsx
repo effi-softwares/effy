@@ -53,6 +53,7 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
         customerName: "Elin Wikström",
         paidAt: "2026-09-14T03:59:30.000Z",
         itemCount: 4,
+        deliveredBy: "effy_driver",
         deliveryMethod: "same_day",
         total: "57.80",
         currency: "AUD",
@@ -183,7 +184,7 @@ describe("Today (US1)", () => {
     expect(link).toHaveAttribute("href", "/orders/$fulfillmentId")  // params supplied by the router
     expect(within(link).getByText("Elin Wikström")).toBeInTheDocument()
     expect(within(link).getByText("New")).toBeInTheDocument()
-    expect(within(link).getByText(/Just now · 4 items · Same-day/)).toBeInTheDocument()
+    expect(within(link).getByText(/Just now · 4 items · Effy driver/)).toBeInTheDocument()
     expect(within(link).getByText("$57.80")).toBeInTheDocument()
   })
 
@@ -197,6 +198,9 @@ describe("Today (US1)", () => {
             customerName: "Anders Holm",
             paidAt: "2026-09-14T03:50:00.000Z",
             itemCount: 1,
+            // ⚠ 079 — a "standard" order an EFFY DRIVER delivers (a later-day window): the customer's word
+            // would tell this shop the wrong thing, which is why the line no longer prints it.
+            deliveredBy: "effy_driver",
             deliveryMethod: "standard",
             total: "12.00",
             currency: "AUD",
@@ -208,7 +212,7 @@ describe("Today (US1)", () => {
 
     expect(await screen.findByText("EFY-4400")).toBeInTheDocument()
     expect(screen.queryByText("New")).not.toBeInTheDocument()
-    expect(screen.getByText(/10 min ago · 1 item · Standard/)).toBeInTheDocument()
+    expect(screen.getByText(/10 min ago · 1 item · Effy driver/)).toBeInTheDocument()
   })
 
   it("shows the calm steady state, not a zeroed card, when nothing needs anyone", async () => {

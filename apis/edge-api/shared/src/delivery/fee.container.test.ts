@@ -166,7 +166,7 @@ d("077 — the fee engine migration carries today's prices across", () => {
   const laterDayFee = async (postcode: string, grams: number, basketCents = 5000, shops: string[] = [shop]) => {
     const pkgs = shops.map((shopId) => ({ shopId, grams: grams / shops.length }));
     const res = await quote(pool, null, postcode, pkgs, new Date(), basketCents);
-    if (!res.serviced) throw new Error(`${postcode} not serviced`);
+    if (!res.serviced || res.coverage !== "effy") throw new Error(`${postcode} not serviced`);
     return res.standardFee;
   };
 
@@ -287,7 +287,7 @@ d("077 — the fee engine migration carries today's prices across", () => {
     );
     const now = instantAtLocalTime(2026, 8, 24, 10, 0);
     const res = await quote(pool, null, "3121", [{ shopId: shop, grams: 500 }], now, 5000);
-    if (!res.serviced) throw new Error("expected serviced");
+    if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
     expect(res.sameDaySlots).toHaveLength(1);
     const today = res.slotFees.get(res.sameDaySlots[0]!.id)!;
     expect(res.standardFee.totalCents).toBe(600);
@@ -336,7 +336,7 @@ d("077 — window surcharges belong to the plan (T071)", () => {
   const at10 = instantAtLocalTime(2026, 8, 24, 10, 0);
   const windowFee = async () => {
     const res = await quote(p3, null, "3121", [{ shopId: shopA, grams: 500 }, { shopId: shopB, grams: 500 }], at10, 5000);
-    if (!res.serviced) throw new Error("expected serviced");
+    if (!res.serviced || res.coverage !== "effy") throw new Error("expected serviced");
     return res.slotFees.get(slot)?.totalCents ?? null;
   };
 

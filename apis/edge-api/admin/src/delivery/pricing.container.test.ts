@@ -11,8 +11,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
  * the record an active plan becomes, the simulator, and the audit row every change leaves.
  *
  * Only the module pool and the live channel are replaced; the SQL, the migrations and the gap and
- * activation functions are real. `COURIER_ORDERING_AVAILABLE` is
- * switched on HERE ONLY, to prove the second refusal on the courier switch (P19).
+ * activation functions are real.
  */
 const holder = vi.hoisted(() => ({ pool: null as Pool | null, announced: [] as unknown[] }));
 
@@ -43,11 +42,6 @@ vi.mock("@effy/edge-shared/live", () => ({
     holder.announced.push(...changes);
   },
 }));
-vi.mock("@effy/edge-shared/delivery", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@effy/edge-shared/delivery")>()),
-  COURIER_ORDERING_AVAILABLE: true,
-}));
-
 import { migrationSql } from "@effy/edge-shared";
 import { quote } from "@effy/edge-shared/delivery";
 
@@ -259,7 +253,7 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
         for (const basket of [1500, 5000, 8000]) {
           const sim = await svc.simulate({ planId: null, postcode, grams, basketAmount: (basket / 100).toFixed(2), slotId: null, windowIsToday: false });
           const real = await quote(pool, null, postcode, [{ shopId: shop, grams }], new Date(), basket);
-          if (!real.serviced) throw new Error("expected serviced");
+          if (!real.serviced || real.coverage !== "effy") throw new Error("expected serviced");
           expect(sim.fee!.totalAmount, `${postcode} ${grams}g $${basket / 100}`).toBe((real.standardFee.totalCents / 100).toFixed(2));
           expect(sim.plan).toMatchObject({ id: plan.id, state: "active" });
         }
@@ -313,15 +307,37 @@ describe.skipIf(!RUN)("077 — the pricing console, against real PostgreSQL", ()
     expect((await sim(9000, "50.00")).note).toBe("3121 is delivered by Effy; this is what a courier would cost.");
   });
 
-  it("P19 — courier delivery is never switched on without a courier table in force", async () => {
+  it("P19 / 079 P20 — courier goes on only with a fee table AND an estimate, and promises nobody anything before the new model", async () => {
     await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE kind = 'courier'`);
     expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_plan_missing" });
     expect((await q(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_offered: false });
 
     const c = await svc.createPlan(courier(), SUB);
     await svc.activatePlan(c.id, {}, SUB);
-    expect(await coverage.setCourier({ offered: true }, SUB)).toEqual({ offered: true });
-    await coverage.setCourier({ offered: false }, SUB);
+    // A price, and still nothing to tell the customer about when it arrives.
+    expect(await refusal(coverage.setCourier({ offered: true }, SUB))).toMatchObject({ status: 409, code: "courier_estimate_missing" });
+    expect((await coverage.list({})).courier).toMatchObject({ blockedBy: ["no_estimate"], canBeOffered: false });
+
+    // Both in one request: on, with its estimate.
+    expect(await coverage.setCourier({ offered: true, estimateText: "2–4 business days" }, SUB)).toEqual({ offered: true, estimateText: "2–4 business days", whenNoWindows: false });
+    // ⚠ ON AND READY — AND NOBODY IS OFFERED IT: the new delivery model is not on (079 FR-035).
+    expect((await coverage.list({})).courier).toMatchObject({ offered: true, blockedBy: [], canBeOffered: true, pending: true });
+    expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "none", reason: "courier_pending" });
+
+    // While it is on, the estimate cannot be taken away from under it.
+    expect(await refusal(coverage.setCourier({ estimateText: null }, SUB))).toMatchObject({ status: 409, code: "courier_estimate_in_use" });
+    expect((await q(`SELECT courier_estimate_text FROM public.delivery_settings WHERE id = 1`))[0]).toEqual({ courier_estimate_text: "2–4 business days" });
+
+    // The new model on (set in the database — nothing in the platform sets it before the cutover):
+    // the same unlisted postcode is now "Courier delivery", and the screen stops saying pending.
+    await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = now() - interval '1 minute' WHERE id = 1`);
+    try {
+      expect((await coverage.check("7000")).matches[0]).toMatchObject({ coverage: "courier", reason: "courier_offered" });
+      expect((await coverage.list({})).courier.pending).toBe(false);
+    } finally {
+      await pool.query(`UPDATE public.delivery_settings SET delivery_model_v2_from = NULL WHERE id = 1`);
+    }
+    expect(await coverage.setCourier({ offered: false, estimateText: null }, SUB)).toEqual({ offered: false, estimateText: null, whenNoWindows: false });
   });
 });
 

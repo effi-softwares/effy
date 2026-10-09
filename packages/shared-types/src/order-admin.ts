@@ -31,6 +31,7 @@ import type {
 import type { WireInt } from "./cart";
 import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
+import type { DeliveryType, DeliveryTypeReason } from "./delivery-type";
 import type { DeliveryWindow } from "./delivery-window";
 import type { PackageStatusView } from "./package-status";
 
@@ -85,6 +86,24 @@ export interface AdminOrderSummaryDTO {
   drivers: { collect: string[]; deliver: string[] };
   /** 073 — some package is waiting for a driver and nobody has it. */
   needsDriver: boolean;
+  /** 079 — who delivers the order. Null for an order placed before 079. */
+  deliveryType: DeliveryType | null;
+}
+
+/** 079 — the order list's delivery filter. `legacy` = placed before 079 (no delivery type). */
+export const ADMIN_ORDER_DELIVERY_FILTERS = ["effy", "courier", "legacy"] as const;
+export type AdminOrderDeliveryFilter = (typeof ADMIN_ORDER_DELIVERY_FILTERS)[number];
+
+/** 079 — one entry in an order's delivery-type history: the checkout's decision, then any change. */
+export interface DeliveryTypeChangeDTO {
+  /** Null on the first entry. */
+  from: DeliveryType | null;
+  to: DeliveryType;
+  reason: DeliveryTypeReason;
+  /** The checkout decided, or a staff member changed it (their auth subject, as other audit lists carry it). */
+  actor: { kind: "checkout" } | { kind: "staff"; sub: string };
+  note: string | null;
+  at: string;
 }
 
 /** One shop's portion of an order, as an operator sees it. */
@@ -105,7 +124,13 @@ export interface AdminOrderPackageDTO {
   status: string;
   itemCount: number;
   subtotalAmount: string;
-  /** "same_day" | "standard" | null for a pre-047 order. Decides whether a handover applies. */
+  /**
+   * 079 — who takes this package to the customer, for EVERY order old or new
+   * (`public.package_delivered_by`). ⚠ This — not `deliveryMethod`, not `window` — decides whether a
+   * carrier handover applies: a "standard" package sold a window is Effy's.
+   */
+  deliveredBy: DeliveryType;
+  /** "same_day" | "standard" | null for a pre-047 order. The CUSTOMER'S word; see `deliveredBy`. */
   deliveryMethod: string | null;
   handoff: CarrierHandoffDTO | null;
   arrival: PackageArrivalDTO | null;
@@ -134,7 +159,8 @@ export interface HandoverRowDTO {
   fulfillmentId: string;
   orderId: string;
   orderNumber: string;
-  promisedDate: string;
+  /** Null for an order sold as a courier delivery (079): the customer was told an estimate, not a day. */
+  promisedDate: string | null;
   handoverDueOn: string;
   atRisk: boolean;
   /** Checked in at the hub. False means it has not arrived there yet and cannot be handed over. */
@@ -205,6 +231,13 @@ export interface AdminOrderDetailDTO {
   stage: OrderStage;
   placedAt: string | null;
   createdAt: string;
+  /** 079 — who delivers the order; null for an order placed before 079 (nothing below is then set). */
+  deliveryType: DeliveryType | null;
+  deliveryTypeReason: DeliveryTypeReason | null;
+  /** 079 — the courier timeframe as it was SOLD; null unless a courier delivers. */
+  courierEstimate: string | null;
+  /** 079 — oldest first. Empty for an order placed before 079: its history is not invented. */
+  deliveryTypeHistory: DeliveryTypeChangeDTO[];
 
   customerId: string;
   customerEmail: string;

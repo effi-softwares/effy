@@ -26,13 +26,16 @@
  * interpolated is escaped — a product name is operator-entered text, and this is the one place in
  * the app that builds raw HTML.
  */
-import { formatWhen, methodText } from "./orderConsole"
+import type { DeliveredBy } from "@effy/shared-types"
+
+import { deliveredByText, formatWhen } from "./orderConsole"
 
 /** What a printed page needs. Deliberately narrower than `OrderDetail` so the batch read can satisfy it. */
 export interface PickListDocument {
   orderNumber: string
   recipientName: string
-  deliveryMethod: "same_day" | "standard" | null
+  /** 079 — who collects it: what the sheet says, in the two words every shop screen uses. */
+  deliveredBy: DeliveredBy
   /** ISO instant, or null when the promise is unknown (the batch read carries the paid time). */
   readyBy: string | null
   lines: Array<{ name: string; sku: string | null; quantity: number }>
@@ -53,7 +56,7 @@ export function renderPickListPage(doc: PickListDocument): string {
   return (
     `<section style="page-break-after:always">` +
     `<h1 style="font-size:18px;margin:0 0 4px">Pick list · <span style="font-family:monospace">${esc(doc.orderNumber)}</span></h1>` +
-    `<p style="color:#666;margin:0 0 16px">${esc(doc.recipientName)} · ${esc(methodText(doc.deliveryMethod))} delivery${ready}</p>` +
+    `<p style="color:#666;margin:0 0 16px">${esc(doc.recipientName)} · ${esc(deliveredByText(doc.deliveredBy))}${ready}</p>` +
     `<table style="width:100%;border-collapse:collapse">${rows}</table>` +
     `</section>`
   )

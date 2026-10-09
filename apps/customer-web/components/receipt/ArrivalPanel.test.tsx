@@ -149,3 +149,40 @@ describe("ArrivalPanel", () => {
     expect(screen.getByText(/completed/i)).toBeInTheDocument()
   })
 })
+
+describe("079 — who delivers the order", () => {
+  // ⚠ What a courier order's packages actually carry: "standard", no day, no window. Routing — and
+  // the server sends none of it to a customer. Passed here anyway, to prove the panel would not read it.
+  const routed = { method: "standard" as const, promisedFrom: null, promisedTo: null, windowStart: null, windowEnd: null }
+
+  it("a courier order: who delivers and the estimate it was sold, said as an estimate — never an arrival", () => {
+    render(<ArrivalPanel stage="confirmed" arrivals={[routed]} delivery={{ type: "courier", courierEstimate: "2–4 business days" }} />)
+    const panel = screen.getByTestId("arrival-courier")
+    expect(panel).toHaveTextContent("Courier delivery")
+    expect(panel).toHaveTextContent("Delivered by a courier partner.")
+    expect(panel).toHaveTextContent("Usually arrives in 2–4 business days — an estimate, not a guaranteed date.")
+    expect(panel.textContent).not.toMatch(/standard|same-day|arriving|confirm your delivery date/i)
+  })
+
+  it("an Effy order is headed Delivered by Effy, with its window and the customer's word", () => {
+    render(
+      <ArrivalPanel
+        stage="confirmed"
+        delivery={{ type: "effy", courierEstimate: null }}
+        arrivals={[{ method: "standard", promisedFrom: "2026-10-13", promisedTo: "2026-10-13", windowStart: "2026-10-13T16:00:00+11:00", windowEnd: "2026-10-13T18:00:00+11:00" }]}
+      />,
+    )
+    expect(screen.getByText("Delivered by Effy")).toBeInTheDocument()
+    expect(screen.getByText("Standard")).toBeInTheDocument()
+    expect(screen.getByText(/4 pm – 6 pm/)).toBeInTheDocument()
+    expect(screen.queryByText("Arriving")).not.toBeInTheDocument()
+  })
+
+  it("an order placed before delivery types reads exactly as it did", () => {
+    render(<ArrivalPanel stage="confirmed" arrivals={[{ ...routed, promisedFrom: "2026-10-13", promisedTo: "2026-10-13" }]} />)
+    expect(screen.getByText("Arriving")).toBeInTheDocument()
+    expect(screen.getByText("Standard")).toBeInTheDocument()
+    expect(screen.queryByText("Delivered by Effy")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("arrival-courier")).not.toBeInTheDocument()
+  })
+})

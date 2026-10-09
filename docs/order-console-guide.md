@@ -80,9 +80,23 @@ order itself, as before.
 
 ## Reading the list
 
+**Delivery** (079) says who delivers the order: **Delivered by Effy** or **Courier delivery** — the same
+two names the customer reads. The filter beside the work-queue filter narrows the list to either, or to
+**Placed before delivery types**: older orders have no type and show a dash, because nothing about an
+old order is guessed. Their packages still say who delivered them, on the order page.
+
+On an order, **Delivery type** shows who delivers it, **why** (the address is in Effy's area; it is
+outside; no Effy window was available; changed by staff), what a courier customer **was told** — the
+estimate as it stood when they ordered — and a short history: how it was decided at checkout, then any
+change with who and why. Nothing in this console changes an order's delivery type yet.
+
+A **courier order** was promised no day. On the Handover tab it shows *No day — courier estimate* and is
+due out **the day it was placed**; from the next day it is at risk.
+
 **Next step** is the working column:
 
-- **Needs handover** — collected, standard, not yet handed over. Your queue.
+- **Needs handover** — collected, **a courier's package**, not yet handed over. Your queue. A package Effy
+  delivers itself — today, or in a window on a later day — never appears here, whatever it is called.
 - **Awaiting arrival** — handed over, not yet confirmed.
 - **Complete** — every package has arrived.
 

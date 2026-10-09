@@ -4,9 +4,19 @@
 // or an order detail in any internal console, which is why a customer told "contact support and
 // we'll sort it out" (020 FR-018b) reached people who could not see what they were being asked about.
 
+import { deliveredBySql } from "@effy/edge-shared/delivery";
 import type { DeliveryFeeBreakdownDTO, HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
 import { query } from "@effy/edge-shared";
+
+/**
+ * 'effy' | 'courier' for the package joined as `opd` under the order `o` (079).
+ *
+ * ⚠ `public.package_delivered_by` DECIDES, here and everywhere. Until 079 this file spelled the rule
+ * out three times ("standard, and not sold a window") and the handover write a fourth; the copy that
+ * forgets the window hands an Effy parcel to a carrier.
+ */
+const COURIER_PACKAGE = deliveredBySql("o", "opd.method", "opd.slot_id");
 
 export interface OrderSummaryRow {
   id: string;
@@ -35,6 +45,8 @@ export interface OrderSummaryRow {
   statuses: string[];
   /** 073 — every package's id, so the list can show where each one is in one more query. */
   package_ids: string[];
+  /** 079 — who delivers the order; null for one placed before 079. */
+  delivery_type: "effy" | "courier" | null;
 }
 
 export interface ListParams {
@@ -43,6 +55,8 @@ export interface ListParams {
   awaiting?: OrderAwaiting;
   /** 073 — only orders with a package waiting for a driver that nobody has. */
   needsDriver?: boolean;
+  /** 079 — who delivers the order. `legacy` = placed before 079 (it has no delivery type). */
+  deliveryType?: "effy" | "courier" | "legacy";
   cursor?: string;
   limit: number;
 }
@@ -69,6 +83,12 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
   if (params.status) {
     args.push(params.status);
     where.push(`o.status = $${args.length}`);
+  }
+  if (params.deliveryType === "legacy") {
+    where.push(`o.delivery_type IS NULL`);
+  } else if (params.deliveryType) {
+    args.push(params.deliveryType);
+    where.push(`o.delivery_type = $${args.length}`);
   }
   if (params.cursor) {
     args.push(params.cursor);
@@ -103,8 +123,9 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
         LEFT JOIN public.carrier_handoff h ON h.shop_fulfillment_id = sf.id
        WHERE sf.order_id = o.id
          AND sf.status = 'collected'
-         AND COALESCE(opd.method, 'standard') = 'standard'
-         AND opd.slot_id IS NULL -- 078: sold a window = delivered by Effy, never a carrier's
+         -- ⚠ 079 — a COURIER's package, by the one definition (old orders and new). A package Effy
+         -- delivers itself — same-day, or sold a window on a later day — awaits no handover.
+         AND ${COURIER_PACKAGE} = 'courier'
          AND h.id IS NULL
     )`);
   } else if (params.awaiting === "refund_decision") {
@@ -133,6 +154,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             c.email::text AS customer_email,
             o.grand_total_amount::text,
             o.currency,
+            o.delivery_type,
             COALESCE((SELECT SUM(oi.quantity)::int FROM public.order_item oi WHERE oi.order_id = o.id), 0) AS item_count,
             COALESCE(p.package_count, 0)     AS package_count,
             COALESCE(p.awaiting_handover, 0) AS awaiting_handover,
@@ -145,10 +167,8 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             SELECT count(*)::int AS package_count,
                    count(*) FILTER (
                      WHERE sf.status = 'collected'
-                       AND COALESCE(opd.method, 'standard') = 'standard'
-                       -- ⚠ 078 — a standard package sold a WINDOW is delivered by Effy and awaits no
-                       -- handover. The same term as the filter above, so badge and filter agree.
-                       AND opd.slot_id IS NULL
+                       -- ⚠ The same term as the filter above, so badge and filter agree (079).
+                       AND ${COURIER_PACKAGE} = 'courier'
                        AND h.id IS NULL
                    )::int AS awaiting_handover,
                    count(*) FILTER (WHERE pa.id IS NULL)::int AS awaiting_arrival,
@@ -191,6 +211,10 @@ export interface OrderDetailRow {
   /** 066 — columns on the order, deliberately not keys in `delivery_address`. */
   delivery_handover: HandoverPreference | null;
   delivery_note: string | null;
+  /** 079 — who delivers the order, why, and (a courier) the estimate as sold. All null before 079. */
+  delivery_type: "effy" | "courier" | null;
+  delivery_type_reason: "in_coverage" | "out_of_coverage" | "no_window" | "staff_change" | null;
+  courier_estimate: string | null;
   payment_status: string | null;
   method_type: string | null;
   method_brand: string | null;
@@ -220,6 +244,7 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.billing_address,
             o.delivery_handover,
             o.delivery_note,
+            o.delivery_type, o.delivery_type_reason, o.courier_estimate,
             pay.status AS payment_status,
             pay.method_type, pay.method_brand, pay.method_last4,
             o.points_used, o.points_value_amount::text AS points_value_amount, pay.amount::text AS card_paid_amount
@@ -231,6 +256,31 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
     [orderId],
   );
   return res.rows[0] ?? null;
+}
+
+export interface DeliveryTypeChangeRow {
+  from_type: "effy" | "courier" | null;
+  to_type: "effy" | "courier";
+  reason: "in_coverage" | "out_of_coverage" | "no_window" | "staff_change";
+  actor_kind: "checkout" | "staff";
+  actor_sub: string | null;
+  note: string | null;
+  created_at: Date;
+}
+
+/**
+ * An order's delivery-type history, oldest first (079). Empty for an order placed before 079.
+ * ⚠ READ ONLY. The one writer is `recordDeliveryType` in `@effy/edge-shared/delivery`.
+ */
+export async function deliveryTypeHistory(orderId: string): Promise<DeliveryTypeChangeRow[]> {
+  const res = await query<DeliveryTypeChangeRow>(
+    `SELECT from_type, to_type, reason, actor_kind, actor_sub, note, created_at
+       FROM public.order_delivery_type_change
+      WHERE order_id = $1
+      ORDER BY created_at ASC, (from_type IS NULL) DESC`,
+    [orderId],
+  );
+  return res.rows;
 }
 
 export interface OrderItemRow {
@@ -263,6 +313,12 @@ export interface PackageRow {
   item_count: number;
   subtotal_amount: string;
   method: string | null;
+  /** 079 — who takes it to the customer: `public.package_delivered_by`, for old orders and new. */
+  delivered_by: "effy" | "courier";
+  /** 079 — the ORDER was sold as a courier delivery (it then has no promised day and no window). */
+  courier_order: boolean;
+  /** The Melbourne date the order was placed; null while unpaid. */
+  placed_date: string | null;
   handoff_reference: string | null;
   handoff_carrier: string | null;
   handoff_at: Date | null;
@@ -297,19 +353,23 @@ export async function packages(orderId: string): Promise<PackageRow[]> {
   const res = await query<PackageRow>(
     `SELECT sf.id AS fulfillment_id, sf.shop_id, s.name AS shop_name, sf.status,
             sf.item_count, sf.subtotal_amount::text, opd.method,
+            ${COURIER_PACKAGE} AS delivered_by,
+            (o.delivery_type = 'courier') IS TRUE AS courier_order,
+            ${MEL_DATE("o.placed_at")} AS placed_date,
             h.reference AS handoff_reference, h.carrier_name AS handoff_carrier,
             h.handed_over_at AS handoff_at, h.recorded_by_sub AS handoff_by, h.note AS handoff_note,
             pa.arrived_at AS arrival_at, pa.source AS arrival_source,
             pa.recorded_by_sub AS arrival_by, pa.note AS arrival_note,
             opd.promised_to::text AS promised_date,
             opd.window_start, opd.window_end,
-            -- ⚠ The booking belongs to the ORDER; only its same-day packages are in the slot.
-            COALESCE(opd.slot_id IS NOT NULL AND b.over_capacity, false) AS over_capacity,
+            -- ⚠ The booking belongs to the ORDER; only its windowed packages are in the slot.
+            COALESCE(opd.window_start IS NOT NULL AND b.over_capacity, false) AS over_capacity,
             ${MEL_DATE("now()")} AS today,
             ${MEL_DATE("h.handed_over_at")} AS handoff_date,
             ${MEL_DATE("pa.arrived_at")} AS arrival_date,
             ${CARRIER_LEAD_DAYS}::int AS carrier_lead_days
        FROM public.shop_fulfillment sf
+       JOIN public."order" o ON o.id = sf.order_id
        JOIN public.shop s ON s.id = sf.shop_id
   LEFT JOIN public.order_package_delivery opd
          ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
@@ -413,7 +473,8 @@ export interface HandoverRow {
   fulfillment_id: string;
   order_id: string;
   order_number: string;
-  promised_date: string;
+  /** Null for an order sold as a courier delivery (079): it was told an estimate, not a day. */
+  promised_date: string | null;
   due_on: string;
   today: string;
   at_hub: boolean;
@@ -440,7 +501,9 @@ export async function handovers(due: "today" | "overdue" | "upcoming"): Promise<
               o.id AS order_id,
               o.order_number,
               opd.promised_to::text AS promised_date,
-              (opd.promised_to - ${CARRIER_LEAD_DAYS}::int)::text AS due_on,
+              -- ⚠ 079 — a courier ORDER was promised no day: it is due out the day it was placed,
+              -- and overdue from the next. (Courier pickup timing proper is the courier feature's.)
+              COALESCE((opd.promised_to - ${CARRIER_LEAD_DAYS}::int)::text, ${MEL_DATE("o.placed_at")}) AS due_on,
               ${MEL_DATE("now()")} AS today,
               (sf.status = 'collected') AS at_hub
          FROM public.shop_fulfillment sf
@@ -449,11 +512,13 @@ export async function handovers(due: "today" | "overdue" | "upcoming"): Promise<
            ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.carrier_handoff h ON h.shop_fulfillment_id = sf.id
         WHERE o.status = 'paid'
-          AND opd.method = 'standard'
-          -- ⚠ 078 — a standard package sold a WINDOW is delivered by Effy on its day and never
-          -- appears here; only a package with no window is a carrier's.
-          AND opd.slot_id IS NULL
-          AND opd.promised_to IS NOT NULL
+          -- ⚠ 079 — a courier's package by the one definition: a package Effy delivers itself
+          -- (same-day, or sold a window on a later day) never appears here.
+          AND ${COURIER_PACKAGE} = 'courier'
+          -- Something to be due BY: a promised day (069), or an order sold as a courier delivery,
+          -- which goes out as soon as it can. An order from before 069 promised no day and is not
+          -- listed — the "awaiting handover" filter on the order list still finds it.
+          AND (opd.promised_to IS NOT NULL OR o.delivery_type = 'courier')
           AND h.id IS NULL
           AND sf.status NOT IN ('withdrawn', 'unfulfillable', 'delivered')
      ) p

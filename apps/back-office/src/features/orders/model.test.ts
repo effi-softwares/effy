@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { OrderPackage } from "./model";
-import { nextActionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor } from "./model";
+import {
+  deliveryChangeText, deliveryTypeText, nextActionFor, packageDeliveryText, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
+} from "./model";
 
 const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   statusView: null,
@@ -13,6 +15,8 @@ const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   status: "collected",
   itemCount: 2,
   subtotalAmount: "20.00",
+  // A carrier's package from an order placed before delivery types: who delivers is the SERVER's answer.
+  deliveredBy: "courier",
   deliveryMethod: "standard",
   handoff: null,
   arrival: null,
@@ -47,8 +51,38 @@ describe("nextActionFor — which control the operator is offered", () => {
 
   it("078 — offers nothing on a standard package that was sold a window: Effy delivers it", () => {
     const window = { startAt: "2026-10-09T16:00:00+11:00", endAt: "2026-10-09T18:00:00+11:00" };
-    expect(nextActionFor(pkg({ promisedDate: "2026-10-09", window }))).toBe("none");
+    expect(nextActionFor(pkg({ deliveredBy: "effy", promisedDate: "2026-10-09", window }))).toBe("none");
     expect(promiseTextFor(pkg({ promisedDate: "2026-10-09", window }))).toBe("Fri 9 Oct, 4 pm – 6 pm");
+  });
+
+  /**
+   * ⚠ 079 — WHO DELIVERS IS THE SERVER'S ANSWER. The console no longer works it out from the method
+   * and the window, so the two cases that used to need care here are simply what `deliveredBy` says:
+   * a paid Effy order moved to a courier keeps its window and IS handed over; an Effy package with
+   * no window recorded is not.
+   */
+  it("079 — follows `deliveredBy`, not the method or the window", () => {
+    const window = { startAt: "2026-10-09T16:00:00+11:00", endAt: "2026-10-09T18:00:00+11:00" };
+    expect(nextActionFor(pkg({ deliveredBy: "courier", window }))).toBe("handoff");
+    expect(nextActionFor(pkg({ deliveredBy: "courier", deliveryMethod: "same_day", window }))).toBe("handoff");
+    expect(nextActionFor(pkg({ deliveredBy: "effy", deliveryMethod: "standard", window: null }))).toBe("none");
+  });
+
+  it("079 — a package row says who delivers it, and the customer's word only where Effy does", () => {
+    expect(packageDeliveryText(pkg({ deliveredBy: "courier" }))).toBe("Courier delivery");
+    expect(packageDeliveryText(pkg({ deliveredBy: "effy", deliveryMethod: "same_day" }))).toBe("Delivered by Effy · Same-day");
+    expect(packageDeliveryText(pkg({ deliveredBy: "effy", deliveryMethod: "standard" }))).toBe("Delivered by Effy · Standard");
+    expect(packageDeliveryText(pkg({ deliveredBy: "effy", deliveryMethod: null }))).toBe("Delivered by Effy");
+  });
+
+  it("079 — an order's delivery type and its changes, in the customer's two names", () => {
+    expect(deliveryTypeText("effy")).toBe("Delivered by Effy");
+    expect(deliveryTypeText("courier")).toBe("Courier delivery");
+    expect(deliveryTypeText(null)).toBe("—");
+    const at = "2026-10-09T03:00:00Z";
+    expect(deliveryChangeText({ from: null, to: "courier", reason: "out_of_coverage", actor: { kind: "checkout" }, note: null, at })).toBe("Courier delivery");
+    expect(deliveryChangeText({ from: "effy", to: "courier", reason: "staff_change", actor: { kind: "staff", sub: "s" }, note: null, at }))
+      .toBe("Delivered by Effy → Courier delivery");
   });
 
   it("offers an arrival once the handover is recorded", () => {
@@ -71,7 +105,7 @@ describe("nextActionFor — which control the operator is offered", () => {
 
   /** A same-day package is delivered by an Effy driver and never passes to a carrier. */
   it("offers no handover on a same-day package", () => {
-    expect(nextActionFor(pkg({ deliveryMethod: "same_day" }))).toBe("none");
+    expect(nextActionFor(pkg({ deliveredBy: "effy", deliveryMethod: "same_day" }))).toBe("none");
   });
 
   it("offers nothing while the package is still at its shop", () => {

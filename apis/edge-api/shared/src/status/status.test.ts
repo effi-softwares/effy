@@ -110,3 +110,47 @@ describe("reasonSeverity / reasonWords (073)", () => {
     expect(all.filter((r) => reasonSeverity(r) === "concern").sort()).toEqual(["cannot_meet_deadline", "not_cleared"]);
   });
 });
+
+/**
+ * 079 P15 — a courier order keeps the same nine words, and its journey never borrows an Effy one.
+ *
+ * ⚠ NOTHING IN `packageStatus` KNOWS WHO DELIVERS, and nothing needs to: the words follow what
+ * HAPPENED. A courier package is collected and checked in like any other, is handed to a carrier
+ * (which is what makes it "With carrier"), and is never put on a delivery round (which is the only
+ * thing that makes a package "Out for delivery"). These rows hold that as a fact about the function,
+ * so a later "tidy-up" that derives a word from the delivery type has something to fail.
+ */
+describe("packageStatus — a courier order's journey (079)", () => {
+  const journey: [string, Partial<PackageFacts>, string][] = [
+    ["being prepared", { shopStatus: "picking" }, "preparing"],
+    ["ready at the shop", { shopStatus: "ready_for_pickup" }, "ready"],
+    ["collected by an Effy driver", { shopStatus: "collected", collectionState: "picked_up", collectionDriver: "Ada" }, "with_driver"],
+    ["checked in at the hub", { shopStatus: "collected", collectionState: "picked_up", checkedInAtHub: true }, "at_hub"],
+    ["handed to the courier", { shopStatus: "collected", collectionState: "picked_up", checkedInAtHub: true, handedToCarrier: true }, "with_carrier"],
+    ["arrived", { shopStatus: "collected", checkedInAtHub: true, handedToCarrier: true, arrived: true }, "delivered"],
+  ];
+
+  it.each(journey)("%s → %s", (_what, facts, status) => {
+    expect(at(facts).status).toBe(status);
+  });
+
+  it("never reads Out for delivery at any step: it is never on a delivery round", () => {
+    expect(journey.map(([, facts]) => at(facts).status)).not.toContain("out_for_delivery");
+  });
+
+  it("With carrier names no driver", () => {
+    expect(at({ shopStatus: "collected", collectionState: "picked_up", collectionDriver: "Ada", checkedInAtHub: true, handedToCarrier: true }))
+      .toEqual({ status: "with_carrier", word: "With carrier", detail: null, driverName: null });
+  });
+
+  it("an Effy later-day package — never handed to a carrier — never reads With carrier", () => {
+    const steps: Partial<PackageFacts>[] = [
+      { shopStatus: "collected", collectionState: "picked_up" },
+      { shopStatus: "collected", collectionState: "picked_up", checkedInAtHub: true },
+      { shopStatus: "collected", checkedInAtHub: true, deliveryState: "assigned", deliveryStopStatus: "pending" },
+      { shopStatus: "collected", checkedInAtHub: true, deliveryState: "assigned", deliveryStopStatus: "en_route", deliveryDriver: "Bo" },
+      { shopStatus: "delivered", arrived: true },
+    ];
+    expect(steps.map((f) => at(f).status)).toEqual(["with_driver", "at_hub", "at_hub", "out_for_delivery", "delivered"]);
+  });
+});

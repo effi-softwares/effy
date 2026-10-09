@@ -73,6 +73,16 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class CheckoutWindowsUnavailable(reason: String) :
         AnalyticsEvent("checkout_windows_unavailable", mapOf("reason" to reason))
 
+    // 079 — who delivers. ⚠ THE TYPE AND WHY, AND NOTHING ELSE — never a postcode, an address or the
+    // estimate. The same names and props as customer-web's. Declared, not emitted, like the rest of
+    // this app's commerce taxonomy.
+    /** `type`: `effy` | `courier`. `reason`: `in_coverage` | `out_of_coverage` | `no_window`. */
+    class CheckoutDeliveryTypeShown(type: String, reason: String) :
+        AnalyticsEvent("checkout_delivery_type_shown", mapOf("type" to type, "reason" to reason))
+
+    /** The server refused a payment because who delivers was not what the screen showed. */
+    data object CheckoutDeliveryTypeChanged : AnalyticsEvent("checkout_delivery_type_changed", emptyMap())
+
     // 077 — the delivery fee. ⚠ THREE BOOLEANS, NEVER AN AMOUNT: a fee joined to a session says how
     // far from the hub someone lives. The same names and props as customer-web's. Declared, not
     // emitted, like the rest of this app's commerce taxonomy.

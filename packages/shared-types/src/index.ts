@@ -32,6 +32,8 @@ export * from "./delivery-fee";
 export * from "./delivery-window";
 // 078-effy-delivery-windows — the window picker as words, shared with the customer app
 export * from "./effy-windows";
+// 079-effy-vs-courier-checkout — who delivers an order, and the one wording every surface uses for it
+export * from "./delivery-type";
 // 073 — where a package is, in nine words, shared by every staff screen.
 export * from "./package-status";
 export * from "./delivery-admin";

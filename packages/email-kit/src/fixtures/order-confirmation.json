@@ -1,8 +1,10 @@
 {
   "orderNumber": "EFY-HVX2AE",
   "placedAt": "26 August 2026 at 2:14 pm",
+  "deliveryLabel": "Arriving",
   "deliveryEstimate": "Today",
   "deliveryMethod": "Same-day",
+  "deliveryPreheader": "Arriving today.",
   "items": [
     {
       "name": "Organic bananas",
@@ -162,7 +164,16 @@
   "hasDeliveryFee": true,
   "deliveryFee": "$8.00",
   "hasDeliveryLines": true,
-  "deliveryLines": [{"label": "Delivery", "amount": "$6.00"}, {"label": "Window surcharge", "amount": "$2.00"}],
+  "deliveryLines": [
+    {
+      "label": "Delivery",
+      "amount": "$6.00"
+    },
+    {
+      "label": "Window surcharge",
+      "amount": "$2.00"
+    }
+  ],
   "total": "$350.94",
   "hasPaymentMethod": true,
   "paymentMethod": "Visa ending 4242",

@@ -137,7 +137,7 @@
   </head>
   <body style="word-spacing:normal;background-color:#f5f5f5;">
     
-    <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">Arriving {{deliveryEstimate}}.</div>
+    <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">{{deliveryPreheader}}</div>
   
     
       <div
@@ -319,7 +319,7 @@
                   
       <div
          style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:14px;font-weight:400;line-height:21px;text-align:left;color:#5c6b86;"
-      >Arriving</div>
+      >{{deliveryLabel}}</div>
     
                 </td>
               </tr>
@@ -331,7 +331,7 @@
                   
       <div
          style="font-family:'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:16px;font-weight:600;line-height:24px;text-align:left;color:#0b1220;"
-      >{{deliveryEstimate}} &middot; {{deliveryMethod}}</div>
+      >{{deliveryEstimate}}{{#if deliveryMethod}} &middot; {{deliveryMethod}}{{/if}}</div>
     
                 </td>
               </tr>

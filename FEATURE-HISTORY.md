@@ -4,8 +4,48 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**078-effy-delivery-windows — Effy Delivery Windows: today and the next delivery days.** ✅ **MIGRATED AND
-DEPLOYED TO DEV (2026-10-09, reported by the operator). ⚠ NOT WALKED BY A PERSON — V1–V10 remain — AND
+**079-effy-vs-courier-checkout — Checkout & Orders: Delivered by Effy vs Courier delivery.** ⚠ **BUILT AND
+CHECKED BY MACHINE (2026-10-09). NOT MIGRATED, NOT DEPLOYED, NOT WALKED — and it rides 078's switch, so
+nothing a customer sees changes until the cutover.** Fifth slice of the delivery model v2 programme
+([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E5).
+Sign-off notes: [specs/079-effy-vs-courier-checkout/SIGNOFF.md](specs/079-effy-vs-courier-checkout/SIGNOFF.md).
+
+- **What it is.** Every order has ONE delivery type, decided from the address: **Delivered by Effy**
+  (078's window picker, Effy's fee) or **Courier delivery** (no picker, the business's estimate said as
+  an estimate, the courier fee). The order records its type, why, the estimate as sold, and an
+  append-only history. Customers read one wording everywhere; shops read "Effy driver" / "Courier";
+  back-office filters by type and sees the history.
+- **Courier is promised only where it can be sold.** The condition moved INTO `coverage_for_postcode`
+  (model on + courier on + fee table + estimate). `COURIER_ORDERING_AVAILABLE` is deleted. Courier can be
+  armed before the cutover and stays dormant.
+- **Deviations from the backlog** (recorded there): no backfill (`order.delivery_type` NULL = legacy, read
+  through `public.package_delivered_by`); a courier package is stored `standard`/no window; the same-day
+  bridge, the compatibility `feeAmount` and the "N of your M" sentence moved to **E9** (today's live
+  checkout reads them); the receipt email and the web receipt pill keep their existing Effy wording so
+  nothing visible changes on release.
+- ⚠ **Shops' wording DOES change on release**, switch or no switch: every shop screen says "Effy driver"
+  / "Courier". The shop app also stops printing a constant "standard" it had been showing as the service
+  level.
+- **Defects found while building, outside the feature:**
+  - ⚠ **`recordArrival` / `recordHandoff` raced** (`orders`): the row lock and the "already recorded?"
+    read were one statement, so a second caller that waited saw the updated package beside a stale join
+    and was REFUSED instead of replayed. 078 had seen the test "flake under load". Fixed: lock first,
+    then read.
+  - ⚠ **`shop/src/attention/repository.ts` `recipientsForShop` names columns that do not exist**
+    (`shop_staff_role.shop_staff_id` / `shop_role_id`, `shop_role.id` / `name`; the schema has
+    `staff_id` / `role_key` and `shop_role.key`). Its container test has been red since before 078.
+    **NOT fixed here** — it changes who is sent shop notifications, and is the operator's call.
+  - `orders/service.ts` counted an Effy later-day package as "awaiting handover" on the order page (it
+    had missed 078's rule) — fixed by the one function.
+  - `shop/orders` paging test expected oldest-first after the default became newest-first (2026-09-19)
+    — test fixed.
+- **Operator steps (dev):** `make db-up ENV=dev` (one additive migration — safe first), then
+  `make edge-deploy` for `notifications`, `commerce`, `storefront`, `orders`, `shop`, `admin`; web builds
+  on push; customer and shop mobile builds. **Leave the model switch NULL.** Walks V1–V11 in
+  [quickstart.md](specs/079-effy-vs-courier-checkout/quickstart.md).
+
+**078-effy-delivery-windows — Effy Delivery Windows: today and the next delivery days.** ✅ **SIGNED OFF BY THE
+OPERATOR (2026-10-09) — MIGRATED AND DEPLOYED TO DEV. ⚠ Walks V1–V10 were not recorded — AND IT IS
 STILL SWITCHED OFF.** Fourth
 slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E4).

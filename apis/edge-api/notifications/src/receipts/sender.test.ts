@@ -5,7 +5,7 @@ import { formatArrival } from "@effy/shared-types";
 import { describe, expect, it } from "vitest";
 
 import type { ReceiptArrivalRow } from "./repository";
-import { arrivalText, deliveryLinesVars } from "./sender";
+import { arrivalText, deliveryLinesVars, deliveryVars } from "./sender";
 
 /**
  * 069 — the emailed receipt says when the order arrives in the SAME WORDS as the confirmation page.
@@ -120,5 +120,40 @@ describe("077 — deliveryLinesVars", () => {
 
   it("a kind this build does not know is dropped, never printed as a code", () => {
     expect(deliveryLinesVars([{ kind: "surge", amount: "9.00" }], "AUD").deliveryLines).toEqual([]);
+  });
+});
+
+describe("deliveryVars — 079: who delivers decides what the receipt says", () => {
+  const now = new Date("2026-10-08T09:00:00+11:00");
+  const window = {
+    method: "same_day", promised_from: "2026-10-08", promised_to: "2026-10-08",
+    window_start: new Date("2026-10-08T17:00:00+11:00"), window_end: new Date("2026-10-08T19:00:00+11:00"),
+  };
+  // ⚠ What a courier order's packages actually hold: "standard", no day, no window — routing.
+  const routed = { method: "standard", promised_from: null, promised_to: null, window_start: null, window_end: null };
+
+  it("a courier order: the two shared sentences, no method word, and the estimate it was SOLD", () => {
+    const v = deliveryVars({ delivery_type: "courier", courier_estimate: "2–4 business days" }, [routed, routed], now);
+    expect(v).toEqual({
+      deliveryLabel: "Courier delivery",
+      deliveryEstimate: "Delivered by a courier partner. Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+      deliveryMethod: "",
+      deliveryPreheader: "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
+    });
+    // Never the package's routing word, a day, or "a date we'll confirm".
+    expect(Object.values(v).join(" ")).not.toMatch(/standard|same-day|confirm|today|tomorrow|multiple/i);
+  });
+
+  it("an Effy order reads exactly as it did before 079", () => {
+    expect(deliveryVars({ delivery_type: "effy", courier_estimate: null }, [window, window], now)).toEqual({
+      deliveryLabel: "Arriving", deliveryEstimate: "today, 5 pm – 7 pm", deliveryMethod: "Same-day", deliveryPreheader: "Arriving today, 5 pm – 7 pm.",
+    });
+  });
+
+  it("an order placed before 079 has no delivery type and reads as it always has", () => {
+    expect(deliveryVars({}, [routed], now)).toEqual({
+      deliveryLabel: "Arriving", deliveryEstimate: "a date we'll confirm", deliveryMethod: "Standard", deliveryPreheader: "Arriving a date we'll confirm.",
+    });
+    expect(deliveryVars({ delivery_type: null, courier_estimate: null }, [window], now).deliveryLabel).toBe("Arriving");
   });
 });

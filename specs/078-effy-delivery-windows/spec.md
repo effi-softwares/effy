@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-08
 
-**Status**: Done — migrated and deployed to dev 2026-10-09 (operator-reported); switched off until the cutover
+**Status**: Signed off 2026-10-09 — migrated and deployed to dev (operator-reported); switched off until the cutover
 
 **Input**: "Effy Delivery Windows: today and the next three days. When an order is 'Delivered by
 Effy', the customer chooses a delivery time window. The business defines the daily windows (start

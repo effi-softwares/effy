@@ -20,6 +20,7 @@
  */
 
 import type { WireInt } from "./cart"
+import type { DeliveredBy } from "./delivery-type"
 
 // ── Today: the live operational snapshot ────────────────────────────────────────────────────────
 
@@ -84,6 +85,9 @@ export interface ShopLiveOrderDTO {
   paidAt: string
   /** Units on THIS shop's lines. */
   itemCount: WireInt
+  /** 079 — who takes this package away. The only thing a shop is told about delivery. */
+  deliveredBy: DeliveredBy
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   /**
    * ⚠ The ORDER's total — the same figure the Orders list shows for this row (057 A3), which is why
@@ -282,6 +286,9 @@ export interface ShopPickListDTO {
   orderNumber: string
   customerName: string
   paidAt: string
+  /** 079 — who takes this package away. The only thing a shop is told about delivery. */
+  deliveredBy: DeliveredBy
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   lines: Array<{ name: string; sku: string | null; quantity: WireInt }>
 }

@@ -30,6 +30,7 @@ describe("parseListQuery — the wire is optional, the query never is", () => {
       attention: "any",
       payment: "any",
       method: "any",
+      deliveredBy: "any",
       range: "any",
       sort: "placed",
       dir: "desc",

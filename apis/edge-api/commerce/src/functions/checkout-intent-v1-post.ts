@@ -57,6 +57,14 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     deliveryWindow = { slotId: w.slotId, date: w.date };
   }
 
+  // 079 — the delivery type the client is showing. Absent means it said nothing (a client built
+  // before 079, which can then only buy an Effy delivery).
+  const rawType: unknown = body.deliveryType;
+  if (rawType !== undefined && rawType !== null && rawType !== "effy" && rawType !== "courier") {
+    return validationFailed(scope, "deliveryType must be effy or courier");
+  }
+  const deliveryType = rawType === "effy" || rawType === "courier" ? rawType : null;
+
   // 066 — refused BEFORE anything is written. ⚠ The refusal names the field and the rule and never
   // the value: a note can hold a gate code, and a validation error is exactly what gets logged.
   const instructions = normaliseDeliveryInstructions(body.deliveryInstructions);
@@ -70,7 +78,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     const result = await checkoutService.createIntent(
       customer.id,
       {
-        addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate, deliveryWindow,
+        addressId, billingAddressId, deliveryMethod, sameDaySlotId, standardDate, deliveryWindow, deliveryType,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
         shownDeliveryAmount,
       },

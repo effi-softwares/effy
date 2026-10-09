@@ -28,10 +28,14 @@ controls** any more.
   keep their 047 names until E9. A group's `status` no longer decides coverage; removing a group never
   removes its postcodes.
 - ⚠ **Two frozen bridges keep the live checkout selling**, each removed by the epic named: the same-day
-  flag (**E5**), and driver clearances keyed on the group — an **ungrouped postcode is deliverable only
+  flag (**E9** — moved from E5 by 079: today's checkout still reads it), and driver clearances keyed on the group — an **ungrouped postcode is deliverable only
   by an every-zone driver** (**E8**). (The fee-tier bridge went with **077**; the tiers are dropped.)
-- ⚠ **Courier delivery cannot be switched on** while `COURIER_ORDERING_AVAILABLE` is `false`
-  (`@effy/edge-shared/delivery`); E5 flips it in the change that makes a courier order placeable.
+- ⚠ **"COURIER" MEANS A COURIER ORDER CAN BE PLACED THERE NOW (079).** `coverage_for_postcode` answers
+  `courier` only when the new delivery model is on (`delivery_model_v2_at`), courier delivery is on, a
+  courier fee table is active and an estimate text is set — `public.courier_reaches_postcode` /
+  `courier_delivery_state` are the one definition. The `COURIER_ORDERING_AVAILABLE` constant is **gone**.
+  So courier delivery can be armed in back-office before the cutover and promises nobody anything until
+  the switch (the console says "starts with the new delivery model").
 - ⚠ **The refusal is ONE sentence in ONE file** — `COVERAGE_REFUSAL_SENTENCE` in
   `packages/shared-types/src/delivery.ts`, mirrored in the customer app's `CoverageWords.kt` and held
   to it by a test. `coverage.guard.test.ts` fails a second wording, a customer contract that carries a
@@ -61,7 +65,7 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   plan's **fixed "Delivery today" surcharge** — the method multiplier is gone. The order stores its
   breakdown (`delivery_fee_breakdown`; customers get `->'lines'` only); the intent refuses a total the
   client did not show (409 `delivery_fee_changed`). Per-package `feeAmount` on the quote is compatibility
-  only (E5 removes it). A shop never sees delivery money.
+  only (E9 removes it, with the checkout that reads it). A shop never sees delivery money.
 - **A same-day order is sold a TIME WINDOW; a standard order a DAY (069).** Back-office defines daily
   **slots** (start, end, cutoff, capacity). ⚠ **Same-day is offered only while a slot is open** — its
   cutoff has not passed, it has room, and a collection run can still reach the hub before it starts —
@@ -88,9 +92,28 @@ Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one
   - ⚠ **ONE WINDOW RULE**: `judgeWindow(now, date, …)` in `slots.ts` (cutoff every day; collection
     TODAY only; room per `(slot, date)` — `delivery_slot_load` was always per day). The quote, the hold
     and 069's `judgeSlot` all call it. The calendar is `effyDays` / `openWindows` (`windows.ts`).
-  - ⚠ **A `standard` package WITH a window (`slot_id`) is delivered by EFFY**; without one it is a
-    carrier's. Carrier handover (`not_carrier`), the handover list, the orders list's "needs handover"
-    and the on-time check all read the window, not the method. E5's `delivery_type` makes it a column.
+  - ⚠ **WHO DELIVERS IS `order.delivery_type` (`effy` | `courier`, 079) — read through
+    `public.package_delivered_by(type, method, slot)`**, which also answers for every order placed before
+    079 (NULL type, never backfilled: same-day or sold a window = Effy, else a carrier's). Carrier
+    handover, the handover list, "needs handover", the on-time check, the shop's label and the back-office
+    column all call it (`deliveredBySql` / `fulfilmentDeliveredBySql`); `delivery-type.guard.test.ts` fails
+    a reader that decides from `slot_id` again. ⚠ A courier package is stored `standard`, no window, no
+    day — that word is ROUTING; a courier order's customer DTO carries `delivery` and **empty**
+    `arrivalEstimates`.
+  - ⚠ **THE TYPE'S HISTORY HAS ONE WRITER** — `recordDeliveryType` (`shared/src/delivery/delivery-type.ts`):
+    payment finalisation writes the first entry; E7 will write staff changes through it. Append-only
+    (`order_delivery_type_change`).
+  - ⚠ **THE CLIENT SAYS WHICH TYPE IT SHOWED** (`deliveryType` on the intent); a mismatch — or a courier
+    quote answered without it — is 409 `delivery_type_changed`, nothing written. The quote's `courier`
+    block is present exactly when `coverage === "courier"`. Offered to an in-area address only when no
+    window is open AND `delivery_settings.courier_when_no_windows` (off by default).
+  - ⚠ **ONE WORDING**: `DELIVERY_TYPE_WORDS` / `courierLines` / `deliverySummary`
+    (`packages/shared-types/src/delivery-type.ts`), Kotlin twins pinned to `delivery-type.fixtures.json`.
+    The estimate is ALWAYS said as an estimate; an order keeps the text it was sold
+    (`order.courier_estimate`).
+  - ⚠ **SHOPS ARE TOLD "Effy driver" / "Courier" AND NOTHING ELSE** (`deliveredBy`, `DELIVERED_BY_WORDS`).
+    "Same-day" / "standard" are the CUSTOMER'S words: `scripts/check-shop-delivery-words.sh` fails one on
+    a shop screen. `deliveryMethod` stays on the shop wire, deprecated, until E9.
   - ⚠ **The picker's words are `effyWindowsView`'s** (`packages/shared-types/src/effy-windows.ts`) and
     its Kotlin twin, both pinned to `effy-windows.fixtures.json`; the sentences are
     `DELIVERY_WINDOW_WORDS`. ⚠ An order's arrivals are said once per DISTINCT promise
@@ -476,7 +499,8 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — deployed to dev, switched off until the cutover
+- **079-effy-vs-courier-checkout** — Checkout & Orders: Delivered by Effy vs Courier delivery — built, checked by machine; not migrated or deployed; rides 078's switch
+- **078-effy-delivery-windows** — Effy Delivery Windows: today + the next delivery days — signed off, deployed to dev, switched off until the cutover
 - **077-delivery-fee-engine-v2** — Delivery Fee Engine v2 (one fee per order; Pricing tab) — deployed to dev
 - **076-effy-delivery-coverage** — Effy Delivery Coverage (one postcode list, one answer per address)
 - **075-staff-gateway** — A Second Front Door for Back-Office (the staff gateway)
@@ -532,5 +556,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/078-effy-delivery-windows/plan.md
+at specs/079-effy-vs-courier-checkout/plan.md
 <!-- SPECKIT END -->

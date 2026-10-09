@@ -98,10 +98,18 @@ export function isLegalTransition(from: FulfillmentStatus, to: FulfillmentStatus
   return (LEGAL_TRANSITIONS.get(from) ?? []).includes(to);
 }
 
-/** Read-only here; owned by 021 (FR-009a). Says nothing about WHO delivers (FR-002a, SC-021). */
+/**
+ * Read-only here; owned by 021 (FR-009a).
+ *
+ * ⚠ 079 — it now says WHO TAKES THE PACKAGE AWAY, as one of two words: an Effy driver or a courier.
+ * That is the whole of it. 020's rule stands in spirit: no driver's name, no courier company, no
+ * tracking reference, nothing that models delivery execution (FR-002a, SC-021).
+ */
 export interface DeliveryPromise {
   serviceLevel: string;
   readyBy: Date;
+  /** Absent only where a caller derives a promise without a fulfilment to ask about. */
+  deliveredBy?: "effy_driver" | "courier";
 }
 
 /** A row in the shop's queue. Counts are THIS shop's portion only — never the order's totals. */

@@ -6,7 +6,7 @@ import {
   countsAsRefundedToCustomer, customerCancellable, customerRefundState, formatCents, imageUrlOrNull,
   operatingStamp, parseCents, stageFor, type RequestScope,
 } from "@effy/edge-shared";
-import { distinctArrivals, type CustomerRefundDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
+import { distinctArrivals, type CustomerRefundDTO, type OrderDeliveryDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
 import type { OrderRow, OrdersRepository, RefundRow } from "./repository";
@@ -76,6 +76,16 @@ export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_a
   };
 }
 
+/**
+ * 079 — who delivers the order, as the customer contract carries it: the type, and a courier's
+ * timeframe AS SOLD (the order's own copy — never today's setting). ABSENT on an order placed before
+ * 079, which has no delivery type; every surface prints the result through `deliverySummary`.
+ */
+function deliveryOf(row: { delivery_type?: "effy" | "courier" | null; courier_estimate?: string | null }): { delivery?: OrderDeliveryDTO } {
+  if (!row.delivery_type) return {};
+  return { delivery: { type: row.delivery_type, courierEstimate: row.delivery_type === "courier" ? row.courier_estimate ?? null : null } };
+}
+
 export function createOrdersService(deps: { repo: OrdersRepository; presign?: Presign }) {
   const { repo } = deps;
   const presign = deps.presign ?? imageUrlOrNull;
@@ -95,6 +105,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
       return (await repo.list(customerId)).map((r) => ({
         id: r.id, orderNumber: r.order_number, status: r.status as OrderSummaryDTO["status"], placedAt: r.placed_at,
         itemCount: r.item_count, grandTotalAmount: r.grand_total_amount, currency: r.currency,
+        ...deliveryOf(r),
       }));
     },
 
@@ -169,11 +180,15 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
         // Always an array. ⚠ Dates stay dates; a window carries the Melbourne offset (069 FR-029).
         // ⚠ 078 — one entry per DISTINCT promise, never one per package: an order delivered in one
         // window is one delivery, however many suppliers filled it.
-        arrivalEstimates: distinctArrivals(arrivals.map((a) => ({
+        // ⚠ 079 — EMPTY for a courier order. It has no window and no day, and its packages' own
+        // word for the delivery is routing ("standard"), not what the customer was sold: sent on, a
+        // client built before 079 would print "Standard delivery" for a parcel a courier is carrying.
+        arrivalEstimates: row.delivery_type === "courier" ? [] : distinctArrivals(arrivals.map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
           windowStart: a.window_start ? operatingStamp(a.window_start) : null,
           windowEnd: a.window_end ? operatingStamp(a.window_end) : null,
         }))),
+        ...deliveryOf(row),
       };
       return order as unknown as OrderDTO;
     },

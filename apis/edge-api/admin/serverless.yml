@@ -914,7 +914,7 @@ functions:
 
   deliveryCoverageCourierV1:
     handler: src/functions/delivery-coverage-courier-v1-put.handler
-    description: Switch courier delivery on or off — 076
+    description: Courier delivery on or off, its estimate and the no-window fallback — 076, 079
     events:
       - httpApi:
           method: PUT

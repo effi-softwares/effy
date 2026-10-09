@@ -10,6 +10,9 @@ export interface SummaryRow {
   item_count: number;
   grand_total_amount: string;
   currency: string;
+  /** 079 — who delivers the order, and a courier's timeframe as sold. Both null before 079. */
+  delivery_type?: "effy" | "courier" | null;
+  courier_estimate?: string | null;
 }
 
 export interface OrderRow {
@@ -39,6 +42,12 @@ export interface OrderRow {
   points_used?: number;
   points_value_amount?: string;
   card_paid_amount?: string | null;
+  /**
+   * 079 — who delivers the order, and a courier's timeframe as it was SOLD. Both null on an order
+   * placed before 079. ⚠ Never the reason: a customer is told who delivers, not why (076 FR-023).
+   */
+  delivery_type?: "effy" | "courier" | null;
+  courier_estimate?: string | null;
 }
 
 export interface ItemRow {
@@ -110,7 +119,8 @@ export function createOrdersRepository(db: Queryable = pooled): OrdersRepository
 SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.placed_at::text AS placed_at,
        COALESCE((SELECT SUM(quantity) FROM public.order_item WHERE order_id = o.id), 0)::int AS item_count,
-       o.grand_total_amount::text AS grand_total_amount, o.currency AS currency
+       o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
+       o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate
 FROM public."order" o
 WHERE o.customer_id = $1
 ORDER BY o.created_at DESC`,
@@ -133,7 +143,8 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
        (SELECT status FROM public.payment WHERE order_id = o.id) AS payment_status,
        o.points_used AS points_used, o.points_value_amount::text AS points_value_amount,
-       (SELECT amount::text FROM public.payment WHERE order_id = o.id) AS card_paid_amount
+       (SELECT amount::text FROM public.payment WHERE order_id = o.id) AS card_paid_amount,
+       o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate
 FROM public."order" o
 WHERE o.id = $1 AND o.customer_id = $2`,
             [orderId, customerId],

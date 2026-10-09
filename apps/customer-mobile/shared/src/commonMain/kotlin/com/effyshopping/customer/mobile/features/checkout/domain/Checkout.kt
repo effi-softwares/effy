@@ -197,6 +197,12 @@ data class Receipt(
     val deliveryInstructions: DeliveryInstructions? = null,
     val grandTotalAmount: String,
     val currency: String,
+    /**
+     * 079 — who delivers the order, and a courier's timeframe as it was SOLD. Null for an order placed
+     * before orders had a delivery type. ⚠ For a courier order [arrivalEstimates] is empty: say it
+     * through `deliverySummary`, never from a package's own method.
+     */
+    val delivery: OrderDelivery? = null,
     /** 052 — when the order was placed, pre-formatted by the mapper. Empty when unknown. */
     val placedAt: String = "",
     /** 052 — server-derived progress (FR-008). */
@@ -296,6 +302,13 @@ data class PlaceOrder(
      * are not. ⚠ Never substituted: a window that has gone is a [DeliveryChoiceRefused].
      */
     val deliveryWindow: ChosenWindow? = null,
+    /**
+     * 079 — who delivers the order, as this screen is SHOWING it ([DeliveryQuote.deliveryType]). A
+     * courier order is refused without it, and so is one that says "courier" for an address Effy now
+     * delivers to ([DeliveryChoiceRefusal.DeliveryTypeChanged]) — nobody pays a courier fee for a
+     * screen that showed Effy's windows. Null under the checkout that predates delivery types.
+     */
+    val deliveryType: DeliveryType? = null,
     /** 074 — whole points to pay with; 0 for none. The server re-decides the split and refuses rather than changes it. */
     val pointsToUse: Long = 0,
     /**
@@ -409,6 +422,23 @@ data class EffyWindows(val days: List<EffyDay>, val unavailable: WindowsUnavaila
     fun dayOffset(date: String): Int = days.indexOfFirst { it.date == date }
 }
 
+/** 079 — who delivers an order. One per order, whatever number of suppliers fill it. */
+enum class DeliveryType { EFFY, COURIER }
+
+/**
+ * 079 — what a courier order is told and charged. There is NOTHING to choose: no window, no day.
+ *
+ * ⚠ [estimate] is the business's text ("2–4 business days") and is an ESTIMATE: it is only ever
+ * printed through `courierLines` (DeliveryTypeWords.kt), which says so.
+ *
+ * [noWindowLeft]: the address IS one Effy delivers to, but no window is left and the business sends
+ * such an order by courier — the shopper is told there are no windows FIRST, then offered this.
+ */
+data class CourierDelivery(val estimate: String, val fee: DeliveryFee, val noWindowLeft: Boolean)
+
+/** 079 — who delivers a PLACED order, and a courier's timeframe as it was sold. */
+data class OrderDelivery(val type: DeliveryType, val courierEstimate: String?)
+
 /** Why same-day is not on offer (069 FR-004) — two different sentences to a shopper. */
 enum class SameDayUnavailable { NotEligible, SlotsClosed }
 
@@ -449,7 +479,22 @@ data class DeliveryQuote(
     val freeDeliveryRemainingAmount: String? = null,
     /** 078 — the new model's windows; null while it is off, and then everything above is the 069 quote. */
     val effyWindows: EffyWindows? = null,
+    /** 079 — set exactly when a courier delivers the order; then nothing above is there to choose. */
+    val courier: CourierDelivery? = null,
 ) {
+    /**
+     * 079 — who delivers the order this quote is for: a courier, Effy under the new delivery model,
+     * or null under the checkout that predates it. ⚠ THE QUOTE SAYS, and the same value is sent back
+     * on the intent — the same rule as customer-web's `deliveryTypeOf`.
+     */
+    val deliveryType: DeliveryType?
+        get() = when {
+            !serviced -> null
+            courier != null -> DeliveryType.COURIER
+            effyWindows != null -> DeliveryType.EFFY
+            else -> null
+        }
+
     /** Some deliveries can go today and some cannot. */
     val mixed: Boolean get() = sameDayAvailable && sameDayDeliveries < deliveries
 
@@ -460,6 +505,8 @@ data class DeliveryQuote(
      */
     fun feeFor(method: DeliveryMethod, slotId: String?, window: ChosenWindow? = null): DeliveryFee? {
         if (!serviced) return null
+        // 079 — a courier delivers: ONE fee, already decided, whatever else is (not) chosen.
+        if (courier != null) return courier.fee
         // 078 — the new model: the chosen window's fee, and nothing to show until there is a window.
         if (effyWindows != null) return effyWindows.find(window)?.fee
         if (method != DeliveryMethod.SAME_DAY || !sameDayAvailable) return standardFee
@@ -472,7 +519,12 @@ data class DeliveryQuote(
 }
 
 /** Why the server refused a checkout over the delivery choice (069). */
-enum class DeliveryChoiceRefusal { SlotRequired, SlotUnavailable, DateUnavailable, NoWindowsAvailable }
+enum class DeliveryChoiceRefusal {
+    SlotRequired, SlotUnavailable, DateUnavailable, NoWindowsAvailable,
+
+    /** 079 — who delivers is not what the screen showed. Nothing was written or charged. */
+    DeliveryTypeChanged,
+}
 
 /**
  * The checkout was refused because the slot or day the shopper chose cannot be honoured (069 FR-009).
@@ -530,6 +582,8 @@ data class OrderSummary(
     val itemCount: Int,
     val grandTotalAmount: String,
     val currency: String,
+    /** 079 — who delivers it; null for an order placed before orders had a delivery type. */
+    val delivery: OrderDelivery? = null,
 )
 
 interface OrdersRepository {

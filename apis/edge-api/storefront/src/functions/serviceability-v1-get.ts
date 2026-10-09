@@ -4,8 +4,9 @@
 // and the staff checker also ask — so the up-front answer and the checkout cannot disagree (076
 // FR-020). `coverage` says who delivers; no reason, group or distance goes with it (FR-023).
 //
-// `serviced` stays for clients released before 076. It means "an order can be placed there today":
-// true only for Effy's own delivery until the courier checkout exists.
+// `serviced` stays for clients released before 076. It means "an order can be placed there now":
+// Effy delivers, or (079) a courier order can be placed — the coverage answer is "courier" only then,
+// so there is nothing for this route to second-guess.
 //
 // 077 — where Effy delivers, the answer also carries the basket OFFER: the free-delivery amount and
 // the small-order fee. They depend on the basket alone, so a cart can show "Spend $10 more for free
@@ -14,7 +15,7 @@ import {
   emitMetric, json, metricNamespace, pooled, preamble, shopperHandler, unavailable, ConnectionLimitError,
 } from "@effy/edge-shared";
 import {
-  COURIER_ORDERING_AVAILABLE, coverageForPostcode, loadActivePlan, normalizePostcode, offerDTO,
+  coverageForPostcode, loadActivePlan, normalizePostcode, offerDTO,
 } from "@effy/edge-shared/delivery";
 import type { DeliveryOfferDTO, ServiceabilityDTO } from "@effy/shared-types";
 
@@ -28,11 +29,7 @@ export const handler = shopperHandler(async (event, context) => {
   if (!postcode) return badRequest("invalid_postcode", scope.requestId);
 
   try {
-    const { kind } = await coverageForPostcode(pooled, postcode);
-    // A courier answer cannot be given before a courier order can be placed; the admin service
-    // will not switch courier delivery on until then, and this holds the line if the setting is
-    // ever changed by hand.
-    const coverage = kind === "courier" && !COURIER_ORDERING_AVAILABLE ? "none" : kind;
+    const { kind: coverage } = await coverageForPostcode(pooled, postcode);
     const serviced = coverage !== "none";
     emitMetric(metricNamespace(), "ServiceabilityChecks", 1, { serviced: String(serviced), coverage });
     const offer = coverage === "effy" ? await offerFor(scope) : null;

@@ -105,9 +105,9 @@ describe("the Orders list (057 A3)", () => {
 
   it("asks the server with the URL's filters, so search and filters compose", async () => {
     listOrders.mockResolvedValue(orderList([]))
-    wrap({ q: "maya", method: "same_day", payment: "refunded", tab: "picking" })
+    wrap({ q: "maya", deliveredBy: "courier", payment: "refunded", tab: "picking" })
     await screen.findByText(/No orders match/)
-    expect(listOrders).toHaveBeenCalledWith({ q: "maya", method: "same_day", payment: "refunded", tab: "picking" })
+    expect(listOrders).toHaveBeenCalledWith({ q: "maya", deliveredBy: "courier", payment: "refunded", tab: "picking" })
   })
 
   it("changing the tab returns to page one", async () => {
@@ -159,12 +159,12 @@ describe("the Orders list (057 A3)", () => {
 
   it("opens the Filters sheet: its selects, the count and Clear all — no Apply button", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()], { total: 47 }))
-    const { onSearchChange } = wrap({ range: "today", method: "same_day" })
+    const { onSearchChange } = wrap({ range: "today", deliveredBy: "courier" })
     await screen.findByRole("table")
     await userEvent.click(screen.getByRole("button", { name: /^Filters/ }))
     const sheet = await screen.findByRole("dialog")
     expect(within(sheet).getByText("Narrow the list down. Changes apply straight away.")).toBeInTheDocument()
-    for (const label of ["Date", "Payment", "Delivery"]) {
+    for (const label of ["Date", "Payment", "Goes with"]) {
       expect(within(sheet).getByLabelText(label)).toBeInTheDocument()
     }
     expect(within(sheet).getByText("Showing 1–1 of 47")).toBeInTheDocument()

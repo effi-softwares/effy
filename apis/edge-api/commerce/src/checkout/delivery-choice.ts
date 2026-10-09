@@ -3,7 +3,8 @@
  * Pure: every input is passed in, including the clock.
  */
 import {
-  METHOD_SAME_DAY, METHOD_STANDARD, offersSameDay, windowKey, type EffyWindowsQuote, type OpenSlot, type PricedFee, type QuoteResult,
+  METHOD_SAME_DAY, METHOD_STANDARD, offersSameDay, windowKey, type CourierQuote, type EffyWindowsQuote, type OpenSlot, type PackageInput,
+  type PricedFee, type QuoteResult,
 } from "@effy/edge-shared/delivery";
 import type { DeliveryChoiceRefusalCode } from "@effy/shared-types";
 
@@ -24,7 +25,8 @@ export class DeliveryChoiceError extends Error {
 /** Absent or unknown → standard. */
 export const preferredMethod = (m: string | undefined | null) => (m === METHOD_SAME_DAY ? METHOD_SAME_DAY : METHOD_STANDARD);
 
-type ServicedQuote = Extract<QuoteResult, { serviced: true }>;
+/** A quote Effy itself delivers — the only kind that has packages, slots, days or windows to choose. */
+type ServicedQuote = Extract<QuoteResult, { coverage: "effy" }>;
 
 /**
  * Apply the order-level preference per package — same-day where offered, standard elsewhere — and
@@ -115,4 +117,22 @@ export function resolveEffyWindow(
     shopId: p.shopId, method, promisedDay: day.date, slotId: slot.id, windowStart: slot.start, windowEnd: slot.end,
   }));
   return { packages, hold: { slotId: slot.id, date: day.date, now }, fee };
+}
+
+/**
+ * 079 — a courier order: nothing was chosen, so there is nothing to bind or to hold.
+ *
+ * Every package is recorded `standard` with no window and no day — the shape the platform already
+ * collects to the hub and hands to a carrier. ⚠ That word is ROUTING, not what the customer was
+ * sold: who delivers is the order's delivery type, and the customer reads "Courier delivery".
+ * ⚠ `hold` is null BY TYPE: a courier order never takes a place in an Effy window (FR-012).
+ */
+export function resolveCourier(q: CourierQuote, pkgs: readonly PackageInput[]): { packages: PackageDelivery[]; hold: null; fee: PricedFee } {
+  return {
+    packages: pkgs.map((p): PackageDelivery => ({
+      shopId: p.shopId, method: METHOD_STANDARD, promisedDay: "", slotId: null, windowStart: null, windowEnd: null,
+    })),
+    hold: null,
+    fee: q.fee,
+  };
 }

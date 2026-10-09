@@ -67,6 +67,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateMapOf
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 
 private sealed interface ReceiptUiState {
     data object Loading : ReceiptUiState
@@ -437,6 +438,29 @@ private fun StatusDot(tint: Color, dot: Color, label: String) {
  */
 @Composable
 private fun ArrivalSection(receipt: Receipt) {
+    // 079 — a courier delivers: no window and no day to state. Who delivers, and the ESTIMATE the
+    // order was sold, in the words the website prints. ⚠ Never the arrival estimates — a courier
+    // order has none, and "We'll confirm your delivery date" would be a promise nobody made.
+    val delivery = receipt.delivery
+    if (delivery?.type == DeliveryType.COURIER && delivery.courierEstimate != null) {
+        val (partner, estimate) = DeliveryTypeWords.courierLines(delivery.courierEstimate)
+        Column(modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md)) {
+            Text(
+                DeliveryTypeWords.COURIER,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(partner, style = MaterialTheme.typography.titleMedium)
+            Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(
+            stageLabel(receipt.stage),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xs),
+        )
+        return
+    }
     val arrival = receipt.arrivalEstimates.firstOrNull()
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
@@ -445,7 +469,8 @@ private fun ArrivalSection(receipt: Receipt) {
     ) {
         Column {
             Text(
-                "Arriving",
+                // An order Effy delivers says so; one placed before delivery types says "Arriving".
+                if (delivery?.type == DeliveryType.EFFY) DeliveryTypeWords.EFFY else "Arriving",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

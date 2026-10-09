@@ -87,7 +87,7 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 | E1 | 074 | Customer Points (store credit) | — |
 | E2 | 076 | Effy Delivery Coverage (postcode list) | — |
 | E3 | 077 | Delivery Fee Engine v2 | E2 |
-| E4 | 078 | Effy Delivery Windows: today + 3 days | E2 |
+| E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09 (switched off) | E2 |
 | E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) | E5 |
 | E7 | 081 | Back-Office Courier Override & Compensation | E1, E5, E6 |
@@ -125,7 +125,7 @@ Numbering assumes nothing else takes 074–082 first; renumber freely.
 > the basket's weight and value, and the window; the fee-tier bridge and the tier tables are gone; a
 > courier fee table exists and is charged to nobody yet.
 
-> **2026-10-09 — E4 (spec 078, Effy Delivery Windows) is built and deployed to dev, switched off**
+> **2026-10-09 — E4 (spec 078, Effy Delivery Windows) is signed off: built and deployed to dev, switched off**
 > (`specs/078-effy-delivery-windows/SIGNOFF.md`) — details under E4. **Next: E5 (spec 079).**
 
 ## E0 — Cleanup & decision record (no spec)
@@ -426,7 +426,7 @@ delivery fees. Fees include GST.
 
 ---
 
-## E4 — Effy Delivery Windows: today + 3 days · spec 078 — ✅ built 2026-10-08, deployed to dev 2026-10-09 (switched off)
+## E4 — Effy Delivery Windows: today + 3 days · spec 078 — ✅ signed off 2026-10-09 (deployed to dev, switched off)
 
 > **2026-10-08 — decided while specifying 078** (`specs/078-effy-delivery-windows/spec.md`):
 > - **Customer words stay "Same-day delivery" and "Standard delivery".** Same-day = today's windows
@@ -437,7 +437,8 @@ delivery fees. Fees include GST.
 > - **Built switched off; turned on at the cutover** (needs E8's hub dwell across days first).
 > - A later day's window closes at **that day's own cutoff** (no "day before" rule).
 >
-> **2026-10-09 — E4 (spec 078) is built, migrated and deployed to dev; the switch is off** (walks V1–V10 open)
+> **2026-10-09 — E4 (spec 078) is SIGNED OFF by the operator: built, migrated and deployed to dev; the
+> switch is off** (walks V1–V10 not recorded; the alarm apply, web builds and mobile build not confirmed)
 > (`specs/078-effy-delivery-windows/SIGNOFF.md`). What it leaves for later epics:
 > - **E5** — the per-shop same-day bridge is not consulted by the new path; delete it. Add
 >   `order.delivery_type`: today "a `standard` package WITH a window is Effy's" is a convention held
@@ -488,10 +489,10 @@ order was sold. Back-office sees, for each day and window, how full it is.
 *Data*
 - [x] E4-T01 `delivery_slot_booking` already has `delivery_date` — confirm capacity counting (`delivery_slot_load`) is per `(slot_id, delivery_date)`; fix if it counts today only.
 - [x] E4-T02 Settings: `effy_lookahead_days` (default 3), reuse `standard_no_delivery_weekdays` and `delivery_non_delivery_date` renamed to Effy semantics (rename in E9; alias now).
-- [ ] E4-T03 Retire `carrier_lead_days` — **kept**: it still drives the live day picker until the cutover (E9 drops it).
+- [x] E4-T03 ~~Retire `carrier_lead_days`~~ — **moved to E9-T08**: it still drives the live day picker until the cutover.
 *Shared library*
 - [x] E4-T04 `shared/src/delivery/slots.ts`: `openWindows(now, lookahead)` returns windows across today + N delivery days; today keeps the cutoff + collection-run reachability gate (`sameday.ts` logic moves here); future days gate on cutoff only (decide: cutoff the day before? — clarify).
-- [ ] E4-T05 Delete `standard-days.ts` — **kept** for the live path; the window calendar is `windows.ts` (E9 deletes the old file).
+- [x] E4-T05 ~~Delete `standard-days.ts`~~ — **moved to E9-T10**: kept for the live path; the window calendar is `windows.ts`.
 - [x] E4-T06 Holds: unchanged moment (payment-intent), keyed by date; tests for cross-day holds.
 - [x] E4-T07 Timezone tests (Melbourne) around midnight and DST change days.
 *Fleet service* (`apis/edge-api/fleet/src/slots`, `deliverydays`)
@@ -515,7 +516,41 @@ order was sold. Back-office sees, for each day and window, how full it is.
 
 ---
 
-## E5 — Checkout & Orders: Delivered by Effy vs Courier · spec 079
+## E5 — Checkout & Orders: Delivered by Effy vs Courier · spec 079 — ⚠ built 2026-10-09, not yet migrated or deployed
+
+> **2026-10-09 — E5 (spec 079) is BUILT and checked by machine; not migrated, deployed or walked**
+> (`specs/079-effy-vs-courier-checkout/SIGNOFF.md`). It rides 078's switch. What it leaves:
+> - **E6** — per-courier-service estimates (one platform text for now); courier timing proper (a courier
+>   order is simply due at the carrier the day it is placed); the driver app still says "Standard" at
+>   hub check-in; pickup from supplier.
+> - **E7** — `recordDeliveryType(tx, {orderId, actor: {kind:"staff", sub}, change})` is the one writer;
+>   reason `staff_change`; announce with `announceOrder` after commit. `package_delivered_by` already
+>   lets the order's type win over a package's window.
+> - **E8** — unchanged: the planner gathers `same_day` only, and "needs a driver" in the orders list
+>   still means same-day at the hub.
+> - **E9** — the three removals below; drop `deliveryMethod` / the `method` filter from the shop wire and
+>   `serviceLevel` from the queue contract; the readiness check should require courier to be either off
+>   or fully armed.
+>
+> **2026-10-09 — specified and planned (`specs/079-effy-vs-courier-checkout/plan.md`).** Settled by
+> default, for the operator to confirm: one switch shared with 078; the no-window courier fallback
+> (078 deferred it here) is in scope, off by default; one platform-wide estimate text until E6's
+> courier services; courier parcels go via the hub as "standard" does today until E6; old orders are
+> not relabelled for customers. Nothing in E5 changes a placed order's type — it builds the record E7
+> writes to. **Corrections to the tasks below, from planning:**
+> - **E5-T01** — no backfill: `order.delivery_type` NULL = placed before 079, read through
+>   `public.package_delivered_by`. Reasons are `in_coverage | out_of_coverage | no_window |
+>   staff_change` (`customer_choice` is E10's).
+> - **E5-T03** — the window stays on the package rows; nothing moves to the order.
+> - **E5-T04** — `delivery_method` is unchanged; a courier package is `standard` with no window.
+>   Shops read `deliveredBy`.
+> - **E5-T06** — the existing `serviced` / `coverage` discriminants are kept; a courier variant is added.
+> - **E5-T07/T08** — no code change expected: `packageStatus` and completion already give the courier
+>   path; tests added. **E5-T09** — nothing changes a placed order here; E7 announces.
+> - **E5-T15** — not applicable: shop insights never read the method.
+> - **"Flip `COURIER_ORDERING_AVAILABLE`"** became: delete it; `coverage_for_postcode` itself answers
+>   courier only when a courier order can be placed (model on, courier on, fee table, estimate).
+> - The same-day bridge, the compatibility `feeAmount` and the "N of your M" sentence → **E9**.
 
 **Goal.** Every order is either "Delivered by Effy" (with a window) or "Courier delivery" (no
 window). Checkout, the order record, status, receipts and every app speak this one language.
@@ -532,78 +567,86 @@ back-office display, telemetry.
 - Every app, email and receipt shows the same delivery-type words.
 - The order keeps a history of every delivery-type change, with who and why.
 
-**`/speckit-specify` prompt**
+**`/speckit-specify` prompt** — *amended 2026-10-09 for 078's decisions: the customer words "Same-day
+delivery" / "Standard delivery" stay (only shops lose them), out-of-area says "delivered by a courier
+partner", and the feature is built switched off.*
 
 ```
 /speckit-specify Checkout and Orders: Delivered by Effy vs Courier delivery. Every Effy order is
 delivered one of two ways, decided at checkout from the delivery address: "Delivered by Effy" when the
 address is in Effy's delivery area, and "Courier delivery" when it is not but a courier reaches it.
 The customer does not choose between them in this feature. For "Delivered by Effy" the customer picks
-a delivery window and pays Effy's delivery fee. For "Courier delivery" there is no window and no date
-to pick; the customer is told the order arrives within the courier's usual timeframe (an estimate the
-business sets, never a promise) and pays the courier fee. If the customer changes the address during
-checkout, the delivery type, fee and window choice update immediately and nothing chosen for the old
-address is silently carried over. The order records its delivery type and every later change to it,
-with who changed it, when and why. One order has one delivery type, whatever number of suppliers fill
-it, and the customer never learns how many suppliers were involved. Every place the customer sees the
-order — order list, order detail, tracking, receipt, confirmation email, notifications — uses the same
-two names and shows the window (Effy) or the courier estimate (courier). Order status keeps the
-platform's single set of status words; courier orders use "With carrier" once the courier has them.
-Shop staff see whether a package is going with an Effy driver or a courier, never the customer's
-window or fee. Back-office sees and can filter orders by delivery type. The old "same-day" and
-"standard" names disappear from everything a customer or shop sees.
+a delivery window and pays Effy's delivery fee; the customer still reads the words they know —
+"Same-day delivery" for a window today, "Standard delivery" for a window on a later day. For "Courier
+delivery" there is no window and no date to pick; the customer is told the order is delivered by a
+courier partner and arrives within the courier's usual timeframe (an estimate the business sets, never
+a promise) and pays the courier fee. If neither Effy nor a courier reaches the address, checkout
+refuses with the one plain sentence the platform already uses. If the customer changes the address
+during checkout, the delivery type, fee and window choice update immediately and nothing chosen for
+the old address is silently carried over. The order records its delivery type and every later change
+to it, with who changed it, when and why. One order has one delivery type, whatever number of
+suppliers fill it, and the customer never learns how many suppliers were involved. Every place the
+customer sees the order — order list, order detail, tracking, receipt, confirmation email,
+notifications — uses the same words and shows the window (Effy) or the courier estimate (courier).
+Order status keeps the platform's single set of status words; courier orders use "With carrier" once
+the courier has them. Shop staff see whether a package is going with an Effy driver or a courier —
+never "same-day" or "standard", never the customer's window or fee. Back-office sees and can filter
+orders by delivery type and sees the history of changes. Orders placed before this feature keep what
+they were sold and still read correctly everywhere. Like the delivery windows it builds on, this is
+built switched off and turned on by the business at the cutover; until then today's checkout is
+unchanged.
 ```
 
 **Tasks**
 
 *Data*
-- [ ] E5-T01 Migration: `order.delivery_type` (`effy | courier`, NOT NULL for new orders; NULL = legacy), `order.delivery_type_reason` (`in_coverage | out_of_coverage | admin_override | customer_choice`).
-- [ ] E5-T02 Migration: `order_delivery_type_change` history (order id, from, to, reason, actor, note, created_at).
-- [ ] E5-T03 Order-level window snapshot: today it is on `order_package_delivery` (`slot_id`, `window_start`, `window_end`) — decide (with Q1) whether it moves to the order; package rows keep a copy for dispatch.
-- [ ] E5-T04 `shop_fulfillment.delivery_method` → read-compatible `delivery_type`; legacy values preserved.
-- [ ] E5-T05 Courier estimate text setting (`delivery_settings.courier_estimate_text`).
+- [x] E5-T01 (078 left a convention to replace: "a `standard` package with a window is Effy's" — backfill `effy` for those; then the readers 078 taught to look at the window can look at the type) Migration: `order.delivery_type` (`effy | courier`, NOT NULL for new orders; NULL = legacy), `order.delivery_type_reason` (`in_coverage | out_of_coverage | admin_override | customer_choice`). — *`order.delivery_type` / `delivery_type_reason` / `courier_estimate` added; **no backfill** — NULL = placed before 079, read through `public.package_delivered_by`. Reasons: `in_coverage | out_of_coverage | no_window | staff_change`.*
+- [x] E5-T02 Migration: `order_delivery_type_change` history (order id, from, to, reason, actor, note, created_at). — *`order_delivery_type_change`, append-only; one writer (`recordDeliveryType`); first entry at payment.*
+- [x] E5-T03 (078: every package of a new-model order already carries the SAME window, and customers see one arrival via `distinctArrivals`) Order-level window snapshot: today it is on `order_package_delivery` (`slot_id`, `window_start`, `window_end`) — decide (with Q1) whether it moves to the order; package rows keep a copy for dispatch. — *Decided: the window stays on the package rows; nothing moved to the order.*
+- [x] E5-T04 `shop_fulfillment.delivery_method` → read-compatible `delivery_type`; legacy values preserved. — *`delivery_method` unchanged (a courier package is `standard`, no window). Shops are sent `deliveredBy`; `deliveryMethod` deprecated on the wire until E9.*
+- [x] E5-T05 Courier estimate text setting (`delivery_settings.courier_estimate_text`). — *`delivery_settings.courier_estimate_text` + `courier_when_no_windows`; the order keeps the text it was sold.*
 *Shared library*
-- [ ] E5-T06 `shared/src/delivery/quote.ts`: `QuoteResult` becomes `{kind:'effy', windows, fee} | {kind:'courier', fee, estimate} | {kind:'none'}`.
-- [ ] E5-T07 `shared/src/status/status.ts` (`packageStatus`): courier path Preparing → Ready → (With driver → At hub, if hub collection) → With carrier → Delivered; Effy path unchanged. Keep the nine words (073).
-- [ ] E5-T08 `shared/src/lib/order-completion.ts`: completion rules per delivery type.
-- [ ] E5-T09 `shared/src/live/order-moves.ts`: announce on delivery-type change.
+- [x] E5-T06 `shared/src/delivery/quote.ts`: `QuoteResult` becomes `{kind:'effy', windows, fee} | {kind:'courier', fee, estimate} | {kind:'none'}`. — *Existing `serviced` / `coverage` discriminants kept; a `coverage: "courier"` variant added (fee, estimate, reason).*
+- [x] E5-T07 `shared/src/status/status.ts` (`packageStatus`): courier path Preparing → Ready → (With driver → At hub, if hub collection) → With carrier → Delivered; Effy path unchanged. Keep the nine words (073). — *No code change needed — `packageStatus` already gives the courier path; rows added to `status.test.ts`.*
+- [x] E5-T08 `shared/src/lib/order-completion.ts`: completion rules per delivery type. — *No change needed: completion is per package, whoever delivers.*
+- [x] E5-T09 `shared/src/live/order-moves.ts`: announce on delivery-type change. — *Nothing changes a placed order in E5; E7 announces through `announceOrder` when it calls `recordDeliveryType`.*
 *Commerce*
-- [ ] E5-T10 `commerce/src/checkout/service.ts` / `quote.ts`: compute type from coverage; courier path requires no slot; intent stores type + fee breakdown.
-- [ ] E5-T11 Refuse `kind:'none'` with the shared sentence.
-- [ ] E5-T12 Customer orders list/detail DTOs carry `deliveryType`, window or estimate.
+- [x] E5-T10 `commerce/src/checkout/service.ts` / `quote.ts`: compute type from coverage; courier path requires no slot; intent stores type + fee breakdown. — *Type from coverage; `resolveCourier` (no slot, no hold); the pending order carries type, reason, estimate and the courier fee breakdown. The client states `deliveryType`; mismatch → 409 `delivery_type_changed`.*
+- [x] E5-T11 Refuse `kind:'none'` with the shared sentence. — *Unchanged path (`address_not_covered`), now also when courier is off / excluded / not ready / pending.*
+- [x] E5-T12 Customer orders list/detail DTOs carry `deliveryType`, window or estimate. — *`delivery` on list and detail; `arrivalEstimates` empty for a courier order.*
 *Orders / shop / admin services*
-- [ ] E5-T13 `orders/src/orders/service.ts` + `promise.ts`: delivery promise per type (window vs estimate).
-- [ ] E5-T14 `shop/src/fulfillments/promise.ts`, `shop/src/orders/*`, `shop/src/today/*`, `shop/src/pick-lists/*`: replace same-day/standard grouping with "Effy driver" vs "Courier"; keep `no-delivery-window.guard.test.ts` intent (shops never see the window).
-- [ ] E5-T15 `shop/src/insights/window.ts`: insights split by type.
-- [ ] E5-T16 Admin order list filter + detail (`packages/shared-types/src/order-admin.ts`).
+- [x] E5-T13 `orders/src/orders/service.ts` + `promise.ts`: delivery promise per type (window vs estimate). — *`package_delivered_by` in the orders readers; a courier order is due at the carrier the day it is placed (no promised day).*
+- [x] E5-T14 `shop/src/fulfillments/promise.ts`, `shop/src/orders/*`, `shop/src/today/*`, `shop/src/pick-lists/*`: replace same-day/standard grouping with "Effy driver" vs "Courier"; keep `no-delivery-window.guard.test.ts` intent (shops never see the window). — *`deliveredBy` ("Effy driver" / "Courier") on list, detail, Today, pick lists and the app's queue; `no-delivery-window.guard` kept — the shop never names the window.*
+- [x] E5-T15 `shop/src/insights/window.ts`: insights split by type. — *Not applicable — shop insights never read the method.*
+- [x] E5-T16 Admin order list filter + detail (`packages/shared-types/src/order-admin.ts`). — *`deliveryType` filter (effy / courier / legacy), detail fields and history.*
 *Shared types*
-- [ ] E5-T17 `order.ts`, `checkout.ts`, `shop-order-console.ts`, `order-admin.ts`, `delivery.ts`: `DeliveryType`; deprecate method fields.
-- [ ] E5-T18 Kotlin contracts in `packages/shared-types/contract*/`.
+- [x] E5-T17 `order.ts`, `checkout.ts`, `shop-order-console.ts`, `order-admin.ts`, `delivery.ts`: `DeliveryType`; deprecate method fields. — *`delivery-type.ts` (types, words, `deliverySummary`); DTO fields across the five files.*
+- [x] E5-T18 Kotlin contracts in `packages/shared-types/contract*/`. — *Regenerated (commerce + shop).*
 *Notifications*
-- [ ] E5-T19 `notifications/src/receipts/sender.ts` + `repository.ts`: receipt shows type + window/estimate.
-- [ ] E5-T20 Email templates in `packages/email-kit` (confirmation, delivered) — new wording; fixtures in `packages/email-kit/src/fixtures`.
-- [ ] E5-T21 Push copy (`notifications/src/worker/copy.ts`) per type.
+- [x] E5-T19 `notifications/src/receipts/sender.ts` + `repository.ts`: receipt shows type + window/estimate. — *The receipt says who delivers and the estimate as sold.*
+- [x] E5-T20 Email templates in `packages/email-kit` (confirmation, delivered) — new wording; fixtures in `packages/email-kit/src/fixtures`. — *Confirmation template gained `deliveryLabel` / `deliveryPreheader`; Effy output unchanged. `order-delivered` needed no change.*
+- [x] E5-T21 Push copy (`notifications/src/worker/copy.ts`) per type. — *No change needed: no customer push names a window or a driver, and nothing raises "Out for delivery" for a courier order.*
 *Customer web*
-- [ ] E5-T22 `app/checkout/CheckoutFlow.tsx` + `DeliveryOptions.tsx`: Effy → window picker; courier → estimate block, no picker.
-- [ ] E5-T23 `components/receipt/*`, `StatusPill.tsx`, `_components/status-palette.ts`: wording.
-- [ ] E5-T24 Order list/detail pages.
-- [ ] E5-T25 e2e (`apps/customer-web/e2e`): Effy checkout, courier checkout, address switch Effy→courier.
+- [x] E5-T22 `app/checkout/CheckoutFlow.tsx` + `DeliveryOptions.tsx`: Effy → window picker; courier → estimate block, no picker. — *`CourierDelivery.tsx`; heading "Delivered by Effy"; address / postcode change resets the choice.*
+- [x] E5-T23 `components/receipt/*`, `StatusPill.tsx`, `_components/status-palette.ts`: wording. — *`ArrivalPanel` says who delivers; the pill keeps its short word.*
+- [x] E5-T24 Order list/detail pages. — *Order list rows and detail.*
+- [ ] E5-T25 e2e (`apps/customer-web/e2e`): Effy checkout, courier checkout, address switch Effy→courier. — ***Not done** — no e2e was added; the flows are covered by component tests (`CheckoutFlow.courier.test.tsx`).*
 *Customer mobile*
-- [ ] E5-T26 `features/checkout/domain/Checkout.kt`, `data/CheckoutMappers.kt`, `presentation/*`: delivery type.
-- [ ] E5-T27 Orders/Receipt screens; decide on `TrackOrderScreen.kt` (dead code per candidates register #7) — delete or wire with the new language.
-- [ ] E5-T28 `core/error`, `core/observability` references to same-day.
+- [x] E5-T26 `features/checkout/domain/Checkout.kt`, `data/CheckoutMappers.kt`, `presentation/*`: delivery type. — *Done, with a Kotlin twin of the words and `deliverySummary` on the shared fixture.*
+- [x] E5-T27 Orders/Receipt screens; decide on `TrackOrderScreen.kt` (dead code per candidates register #7) — delete or wire with the new language. — *Receipt and orders screens done. `TrackOrderScreen.kt` left as is: it has a test and prints neither word.*
+- [x] E5-T28 `core/error`, `core/observability` references to same-day. — *Nothing referenced same-day there; two analytics events declared.*
 *Shop web / shop mobile*
-- [ ] E5-T29 shop-web `features/fulfillment/components/ItemsAndFulfilment.tsx`, `features/today/*`: "Effy driver" / "Courier" chips.
-- [ ] E5-T30 shop-mobile `features/orders/domain/OrderModels.kt`.
+- [x] E5-T29 shop-web `features/fulfillment/components/ItemsAndFulfilment.tsx`, `features/today/*`: "Effy driver" / "Courier" chips. — *Done ("Goes with" filter; labels; print).*
+- [x] E5-T30 shop-mobile `features/orders/domain/OrderModels.kt`. — *The app never carried the method; it printed a constant `serviceLevel` ("standard") — now `deliveredBy`.*
 *Back-office*
-- [ ] E5-T31 `features/orders/*`: type column, filter, history panel.
+- [x] E5-T31 `features/orders/*`: type column, filter, history panel. — *Delivery column, filter, Delivery type section with history; courier settings on the Coverage tab.*
 *Telemetry*
-- [ ] E5-T32 PostHog: `checkout_delivery_type_shown {type}`, `checkout_window_selected` (no PII). Update the taxonomy package.
-- [ ] E5-T33 CloudWatch metrics: orders by type; `coverage_none_refusals`.
+- [x] E5-T32 PostHog: `checkout_delivery_type_shown {type}`, `checkout_window_selected` (no PII). Update the taxonomy package. — *`checkout_delivery_type_shown {type, reason}`, `checkout_delivery_type_changed` (web emits; mobile declares). `checkout_window_selected` was 078's.*
+- [x] E5-T33 CloudWatch metrics: orders by type; `coverage_none_refusals`. — *`OrdersPlaced {deliveryType}`, `DeliveryQuotes {outcome: courier | courier_fallback}`, `DeliveryTypeChanged`. Unreachable refusals are the existing `DeliveryQuotes {unserviced}`.*
 *Tests, docs*
-- [ ] E5-T34 Container tests across commerce/orders/shop; port tests referencing `same_day`.
-- [ ] E5-T35 `docs/order-console-guide.md`, glossary from E0-T09.
-- [ ] E5-T36 FEATURE-HISTORY entry + operator steps (deploy order: shared → commerce/orders/shop/admin → web → mobile).
+- [x] E5-T34 Container tests across commerce/orders/shop; port tests referencing `same_day`. — *Container tests in shared, commerce, orders, shop, admin.*
+- [x] E5-T35 `docs/order-console-guide.md`, glossary from E0-T09. — *Both console guides updated. No glossary exists yet (E0-T09 is open).*
+- [x] E5-T36 FEATURE-HISTORY entry + operator steps (deploy order: shared → commerce/orders/shop/admin → web → mobile). — *Entry written; operator steps in the quickstart and SIGNOFF.*
 
 ---
 
@@ -792,7 +835,7 @@ and is assigned as soon as a qualifying driver can take it.
 
 **Tasks**
 
-- [ ] E8-T01 `fleet/src/planner/windows.ts` / `service.ts` / `sql.ts`: plan delivery waves for windows on future dates; only release a round on its date (`round_opens_at` unchanged, single source).
+- [ ] E8-T01 ⚠ **This is what keeps 078's switch off.** `GATHER_DELIVERY` takes `delivery_method = 'same_day'` only; since 078 a later-day Effy package is `standard` WITH a window (`opd.slot_id`), so gather by the window, not the method. `fleet/src/planner/windows.ts` / `service.ts` / `sql.ts`: plan delivery waves for windows on future dates; only release a round on its date (`round_opens_at` unchanged, single source).
 - [ ] E8-T02 Collection eligibility: package due for collection by `window_start − hub_turnaround`; future-day packages collected on the latest run that makes it (or earliest — decide; earliest frees shop space, latest keeps chilled goods in shops).
 - [ ] E8-T03 Hub storage: package "At hub" across days; status derivation already handles it — test multi-day dwell.
 - [ ] E8-T04 Temperature classes (065): chilled/frozen dwell at hub overnight — product call; add an exception if storage is not allowed.
@@ -812,6 +855,13 @@ and is assigned as soon as a qualifying driver can take it.
 ---
 
 ## E9 — Cutover & Retirement of Same-Day/Standard · spec 083
+
+> **2026-10-09 — three removals moved here from E5 (079 research R10).** Today's live checkout still
+> reads them, so they go with the legacy quote, not before: the same-day bridge
+> (`delivery_zone.sameday_eligible`, `shop_sameday_exception`, `sameDayForShops`), the per-package
+> compatibility `feeAmount` (`compatibilityFees`), and the "N of your M deliveries" sentence. Also
+> E9's: drop `shop_fulfillment.delivery_method` / `order_package_delivery.method` from the shop wire
+> (`deliveryMethod`, the `method` filter) once `deliveredBy` is the only reader.
 
 **Goal.** Switch new orders to the new model on a chosen date, keep old orders readable, then
 delete the old model's code, columns and docs.
@@ -833,7 +883,7 @@ anything is missing.
 **Tasks**
 
 *Cutover*
-- [ ] E9-T01 Setting `delivery_model_v2_from` (timestamptz, NULL = off). Checkout reads it; one place decides (SQL function `delivery_model_for(now)`).
+- [ ] E9-T01 **The switch already exists (078)** — `delivery_settings.delivery_model_v2_from`, read only via `public.delivery_model_v2_at` → `deliveryModelV2At`. Add ONLY the setter route (staff gateway) behind E9-T02's readiness check; do not create `delivery_model_for`.
 - [ ] E9-T02 Readiness check route + back-office "Go-live checklist" panel (coverage non-empty, Effy plan active and complete, courier plan active, ≥1 active slot, courier service defined, collection mode set).
 - [ ] E9-T03 Legacy rendering: `delivery_type IS NULL` orders render from `delivery_method` everywhere (status, receipts, apps) until closed.
 - [ ] E9-T04 Report: open legacy orders count (back-office + metric) — the trigger for the retirement step.
@@ -841,9 +891,9 @@ anything is missing.
 *Retirement (after legacy count = 0)*
 - [ ] E9-T06 Migration: drop `delivery_ring`, `delivery_zone.ring_id`, `ring_is_overridden`, `hub_distance_km`, `sameday_eligible`; drop `delivery_zone` + `delivery_zone_postcode` if E2 replaced them.
 - [ ] E9-T07 Migration: drop `shop_sameday_declaration`, `shop_sameday_area`, `shop_sameday_exception` (if still present in the live schema — verify).
-- [ ] E9-T08 Migration: drop method factor columns from fee plans; drop `carrier_lead_days`, `standard_lookahead_days` (renamed ones stay).
+- [ ] E9-T08 Migration: drop method factor columns from fee plans; drop `carrier_lead_days`, `standard_lookahead_days` (renamed ones stay; `effy_lookahead_days` from 078 stays). (Takes over E4-T03.)
 - [ ] E9-T09 Migration: `shop_fulfillment.delivery_method`, `order_package_delivery.method` → constrain to legacy-only or drop after archival (keep history readable: decide archive view).
-- [ ] E9-T10 Delete `shared/src/delivery/sameday.ts`, `standard-days.ts`, ring code in `plan.ts`/`zone.ts`, `METHOD_SAME_DAY`/`METHOD_STANDARD` exports.
+- [ ] E9-T10 (takes over E4-T05; also delete the 069 half of `quote.ts`, `resolveDeliveryChoice`, and the web/mobile 069 pickers; rename "slot" → "window" on the back-office screen) Delete `shared/src/delivery/sameday.ts`, `standard-days.ts`, ring code in `plan.ts`/`zone.ts`, `METHOD_SAME_DAY`/`METHOD_STANDARD` exports.
 - [ ] E9-T11 Delete admin routes `delivery-rings-*`, `delivery-zone-suggest-ring-*`, `delivery-exception*`, `admin/src/delivery/suggest.ts` (+ tests) and `serverless.yml` entries.
 - [ ] E9-T12 Delete back-office `NewRingDialog.tsx`, `SameDayExceptionsDialog.tsx`, old `NewZoneDialog.tsx`, `NewPlanDialog.tsx`.
 - [ ] E9-T13 Remove same-day/standard from `packages/shared-types/src/*` and Kotlin contracts.

@@ -46,8 +46,13 @@ export const PAYMENT_STATES: readonly PaymentState[] = [
 export type Attention = "any" | "at_risk" | "short" | "on_track";
 export const ATTENTIONS: readonly Attention[] = ["any", "at_risk", "short", "on_track"];
 
+/** @deprecated 079 — the customer's word. Kept for shop apps installed before 079; see `DeliveredByFilter`. */
 export type Method = "any" | "same_day" | "standard";
 export const METHODS: readonly Method[] = ["any", "same_day", "standard"];
+
+/** 079 — who takes the package away from the shop. */
+export type DeliveredByFilter = "any" | "effy_driver" | "courier";
+export const DELIVERED_BY_FILTERS: readonly DeliveredByFilter[] = ["any", "effy_driver", "courier"];
 
 export type Range = "any" | "today" | "7d" | "30d";
 export const RANGES: readonly Range[] = ["any", "today", "7d", "30d"];
@@ -62,6 +67,7 @@ export interface OrderListQuery {
   attention: Attention;
   payment: PaymentState | "any";
   method: Method;
+  deliveredBy: DeliveredByFilter;
   range: Range;
   sort: SortKey;
   dir: "asc" | "desc";
@@ -80,6 +86,9 @@ export interface OrderRow {
   itemCount: number;
   gatheredCount: number;
   unavailableCount: number;
+  /** 079 — who takes it away. The only thing a shop is told about delivery. */
+  deliveredBy: "effy_driver" | "courier";
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
   payment: PaymentState;
@@ -140,6 +149,9 @@ export interface OrderDetail {
   statusView: PackageStatusView;
   stateChangedAt: Date;
   readyBy: Date;
+  /** 079 — who takes it away. The only thing a shop is told about delivery. */
+  deliveredBy: "effy_driver" | "courier";
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
   delivery: FulfillmentDelivery;

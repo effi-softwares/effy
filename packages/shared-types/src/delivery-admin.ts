@@ -187,7 +187,12 @@ export interface HubRecomputeDTO {
 export type DistanceSource = "computed" | "manual";
 
 /** Why a postcode has the answer it has — shown to staff, never to a customer. */
-export type CoverageReason = "listed" | "courier_offered" | "courier_off" | "courier_excluded" | "unknown_postcode";
+export type CoverageReason =
+  | "listed" | "courier_offered" | "courier_off" | "courier_excluded" | "unknown_postcode"
+  /** 079 — courier delivery is on and ready, and starts when the new delivery model does. */
+  | "courier_pending"
+  /** 079 — courier delivery is on, but there is no active courier fee table or no estimate text. */
+  | "courier_not_ready";
 
 /** One postcode on Effy's list. */
 export interface CoveragePostcodeDTO {
@@ -216,12 +221,37 @@ export interface CoverageGroupDTO {
   driverCount: number;
 }
 
-/** Courier reach: offered everywhere in the country except the exclusions — once it can be switched on. */
+/** What stops courier delivery being switched on (079). */
+export type CourierBlocker = "no_fee_table" | "no_estimate";
+
+/** Courier reach: offered everywhere in the country except the exclusions. */
 export interface CourierReachDTO {
   offered: boolean;
-  /** False until a courier order can actually be placed; the switch is refused while it is. */
+  /**
+   * 079 — the courier's usual timeframe, completing "Usually arrives in …" ("2–4 business days").
+   * Null until set. A customer reads it as an estimate, never a promise.
+   */
+  estimateText: string | null;
+  /** 079 — offer courier to an address on Effy's list when no delivery window is available. */
+  whenNoWindows: boolean;
+  /** 079 — why `offered` cannot be switched on yet; empty when it can. */
+  blockedBy: CourierBlocker[];
+  /**
+   * 079 — switched on and ready, but the new delivery model is not on yet: no customer is offered
+   * courier delivery until it is.
+   */
+  pending: boolean;
+  /** @deprecated 079 — `blockedBy.length === 0`. */
   canBeOffered: boolean;
   exclusions: CourierExclusionDTO[];
+}
+
+/** `PUT /admin/v1/delivery/coverage/courier` — any of the three; an absent field is left as it is. */
+export interface CourierReachUpdateDTO {
+  offered?: boolean;
+  /** 3–60 characters, one line. `null` clears it — refused while courier delivery is on. */
+  estimateText?: string | null;
+  whenNoWindows?: boolean;
 }
 
 export interface CourierExclusionDTO {

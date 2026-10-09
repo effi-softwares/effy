@@ -12,6 +12,7 @@ import { OrderCustomerPoints } from "@/features/customers/components/OrderCustom
 import { canRecordOrderProgress } from "./access";
 import { orderActionError } from "./errorText";
 import { DeliveryInstructions } from "./components/DeliveryInstructions";
+import { DeliveryTypeSection } from "./components/DeliveryTypeSection";
 import { FeeBreakdown } from "./components/FeeBreakdown";
 import { PackageRows } from "./components/PackageRows";
 import { RefundsSection } from "./components/RefundsSection";
@@ -135,6 +136,8 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
           orderNumber={order.orderNumber}
         />
       </section>
+
+      <DeliveryTypeSection order={order} formatDateTime={formatDateTime} />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Packages</h2>

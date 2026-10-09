@@ -160,9 +160,32 @@ export async function driversFor(groupId: string | null): Promise<number> {
   return Number(res.rows[0]?.n ?? 0);
 }
 
-export async function courierOffered(): Promise<boolean> {
-  const res = await query<{ courier_offered: boolean }>(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1`);
-  return res.rows[0]?.courier_offered ?? false;
+/** What staff have set for courier delivery, and where that leaves it right now. */
+export interface CourierSettings {
+  offered: boolean;
+  estimateText: string | null;
+  whenNoWindows: boolean;
+  /**
+   * `public.courier_delivery_state` — the one definition of whether a courier order can be placed.
+   * ⚠ Asked, never rebuilt here: "pending" depends on the delivery-model switch, which has one reader.
+   */
+  state: "courier_off" | "courier_not_ready" | "courier_pending" | "courier_offered";
+}
+
+export async function courierSettings(): Promise<CourierSettings> {
+  const row = (
+    await query<{ courier_offered: boolean; courier_estimate_text: string | null; courier_when_no_windows: boolean; state: CourierSettings["state"] }>(
+      `SELECT s.courier_offered, s.courier_estimate_text, s.courier_when_no_windows,
+              public.courier_delivery_state(now()) AS state
+         FROM public.delivery_settings s WHERE s.id = 1`,
+    )
+  ).rows[0];
+  return {
+    offered: row?.courier_offered ?? false,
+    estimateText: row?.courier_estimate_text ?? null,
+    whenNoWindows: row?.courier_when_no_windows ?? false,
+    state: row?.state ?? "courier_off",
+  };
 }
 
 export interface ExclusionRow { postcode: string; places: string[]; reason: string }
@@ -431,11 +454,59 @@ export async function removeGroup(id: string, actorSub: string): Promise<number>
   });
 }
 
-export async function setCourierOffered(offered: boolean, actorSub: string): Promise<void> {
-  await withTransaction(async (client) => {
-    const was = (await client.query<{ courier_offered: boolean }>(`SELECT courier_offered FROM public.delivery_settings WHERE id = 1 FOR UPDATE`)).rows[0];
-    await client.query(`UPDATE public.delivery_settings SET courier_offered = $1, updated_by = $2, updated_at = now() WHERE id = 1`, [offered, actorSub]);
-    await audit(client, actorSub, "coverage.courier.switch", { before: was?.courier_offered ?? null, after: offered });
+/** The three courier settings a person can change. `undefined` = leave as it is. */
+export interface CourierChange {
+  offered?: boolean;
+  estimateText?: string | null;
+  whenNoWindows?: boolean;
+}
+
+/** Why a courier change was refused — decided under the settings row's lock. */
+export type CourierRefusal = "courier_plan_missing" | "courier_estimate_missing" | "courier_estimate_in_use";
+
+/**
+ * Change the courier settings, each change audited on its own.
+ *
+ * ⚠ THE RULES ARE CHECKED HERE, UNDER THE ROW LOCK, not by the service before it calls: "on only
+ * with a fee table and an estimate" and "the estimate cannot be cleared while on" are about the row
+ * as it will be, and two people changing it at once must not each pass a check the other broke.
+ */
+export async function changeCourier(change: CourierChange, actorSub: string): Promise<{ refused: CourierRefusal } | { settings: Omit<CourierSettings, "state"> }> {
+  return withTransaction(async (client) => {
+    const was = (
+      await client.query<{ courier_offered: boolean; courier_estimate_text: string | null; courier_when_no_windows: boolean }>(
+        `SELECT courier_offered, courier_estimate_text, courier_when_no_windows FROM public.delivery_settings WHERE id = 1 FOR UPDATE`,
+      )
+    ).rows[0];
+    const before = {
+      offered: was?.courier_offered ?? false,
+      estimateText: was?.courier_estimate_text ?? null,
+      whenNoWindows: was?.courier_when_no_windows ?? false,
+    };
+    const after = {
+      offered: change.offered ?? before.offered,
+      estimateText: change.estimateText === undefined ? before.estimateText : change.estimateText,
+      whenNoWindows: change.whenNoWindows ?? before.whenNoWindows,
+    };
+
+    if (after.offered) {
+      // 077 FR-013 — never on without a price: every courier order would fail to price.
+      const plan = await client.query(`SELECT 1 FROM public.delivery_fee_plan WHERE is_active AND kind = 'courier'`);
+      if ((plan.rowCount ?? 0) === 0) return { refused: "courier_plan_missing" as const };
+      // 079 FR-010 — and never without something to tell the customer about when it arrives.
+      if (after.estimateText === null) return { refused: before.offered ? ("courier_estimate_in_use" as const) : ("courier_estimate_missing" as const) };
+    }
+
+    await client.query(
+      `UPDATE public.delivery_settings
+          SET courier_offered = $1, courier_estimate_text = $2, courier_when_no_windows = $3, updated_by = $4, updated_at = now()
+        WHERE id = 1`,
+      [after.offered, after.estimateText, after.whenNoWindows, actorSub],
+    );
+    if (after.offered !== before.offered) await audit(client, actorSub, "coverage.courier.switch", { before: before.offered, after: after.offered });
+    if (after.estimateText !== before.estimateText) await audit(client, actorSub, "coverage.courier.estimate", { before: before.estimateText, after: after.estimateText });
+    if (after.whenNoWindows !== before.whenNoWindows) await audit(client, actorSub, "coverage.courier.when_no_windows", { before: before.whenNoWindows, after: after.whenNoWindows });
+    return { settings: after };
   });
 }
 

@@ -1,5 +1,6 @@
 package com.effyshopping.shop.mobile.features.orders.data
 
+import com.effyshopping.shop.mobile.contract.DeliveredBy as ContractDeliveredBy
 import com.effyshopping.shop.mobile.contract.DeliveryPromiseDTO
 import com.effyshopping.shop.mobile.contract.FulfillmentDeliveryDTO
 import com.effyshopping.shop.mobile.contract.FulfillmentDetailDTO
@@ -11,6 +12,7 @@ import com.effyshopping.shop.mobile.contract.FulfillmentSummaryDTO
 import com.effyshopping.shop.mobile.contract.ItemProgressRequest
 import com.effyshopping.shop.mobile.contract.RequestableTransition
 import com.effyshopping.shop.mobile.contract.TransitionRequest
+import com.effyshopping.shop.mobile.features.orders.domain.DeliveredBy
 import com.effyshopping.shop.mobile.features.orders.domain.DeliveryContext
 import com.effyshopping.shop.mobile.features.orders.domain.DeliveryPromise
 import com.effyshopping.shop.mobile.features.orders.domain.FulfillmentDetail
@@ -42,7 +44,15 @@ private fun FulfillmentStatus.toDomain(): FulfillmentState = when (this) {
 }
 
 private fun DeliveryPromiseDTO.toDomain(): DeliveryPromise =
-    DeliveryPromise(serviceLevel = serviceLevel, readyBy = readyBy)
+    DeliveryPromise(
+        serviceLevel = serviceLevel,
+        readyBy = readyBy,
+        deliveredBy = when (deliveredBy) {
+            ContractDeliveredBy.EffyDriver -> DeliveredBy.EFFY_DRIVER
+            ContractDeliveredBy.Courier -> DeliveredBy.COURIER
+            null -> null
+        },
+    )
 
 private fun FulfillmentDeliveryDTO.toDomain(): DeliveryContext = DeliveryContext(
     recipientName = recipientName,

@@ -1,4 +1,5 @@
-import { formatDeliveryDay, formatDeliveryWindow } from "@effy/shared-types";
+import { DELIVERY_TYPE_WORDS, formatDeliveryDay, formatDeliveryWindow } from "@effy/shared-types";
+import type { AdminOrderDeliveryFilter, DeliveryType, DeliveryTypeChangeDTO, DeliveryTypeReason } from "@effy/shared-types";
 import type {
   AdminOrderDetailDTO,
   AdminOrderHistoryEntryDTO,
@@ -22,7 +23,51 @@ export interface OrderListParams {
   awaiting?: OrderAwaiting;
   /** 073 — only orders with a package nobody is collecting or delivering. */
   needsDriver?: boolean;
+  /** 079 — who delivers the order; `legacy` = placed before orders had a delivery type. */
+  deliveryType?: AdminOrderDeliveryFilter;
   cursor?: string;
+}
+
+// ── 079: who delivers an order ───────────────────────────────────────────────────────────────────
+
+/**
+ * "Delivered by Effy" / "Courier delivery" — the same two names the customer reads
+ * (`DELIVERY_TYPE_WORDS`). An order placed before 079 has no type and says so with a dash: nothing
+ * about an old order is guessed.
+ */
+export function deliveryTypeText(type: DeliveryType | null): string {
+  return type ? DELIVERY_TYPE_WORDS[type] : "—";
+}
+
+/** The list filter's options, in the order they are offered. */
+export const DELIVERY_FILTER_LABEL: Record<AdminOrderDeliveryFilter, string> = {
+  effy: DELIVERY_TYPE_WORDS.effy,
+  courier: DELIVERY_TYPE_WORDS.courier,
+  legacy: "Placed before delivery types",
+};
+
+/** Why an order has its delivery type — staff words. A customer is never told this. */
+export const DELIVERY_REASON_LABEL: Record<DeliveryTypeReason, string> = {
+  in_coverage: "The address is in Effy's delivery area",
+  out_of_coverage: "The address is outside Effy's delivery area",
+  no_window: "No Effy delivery window was available",
+  staff_change: "Changed by staff",
+};
+
+/** One history line: "Delivered by Effy → Courier delivery", or just the type for the first entry. */
+export function deliveryChangeText(c: DeliveryTypeChangeDTO): string {
+  return c.from ? `${DELIVERY_TYPE_WORDS[c.from]} → ${DELIVERY_TYPE_WORDS[c.to]}` : DELIVERY_TYPE_WORDS[c.to];
+}
+
+/**
+ * What a package row says about its delivery: who takes it to the customer and, for one Effy
+ * delivers, the customer's own word for it ("Same-day" / "Standard") — the word an operator hears on
+ * the phone. ⚠ A courier's package has no such word: it is "standard" only in how it is routed.
+ */
+export function packageDeliveryText(pkg: Pick<OrderPackage, "deliveredBy" | "deliveryMethod">): string {
+  if (pkg.deliveredBy === "courier") return DELIVERY_TYPE_WORDS.courier;
+  const word = pkg.deliveryMethod === "same_day" ? "Same-day" : pkg.deliveryMethod === "standard" ? "Standard" : null;
+  return word ? `${DELIVERY_TYPE_WORDS.effy} · ${word}` : DELIVERY_TYPE_WORDS.effy;
 }
 
 /** The progress word, as the CUSTOMER currently sees it. Server-derived; never recomputed here. */
@@ -77,11 +122,10 @@ export const PROMISE_FLAG_LABEL: Record<PromiseFlag, string> = {
 export function nextActionFor(pkg: OrderPackage): PackageAction {
   if (pkg.arrival) return "none";
   if (pkg.status !== "collected") return "none";
-  // A same-day package is delivered by an Effy driver and never passes to a carrier.
-  if (pkg.deliveryMethod === "same_day") return "none";
-  // 078 — nor does a standard package that was sold a WINDOW: "standard" now also means Effy, on a
-  // later day. Only a package with no window is a carrier's.
-  if (pkg.window) return "none";
+  // ⚠ 079 — WHO DELIVERS IS THE SERVER'S ANSWER (`deliveredBy`), for old orders and new. A package
+  // Effy delivers itself — today, or in a window on a later day — never passes to a carrier. This
+  // used to be worked out here from the method and the window; the server now says it once.
+  if (pkg.deliveredBy === "effy") return "none";
   return pkg.handoff ? "arrival" : "handoff";
 }
 

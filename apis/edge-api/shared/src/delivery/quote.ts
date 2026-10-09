@@ -1,8 +1,10 @@
 import type { Queryable } from "../lib/db";
 import {
-  effyFee, feeLines, UnpricedDistanceError, UnpricedWeightError, type FeeBreakdown, type FeeLine,
+  courierFee, effyFee, feeLines, UnpricedDistanceError, UnpricedWeightError, type FeeBreakdown, type FeeLine,
 } from "./engine";
-import { effyValues, loadActivePlan, METHOD_SAME_DAY, METHOD_STANDARD, windowPremiumCents, type Plan } from "./plan";
+import {
+  courierValues, effyValues, loadActivePlan, METHOD_SAME_DAY, METHOD_STANDARD, NoActivePlanError, windowPremiumCents, type Plan,
+} from "./plan";
 import { melbourneDate, sameDaySchedule } from "./sameday";
 import { deliveryModelV2At } from "./model";
 import {
@@ -10,7 +12,7 @@ import {
 } from "./slots";
 import { effyDays, openWindows, windowKey, windowsUnavailable, type EffyDay } from "./windows";
 import { availableDays, nonDeliveryDates } from "./standard-days";
-import { coverageForPostcode } from "./coverage";
+import { courierReachesPostcode, coverageForPostcode, loadCourierSettings } from "./coverage";
 import { sameDayForShops, zoneForPostcode } from "./zone";
 
 /**
@@ -27,16 +29,16 @@ export class ListedPostcodeUnpricedError extends Error {
 }
 
 /**
- * ⚠ AN INVARIANT, NOT A REFUSAL (076 research R7). The coverage answer is "courier" — and nothing
- * can sell a courier order yet. It cannot happen while `COURIER_ORDERING_AVAILABLE` is false,
- * because the admin service will not switch courier delivery on. If it is thrown, either someone
- * set `delivery_settings.courier_offered` by hand, or the courier checkout was switched on without
- * teaching the quote to price it. The customer is told the address cannot be delivered to; the
- * log says why that is wrong.
+ * ⚠ AN INVARIANT, NOT A REFUSAL (076 research R7, rebuilt by 079). The coverage answer is "courier"
+ * and the order cannot be priced or described: no courier fee table is active, or no estimate is
+ * set. `public.courier_reaches_postcode` answers "courier" only when BOTH exist, and the admin
+ * service will not remove either while courier delivery is on — so this is thrown only if someone
+ * changed a setting by hand, or between the coverage read and the plan read. The customer is told
+ * the address cannot be delivered to; the log and the alarm metric say why that is wrong.
  */
 export class CourierNotPurchasableError extends Error {
-  constructor(postcode: string) {
-    super(`delivery: postcode ${postcode} is courier-only, and a courier order cannot be placed yet`);
+  constructor(postcode: string, why: string) {
+    super(`delivery: postcode ${postcode} is courier-only, and a courier order cannot be sold (${why})`);
     this.name = "CourierNotPurchasableError";
   }
 }
@@ -101,11 +103,34 @@ export interface EffyWindowsQuote {
   unavailable: "no_windows" | "none_defined" | null;
 }
 
+/**
+ * 079 — the order goes by courier. There is nothing to choose: no window, no day, one fee.
+ *
+ * ⚠ NO PACKAGES. How the order splits across shops is not part of what a courier order is sold as;
+ * the intent takes the shops from the cart lines it already has.
+ */
+export interface CourierQuote {
+  serviced: true;
+  coverage: "courier";
+  /** The courier fee for the whole order — `courierFee`, nothing from Effy's plan. */
+  fee: PricedFee;
+  /** The business's estimate text as it stands now; the order keeps a copy. */
+  estimate: string;
+  /**
+   * `out_of_coverage`: Effy does not deliver to the address. `no_window`: it does, but no window is
+   * open on any offered day and the business sends such an order by courier (FR-011).
+   */
+  reason: "out_of_coverage" | "no_window";
+  /** How much more the basket needs for the COURIER table's own free delivery; null when unset or reached. */
+  freeDeliveryRemainingCents: number | null;
+}
+
 export type QuoteResult =
   | { serviced: false; coverage: "none" }
+  | CourierQuote
   | {
       serviced: true;
-      /** 076 — who delivers. Only Effy's own delivery can be sold until the courier checkout exists. */
+      /** 076 — who delivers: Effy's own drivers. */
       coverage: "effy";
       /** The postcode's group, or null when it is in none (076). */
       zoneId: string | null;
@@ -162,7 +187,51 @@ export function priceEffyOrder(
 }
 
 /**
- * Quote delivery for a destination postcode at `now` (047 US1–US3, 069, 077).
+ * Price a courier delivery for the order under the active courier table (077 FR-011): the flat
+ * amount plus the whole basket's weight band. ⚠ It CALLS the engine — `courierFee` is the only sum —
+ * and reads nothing of Effy's plan: no distance, no window, not Effy's free-delivery amount.
+ */
+export function priceCourierOrder(plan: Plan, postcode: string, grams: number, basketCents: number): PricedFee {
+  try {
+    const breakdown = courierFee({ grams, basketCents, plan: courierValues(plan) });
+    return { planId: plan.id, planName: plan.name, slotId: null, windowIsToday: false, breakdown, lines: feeLines(breakdown), totalCents: breakdown.totalCents };
+  } catch (err) {
+    // Activation guarantees a courier table covers every weight (077); a gap is the same breach.
+    if (err instanceof UnpricedWeightError) throw new CourierNotPurchasableError(postcode, err.message);
+    throw err;
+  }
+}
+
+/**
+ * The courier quote for an order (079). The caller has already established that a courier order CAN
+ * be placed to this postcode now — `coverageForPostcode` answered "courier", or
+ * `courierReachesPostcode` did for an address with no window left.
+ */
+async function quoteCourier(
+  q: Queryable, postcode: string, grams: number, basketCents: number, reason: CourierQuote["reason"],
+): Promise<CourierQuote> {
+  let plan: Plan;
+  try {
+    plan = await loadActivePlan(q, "courier");
+  } catch (err) {
+    if (err instanceof NoActivePlanError) throw new CourierNotPurchasableError(postcode, "no active courier fee table");
+    throw err;
+  }
+  const { estimateText } = await loadCourierSettings(q);
+  if (estimateText === null) throw new CourierNotPurchasableError(postcode, "no estimate text");
+  return {
+    serviced: true,
+    coverage: "courier",
+    fee: priceCourierOrder(plan, postcode, grams, basketCents),
+    estimate: estimateText,
+    reason,
+    freeDeliveryRemainingCents:
+      plan.freeOverCents !== null && basketCents < plan.freeOverCents ? plan.freeOverCents - basketCents : null,
+  };
+}
+
+/**
+ * Quote delivery for a destination postcode at `now` (047 US1–US3, 069, 077, 079).
  *
  * ⚠ ONE FEE FOR THE ORDER. Effy collects from its suppliers and delivers from its hub, so to the
  * customer the order comes from one place: the basket is weighed whole and priced once, and how many
@@ -180,9 +249,13 @@ export async function quote(
   now: Date,
   basketCents: number,
 ): Promise<QuoteResult> {
-  const coverage = await coverageForPostcode(q, postcode);
-  // Nobody delivers — or a courier does, which nothing here can sell yet.
-  if (coverage.kind === "courier") throw new CourierNotPurchasableError(postcode);
+  // ⚠ Judged at the caller's `now`, like the model switch below: the coverage answer is "courier"
+  // only once the new delivery model is on (079), and the two must be asked about the same instant.
+  const coverage = await coverageForPostcode(q, postcode, now);
+  const grams = pkgs.reduce((sum, p) => sum + p.grams, 0);
+  // 079 — outside Effy's area, and a courier order can be placed there. Never reached while the new
+  // delivery model is off: the checkout customers use until the cutover has no courier order to sell.
+  if (coverage.kind === "courier") return quoteCourier(q, postcode, grams, basketCents, "out_of_coverage");
   const zone = coverage.kind === "effy" ? await zoneForPostcode(q, postcode) : null;
   if (!zone) return { serviced: false, coverage: "none" };
 
@@ -191,7 +264,6 @@ export async function quote(
   // band to price it on — and "no price" must never become "no charge".
   const km = coverage.distanceKm;
   if (km === null) throw new ListedPostcodeUnpricedError(plan.id, postcode, "no distance");
-  const grams = pkgs.reduce((sum, p) => sum + p.grams, 0);
 
   if (await deliveryModelV2At(q, now)) return quoteEffyWindows(q, customerId, postcode, pkgs, now, basketCents, plan, km, grams, zone.id);
 
@@ -298,6 +370,17 @@ async function quoteEffyWindows(
     if (day) for (const [id, n] of held) day.set(id, (day.get(id) ?? 0) - n);
   }
   const days = openWindows(now, calendar, slots, load, runs, bufferMin, settings.turnaroundMin);
+
+  // 079 FR-011 — NO window on any offered day. If the business sends such an order by courier, and a
+  // courier order can be placed to this postcode (it may be on the courier exclusions list), that is
+  // what is offered instead. ⚠ ONLY THEN: while any window is open the customer never chooses
+  // between Effy and a courier (FR-003).
+  if (windowsUnavailable(days, slots) !== null) {
+    const courier = await loadCourierSettings(q);
+    if (courier.whenNoWindows && (await courierReachesPostcode(q, postcode, now))) {
+      return quoteCourier(q, postcode, grams, basketCents, "no_window");
+    }
+  }
 
   // The plain later-day charge is what a window's surcharge is measured against.
   const standardFee = priceEffyOrder(plan, postcode, km, grams, basketCents, null, false);

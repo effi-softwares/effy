@@ -1,11 +1,23 @@
 {
   "orderNumber": "EFY-<b>HAX</b>",
   "placedAt": "26 Aug 2026 \"><script>alert(1)</script>",
+  "deliveryLabel": "</td><script>alert(1)</script>",
   "deliveryEstimate": "soon\"><script>alert(1)</script>",
   "deliveryMethod": "</td></tr><script>alert(1)</script>",
+  "deliveryPreheader": "soon\"><script>alert(1)</script>",
   "items": [
-    { "name": "<script>alert('xss')</script> Bananas", "quantity": "1", "unitPrice": "$3.50", "lineTotal": "$3.50" },
-    { "name": "Eggs \"><img src=x onerror=alert(1)>", "quantity": "2", "unitPrice": "$4.50", "lineTotal": "$9.00" }
+    {
+      "name": "<script>alert('xss')</script> Bananas",
+      "quantity": "1",
+      "unitPrice": "$3.50",
+      "lineTotal": "$3.50"
+    },
+    {
+      "name": "Eggs \"><img src=x onerror=alert(1)>",
+      "quantity": "2",
+      "unitPrice": "$4.50",
+      "lineTotal": "$9.00"
+    }
   ],
   "subtotal": "$12.50",
   "hasDiscount": true,
@@ -14,7 +26,12 @@
   "hasDeliveryFee": true,
   "deliveryFee": "$7.90",
   "hasDeliveryLines": true,
-  "deliveryLines": [{"label": "Delivery <img src=x onerror=alert(1)>", "amount": "$7.90\"><script>alert(1)</script>"}],
+  "deliveryLines": [
+    {
+      "label": "Delivery <img src=x onerror=alert(1)>",
+      "amount": "$7.90\"><script>alert(1)</script>"
+    }
+  ],
   "total": "$19.40",
   "hasPaymentMethod": true,
   "paymentMethod": "Visa</td><script>alert(1)</script>",

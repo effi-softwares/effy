@@ -28,10 +28,22 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
 }));
 
+import { migrationSql } from "@effy/edge-shared";
+
 import { history, list, packages } from "./repository";
 import { listOrders } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
+
+/** One `CREATE FUNCTION … $$;` statement, as the platform's migrations define it today. */
+function functionFromMigrations(name: string): string {
+  const all = migrationSql();
+  const start = all.lastIndexOf(`CREATE FUNCTION ${name}(`);
+  if (start < 0) throw new Error(`no migration creates ${name}`);
+  const body = all.indexOf("$$", start);
+  const end = all.indexOf("$$;", body + 2);
+  return all.slice(start, end + 3);
+}
 
 describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   let container: StartedPostgreSqlContainer;
@@ -61,6 +73,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         delivery_note text,
         billing_address jsonb,
         promo_code_id uuid,
+        delivery_type text, delivery_type_reason text, courier_estimate text,
         placed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
       );
       CREATE TABLE public.promo_code (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), code text NOT NULL);
@@ -111,6 +124,10 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         source text NOT NULL, recorded_by_sub text, note text
       );
     `);
+    // ⚠ 079 — WHO DELIVERS A PACKAGE IS THE DATABASE'S ANSWER, and this file's schema is a
+    // transcription. The function is therefore taken from the real migration, not copied here: a
+    // copy would go on passing after the rule changed, which is the one thing these tests are for.
+    await pool.query(functionFromMigrations("public.package_delivered_by"));
   }, 180_000);
 
   afterAll(async () => {

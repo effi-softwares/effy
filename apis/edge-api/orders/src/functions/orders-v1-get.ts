@@ -1,11 +1,12 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, unavailable } from "@effy/edge-shared";
-import { ORDER_AWAITING } from "@effy/shared-types";
-import type { AdminOrderListResponse, OrderAwaiting } from "@effy/shared-types";
+import { json, problem, unavailable } from "@effy/edge-shared";
+import { ADMIN_ORDER_DELIVERY_FILTERS, ORDER_AWAITING } from "@effy/shared-types";
+import type { AdminOrderDeliveryFilter, AdminOrderListResponse, OrderAwaiting } from "@effy/shared-types";
 
 import { requireStaff } from "../lib/guard";
+import { VALIDATION_FAILED } from "../lib/problems";
 import { DEFAULT_LIMIT, listOrders, MAX_LIMIT } from "../orders/service";
 
 /**
@@ -30,6 +31,13 @@ export const handler = async (
       ? (qs.awaiting as OrderAwaiting)
       : undefined;
 
+  // 079 — who delivers the order. Validated against the shared const, like `awaiting` above; an
+  // unknown value is refused rather than quietly listing everything.
+  if (qs.deliveryType !== undefined && !(ADMIN_ORDER_DELIVERY_FILTERS as readonly string[]).includes(qs.deliveryType)) {
+    return problem(400, VALIDATION_FAILED, "Bad delivery type", "deliveryType is effy, courier or legacy", guard.scope);
+  }
+  const deliveryType = qs.deliveryType as AdminOrderDeliveryFilter | undefined;
+
   const parsed = Number(qs.limit);
   const limit = Number.isFinite(parsed)
     ? Math.min(Math.max(Math.trunc(parsed), 1), MAX_LIMIT)
@@ -42,6 +50,7 @@ export const handler = async (
       awaiting,
       // 073 — "Needs a driver".
       needsDriver: qs.needsDriver === "true",
+      deliveryType,
       cursor: qs.cursor || undefined,
       limit,
     });

@@ -12,6 +12,7 @@ import {
   query,
 } from "@effy/edge-shared";
 
+import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 import type { Backlog, LiveOrder, StockAttention } from "./types";
 
 /** Portions nobody has started picking — the Orders list's "Awaiting pick" tab, to the letter. */
@@ -172,6 +173,7 @@ SELECT sf.id::text AS fulfillment_id,
        COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
        COALESCE(o.placed_at, o.created_at) AS paid_at,
        sf.delivery_method,
+       ${DELIVERED_BY_SQL} AS delivered_by,
        o.grand_total_amount::text AS total,
        o.currency,
        (SELECT COALESCE(SUM(oi.quantity), 0)
@@ -191,6 +193,7 @@ interface LiveRow {
   customer_name: string;
   paid_at: Date;
   delivery_method: "same_day" | "standard" | null;
+  delivered_by: DeliveredBy;
   total: string;
   currency: string;
   item_count: number;
@@ -204,6 +207,7 @@ export async function readLiveOrders(shopId: string, limit: number): Promise<Liv
     customerName: r.customer_name,
     paidAt: r.paid_at,
     itemCount: r.item_count,
+    deliveredBy: r.delivered_by,
     deliveryMethod: r.delivery_method,
     total: r.total,
     currency: r.currency,

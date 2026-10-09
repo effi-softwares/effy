@@ -16,8 +16,8 @@ import { createWebhookHandler } from "../webhook/handler";
 import { DeliveryChoiceError } from "./delivery-choice";
 import { defaultQuoter, quoteForCheckout, type PromoSource } from "./quote";
 import {
-  createCheckoutService, DeliveryFeeChangedError, EmptyCartError, OrderNotFoundError, PointsExceedTotalError, type CheckoutService,
-  type IntentInput,
+  createCheckoutService, DeliveryFeeChangedError, EmptyCartError, NotServiceableError, OrderNotFoundError, PointsExceedTotalError,
+  type CheckoutService, type IntentInput,
 } from "./service";
 import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from "./store";
 
@@ -436,7 +436,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       store.captureDelivery(r.orderId, {}, now, [{
         shopId, method: "same_day", promisedDay: melbourneDate(now), slotId,
         windowStart: now, windowEnd: new Date(now.getTime() + 60_000),
-      }], { slotId, date: melbourneDate(now), now }),
+      }], { slotId, date: melbourneDate(now), now }, null),
     ).rejects.toBeInstanceOf(SlotUnavailableError);
 
     expect(await one(`SELECT method FROM public.order_package_delivery WHERE order_id = $1`, [r.orderId])).toEqual({ method: "standard" });
@@ -1276,5 +1276,328 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
         await pool.query(`UPDATE public.delivery_slot SET start_time = '23:58', end_time = '23:59', cutoff_time = '23:58' WHERE id = $1`, [slotId]);
       }
     });
+  });
+
+  // ── 079 — Delivered by Effy, or by a courier ─────────────────────────────────────────────────────
+  //
+  // ⚠ Courier delivery is ARMED inside each test (a fee table, an estimate, the switch) and always
+  // put back, and so is the delivery model: every test above this line is the proof that neither
+  // changes anything while it is off.
+
+  const COURIER_PLAN = "00000000-0000-0000-0000-0000000000c9";
+  const ESTIMATE = "2–4 business days";
+  /** $9.00 flat; a basket over 5 kg is $4.50 dearer. No distance, no window. */
+  async function courierArmed<T>(fn: () => Promise<T>): Promise<T> {
+    await pool.query(`
+      INSERT INTO public.locality (name, state, postcode) VALUES ('HOBART', 'TAS', '7000'), ('LAUNCESTON', 'TAS', '7250'), ('RICHMOND', 'VIC', '3121')
+        ON CONFLICT DO NOTHING;
+      INSERT INTO public.delivery_fee_plan (id, kind, name, is_active, base_amount, rounding_step, floor_amount, cap_amount, created_by)
+        VALUES ('${COURIER_PLAN}', 'courier', 'Courier table', true, 9.00, 0.50, 0.00, 90.00, 'test');
+      INSERT INTO public.delivery_weight_band (plan_id, upper_grams, add_amount) VALUES ('${COURIER_PLAN}', 5000, 0.00), ('${COURIER_PLAN}', 100000, 4.50);
+      UPDATE public.delivery_settings SET courier_offered = true, courier_estimate_text = '${ESTIMATE}' WHERE id = 1;`);
+    try {
+      return await fn();
+    } finally {
+      await pool.query(`
+        DELETE FROM public.courier_excluded_postcode;
+        UPDATE public.delivery_settings SET courier_offered = false, courier_estimate_text = NULL, courier_when_no_windows = false WHERE id = 1;
+        UPDATE public."order" SET delivery_fee_breakdown = NULL WHERE delivery_fee_breakdown ->> 'planId' = '${COURIER_PLAN}';
+        DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}';`);
+    }
+  }
+  /** Another of the shopper's addresses — by default one Effy does not deliver to. */
+  const addressAt = async (customerId: string, postcode = "7000") =>
+    (
+      await one<{ id: string }>(
+        `INSERT INTO public.customer_address (customer_id, recipient_name, line1, city, region, postal_code)
+         VALUES ($1, 'Recipient Name', '9 Far St', 'Hobart', 'TAS', $2) RETURNING id::text AS id`,
+        [customerId, postcode],
+      )
+    ).id;
+  const soldAs = (orderId: string) =>
+    one<{ type: string | null; reason: string | null; estimate: string | null }>(
+      `SELECT delivery_type AS type, delivery_type_reason AS reason, courier_estimate AS estimate FROM public."order" WHERE id = $1`, [orderId],
+    );
+  const typeHistory = (orderId: string) =>
+    pool
+      .query(`SELECT from_type, to_type, reason, actor_kind FROM public.order_delivery_type_change WHERE order_id = $1 ORDER BY created_at`, [orderId])
+      .then((r) => r.rows);
+  const ordersOf = (customerId: string) => count(`SELECT 1 FROM public."order" WHERE customer_id = $1`, [customerId]);
+  const courier = (addressId: string, over: Partial<IntentInput> = {}) => input(addressId, { deliveryType: "courier", ...over });
+
+  it("079 P3 — the switch OFF, courier fully armed: nobody is offered a courier and today's checkout is untouched", async () => {
+    await courierArmed(async () => {
+      const s = await shopper({ Milk: 2 });
+      const far = await addressAt(s.customerId);
+
+      // Out of area: refused exactly as before 079 — by the quote and by the intent.
+      expect(await quoteOf({ customerId: s.customerId, addressId: far })).toMatchObject({ serviced: false, coverage: "none", packages: [] });
+      await expect(svc.createIntent(s.customerId, courier(far), new Date())).rejects.toBeInstanceOf(NotServiceableError);
+      await expect(svc.createIntent(s.customerId, input(far), new Date())).rejects.toBeInstanceOf(NotServiceableError);
+
+      // In area: the 069/077 quote, key for key — no `courier`, no `effyWindows`.
+      const q = await quoteOf(s);
+      expect(Object.keys(q).sort()).toEqual([
+        "coverage", "expiresAt", "freeDeliveryRemainingAmount", "packages", "postcode", "sameDayAvailableUntil",
+        "sameDaySlots", "sameDayUnavailableReason", "serviced", "standardDays", "standardFee",
+      ]);
+      // A client claiming to show "Courier delivery" for an address Effy delivers to is refused, and nothing is written.
+      expect(await refusal(svc.createIntent(s.customerId, courier(s.addressId), new Date()))).toBe("delivery_type_changed");
+      expect(await ordersOf(s.customerId)).toBe(0);
+
+      // ⚠ An order sold by today's checkout has NO delivery type — like every order before it — and
+      // paying it writes no history. Saying "effy" is accepted and changes nothing.
+      const r = await svc.createIntent(s.customerId, input(s.addressId, { deliveryType: "effy" }), new Date());
+      expect(r).not.toHaveProperty("deliveryType");
+      expect(await soldAs(r.orderId)).toEqual({ type: null, reason: null, estimate: null });
+      expect(await pay(r.orderId)).toMatchObject({ applied: true, deliveryType: null });
+      expect(await typeHistory(r.orderId)).toEqual([]);
+    });
+  });
+
+  it("079 P4 — outside Effy's area, a courier reaches it: the estimate, the courier fee, and nothing to choose", async () => {
+    await modelOn(() => courierArmed(async () => {
+      const s = await shopper({ Milk: 2 });
+      const far = { customerId: s.customerId, addressId: await addressAt(s.customerId) };
+      const q = await quoteOf(far);
+      // ⚠ Exactly these keys: no window, no day, no package, no Effy fee.
+      expect(Object.keys(q).sort()).toEqual([
+        "courier", "coverage", "expiresAt", "freeDeliveryRemainingAmount", "packages", "postcode", "sameDayAvailableUntil",
+        "sameDaySlots", "sameDayUnavailableReason", "serviced", "standardDays",
+      ]);
+      expect(q).toMatchObject({ serviced: true, coverage: "courier", packages: [], sameDaySlots: [], standardDays: [], sameDayAvailableUntil: null, freeDeliveryRemainingAmount: null });
+      expect(q.courier).toEqual({
+        estimate: ESTIMATE, reason: "out_of_coverage",
+        fee: { lines: [{ kind: "delivery", amount: "9.00" }], totalAmount: "9.00" },
+      });
+      // ⚠ What a customer is sent says nothing of how it was built, who the courier is, or how many shops.
+      expect(JSON.stringify(q)).not.toMatch(/"km"|"plan|"grams"|shop|pkg-|carrier/i);
+
+      // The whole basket's weight, once: 12 × 500 g crosses the 5 kg band.
+      const heavy = await shopper({ Milk: 12 });
+      expect((await quoteOf({ customerId: heavy.customerId, addressId: await addressAt(heavy.customerId) })).courier!.fee.totalAmount).toBe("13.50");
+
+      // ⚠ Effy's free delivery does NOT make a courier order free (077 FR-012): it has its own amount.
+      await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = 5.00 WHERE id = $1`, [PLAN]);
+      expect((await quoteOf(s)).effyWindows!.days[1]!.windows[0]!.fee.totalAmount).toBe("0.00");
+      expect((await quoteOf(far)).courier!.fee.totalAmount).toBe("9.00");
+      await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = 20.00 WHERE id = '${COURIER_PLAN}'`);
+      expect(await quoteOf(far)).toMatchObject({ freeDeliveryRemainingAmount: "11.00", courier: { fee: { totalAmount: "9.00" } } });
+      await pool.query(`UPDATE public.delivery_fee_plan SET free_over_amount = 9.00 WHERE id = '${COURIER_PLAN}'`);
+      expect(await quoteOf(far)).toMatchObject({ freeDeliveryRemainingAmount: null, courier: { fee: { totalAmount: "0.00" } } });
+    }));
+  });
+
+  it("079 P5 — a courier order: one type, the estimate as sold, every package a carrier's, and no place in any window", async () => {
+    const b = await otherShop("CHK-C1");
+    await priced("CouA", "5.00");
+    await priced("CouB", "5.00", b);
+    await modelOn(() => courierArmed(async () => {
+      const s = await shopper({ CouA: 1, CouB: 1 });
+      const far = await addressAt(s.customerId);
+      const r = await svc.createIntent(s.customerId, courier(far, { shownDeliveryAmount: "9.00" }), new Date());
+
+      expect(r).toMatchObject({ deliveryType: "courier", grandTotalAmount: "19.00", deliveryFee: { totalAmount: "9.00" } });
+      expect(r.slotHeldUntil ?? null).toBeNull();
+      expect(await soldAs(r.orderId)).toEqual({ type: "courier", reason: "out_of_coverage", estimate: ESTIMATE });
+      // Two suppliers, ONE delivery type and ONE fee; each package is the shape the hub hands to a carrier.
+      expect(await packagesOf(r.orderId)).toEqual(Array(2).fill({ method: "standard", day: null, slot: null, start: null }));
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId])).toBe(0);
+      const fee = await feeOf(r.orderId);
+      expect(fee).toMatchObject({ fee: "9.00", lines: [{ kind: "delivery", amount: "9.00" }], breakdown: { kind: "courier" } });
+
+      // Unpaid: no history. Paid: the first entry, once, however often the payment is finalised.
+      expect(await typeHistory(r.orderId)).toEqual([]);
+      expect(await pay(r.orderId)).toMatchObject({ applied: true, deliveryType: "courier", slotConfirmed: false });
+      expect(await pay(r.orderId)).toMatchObject({ applied: false });
+      expect(await typeHistory(r.orderId)).toEqual([{ from_type: null, to_type: "courier", reason: "out_of_coverage", actor_kind: "checkout" }]);
+      expect((await pool.query(`SELECT delivery_method FROM public.shop_fulfillment WHERE order_id = $1`, [r.orderId])).rows)
+        .toEqual(Array(2).fill({ delivery_method: "standard" }));
+
+      // The total the client shows must be the one charged, here as everywhere (077).
+      const t = await shopper({ CouA: 1 });
+      await expect(svc.createIntent(t.customerId, courier(await addressAt(t.customerId), { shownDeliveryAmount: "6.00" }), new Date()))
+        .rejects.toBeInstanceOf(DeliveryFeeChangedError);
+    }));
+  });
+
+  it("079 — an Effy order is recorded as one too: in coverage, no estimate, and its history starts at payment", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      for (const said of [undefined, "effy"] as const) {
+        const s = await shopper({ Milk: 2 });
+        const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[2]!, said ? { deliveryType: said } : {}), new Date());
+        expect(r.deliveryType).toBe("effy");
+        expect(await soldAs(r.orderId)).toEqual({ type: "effy", reason: "in_coverage", estimate: null });
+        expect(await pay(r.orderId)).toMatchObject({ deliveryType: "effy", slotConfirmed: true });
+        expect(await typeHistory(r.orderId)).toEqual([{ from_type: null, to_type: "effy", reason: "in_coverage", actor_kind: "checkout" }]);
+      }
+    });
+  });
+
+  it("079 P6 — the type the client showed must be the type that applies: refused both ways, and nothing is written", async () => {
+    await modelOn(() => courierArmed(async () => {
+      const s = await shopper({ Milk: 2 });
+      const far = await addressAt(s.customerId);
+      const before = gateway.created();
+
+      // A courier order must be asked for by name: a client built before 079 cannot draw one, so cannot buy one.
+      expect(await refusal(svc.createIntent(s.customerId, input(far), new Date()))).toBe("delivery_type_changed");
+      expect(await refusal(svc.createIntent(s.customerId, input(far, { deliveryType: "effy" }), new Date()))).toBe("delivery_type_changed");
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(far, offered()[1]!), new Date()))).toBe("delivery_type_changed");
+      // …and "Courier delivery" on the screen for an address Effy delivers to is refused the same way.
+      expect(await refusal(svc.createIntent(s.customerId, courier(s.addressId), new Date()))).toBe("delivery_type_changed");
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, offered()[1]!, { deliveryType: "courier" }), new Date())))
+        .toBe("delivery_type_changed");
+
+      expect(await ordersOf(s.customerId)).toBe(0);
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking`)).toBe(0);
+      expect(gateway.created()).toBe(before);
+    }));
+  });
+
+  it("079 P7 — changing address re-decides everything: the window, the place held for it, the fee and the type", async () => {
+    await modelOn(() => courierArmed(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 2 });
+      const far = await addressAt(s.customerId);
+
+      // Address A — Effy, a window on a later day: a place is held.
+      const a = await svc.createIntent(s.customerId, windowOn(s.addressId, days[2]!), new Date());
+      expect(await soldAs(a.orderId)).toMatchObject({ type: "effy" });
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [a.orderId])).toBe(1);
+      expect(await bookedOn(days[2]!)).toBe(1);
+
+      // Address B — a courier. The SAME pending order: the place is given up, the rows replaced.
+      const bq = await svc.createIntent(s.customerId, courier(far), new Date());
+      expect(bq.orderId).toBe(a.orderId);
+      expect(await soldAs(bq.orderId)).toEqual({ type: "courier", reason: "out_of_coverage", estimate: ESTIMATE });
+      expect(await packagesOf(bq.orderId)).toEqual([{ method: "standard", day: null, slot: null, start: null }]);
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [bq.orderId])).toBe(0);
+      expect(await bookedOn(days[2]!)).toBe(0);
+      expect((await feeOf(bq.orderId)).fee).toBe("9.00");
+      expect((await orderRow(bq.orderId)).grand).toBe("18.00");
+
+      // Back to A: nothing of the courier order is left — and the window must be chosen again.
+      expect(await refusal(svc.createIntent(s.customerId, input(s.addressId), new Date()))).toBe("slot_required");
+      const again = await svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date());
+      expect(await soldAs(again.orderId)).toEqual({ type: "effy", reason: "in_coverage", estimate: null });
+      expect((await packagesOf(again.orderId))[0]).toMatchObject({ method: "standard", day: days[1], slot: slotId });
+      expect((await feeOf(again.orderId)).fee).toBe("6.00");
+      // Never paid along the way: no history was started by any of the three attempts.
+      expect(await typeHistory(again.orderId)).toEqual([]);
+    }));
+  });
+
+  it("079 — an address nobody reaches is refused the one way, whatever the reason behind it", async () => {
+    await modelOn(() => courierArmed(async () => {
+      const s = await shopper({ Milk: 2 });
+      const far = await addressAt(s.customerId);
+      const unknown = await addressAt(s.customerId, "0999");
+      const refusedAt = async (addressId: string) => {
+        expect(await quoteOf({ customerId: s.customerId, addressId })).toMatchObject({ serviced: false, coverage: "none" });
+        await expect(svc.createIntent(s.customerId, courier(addressId), new Date())).rejects.toBeInstanceOf(NotServiceableError);
+        await expect(svc.createIntent(s.customerId, input(addressId), new Date())).rejects.toBeInstanceOf(NotServiceableError);
+      };
+      await refusedAt(unknown); // a postcode the country's place data does not know
+
+      await pool.query(`INSERT INTO public.courier_excluded_postcode (postcode, reason, added_by) VALUES ('7000', 'No chilled courier service', 'test')`);
+      await refusedAt(far);
+      await pool.query(`DELETE FROM public.courier_excluded_postcode`);
+
+      await pool.query(`UPDATE public.delivery_settings SET courier_estimate_text = NULL WHERE id = 1`);
+      await refusedAt(far); // on, and nothing to tell the customer
+      await pool.query(`UPDATE public.delivery_settings SET courier_estimate_text = '${ESTIMATE}' WHERE id = 1`);
+
+      await pool.query(`UPDATE public.delivery_fee_plan SET is_active = false WHERE id = '${COURIER_PLAN}'`);
+      await refusedAt(far); // on, and no price
+      await pool.query(`UPDATE public.delivery_fee_plan SET is_active = true WHERE id = '${COURIER_PLAN}'`);
+
+      await pool.query(`UPDATE public.delivery_settings SET courier_offered = false WHERE id = 1`);
+      await refusedAt(far);
+      expect(await ordersOf(s.customerId)).toBe(0);
+    }));
+  });
+
+  it("079 P9 — the customer's order says who delivers it, and a courier order keeps the estimate it was sold", async () => {
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    await modelOn(() => courierArmed(async () => {
+      const s = await shopper({ Milk: 2 });
+      const far = await addressAt(s.customerId);
+      const r = await svc.createIntent(s.customerId, courier(far), new Date());
+      await pay(r.orderId);
+      // The business changes its estimate afterwards.
+      await pool.query(`UPDATE public.delivery_settings SET courier_estimate_text = '5–7 business days' WHERE id = 1`);
+
+      const o = await orders.get(scope, s.customerId, r.orderId);
+      expect(o.delivery).toEqual({ type: "courier", courierEstimate: ESTIMATE });
+      // ⚠ No arrival at all — not "standard", which is only how the package is routed.
+      expect(o.arrivalEstimates).toEqual([]);
+      // A customer is told who delivers, never why.
+      expect(JSON.stringify(o)).not.toMatch(/out_of_coverage|in_coverage|no_window|reason/);
+      expect((await orders.list(s.customerId)).map((x) => x.delivery)).toEqual([{ type: "courier", courierEstimate: ESTIMATE }]);
+
+      const e = await shopper({ Milk: 2 });
+      const re = await svc.createIntent(e.customerId, windowOn(e.addressId, offered()[2]!), new Date());
+      await pay(re.orderId);
+      const eo = await orders.get(scope, e.customerId, re.orderId);
+      expect(eo.delivery).toEqual({ type: "effy", courierEstimate: null });
+      expect(eo.arrivalEstimates).toHaveLength(1);
+      expect(eo.arrivalEstimates[0]).toMatchObject({ method: "standard", promisedTo: offered()[2] });
+    }));
+
+    // An order sold by today's checkout carries no `delivery` at all.
+    const old = await shopper({ Milk: 2 });
+    const ro = await svc.createIntent(old.customerId, input(old.addressId), new Date());
+    await pay(ro.orderId);
+    expect(await orders.get(scope, old.customerId, ro.orderId)).not.toHaveProperty("delivery");
+    expect((await orders.list(old.customerId))[0]).not.toHaveProperty("delivery");
+  });
+
+  it("079 P10 — no window left: courier instead ONLY if the business allows it, a courier reaches it, and no window is open", async () => {
+    await modelOn(() => courierArmed(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 1 });
+      // A window is open: never a courier, whatever the setting — the customer does not choose between them.
+      await pool.query(`UPDATE public.delivery_settings SET courier_when_no_windows = true WHERE id = 1`);
+      expect(await quoteOf(s)).toMatchObject({ coverage: "effy" });
+      expect(await quoteOf(s)).not.toHaveProperty("courier");
+      expect(await refusal(svc.createIntent(s.customerId, courier(s.addressId), new Date()))).toBe("delivery_type_changed");
+      await pool.query(`UPDATE public.delivery_settings SET courier_when_no_windows = false WHERE id = 1`);
+
+      // One place a day, and somebody has each of them.
+      await pool.query(`UPDATE public.delivery_slot SET capacity = 1 WHERE id = $1`, [slotId]);
+      for (const day of days) {
+        const o = await shopper({ Milk: 1 });
+        await svc.createIntent(o.customerId, windowOn(o.addressId, day), new Date());
+      }
+
+      // Not allowed (the default): 078's plain answer, and no payment.
+      let q = await quoteOf(s);
+      expect(q.effyWindows!.unavailable).toBe("no_windows");
+      expect(q).not.toHaveProperty("courier");
+      expect(await refusal(svc.createIntent(s.customerId, courier(s.addressId), new Date()))).toBe("delivery_type_changed");
+
+      // Allowed: the order goes by courier, and says why.
+      await pool.query(`UPDATE public.delivery_settings SET courier_when_no_windows = true WHERE id = 1`);
+      q = await quoteOf(s);
+      expect(q).toMatchObject({ coverage: "courier", courier: { estimate: ESTIMATE, reason: "no_window", fee: { totalAmount: "9.00" } } });
+      expect(q).not.toHaveProperty("effyWindows");
+      // The customer has to be shown it first: a window sent blind is not a courier order.
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date()))).toBe("delivery_type_changed");
+      const r = await svc.createIntent(s.customerId, courier(s.addressId), new Date());
+      expect(await soldAs(r.orderId)).toEqual({ type: "courier", reason: "no_window", estimate: ESTIMATE });
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking WHERE order_id = $1`, [r.orderId])).toBe(0);
+      await pay(r.orderId);
+      expect(await typeHistory(r.orderId)).toEqual([{ from_type: null, to_type: "courier", reason: "no_window", actor_kind: "checkout" }]);
+
+      // Allowed, but no courier goes to this postcode: back to the plain answer.
+      const t = await shopper({ Milk: 1 });
+      await pool.query(`INSERT INTO public.courier_excluded_postcode (postcode, reason, added_by) VALUES ('3121', 'No chilled courier service', 'test')`);
+      q = await quoteOf(t);
+      expect(q).toMatchObject({ coverage: "effy", effyWindows: { unavailable: "no_windows" } });
+      expect(q).not.toHaveProperty("courier");
+      expect(await refusal(svc.createIntent(t.customerId, windowOn(t.addressId, days[1]!), new Date()))).toBe("no_windows_available");
+    }));
   });
 });

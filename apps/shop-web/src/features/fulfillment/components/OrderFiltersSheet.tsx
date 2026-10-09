@@ -1,4 +1,4 @@
-import { SHOP_ORDER_METHODS, SHOP_ORDER_PAYMENT_STATES, SHOP_ORDER_RANGES } from "@effy/shared-types"
+import { SHOP_ORDER_DELIVERED_BY, SHOP_ORDER_PAYMENT_STATES, SHOP_ORDER_RANGES } from "@effy/shared-types"
 import {
   Button,
   Select,
@@ -13,7 +13,7 @@ import {
   SheetTitle,
 } from "@effy/design-system/ui"
 
-import { METHOD_LABEL, PAYMENT_LABEL, RANGE_LABEL, type OrdersSearch } from "../orderConsole"
+import { DELIVERED_BY_FILTER_LABEL, PAYMENT_LABEL, RANGE_LABEL, type OrdersSearch } from "../orderConsole"
 
 /**
  * The Orders list's filters (057 A3 revision 3) — the design's `orderFilters` side sheet: right-hand,
@@ -25,7 +25,7 @@ import { METHOD_LABEL, PAYMENT_LABEL, RANGE_LABEL, type OrdersSearch } from "../
  *   • Date — as designed.
  *   • Payment — the states a paid Effy order can be in. The design's "Authorized" does not exist:
  *     capture is automatic at checkout (055 R3).
- *   • Channel → Delivery (same-day / standard). Effy sells through one channel, so the design's Online
+ *   • Channel → Goes with (Effy driver / Courier — who takes the package away; 079). Effy sells through one channel, so the design's Online
  *     store / Instagram / Point of sale would be a select with one meaningful answer.
  * ⚠ No Fulfilment select — the status tabs on the page already do that job.
  */
@@ -74,10 +74,10 @@ export function OrderFiltersSheet({
           />
           <LabelledSelect
             id="filter-delivery"
-            label="Delivery"
-            value={search.method ?? "any"}
-            options={SHOP_ORDER_METHODS.map((m) => ({ value: m, label: m === "any" ? "Any" : METHOD_LABEL[m] }))}
-            onChange={(v) => onChange({ method: v as OrdersSearch["method"] })}
+            label="Goes with"
+            value={search.deliveredBy ?? "any"}
+            options={SHOP_ORDER_DELIVERED_BY.map((d) => ({ value: d, label: DELIVERED_BY_FILTER_LABEL[d] }))}
+            onChange={(v) => onChange({ deliveredBy: v === "any" ? undefined : (v as OrdersSearch["deliveredBy"]) })}
           />
 
           <div className="border-border flex items-center justify-between gap-2.5 border-t pt-4">

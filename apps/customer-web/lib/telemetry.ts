@@ -264,6 +264,13 @@ export type StorefrontEvent =
   // reason as the slot event above). `reason` is why nothing could be chosen.
   | { name: "checkout_window_selected"; props: { section: "same_day" | "standard"; day_offset: number } }
   | { name: "checkout_windows_unavailable"; props: { reason: "no_windows" | "none_defined" } }
+  // 079 who delivers.
+  //
+  // ⚠ THE TYPE AND WHY, AND NOTHING ELSE — never a postcode, an address or the estimate. `reason` is
+  // which of three situations the shopper is in; it says how often an address falls outside Effy's
+  // area and how often the windows run out, not where anyone lives.
+  | { name: "checkout_delivery_type_shown"; props: { type: "effy" | "courier"; reason: "in_coverage" | "out_of_coverage" | "no_window" } }
+  | { name: "checkout_delivery_type_changed"; props: Record<string, never> }
   // 077 delivery fee.
   //
   // ⚠ THREE BOOLEANS AND NOTHING ELSE — never an amount. Whether free delivery, the small-order fee

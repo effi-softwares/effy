@@ -774,6 +774,38 @@
       ],
       "type": "object"
     },
+    "CourierQuoteDTO": {
+      "additionalProperties": false,
+      "description": "079 — what a customer is told and charged when a courier delivers the order.",
+      "properties": {
+        "estimate": {
+          "description": "The courier's usual timeframe, in the business's words (\"2–4 business days\"). ⚠ An estimate, never a promise: print it through `courierLines` (`delivery-type.ts`), never on its own.",
+          "type": "string"
+        },
+        "fee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "The courier fee for the whole order (077): lines and a total."
+        },
+        "reason": {
+          "$ref": "#/definitions/CourierQuoteReason",
+          "description": "`out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no window is available on any offered day and the business sends such an order by courier: the client says there are no delivery windows FIRST, then offers this."
+        }
+      },
+      "required": [
+        "estimate",
+        "fee",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "CourierQuoteReason": {
+      "description": "079 — why a courier delivers this order. Named, so the generated Kotlin enum is too.",
+      "enum": [
+        "out_of_coverage",
+        "no_window"
+      ],
+      "type": "string"
+    },
     "CoverageKind": {
       "description": "076 — WHO delivers to an address. The one answer every surface gives (FR-019/FR-020):   effy     the postcode is on Effy's list — Effy's own drivers deliver   courier  not on the list, and courier delivery is offered there   none     neither reaches it\n\n⚠ Decided in ONE place — the database function `public.coverage_for_postcode` — at the moment of asking, and never stored against an address (FR-021). ⚠ A customer contract carries this value and NOTHING about why: no group, no distance, no reason, no hub (FR-023). Staff contracts are in `delivery-admin.ts`.",
       "enum": [
@@ -882,6 +914,14 @@
             "null"
           ]
         },
+        "deliveryType": {
+          "description": "079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this differs from what applies now, or when a courier quote is answered without it — so nobody pays a courier fee for a screen that showed Effy's windows, or the reverse. Optional for an Effy order.",
+          "enum": [
+            "effy",
+            "courier"
+          ],
+          "type": "string"
+        },
         "deliveryWindow": {
           "anyOf": [
             {
@@ -982,6 +1022,14 @@
         "deliveryFee": {
           "$ref": "#/definitions/DeliveryFeeDTO",
           "description": "077 — the delivery charge inside `grandTotalAmount`, as lines."
+        },
+        "deliveryType": {
+          "description": "079 — the delivery type the order was written with. Absent while the new delivery model is off.",
+          "enum": [
+            "effy",
+            "courier"
+          ],
+          "type": "string"
         },
         "grandTotalAmount": {
           "type": "string"
@@ -1096,7 +1144,8 @@
         "slot_required",
         "slot_unavailable",
         "date_unavailable",
-        "no_windows_available"
+        "no_windows_available",
+        "delivery_type_changed"
       ],
       "type": "string"
     },
@@ -1291,9 +1340,13 @@
       "additionalProperties": false,
       "description": "The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted fee — the client never sends a fee (FR-036). When `serviced` is false there are NO packages and one reason: the postcode is in no served zone (FR-002).",
       "properties": {
+        "courier": {
+          "$ref": "#/definitions/CourierQuoteDTO",
+          "description": "079 — PRESENT EXACTLY WHEN `coverage` is `\"courier\"`. There is then nothing to choose: `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The client shows \"Courier delivery\", the estimate and the fee, and sends `deliveryType: \"courier\"` on the intent. ⚠ No distance, no courier company, nothing about how many suppliers fill the order."
+        },
         "coverage": {
           "$ref": "#/definitions/CoverageKind",
-          "description": "076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be purchased until the courier checkout exists, and until then the server never returns it here."
+          "description": "076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only when a courier order can be placed (079): the new delivery model is on, courier delivery is on, a courier fee table is active and an estimate is set. The quote then carries `courier`."
         },
         "effyWindows": {
           "anyOf": [
@@ -1421,6 +1474,14 @@
         "cutoffAt"
       ],
       "type": "object"
+    },
+    "DeliveryType": {
+      "description": "Who delivers an order. One per order, whatever number of suppliers fill it.",
+      "enum": [
+        "effy",
+        "courier"
+      ],
+      "type": "string"
     },
     "EffyDayClosedReason": {
       "description": "Why a day has no window to choose. A later day is only ever \"full\".",
@@ -1800,7 +1861,7 @@
           "type": "string"
         },
         "arrivalEstimates": {
-          "description": "052 — when the order is expected to arrive (FR-007), one entry per package.\n\n⚠ More than one entry means the order arrives in more than one delivery — a fact about the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference of any kind (FR-009), and the entries are deliberately unordered with respect to any internal grouping.",
+          "description": "052 — when the order is expected to arrive (FR-007), one entry per package.\n\n⚠ More than one entry means the order arrives in more than one delivery — a fact about the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference of any kind (FR-009), and the entries are deliberately unordered with respect to any internal grouping.\n\n⚠ 079 — EMPTY for a courier order, which has no window and no day: read `delivery` and print `deliverySummary`. (Empty, not \"standard\", so a client built before 079 prints no arrival rather than a wrong one.)",
           "items": {
             "$ref": "#/definitions/ArrivalEstimateDTO"
           },
@@ -1823,6 +1884,10 @@
         },
         "currency": {
           "type": "string"
+        },
+        "delivery": {
+          "$ref": "#/definitions/OrderDeliveryDTO",
+          "description": "079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an order placed before 079. Every surface prints this through `deliverySummary` (`delivery-type.ts`)."
         },
         "deliveryAddress": {
           "$ref": "#/definitions/OrderAddressDTO",
@@ -1944,6 +2009,27 @@
         "stage",
         "cancellable",
         "arrivalEstimates"
+      ],
+      "type": "object"
+    },
+    "OrderDeliveryDTO": {
+      "additionalProperties": false,
+      "description": "An order's delivery, as a customer contract carries it. ABSENT on an order placed before 079.",
+      "properties": {
+        "courierEstimate": {
+          "description": "The courier's usual timeframe as it was sold (\"2–4 business days\"); null for an Effy order.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/DeliveryType"
+        }
+      },
+      "required": [
+        "type",
+        "courierEstimate"
       ],
       "type": "object"
     },
@@ -2096,6 +2182,10 @@
       "properties": {
         "currency": {
           "type": "string"
+        },
+        "delivery": {
+          "$ref": "#/definitions/OrderDeliveryDTO",
+          "description": "079 — who delivers it. ⚠ ABSENT on an order placed before 079."
         },
         "grandTotalAmount": {
           "type": "string"

@@ -83,6 +83,8 @@ class CheckoutViewModelTest {
         private var feeChangedTo: DeliveryQuote? = null,
         /** 078 — when set, the first intent is refused over the delivery choice. */
         private var refusal: com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused? = null,
+        /** 079 — a quote per ADDRESS: who delivers is decided from where the order is going. */
+        private val quoteFor: Map<String, DeliveryQuote> = emptyMap(),
     ) : CheckoutRepository {
         var lastOrder: PlaceOrder? = null
         var intents = 0
@@ -97,7 +99,11 @@ class CheckoutViewModelTest {
             )
         }
         override suspend fun confirm(orderId: String) = true
-        override suspend fun quote(addressId: String) = quote
+        val quoted = mutableListOf<String>()
+        override suspend fun quote(addressId: String): DeliveryQuote {
+            quoted += addressId
+            return quoteFor[addressId] ?: quote
+        }
     }
 
     private fun vm(
@@ -483,6 +489,135 @@ class CheckoutViewModelTest {
         vm.select("b")
         assertNull(ready(vm)?.window)
         assertEquals(false, ready(vm)?.deliveryChosen)
+    }
+
+    // ── 079: Delivered by Effy, or by a courier ─────────────────────────────────────────────────
+
+    private fun courierQuote(noWindowLeft: Boolean = false) = DeliveryQuote(
+        serviced = true, sameDayAvailable = false, standardTotalAmount = "9.00", sameDayTotalAmount = null,
+        courier = com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery(
+            estimate = "2–4 business days",
+            fee = fee(com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind.Delivery to "9.00", total = "9.00"),
+            noWindowLeft = noWindowLeft,
+        ),
+    )
+    private val effyType = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType.EFFY
+    private val courierType = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType.COURIER
+
+    @Test
+    fun `079 - a courier order has nothing to choose - its fee is shown and pay is not waiting`() = runTest {
+        val vm = vm(listOf(addr("far", isDefault = true)), checkout = FakeCheckout(quote = courierQuote()))
+        val s = ready(vm)!!
+        assertEquals(courierType, s.quote?.deliveryType)
+        assertNotNull(s.courier)
+        assertNull(s.effyWindows)
+        assertEquals(true, s.deliveryChosen)
+        assertEquals("9.00", s.deliveryFee?.totalAmount)
+        assertEquals(false, s.needsSlot)
+        assertEquals(false, s.needsDay)
+    }
+
+    @Test
+    fun `079 - a courier order sends the type and the total shown - and no window, slot or day`() = runTest {
+        val checkout = FakeCheckout(quote = courierQuote())
+        val vm = vm(listOf(addr("far", isDefault = true)), checkout = checkout)
+        vm.payNow()
+        val sent = checkout.lastOrder!!
+        assertEquals(courierType, sent.deliveryType)
+        assertEquals("9.00", sent.shownDeliveryAmount)
+        assertNull(sent.deliveryWindow)
+        assertNull(sent.sameDaySlotId)
+        assertNull(sent.standardDate)
+        assertEquals(DeliveryMethod.STANDARD, sent.deliveryMethod)
+        assertEquals(true, ready(vm)?.handedOffToPayment)
+    }
+
+    @Test
+    fun `079 - an Effy order says so on the intent, and the checkout that predates delivery types says nothing`() = runTest {
+        val effy = FakeCheckout(quote = windowsQuote())
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = effy)
+        assertEquals(effyType, ready(vm)?.quote?.deliveryType)
+        vm.setWindow("afternoon", "2026-10-10")
+        vm.payNow()
+        assertEquals(effyType, effy.lastOrder?.deliveryType)
+
+        val old = FakeCheckout() // the 069 quote: no windows, no courier
+        val legacy = vm(listOf(addr("a", isDefault = true)), checkout = old)
+        assertNull(ready(legacy)?.quote?.deliveryType)
+        legacy.payNow()
+        assertNull(old.lastOrder?.deliveryType)
+    }
+
+    @Test
+    fun `079 - changing the address re-decides everything - the window is gone and the fee follows the address`() = runTest {
+        val checkout = FakeCheckout(quoteFor = mapOf("home" to windowsQuote(), "far" to courierQuote()))
+        val vm = vm(listOf(addr("home", isDefault = true), addr("far")), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-10")
+        assertEquals("6.00", ready(vm)?.deliveryFee?.totalAmount)
+
+        vm.select("far")
+        val far = ready(vm)!!
+        assertNull(far.window)
+        assertNotNull(far.courier)
+        assertEquals("9.00", far.deliveryFee?.totalAmount)
+        vm.payNow()
+        // ⚠ Nothing of the first address went with it: not its window, not its $6.00.
+        assertEquals("far", checkout.lastOrder?.addressId)
+        assertEquals(courierType, checkout.lastOrder?.deliveryType)
+        assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
+        assertNull(checkout.lastOrder?.deliveryWindow)
+    }
+
+    @Test
+    fun `079 - back at the Effy address nothing is selected and pay waits for a choice`() = runTest {
+        val checkout = FakeCheckout(quoteFor = mapOf("home" to windowsQuote(), "far" to courierQuote()))
+        val vm = vm(listOf(addr("home", isDefault = true), addr("far")), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-10")
+        vm.select("far")
+        vm.select("home")
+        val s = ready(vm)!!
+        assertEquals(listOf("home", "far", "home"), checkout.quoted)
+        assertNull(s.courier)
+        assertNull(s.window)
+        assertEquals(false, s.deliveryChosen)
+        assertNull(s.deliveryFee)
+    }
+
+    @Test
+    fun `079 - two addresses Effy both delivers to, offering the same window - the choice does not follow the shopper`() = runTest {
+        // The case "keep it while it is offered" would get wrong: the window IS on offer at the new address.
+        val vm = vm(listOf(addr("home", isDefault = true), addr("work")), checkout = FakeCheckout(quote = windowsQuote()))
+        vm.setWindow("afternoon", "2026-10-10")
+        vm.select("work")
+        assertNull(ready(vm)?.window)
+        assertEquals(false, ready(vm)?.deliveryChosen)
+    }
+
+    @Test
+    fun `079 - who delivers changed under the shopper - nothing is paid, they are told, and the new section is shown`() = runTest {
+        val nowCourier = courierQuote(noWindowLeft = true)
+        val checkout = FakeCheckout(
+            quote = windowsQuote(),
+            refusal = com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused(
+                com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal.DeliveryTypeChanged, nowCourier,
+            ),
+        )
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = checkout)
+        vm.setWindow("afternoon", "2026-10-10")
+        vm.payNow()
+
+        val s = ready(vm)!!
+        assertEquals(com.effyshopping.customer.mobile.features.checkout.presentation.DeliveryTypeWords.TYPE_CHANGED, s.error)
+        assertEquals(false, s.handedOffToPayment)
+        assertEquals(false, s.paying)
+        assertNull(s.window)
+        assertEquals(true, s.courier?.noWindowLeft)
+        // Pressing pay again buys what is NOW on the screen.
+        vm.payNow()
+        assertEquals(2, checkout.intents)
+        assertEquals(courierType, checkout.lastOrder?.deliveryType)
+        assertNull(checkout.lastOrder?.deliveryWindow)
+        assertEquals("9.00", checkout.lastOrder?.shownDeliveryAmount)
     }
 
     @Test

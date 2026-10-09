@@ -1,6 +1,7 @@
 import {
+  DELIVERED_BY_WORDS,
   SHOP_ORDER_ATTENTION,
-  SHOP_ORDER_METHODS,
+  SHOP_ORDER_DELIVERED_BY,
   SHOP_ORDER_PAYMENT_STATES,
   SHOP_ORDER_RANGES,
   SHOP_ORDER_SORTS,
@@ -12,7 +13,8 @@ import {
   type ShopOrderLineDTO,
   type ShopOrderListDTO,
   type ShopOrderListQuery,
-  type ShopOrderMethod,
+  type DeliveredBy,
+  type ShopOrderDeliveredBy,
   type ShopOrderPaymentState,
   type ShopOrderRange,
   type ShopOrderRefundDTO,
@@ -45,7 +47,8 @@ export interface OrdersSearch {
   q?: string
   attention?: ShopOrderAttention
   payment?: ShopOrderPaymentState
-  method?: ShopOrderMethod
+  /** 079 — who takes the package away. (Was `method`: the customer's words, which a shop is no longer shown.) */
+  deliveredBy?: ShopOrderDeliveredBy
   range?: ShopOrderRange
   sort?: ShopOrderSort
   dir?: "asc" | "desc"
@@ -69,8 +72,10 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (attention && attention !== "any") out.attention = attention
   const payment = pick(raw.payment, SHOP_ORDER_PAYMENT_STATES)
   if (payment) out.payment = payment
-  const method = pick(raw.method, SHOP_ORDER_METHODS)
-  if (method && method !== "any") out.method = method
+  // ⚠ An old link may still carry `method=same_day`. It is dropped, like any key this list does not
+  // know: the words were the customer's, and "standard" no longer says who collects the package.
+  const deliveredBy = pick(raw.deliveredBy, SHOP_ORDER_DELIVERED_BY)
+  if (deliveredBy && deliveredBy !== "any") out.deliveredBy = deliveredBy
   const range = pick(raw.range, SHOP_ORDER_RANGES)
   if (range && range !== "any") out.range = range
   const sort = pick(raw.sort, SHOP_ORDER_SORTS)
@@ -92,7 +97,7 @@ export function toListQuery(s: OrdersSearch): ShopOrderListQuery {
 
 /** Whether anything narrows the list beyond the tab — what separates "no orders yet" from "no match". */
 export function isFiltered(s: OrdersSearch): boolean {
-  return !!(s.q || s.attention || s.payment || s.method || s.range)
+  return !!(s.q || s.attention || s.payment || s.deliveredBy || s.range)
 }
 
 /**
@@ -101,7 +106,7 @@ export function isFiltered(s: OrdersSearch): boolean {
  * link may carry it and the sheet's "Clear all" is the way to drop it.
  */
 export function activeFilterCount(s: OrdersSearch): number {
-  return [s.range, s.payment, s.method, s.attention].filter(Boolean).length
+  return [s.range, s.payment, s.deliveredBy, s.attention].filter(Boolean).length
 }
 
 // ── Labels ──────────────────────────────────────────────────────────────────────────────────────
@@ -131,10 +136,14 @@ export const ATTENTION_LABEL: Record<ShopOrderAttention, string> = {
   on_track: "On track",
 }
 
-export const METHOD_LABEL: Record<ShopOrderMethod, string> = {
-  any: "Any method",
-  same_day: "Same-day",
-  standard: "Standard",
+/**
+ * 079 — who takes a package away from the shop. ⚠ THE WORDS ARE `DELIVERED_BY_WORDS`'S (shared-types):
+ * the shop app prints the same two, and a test holds it to them. "Same-day" and "standard" are the
+ * customer's words and appear nowhere in this console (`scripts/check-shop-delivery-words.sh`).
+ */
+export const DELIVERED_BY_FILTER_LABEL: Record<ShopOrderDeliveredBy, string> = {
+  any: "Anyone",
+  ...DELIVERED_BY_WORDS,
 }
 
 export const RANGE_LABEL: Record<ShopOrderRange, string> = {
@@ -144,10 +153,9 @@ export const RANGE_LABEL: Record<ShopOrderRange, string> = {
   "30d": "Last 30 days",
 }
 
-export function methodText(m: "same_day" | "standard" | null): string {
-  if (m === "same_day") return "Same-day"
-  if (m === "standard") return "Standard"
-  return "—"
+/** "Effy driver" / "Courier" — who this package is handed to. */
+export function deliveredByText(d: DeliveredBy): string {
+  return DELIVERED_BY_WORDS[d]
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────────────────────────────
@@ -253,7 +261,7 @@ export function toCsv(rows: readonly OrderRow[]): string {
     const s = String(v)
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const head = ["Order", "Customer", "Placed", "Status", "Payment", "Method", "Items", "Total", "Tags"]
+  const head = ["Order", "Customer", "Placed", "Status", "Payment", "Goes with", "Items", "Total", "Tags"]
   const body = rows.map((r) =>
     [
       r.orderNumber,
@@ -261,7 +269,7 @@ export function toCsv(rows: readonly OrderRow[]): string {
       r.placedAt,
       r.status,
       PAYMENT_LABEL[r.payment],
-      methodText(r.deliveryMethod),
+      deliveredByText(r.deliveredBy),
       r.itemCount,
       r.total,
       r.tags.join(" "),

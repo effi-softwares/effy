@@ -237,21 +237,38 @@ data class CreateShopSectionRequest (
  * Owned by 021. While only one service level exists, `readyBy` is a constant offset from
  * the order's placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).
  *
- * Says NOTHING about who delivers. There is no carrier, driver, or provider field here, by
- * design.
+ * ⚠ 079 — it says who takes the package away as ONE OF TWO WORDS (`deliveredBy`), and
+ * nothing more: there is still no driver's name, no courier company and no reference here,
+ * by design.
  */
 @Serializable
 data class DeliveryPromiseDTO (
+    /**
+     * 079 — who takes this package away from the shop: an Effy driver or a courier. Absent from
+     * a server older than 079. Print it through `DELIVERED_BY_WORDS`.
+     */
+    val deliveredBy: DeliveredBy? = null,
+
     /**
      * ISO-8601. The time by which THIS shop must be ready.
      */
     val readyBy: String,
 
-    /**
-     * e.g. "standard". A service level the customer bought — never a fulfillment mechanism.
-     */
     val serviceLevel: String
 )
+
+/**
+ * 079 — who takes this package away from the shop: an Effy driver or a courier. Absent from
+ * a server older than 079. Print it through `DELIVERED_BY_WORDS`.
+ *
+ * Who takes a package away from the shop, as SHOP staff read it. Never a window, a day or a
+ * fee.
+ */
+@Serializable
+enum class DeliveredBy(val value: String) {
+    @SerialName("courier") Courier("courier"),
+    @SerialName("effy_driver") EffyDriver("effy_driver");
+}
 
 /**
  * The delivery context a shop needs to prepare and label the order (FR-009). Snapshotted
@@ -329,15 +346,6 @@ data class FulfillmentItemDTO (
     val unavailableQuantity: Double
 )
 
-/**
- * The fulfillment state machine (FR-011).
- *
- * `pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until
- * now — it means a human acknowledged the order, which is what distinguishes untouched work
- * from work in progress. `collected` (picked up) and `delivered` are reachable ONLY via the
- * dev-only driver stubs (FR-030) and are terminal + immutable (FR-011f) — a placeholder for
- * the real driver slice.
- */
 @Serializable
 enum class FulfillmentStatus(val value: String) {
     @SerialName("collected") Collected("collected"),

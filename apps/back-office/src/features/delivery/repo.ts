@@ -21,7 +21,7 @@ import type {
   CoverageCheckResultDTO,
   CoverageListDTO,
   CoveragePlaceSearchDTO,
-  PatchCoveragePostcodesRequest,
+  PatchCoveragePostcodesRequest, CourierReachDTO, CourierReachUpdateDTO,
 } from "@effy/shared-types";
 
 import { api } from "@/lib/api";
@@ -163,8 +163,9 @@ export function renameCoverageGroup(id: string, name: string): Promise<void> {
 export function removeCoverageGroup(id: string, confirmNoDrivers: boolean): Promise<{ ungrouped: number }> {
   return api.delete<{ ungrouped: number }>(`/admin/v1/delivery/coverage/groups/${id}${confirmNoDrivers ? "?confirmNoDrivers=true" : ""}`);
 }
-export function setCourierOffered(offered: boolean): Promise<{ offered: boolean }> {
-  return api.put<{ offered: boolean }>("/admin/v1/delivery/coverage/courier", { offered });
+/** 079 — courier delivery on or off, the estimate customers are shown, the no-window fallback. Any of the three. */
+export function updateCourier(change: CourierReachUpdateDTO): Promise<Pick<CourierReachDTO, "offered" | "estimateText" | "whenNoWindows">> {
+  return api.put("/admin/v1/delivery/coverage/courier", change);
 }
 export function addCourierExclusion(postcode: string, reason: string): Promise<void> {
   return api.post<void>("/admin/v1/delivery/coverage/courier/exclusions", { postcode, reason });

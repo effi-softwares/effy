@@ -10,7 +10,7 @@ import {
   canPick,
   formatMoney,
   formatWhen,
-  methodText,
+  deliveredByText,
   pickLabel,
   pickModeOf,
   pickSummary,
@@ -85,7 +85,7 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
         <div className="grid min-w-0 gap-1">
           <h2 className="text-[15px] font-semibold tracking-[-.01em]">Items and fulfilment</h2>
           <p className="text-muted-foreground text-[12.5px]">
-            {pickSummary(detail.lines)} · {methodText(detail.deliveryMethod)} delivery
+            {pickSummary(detail.lines)} · {deliveredByText(detail.deliveredBy)}
           </p>
         </div>
         <div className="flex-1" />

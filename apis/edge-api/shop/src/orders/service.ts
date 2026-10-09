@@ -9,7 +9,7 @@ import * as repo from "./repository";
 import type { ActivityRecord } from "./repository";
 import {
   ATTENTIONS,
-  METHODS,
+  DELIVERED_BY_FILTERS, METHODS,
   ORDER_TABS,
   PAYMENT_STATES,
   RANGES,
@@ -54,6 +54,7 @@ export function parseListQuery(qs: Record<string, string | undefined> | null): O
     attention: oneOf(p.attention, ATTENTIONS, "any"),
     payment: oneOf(p.payment, [...PAYMENT_STATES, "any"] as const, "any"),
     method: oneOf(p.method, METHODS, "any"),
+    deliveredBy: oneOf(p.deliveredBy, DELIVERED_BY_FILTERS, "any"),
     range: oneOf(p.range, RANGES, "any"),
     sort: oneOf(p.sort, SORT_KEYS, "placed"),
     dir: p.dir === "asc" ? "asc" : "desc",

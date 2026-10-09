@@ -73,8 +73,11 @@ const COVERAGE_COPY: Record<string, string> = {
   already_excluded: "That postcode is already excluded.",
   not_excluded: "That postcode is no longer excluded.",
   reason_required: "Say why, in a few words.",
-  courier_ordering_unavailable: "Courier delivery can be switched on once customers can place courier orders.",
   courier_plan_missing: "Make a courier fee table active on the Pricing tab before switching courier delivery on.",
+  // 079 — what a customer is told about when a courier order arrives.
+  courier_estimate_missing: "Say how long a courier usually takes before switching courier delivery on.",
+  courier_estimate_in_use: "Switch courier delivery off before removing its estimate.",
+  invalid_estimate: "The estimate is 3 to 60 characters on one line, like \"2–4 business days\".",
 };
 
 /** The refusal's code, when the service named one. */
@@ -96,6 +99,9 @@ export const COVERAGE_REASON_COPY: Record<string, string> = {
   courier_offered: "Not on Effy's list. Courier delivery is offered there.",
   courier_off: "Not on Effy's list. Courier delivery is switched off, so nobody delivers there.",
   courier_excluded: "Not on Effy's list, and excluded from courier delivery.",
+  // 079 — on, and no customer is offered it yet.
+  courier_pending: "Not on Effy's list. Courier delivery is switched on and starts with the new delivery model — until then nobody delivers there.",
+  courier_not_ready: "Not on Effy's list. Courier delivery is switched on but has no fee table or no estimate, so nobody delivers there.",
   unknown_postcode: "Not a known postcode.",
 };
 

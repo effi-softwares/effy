@@ -41,6 +41,9 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { addNote, applyPicks, listOrders, readActivity, readOrder, replaceTags } from "./repository";
 import { parseListQuery, toEntry } from "./service";
+import { toListDTO, toOrderDTO } from "./handler-support";
+import { readPickLists } from "../pick-lists/repository";
+import { readLiveOrders } from "../today/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -226,8 +229,11 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     for (let i = 0; i < 27; i++) {
       await order({ number: `EFY-${String(i).padStart(2, "0")}`, recipient: "R" });
     }
-    const p1 = await listOrders(SHOP, parseListQuery({ sort: "number" }));
-    const p2 = await listOrders(SHOP, parseListQuery({ sort: "number", page: "2" }));
+    // ⚠ `dir: "asc"` is said out loud: the DEFAULT became newest-first on 2026-09-19 (operator
+    // direction, see parseListQuery) and this test went on expecting oldest-first — red from then
+    // until 079 looked at it. What it proves is the paging, not the default.
+    const p1 = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc" }));
+    const p2 = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc", page: "2" }));
     expect(p1.items).toHaveLength(25);
     expect(p2.items.map((r) => r.orderNumber)).toEqual(["EFY-25", "EFY-26"]);
     expect(p1.total).toBe(27);
@@ -355,5 +361,95 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
       applyPicks(mine.fulfillmentId, SHOP, [{ orderItemId: theirs.itemIds[0]!, mode: "full", units: 0, note: null }], STAFF),
     ).rejects.toMatchObject({ kind: "validation" });
     expect(await applyPicks(theirs.fulfillmentId, SHOP, [{ orderItemId: theirs.itemIds[0]!, mode: "full", units: 0, note: null }], STAFF)).toBeNull();
+  });
+
+  // ── 079 — who takes the package away ─────────────────────────────────────────────────────────────
+
+  /**
+   * Every kind of package there has ever been (the six of P11), in this shop. `window` gives the
+   * package's captured delivery row a slot — a fact the shop service itself never reads.
+   */
+  async function sixKinds() {
+    const slot = (
+      await pool.query<{ id: string }>(
+        // One window, made once and reused: a window's times are unique.
+        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+         VALUES ('16:00', '18:00', '14:00', 9, 'test')
+         ON CONFLICT (start_time, end_time) DO UPDATE SET updated_by = 'test' RETURNING id`,
+      )
+    ).rows[0]!.id;
+    const make = async (number: string, type: "effy" | "courier" | null, method: "same_day" | "standard" | null, window: boolean) => {
+      const o = await order({ number, recipient: number, method: method ?? "standard" });
+      if (method === null) await pool.query(`UPDATE public.shop_fulfillment SET delivery_method = NULL WHERE id = $1`, [o.fulfillmentId]);
+      else {
+        await pool.query(
+          `INSERT INTO public.order_package_delivery (order_id, shop_id, method, promised_from, promised_to, slot_id, window_start, window_end)
+           VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE, $4, $5, $6)`,
+          [o.orderId, SHOP, method, window ? slot : null, window ? new Date("2026-10-08T05:00:00Z") : null, window ? new Date("2026-10-08T07:00:00Z") : null],
+        );
+      }
+      if (type) {
+        await pool.query(
+          `UPDATE public."order" SET delivery_type = $2, delivery_type_reason = $3, courier_estimate = $4 WHERE id = $1`,
+          [o.orderId, type, type === "effy" ? "in_coverage" : "out_of_coverage", type === "courier" ? "2–4 business days" : null],
+        );
+      }
+      return o;
+    };
+    return {
+      "EFY-K1 new, Effy today": await make("EFY-K1", "effy", "same_day", true),
+      "EFY-K2 new, Effy later day": await make("EFY-K2", "effy", "standard", true),
+      "EFY-K3 new, courier": await make("EFY-K3", "courier", "standard", false),
+      "EFY-K4 old, same-day": await make("EFY-K4", null, "same_day", true),
+      "EFY-K5 old, a carrier's": await make("EFY-K5", null, "standard", false),
+      "EFY-K6 old, standard sold a window": await make("EFY-K6", null, "standard", true),
+      "EFY-K7 before 047, no method": await make("EFY-K7", null, null, false),
+    };
+  }
+  const EXPECTED = {
+    "EFY-K1": "effy_driver", "EFY-K2": "effy_driver", "EFY-K3": "courier", "EFY-K4": "effy_driver",
+    "EFY-K5": "courier", "EFY-K6": "effy_driver", "EFY-K7": "courier",
+  };
+
+  it("079 P17 — every package says who takes it away, on the list, the detail, Today and the pick lists", async () => {
+    const made = await sixKinds();
+
+    const list = await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc" }));
+    expect(Object.fromEntries(list.items.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
+
+    for (const [name, o] of Object.entries(made)) {
+      expect((await readOrder(o.fulfillmentId, SHOP)).deliveredBy, name).toBe(EXPECTED[name.slice(0, 6) as keyof typeof EXPECTED]);
+    }
+    expect(Object.fromEntries((await readLiveOrders(SHOP, 50)).map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
+    expect(Object.fromEntries((await readPickLists(SHOP)).lists.map((r) => [r.orderNumber, r.deliveredBy]))).toEqual(EXPECTED);
+  });
+
+  it("079 — the list filters by who takes it away; the old method filter still answers an installed app", async () => {
+    await sixKinds();
+    const numbers = async (qs: Record<string, string>) =>
+      (await listOrders(SHOP, parseListQuery({ sort: "number", dir: "asc", ...qs }))).items.map((r) => r.orderNumber);
+    expect(await numbers({ deliveredBy: "effy_driver" })).toEqual(["EFY-K1", "EFY-K2", "EFY-K4", "EFY-K6"]);
+    expect(await numbers({ deliveredBy: "courier" })).toEqual(["EFY-K3", "EFY-K5", "EFY-K7"]);
+    // An unknown value is the default, never "match nothing".
+    expect(await numbers({ deliveredBy: "drone" })).toHaveLength(7);
+    // ⚠ The customer's word tells a shop the wrong thing about K2 and K6 — which is why it is no longer shown.
+    expect(await numbers({ method: "standard" })).toEqual(["EFY-K2", "EFY-K3", "EFY-K5", "EFY-K6"]);
+    expect((await listOrders(SHOP, parseListQuery({ deliveredBy: "courier" }))).counts.all).toBe(3);
+  });
+
+  it("079 — ⚠ what the shop is sent says who takes it and NOTHING else about delivery: no window, day, estimate or fee", async () => {
+    const made = await sixKinds();
+    const list = await listOrders(SHOP, parseListQuery({}));
+    const wire = [
+      toListDTO(list),
+      ...(await Promise.all(Object.values(made).map(async (o) => toOrderDTO(await readOrder(o.fulfillmentId, SHOP))))),
+      ...(await readLiveOrders(SHOP, 50)),
+      ...(await readPickLists(SHOP)).lists,
+    ];
+    const text = JSON.stringify(wire);
+    expect(text).toMatch(/"deliveredBy":"courier"/);
+    // The window (05:00–07:00Z on 2026-10-08), the estimate, the type's reason and the slot are all in
+    // the database for these orders. None of it may be in what a shop receives.
+    expect(text).not.toMatch(/2026-10-08T0[57]|window|slot|promised|business days|estimate|in_coverage|out_of_coverage|deliveryFee|delivery_fee/i);
   });
 });

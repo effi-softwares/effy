@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { judgePromise, minusDays, type PromiseFacts } from "./promise";
 
+// A package a carrier takes, from an order placed before 079 (it was promised a DAY).
 const base: PromiseFacts = {
-  method: "standard",
+  deliveredBy: "courier",
+  courierOrder: false,
+  placedDate: "2026-10-05",
   promisedDate: "2026-10-08",
   windowEnd: null,
   today: "2026-10-06",
@@ -27,7 +30,9 @@ describe("minusDays", () => {
 });
 
 describe("judgePromise — 078: a standard package that was sold a window is Effy's", () => {
-  const windowed: PromiseFacts = { ...base, windowEnd: new Date("2026-10-08T07:00:00Z") };
+  // ⚠ 079 — WHO delivers is `public.package_delivered_by`'s answer, handed in; this file no longer
+  // works it out from the method and the window.
+  const windowed: PromiseFacts = { ...base, deliveredBy: "effy", windowEnd: new Date("2026-10-08T07:00:00Z") };
 
   it("is never due for a carrier handover and never at risk for want of one", () => {
     expect(judgePromise(windowed)).toEqual({ handoverDueOn: null, atRisk: false, onTime: null });
@@ -87,7 +92,7 @@ describe("judgePromise — a standard package", () => {
 
 describe("judgePromise — a same-day package", () => {
   const sameDay: PromiseFacts = {
-    ...base, method: "same_day", promisedDate: "2026-10-06", windowEnd: new Date("2026-10-06T08:00:00Z"),
+    ...base, deliveredBy: "effy", promisedDate: "2026-10-06", windowEnd: new Date("2026-10-06T08:00:00Z"),
   };
 
   it("is never due for a carrier handover and never at risk of missing one", () => {
@@ -113,5 +118,27 @@ describe("judgePromise — an order placed before 069", () => {
 
     const arrived = judgePromise({ ...old, arrivedAt: new Date("2026-10-20T00:00:00Z"), arrivalDate: "2026-10-20" });
     expect(arrived.onTime).toBeNull();
+  });
+});
+
+describe("judgePromise — 079: an order sold as a courier delivery was promised no day", () => {
+  const courier: PromiseFacts = { ...base, courierOrder: true, promisedDate: null, placedDate: "2026-10-06", today: "2026-10-06" };
+
+  it("is due at the carrier the day it was placed, and at risk from the next", () => {
+    expect(judgePromise(courier)).toEqual({ handoverDueOn: "2026-10-06", atRisk: false, onTime: null });
+    expect(judgePromise({ ...courier, today: "2026-10-07" }).atRisk).toBe(true);
+    expect(judgePromise({ ...courier, today: "2026-10-09", handoffDate: "2026-10-06" }).atRisk).toBe(false);
+  });
+
+  it("is never judged on time or late: it was told an estimate, not a date", () => {
+    expect(judgePromise({ ...courier, arrivedAt: new Date("2026-10-20T03:00:00Z"), arrivalDate: "2026-10-20" }).onTime).toBeNull();
+  });
+
+  it("a carrier package from before 069 has no promised day either — and nothing to be due by", () => {
+    expect(judgePromise({ ...base, promisedDate: null, today: "2026-12-01" })).toEqual({ handoverDueOn: null, atRisk: false, onTime: null });
+  });
+
+  it("the order's type does not make an Effy-delivered package a carrier's", () => {
+    expect(judgePromise({ ...courier, deliveredBy: "effy", today: "2026-10-30" })).toEqual({ handoverDueOn: null, atRisk: false, onTime: null });
   });
 });

@@ -38,6 +38,17 @@ export interface PackageDelivery {
   windowEnd: Date | null;
 }
 
+/**
+ * 079 — who delivers the order, as the checkout decided it. Null for an order sold by the checkout
+ * that predates the new delivery model: it has no delivery type, and is never given one.
+ */
+export interface SoldDelivery {
+  type: "effy" | "courier";
+  reason: "in_coverage" | "out_of_coverage" | "no_window";
+  /** The courier's timeframe as the customer was shown it; null unless a courier delivers. */
+  courierEstimate: string | null;
+}
+
 export interface SlotHold {
   slotId: string;
   /** The delivery day, yyyy-mm-dd (Melbourne) — today, or since 078 a later delivery day. */
@@ -113,7 +124,7 @@ export interface CheckoutStore {
   setOrderBilling(orderId: string, billing: Record<string, unknown> | null): Promise<void>;
   setOrderDeliveryInstructions(orderId: string, handover: string | null, note: string | null): Promise<void>;
   captureDelivery(
-    orderId: string, quote: unknown, expiresAt: Date, pkgs: readonly PackageDelivery[], hold: SlotHold | null,
+    orderId: string, quote: unknown, expiresAt: Date, pkgs: readonly PackageDelivery[], hold: SlotHold | null, sold: SoldDelivery | null,
   ): Promise<Date | null>;
   upsertPayment(orderId: string, intentId: string, amountCents: number, status: string): Promise<void>;
   /** 074 — the customer's usable points and the value of one, for the quote and the intent. */
@@ -351,7 +362,7 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::nume
      * back everything and leaves the order's previous capture — and any place it already held —
      * exactly as it was.
      */
-    captureDelivery: (orderId, quote, expiresAt, pkgs, hold) =>
+    captureDelivery: (orderId, quote, expiresAt, pkgs, hold, sold) =>
       transact(async (tx) => {
         // The order's own place is given up FIRST so it is not counted against itself: a shopper
         // refreshing the payment step in a capacity-1 slot must not be refused by their own hold.
@@ -384,9 +395,15 @@ VALUES ($1, $2::date, $3, 'held', $4, $5, $6)`,
 
         await tx.query(
           `
-UPDATE public."order" SET delivery_quote = $2::jsonb, delivery_quote_expires_at = $3, updated_at = now()
+UPDATE public."order"
+   SET delivery_quote = $2::jsonb, delivery_quote_expires_at = $3,
+       -- 079 — WHO DELIVERS, rewritten on every payment attempt like everything else here: between
+       -- two attempts the shopper may have changed address, and with it the answer. ⚠ This is the
+       -- PENDING order. Once it is paid, only the delivery-type writer changes these three.
+       delivery_type = $4, delivery_type_reason = $5, courier_estimate = $6,
+       updated_at = now()
 WHERE id = $1`,
-          [orderId, JSON.stringify(quote), expiresAt],
+          [orderId, JSON.stringify(quote), expiresAt, sold?.type ?? null, sold?.reason ?? null, sold?.courierEstimate ?? null],
         );
         await tx.query(`DELETE FROM public.order_package_delivery WHERE order_id = $1`, [orderId]);
         for (const p of pkgs) {

@@ -25,6 +25,7 @@ import type { WireInt } from "./cart"
 import type { RefundActorKind, RefundReason, RefundStatus } from "./refund"
 import type { FulfillmentDeliveryDTO, FulfillmentStatus } from "./shop-order"
 import type { PackageStatusView } from "./package-status"
+import type { DeliveredBy } from "./delivery-type"
 
 // ── The list ────────────────────────────────────────────────────────────────────────────────────
 
@@ -62,9 +63,16 @@ export type ShopOrderPaymentState = (typeof SHOP_ORDER_PAYMENT_STATES)[number]
 export const SHOP_ORDER_ATTENTION = ["any", "at_risk", "short", "on_track"] as const
 export type ShopOrderAttention = (typeof SHOP_ORDER_ATTENTION)[number]
 
-/** The "Fulfilment" filter — how the package leaves the shop's hands (047/049). */
+/**
+ * @deprecated 079 — the customer's word for the delivery, which a shop is no longer shown. Kept on
+ * the wire for shop apps installed before 079; removed at the delivery-model cutover.
+ */
 export const SHOP_ORDER_METHODS = ["any", "same_day", "standard"] as const
 export type ShopOrderMethod = (typeof SHOP_ORDER_METHODS)[number]
+
+/** 079 — the "Fulfilment" filter: who takes the package away from the shop. */
+export const SHOP_ORDER_DELIVERED_BY = ["any", "effy_driver", "courier"] as const
+export type ShopOrderDeliveredBy = (typeof SHOP_ORDER_DELIVERED_BY)[number]
 
 export const SHOP_ORDER_RANGES = ["any", "today", "7d", "30d"] as const
 export type ShopOrderRange = (typeof SHOP_ORDER_RANGES)[number]
@@ -81,7 +89,9 @@ export interface ShopOrderListQuery {
   q?: string
   attention?: ShopOrderAttention
   payment?: ShopOrderPaymentState | "any"
+  /** @deprecated 079 — use `deliveredBy`. */
   method?: ShopOrderMethod
+  deliveredBy?: ShopOrderDeliveredBy
   range?: ShopOrderRange
   sort?: ShopOrderSort
   dir?: "asc" | "desc"
@@ -107,7 +117,12 @@ export interface ShopOrderRowDTO {
   itemCount: WireInt
   gatheredCount: WireInt
   unavailableCount: WireInt
-  /** `null` for orders placed before 047 recorded a method. */
+  /**
+   * 079 — who takes this package away: an Effy driver or a courier. True of every package, old or
+   * new. ⚠ The ONLY thing a shop is told about delivery: never a window, a day, an estimate or a fee.
+   */
+  deliveredBy: DeliveredBy
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   /** Open (pending/received/picking) and within 15 minutes of — or past — its ready-by. */
   atRisk: boolean
@@ -220,6 +235,12 @@ export interface ShopOrderDetailDTO {
   statusView: PackageStatusView
   stateChangedAt: string
   readyBy: string
+  /**
+   * 079 — who takes this package away: an Effy driver or a courier. True of every package, old or
+   * new. ⚠ The ONLY thing a shop is told about delivery: never a window, a day, an estimate or a fee.
+   */
+  deliveredBy: DeliveredBy
+  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO

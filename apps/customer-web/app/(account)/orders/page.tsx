@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Suspense } from "react"
 
-import type { OrderSummaryDTO } from "@effy/shared-types"
+import { DELIVERY_TYPE_WORDS, type OrderSummaryDTO } from "@effy/shared-types"
 
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
@@ -63,6 +63,9 @@ async function OrdersList() {
               <div className="font-medium">{o.orderNumber}</div>
               <div className="text-sm text-muted-foreground">
                 {o.itemCount} item{o.itemCount === 1 ? "" : "s"} · {statusLabel(o.status)}
+                {/* 079 — who delivers it, in the same two names as everywhere else. Nothing for an
+                    order placed before orders had a delivery type. */}
+                {o.delivery ? ` · ${DELIVERY_TYPE_WORDS[o.delivery.type]}` : ""}
               </div>
             </div>
             <div className="text-sm font-medium">{formatMoney(o.grandTotalAmount, o.currency)}</div>

@@ -117,8 +117,9 @@ export interface DeliveryQuoteDTO {
   postcode: string;
   serviced: boolean;
   /**
-   * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` cannot be purchased until
-   * the courier checkout exists, and until then the server never returns it here.
+   * 076 — who delivers to this address. `none` ⇔ not serviced. ⚠ `courier` is returned only when a
+   * courier order can be placed (079): the new delivery model is on, courier delivery is on, a
+   * courier fee table is active and an estimate is set. The quote then carries `courier`.
    */
   coverage?: CoverageKind;
   /**
@@ -163,7 +164,34 @@ export interface DeliveryQuoteDTO {
    * may be empty.
    */
   effyWindows?: EffyWindowsDTO | null;
+  /**
+   * 079 — PRESENT EXACTLY WHEN `coverage` is `"courier"`. There is then nothing to choose:
+   * `packages`, `sameDaySlots` and `standardDays` are empty and `effyWindows` is absent. The client
+   * shows "Courier delivery", the estimate and the fee, and sends `deliveryType: "courier"` on the
+   * intent. ⚠ No distance, no courier company, nothing about how many suppliers fill the order.
+   */
+  courier?: CourierQuoteDTO;
 }
+
+/** 079 — what a customer is told and charged when a courier delivers the order. */
+export interface CourierQuoteDTO {
+  /**
+   * The courier's usual timeframe, in the business's words ("2–4 business days"). ⚠ An estimate,
+   * never a promise: print it through `courierLines` (`delivery-type.ts`), never on its own.
+   */
+  estimate: string;
+  /** The courier fee for the whole order (077): lines and a total. */
+  fee: DeliveryFeeDTO;
+  /**
+   * `out_of_coverage` — Effy does not deliver to the address. `no_window` — it does, but no window
+   * is available on any offered day and the business sends such an order by courier: the client
+   * says there are no delivery windows FIRST, then offers this.
+   */
+  reason: CourierQuoteReason;
+}
+
+/** 079 — why a courier delivers this order. Named, so the generated Kotlin enum is too. */
+export type CourierQuoteReason = "out_of_coverage" | "no_window";
 
 /**
  * ⚠ THE ONLY PLACE THESE WORDS ARE WRITTEN (078 FR-001a). Web and mobile render these constants;
@@ -265,7 +293,10 @@ export interface StandardDayOptionDTO {
  *
  * ⚠ A refusal NEVER substitutes a slot, a day or a method (FR-010). The customer chooses again.
  */
-export type DeliveryChoiceRefusalCode = "slot_required" | "slot_unavailable" | "date_unavailable" | "no_windows_available";
+export type DeliveryChoiceRefusalCode =
+  | "slot_required" | "slot_unavailable" | "date_unavailable" | "no_windows_available"
+  /** 079 — the delivery type the client showed is not the one that applies now (or it sent none for a courier order). */
+  | "delivery_type_changed";
 
 /** The body of a delivery-choice refusal. */
 export interface DeliveryChoiceRefusalDTO {

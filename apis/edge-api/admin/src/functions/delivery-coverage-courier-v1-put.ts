@@ -1,4 +1,5 @@
-// PUT /admin/v1/delivery/coverage/courier — switch courier delivery on or off (076 FR-016). Mutate.
+// PUT /admin/v1/delivery/coverage/courier — courier delivery on or off (076 FR-016), the estimate
+// customers are shown and the no-window fallback (079). Any of the three. Mutate.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

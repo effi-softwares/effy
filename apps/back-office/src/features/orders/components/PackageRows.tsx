@@ -7,7 +7,7 @@ import { Button, Input } from "@effy/design-system/ui";
 
 import type { OrderPackage } from "../model";
 import {
-  nextActionFor, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
+  nextActionFor, packageDeliveryText, PROMISE_FLAG_LABEL, promiseFlagsFor, promiseTextFor,
   formatDeliveryDay,
 } from "../model";
 
@@ -93,7 +93,7 @@ function PackageRow({
           <p className="font-medium">{pkg.shopName}</p>
           <p className="text-sm text-muted-foreground">
             {pkg.itemCount} item{pkg.itemCount === 1 ? "" : "s"} ·{" "}
-            {pkg.deliveryMethod === "same_day" ? "Same-day" : "Standard"}
+            {packageDeliveryText(pkg)}
           </p>
         </div>
         {/* 073 — where it REALLY is, from the shared derivation; the old guess from the shop's status

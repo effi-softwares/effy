@@ -195,7 +195,7 @@ describe("076 — an address nobody delivers to", () => {
 
   it.each([
     ["not on any list", new NotServiceableError()],
-    ["courier-only, before a courier order can be placed", new CourierNotPurchasableError("7000")],
+    ["courier-only, and a courier order cannot be priced or described", new CourierNotPurchasableError("7000", "no active courier fee table")],
   ])("%s → 422 with the shared code and sentence, and nothing about why", (_what, err) => {
     const res = checkoutError(scope, err, "intent");
     expect(res.statusCode).toBe(422);

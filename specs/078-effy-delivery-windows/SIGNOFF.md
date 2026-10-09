@@ -1,10 +1,13 @@
 # Sign-off: 078 — Effy Delivery Windows: today and the next delivery days
 
+**SIGNED OFF by the operator, 2026-10-09.** The feature is closed; what was not confirmed at sign-off is
+listed just below and stays visible rather than being assumed done.
+
 **Status (2026-10-09)**: **built, checked by machine, migrated and deployed to dev — reported by the
 operator. NOT walked by a person, and still switched off.** The machine checks below ran on local
 containers and test runners; I did not read dev itself. 62/62 tasks.
 
-Not confirmed either way: `make apply ENV=dev` (the `EffyWindowsNoneDefined` alarm), the back-office and
+Not confirmed at sign-off: `make apply ENV=dev` (the `EffyWindowsNoneDefined` alarm), the back-office and
 customer-web builds, and a customer mobile build.
 
 ## What changed
