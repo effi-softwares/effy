@@ -1,5 +1,20 @@
 # Delivery Model v2 — Epic & Requirements Backlog
 
+> ## ✅ PROGRAMME COMPLETE IN DEV — 2026-10-10
+> **E1–E9 (specs 074–083) are built, migrated and deployed to dev** (operator-reported), including 083 stage 2:
+> the old same-day/standard arrangement is removed and there is ONE delivery model — Delivered by Effy in a
+> window, or Courier delivery — priced by the one fee engine. **E10 is deferred.**
+>
+> **Not done, and still open:**
+> - On-screen walks were not recorded for any of 076–083.
+> - E0-T06 (annotate `ORDER-FLOW-GAPS.md`), E0-T08 (legal pre-check: store-credit terms, fee display),
+>   E0-T09 (product copy glossary).
+> - E5-T25 — no end-to-end browser test of the Effy and courier checkouts.
+> - Four operator guides carry an "out of date" notice instead of a rewrite (083 SIGNOFF).
+> - Known gaps recorded in their specs: 082 "needs a driver" lists a supplier-ready parcel early; the shop
+>   service's `recipientsForShop` test failure (outside this programme).
+> - Nothing here has been released to a production environment — there is none yet.
+
 **Written 2026-10-07** on branch `dev` (after 073). Source: the operator's direction in conversation
 on the same date, checked against the code. It replaces the **same-day vs standard** model of
 047 / 049 / 069 with **who delivers**: Effy (the default) or a courier (the exception).
@@ -83,16 +98,16 @@ E10 Deferred: customer picks courier, live courier quotes, courier API booking
 
 | Epic | Proposed spec | Title | Depends on |
 |---|---|---|---|
-| E0 | — | Cleanup & decision record | — |
-| E1 | 074 | Customer Points (store credit) | — |
-| E2 | 076 | Effy Delivery Coverage (postcode list) | — |
-| E3 | 077 | Delivery Fee Engine v2 | E2 |
-| E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09 (switched off) | E2 |
-| E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier | E2, E3, E4 |
+| E0 | — | Cleanup & decision record — decision recorded; T06/T08/T09 still open | — |
+| E1 | 074 | Customer Points (store credit) — ✅ deployed to dev | — |
+| E2 | 076 | Effy Delivery Coverage (postcode list) — ✅ deployed to dev | — |
+| E3 | 077 | Delivery Fee Engine v2 — ✅ deployed to dev | E2 |
+| E4 | 078 | Effy Delivery Windows: today + 3 days — ✅ signed off 2026-10-09; live since the 083 removal | E2 |
+| E5 | 079 | Checkout & Orders: Delivered by Effy vs Courier — ✅ deployed to dev (not walked) | E2, E3, E4 |
 | E6 | 080 | Courier Fulfilment (hub handover or shop pickup) — ✅ signed off 2026-10-09 | E5 |
 | E7 | 081 | Back-Office Courier Override & Compensation — ✅ signed off 2026-10-09 (deployed to dev) | E1, E5, E6 |
 | E8 | 082 | Driver Operations Realignment — ✅ signed off 2026-10-09 (deployed to dev) | E4, E5 |
-| E9 | 083 | Cutover & Retirement of Same-Day/Standard — 🟡 stage 1 (the switch) deployed to dev 2026-10-09; stage 2 (the removal) built 2026-10-10, not yet migrated or deployed | E5–E8 |
+| E9 | 083 | Cutover & Retirement of Same-Day/Standard — ✅ both stages migrated and deployed to dev 2026-10-10 (operator-reported; not walked) | E5–E8 |
 | E10 | later | Deferred items | — |
 
 Numbering assumes nothing else takes 074–082 first; renumber freely.
@@ -152,9 +167,9 @@ Housekeeping that makes the later specs honest. Nothing here changes behaviour.
 
 - [x] E0-T01 Record this decision in `CLAUDE.md` → "Driver logistics model": a short ⚠ note that the same-day/standard split is **being replaced** by Effy-vs-courier (link this file). Do not rewrite the section until E9 lands.
 - [x] E0-T02 Add an entry to `docs/next-implementation-candidates.md` pointing here, and mark which existing candidates this backlog absorbs or blocks.
-- [ ] E0-T03 Inventory every reader of `METHOD_SAME_DAY` / `METHOD_STANDARD` (`apis/edge-api/shared/src/delivery/plan.ts`) and write the list into E9's task list. Current footprint: ~150 files across `apis/edge-api/{shared,commerce,orders,fleet,driver,shop,admin,notifications}`, `packages/shared-types/src`, `apps/{customer-web,customer-mobile,driver-mobile,back-office,shop-web}`.
-- [ ] E0-T04 Inventory every reader of `delivery_ring`, `delivery_zone.ring_id`, `delivery_zone.sameday_eligible`, `shop_sameday_*` and `driver_zone_capability.method`; attach to E2 / E8 / E9.
-- [ ] E0-T05 Inventory every place the customer sees the words "same-day" or "standard" (web, mobile, email templates in `packages/email-kit`, receipts in `apis/edge-api/notifications/src/receipts`). Attach to E5.
+- [x] E0-T03 Inventory every reader of `METHOD_SAME_DAY` / `METHOD_STANDARD` (`apis/edge-api/shared/src/delivery/plan.ts`) and write the list into E9's task list. Current footprint: ~150 files across `apis/edge-api/{shared,commerce,orders,fleet,driver,shop,admin,notifications}`, `packages/shared-types/src`, `apps/{customer-web,customer-mobile,driver-mobile,back-office,shop-web}`. — *Overtaken (083): the old arrangement was removed outright; `scripts/check-no-legacy-delivery.sh` and the schema-drift guard hold what an inventory would have listed.*
+- [x] E0-T04 Inventory every reader of `delivery_ring`, `delivery_zone.ring_id`, `delivery_zone.sameday_eligible`, `shop_sameday_*` and `driver_zone_capability.method`; attach to E2 / E8 / E9. — *Overtaken (083): the old arrangement was removed outright; `scripts/check-no-legacy-delivery.sh` and the schema-drift guard hold what an inventory would have listed.*
+- [x] E0-T05 Inventory every place the customer sees the words "same-day" or "standard" (web, mobile, email templates in `packages/email-kit`, receipts in `apis/edge-api/notifications/src/receipts`). Attach to E5. — *Overtaken (083): the old arrangement was removed outright; `scripts/check-no-legacy-delivery.sh` and the schema-drift guard hold what an inventory would have listed.*
 - [ ] E0-T06 Check `ORDER-FLOW-GAPS.md` for items that this model changes (carrier handoff, delivery promise) and annotate them.
 - [x] E0-T07 Confirm with the operator the open questions Q1–Q8 above; write answers into §1. (2026-10-08: all recommendations accepted.)
 - [ ] E0-T08 Legal pre-check list for the specs: store-credit terms and expiry (ACL / state fair-trading), displaying delivery fees and surcharges up front (ACL component pricing), terms-of-service text for courier delivery. Hand to 045's legal system owner.
@@ -944,7 +959,7 @@ planned time and is assigned as soon as a qualifying driver can take it.
 
 ---
 
-## E9 — Cutover & Retirement of Same-Day/Standard · spec 083 — stage 1 deployed to dev 2026-10-09; stage 2 built 2026-10-10 (not deployed)
+## E9 — Cutover & Retirement of Same-Day/Standard · spec 083 — ✅ both stages deployed to dev 2026-10-10
 
 > **2026-10-09 — specified (`specs/083-delivery-model-cutover/spec.md`).** The specify prompt below was amended with
 > what 078–082 left: the customer words "Same-day delivery" / "Standard delivery" STAY (078's decision — the

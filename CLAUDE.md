@@ -506,7 +506,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **083-delivery-model-cutover** — Delivery Model Cutover — stage 1 (the switch) deployed to dev; stage 2 (the old arrangement removed) built, not yet migrated or deployed
+- **083-delivery-model-cutover** — Delivery Model Cutover (the switch; the old same-day/standard arrangement removed) — both stages deployed to dev, marked complete; not walked
 - **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
 - **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off, migrated and deployed to dev
 - **080-courier-fulfilment** — Courier Fulfilment: via the hub or pickup from the supplier — signed off, deployed to dev

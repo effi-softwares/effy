@@ -1,7 +1,7 @@
 # Sign-off notes: 083 — Delivery Model Cutover
 
-🟡 **STAGE 1 (the switch) — built, and migrated + deployed to dev (operator-reported, 2026-10-09). Not walked, not signed off.**
-🟡 **STAGE 2 (the removal) — BUILT and checked by machine (2026-10-10). NOT migrated, NOT deployed, NOT walked, NOT signed off.**
+✅ **BOTH STAGES MIGRATED AND DEPLOYED TO DEV (operator-reported, 2026-10-10), and marked complete by the operator.**
+⚠ Walks V1–V10 were not recorded; everything under "Done differently", "Not done" and "To know" stands as built.
 
 Every check below ran on local containers and test runners. 38/38 tasks ticked, with what was done
 differently and what was not done listed under each stage. **Nothing set the switch, and nothing ran the

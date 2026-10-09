@@ -4,9 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**083-delivery-model-cutover — Delivery Model Cutover.** 🟡 **STAGE 1 (THE SWITCH) DEPLOYED TO DEV (operator-reported,
-2026-10-09) — NOT WALKED OR SIGNED OFF. 🟡 STAGE 2 (THE OLD ARRANGEMENT REMOVED) BUILT AND CHECKED BY MACHINE
-(2026-10-10) — NOT MIGRATED, DEPLOYED, WALKED OR SIGNED OFF.** Ninth and last slice of the delivery model v2 programme
+**083-delivery-model-cutover — Delivery Model Cutover.** ✅ **BOTH STAGES MIGRATED AND DEPLOYED TO DEV (operator-reported,
+2026-10-10), MARKED COMPLETE BY THE OPERATOR. ⚠ Walks V1–V10 were not recorded.** Ninth and last slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E9). Sign-off notes:
 [specs/083-delivery-model-cutover/SIGNOFF.md](specs/083-delivery-model-cutover/SIGNOFF.md). Runbook:
 [docs/runbooks/delivery-model-v2-cutover.md](docs/runbooks/delivery-model-v2-cutover.md). What the old model was:
