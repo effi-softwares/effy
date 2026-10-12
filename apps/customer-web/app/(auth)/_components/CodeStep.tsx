@@ -10,7 +10,7 @@ import { capture } from "@/lib/telemetry"
 
 import { useCodeResend } from "../_lib/use-code-resend"
 import { ErrorNote, InlineAction, StepShell, Submit } from "./AuthKit"
-import { CodeField } from "./CodeField"
+import { CodeField } from "@/components/storefront/CodeField"
 
 /**
  * What the platform told us about a submitted code.

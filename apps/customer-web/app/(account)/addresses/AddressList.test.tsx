@@ -38,7 +38,7 @@ afterEach(() => {
 })
 
 describe("AddressList — view (T011)", () => {
-  it("lists rows as a list (not cards) and marks exactly one default", () => {
+  it("lists the addresses as a list and marks exactly one default", () => {
     render(
       <AddressList
         initial={[addr(), addr({ id: "a2", label: "Work", isDefault: false })]}
@@ -46,11 +46,8 @@ describe("AddressList — view (T011)", () => {
     )
     const list = screen.getByRole("list")
     expect(list.tagName).toBe("UL")
-    expect(list.className).toContain("divide-y")
     expect(screen.getAllByRole("listitem")).toHaveLength(2)
     expect(screen.getAllByTestId("default-badge")).toHaveLength(1)
-    // No shadcn card containers (Principle V — list, not cards).
-    expect(document.querySelector('[data-slot="card"]')).toBeNull()
   })
 
   it("shows an inviting empty state when there are no addresses", () => {
@@ -95,7 +92,7 @@ describe("AddressList — delete (T030)", () => {
 
     const workRow = screen.getByText("Work").closest("li")!
     await user.click(within(workRow).getByRole("button", { name: /delete/i }))
-    await user.click(await screen.findByRole("button", { name: /^delete$/i }))
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: /^delete$/i }))
 
     await waitFor(() => expect(screen.queryByText("Work")).toBeNull())
     expect(screen.getAllByRole("listitem")).toHaveLength(1)
@@ -112,7 +109,7 @@ describe("AddressList — delete (T030)", () => {
 
     expect(await screen.findByText(/set another default first/i)).toBeInTheDocument()
     // No destructive delete action offered, and nothing was sent to the server.
-    expect(screen.queryByRole("button", { name: /^delete$/i })).toBeNull()
+    expect(within(screen.getByRole("alertdialog")).queryByRole("button", { name: /^delete$/i })).toBeNull()
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
@@ -124,7 +121,7 @@ describe("AddressList — delete (T030)", () => {
 
     const workRow = screen.getByText("Work").closest("li")!
     await user.click(within(workRow).getByRole("button", { name: /delete/i }))
-    await user.click(await screen.findByRole("button", { name: /^delete$/i }))
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: /^delete$/i }))
 
     expect(await screen.findByText(/set another default first/i)).toBeInTheDocument()
   })
@@ -135,7 +132,7 @@ describe("AddressList — delete (T030)", () => {
     render(<AddressList initial={[addr()]} />)
 
     await user.click(screen.getByRole("button", { name: /delete/i }))
-    await user.click(await screen.findByRole("button", { name: /^delete$/i }))
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: /^delete$/i }))
 
     await waitFor(() => expect(screen.getByTestId("addresses-empty")).toBeInTheDocument())
   })

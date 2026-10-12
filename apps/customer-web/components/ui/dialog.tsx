@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import { X } from "lucide-react"
 
@@ -23,6 +25,7 @@ export function Dialog({
   children,
   footer,
   onClose,
+  onDismiss,
 }: {
   ref: React.RefObject<HTMLDialogElement | null>
   title: string
@@ -33,6 +36,11 @@ export function Dialog({
   /** The actions, least committing first. They sit right-aligned, and stack on a phone. */
   footer?: React.ReactNode
   onClose?: () => void
+  /**
+   * The shopper asked to leave (the close button, or Escape) — for a dialog that may refuse, because
+   * what was typed would be lost. Without it, both simply close.
+   */
+  onDismiss?: () => void
 }) {
   const id = React.useId()
   return (
@@ -42,8 +50,14 @@ export function Dialog({
       aria-labelledby={`${id}-title`}
       aria-describedby={description ? `${id}-description` : undefined}
       onClose={onClose}
+      onCancel={(event) => {
+        if (!onDismiss) return
+        event.preventDefault()
+        onDismiss()
+      }}
       className={cn(
-        "fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] rounded-lg border bg-background p-6 text-foreground shadow-lg",
+        // Taller than the screen scrolls INSIDE the dialog; the page behind never moves.
+        "fx-dialog fx-dialog-modal fx-responsive m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto rounded-lg border bg-background p-6 text-foreground shadow-lg",
         size === "lg" ? "max-w-[560px]" : "max-w-md",
       )}
     >
@@ -62,7 +76,7 @@ export function Dialog({
           <button
             type="button"
             aria-label="Close"
-            onClick={() => ref.current?.close()}
+            onClick={() => (onDismiss ? onDismiss() : ref.current?.close())}
             className="absolute top-4 right-4 grid size-6 place-items-center rounded-sm opacity-70 hover:opacity-100 max-md:hidden"
           >
             <X aria-hidden="true" className="size-4" />
@@ -77,4 +91,20 @@ export function Dialog({
       </div>
     </dialog>
   )
+}
+
+/**
+ * For a dialog whose open state lives in its parent (`open` / `onOpenChange`): a ref that opens and
+ * closes the native element to match. Pass `onClose={() => onOpenChange(false)}` to the dialog so a
+ * dismissal the browser handles itself (Escape) is reported back.
+ */
+export function useDialogOpen(open: boolean): React.RefObject<HTMLDialogElement | null> {
+  const ref = React.useRef<HTMLDialogElement>(null)
+  React.useEffect(() => {
+    const dialog = ref.current
+    if (!dialog) return
+    if (open && !dialog.open) dialog.showModal()
+    else if (!open && dialog.open) dialog.close()
+  }, [open])
+  return ref
 }

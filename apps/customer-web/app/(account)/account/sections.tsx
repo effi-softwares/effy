@@ -41,12 +41,7 @@ export async function AddressBook() {
   }
 
   return (
-    <section aria-labelledby="address-book-heading">
-      <h1 id="address-book-heading" className="mb-6 text-2xl font-semibold tracking-tight sm:text-3xl">
-        Address book
-      </h1>
-      <AddressList initial={addresses} />
-    </section>
+    <AddressList initial={addresses} />
   )
 }
 

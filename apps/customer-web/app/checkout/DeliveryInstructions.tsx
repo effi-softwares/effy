@@ -31,6 +31,7 @@ export function DeliveryInstructions({
   disabled = false,
   heading = "Delivery instructions",
   hint = "Optional. Your driver sees this when they deliver.",
+  step,
   children,
 }: {
   value: InstructionsDraft
@@ -38,6 +39,8 @@ export function DeliveryInstructions({
   disabled?: boolean
   heading?: string
   hint?: string
+  /** Its place in a numbered flow (checkout's third step). Absent anywhere it is not one of a sequence. */
+  step?: number
   /** Rendered under the note — checkout puts its "save to this address" choice here. */
   children?: React.ReactNode
 }) {
@@ -48,8 +51,8 @@ export function DeliveryInstructions({
 
   return (
     <section aria-label={heading}>
-      <h2 className="text-lg font-semibold">
-        <span aria-hidden="true">3. </span>
+      <h2 className={step ? "text-lg font-semibold" : "text-sm leading-none font-medium"}>
+        {step ? <span aria-hidden="true">{step}. </span> : null}
         {heading}
       </h2>
       <p id={hintId} className="mt-1 text-sm text-muted-foreground">

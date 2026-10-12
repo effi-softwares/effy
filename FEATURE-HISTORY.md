@@ -4,6 +4,49 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**084-customer-storefront-redesign — Customer Storefront Redesign.** 🚧 **BUILT; `storefront` AND `commerce`
+DEPLOYED TO DEV AND THE CATALOGUE SEED RUN (operator-reported, 2026-10-12). NOT WALKED, NOT SIGNED OFF.**
+The customer web storefront rebuilt to the "Effy Storefront Redesign" reference
+(`docs/reference-screens/Effy Storefront Redesign/`, indexed in
+[specs/084-customer-storefront-redesign/screen-index.md](specs/084-customer-storefront-redesign/screen-index.md));
+task state and every departure from the reference:
+[tasks.md](specs/084-customer-storefront-redesign/tasks.md). Customer web only — the consoles and the
+mobile apps keep their identity.
+
+- **Its own identity, in one file**: `packages/design-system/src/storefront/tokens.css` (zinc greys, blue
+  for actions, green for brand, black for destructive, light only, Geist). The storefront imports it
+  INSTEAD of `tokens.css`. The card fields take theirs from it too (`stripe/storefront-appearance.ts`,
+  generated).
+- ⚠ **THE STOREFRONT'S SESSION WAS RE-IMPLEMENTED.** Three `HttpOnly` cookies set only by its own server
+  (`POST /api/session`), ONE read (`getSession`), ONE refresher (`proxy.ts`, now on every page and
+  `/api`), sign-out revokes the refresh token. No Amplify on the server. **Why**: the adapter's token
+  check gave the pool's key download 1.5s and silently treated a slow one as "signed out" — measured
+  failing six times in six from the operator's machine.
+- ⚠ **A CATEGORY NOW MEANS ITSELF AND EVERYTHING UNDER IT** (`storefront/src/lib/category-tree.ts`): search,
+  facets, home rails and category counts. Before, an aisle link matched only products filed in that
+  exact category and top-level aisles opened onto empty pages. The mobile app's aisle pages change the
+  same way.
+- **New route**: `GET /storefront/v1/suggestions` (shared gateway, 160/300) — phrases and products from the
+  catalogue itself, never from other shoppers' searches. **Extended**: `GET /commerce/v1/orders` rows gain
+  optional `stage`, `arrivalEstimates`, `deliveredAt`, `refundedTotal`, `fullyRefunded`, `thumbnails`,
+  each derived by the receipt's own functions.
+- **Dev seed**: `db/seeds/084_storefront_catalogue_dev.sql` — eleven aisles, three levels, 86 products with
+  no pictures in an existing shop; retires dev's old `food` / `grocery` top levels.
+- **Defects found while building**: (1) 084 dropped the Tailwind `@source` for the shared UI package, so
+  the sign-in code boxes rendered collapsed; (2) password sign-in ignored Cognito's answer and navigated
+  a still-signed-out customer away; (3) the search page named a category from the facet counts, so an
+  aisle with nothing filed directly in it was titled "All products".
+- ⚠ **NOT DONE**: the payment step is restyled only — it is still the split card fields, not the Payment
+  Element the handoff describes (a money-path change). No "Emails from Effy" switches, no mobile-number
+  verification (texted codes are held), no newsletter "unsubscribed" page, no receipt download. The
+  app icons: see the open question in tasks.md — `brand:check` is RED on `apps/customer-web/app/icon.svg`.
+- ⚠ **NOT VERIFIED**: signed-in pages were checked on previews with sample data, not with a real account;
+  e2e was not run and its specs still describe the old structure; `next build` and the bundle budget
+  were not re-run (five guest routes were over budget at last measure).
+- **Operator steps (dev)**: done — `make edge-deploy SERVICE=storefront`, `SERVICE=commerce`, the seed.
+  Still open: walk screen-index.md; decide the icon question; the WAF rule on the customer pool
+  (100 requests / 5 min / IP) against the storefront's egress, since the server now refreshes sessions.
+
 **083-delivery-model-cutover — Delivery Model Cutover.** ✅ **BOTH STAGES MIGRATED AND DEPLOYED TO DEV (operator-reported,
 2026-10-10), MARKED COMPLETE BY THE OPERATOR. ⚠ Walks V1–V10 were not recorded.** Ninth and last slice of the delivery model v2 programme
 ([docs/prd/2026-10-delivery-model-v2-backlog.md](docs/prd/2026-10-delivery-model-v2-backlog.md), epic E9). Sign-off notes:

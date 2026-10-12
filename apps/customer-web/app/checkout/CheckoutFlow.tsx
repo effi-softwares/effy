@@ -480,7 +480,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
         {selectedId && (
           <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
-            <DeliveryInstructions value={instructions} onChange={setInstructions} disabled={busy}>
+            <DeliveryInstructions step={3} value={instructions} onChange={setInstructions} disabled={busy}>
               {instructionsDiffer && (
                 <label className="mt-3 flex min-h-11 items-center gap-2 text-sm">
                   <input

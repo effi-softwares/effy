@@ -14,7 +14,7 @@ const GROUPS = [
 ]
 
 /**
- * The emailed-code field in the storefront's shape (reference: Sign in — code): two joined groups of
+ * The emailed-code field in the storefront's shape (reference: Sign in — code; Account · Set a password (code), Delete account (code)): two joined groups of
  * slots with a dash between them.
  *
  * ⚠ ONE INPUT, NOT SIX — the same rule as the platform's `OtpInput`, whose reasoning this follows.

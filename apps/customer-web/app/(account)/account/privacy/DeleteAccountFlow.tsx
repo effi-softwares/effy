@@ -4,7 +4,9 @@ import Link from "next/link"
 import { useEffect, useState, useTransition } from "react"
 import type { ClosurePreviewDTO } from "@effy/shared-types"
 
-import { OTP_LENGTH, OtpInput, ResponsiveModal, ResponsiveModalContent, ResponsiveModalDescription, ResponsiveModalFooter, ResponsiveModalHeader, ResponsiveModalTitle } from "@effy/design-system/ui"
+import { OTP_LENGTH, ResponsiveModal, ResponsiveModalContent, ResponsiveModalDescription, ResponsiveModalFooter, ResponsiveModalHeader, ResponsiveModalTitle } from "@effy/design-system/ui"
+
+import { CodeField } from "@/components/storefront/CodeField"
 import { Button } from "@/components/ui/button"
 
 import { LoadingArea } from "@/components/Spinner"
@@ -245,14 +247,11 @@ function ConfirmCodeModal({
           <label htmlFor="closure-code" className="mb-4 block text-sm font-medium">
             Code from your email
           </label>
-          <OtpInput
+          <CodeField
             id="closure-code"
             name="code"
-            // ⚠ The cells collapse to a plain field when the value is too long. Six positions can
-            // only show six characters, so an 8-digit paste rendered as cells would LOOK like a
-            // six-digit code — visually reproducing the truncation FR-004 forbids.
-            variant={tooLong ? "plain" : "cells"}
-            aria-invalid={tooLong || error !== null}
+            // A value longer than a code is shown in full as plain text by the field itself (FR-004).
+            invalid={error !== null}
             aria-describedby={tooLong ? "closure-code-too-long" : undefined}
             autoFocus
             value={code}
@@ -260,7 +259,6 @@ function ConfirmCodeModal({
               setCode(e.target.value.replace(/\D/g, ""))
               setError(null)
             }}
-            data-testid="closure-code"
           />
 
           {tooLong && (

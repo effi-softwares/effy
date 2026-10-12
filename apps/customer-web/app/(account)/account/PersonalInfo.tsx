@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight } from "lucide-react"
+import { Pencil } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 
 import { FieldEditor } from "./FieldEditor"
 import { updateProfile } from "./actions"
@@ -21,8 +23,21 @@ import { updateProfile } from "./actions"
  * verifies it, so a tick would be a claim the platform cannot support — and one the customer would
  * reasonably rely on.
  */
-type Field = "given" | "family" | "phone" | null
+type Editing = "name" | "phone" | null
 
+/**
+ * Personal info (reference: Account · Personal info): what Effy calls the customer and how to reach
+ * them, each on a row with its own way to change it.
+ *
+ * ⚠ THE NAME IS ONE THING TO THE CUSTOMER, so it is one row and one dialog — first and last name
+ * are saved together.
+ *
+ * ⚠ THE PHONE CARRIES NO "VERIFIED" MARK (034 FR-060a). It is what the customer typed; the platform
+ * has never checked it, and a tick would be a claim it cannot support.
+ *
+ * ⚠ THE EMAIL SAYS WHY IT HAS NO BUTTON (FR-022). It is how the customer signs in; a row that simply
+ * could not be changed would read as broken.
+ */
 export function PersonalInfo({
   givenName,
   familyName,
@@ -34,95 +49,66 @@ export function PersonalInfo({
   phone: string | null
   email: string
 }) {
-  const [editing, setEditing] = useState<Field>(null)
-  const [emailNote, setEmailNote] = useState(false)
+  const [editing, setEditing] = useState<Editing>(null)
 
-  async function save(patch: {
-    givenName?: string | null
-    familyName?: string | null
-    phone?: string | null
-  }): Promise<string | null> {
+  async function save(patch: { givenName?: string | null; familyName?: string | null; phone?: string | null }): Promise<string | null> {
     const res = await updateProfile({
       givenName: patch.givenName !== undefined ? patch.givenName : givenName,
       familyName: patch.familyName !== undefined ? patch.familyName : familyName,
-      // ⚠ `""` (not null) is what clears a phone — see actions.ts and the backend's normaliser.
+      // ⚠ "" clears the phone; `null` would mean "leave it" to the action.
       phone: patch.phone !== undefined ? patch.phone : (phone ?? ""),
     })
     return res.ok ? null : res.error
   }
 
-  return (
-    <section aria-labelledby="personal-info-heading">
-      <h2 id="personal-info-heading" className="mb-4 text-xl font-semibold">
-        Personal info
-      </h2>
+  const name = [givenName, familyName].filter(Boolean).join(" ")
 
+  return (
+    <section aria-label="Personal info" className="rounded-lg border bg-card shadow-xs">
       <ul className="divide-y">
+        <Row label="Name" value={name || null} testId="row-name">
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing("name")} data-testid="edit-name">
+            <Pencil aria-hidden="true" />
+            Edit
+          </Button>
+        </Row>
         <Row
-          label="First name"
-          value={givenName}
-          onActivate={() => setEditing("given")}
-          testId="row-given-name"
-        />
-        <Row
-          label="Last name"
-          value={familyName}
-          onActivate={() => setEditing("family")}
-          testId="row-family-name"
-        />
-        <Row
-          label="Phone number"
+          label="Mobile number"
           value={phone}
-          onActivate={() => setEditing("phone")}
+          note="Your driver may call this number about a delivery."
           testId="row-phone"
-        />
+        >
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing("phone")} data-testid="edit-phone">
+            <Pencil aria-hidden="true" />
+            {phone ? "Change" : "Add"}
+          </Button>
+        </Row>
         <Row
           label="Email"
           value={email}
-          editable={false}
-          onActivate={() => setEmailNote(true)}
+          note={<span data-testid="email-locked-note">This is how you sign in. To change it, contact us.</span>}
           testId="row-email"
         />
       </ul>
 
-      {emailNote && (
-        <p role="status" data-testid="email-locked-note" className="mt-3 text-sm text-muted-foreground">
-          Your email address is how you sign in, so it can&rsquo;t be changed here. Contact support if
-          you need to move your account to a different address.
-        </p>
-      )}
-
       <FieldEditor
-        open={editing === "given"}
-        onOpenChange={(o) => setEditing(o ? "given" : null)}
-        title="First name"
-        label="First name"
-        initialValue={givenName ?? ""}
-        maxLength={60}
-        autoComplete="given-name"
-        onSave={(v) => save({ givenName: v })}
-      />
-      <FieldEditor
-        open={editing === "family"}
-        onOpenChange={(o) => setEditing(o ? "family" : null)}
-        title="Last name"
-        label="Last name"
-        initialValue={familyName ?? ""}
-        maxLength={60}
-        autoComplete="family-name"
-        onSave={(v) => save({ familyName: v })}
+        open={editing === "name"}
+        onOpenChange={(o) => setEditing(o ? "name" : null)}
+        title="Edit name"
+        description="We use your name on deliveries and receipts."
+        fields={[
+          { name: "given", label: "First name", initialValue: givenName ?? "", maxLength: 60, autoComplete: "given-name" },
+          { name: "family", label: "Last name", initialValue: familyName ?? "", maxLength: 60, autoComplete: "family-name" },
+        ]}
+        onSave={(v) => save({ givenName: v.given ?? "", familyName: v.family ?? "" })}
       />
       <FieldEditor
         open={editing === "phone"}
         onOpenChange={(o) => setEditing(o ? "phone" : null)}
-        title="Phone number"
+        title={phone ? "Change mobile number" : "Add a mobile number"}
         description="We may use this to contact you about an order."
-        label="Phone number"
-        initialValue={phone ?? ""}
-        maxLength={32}
-        inputMode="tel"
-        autoComplete="tel"
-        onSave={(v) => save({ phone: v })}
+        fields={[{ name: "phone", label: "Mobile number", initialValue: phone ?? "", maxLength: 32, inputMode: "tel", autoComplete: "tel" }]}
+        onSave={(v) => save({ phone: v.phone ?? "" })}
       />
     </section>
   )
@@ -131,39 +117,25 @@ export function PersonalInfo({
 function Row({
   label,
   value,
-  onActivate,
-  editable = true,
+  note,
   testId,
+  children,
 }: {
   label: string
   value: string | null
-  onActivate: () => void
-  editable?: boolean
+  note?: React.ReactNode
   testId: string
+  /** The row's own action. A row without one says why in its note. */
+  children?: React.ReactNode
 }) {
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onActivate}
-        data-testid={testId}
-        // ⚠ 48px minimum activation area (FR-055), measured on the TARGET rather than the glyph.
-        // Feature 033 shipped a 32dp control directly beneath a comment claiming it met the minimum,
-        // which is why this feature states the number instead of gesturing at "the platform minimum".
-        className="flex min-h-[48px] w-full items-center justify-between gap-4 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <span className="min-w-0">
-          <span className="block text-sm font-medium">{label}</span>
-          <span className="block truncate text-sm text-muted-foreground">
-            {value || <span className="italic">Not set</span>}
-          </span>
-        </span>
-        {editable ? (
-          <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-        ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">Can&rsquo;t be changed</span>
-        )}
-      </button>
+    <li data-testid={testId} className="flex items-center justify-between gap-4 px-6 py-4">
+      <div className="min-w-0">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="truncate font-medium">{value || <span className="font-normal text-muted-foreground italic">Not set</span>}</p>
+        {note && <p className="mt-0.5 text-xs text-muted-foreground">{note}</p>}
+      </div>
+      {children}
     </li>
   )
 }

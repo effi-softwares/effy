@@ -514,6 +514,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **084-customer-storefront-redesign** — Customer Storefront Redesign (its own identity; session re-implemented; aisles include their sub-aisles) — built, `storefront` + `commerce` deployed to dev; not walked or signed off
 - **083-delivery-model-cutover** — Delivery Model Cutover (the switch; the old same-day/standard arrangement removed) — both stages deployed to dev, marked complete; not walked
 - **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
 - **081-courier-override-compensation** — Back-Office Courier Override & Compensation — signed off, migrated and deployed to dev

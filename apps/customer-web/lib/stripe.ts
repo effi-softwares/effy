@@ -1,6 +1,6 @@
 import { loadStripe, type Stripe, type StripeElementsOptions } from "@stripe/stripe-js"
 
-import { paymentAppearanceLight } from "@effy/design-system/stripe-appearance"
+import { storefrontPaymentAppearance } from "@effy/design-system/stripe-storefront-appearance"
 
 import { stripeConfig } from "@/lib/config"
 
@@ -21,7 +21,7 @@ export function getStripe(): Promise<Stripe | null> {
 /**
  * The Elements options for the payment step (051 T039).
  *
- * ⚠ The appearance is GENERATED from `packages/design-system/src/tokens.css`, never typed out here.
+ * ⚠ The appearance is GENERATED from `packages/design-system/src/storefront/tokens.css`, never typed out here.
  * Transcribing the palette into a provider config by hand would create a second copy of the brand that
  * nothing checks — so the day someone edits tokens.css, the card fields keep the old colours and no test
  * notices. `tokens:check` guards the generated file (Principle II).
@@ -38,6 +38,6 @@ export function getStripe(): Promise<Stripe | null> {
 export function paymentElementsOptions(clientSecret: string): StripeElementsOptions {
   return {
     clientSecret,
-    appearance: paymentAppearanceLight,
+    appearance: storefrontPaymentAppearance,
   }
 }

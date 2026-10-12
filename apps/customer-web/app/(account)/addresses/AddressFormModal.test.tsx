@@ -45,16 +45,17 @@ afterEach(() => {
   mockIsMobile.value = false
 })
 
-describe("AddressFormModal — responsive container (T020, SC-006)", () => {
-  it("mounts in a Dialog at/above the breakpoint", () => {
+describe("AddressFormModal — the container", () => {
+  // One native dialog at every width: it is centred or docked to the bottom edge by CSS alone
+  // (`fx-responsive`), so there is no second component to mount below the breakpoint.
+  it("opens as one dialog, named for what it does", () => {
     render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
-    expect(document.querySelector('[data-slot="dialog-content"]')).toBeInTheDocument()
+    expect(screen.getByRole("dialog", { name: "Add address" })).toBeInTheDocument()
   })
 
-  it("mounts in a Drawer below the breakpoint", () => {
-    mockIsMobile.value = true
-    render(<AddressFormModal open onOpenChange={() => {}} onSaved={() => {}} />)
-    expect(document.querySelector('[data-slot="drawer-content"]')).toBeInTheDocument()
+  it("holds no form while it is closed", () => {
+    render(<AddressFormModal open={false} onOpenChange={() => {}} onSaved={() => {}} />)
+    expect(document.querySelectorAll("input")).toHaveLength(0)
   })
 })
 
