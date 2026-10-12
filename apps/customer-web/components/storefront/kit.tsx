@@ -4,7 +4,7 @@ import Link from "next/link"
 import { CircleAlert } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 import { ActionLink } from "./actions"
 
 /**
@@ -71,7 +71,7 @@ export function Display({
 }) {
   return (
     <Tag
-      className={cn(
+      className={clsx(
         "tracking-tight",
         size === "hero" && "text-3xl font-bold leading-tight sm:text-4xl",
         size === "page" && "text-2xl font-semibold sm:text-3xl",
@@ -158,7 +158,7 @@ export function SectionHeader({
     // link pinned right would read as a mistake, so the whole header switches axis together — which is
     // also why the link is a full row of its own on a phone rather than a corner target.
     <div
-      className={cn(
+      className={clsx(
         "mb-4 flex items-center justify-between gap-4",
         className,
       )}
@@ -212,7 +212,7 @@ export function PageHeader({
 /* ── Surfaces ────────────────────────────────────────────────────────────────────────────────── */
 
 export function Rule({ className }: { className?: string }) {
-  return <hr className={cn("border-border", className)} />
+  return <hr className={clsx("border-border", className)} />
 }
 
 /* ── Actions ─────────────────────────────────────────────────────────────────────────────────── */
@@ -228,15 +228,9 @@ export type { BtnVariant, BtnSize } from "./actions"
 
 /* ── Form controls ───────────────────────────────────────────────────────────────────────────── */
 
-// ⚠ Focus is the BORDER changing to `--ring`, matching `@effy/design-system/ui` Input — NOT the old
-// `outline-primary` halo these carried, which was a third focus treatment on a platform whose shared
-// fields dropped the halo (operator direction). `bg-card` (not the shared Input's transparent) is
-// deliberate: the storefront page surface is white `--card`, so a field reads as inset on it.
-export const input =
-  "h-10 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/10 disabled:opacity-50 md:h-9 md:text-sm"
-
-export const select =
-  "h-10 rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive md:h-9 md:text-sm"
+// The strings live in `./fields` (next/image-free) — client components import them from there.
+export { input, select } from "./fields"
+import { input } from "./fields"
 
 export function Field({
   label,
@@ -303,8 +297,8 @@ export function EmptyState({
 }) {
   return (
     <div
-      className={cn(
-        "flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center",
+      className={clsx(
+        "sf-empty-state",
         className,
       )}
     >
@@ -368,8 +362,8 @@ export function MediaFrame({
 }) {
   return (
     <div
-      className={cn(
-        "relative w-full overflow-hidden bg-muted",
+      className={clsx(
+        "sf-media-frame",
         ratio === "square" && "aspect-square",
         ratio === "video" && "aspect-video",
         ratio === "wide" && "aspect-3/2",
@@ -429,7 +423,7 @@ export function Scrim({
   return (
     <div
       aria-hidden="true"
-      className={cn(
+      className={clsx(
         "absolute inset-0 bg-linear-to-t",
         strength === "standard" && "from-black/70 to-black/10",
         strength === "strong" && "from-black/85 via-black/50 to-black/20",
@@ -483,7 +477,7 @@ export function SectionShell({
   if (isEmptyContent(children)) return null
 
   return (
-    <section className={cn("container", sectionSpacing, className)}>
+    <section className={clsx("container", sectionSpacing, className)}>
       {!headless && title && <SectionHeader title={title} href={href} linkLabel={linkLabel} />}
       {children}
     </section>

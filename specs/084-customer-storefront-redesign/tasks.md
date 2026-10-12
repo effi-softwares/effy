@@ -137,7 +137,7 @@ tests only for new logic (new routes, guards, view-model derivations).
 
 ## Open after the second build pass (2026-10-12)
 
-- **Guest bundle is over budget** on five routes: `/` 177.0, `/search` 180.0, `/product/[id]` 175.2, `/cart` 180.3, `/help` 176.8 against 174 KB. Not raised. Growth: in-card Add stepper, save control on listing cards, cart-page rail, aisle highlight, search aisle chooser. Operator decision pending: trim or record a new floor.
+- **Guest bundle is over budget** on five routes: `/` 177.0, `/search` 180.0, `/product/[id]` 175.2, `/cart` 180.3, `/help` 176.8 against 174 KB. Not raised. Growth: in-card Add stepper, save control on listing cards, cart-page rail, aisle highlight, search aisle chooser. Operator decision pending: trim or record a new floor. **Resolved 2026-10-12: trimmed, budget unchanged — every guest route passes (docs/customer-web-performance-backlog.md, PERF-01).**
 - **Signed-in pages are not visually verified** — I had no session: checkout, payment, confirmation, orders, order detail, account Overview and sections, saved. They typecheck, build and pass unit tests.
 - **e2e not run.** Expect failures from changed structure and labels (`container.spec.ts` width; account `?tab=` flows; `/feedback`).
 - **Not started**: T002 parity baseline, T013 Stripe appearance, T042–T044 order-list pictures + tracker, T047 dialogs, T060–T061 (saved pages beyond shape sweep), T066–T068 info pages, T069–T070 search suggestions, T072–T076.

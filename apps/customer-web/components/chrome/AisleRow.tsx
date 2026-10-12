@@ -78,16 +78,16 @@ export async function AisleRow() {
         />
       )}
 
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
         <Suspense
           fallback={
-            <AisleLinkFallback href={SALE_HREF} className="text-brand [&_svg]:text-brand">
+            <AisleLinkFallback href={SALE_HREF} tone="brand">
               <Tag aria-hidden="true" />
               Deals
             </AisleLinkFallback>
           }
         >
-          <AisleLink href={SALE_HREF} match={{ sale: true }} className="text-brand [&_svg]:text-brand">
+          <AisleLink href={SALE_HREF} match={{ sale: true }} tone="brand">
             <Tag aria-hidden="true" />
             Deals
           </AisleLink>
@@ -288,7 +288,7 @@ export function AisleRowFallback() {
         <LayoutGrid aria-hidden="true" />
         All aisles
       </AisleLinkFallback>
-      <AisleLinkFallback href={SALE_HREF} className="text-brand [&_svg]:text-brand">
+      <AisleLinkFallback href={SALE_HREF} tone="brand">
         <Tag aria-hidden="true" />
         Deals
       </AisleLinkFallback>

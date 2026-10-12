@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { LayoutGrid } from "lucide-react"
 
 import { animateMenuOpen, warmSlideMotion } from "@/lib/slide-motion"
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 
 /**
  * The All aisles menu's behaviour (reference: Home · All aisles mega menu). Everything it SHOWS is
@@ -126,7 +126,7 @@ export function AisleMenu({
         aria-controls={panelId}
         onClick={() => (open ? close() : setOpen(true))}
         {...stayOpen}
-        className={cn(
+        className={clsx(
           "inline-flex h-8 items-center gap-2 rounded-md border border-input pr-3 pl-2.5 text-sm font-medium whitespace-nowrap shadow-xs hover:bg-accent",
           open && "bg-accent",
         )}

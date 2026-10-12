@@ -2,7 +2,7 @@ import * as React from "react"
 import { Slot } from "radix-ui"
 
 import { btnClass, type BtnSize, type BtnVariant } from "@/components/storefront/actions"
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 
 /**
  * The storefront Button (reference: shadcn · Actions · Button).
@@ -47,7 +47,7 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(btnClass(VARIANT[variant] ?? "primary", icon ? "md" : (SIZE[size] ?? "md")), icon, className)}
+      className={clsx(btnClass(VARIANT[variant] ?? "primary", icon ? "md" : (SIZE[size] ?? "md")), icon, className)}
       {...props}
     />
   )

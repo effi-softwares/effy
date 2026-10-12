@@ -1,6 +1,5 @@
 "use client"
 
-import dynamic from "next/dynamic"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
@@ -10,6 +9,7 @@ import { ChevronUp, CloudOff, SearchX, SlidersHorizontal, X } from "lucide-react
 import type { LucideIcon } from "lucide-react"
 
 import { ActionButton, btnClass, iconBtnClass } from "@/components/storefront/actions"
+import { useOnDemand } from "@/lib/use-on-demand"
 import { Breadcrumb, type Crumb } from "@/components/ui/misc"
 import { edgeApiBaseUrl } from "@/lib/config"
 
@@ -27,15 +27,12 @@ import type { SelectedFilters } from "./filters/FilterControls"
  * static shell.
  *
  * ── Bundle (043) ─────────────────────────────────────────────────────────────────────────────────
- * The filter controls are `next/dynamic` — /search sits ~2 KB under the 174 KB guest budget, so the
- * facet UI must NOT enter the first-load chunk. The mobile sheet chrome is a tiny inline overlay
+ * The filter controls are fetched on demand (`useOnDemand`) — /search sits ~2 KB under the 174 KB
+ * guest budget, so the facet UI must NOT enter the first-load chunk. The mobile sheet chrome is a tiny inline overlay
  * (native, no vaul) for the same reason.
  */
 
-const FilterControls = dynamic(() => import("./filters/FilterControls"), {
-  ssr: false,
-  loading: () => <p className="text-sm text-muted-foreground">Loading filters…</p>,
-})
+const loadFilterControls = () => import("./filters/FilterControls").then((m) => m.default)
 
 const SORT_LABELS: Record<ProductSort, string> = {
   relevance: "Best match",
@@ -286,7 +283,8 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
     return () => obs.disconnect()
   }, [loadMore])
 
-  const controls = (
+  const FilterControls = useOnDemand(loadFilterControls)
+  const controls = FilterControls ? (
     <FilterControls
       facetSet={facetSet}
       loading={facetsLoading}
@@ -302,6 +300,8 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
       onClearAll={clearAllFilters}
       activeCount={activeCount}
     />
+  ) : (
+    <p className="text-sm text-muted-foreground">Loading filters…</p>
   )
 
   const aisleName = category ? (categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? null) : null

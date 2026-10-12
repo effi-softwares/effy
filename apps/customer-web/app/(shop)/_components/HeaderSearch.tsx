@@ -7,7 +7,7 @@ import type { SuggestionsDTO } from "@effy/shared-types"
 
 import { formatMoney } from "@/lib/money"
 import { capture } from "@/lib/telemetry"
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 
 const PLACEHOLDER = "Search groceries and essentials…"
 
@@ -190,7 +190,7 @@ export function HeaderSearch({
     <form
       ref={form}
       role="search"
-      className={cn(shell, "relative", size === "lg" ? "h-11" : "h-[42px]", className)}
+      className={clsx(shell, "relative", size === "lg" ? "h-11" : "h-[42px]", className)}
       onSubmit={(e) => {
         e.preventDefault()
         const next = new URLSearchParams()
@@ -319,7 +319,7 @@ export function HeaderSearch({
 /** The field before hydration and without JavaScript: a plain GET form to `/search`. */
 export function HeaderSearchFallback({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
   return (
-    <form role="search" action="/search" className={cn(shell, size === "lg" ? "h-11" : "h-[42px]", className)}>
+    <form role="search" action="/search" className={clsx(shell, size === "lg" ? "h-11" : "h-10.5", className)}>
       <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <input type="search" name="q" placeholder={PLACEHOLDER} aria-label="Search products" className={field} />
       {size === "md" && (
