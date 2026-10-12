@@ -5,6 +5,8 @@ import type { StorefrontCategoryDTO } from "@effy/shared-types"
 
 import { getHome } from "@/app/(shop)/home-data"
 import { offerHref } from "@/app/(shop)/_components/OffersPanels"
+import { MENU_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"
+import { btnClass } from "@/components/storefront/actions"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/misc"
 import { aisleHref, childrenOf, getCategoriesSafe, topLevel } from "@/lib/categories"
@@ -165,37 +167,68 @@ function AislePanel({
   )
 }
 
-/** One slide: what it is, a line about it, and the way in. */
+/** An information slide: what it is, a line about it, and the way in — on the tinted panel. */
 function Slide({
   badge,
   title,
   text,
   href,
   action,
-  code,
 }: {
   badge: string
   title: string
   text?: string | null
   href: string
   action: string
-  code?: string | null
 }) {
   return (
-    <>
+    <div className="flex h-full flex-col rounded-lg bg-primary-muted p-4">
       <Badge className="self-start">{badge}</Badge>
       <p className="mt-3 text-base leading-snug font-semibold">{title}</p>
       {text && <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>}
-      {code && (
-        <p className="mt-3 text-sm">
-          Use code <span className="rounded-md border bg-background px-1.5 py-0.5 font-mono text-xs font-medium">{code}</span>
-        </p>
-      )}
       <Link href={href} className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-medium text-primary">
         {action}
         <ArrowRight aria-hidden="true" className="size-4" />
       </Link>
-    </>
+    </div>
+  )
+}
+
+/**
+ * An offer slide: the same full-colour promo banner the home page draws, filling the panel. The whole
+ * card is its link; the code, when it has one, is selectable text on it.
+ */
+function OfferSlide({
+  theme,
+  title,
+  text,
+  href,
+  code,
+}: {
+  theme: PromoTheme
+  title: string
+  text?: string | null
+  href: string
+  code?: string | null
+}) {
+  return (
+    <PromoBanner theme={theme} className="flex h-full flex-col rounded-lg p-5">
+      <p className="text-xs font-semibold tracking-[0.08em] uppercase opacity-85">{code ? "Code" : "Offer"}</p>
+      <p className="mt-2 text-[22px] leading-[1.15] font-semibold tracking-[-0.02em]">{title}</p>
+      {text && <p className="mt-2 text-sm opacity-90">{text}</p>}
+      {code && (
+        <p className="mt-3 inline-flex h-8 items-center self-start rounded-md border border-dashed border-white/70 px-3 font-mono font-semibold">
+          {code}
+        </p>
+      )}
+      <Link
+        href={href}
+        className={btnClass("outline", "sm", "mt-auto self-start border-transparent after:absolute after:inset-0")}
+      >
+        Shop the offer
+        <ArrowRight aria-hidden="true" />
+      </Link>
+    </PromoBanner>
   )
 }
 
@@ -232,15 +265,14 @@ async function MenuOffers() {
   }
   return (
     <MenuCarousel>
-      {offers.slice(0, 4).map((banner) => (
-        <Slide
+      {offers.slice(0, 4).map((banner, i) => (
+        <OfferSlide
           key={banner.key}
-          badge={banner.code ? "Code" : "Offer"}
+          theme={MENU_THEMES[i % MENU_THEMES.length]!}
           title={banner.title}
           text={banner.subtitle ?? banner.terms}
           code={banner.code}
           href={offerHref(banner) ?? "/offers"}
-          action="Shop the offer"
         />
       ))}
       {INFORMATION}

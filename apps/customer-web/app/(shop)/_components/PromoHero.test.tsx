@@ -1,20 +1,15 @@
-import { render } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { fireEvent, render } from "@testing-library/react"
+import { act } from "react"
+import { describe, expect, it, vi } from "vitest"
 
 import type { BannerDTO } from "@effy/shared-types"
 
-import { PromoHero, keyframesFor } from "./PromoHero"
+import { PromoHero } from "./PromoHero"
 
 /**
- * The promotions hero — a CSS-only carousel whose keyframes are GENERATED, because the number of
- * advertised promotions is whatever the operator has running and a keyframe percentage cannot be
- * derived from a custom property.
- *
- * ⚠ These assertions exist because every failure mode here is SILENT. A wrong percentage does not
- * throw; it produces a flicker of page background once per rotation, or a slide that swallows clicks
- * meant for the one you can see. The browser-level proof (coverage at every instant, hit-testing,
- * focusability) was run separately at 20ms resolution across every handover; what is pinned here is
- * the arithmetic that proof depended on, so it cannot drift out from under it.
+ * The promotions hero — a carousel of every advertised promotion on a drawn promo banner, with up to
+ * two promo cards beside it. The slides are rendered on the server; `PromoCarousel` only decides
+ * which one is showing.
  */
 
 function banner(i: number, over: Partial<BannerDTO> = {}): BannerDTO {
@@ -28,104 +23,123 @@ function banner(i: number, over: Partial<BannerDTO> = {}): BannerDTO {
   }
 }
 
-describe("keyframesFor — the generated rotation", () => {
-  it("gives every promotion a ten-second turn", () => {
-    expect(keyframesFor(2)).toContain("fx-promo-2 20s linear infinite")
-    expect(keyframesFor(4)).toContain("fx-promo-4 40s linear infinite")
-    expect(keyframesFor(7)).toContain("fx-promo-7 70s linear infinite")
-  })
-
-  it("offsets each slide by its index, minus one fade so slide 1 is opaque at t=0", () => {
-    // ⚠ The negative term is the LCP guarantee: slide 1's animation is already past its fade-in on
-    // the first painted frame. Chrome does not record LCP for a transparent element, so without it
-    // the metric moves by the length of the fade.
-    expect(keyframesFor(4)).toContain("animation-delay:calc(var(--fx-promo-i) * 10s - 1s)")
-  })
-
-  /**
-   * ⚠ THE ONE THAT MATTERS. A slide must start hiding only AFTER its successor is fully opaque on
-   * top of it. Early by even a fraction and two partial layers sit over nothing, so the page
-   * background shows through and the band dips on every change.
-   *
-   * Successor reaches full opacity at (dwell + fade) into this slide's own timeline.
-   */
-  it("holds each slide until its successor has covered it", () => {
-    for (const n of [2, 3, 4, 6, 8]) {
-      const css = keyframesFor(n)
-      const [, fadeIn, holdEnd] = css.match(/\{0%\{[^}]*\}([\d.]+)%,([\d.]+)%\{opacity:1/)!
-      const successorOpaqueAt = ((10 + 1) / (n * 10)) * 100
-
-      expect(Number(holdEnd)).toBeGreaterThan(successorOpaqueAt)
-      // ...but only just. Holding far too long would keep a stale promotion on screen.
-      expect(Number(holdEnd)).toBeLessThan(successorOpaqueAt + 0.5)
-      // And the fade-in must complete before the slide's turn begins.
-      expect(Number(fadeIn)).toBeLessThan((1 / (n * 10)) * 100)
-    }
-  })
-
-  /**
-   * ⚠ `visibility`, not just `opacity`. An `opacity: 0` element is still hit-tested, still focusable
-   * and still in the accessibility tree. With N slides stacked on one box the LAST in DOM order would
-   * swallow every click — so the buttons a shopper can see would do nothing — while a keyboard user
-   * tabbed through N sets of buttons of which N-1 are invisible.
-   */
-  it("hides inactive slides from hit-testing and the tab order, not merely from view", () => {
-    const css = keyframesFor(4)
-    expect(css).toContain("visibility:hidden")
-    expect(css).toMatch(/[\d.]+%,100%\{opacity:0;visibility:hidden\}/)
-  })
-
-  /** WCAG 2.2.2 — auto-updating content running past five seconds needs a way to stop it. */
-  it("pauses on hover AND on focus-within", () => {
-    const css = keyframesFor(4)
-    expect(css).toContain(".fx-promo-4:hover>*")
-    // ⚠ `:focus-within` is the half that matters. Hover alone leaves keyboard and screen-reader
-    // users with no mechanism at all.
-    expect(css).toContain(".fx-promo-4:focus-within>*")
-    expect(css).toContain("animation-play-state:paused")
-  })
-
-  it("stops entirely under prefers-reduced-motion, on the first promotion", () => {
-    const css = keyframesFor(4)
-    expect(css).toContain("@media(prefers-reduced-motion:reduce)")
-    expect(css).toContain(".fx-promo-4>:first-child{opacity:1;visibility:visible}")
-  })
-})
-
 describe("PromoHero", () => {
   it("renders nothing when there are no promotions", () => {
     const { container } = render(<PromoHero banners={[]} />)
     expect(container.firstChild).toBeNull()
   })
 
-  /** A promotional slot with no promotional ARTWORK is not a promotion — it is a coloured rectangle. */
-  it("drops promotions with no artwork, and renders nothing if that leaves none", () => {
-    const { container } = render(
-      <PromoHero banners={[banner(1, { imageUrl: null }), banner(2)]} />,
-    )
-    expect(container.querySelectorAll("img")).toHaveLength(1)
-
-    const { container: empty } = render(<PromoHero banners={[banner(1, { imageUrl: null })]} />)
-    expect(empty.firstChild).toBeNull()
+  /**
+   * The band is DRAWN — a promo colour, a decoration, icon bubbles — so a promotion needs no artwork
+   * to be shown, and its artwork is not put under the words.
+   */
+  it("shows a promotion with no artwork, and draws no image", () => {
+    const { container } = render(<PromoHero banners={[banner(1, { imageUrl: null }), banner(2)]} />)
+    expect(Array.from(container.querySelectorAll("h2")).map((h) => h.textContent)).toEqual([
+      "Promotion 1",
+      "Promotion 2",
+    ])
+    expect(container.querySelector("img")).toBeNull()
   })
 
-  it("emits NO animation for a single promotion — one slide is not a carousel", () => {
+  it("draws the band in promo green, with its decoration hidden from assistive technology", () => {
     const { container } = render(<PromoHero banners={[banner(1)]} />)
-    expect(container.querySelector("style")).toBeNull()
-    expect(container.querySelector('[class*="fx-promo"]')).toBeNull()
+    const band = container.querySelector<HTMLElement>("[style*='--promo-']")!
+    expect(band.style.background).toBe("var(--promo-green)")
+    expect(band.querySelectorAll("svg").length).toBeGreaterThan(4)
+    for (const svg of band.querySelectorAll("svg")) {
+      expect(svg.closest("[aria-hidden='true']")).not.toBeNull()
+    }
   })
 
-  it("generates the rule set for exactly the number of promotions in hand", () => {
-    const { container } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
-    expect(container.querySelector(".fx-promo-3")).not.toBeNull()
+  it("shows no controls for a single promotion — one slide is not a carousel", () => {
+    const { queryByRole } = render(<PromoHero banners={[banner(1)]} />)
+    expect(queryByRole("button", { name: "Next slide" })).toBeNull()
   })
 
-  it("fetches only the first artwork at high priority — it is the LCP element", () => {
+  /**
+   * ⚠ Out of sight is not enough. Every slide is in the document, stacked on one box: one that is
+   * not showing must be out of the tab order and the accessibility tree too, or a keyboard user tabs
+   * through N sets of buttons of which N-1 cannot be seen.
+   */
+  it("keeps every slide in the document, and only the showing one reachable", () => {
     const { container } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
-    const priorities = Array.from(container.querySelectorAll("img")).map((i) =>
-      i.getAttribute("fetchpriority"),
-    )
-    expect(priorities).toEqual(["high", "low", "low"])
+    const slides = Array.from(container.querySelectorAll<HTMLElement>("[aria-roledescription='slide']"))
+    expect(slides.map((s) => s.getAttribute("aria-label"))).toEqual(["1 of 3", "2 of 3", "3 of 3"])
+    expect(slides.map((s) => s.hasAttribute("inert"))).toEqual([false, true, true])
+    expect(slides.map((s) => s.className.includes("invisible"))).toEqual([false, true, true])
+  })
+
+  it("moves with previous and next, and wraps at both ends", () => {
+    const { container, getByRole } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
+    const showing = () =>
+      Array.from(container.querySelectorAll("[aria-roledescription='slide']")).findIndex((s) => !s.hasAttribute("inert"))
+
+    fireEvent.click(getByRole("button", { name: "Next slide" }))
+    expect(showing()).toBe(1)
+    fireEvent.click(getByRole("button", { name: "Previous slide" }))
+    fireEvent.click(getByRole("button", { name: "Previous slide" }))
+    expect(showing()).toBe(2)
+    fireEvent.click(getByRole("button", { name: "Next slide" }))
+    expect(showing()).toBe(0)
+  })
+
+  it("advances by itself, and keeps advancing after a control is clicked", () => {
+    vi.useFakeTimers()
+    try {
+      const { container, getByRole, queryByRole } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
+      const showing = () =>
+        Array.from(container.querySelectorAll("[aria-roledescription='slide']")).findIndex((s) => !s.hasAttribute("inert"))
+
+      act(() => void vi.advanceTimersByTime(6000))
+      expect(showing()).toBe(1)
+
+      // ⚠ In a browser a click leaves focus on the button, and that must not hold the carousel. This
+      // DOM cannot tell a mouse's focus from a keyboard's (`:focus-visible`), so that half was checked
+      // in a real browser; what is pinned here is that a click does not stop the timer.
+      fireEvent.click(getByRole("button", { name: "Next slide" }))
+      expect(showing()).toBe(2)
+      act(() => void vi.advanceTimersByTime(6000))
+      expect(showing()).toBe(0)
+
+      expect(queryByRole("button", { name: /pause|play/i })).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /** WCAG 2.2.2 — it waits while the pointer is over it. */
+  it("waits while the pointer is over it, and carries on when it leaves", () => {
+    vi.useFakeTimers()
+    try {
+      const { container } = render(<PromoHero banners={[banner(1), banner(2)]} />)
+      const showing = () =>
+        Array.from(container.querySelectorAll("[aria-roledescription='slide']")).findIndex((s) => !s.hasAttribute("inert"))
+      const band = container.querySelector("[aria-roledescription='slide']")!.parentElement!
+
+      fireEvent.pointerEnter(band)
+      act(() => void vi.advanceTimersByTime(30_000))
+      expect(showing()).toBe(0)
+      fireEvent.pointerLeave(band)
+      act(() => void vi.advanceTimersByTime(6000))
+      expect(showing()).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not advance for someone who asked for reduced motion", () => {
+    vi.useFakeTimers()
+    const original = window.matchMedia
+    window.matchMedia = ((q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} })) as never
+    try {
+      const { container } = render(<PromoHero banners={[banner(1), banner(2)]} />)
+      act(() => void vi.advanceTimersByTime(30_000))
+      expect(container.querySelector("[aria-roledescription='slide']")!.hasAttribute("inert")).toBe(false)
+    } finally {
+      window.matchMedia = original
+      vi.useRealTimers()
+    }
   })
 
   /** FR-037d — a shopper learns of a condition from the banner or from where it leads. */
@@ -143,5 +157,41 @@ describe("PromoHero", () => {
     const bandLink = container.querySelector('a[href="/promotions/promo-1"]')
     expect(bandLink).not.toBeNull()
     expect(bandLink!.querySelector("a")).toBeNull()
+  })
+})
+
+describe("PromoHero — the cards beside the band", () => {
+  const grounds = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll<HTMLElement>("ul [style*='--promo-']")).map((el) => el.style.background)
+
+  it("stacks a linked offer above a code, blue then purple", () => {
+    const { container } = render(
+      <PromoHero banners={[banner(1), banner(2), banner(3, { code: "HELLO10", terms: "On orders over $30" })]} />,
+    )
+    expect(grounds(container)).toEqual(["var(--promo-blue)", "var(--promo-purple)"])
+    // One column at every width: the side-by-side layout is what overflowed.
+    expect(container.querySelector("ul")!.className).not.toMatch(/grid-cols/)
+  })
+
+  it("does not repeat the first slide beside itself", () => {
+    const { container } = render(<PromoHero banners={[banner(1)]} />)
+    expect(container.querySelector("ul")).toBeNull()
+  })
+
+  it("makes the whole offer card one link, without nesting anything interactive in it", () => {
+    const { getByRole } = render(<PromoHero banners={[banner(1), banner(2)]} />)
+    const link = getByRole("link", { name: "Shop now: Promotion 2" })
+    expect(link.getAttribute("href")).toBe("/promotions/promo-2")
+    expect(link.className).toContain("after:absolute")
+    expect(link.querySelector("a,button")).toBeNull()
+  })
+
+  it("hands over a code as selectable text beside a real copy button, in a row that wraps", () => {
+    const { getByText, getByRole } = render(
+      <PromoHero banners={[banner(1, { code: "HELLO10", terms: "On orders over $30" })]} />,
+    )
+    const row = getByText("HELLO10").parentElement!
+    expect(row.className).toContain("flex-wrap")
+    expect(row.contains(getByRole("button", { name: /copy code/i }))).toBe(true)
   })
 })

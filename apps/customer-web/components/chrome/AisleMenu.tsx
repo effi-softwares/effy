@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react"
 import { LayoutGrid } from "lucide-react"
 
+import { animateMenuOpen, warmSlideMotion } from "@/lib/slide-motion"
 import { cn } from "@/lib/utils"
 
 /**
@@ -47,6 +48,14 @@ export function AisleMenu({
   const timer = useRef<number | undefined>(undefined)
   const switchTimer = useRef<number | undefined>(undefined)
   const panelId = useId()
+  const panel = useRef<HTMLDivElement>(null)
+
+  // The menu drops into place when it opens (Motion, fetched once the page is interactive — see
+  // `lib/slide-motion`). Closing is immediate: the shopper is already on their way somewhere else.
+  useEffect(() => warmSlideMotion(), [])
+  useEffect(() => {
+    if (open) animateMenuOpen(panel.current)
+  }, [open])
 
   const later = useCallback((fn: () => void, ms: number) => {
     window.clearTimeout(timer.current)
@@ -90,7 +99,7 @@ export function AisleMenu({
     if (event.pointerType === "mouse") fn()
   }
 
-  // The button and the panel keep it open; the dimmed page around them does not.
+  // The button and the panel keep it open; the page around them does not.
   const stayOpen = {
     onPointerEnter: hover(() => later(() => setOpen(true), OPEN_AFTER_MS)),
     onPointerLeave: hover(() => later(() => setOpen(false), CLOSE_AFTER_MS)),
@@ -127,13 +136,8 @@ export function AisleMenu({
       </button>
 
       <div id={panelId} hidden={!open}>
-        {/* The page behind is dimmed from the header's own bottom edge down. */}
         <div
-          aria-hidden="true"
-          onClick={close}
-          className="absolute top-full left-1/2 h-screen w-screen -translate-x-1/2 bg-scrim"
-        />
-        <div
+          ref={panel}
           // Following any link in the menu closes it — the page under it is about to change.
           onClick={(event) => {
             if ((event.target as Element).closest("a")) close()

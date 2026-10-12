@@ -18,6 +18,23 @@
 /* Tokens, the @theme mapping and the self-hosted Geist faces, all from the design system. */
 @import "@effy/design-system/storefront.css";
 
+/* ── Promo banner colours ──────────────────────────────────────────────────────────────────────
+ *
+ * ⚠ FOR PROMO BANNERS ONLY (operator direction, 2026-10-12: the home hero row and the Offers cards).
+ * The storefront identity is still five values; these six are the grounds a promotion is drawn on,
+ * always with white type, and are read through `PROMO_COLORS` in `components/storefront/PromoBanner.tsx`
+ * and nowhere else. They are not in the design system's storefront tokens on purpose, so no utility
+ * (`bg-…`, `text-…`) exists for them and nothing else on the page can pick one up.
+ */
+:root {
+  --promo-green: #15803d;
+  --promo-blue: #2563eb;
+  --promo-purple: #7c3aed;
+  --promo-orange: #c2410c;
+  --promo-rose: #db2777;
+  --promo-red: #dc2626;
+}
+
 /* ── The content column ────────────────────────────────────────────────────────────────────────
  *
  * ONE definition of "how wide is the page and how far off the edge does it sit", used by every

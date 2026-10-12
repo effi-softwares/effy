@@ -2,100 +2,35 @@ import Link from "next/link"
 
 import type { BannerDTO } from "@effy/shared-types"
 
-import { btnClass } from "@/components/storefront/kit"
+import { ArrowRight } from "lucide-react"
+
+import { btnClass } from "@/components/storefront/actions"
+import { HERO_THEME, PromoBanner, PromoBubbles, SIDE_THEMES, type PromoTheme } from "@/components/storefront/PromoBanner"
+import { cn } from "@/lib/utils"
 
 import { CopyCodeButton } from "./CopyCodeButton"
+import { PromoCarousel } from "./PromoCarousel"
 import { offerHref } from "./OffersPanels"
 
 /**
- * THE PROMOTIONS HERO — a full-bleed carousel of every advertised promotion.
+ * THE PROMOTIONS HERO — a carousel of every advertised promotion, with two promo cards beside it.
  *
- * ⚠ AN ALTERNATIVE TO `Hero`, NOT A REPLACEMENT (operator direction, 2026-08-09). Both render on the
- * home page while they are being compared. `Hero` is untouched.
+ * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. It is built from `home.banners`, which comes from an
+ * `uncached()` read — deliberately uncached, because "this offer is still available" is a live claim
+ * another shopper can falsify (029). So the page's largest element arrives by stream.
  *
- * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. `Hero` fetches nothing, so it prerenders into the cached
- * shell and is in the raw HTML a crawler receives (FR-012/FR-040). This one is built from
- * `home.banners`, which comes from an `uncached()` read — deliberately uncached, because "this offer
- * is still available" is a live claim another shopper can falsify (029). So the page's largest
- * element arrives by stream. That is a real LCP difference between the two heroes, and part of what
- * is being compared.
+ * ⚠ THE WORDS SIT ON A DRAWN BANNER, NOT ON ARTWORK (2026-10-12). The band is a flat promo colour with
+ * a white decoration and icon bubbles (`PromoBanner`), so white type reads at one known contrast
+ * whatever a promotion uploads. A promotion's `imageUrl` is not drawn here.
  *
- * ⚠ NO SCRIM, NO TEXT-SHADOW. Several were built and all were removed (operator direction): a
- * full-band gradient, a shortened one, an ellipse, a spread text-shadow, and a blurred shape behind
- * the copy. Each either dimmed the photograph the promotion is selling with, or read as an object
- * sitting on top of it. White type now sits directly on the artwork.
- *
- * ⚠⚠ THE CONSEQUENCE, STATED SO IT IS NOT REDISCOVERED: legibility is now a property of the ARTWORK.
- * Banner images are operator-uploaded and the conformance check verifies DIMENSIONS, not brightness,
- * so a pale banner will render white-on-white with nothing failing — no test, no guard, no build
- * error. `Hero` has the same exposure and answers it with a written rule plus per-image contrast
- * measurements in `public/hero/README.md`; this surface has no equivalent. Whoever advertises a
- * promotion owns that check.
- *
- * ── Zero JavaScript, and why the keyframes are generated ────────────────────────────────────────
- *
- * shadcn's Carousel is embla + radix and GSAP is a library — both are out: `radix-ui`/`vaul`/`sonner`
- * are banned from `app/(shop)/` by `contracts/customer-ui.contract.md §1`, and `/` has ~0.1 KB of its
- * 174 KB guest budget left. `Hero` hand-writes its keyframes in `globals.css` because it always has
- * six slides; this one cannot, because the number of advertised promotions is whatever the operator
- * has running and a keyframe percentage cannot be derived from a custom property. So the rule set is
- * composed on the server and emitted as a `<style precedence>`, which React 19 hoists and dedupes.
+ * ⚠ IT IS A REAL CAROUSEL NOW (operator direction, 2026-10-12): previous / dots / pause / next, and
+ * the move between slides animated with Motion. That replaced the CSS-only rotation and its generated
+ * keyframes, which existed to keep script off this band. The behaviour is `PromoCarousel`, a client
+ * island; the slides are still rendered here, on the server, and all of them are in the HTML.
  */
-
-/** Seconds each promotion holds the band. */
-const DWELL = 10
-/** Seconds of crossfade between promotions. */
-const FADE = 1
-
-/**
- * The keyframes for exactly `count` slides.
- *
- * ⚠ THE HANDOVER IS THE HARD PART. A naive crossfade — outgoing 1→0 while incoming 0→1 — leaves both
- * layers near 0.5 mid-fade, so the page background shows through and the band dips on every change.
- * Slides stack in DOM order, so the fix is to never have two partial layers over nothing: each fades
- * IN while the one below is still opaque, and fades OUT only after its successor covers it. The WRAP
- * is why that second fade exists — the last slide has no successor above it, so slide 1 (already
- * faded in underneath) is revealed by the last one fading out. One rule set, no special case.
- *
- * ⚠ `visibility` IS ANIMATED ALONGSIDE OPACITY. An `opacity: 0` element is still hit-tested, still
- * focusable and still in the accessibility tree — so the last slide would swallow every click, and a
- * keyboard user would tab through N sets of buttons of which N-1 are invisible.
- */
-export function keyframesFor(count: number): string {
-  const cycle = count * DWELL
-  const pct = (seconds: number) => (seconds / cycle) * 100
-
-  // A shade EARLY, so slide 1 — which carries a negative delay — is fully opaque on the first painted
-  // frame. It is the LCP element, and Chrome does not record LCP for a transparent one.
-  const fadeIn = pct(FADE) * 0.95
-  // A shade LATE, so a slide starts hiding only once its successor has covered it. Early by a frame
-  // and the background flickers through.
-  const holdEnd = pct(DWELL + FADE) + 0.07
-  const hidden = pct(DWELL + 2 * FADE)
-
-  const r = (n: number) => Number(n.toFixed(3))
-
-  return [
-    `.fx-promo-${count}>*{opacity:0;visibility:hidden;animation:fx-promo-${count} ${cycle}s linear infinite;animation-delay:calc(var(--fx-promo-i) * ${DWELL}s - ${FADE}s)}`,
-    // WCAG 2.2.2 — auto-updating content running past five seconds needs a way to stop it.
-    // `:focus-within` is the half that matters; hover alone leaves keyboard users with no mechanism.
-    `.fx-promo-${count}:hover>*,.fx-promo-${count}:focus-within>*{animation-play-state:paused}`,
-    `@keyframes fx-promo-${count}{`,
-    `0%{opacity:0;visibility:visible}`,
-    `${r(fadeIn)}%,${r(holdEnd)}%{opacity:1;visibility:visible}`,
-    `${r(hidden)}%{opacity:0;visibility:visible}`,
-    `${r(hidden + 0.01)}%,100%{opacity:0;visibility:hidden}`,
-    `}`,
-    // FR-025 — motion is decoration, never information.
-    `@media(prefers-reduced-motion:reduce){`,
-    `.fx-promo-${count}>*{animation:none}`,
-    `.fx-promo-${count}>:first-child{opacity:1;visibility:visible}`,
-    `}`,
-  ].join("")
-}
 
 /** The band's height, in one place — the skeleton below reserves exactly this. */
-const BAND_HEIGHT = "min-h-[21rem] lg:min-h-[22rem]"
+const BAND_HEIGHT = "min-h-80"
 
 export function PromoHeroSkeleton() {
   return (
@@ -105,99 +40,121 @@ export function PromoHeroSkeleton() {
   )
 }
 
+const eyebrow = "text-xs font-semibold uppercase opacity-85"
+
 /**
- * The home banner (reference: Home · hero): a green `rounded-xl` panel inside the content column —
- * the offer's words on the left, its artwork in a well on the right — with up to two code tiles
- * beside it on wide screens.
+ * The home promo row (reference: Home · hero): a promo-green `rounded-xl` band spanning two of three
+ * columns — the offer's words on the left, icon bubbles on the right from `md` — with up to two
+ * full-colour cards stacked beside it.
  *
- * ⚠ FLAT GREEN, NO SCRIM. The words sit on the brand colour, not on the photograph, so they read at
- * the same contrast whatever artwork back-office uploads. That is why the artwork is in its own well.
+ * ⚠ SLIDES SHARE ONE GRID CELL rather than being pinned to the band, so the band is as tall as its
+ * longest slide and a long title is never clipped. The decoration and the bubbles are drawn ONCE,
+ * behind every slide.
  *
- * ⚠ The rotation is still CSS-only (`keyframesFor`), paused on hover and on focus, stopped under
- * reduced motion. The reference draws previous / next / pause buttons; they are NOT built — they need
- * script on the largest element of the guest path, and hover-or-focus already pauses it.
- *
- * ⚠ The side tiles are promotions that carry a CODE, and only those. A banner without one has nothing
- * to hand over in a 13rem tile.
+ * ⚠ The side cards: one promotion WITHOUT a code (the whole card is its link) above promotions WITH
+ * one (the code and a copy button), two at most. The first slide is not repeated beside itself.
  */
 export function PromoHero({ banners }: { banners: BannerDTO[] }) {
-  const slides = banners.filter((b) => Boolean(b.imageUrl))
+  const slides = banners
   if (slides.length === 0) return null
 
-  const rotates = slides.length > 1
-  const tiles = banners.filter((b) => Boolean(b.code)).slice(0, 2)
+  const linked = banners.find((b) => !b.code && b !== slides[0] && offerHref(b) !== null)
+  const tiles = [...(linked ? [linked] : []), ...banners.filter((b) => Boolean(b.code))].slice(0, 2)
 
   return (
-    <section aria-label="Promotions" className="container pt-6">
-      <div className={tiles.length > 0 ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]" : undefined}>
-        <div className={`relative overflow-hidden rounded-xl bg-brand text-brand-foreground ${BAND_HEIGHT}`}>
-          {rotates && (
-            <style href={`fx-promo-${slides.length}`} precedence="default">
-              {keyframesFor(slides.length)}
-            </style>
-          )}
-          <div className={rotates ? `fx-promo-${slides.length}` : undefined}>
-            {slides.map((banner, i) => (
+    <section aria-roledescription="carousel" aria-label="Promotions" className="container pt-6">
+      <div className={tiles.length > 0 ? "grid gap-4 lg:grid-cols-3" : undefined}>
+        <PromoBanner
+          theme={HERO_THEME}
+          bubbles={false}
+          className={cn("grid rounded-xl", BAND_HEIGHT, tiles.length > 0 && "lg:col-span-2")}
+        >
+          <PromoCarousel
+            backdrop={
+              <div aria-hidden="true" className="absolute inset-y-0 right-0 -z-10 hidden w-1/2 md:block">
+                <PromoBubbles bubbles={HERO_THEME.bubbles} />
+              </div>
+            }
+          >
+            {slides.map((banner) => (
               <div
                 key={banner.key}
-                style={{ "--fx-promo-i": i } as React.CSSProperties}
-                className="absolute inset-0 grid items-center gap-6 p-6 sm:p-8 lg:grid-cols-2"
+                className={cn(
+                  "flex min-w-0 flex-col items-start justify-center p-8 md:w-1/2",
+                  // Room for the controls, which sit over the band's bottom edge.
+                  slides.length > 1 && "pb-14",
+                )}
               >
-                <div className="flex min-w-0 flex-col items-start">
-                  <p className="text-xs font-semibold tracking-widest uppercase opacity-90">This week&rsquo;s offer</p>
-                  <h2 className="mt-3 line-clamp-3 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
-                    {banner.title}
-                  </h2>
-                  {banner.subtitle && <p className="mt-3 max-w-md text-sm opacity-95 sm:text-base">{banner.subtitle}</p>}
-                  <div className="mt-6 flex flex-wrap items-center gap-2">
-                    <Link
-                      href={offerHref(banner) ?? "/search"}
-                      className={btnClass("outline", "lg", "border-transparent")}
-                    >
-                      Shop now
-                    </Link>
-                    <Link
-                      href="/search?saleOnly=true"
-                      className={btnClass("ghost", "lg", "border-white/60 text-brand-foreground hover:bg-white/15")}
-                    >
-                      See what&rsquo;s on sale
-                    </Link>
-                  </div>
-                  {banner.terms && <p className="mt-4 text-xs opacity-85">{banner.terms}</p>}
+                <p className={cn(eyebrow, "tracking-[0.06em]")}>This week&rsquo;s offer</p>
+                <h2 className="mt-3 line-clamp-3 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
+                  {banner.title}
+                </h2>
+                {banner.subtitle && <p className="mt-3 max-w-md text-sm opacity-95 sm:text-base">{banner.subtitle}</p>}
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <Link href={offerHref(banner) ?? "/search"} className={btnClass("outline", "lg", "border-transparent")}>
+                    Shop now
+                  </Link>
+                  <Link
+                    href="/search?saleOnly=true"
+                    className={btnClass("ghost", "lg", "border-white/60 text-white hover:bg-white/15")}
+                  >
+                    See what&rsquo;s on sale
+                  </Link>
                 </div>
-                <div className="relative hidden h-full min-h-56 overflow-hidden rounded-lg bg-white/10 lg:block">
-                  {/* Decorative: the offer is said in the words beside it. */}
-                  <img
-                    src={banner.imageUrl!}
-                    alt=""
-                    fetchPriority={i === 0 ? "high" : "low"}
-                    decoding={i === 0 ? "sync" : "async"}
-                    className="absolute inset-0 size-full object-cover"
-                  />
-                </div>
+                {banner.terms && <p className="mt-3 text-xs opacity-80">{banner.terms}</p>}
               </div>
             ))}
-          </div>
-        </div>
+          </PromoCarousel>
+        </PromoBanner>
 
         {tiles.length > 0 && (
-          <ul className="grid grid-cols-2 gap-4 lg:w-[27rem]">
-            {tiles.map((banner) => (
-              <li key={banner.key} className="flex flex-col rounded-lg border bg-card p-4 shadow-xs">
-                <span className="self-start rounded-md bg-primary-muted px-2 py-0.5 text-xs font-semibold text-primary">
-                  Code
-                </span>
-                <h3 className="mt-3 text-sm font-semibold">{banner.title}</h3>
-                {banner.terms && <p className="mt-1 text-xs text-muted-foreground">{banner.terms}</p>}
-                <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
-                  <span className="rounded-md border px-2 py-1 font-mono text-xs font-medium">{banner.code}</span>
-                  <CopyCodeButton code={banner.code!} />
-                </div>
+          // Stacked, equal rows, and absent below `md` — a phone gets the hero and then the store.
+          <ul className="hidden auto-rows-fr gap-4 md:grid">
+            {tiles.map((banner, i) => (
+              <li key={banner.key} className="flex">
+                <SideCard banner={banner} theme={SIDE_THEMES[i % SIDE_THEMES.length]!} />
               </li>
             ))}
           </ul>
         )}
       </div>
     </section>
+  )
+}
+
+/**
+ * One card beside the hero. With a code: the code in a dashed tag and a copy button, wrapping so the
+ * button never leaves the card. Without one: the whole card is the link to where the offer leads.
+ */
+function SideCard({ banner, theme }: { banner: BannerDTO; theme: PromoTheme }) {
+  const href = offerHref(banner)
+  const detail = banner.code ? (banner.terms ?? banner.subtitle) : banner.subtitle
+  return (
+    <PromoBanner theme={theme} className="flex min-h-38 w-full flex-col justify-between rounded-xl p-6">
+      <div className="max-w-[62%] space-y-1">
+        <p className={cn(eyebrow, "tracking-[0.08em]")}>{banner.code ? "Code" : "Offer"}</p>
+        <h3 className="text-[22px] leading-[1.15] font-semibold tracking-[-0.02em]">{banner.title}</h3>
+        {detail && <p className="text-sm opacity-90">{detail}</p>}
+      </div>
+      {banner.code ? (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex h-8 items-center rounded-md border border-dashed border-white/70 px-3 font-mono font-semibold">
+            {banner.code}
+          </span>
+          <CopyCodeButton code={banner.code} className="border-transparent" />
+        </div>
+      ) : (
+        href && (
+          <Link
+            href={href}
+            aria-label={`Shop now: ${banner.title}`}
+            className={btnClass("outline", "sm", "mt-4 self-start border-transparent after:absolute after:inset-0")}
+          >
+            Shop now
+            <ArrowRight aria-hidden="true" />
+          </Link>
+        )
+      )}
+    </PromoBanner>
   )
 }

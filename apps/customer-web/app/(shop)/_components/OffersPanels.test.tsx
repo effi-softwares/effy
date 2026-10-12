@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest"
 
 import type { BannerDTO } from "@effy/shared-types"
 
-import { OffersPanels } from "./OffersPanels"
+import { OFFER_THEMES } from "@/components/storefront/PromoBanner"
+
+import { OfferBannerCard, OffersPanels } from "./OffersPanels"
 
 function banner(over: Partial<BannerDTO> = {}): BannerDTO {
   return {
@@ -110,8 +112,8 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
 
 describe("OffersPanels — the message survives the artwork", () => {
   /**
-   * 084: an offer card is words on a white card. The message can no longer be lost against artwork,
-   * because there is no artwork under it — so there is nothing to scrim and no gradient to draw.
+   * The words sit on a DRAWN banner — a flat promo colour and a decoration — so they read the same
+   * whatever a promotion uploads. No artwork under them, and no gradient.
    */
   it("draws no artwork and no gradient under the words", () => {
     const { container } = render(<OffersPanels banners={many(3)} />)
@@ -120,11 +122,46 @@ describe("OffersPanels — the message survives the artwork", () => {
     expect(container.querySelector("img")).toBeNull()
   })
 
-  it("says whether an offer carries a code", () => {
+  it("gives each offer its own promo colour, through the variables and never a hex", () => {
+    const { container } = render(<OffersPanels banners={many(3)} />)
+
+    const grounds = Array.from(container.querySelectorAll<HTMLElement>("li [style*='--promo-']")).map(
+      (el) => el.style.background,
+    )
+    expect(grounds).toEqual(["var(--promo-orange)", "var(--promo-rose)", "var(--promo-red)"])
+  })
+
+  it("hides the decoration and the icon bubbles from assistive technology", () => {
+    const { container } = render(<OffersPanels banners={many(1)} />)
+
+    expect(container.querySelectorAll("svg").length).toBeGreaterThan(1)
+    for (const svg of container.querySelectorAll("li [style*='--promo-'] svg")) {
+      expect(svg.closest("[aria-hidden='true']")).not.toBeNull()
+    }
+  })
+
+  it("keeps the offer's name as a real heading on the banner", () => {
+    render(<OffersPanels banners={[banner({ title: "Winter shop" })]} />)
+
+    expect(screen.getByRole("heading", { level: 3, name: "Winter shop" })).toBeTruthy()
+  })
+
+  /** A real 16:9 promo image replaces the drawn banner; the name then sits below it, still as text. */
+  it("swaps the drawn banner for a promo image when given one", () => {
+    const { container } = render(
+      <OfferBannerCard banner={banner({ title: "Winter shop" })} theme={OFFER_THEMES[0]!} imageUrl="https://example.test/p.jpg" />,
+    )
+
+    const img = container.querySelector("img")!
+    expect(img.className).toContain("object-cover")
+    expect(container.querySelector("[style*='--promo-'] svg")).toBeNull()
+    expect(screen.getByRole("heading", { level: 3, name: "Winter shop" }).closest("[style*='--promo-']")).toBeNull()
+  })
+
+  it("badges an offer that carries a code, and only that one", () => {
     render(<OffersPanels banners={[banner({ code: "FRESH10" }), banner({ key: "n", code: null })]} />)
 
-    expect(screen.getByText("Code")).toBeTruthy()
-    expect(screen.getByText("Offer")).toBeTruthy()
+    expect(screen.getAllByText("Code")).toHaveLength(1)
   })
 
   /**
