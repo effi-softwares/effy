@@ -27,7 +27,7 @@ import { sellerIdentity } from "@effy/legal-content"
 export function DocumentStatusNote() {
   const seller = sellerIdentity()
   return (
-    <section className="flex items-start gap-3 rounded-xl border bg-muted/40 p-5">
+    <section className="flex items-start gap-3 rounded-lg border bg-muted/40 p-5">
       <svg
         width="17"
         height="17"

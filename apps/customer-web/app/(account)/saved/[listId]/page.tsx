@@ -27,7 +27,7 @@ export const metadata: Metadata = {
  */
 export default function ListPage({ params }: { params: Promise<{ listId: string }> }) {
   return (
-    <div className="container py-8">
+    <div>
       <PageHeader title="Saved items" />
       <Suspense fallback={<p className="py-10 text-sm text-muted-foreground">Loading…</p>}>
         <List params={params} />

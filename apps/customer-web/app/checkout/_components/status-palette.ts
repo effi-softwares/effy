@@ -37,6 +37,16 @@
  * family again — and they will need checking the next time the ground moves.
  */
 
+/*
+ * ⚠ 084 — THE STOREFRONT IDENTITY REPLACED THIS PALETTE'S VALUES. The notes above describe the
+ * monochrome-era reasoning (two semantic colours, literal hexes, a dark appearance); none of that
+ * holds on the storefront now. The tones are the identity's five values and nothing else:
+ *   paid       green   (`brand` on `brand-muted`)
+ *   same_day   blue    (`primary` on `primary-muted`) — the window today, which costs more
+ *   standard   grey
+ *   attention  BLACK on grey — there is no red; the word beside the dot carries the meaning.
+ * No hex and no `dark:` variant may come back (`scripts/check-no-storefront-red.sh`).
+ */
 export type ReceiptStatusTone = "paid" | "same_day" | "standard" | "attention"
 
 /**
@@ -53,13 +63,13 @@ export type ToneClasses = {
 export const RECEIPT_STATUS_TONES: Readonly<Record<ReceiptStatusTone, ToneClasses>> = {
   /** Payment received; order delivered. The constitution's own `--success`, used as a non-text dot. */
   paid: {
-    tint: "bg-[#eef7ee] dark:bg-[#17291f]",
-    dot: "bg-[#0c9409] dark:bg-[#22c55e]",
+    tint: "bg-brand-muted",
+    dot: "bg-brand",
   },
   /** ⚠ THE ONE GENUINELY NEW HUE. Distinguishes an expedited package the shopper paid more for. */
   same_day: {
-    tint: "bg-[#fdf3e7] dark:bg-[#2b2318]",
-    dot: "bg-[#b45309] dark:bg-[#f0a04b]",
+    tint: "bg-primary-muted",
+    dot: "bg-primary",
   },
   /** Pure ramp — the DEFAULT needs no hue, only the exception does. */
   standard: {
@@ -71,8 +81,8 @@ export const RECEIPT_STATUS_TONES: Readonly<Record<ReceiptStatusTone, ToneClasse
    * Drawn now so a later refunds slice has nothing to invent.
    */
   attention: {
-    tint: "bg-[#fdecec] dark:bg-[#2b1b1b]",
-    dot: "bg-[#e01010] dark:bg-[#ff6b6b]",
+    tint: "bg-muted",
+    dot: "bg-foreground",
   },
 }
 

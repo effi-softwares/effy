@@ -1,7 +1,7 @@
 "use client"
 
 import type { AddressDTO } from "@effy/shared-types"
-import { Label, Switch } from "@effy/design-system/ui"
+import { Label, Switch } from "@/components/ui/form"
 
 import { AddressPicker } from "./AddressPicker"
 
@@ -36,7 +36,7 @@ export function BillingSection({
   return (
     <section>
       <div className="flex items-center justify-between gap-4">
-        <Label htmlFor="billing-same" className="text-sm font-medium">
+        <Label htmlFor="billing-same" className="text-base leading-snug font-semibold">
           Billing address same as shipping
         </Label>
         <Switch id="billing-same" checked={sameAsShipping} onCheckedChange={onSameAsShippingChange} />
@@ -44,7 +44,7 @@ export function BillingSection({
 
       {!sameAsShipping && (
         <div className="mt-4">
-          <h3 className="mb-2 text-sm font-medium text-muted-foreground">Billing address</h3>
+          <h3 className="mb-3 text-sm font-medium text-muted-foreground">Billing address</h3>
           <AddressPicker
             addresses={addresses}
             selectedId={billingId}

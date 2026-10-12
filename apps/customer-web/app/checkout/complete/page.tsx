@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Check, CircleAlert, Clock } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
@@ -110,26 +111,32 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
   if (!dto || state !== "receipt") {
     const abandoned = state === "abandoned"
     return (
-      <div className="mx-auto max-w-xl rounded-2xl border border-dashed p-12 text-center">
-        <h1 className="text-lg font-medium">
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center">
+        <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
+          {abandoned ? (
+            <CircleAlert aria-hidden="true" className="size-6" />
+          ) : (
+            <Clock aria-hidden="true" className="size-6" />
+          )}
+        </span>
+        <h1 className="text-xl font-semibold">
           {abandoned ? "Your payment wasn’t completed" : "We’re confirming your payment"}
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+        <p className="max-w-md text-sm text-muted-foreground">
           {abandoned
             ? "Nothing has been charged and your basket is still here. You can go back and try again, or pay another way."
             : "This can take a moment. Your order will appear in your order history shortly."}
         </p>
-        {abandoned ? (
-          <Link
-            href="/checkout"
-            className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
-          >
-            Back to checkout
-          </Link>
-        ) : null}
-        <Link href="/orders" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
-          View your orders
-        </Link>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+          {abandoned ? (
+            <ActionLink href="/checkout" size="lg">
+              Back to checkout
+            </ActionLink>
+          ) : null}
+          <ActionLink href="/orders" variant={abandoned ? "outline" : "primary"} size="lg">
+            View your orders
+          </ActionLink>
+        </div>
       </div>
     )
   }
@@ -141,27 +148,12 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
 
       {/* ── Confirmation band ──────────────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-center sm:gap-5">
-        <div
-          aria-hidden="true"
-          className="flex size-13 shrink-0 items-center justify-center rounded-full bg-[#eef7ee] dark:bg-[#17291f]"
-        >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5 12.6l4.4 4.4L19 7.4"
-              className="stroke-[#0c9409] dark:stroke-[#22c55e]"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+        <div aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-muted">
+          <Check className="size-6 text-brand" strokeWidth={2.5} />
         </div>
         <div className="flex flex-1 flex-col gap-1.5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
-            Payment received
-          </p>
-          <Display as="h1" size="section">
-            Thank you
-          </Display>
+          <p className="text-sm font-medium text-brand">Payment received</p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Thank you</h1>
         </div>
       </div>
 
@@ -170,7 +162,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
         <div className="flex min-w-0 flex-col gap-5">
           <ReceiptDocument order={dto} />
 
-          <section className="rounded-xl border p-6">
+          <section className="rounded-lg border bg-card p-6 shadow-xs">
             <OrderAddresses
               shipping={dto.deliveryAddress}
               billing={dto.billingAddress}
@@ -186,13 +178,13 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
 
           {/* One primary action, then the alternatives (FR-012). */}
           <div className="flex flex-col gap-2.5">
-            <ActionLink href={`/orders/${dto.id}`} size="md" className="w-full">
+            <ActionLink href={`/orders/${dto.id}`} size="lg" className="w-full">
               Track this order
             </ActionLink>
-            <ActionLink href="/orders" variant="outline" size="md" className="w-full">
+            <ActionLink href="/orders" variant="outline" size="lg" className="w-full">
               Your orders
             </ActionLink>
-            <ActionLink href="/" variant="outline" size="md" className="w-full">
+            <ActionLink href="/" variant="outline" size="lg" className="w-full">
               Keep shopping
             </ActionLink>
           </div>
@@ -201,7 +193,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
 
           <p className="text-[13px] text-muted-foreground">
             Something wrong with this order?{" "}
-            <Link href="/feedback?from=checkout" className="font-medium text-primary hover:underline">
+            <Link href="/help?from=checkout" className="font-medium text-primary underline underline-offset-4">
               Get help
             </Link>
           </p>
@@ -215,10 +207,10 @@ function ReceiptSkeleton() {
   return (
     <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]" aria-hidden="true">
       <div className="flex flex-col gap-5">
-        <div className="h-96 w-full animate-pulse rounded-xl bg-muted" />
-        <div className="h-32 w-full animate-pulse rounded-xl bg-muted" />
+        <div className="h-96 w-full animate-pulse rounded-lg bg-muted" />
+        <div className="h-32 w-full animate-pulse rounded-lg bg-muted" />
       </div>
-      <div className="h-72 w-full animate-pulse rounded-xl bg-muted" />
+      <div className="h-72 w-full animate-pulse rounded-lg bg-muted" />
     </div>
   )
 }

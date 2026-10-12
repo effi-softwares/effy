@@ -1,7 +1,7 @@
 "use client"
 
 import { Elements } from "@stripe/react-stripe-js"
-import { ArrowLeft, CreditCard } from "lucide-react"
+import { ArrowLeft, CreditCard, Lock } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
@@ -19,6 +19,8 @@ import {
 import { DeliveryFeeLines } from "@/components/delivery/DeliveryFeeLines"
 import { FreeDeliveryHint } from "@/components/delivery/FreeDeliveryHint"
 import { ActionButton } from "@/components/storefront/actions"
+import { Alert } from "@/components/ui/alert"
+import { setCheckoutStep } from "@/lib/checkout-step"
 import { updateAddress } from "@/lib/addresses/repo"
 import {
   draftFrom,
@@ -426,6 +428,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     }
   }
 
+  useEffect(() => setCheckoutStep(step === "paying" ? 2 : 1), [step])
+
   if (step === "paying" && intent) {
     // ⚠ 051: the payment step carries the amount and NOTHING else — no basket recap, no address, no
     // delivery row (FR-003). The `OrderSummary` strip that used to sit above the form is gone with it,
@@ -440,16 +444,17 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   }
 
   return (
-    // 025 FR-042: two columns above `lg`, with the summary STICKY. The amount payable used to scroll
-    // away from the form it belongs to, so a shopper filling in an address could not see what they
-    // were about to be charged — a well-documented cause of checkout abandonment.
-    <div className="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-    <div className="space-y-12">
-      {/* Shipping + billing are ONE logical group — kept tight internally; the big `space-y-16`
-          separates this group from the order review and the buttons, not the fields within it. */}
+    // 025 FR-042: two columns above `lg`, with the summary STICKY, so the amount payable never
+    // scrolls away from the form it belongs to. 084: each step is its own card, numbered as the
+    // reference numbers them.
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
       <div className="space-y-6">
-        <section>
-          <h2 className="mb-3 text-xl font-semibold">Delivery address</h2>
+        <section className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+          <h2 className="text-lg font-semibold">
+            <span aria-hidden="true">1. </span>
+            Delivery address
+          </h2>
+          <p className="mt-1 mb-4 text-sm text-muted-foreground">Where should we bring your order?</p>
           <AddressPicker
             addresses={addresses}
             selectedId={selectedId}
@@ -459,207 +464,191 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             busy={busy}
             showCoverage
           />
-          {selectedId && (
-            <div className="mt-6">
-              <DeliveryInstructions value={instructions} onChange={setInstructions} disabled={busy}>
-                {/* Offered only when there is something to save that the address does not already
-                    hold — an always-present checkbox reads as a chore. */}
-                {instructionsDiffer && (
-                  <label className="mt-3 flex min-h-11 items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="size-4"
-                      checked={saveInstructions}
-                      disabled={busy}
-                      onChange={(e) => setSaveInstructions(e.target.checked)}
-                    />
-                    Save to this address for next time
-                  </label>
-                )}
-              </DeliveryInstructions>
-            </div>
-          )}
         </section>
 
-        {/* What the quote says, and nothing else (083): a courier delivers — nothing to choose — or
-            Effy does, and the shopper picks ONE window for the order. */}
+        {/* ⚠ Exactly one of these, decided by the quote: a courier address has nothing to choose, an
+            Effy address has windows, and an unserviced one says the one refusal sentence. */}
         {courier ? (
-          <CourierDelivery courier={courier} currency={currency} />
+          <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+            <CourierDelivery courier={courier} currency={currency} />
+          </div>
         ) : effyWindows ? (
-          <EffyWindowOptions windows={effyWindows} chosen={chosenWindow} onChoose={setChosenWindow} currency={currency} disabled={busy} />
+          <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+            <EffyWindowOptions windows={effyWindows} chosen={chosenWindow} onChoose={setChosenWindow} currency={currency} disabled={busy} />
+          </div>
         ) : null}
 
-        {serviced && quote?.points ? (
-          <PointsControl
-            points={quote.points}
-            totalCents={totalCents}
-            on={usePoints}
-            onToggle={(on) => {
-              setUsePoints(on)
-              capture({ name: "checkout_points_toggled", props: { on } })
-            }}
-            chosen={chosenPoints}
-            onChosen={setChosenPoints}
-            currency={currency}
-            disabled={busy}
-          />
-        ) : null}
-
-        <BillingSection
-          sameAsShipping={billingSameAsShipping}
-          onSameAsShippingChange={toggleBillingSame}
-          addresses={addresses}
-          billingId={billingId}
-          onBillingSelect={selectBilling}
-          onAddressAdded={onBillingAddressAdded}
-        />
-      </div>
-
-      {/* Order review — a READ-ONLY recap of exactly what is being paid for, right before the pay
-          button. Compact rows on purpose (small thumb + name×qty + line total, no photos-as-hero) and no
-          steppers or remove: quantity and removal are the CART's job, and an editable control here would
-          make two screens own one number. "Edit cart" is the single escape hatch back to /cart. */}
-      {guestLines.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-xl font-semibold">Review your order</h2>
-          <ul className="">
-            {guestLines.map((line) => (
-              <li key={line.productId} className="flex items-center gap-4 py-2">
-                <div className="relative size-12 shrink-0 overflow-hidden rounded-md border bg-muted">
-                  {line.imageUrl ? (
-                    <Image
-                      src={line.imageUrl}
-                      alt=""
-                      fill
-                      unoptimized
-                      sizes="3rem"
-                      className="object-cover"
-                    />
-                  ) : null}
-                </div>
-                <div className="min-w-0 flex-1 ">
-                  <p className="truncate text-sm font-medium">{line.name}</p>
-                  <p className="text-xs text-muted-foreground">Qty {line.quantity}</p>
-                </div>
-                <span className="shrink-0 font-semibold">
-                  {formatMoney(
-                    formatCents(parseCents(line.unitPriceAmount) * line.quantity),
-                    line.currency,
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <div className="space-y-4">
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
-        <div className="flex items-center justify-between gap-4">
-        <ActionButton
-          type="button"
-          variant="outline"
-          onClick={() => router.push("/cart")}
-          disabled={busy}
-          size="md"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Back
-        </ActionButton>
-        <ActionButton
-          type="button"
-          onClick={placeOrder}
-          disabled={busy || !canContinue}
-          size="md"
-        >
-          <CreditCard className="size-4" aria-hidden="true" />
-          Continue to payment
-        </ActionButton>
-        </div>
-      </div>
-    </div>
-
-    {/* Order summary — same structure as the cart's (heading, item/delivery rows, a bordered total),
-        rendered as a bordered card. Delivery and the final total are only known once an address is
-        chosen, so the total shows the item subtotal with a "+ delivery" note, exactly as the cart does. */}
-    <aside className="rounded-lg border p-6">
-      <h2 className="text-xl font-bold">Order Summary</h2>
-      <dl className="mt-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <dt className="text-muted-foreground">Items</dt>
-          <dd className="font-bold">{formatMoney(estimate.itemSubtotal, currency)}</dd>
-        </div>
-        {/* 069: the choice itself lives in the Delivery section; the summary states what was chosen
-            and what it costs. The fee updates live; the server re-prices and never trusts a client fee. */}
-        {serviced && !quoting && deliveryFee && deliveryFee.lines.length > 0 ? (
-          // 077 — each charge its own named line (FR-028): they sum to the delivery in the total.
-          <DeliveryFeeLines fee={deliveryFee} currency={currency} />
-        ) : (
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground">Delivery</dt>
-            <dd className="text-sm">
-              {!selectedId ? (
-                <span className="text-muted-foreground">Select an address</span>
-              ) : quoting ? (
-                <span className="text-muted-foreground">Calculating…</span>
-              ) : quote && !serviced ? (
-                <span className="text-destructive">Not available</span>
-              ) : serviced && !deliveryFee ? (
-                <span className="text-muted-foreground">Choose a delivery time</span>
-              ) : serviced ? (
-                <span className="font-medium">{formatMoney(formatCents(deliveryCents), currency)}</span>
-              ) : (
-                <span className="text-muted-foreground">—</span>
+        {selectedId && (
+          <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+            <DeliveryInstructions value={instructions} onChange={setInstructions} disabled={busy}>
+              {instructionsDiffer && (
+                <label className="mt-3 flex min-h-11 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded-sm accent-primary"
+                    checked={saveInstructions}
+                    disabled={busy}
+                    onChange={(e) => setSaveInstructions(e.target.checked)}
+                  />
+                  Save to this address for next time
+                </label>
               )}
-            </dd>
+            </DeliveryInstructions>
           </div>
         )}
-        {serviced && !quoting ? (
-          <FreeDeliveryHint
-            remainingAmount={quote?.freeDeliveryRemainingAmount}
-            freeApplied={isFreeDelivery(deliveryFee)}
-            currency={currency}
-          />
-        ) : null}
-        <div className="border-t pt-4">
-          <div className="flex items-center justify-between">
-            <dt className="text-lg">Total</dt>
-            <dd className="text-2xl font-bold">
-              {serviced ? (
-                formatMoney(formatCents(totalCents), currency)
-              ) : (
-                <>
-                  {formatMoney(estimate.itemSubtotal, currency)}
-                  <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">
-                    + delivery
-                  </span>
-                </>
-              )}
-            </dd>
+
+        {serviced && quote?.points ? (
+          <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+            <PointsControl
+              points={quote.points}
+              totalCents={totalCents}
+              on={usePoints}
+              onToggle={(on) => {
+                setUsePoints(on)
+                capture({ name: "checkout_points_toggled", props: { on } })
+              }}
+              chosen={chosenPoints}
+              onChosen={setChosenPoints}
+              currency={currency}
+              disabled={busy}
+            />
           </div>
-          {/* 074 — points are a way of PAYING, shown under the total, never as a discount above it. */}
-          {serviced && split.pointsUsed > 0 ? (
-            <dl className="mt-3 space-y-1 text-sm">
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Points ({split.pointsUsed.toLocaleString("en-AU")})</dt>
-                <dd>−{formatMoney(formatCents(split.pointsCents), currency)}</dd>
-              </div>
-              <div className="flex items-center justify-between">
-                <dt className="font-medium">To pay by card</dt>
-                <dd className="font-medium">{formatMoney(formatCents(split.cardCents), currency)}</dd>
-              </div>
-            </dl>
-          ) : null}
-          {quote && !serviced ? (
-            // 076 — the one refusal sentence, from the shared constants (never written here).
-            <p className="mt-3 text-sm text-destructive" data-testid="checkout-coverage-refusal">
-              {COVERAGE_REFUSAL_SENTENCE}
-            </p>
-          ) : null}
+        ) : null}
+
+        <div className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+          <BillingSection
+            sameAsShipping={billingSameAsShipping}
+            onSameAsShippingChange={toggleBillingSame}
+            addresses={addresses}
+            billingId={billingId}
+            onBillingSelect={selectBilling}
+            onAddressAdded={onBillingAddressAdded}
+          />
         </div>
-      </dl>
-    </aside>
+
+        {guestLines.length > 0 && (
+          <section className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold">Review your order</h2>
+              <a href="/cart" className="text-sm font-medium text-primary underline underline-offset-4">
+                Edit cart
+              </a>
+            </div>
+            <ul className="mt-2 divide-y">
+              {guestLines.map((line) => (
+                <li key={line.productId} className="flex items-center gap-4 py-3">
+                  <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                    {line.imageUrl ? (
+                      <Image src={line.imageUrl} alt="" fill unoptimized sizes="3rem" className="object-cover" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{line.name}</p>
+                    <p className="text-xs text-muted-foreground">Qty {line.quantity}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {formatMoney(formatCents(parseCents(line.unitPriceAmount) * line.quantity), line.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <div className="space-y-4">
+          {error && (
+            <Alert variant="destructive" title="We couldn't continue">
+              {error}
+            </Alert>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <ActionButton type="button" variant="outline" onClick={() => router.push("/cart")} disabled={busy} size="lg">
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Back
+            </ActionButton>
+            <ActionButton type="button" onClick={placeOrder} disabled={busy || !canContinue} size="lg">
+              <CreditCard className="size-4" aria-hidden="true" />
+              Continue to payment
+            </ActionButton>
+          </div>
+        </div>
+      </div>
+
+      <aside className="rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
+        <h2 className="font-semibold">Order summary</h2>
+        <dl className="mt-4 space-y-3 text-sm">
+          <div className="flex items-center justify-between">
+            <dt>Items</dt>
+            <dd className="tabular-nums">{formatMoney(estimate.itemSubtotal, currency)}</dd>
+          </div>
+          {serviced && !quoting && deliveryFee && deliveryFee.lines.length > 0 ? (
+            <DeliveryFeeLines fee={deliveryFee} currency={currency} />
+          ) : (
+            <div className="flex items-center justify-between">
+              <dt>Delivery</dt>
+              <dd>
+                {!selectedId ? (
+                  <span className="text-muted-foreground">Select an address</span>
+                ) : quoting ? (
+                  <span className="text-muted-foreground">Calculating…</span>
+                ) : quote && !serviced ? (
+                  <span className="font-medium">Not available</span>
+                ) : serviced && !deliveryFee ? (
+                  <span className="text-muted-foreground">Choose a delivery time</span>
+                ) : serviced ? (
+                  <span className="tabular-nums">{formatMoney(formatCents(deliveryCents), currency)}</span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </dd>
+            </div>
+          )}
+          {serviced && !quoting ? (
+            <FreeDeliveryHint
+              remainingAmount={quote?.freeDeliveryRemainingAmount}
+              freeApplied={isFreeDelivery(deliveryFee)}
+              currency={currency}
+            />
+          ) : null}
+          <div className="border-t pt-3">
+            <div className="flex items-baseline justify-between">
+              <dt className="text-base font-semibold">Total</dt>
+              <dd className="text-lg font-semibold tabular-nums">
+                {serviced ? (
+                  formatMoney(formatCents(totalCents), currency)
+                ) : (
+                  <>
+                    {formatMoney(estimate.itemSubtotal, currency)}
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">+ delivery</span>
+                  </>
+                )}
+              </dd>
+            </div>
+            {serviced && split.pointsUsed > 0 ? (
+              <dl className="mt-3 space-y-2">
+                <div className="flex items-center justify-between text-primary">
+                  <dt>Points ({split.pointsUsed.toLocaleString("en-AU")})</dt>
+                  <dd className="tabular-nums">−{formatMoney(formatCents(split.pointsCents), currency)}</dd>
+                </div>
+                <div className="flex items-center justify-between font-semibold">
+                  <dt>To pay by card</dt>
+                  <dd className="tabular-nums">{formatMoney(formatCents(split.cardCents), currency)}</dd>
+                </div>
+              </dl>
+            ) : null}
+            {/* ⚠ THE refusal, in its one sentence, where the amount would have been. */}
+            {quote && !serviced ? (
+              <Alert variant="destructive" live={false} className="mt-3">
+                <span data-testid="checkout-coverage-refusal">{COVERAGE_REFUSAL_SENTENCE}</span>
+              </Alert>
+            ) : null}
+          </div>
+        </dl>
+        <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <Lock aria-hidden="true" className="size-3.5" />
+          Payments are processed securely by Stripe
+        </p>
+      </aside>
     </div>
   )
 }

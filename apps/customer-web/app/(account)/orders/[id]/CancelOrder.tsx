@@ -68,7 +68,7 @@ export function CancelOrder({ orderId }: { orderId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border p-4">
+    <div className="flex flex-col gap-2.5 rounded-lg border bg-card p-4 shadow-xs">
       {/* ⚠ A confirmation, because this returns money and empties an order the shopper may have spent
           time building. It names what happens rather than asking "are you sure?" — which tells nobody
           anything. */}

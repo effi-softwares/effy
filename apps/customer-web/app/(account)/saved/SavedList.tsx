@@ -209,7 +209,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
             type="button"
             onClick={addAll}
             disabled={busy}
-            className="rounded-full border px-4 py-2 text-sm hover:bg-accent disabled:opacity-60"
+            className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-60"
           >
             Add everything available to cart
           </button>
@@ -281,7 +281,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                   packageKey: DEFAULT_PACKAGE_KEY,
                 })
               }
-              className="rounded-full border px-3 py-1 text-sm hover:bg-accent"
+              className="rounded-md border px-3 py-1 text-sm hover:bg-accent"
             >
               Add to cart
             </button>

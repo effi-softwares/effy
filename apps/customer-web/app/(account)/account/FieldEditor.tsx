@@ -2,17 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 
-import {
-  Button,
-  Input,
-  Label,
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@effy/design-system/ui"
+import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalDescription, ResponsiveModalFooter, ResponsiveModalHeader, ResponsiveModalTitle } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
+import { Input, Label } from "@/components/ui/form"
 
 /**
  * ONE FIELD, ONE EDITOR (034 US1).

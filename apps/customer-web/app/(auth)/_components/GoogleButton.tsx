@@ -46,7 +46,7 @@ export function GoogleButton({
       data-testid={testId}
       disabled={disabled}
       onClick={() => onUnavailable(GOOGLE_UNAVAILABLE)}
-      className="flex h-11 w-full items-center justify-center gap-3 rounded-full border text-sm font-medium hover:bg-accent disabled:opacity-60"
+      className="flex h-12 w-full items-center justify-center gap-3 rounded-md border border-input bg-background text-sm font-medium shadow-xs hover:bg-accent disabled:opacity-60 sm:h-10"
     >
       <GoogleMark />
       {label}

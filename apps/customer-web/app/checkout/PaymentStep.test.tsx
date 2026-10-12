@@ -120,12 +120,18 @@ describe("PaymentStep (051 US1)", () => {
     }
   })
 
-  /** FR-035 — the pay rail is held by a rule and space, not a bordered card. */
-  it("lays the pay rail out without a card container", () => {
+  /**
+   * 084 — the pay rail IS a card now. 051's FR-035 ("a rule and space, not a bordered card") was the
+   * console-era no-card doctrine; constitution v3.3.0 makes the card the storefront's pattern, and
+   * the reference puts "Total due" in one. What must still hold: it is the storefront's card shape
+   * (white, hairline border, `rounded-lg`), not an arbitrary box.
+   */
+  it("lays the pay rail out as the storefront card", () => {
     const { container } = render(<PaymentStep intent={intent()} onBack={vi.fn()} />)
     const aside = container.querySelector("aside")
     expect(aside).not.toBeNull()
-    expect(aside!.className).not.toMatch(/\brounded-(lg|xl|2xl)\b/)
-    expect(aside!.className).not.toMatch(/\bborder\b(?!-l)/)
+    expect(aside!.className).toMatch(/\brounded-lg\b/)
+    expect(aside!.className).toMatch(/\bbg-card\b/)
+    expect(aside!.className).not.toMatch(/\bbg-(muted|primary|foreground)\b/)
   })
 })

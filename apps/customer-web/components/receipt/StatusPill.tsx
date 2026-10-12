@@ -24,14 +24,14 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-3",
+        "inline-flex items-center gap-1.5 rounded-md py-1 pl-2.5 pr-3",
         "text-[11px] font-semibold uppercase tracking-[0.05em] text-foreground",
         t.tint,
         className,
       )}
     >
       {/* aria-hidden: the label beside it already says everything this dot means. */}
-      <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", t.dot)} />
+      <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-md", t.dot)} />
       {children}
     </span>
   )

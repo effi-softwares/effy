@@ -93,12 +93,12 @@ export async function PointsTab({ cursor }: { cursor?: string }) {
 
           <nav className="flex gap-4 text-sm" aria-label="Points history pages">
             {cursor ? (
-              <Link href="/account?tab=points" className="text-primary hover:underline">
+              <Link href="/account/points" className="text-primary hover:underline">
                 Newest
               </Link>
             ) : null}
             {page.nextCursor ? (
-              <Link href={`/account?tab=points&cursor=${encodeURIComponent(page.nextCursor)}`} className="text-primary hover:underline">
+              <Link href={`/account/points?cursor=${encodeURIComponent(page.nextCursor)}`} className="text-primary hover:underline">
                 Older
               </Link>
             ) : null}

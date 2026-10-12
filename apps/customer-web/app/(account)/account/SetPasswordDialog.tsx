@@ -2,17 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react"
 
-import {
-  Button,
-  OTP_LENGTH,
-  OtpInput,
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@effy/design-system/ui"
+import { OTP_LENGTH, OtpInput, ResponsiveModal, ResponsiveModalContent, ResponsiveModalDescription, ResponsiveModalFooter, ResponsiveModalHeader, ResponsiveModalTitle } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
 
 import { useCodeResend } from "@/app/(auth)/_lib/use-code-resend"
 import { PasswordField } from "./PasswordField"

@@ -91,7 +91,7 @@ function NameField({
 }
 
 const dialogClass =
-  "fx-dialog fx-dialog-modal m-auto w-[min(24rem,92vw)] rounded-xl border bg-card p-5 text-foreground shadow-lg backdrop:bg-black/50"
+  "fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border bg-background p-6 text-foreground shadow-lg"
 
 function NewList() {
   const router = useRouter()

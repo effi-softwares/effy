@@ -23,7 +23,7 @@ import { formatMoney } from "@/lib/money"
  */
 export function ReceiptDocument({ order }: { order: OrderDTO }) {
   return (
-    <section className="overflow-hidden rounded-xl border">
+    <section className="overflow-hidden rounded-lg border">
       <Masthead order={order} />
 
       <div className="px-6 pt-1">

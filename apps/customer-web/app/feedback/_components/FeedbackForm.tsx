@@ -121,7 +121,7 @@ export function FeedbackForm({
           onChange={(e) => setMessage(e.target.value)}
           aria-invalid={invalidField === "message" || undefined}
           placeholder="Tell us what's on your mind…"
-          className="w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive"
+          className="w-full rounded-lg border border-input bg-card px-4 py-3 text-sm placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive"
         />
       </Field>
 
@@ -130,7 +130,7 @@ export function FeedbackForm({
           {[1, 2, 3, 4, 5].map((n) => (
             <label
               key={n}
-              className={`cursor-pointer rounded-full border px-4 py-2 text-sm transition-colors ${
+              className={`cursor-pointer rounded-md border px-4 py-2 text-sm transition-colors ${
                 rating === String(n)
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input hover:border-ring"
@@ -151,7 +151,7 @@ export function FeedbackForm({
             <button
               type="button"
               onClick={() => setRating("")}
-              className="rounded-full px-3 py-2 text-sm text-muted-foreground underline"
+              className="rounded-md px-3 py-2 text-sm text-muted-foreground underline"
             >
               Clear
             </button>
@@ -245,7 +245,7 @@ function FeedbackError({ result }: { result: Exclude<SubmitFeedbackResult, { sta
 
 function FeedbackConfirmation({ referenceCode }: { referenceCode: string }) {
   return (
-    <div className="mt-8 rounded-2xl border border-dashed px-6 py-12 text-center" role="status">
+    <div className="mt-8 rounded-lg border border-dashed px-6 py-12 text-center" role="status">
       <h2 className="text-lg font-semibold">Thanks — we've got it</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
         A real person will read what you sent. If it needs a reply, we'll email you back.

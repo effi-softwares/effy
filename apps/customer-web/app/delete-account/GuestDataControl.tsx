@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-import { Button } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
 
 import { resetCart } from "@/lib/cart-store"
 import { resetSaved } from "@/lib/saved-store"

@@ -3,8 +3,10 @@ import { Suspense } from "react"
 
 import type { StorefrontCategoryDTO, StorefrontHomeDTO } from "@effy/shared-types"
 
+import { CloudOff, PackageOpen } from "lucide-react"
+
 import { EmptyState } from "@/components/storefront/kit"
-import { edgeApiPublic, uncached } from "@/lib/api/edge"
+import { getCategories } from "@/lib/categories"
 import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
 
@@ -13,9 +15,8 @@ import { getHome } from "./home-data"
 
 import { AppPromo } from "./_components/AppPromo"
 import { CategoryStrip } from "./_components/CategoryStrip"
-import { Hero } from "./_components/Hero"
+import { HomeShortcuts } from "./_components/HomeShortcuts"
 import { PromoHero, PromoHeroSkeleton } from "./_components/PromoHero"
-import { NewsletterForm } from "./_components/NewsletterForm"
 import { OffersPanels } from "./_components/OffersPanels"
 import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
@@ -72,7 +73,6 @@ export default function HomePage() {
           in the top slot; the operator's 039 direction is a hero band, and the offers now get their
           own dedicated panels further down (contract rows 3 and 6) rather than the first screen. */}
       <h1 className="sr-only">Effy — groceries, delivered</h1>
-      {/* <Hero /> */}
 
       {/* ⚠ ITS OWN SUSPENSE BOUNDARY, at page level — not inside `HomeContent` (operator direction,
           2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
@@ -90,6 +90,9 @@ export default function HomePage() {
       {/* Client island: shown only when the shopper's postcode is outside a serviced zone. */}
 
       {/* Dynamic hole — the merchandised store, streamed from the backend. */}
+      <Suspense fallback={null}>
+        <HomeShortcuts />
+      </Suspense>
       <Suspense fallback={<HomeSkeleton />}>
         <HomeContent />
       </Suspense>
@@ -101,7 +104,6 @@ export default function HomePage() {
 
       {/* Contract row 9 — static shell. The form posts to a Server Action; only its RESULT state needs
           a client boundary (see NewsletterForm's header for why FR-033 forces one). */}
-      <NewsletterForm />
 
       {/* Device-local recently-viewed (client island). */}
       <RecentlyViewedRail />
@@ -133,7 +135,7 @@ async function HomeContent() {
   try {
     ;[home, categories] = await Promise.all([
       getHome(),
-      edgeApiPublic().get<StorefrontCategoryDTO[]>("/storefront/v1/categories", uncached()),
+      getCategories(),
     ])
   } catch {
     return <StoreUnavailable />
@@ -161,7 +163,7 @@ async function HomeContent() {
           discovery block a shopper reached after scrolling the whole storefront; the shortcut strip is
           a navigation affordance, and navigation belongs before the thing it navigates. The file is
           deleted rather than left unused — its only call site was here. */}
-      {sections.map((section, i) => (
+      {sections.map((section) => (
         <div key={sectionKey(section)}>
           {section.kind === "categories" && <CategoryStrip categories={section.categories} />}
           {section.kind === "offers" && (
@@ -175,11 +177,6 @@ async function HomeContent() {
             />
           )}
           {/* The reference closes each merchandising section with a hairline rule. */}
-          {section.kind === "rail" && i < sections.length - 1 && (
-            <div className="container">
-              <hr className="border-border" />
-            </div>
-          )}
         </div>
       ))}
     </>
@@ -201,10 +198,10 @@ function sectionKey(section: HomeSection): string {
  */
 function HomeSkeleton() {
   return (
-    <div className="container py-12" aria-hidden="true">
+    <div className="container py-8" aria-hidden="true">
       {/* The category strip — circles, matching CategoryStrip's tiles rather than generic bars. */}
-      <div className="mb-16 space-y-8">
-        <div className="h-9 w-64 animate-pulse rounded bg-muted" />
+      <div className="mb-10 space-y-5">
+        <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
         <div className="flex gap-6 sm:gap-8">
           {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
             <div key={i} className="flex w-24 shrink-0 flex-col items-center gap-3 sm:w-28">
@@ -216,12 +213,12 @@ function HomeSkeleton() {
       </div>
 
       {[0, 1].map((row) => (
-        <div key={row} className="mb-16 space-y-8">
-          <div className="h-9 w-64 animate-pulse rounded bg-muted" />
+        <div key={row} className="mb-10 space-y-5">
+          <div className="h-7 w-48 animate-pulse rounded-md bg-muted" />
           <div className={productGrid}>
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="space-y-3">
-                <div className="aspect-square w-full animate-pulse rounded-2xl bg-muted" />
+                <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
                 <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
                 <div className="h-5 w-1/3 animate-pulse rounded bg-muted" />
               </div>
@@ -243,6 +240,7 @@ function EmptyStore() {
   return (
     <div className="container my-16">
       <EmptyState
+        icon={PackageOpen}
         title="The shelves are still being stocked"
         description="Our catalogue is on its way. Search is open if you know what you're after."
         action={{ label: "Search the store", href: "/search" }}
@@ -255,7 +253,8 @@ function StoreUnavailable() {
   return (
     <div className="container my-16">
       <EmptyState
-        title="We couldn&rsquo;t load the store just now"
+        icon={CloudOff}
+        title="We couldn't load the store just now"
         description="This is on us, not you. Reloading usually sorts it — or browse all products directly."
         action={{ label: "Browse products", href: "/search" }}
       />

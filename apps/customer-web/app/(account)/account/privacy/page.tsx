@@ -1,10 +1,29 @@
-import { redirect } from "next/navigation"
+import type { Metadata } from "next"
+import { Suspense } from "react"
 
-/**
- * Privacy & data moved INTO the account page as its `privacy` tab (2026-08-12) — the privacy links
- * and the account-deletion flow now swap into the account content area rather than living on a
- * separate page. This route is kept so existing links and bookmarks land in the right place.
- */
-export default function PrivacyPage() {
-  redirect("/account?tab=privacy")
+import { Breadcrumb, Skeleton } from "@/components/ui/misc"
+import { requireCustomer } from "@/lib/dal"
+
+import { PrivacySection } from "../sections"
+
+export const metadata: Metadata = {
+  title: "Privacy & data",
+  robots: { index: false, follow: false },
+}
+
+export default function Page() {
+  return (
+    <>
+      <Breadcrumb items={[{ label: "Account", href: "/account" }, { label: "Privacy & data" }]} className="mb-6" />
+      <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
+        <Body />
+      </Suspense>
+    </>
+  )
+}
+
+async function Body() {
+  const customer = await requireCustomer("/account/privacy")
+  void customer
+  return <PrivacySection />
 }

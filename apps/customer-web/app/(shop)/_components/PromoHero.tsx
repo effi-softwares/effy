@@ -2,7 +2,10 @@ import Link from "next/link"
 
 import type { BannerDTO } from "@effy/shared-types"
 
-import { ActionLink, Display } from "@/components/storefront/kit"
+import { btnClass } from "@/components/storefront/kit"
+
+import { CopyCodeButton } from "./CopyCodeButton"
+import { offerHref } from "./OffersPanels"
 
 /**
  * THE PROMOTIONS HERO — a full-bleed carousel of every advertised promotion.
@@ -92,135 +95,108 @@ export function keyframesFor(count: number): string {
 }
 
 /** The band's height, in one place — the skeleton below reserves exactly this. */
-const BAND_HEIGHT = "h-104 sm:h-120 lg:h-136"
+const BAND_HEIGHT = "min-h-[21rem] lg:min-h-[22rem]"
 
-/**
- * The streaming fallback.
- *
- * ⚠ Shares the height constant with the band. 028 shipped a skeleton built from different primitives
- * than the thing it stood in for, so it could not match at any width and the swap-in jumped. This is
- * the first thing on the page and the largest element on it.
- */
 export function PromoHeroSkeleton() {
-  return <div aria-hidden="true" className={`w-full animate-pulse bg-muted ${BAND_HEIGHT}`} />
+  return (
+    <div className="container pt-6" aria-hidden="true">
+      <div className={`w-full animate-pulse rounded-xl bg-muted ${BAND_HEIGHT}`} />
+    </div>
+  )
 }
 
+/**
+ * The home banner (reference: Home · hero): a green `rounded-xl` panel inside the content column —
+ * the offer's words on the left, its artwork in a well on the right — with up to two code tiles
+ * beside it on wide screens.
+ *
+ * ⚠ FLAT GREEN, NO SCRIM. The words sit on the brand colour, not on the photograph, so they read at
+ * the same contrast whatever artwork back-office uploads. That is why the artwork is in its own well.
+ *
+ * ⚠ The rotation is still CSS-only (`keyframesFor`), paused on hover and on focus, stopped under
+ * reduced motion. The reference draws previous / next / pause buttons; they are NOT built — they need
+ * script on the largest element of the guest path, and hover-or-focus already pauses it.
+ *
+ * ⚠ The side tiles are promotions that carry a CODE, and only those. A banner without one has nothing
+ * to hand over in a 13rem tile.
+ */
 export function PromoHero({ banners }: { banners: BannerDTO[] }) {
-  // A promotional slot with no promotional ARTWORK is not a promotion — it is a coloured rectangle.
   const slides = banners.filter((b) => Boolean(b.imageUrl))
   if (slides.length === 0) return null
 
   const rotates = slides.length > 1
+  const tiles = banners.filter((b) => Boolean(b.code)).slice(0, 2)
 
   return (
-    <section aria-label="Promotions" className={`relative w-full overflow-hidden ${BAND_HEIGHT}`}>
-      {rotates && (
-        <style href={`fx-promo-${slides.length}`} precedence="default">
-          {keyframesFor(slides.length)}
-        </style>
-      )}
-
-      <div className={rotates ? `fx-promo-${slides.length}` : undefined}>
-        {slides.map((banner, i) => (
-          <div
-            key={banner.key}
-            style={{ "--fx-promo-i": i } as React.CSSProperties}
-            className="absolute inset-0"
-          >
-            {/* ⚠ A plain <img>, not next/image. Banner artwork is a PRESIGNED, EXPIRING S3 URL, so it
-                is `unoptimized` regardless — leaving next/image contributing only positioning while
-                making `fetchpriority` awkward to set per slide, which is the one thing that matters
-                when N images share one band. */}
-            <img
-              src={banner.imageUrl!}
-              alt=""
-              fetchPriority={i === 0 ? "high" : "low"}
-              decoding={i === 0 ? "sync" : "async"}
-              className="absolute inset-0 size-full object-cover"
-            />
-
-            {/* A very light left-to-right vignette: darker under the copy, clear over the product.
-                ⚠ It is a MOOD LAYER, NOT A LEGIBILITY ONE. At 35% falling to nothing it cannot
-                rescue white type on a pale banner — that check stays editorial (see the header).
-                Deliberately kept under the stretched link below so it never intercepts a click. */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/35 to-transparent"
-            />
-
-            {/* The band leads to the promotion in full — `/promotions/<id>`.
-                ⚠ A STRETCHED SIBLING, not a wrapper: wrapping would make it an ancestor of the two
-                buttons, and nested interactive elements are invalid HTML. It works because the copy
-                overlay above it is `pointer-events-none` and the buttons re-enable pointer events for
-                themselves. ⚠ Never give it a negative z-index — that puts it behind the artwork,
-                where nothing can click it. */}
-            {banner.href && (
-              <Link href={banner.href} aria-label={banner.title} className="absolute inset-0" />
-            )}
-
-            <div className="pointer-events-none absolute inset-0">
-              {/* ⚠ CENTRED, NOT BOTTOM-ANCHORED. Bottom-anchoring left dead space above the headline
-                  AND made the headline's position depend on what was below it — a slide with a
-                  subtitle pushed the title up, one without let it drop, so the title jumped on every
-                  change. Centring plus the reserved heights below keeps the copy block a constant
-                  height, so the title lands in the same place on every slide. */}
-              <div className="container flex h-full flex-col justify-center">
-                <div className="max-w-3xl text-white">
-                  {/* ⚠ H2, not H1 — the page's only top-level heading is the screen-reader-only one in
-                      `page.tsx` (SC-009).
-
-                      ⚠ `min-h` is what PINS the title: two rows at each breakpoint (font size ×
-                      the 0.9 leading, doubled). `line-clamp-2` caps a long title at two rows but does
-                      not make a short one occupy two, so without it a one-line headline sits a row
-                      lower and the type jumps mid-crossfade. The clamp itself is a hard cap —
-                      promotion titles are operator-typed and an unclamped long one pushes the buttons
-                      off a fixed-height band. */}
-                  <Display
-                    as="h2"
-                    size="hero"
-                    className="line-clamp-2 min-h-18 leading-[0.9] sm:min-h-[5.85rem] lg:min-h-[7.2rem]"
-                  >
+    <section aria-label="Promotions" className="container pt-6">
+      <div className={tiles.length > 0 ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]" : undefined}>
+        <div className={`relative overflow-hidden rounded-xl bg-brand text-brand-foreground ${BAND_HEIGHT}`}>
+          {rotates && (
+            <style href={`fx-promo-${slides.length}`} precedence="default">
+              {keyframesFor(slides.length)}
+            </style>
+          )}
+          <div className={rotates ? `fx-promo-${slides.length}` : undefined}>
+            {slides.map((banner, i) => (
+              <div
+                key={banner.key}
+                style={{ "--fx-promo-i": i } as React.CSSProperties}
+                className="absolute inset-0 grid items-center gap-6 p-6 sm:p-8 lg:grid-cols-2"
+              >
+                <div className="flex min-w-0 flex-col items-start">
+                  <p className="text-xs font-semibold tracking-widest uppercase opacity-90">This week&rsquo;s offer</p>
+                  <h2 className="mt-3 line-clamp-3 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
                     {banner.title}
-                  </Display>
-
-                  {/* ⚠ RESERVED WHETHER OR NOT THERE IS ANYTHING TO PUT IN IT. Subtitle and terms are
-                      optional and independent, so without a floor the buttons would sit at three
-                      different heights across the rotation.
-
-                      ⚠ 029 recorded that customer-web renders a banner face WITHOUT its terms, so a
-                      promotion with a minimum spend was advertised with its condition omitted —
-                      FR-037d: a shopper learns of a condition from the banner or from where it leads,
-                      never first at payment. */}
-                  <div className="mt-4 min-h-12 sm:mt-5 sm:min-h-14">
-                    {banner.subtitle && (
-                      <p className="max-w-md text-sm text-white/90 sm:text-base">{banner.subtitle}</p>
-                    )}
-                    {banner.terms && (
-                      <p className="mt-2 text-xs text-white/75 sm:text-sm">{banner.terms}</p>
-                    )}
-                  </div>
-
-                  {/* ⚠ The same two buttons as `Hero`, so the comparison is about the band and not the
-                      actions. Fixed black/white rather than tokens: the artwork does not invert with
-                      the appearance, so neither may they. */}
-                  <div className="pointer-events-auto mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
-                    <ActionLink href="/search" size="lg" className="bg-black text-white hover:bg-black/85">
+                  </h2>
+                  {banner.subtitle && <p className="mt-3 max-w-md text-sm opacity-95 sm:text-base">{banner.subtitle}</p>}
+                  <div className="mt-6 flex flex-wrap items-center gap-2">
+                    <Link
+                      href={offerHref(banner) ?? "/search"}
+                      className={btnClass("outline", "lg", "border-transparent")}
+                    >
                       Shop now
-                    </ActionLink>
-                    <ActionLink
+                    </Link>
+                    <Link
                       href="/search?saleOnly=true"
-                      variant="muted"
-                      size="lg"
-                      className="bg-white text-black hover:bg-white/85"
+                      className={btnClass("ghost", "lg", "border-white/60 text-brand-foreground hover:bg-white/15")}
                     >
                       See what&rsquo;s on sale
-                    </ActionLink>
+                    </Link>
                   </div>
+                  {banner.terms && <p className="mt-4 text-xs opacity-85">{banner.terms}</p>}
+                </div>
+                <div className="relative hidden h-full min-h-56 overflow-hidden rounded-lg bg-white/10 lg:block">
+                  {/* Decorative: the offer is said in the words beside it. */}
+                  <img
+                    src={banner.imageUrl!}
+                    alt=""
+                    fetchPriority={i === 0 ? "high" : "low"}
+                    decoding={i === 0 ? "sync" : "async"}
+                    className="absolute inset-0 size-full object-cover"
+                  />
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {tiles.length > 0 && (
+          <ul className="grid grid-cols-2 gap-4 lg:w-[27rem]">
+            {tiles.map((banner) => (
+              <li key={banner.key} className="flex flex-col rounded-lg border bg-card p-4 shadow-xs">
+                <span className="self-start rounded-md bg-primary-muted px-2 py-0.5 text-xs font-semibold text-primary">
+                  Code
+                </span>
+                <h3 className="mt-3 text-sm font-semibold">{banner.title}</h3>
+                {banner.terms && <p className="mt-1 text-xs text-muted-foreground">{banner.terms}</p>}
+                <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                  <span className="rounded-md border px-2 py-1 font-mono text-xs font-medium">{banner.code}</span>
+                  <CopyCodeButton code={banner.code!} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   )

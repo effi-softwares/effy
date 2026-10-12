@@ -33,7 +33,7 @@ describe("Effy points tab (074 US1)", () => {
     expect(screen.getByText(/500 points can be used until 8 Oct 2027/)).toBeInTheDocument()
     expect(screen.getByText("Sorry your order was late")).toBeInTheDocument()
     expect(screen.getByText("Used on order EFY-ABC123")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: "Older" })).toHaveAttribute("href", "/account?tab=points&cursor=abc")
+    expect(screen.getByRole("link", { name: "Older" })).toHaveAttribute("href", "/account/points?cursor=abc")
     // One read for the whole tab.
     expect(apiGet).toHaveBeenCalledTimes(1)
     expect(apiGet.mock.calls[0]![0]).toBe("/customer/v1/points")

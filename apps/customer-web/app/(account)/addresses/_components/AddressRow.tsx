@@ -1,6 +1,6 @@
 "use client"
 
-import { Badge } from "@effy/design-system/ui"
+import { Badge } from "@/components/ui/badge"
 
 import { addressLines, chipForLabel, type Address } from "@/lib/addresses/model"
 

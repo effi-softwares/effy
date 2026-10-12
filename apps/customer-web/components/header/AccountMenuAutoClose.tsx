@@ -19,7 +19,7 @@ export function AccountMenuAutoClose() {
   useEffect(() => {
     const closeMenus = (predicate: (menu: HTMLDetailsElement) => boolean) => {
       document
-        .querySelectorAll<HTMLDetailsElement>('details[data-testid="account-menu"][open]')
+        .querySelectorAll<HTMLDetailsElement>('details[data-menu][open]')
         .forEach((menu) => {
           if (predicate(menu)) menu.open = false
         })

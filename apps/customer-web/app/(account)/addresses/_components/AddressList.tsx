@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-import { Button } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
 
 import { deleteAddress, setDefault } from "@/lib/addresses/repo"
 import { toAddress, type Address } from "@/lib/addresses/model"
@@ -98,7 +98,7 @@ export function AddressList({ initial }: { initial: Address[] }) {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-12 text-center" data-testid="addresses-empty">
+        <div className="rounded-lg border border-dashed p-12 text-center" data-testid="addresses-empty">
           <p className="text-muted-foreground">You haven’t saved any addresses yet.</p>
           <button
             type="button"
@@ -109,7 +109,7 @@ export function AddressList({ initial }: { initial: Address[] }) {
           </button>
         </div>
       ) : (
-        <ul className="divide-y rounded-2xl border">
+        <ul className="divide-y rounded-lg border">
           {items.map((a) => (
             <AddressRow
               key={a.id}

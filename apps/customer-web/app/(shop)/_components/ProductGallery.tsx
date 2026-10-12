@@ -30,7 +30,7 @@ export function ProductGallery({
 }) {
   if (gallery.length === 0) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center rounded-2xl bg-background text-sm text-muted-foreground">
+      <div className="flex aspect-square w-full items-center justify-center rounded-lg border bg-muted text-sm text-muted-foreground">
         No image
       </div>
     )
@@ -38,7 +38,7 @@ export function ProductGallery({
 
   if (gallery.length === 1) {
     return (
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-background">
+      <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
         <Image
           src={gallery[0].imageUrl}
           alt={gallery[0].alt ?? name}
@@ -55,25 +55,25 @@ export function ProductGallery({
   return (
     <div className="flex flex-col-reverse gap-3 md:flex-row">
       {/* The rail: vertical beside the image on desktop, horizontal beneath it on a phone. */}
-      <div className="flex shrink-0 gap-3 overflow-x-auto overscroll-x-none md:w-[92px] md:flex-col md:overflow-visible">
+      <div className="flex shrink-0 gap-3 overflow-x-auto overscroll-x-none md:w-16 md:flex-col md:overflow-visible">
         {gallery.map((m, i) => (
           <a
             key={i}
             href={`#product-slide-${i}`}
             aria-label={`Show image ${i + 1} of ${gallery.length}`}
-            className="relative aspect-square w-[76px] shrink-0 overflow-hidden rounded-2xl bg-background transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:w-full"
+            className="relative aspect-square w-16 shrink-0 overflow-hidden rounded-md border bg-muted hover:border-foreground md:w-full"
           >
             <Image src={m.imageUrl} alt="" fill unoptimized sizes="92px" className="object-cover" />
           </a>
         ))}
       </div>
 
-      <div className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-none rounded-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-x-none rounded-lg border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {gallery.map((m, i) => (
           <div
             key={i}
             id={`product-slide-${i}`}
-            className="relative aspect-square w-full shrink-0 snap-center bg-background"
+            className="relative aspect-square w-full shrink-0 snap-center bg-muted"
           >
             <Image
               src={m.imageUrl}

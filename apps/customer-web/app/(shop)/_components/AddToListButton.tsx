@@ -1,20 +1,19 @@
 "use client"
 
+import { ListPlus } from "lucide-react"
+
 /**
- * "Add to list" beside the heart (068 FR-014).
- *
- * The heart keeps its one tap for saving and un-saving; this is the labelled way to reach the list
- * chooser for a product, whatever lists it is or is not in.
- *
- * ⚠ The chooser is loaded on demand, as it is from the heart: `/product/[id]` is a guest route.
+ * "Add to list" on the product page. ⚠ The chooser is imported on the press, not with the page: it is
+ * a dialog most visitors never open, and it must not ride the product page's guest bundle.
  */
 export function AddToListButton({ productId, className = "" }: { productId: string; className?: string }) {
   return (
     <button
       type="button"
       onClick={() => void import("./ListChooser").then((m) => m.openListChooser(productId))}
-      className={`text-sm underline-offset-4 hover:underline ${className}`}
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs hover:bg-accent ${className}`}
     >
+      <ListPlus aria-hidden="true" className="size-4" />
       Add to list
     </button>
   )

@@ -62,7 +62,7 @@ export function PasswordCard({
             type="button"
             onClick={() => setOpen(true)}
             data-testid="change-password"
-            className="h-11 shrink-0 rounded-full border px-6 text-sm font-medium hover:bg-accent"
+            className="h-11 shrink-0 rounded-md border px-6 text-sm font-medium hover:bg-accent"
           >
             Change password
           </button>
@@ -83,7 +83,7 @@ export function PasswordCard({
             type="button"
             onClick={() => setOpen(true)}
             data-testid="set-password"
-            className="h-11 shrink-0 rounded-full border px-6 text-sm font-medium hover:bg-accent"
+            className="h-11 shrink-0 rounded-md border px-6 text-sm font-medium hover:bg-accent"
           >
             Set a password
           </button>

@@ -29,24 +29,40 @@ import { cn } from "@/lib/utils"
 // Internal — the class fragments `btnClass`/`ActionLink`/`ActionButton` compose. Not exported: every
 // call site uses `btnClass` or the components, so a public `btn` object would be unused API surface.
 const btn = {
-  // Mirrors `@effy/design-system/ui` Button's base — same focus ring, svg handling and disabled model,
-  // so a storefront pill and a shared Button are indistinguishable.
-  base: "inline-flex shrink-0 items-center justify-center gap-2 rounded-full text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-  primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-  outline: "border bg-background hover:bg-accent hover:text-accent-foreground",
-  muted: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+  base: "inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  primary: "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+  brand: "bg-brand text-brand-foreground shadow-xs hover:bg-brand/90",
+  outline: "border-input bg-background text-foreground shadow-xs hover:bg-accent",
+  muted: "bg-secondary text-secondary-foreground hover:bg-secondary/70",
+  ghost: "text-foreground hover:bg-accent",
+  link: "h-auto! p-0! text-primary underline underline-offset-4",
   destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-  sm: "h-9 px-4",
-  md: "h-11 px-6",
-  lg: "h-12 px-8",
-  xl: "h-14 px-10",
+  // The reference's button heights: sm 32 · md 36 · lg 40 · xl 48. Phone primary actions use lg or
+  // xl, which is what keeps a 44px target there.
+  sm: "h-8 gap-1.5 px-3 text-[13px]",
+  md: "h-9 px-4",
+  lg: "h-10 px-6",
+  xl: "h-12 px-6 text-[15px]",
 } as const
 
-export type BtnVariant = "primary" | "outline" | "muted" | "destructive"
+export type BtnVariant = "primary" | "brand" | "outline" | "muted" | "ghost" | "link" | "destructive"
 export type BtnSize = "sm" | "md" | "lg" | "xl"
 
 export function btnClass(variant: BtnVariant, size: BtnSize = "md", className?: string) {
   return cn(btn.base, btn[variant], btn[size], className)
+}
+
+/** A square icon-only button at the reference's sizes (32 / 36 / 40). */
+export function iconBtnClass(variant: BtnVariant = "ghost", size: "sm" | "md" | "lg" = "md", className?: string) {
+  return cn(
+    btn.base,
+    btn[variant],
+    "p-0",
+    size === "sm" && "size-8",
+    size === "md" && "size-9",
+    size === "lg" && "size-10",
+    className,
+  )
 }
 
 export function ActionLink({

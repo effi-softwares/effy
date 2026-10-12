@@ -113,7 +113,7 @@ export function PasswordField({
           onClick={() => setRevealed((r) => !r)}
           aria-pressed={revealed}
           aria-label={`${revealed ? "Hide" : "Show"} ${label.toLowerCase()}`}
-          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {revealed ? (
             <EyeOff aria-hidden className="size-4" />
@@ -197,14 +197,14 @@ export function Submit({
         e.preventDefault()
         if (!pending) onBlocked?.()
       }}
-      className={btnClass("primary", "md", `w-full ${pending ? "opacity-80" : ""}`)}
+      className={btnClass("primary", "xl", `w-full sm:h-10 sm:text-sm ${pending ? "opacity-80" : ""}`)}
     >
       {pending && (
         <span
           aria-hidden
           // `motion-reduce:animate-none` — a spinner is a micro-animation, and the constitution asks
           // for those; it does not ask for them to be forced on someone who turned motion off.
-          className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+          className="size-4 animate-spin rounded-md border-2 border-current border-t-transparent motion-reduce:animate-none"
         />
       )}
       {pending ? "Please wait…" : label}
@@ -244,10 +244,10 @@ export function TextAction({
       type="button"
       data-testid={testId}
       onClick={onClick}
-      className={`min-h-11 w-full rounded-full text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+      className={`min-h-11 w-full rounded-md text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
         tone === "subtle"
           ? "font-medium text-muted-foreground hover:text-foreground"
-          : "font-semibold text-foreground underline underline-offset-4 hover:opacity-80"
+          : "font-medium text-primary underline underline-offset-4 hover:opacity-80"
       }`}
     >
       {children}
@@ -280,7 +280,7 @@ export function TextAction({
  * mark an action with, so weight, contrast and the underline are the entire vocabulary available.
  */
 export const inlineActionClass =
-  "min-h-11 rounded font-semibold text-foreground underline underline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-disabled:text-muted-foreground aria-disabled:no-underline aria-disabled:font-medium"
+  "min-h-11 rounded font-medium text-primary underline underline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-disabled:text-muted-foreground aria-disabled:no-underline aria-disabled:font-medium"
 
 export function InlineAction({
   children,
@@ -328,7 +328,7 @@ export function ErrorNote({ children }: { children: React.ReactNode }) {
     <p
       role="alert"
       data-testid="auth-error"
-      className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground"
+      className="rounded-lg border border-destructive p-3 text-sm font-medium text-foreground"
     >
       {children}
     </p>
@@ -348,7 +348,7 @@ export function InfoNote({ children }: { children: React.ReactNode }) {
     <p
       role="status"
       data-testid="auth-notice"
-      className="rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground"
+      className="rounded-lg bg-muted p-3 text-sm text-foreground"
     >
       {children}
     </p>
@@ -396,7 +396,7 @@ export function Divider() {
         <span className="w-full border-t" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">or</span>
+        <span className="bg-background px-2 text-muted-foreground sm:bg-card">or</span>
       </div>
     </div>
   )
@@ -458,7 +458,7 @@ export function StepShell({
     // is also what makes a non-anchored step look empty. `5rem` is the layout's own vertical padding.
     <div
       className={`flex flex-col ${
-        anchor ? "min-h-[calc(100svh-5rem)] flex-1 sm:min-h-0 sm:flex-none" : ""
+        anchor ? "min-h-[calc(100svh-7rem)] flex-1 sm:min-h-0 sm:flex-none" : ""
       }`}
     >
       {onBack && (
@@ -469,7 +469,7 @@ export function StepShell({
           // ⚠ `font-medium text-foreground`, not thin muted grey. It is chrome, so it stays
           // un-underlined and does not compete with the step's own routes — but on a step form it is
           // how people move backwards, and it has to be findable.
-          className="-ml-1 mb-6 flex min-h-11 w-fit items-center gap-1 rounded-full pr-3 text-sm font-medium text-foreground hover:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="-ml-1 mb-6 flex min-h-11 w-fit items-center gap-1 rounded-md pr-3 text-sm font-medium text-foreground hover:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <span aria-hidden>←</span> Back
         </button>
@@ -482,26 +482,24 @@ export function StepShell({
           (defect D-18), and the storefront moved section headings off all-caps on 2026-08-09 while
           these screens did not. */}
       <div className="space-y-2" aria-live="polite">
-        <Display as="h1" size="section" className="normal-case leading-tight">
-          {title}
-        </Display>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {/* ⚠ `font-medium`, not regular (operator direction 2026-08-11). General Sans at regular
             weight in the muted step is thin enough to read as a caption; the supporting line on a
             step form carries real information ("we sent a code to X", "the code works for 5
             minutes") and has to survive being glanced at. */}
-        {subtitle && <div className="text-sm font-medium text-muted-foreground">{subtitle}</div>}
+        {subtitle && <div className="text-sm text-muted-foreground">{subtitle}</div>}
       </div>
 
       {/* GROUP 2 — what you do here. ⚠ Skipped entirely when a step has no body (the exhausted code
           step is title + one action), so it does not leave a 40px hole where content would be. */}
-      {children && <div className="mt-10 space-y-4">{children}</div>}
+      {children && <div className="mt-6 space-y-4">{children}</div>}
 
       {/* GROUP 3 — pushed to the bottom by `mt-auto` on a phone; a plain gap once centred.
           ⚠ 044 FR-027 — `sticky` on small screens with its own ground, so the committing action
           survives a software keyboard and a short landscape window. A keyboard does not shrink
           `vh`, which is why the column above it is measured in `svh`/`dvh` (see the auth layout). */}
       {bottom && (
-        <div className="mt-auto space-y-3 pt-10 sm:static sticky bottom-0 bg-background pb-2 sm:bg-transparent sm:pb-0">
+        <div className="mt-auto space-y-3 pt-6 sm:static sticky bottom-0 bg-background pb-2 sm:bg-transparent sm:pb-0">
           {bottom}
         </div>
       )}

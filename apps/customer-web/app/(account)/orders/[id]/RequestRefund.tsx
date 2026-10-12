@@ -82,7 +82,7 @@ export function RequestRefund({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border p-4">
+    <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-xs">
       <div className="flex flex-col gap-1.5">
         <label htmlFor="refund-request-message" className="text-sm font-medium">
           What went wrong?

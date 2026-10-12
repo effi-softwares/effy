@@ -35,7 +35,7 @@ export function ArrivalPanel({
   if (delivery?.type === "courier" && delivery.courierEstimate) {
     const [partner, estimate] = courierLines(delivery.courierEstimate)
     return (
-      <section className="rounded-xl border p-5">
+      <section className="rounded-lg border bg-card p-5 shadow-xs">
         <div className="flex flex-col gap-2 border-b pb-4" data-testid="arrival-courier">
           <p className="text-[13px] text-muted-foreground">{DELIVERY_TYPE_WORDS.courier}</p>
           <p className="text-xl font-semibold leading-tight tracking-[-0.01em]">{partner}</p>
@@ -59,7 +59,7 @@ export function ArrivalPanel({
   // An order Effy delivers says so; one placed before delivery types says "Arriving", as it always has.
   const label = delivery?.type === "effy" ? DELIVERY_TYPE_WORDS.effy : "Arriving"
   return (
-    <section className="rounded-xl border p-5">
+    <section className="rounded-lg border bg-card p-5 shadow-xs">
       {arrivals.length > 0 ? (
         <div className="flex flex-col gap-4 border-b pb-4">
           {arrivals.map((a, i) => (

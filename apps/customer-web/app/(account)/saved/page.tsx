@@ -25,7 +25,7 @@ export default function SavedPage() {
     // `container` (80rem), not the `max-w-2xl` the other account pages use: those are forms and
     // settings, where a narrow measure is correct. This is a LIST of products with prices and
     // verdicts, and it is the same content the storefront lists at full width.
-    <div className="container py-8">
+    <div>
       <PageHeader title="Saved items" />
       <Suspense fallback={<p className="py-10 text-sm text-muted-foreground">Loading…</p>}>
         <Saved />

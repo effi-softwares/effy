@@ -57,6 +57,16 @@ export interface OrderSummaryDTO {
   promoCode?: string | null;
   /** 079 — who delivers it. ⚠ ABSENT on an order placed before 079. */
   delivery?: OrderDeliveryDTO;
+  /**
+   * 084 — the primary picture of the order's first few lines (at most four), for the order list.
+   * Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's; `null` where a
+   * line has no picture.
+   *
+   * ⚠ OPTIONAL, and absent from a server not yet redeployed: the list then shows no pictures, which
+   * is what it showed before. ⚠ Pictures of the customer's own lines only — never a shop, a package,
+   * or how many suppliers fill the order.
+   */
+  thumbnails?: (string | null)[];
 }
 
 /** A line on the receipt (product snapshot — never a shop). */

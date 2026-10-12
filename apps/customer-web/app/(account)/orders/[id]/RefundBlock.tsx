@@ -25,7 +25,7 @@ export function RefundBlock({
   fullyRefunded: boolean
 }) {
   return (
-    <section className="rounded-xl border p-6">
+    <section className="rounded-lg border bg-card p-6 shadow-xs">
       <h2 className="text-sm font-medium">
         {fullyRefunded ? "This order was refunded" : "Refunds on this order"}
       </h2>

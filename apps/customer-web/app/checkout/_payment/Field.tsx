@@ -41,17 +41,19 @@ export function Field({
     <div className={className}>
       <label
         htmlFor={htmlFor}
-        className="mb-1.5 block text-[13px] font-medium text-foreground"
+        className="mb-2 block text-sm leading-none font-medium text-foreground"
       >
         {label}
       </label>
       <div
         className={cn(
           // Mirrors the shared Input: pill, h-11, hairline border, 16px gutter.
-          "flex h-11 w-full min-w-0 items-center gap-2 rounded-full border bg-transparent px-4",
-          "transition-[color,box-shadow] dark:bg-input/30",
+          "flex h-10 w-full min-w-0 items-center gap-2 rounded-md border bg-background px-3 shadow-xs",
+          "transition-[color,box-shadow]",
           // The focus indicator is the border, and only the border.
-          error ? "border-destructive" : "border-input focus-within:border-ring",
+          error
+            ? "border-destructive ring-[3px] ring-destructive/10"
+            : "border-input focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/20",
         )}
       >
         {children}
@@ -59,7 +61,7 @@ export function Field({
       {error ? (
         // ⚠ `role="alert"` so a shopper using a screen reader hears the refusal rather than tabbing past
         // it. A decline they cannot perceive is indistinguishable from the form doing nothing (FR-034).
-        <p role="alert" className="mt-1.5 text-[13px] text-destructive">
+        <p role="alert" className="mt-1.5 text-[13px] font-medium text-foreground">
           {error}
         </p>
       ) : hint ? (

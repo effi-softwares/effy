@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import { Display } from "@/components/storefront/kit"
+import Link from "next/link"
+import { MessageSquare } from "lucide-react"
+
 
 import type { AddressDTO } from "@effy/shared-types"
 
@@ -23,10 +25,17 @@ export const metadata: Metadata = {
  */
 export default function CheckoutPage() {
   return (
-    <div className="container mt-6 space-y-4">
-      <Display as="h1" size="section" className="normal-case leading-tight text-left text-2xl sm:text-3xl">
-        Checkout
-      </Display>
+    <div className="container mt-8 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Checkout</h1>
+        <Link
+          href="/help?from=checkout"
+          className="inline-flex items-center gap-2 text-sm font-medium text-primary underline underline-offset-4"
+        >
+          <MessageSquare aria-hidden="true" className="size-4" />
+          How do you like our checkout? Give us feedback
+        </Link>
+      </div>
       <Suspense fallback={<CheckoutSkeleton />}>
         <CheckoutGate />
       </Suspense>
@@ -56,9 +65,9 @@ async function CheckoutGate() {
 function CheckoutSkeleton() {
   return (
     <div className="space-y-4" aria-hidden="true">
-      <div className="h-5 w-64 animate-pulse rounded bg-muted" />
-      <div className="h-24 w-full animate-pulse rounded bg-muted" />
-      <div className="h-11 w-full animate-pulse rounded bg-muted" />
+      <div className="h-40 w-full animate-pulse rounded-lg bg-muted" />
+      <div className="h-64 w-full animate-pulse rounded-lg bg-muted" />
+      <div className="h-12 w-full animate-pulse rounded-md bg-muted" />
     </div>
   )
 }

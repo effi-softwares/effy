@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react"
 
 import type { NewsletterSubscribeResult } from "@effy/shared-types"
 
-import { Display, btnClass, input, sectionSpacing } from "@/components/storefront/kit"
+import { btnClass, input } from "@/components/storefront/kit"
 
 import { subscribeToNewsletter } from "../newsletter/actions"
 
@@ -64,76 +64,50 @@ export function NewsletterForm() {
   }, [state])
 
   return (
-    <section className="border-t bg-muted/40">
-      <div className={`container ${sectionSpacing}`}>
+    <section aria-labelledby="newsletter-heading" className="pb-8">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-xl">
-          <Display size="sub">Keep up with Effy</Display>
-
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            New products, seasonal picks and the occasional offer. No more than we&rsquo;d want to
-            receive ourselves, and you can leave whenever you like.
-          </p>
-
-          {/* ⚠ `noValidate` is deliberately ABSENT — the browser's own `type="email" required` check is
-              FR-030's "validation before any request", and it is free, translated and accessible. */}
-          <form action={formAction} className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <label htmlFor="newsletter-email" className="sr-only">
-              Email address
-            </label>
-            <input
-              id="newsletter-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-              // ⚠ FR-033 — the whole reason this is a client component. See the note on `email`.
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              aria-describedby={state ? "newsletter-status" : undefined}
-              aria-invalid={state?.status === "invalid" || undefined}
-              className={`${input} sm:flex-1`}
-            />
-            <button type="submit" disabled={pending} className={btnClass("primary", "md")}>
-              {pending ? "Signing you up…" : "Subscribe"}
-            </button>
-          </form>
-
-          {state && <NewsletterStatus result={state} />}
-
-          {/* Consent + privacy (Spam Act / APP 7): marketing is consent-based with an unsubscribe. */}
-          <p className="mt-3 text-xs text-muted-foreground">
-            By subscribing you agree to receive marketing emails and to our{" "}
-            <a href="/legal/privacy-policy" className="underline">
-              Privacy Policy
-            </a>
-            . You can unsubscribe at any time.
+          <h2 id="newsletter-heading" className="text-lg font-semibold">
+            Keep up with Effy
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            New products, seasonal picks and the occasional offer. Leave whenever you like.
           </p>
         </div>
+        <form action={formAction} className="flex w-full gap-2 lg:max-w-md">
+          <label htmlFor="newsletter-email" className="sr-only">
+            Email address
+          </label>
+          <input
+            id="newsletter-email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            aria-describedby={state ? "newsletter-status" : "newsletter-terms"}
+            aria-invalid={state?.status === "invalid" || undefined}
+            className={`${input} min-w-0 flex-1`}
+          />
+          <button type="submit" disabled={pending} className={btnClass("primary", "md", "h-10 md:h-9")}>
+            {pending ? "Signing you up…" : "Subscribe"}
+          </button>
+        </form>
       </div>
+      {state && <NewsletterStatus result={state} />}
+      <p id="newsletter-terms" className="mt-3 text-xs text-muted-foreground">
+        By subscribing you agree to receive marketing emails and to our{" "}
+        <a href="/legal/privacy-policy" className="underline underline-offset-4">
+          Privacy Policy
+        </a>
+        . You can unsubscribe at any time.
+      </p>
     </section>
   )
 }
 
-/**
- * ⚠ THREE STATES, NOT FOUR. There is deliberately no "you're already subscribed" — an address already
- * on the list gets the SUCCESS surface, byte-identical, because a distinct response would rebuild in
- * the UI the subscriber-enumeration oracle FR-032 removes from the API. The spec's FR-033 was amended
- * from four states to three to match.
- */
-/**
- * Every message this section can show, keyed by the contract's status.
- *
- * ⚠ EXPORTED, AND A RECORD RATHER THAN A TERNARY CHAIN — so a test can assert the actual messages
- * instead of grepping the source for them. The first version of the test did grep, and promptly failed
- * on the *explanatory comment above it*, which is a good demonstration of why source-text assertions
- * are a poor substitute for testing behaviour.
- *
- * ⚠ Typed as `Record<NewsletterSubscribeResult["status"], string>`, so adding a status to the shared
- * contract without giving it wording here is a COMPILE ERROR rather than a blank message in front of a
- * visitor. It is also what makes "there is no `already` state" structural: the contract has no such
- * arm, so this cannot have one either.
- */
 export const NEWSLETTER_MESSAGES: Record<NewsletterSubscribeResult["status"], string> = {
   ok: "Thanks — check your inbox and confirm to finish signing up.",
   invalid: "That doesn't look like an email address. Mind checking it?",
@@ -149,7 +123,7 @@ function NewsletterStatus({ result }: { result: NewsletterSubscribeResult }) {
       // ⚠ `role="status"` so the outcome is ANNOUNCED, not merely visible. Without it a screen-reader
       // user submits the form and is told nothing at all.
       role="status"
-      className={`mt-3 text-sm ${result.status === "invalid" ? "text-destructive" : "text-muted-foreground"}`}
+      className={`mt-3 text-sm ${result.status === "ok" ? "text-brand" : "font-medium text-foreground"}`}
     >
       {/* ⚠ Meaning never rests on colour alone (SC-009) — the words carry the whole message, and the
           error tint is redundant reinforcement rather than the signal. */}

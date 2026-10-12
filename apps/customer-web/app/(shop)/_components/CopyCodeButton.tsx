@@ -1,5 +1,6 @@
 "use client"
 
+import { Copy } from "lucide-react"
 import { useState } from "react"
 
 import { btnClass } from "@/components/storefront/kit"
@@ -32,7 +33,8 @@ export function CopyCodeButton({ code }: { code: string }) {
   }
 
   return (
-    <button type="button" onClick={copy} className={btnClass("primary", "sm")}>
+    <button type="button" onClick={copy} className={btnClass("outline", "sm")} aria-live="polite">
+      <Copy aria-hidden="true" />
       {copied ? "Copied" : "Copy code"}
     </button>
   )

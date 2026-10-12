@@ -1,30 +1,33 @@
 "use client"
 
-import { ArrowRight, Minus, Plus, Trash2 } from "lucide-react"
+import { ArrowRight, CircleAlert, Lock, Minus, Plus, ShoppingCart } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
+import type { ProductSearchResultDTO, StorefrontProductCardDTO } from "@effy/shared-types"
 
-import type { GuestCartLine } from "@/lib/cart-store"
+import { ActionLink, btnClass } from "@/components/storefront/actions"
+import { Alert } from "@/components/ui/alert"
+import { Breadcrumb } from "@/components/ui/misc"
 import {
   addItem,
   clearAll,
-  // Save-for-later (cart set-aside) TEMPORARILY HIDDEN — actions kept, UI commented out below.
-  // deleteSavedItem,
+  deleteSavedItem,
   removeItem,
-  // restoreSavedItem,
-  // setAsideItem,
+  restoreSavedItem,
+  setAsideItem,
   setItemQuantity,
 } from "@/lib/cart-actions"
-import { groupByPackage, useCartMirror } from "@/lib/cart-store"
+import type { GuestCartLine } from "@/lib/cart-store"
+import { useCartMirror } from "@/lib/cart-store"
 import { refreshCart } from "@/lib/cart-sync"
-
-import { PromoField } from "./PromoField"
-import { toast } from "@/lib/toast-store"
+import { edgeApiBaseUrl } from "@/lib/config"
 import { formatMoney } from "@/lib/money"
+import { toast } from "@/lib/toast-store"
 
-import { Display } from "../_components/Display"
-import { ActionLink } from "@/components/storefront/actions"
+import { PaymentMarks } from "../_components/PaymentMarks"
+import { ProductRail } from "../_components/ProductRail"
+import { PromoField } from "./PromoField"
 
 /**
  * The cart. ONE unified Effy order that pays once — but now shown PACKAGE-AWARE (021 FR-005a): items are
@@ -36,16 +39,10 @@ import { ActionLink } from "@/components/storefront/actions"
 export default function CartPage() {
   const cart = useCartMirror()
   const lines = cart.lines
+  const saved = cart.savedLines
 
-  // Re-price on open (027 FR-004). A cart restored from this browser's storage must show TODAY's prices
-  // and availability, not the ones it was built from — for a guest (priced by `/api/cart/preview`) exactly
-  // as for a signed-in shopper (whose account cart is the truth). A failure changes nothing: the mirror
-  // stays, because "we could not check" must never read as "you have nothing".
   useEffect(() => {
     void refreshCart()
-    // Reconcile again when the shopper comes back to this tab (FR-008) — the cart may have moved on
-    // another device while they were away, and a stale tab showing a stale cart is the failure this whole
-    // slice is about.
     const onVisible = () => {
       if (document.visibilityState === "visible") void refreshCart()
     }
@@ -57,301 +54,316 @@ export default function CartPage() {
     }
   }, [])
 
-  // 027: the totals come from the MIRROR, which carries the platform's own figures — so an unavailable
-  // line is already excluded (FR-022) rather than being silently added up here.
   const currency = cart.currency || lines[0]?.currency || "AUD"
-  const packages = groupByPackage(lines)
-  const split = packages.length > 1
+  const count = lines.reduce((n, l) => n + l.quantity, 0)
+  const confirmRef = useRef<HTMLDialogElement>(null)
 
-  if (lines.length === 0) {
-    return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-16 text-center sm:px-6">
-        <Display as="h1" size="section">Your cart is empty</Display>
-        <p className="mt-2 text-muted-foreground">Browse the store and add something you like.</p>
-        <ActionLink href="/" size="lg" className="mt-6">
-          Start shopping
-        </ActionLink>
-      </div>
-    )
+  /** Empty the cart, and hand back a way to undo it (FR-025). The emptied lines live only as long as
+   *  the toast: nothing is stored anywhere to make this possible. */
+  function emptyCart() {
+    const before = lines.map((l) => ({ ...l }))
+    confirmRef.current?.close()
+    clearAll()
+    toast("Your cart was emptied", {
+      action: { label: "Undo", run: () => before.forEach((l) => addItem(l)) },
+    })
   }
 
   return (
-    <div className="container mt-6">
-      <Display as="h1" size="section" className="normal-case leading-tight text-left text-2xl sm:text-3xl">
-        Your cart
-      </Display>
+    <div className="container py-6">
+      <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Cart" }]} />
 
-      {/* The reference's split: line items on the left, the order summary on the right that
-          sticks as the list scrolls. Below `lg` they stack, summary last. */}
-      <div className="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div>
-          {split && (
-            <p className="mb-4 rounded-md bg-background py-3 text-sm text-muted-foreground">
-              Your order will arrive in {packages.length} packages. You’ll choose delivery for each at
-              checkout.
-            </p>
-          )}
-
-          {packages.map((pkg, i) => (
-            <section key={pkg.packageKey} className={i > 0 ? "mt-6" : undefined}>
-              {split && (
-                <h2 className="mb-4 font-semibold text-xl text-foreground">Package {i + 1}</h2>
-              )}
-              <ul className="divide-y space-y-2">
-                {pkg.lines.map((line) => (
-                  <CartLineRow key={line.productId} line={line} />
-                ))}
-              </ul>
-            </section>
-          ))}
-
-          {/* Save-for-later (cart set-aside) list TEMPORARILY HIDDEN — rendering commented out; data/API kept.
-          {cart.savedLines.length > 0 ? (
-            <section className="mt-8 border-t pt-6">
-              <h2 className="text-lg font-bold">Saved for later ({cart.savedLines.length})</h2>
-              <p className="text-xs text-muted-foreground">Not included in your total.</p>
-              <ul className="mt-4 divide-y">
-                {cart.savedLines.map((line) => (
-                  <li key={line.productId} className="flex items-center gap-4 py-4">
-                    <div className="flex-1">
-                      <span className="text-sm font-medium">{line.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {formatMoney(line.unitPriceAmount, line.currency)}
-                      </span>
-                      {line.available === false ? (
-                        <span className="block text-xs font-medium text-destructive">Unavailable</span>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={line.available === false}
-                      onClick={() => void restoreSavedItem(line.productId)}
-                      className="text-sm font-medium hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
-                    >
-                      Move to cart
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void deleteSavedItem(line.productId)}
-                      className="text-sm text-muted-foreground hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          */}
-
-          {/* FR-032: emptying the cart is not recoverable, so it is confirmed — and it is given a heading
-              and an explanation so the action reads as deliberate rather than a stray link. */}
-          {lines.length > 0 ? (
-            <section className="mt-10 flex items-center justify-between gap-4 rounded-lg border p-4">
-              <div>
-                <h2 className="text-base font-semibold">Empty your cart</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  This removes every item you’ve added. It can’t be undone.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm("Empty your cart? This removes everything you’re about to buy.")) clearAll()
-                }}
-                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-destructive hover:underline"
-              >
-                <Trash2 className="size-4" /> Empty cart
-              </button>
-            </section>
-          ) : null}
+      {lines.length === 0 ? (
+        <div className="mt-6 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-16 text-center">
+          <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
+            <ShoppingCart aria-hidden="true" className="size-6" />
+          </span>
+          <h1 className="text-2xl font-semibold tracking-tight">Your cart is empty</h1>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Browse the aisles and add something you like. Anything you save for later stays below.
+          </p>
+          <ActionLink href="/" size="lg" className="mt-2">
+            Start shopping
+          </ActionLink>
         </div>
-
-        {/* Order summary — a bordered card on the right beside the list. */}
-        <aside className="rounded-lg border p-6">
-          <h2 className="text-xl font-bold">Order Summary</h2>
-          <dl className="mt-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Items</dt>
-              <dd className="font-bold">{formatMoney(cart.itemSubtotalAmount, currency)}</dd>
-            </div>
-            {cart.discount ? (
-              /* FR-045: shown as its OWN entry. A shopper must see what they are getting, not only that
-                 the total moved. */
-              <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">
-                  {cart.discount.label} ({cart.discount.code})
-                </dt>
-                <dd className="font-bold text-primary">
-                  −{formatMoney(cart.discount.amount, currency)}
-                </dd>
-              </div>
-            ) : null}
-            <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Delivery</dt>
-              <dd className="text-sm text-muted-foreground">Calculated at checkout</dd>
-            </div>
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between">
-                <dt className="text-lg">Total</dt>
-                <dd className="text-2xl font-bold">
-                  {formatMoney(cart.grandTotalAmount, currency)}
-                  <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">
-                    + delivery
-                  </span>
-                </dd>
-              </div>
-            </div>
-          </dl>
-
-          <div className="mt-4">
-            <PromoField applied={cart.discount} />
+      ) : (
+        <>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Your cart{" "}
+              <span className="text-base font-normal tracking-normal text-muted-foreground">
+                · {count} {count === 1 ? "item" : "items"}
+              </span>
+            </h1>
+            <button type="button" onClick={() => confirmRef.current?.showModal()} className={btnClass("ghost", "sm")}>
+              Empty cart
+            </button>
           </div>
 
-          {/* FR-026/FR-054: checkout is offered only when the PLATFORM says so, and the reason is stated
-              when it is not. The client never decides this itself — it is re-decided at intent (FR-056). */}
-          {cart.checkout.allowed ? (
-            <ActionLink href="/checkout" size="xl" className="mt-6 w-full">
-              Go to checkout
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </ActionLink>
-          ) : (
-            <>
-              <span
-                aria-disabled="true"
-                className="mt-6 flex h-14 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-muted text-sm font-medium text-muted-foreground"
-              >
-                Go to checkout
-              </span>
-              <p className="mt-2 text-center text-xs font-medium text-destructive">
-                {cart.checkout.blockedReason === "no_payable_items"
-                  ? "Nothing in your cart is available right now."
-                  : cart.checkout.blockedReason === "below_minimum"
-                    ? `Add ${formatMoney(cart.checkout.remainingAmount ?? "0.00", currency)} more to reach the ${formatMoney(cart.checkout.minimumSubtotalAmount ?? "0.00", currency)} minimum.`
-                    : "Your cart is empty."}
+          <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+            <ul className="divide-y rounded-lg border shadow-xs">
+              {lines.map((line) => (
+                <CartLineRow key={line.productId} line={line} />
+              ))}
+            </ul>
+
+            <aside className="rounded-lg border p-6 shadow-xs lg:sticky lg:top-40">
+              <h2 className="font-semibold">Order summary</h2>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <dt>Items ({count})</dt>
+                  <dd className="tabular-nums">{formatMoney(cart.itemSubtotalAmount, currency)}</dd>
+                </div>
+                {cart.discount ? (
+                  <div className="flex items-center justify-between text-brand">
+                    <dt>
+                      {cart.discount.label} ({cart.discount.code})
+                    </dt>
+                    <dd className="tabular-nums">−{formatMoney(cart.discount.amount, currency)}</dd>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between">
+                  <dt>Delivery</dt>
+                  <dd className="text-muted-foreground">Calculated at checkout</dd>
+                </div>
+                <div className="flex items-baseline justify-between border-t pt-3">
+                  <dt className="text-base font-semibold">Total</dt>
+                  <dd className="text-lg font-semibold tabular-nums">
+                    {formatMoney(cart.grandTotalAmount, currency)}
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">+ delivery</span>
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-4">
+                <PromoField applied={cart.discount} />
+              </div>
+
+              {cart.checkout.allowed ? (
+                <ActionLink href="/checkout" size="xl" className="mt-4 w-full">
+                  Go to checkout
+                  <ArrowRight aria-hidden="true" />
+                </ActionLink>
+              ) : (
+                <>
+                  <Alert variant="destructive" className="mt-4" title="You can't check out yet">
+                    {cart.checkout.blockedReason === "no_payable_items"
+                      ? "Nothing in your cart is available right now."
+                      : cart.checkout.blockedReason === "below_minimum"
+                        ? `Add ${formatMoney(cart.checkout.remainingAmount ?? "0.00", currency)} more to reach the ${formatMoney(cart.checkout.minimumSubtotalAmount ?? "0.00", currency)} minimum.`
+                        : "Your cart is empty."}
+                  </Alert>
+                  <span aria-disabled="true" className={btnClass("primary", "xl", "mt-3 w-full")}>
+                    Go to checkout
+                  </span>
+                </>
+              )}
+              <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <Lock aria-hidden="true" className="size-3.5" />
+                Secure checkout. Sign in to complete your order.
               </p>
-            </>
-          )}
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Secure checkout. Sign in to complete your order.
-          </p>
-        </aside>
-      </div>
+              <PaymentMarks className="mt-4 justify-center" />
+            </aside>
+          </div>
+        </>
+      )}
+
+      {saved.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold">
+            Saved for later{" "}
+            <span className="text-base font-normal text-muted-foreground">· {saved.length}</span>
+          </h2>
+          <ul className="mt-4 divide-y rounded-lg border shadow-xs">
+            {saved.map((line) => (
+              <SavedLineRow key={line.productId} line={line} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <OnSaleRail />
+
+      <dialog
+        ref={confirmRef}
+        aria-labelledby="empty-cart-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) confirmRef.current?.close()
+        }}
+        className="fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border bg-background p-6 text-foreground shadow-lg"
+      >
+        <h2 id="empty-cart-title" className="text-lg font-semibold">
+          Empty your cart?
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          This removes all {count} {count === 1 ? "item" : "items"}. Anything saved for later stays.
+        </p>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={() => confirmRef.current?.close()} className={btnClass("outline", "lg")}>
+            Keep my cart
+          </button>
+          <button type="button" onClick={emptyCart} className={btnClass("destructive", "lg")}>
+            Empty cart
+          </button>
+        </div>
+      </dialog>
     </div>
   )
 }
 
-/** One cart line — the item, a quantity stepper, and its line total. Carries no shop identity. */
-function CartLineRow({ line }: { line: GuestCartLine }) {
+function Thumb({ line }: { line: GuestCartLine }) {
   return (
-    <li className="flex gap-4 py-4">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-md border bg-muted">
-        {line.imageUrl ? (
-          <Image src={line.imageUrl} alt={line.name} fill unoptimized sizes="5rem" className="object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
-            No image
-          </div>
-        )}
-      </div>
+    <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
+      {line.imageUrl && <Image src={line.imageUrl} alt="" fill unoptimized sizes="5rem" className="object-cover" />}
+    </div>
+  )
+}
 
-      <div className="flex flex-1 flex-col">
-        <Link href={`/product/${line.productId}`} className="text-sm font-medium hover:underline">
-          {line.name}
-        </Link>
+const textAction = "text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+
+function CartLineRow({ line }: { line: GuestCartLine }) {
+  const [busy, setBusy] = useState(false)
+
+  function remove() {
+    removeItem(line.productId)
+    void import("@/lib/telemetry").then(({ capture }) =>
+      capture({ name: "product_removed_from_cart", props: { productId: line.productId } }),
+    )
+    toast(`Removed ${line.name}`, {
+      action: {
+        label: "Undo",
+        run: () =>
+          addItem({
+            productId: line.productId,
+            name: line.name,
+            imageUrl: line.imageUrl,
+            unitPriceAmount: line.unitPriceAmount,
+            currency: line.currency,
+            quantity: line.quantity,
+            packageKey: line.packageKey,
+          }),
+      },
+    })
+  }
+
+  /** Save for later is per customer; a guest's request fails and says why (the routes need a session). */
+  async function saveForLater() {
+    setBusy(true)
+    const ok = await setAsideItem(line.productId)
+    setBusy(false)
+    toast(ok ? `Saved ${line.name} for later` : "Sign in to save items for later")
+  }
+
+  return (
+    <li className="flex gap-4 p-4">
+      <Thumb line={line} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-start justify-between gap-4">
+          <Link href={`/product/${line.productId}`} className="text-sm font-medium hover:underline">
+            {line.name}
+          </Link>
+          <span className="text-sm font-semibold tabular-nums">
+            {formatMoney((parseFloatSafe(line.unitPriceAmount) * line.quantity).toFixed(2), line.currency)}
+          </span>
+        </div>
         <span className="text-sm text-muted-foreground">
           {formatMoney(line.unitPriceAmount, line.currency)} each
+          {line.priceChangedFrom ? ` · was ${formatMoney(line.priceChangedFrom, line.currency)}` : ""}
         </span>
-
-        {/* FR-023/FR-024: a price that moved is SAID, with what it was. The shopper pays the current price
-            either way — the point is that they find out here, not at payment. */}
-        {line.priceChangedFrom ? (
-          <span className="text-xs text-muted-foreground">
-            Was {formatMoney(line.priceChangedFrom, line.currency)}
-          </span>
-        ) : null}
-
-        {/* FR-022: an unavailable line stays visible and flagged — a temporary state may be waited out —
-            but it is excluded from every total and cannot be paid for. */}
         {line.available === false ? (
-          <span className="text-xs font-medium text-destructive">
+          <span className="mt-1 flex items-center gap-1.5 text-xs font-medium">
+            <CircleAlert aria-hidden="true" className="size-3.5" />
             Unavailable — not included in your total
           </span>
         ) : null}
 
-        <div className="mt-2 flex items-center gap-3">
-          <div className="flex items-center rounded-full border">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex h-9 items-center rounded-md border border-input shadow-xs">
             <button
               type="button"
               onClick={() => setItemQuantity(line.productId, line.quantity - 1)}
-              className="flex size-8 items-center justify-center hover:bg-accent"
+              className="grid h-full w-9 place-items-center rounded-l-md hover:bg-accent"
               aria-label="Decrease quantity"
             >
               <Minus className="size-3.5" />
             </button>
-            <span className="w-8 text-center text-sm" aria-live="polite">
+            <span className="w-8 text-center text-sm font-medium tabular-nums" aria-live="polite">
               {line.quantity}
             </span>
             <button
               type="button"
               onClick={() => setItemQuantity(line.productId, line.quantity + 1)}
-              className="flex size-8 items-center justify-center hover:bg-accent disabled:opacity-40"
+              className="grid h-full w-9 place-items-center rounded-r-md hover:bg-accent disabled:opacity-40"
               disabled={line.quantity >= 99}
               aria-label="Increase quantity"
             >
               <Plus className="size-3.5" />
             </button>
           </div>
-          <div className="ml-4 flex items-center gap-4">
-          {/* Save for later (cart set-aside) TEMPORARILY HIDDEN — entry point commented out; action kept.
-          <button
-            type="button"
-            onClick={() => void setAsideItem(line.productId)}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <Bookmark className="size-3.5" /> Save for later
+          <button type="button" onClick={remove} className={textAction}>
+            Remove
           </button>
-          */}
-          <button
-            type="button"
-            onClick={() => {
-              removeItem(line.productId)
-              // Dynamic for the same measured reason as PromoField's: a static telemetry import from a
-              // cart client component costs +1.0 KB on four GUEST routes and breaks the budget.
-              void import("@/lib/telemetry").then(({ capture }) =>
-                capture({ name: "product_removed_from_cart", props: { productId: line.productId } }),
-              )
-              // 025 FR-041: reversible from its own acknowledgement. Removing the wrong line is a
-              // one-tap mistake, and without undo the recovery is "find it again and re-add it".
-              toast(`Removed ${line.name}`, {
-                action: {
-                  label: "Undo",
-                  run: () =>
-                    addItem({
-                      productId: line.productId,
-                      name: line.name,
-                      imageUrl: line.imageUrl,
-                      unitPriceAmount: line.unitPriceAmount,
-                      currency: line.currency,
-                      quantity: line.quantity,
-                      packageKey: line.packageKey,
-                    }),
-                },
-              })
-            }}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <Trash2 className="size-3.5" /> Remove
+          <button type="button" onClick={saveForLater} disabled={busy} className={textAction}>
+            Save for later
           </button>
-          </div>
         </div>
-      </div>
-
-      <div className="text-sm font-medium">
-        {formatMoney((parseFloatSafe(line.unitPriceAmount) * line.quantity).toFixed(2), line.currency)}
       </div>
     </li>
   )
+}
+
+function SavedLineRow({ line }: { line: GuestCartLine }) {
+  const [busy, setBusy] = useState(false)
+  async function run(action: (id: string) => Promise<boolean>, failed: string) {
+    setBusy(true)
+    const ok = await action(line.productId)
+    setBusy(false)
+    if (!ok) toast(failed)
+  }
+  return (
+    <li className="flex gap-4 p-4">
+      <Thumb line={line} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Link href={`/product/${line.productId}`} className="text-sm font-medium hover:underline">
+          {line.name}
+        </Link>
+        <span className="text-sm text-muted-foreground">{formatMoney(line.unitPriceAmount, line.currency)} each</span>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            disabled={busy || line.available === false}
+            onClick={() => run(restoreSavedItem, "We couldn't move that back just now")}
+            className={btnClass("outline", "sm")}
+          >
+            Move to cart
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => run(deleteSavedItem, "We couldn't remove that just now")}
+            className={textAction}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </li>
+  )
+}
+
+/** "On sale now" under the cart (reference: Cart). Client-fetched, so it never holds the cart up; absent on failure. */
+function OnSaleRail() {
+  const [products, setProducts] = useState<StorefrontProductCardDTO[]>([])
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(`${edgeApiBaseUrl()}/storefront/v1/products?saleOnly=true&limit=12`, { signal: controller.signal })
+      .then((r) => (r.ok ? (r.json() as Promise<ProductSearchResultDTO>) : null))
+      .then((data) => data && setProducts(data.items))
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [])
+  if (products.length === 0) return null
+  return <ProductRail title="On sale now" products={products} href="/search?saleOnly=true" className="mt-4 px-0!" />
 }
 
 function parseFloatSafe(s: string): number {

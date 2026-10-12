@@ -83,7 +83,8 @@ describe("MethodList (051 US4)", () => {
     // 14px, because 041 pins `--radius-xl: 0.875rem`. So nothing about the rendered row changed —
     // only this selector went stale, and it had been silently matching zero rows ever since.
     // Found by 052's baseline sweep; it is not 052's file and not 052's defect.
-    const rows = container.querySelectorAll("[class*='rounded-xl']")
+    // 084: the row is the storefront card shape (`rounded-lg`); the query follows the class again.
+    const rows = container.querySelectorAll("[class*='rounded-lg'][class*='bg-card']")
     expect(rows.length).toBeGreaterThan(0)
     // The container must NOT be filled — that is the half of this test about appearance-independence
     // (a monochrome accent inverts; a fill would not).
@@ -91,7 +92,8 @@ describe("MethodList (051 US4)", () => {
     // ⚠ `border-foreground` now lives on the RADIO INDICATOR, not the row container. Commit 5a540f4
     // moved it there; the selected container is a bare `border`. Asserting it on the container would
     // be asserting a fact about the old markup.
-    const marked = container.querySelector("[class*='border-foreground']")
+    // 084: selection is the action colour (blue), on the radio AND as the row's ring — never a fill.
+    const marked = container.querySelector("[class*='border-primary']")
     expect(marked).not.toBeNull()
   })
 })

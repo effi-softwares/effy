@@ -36,7 +36,7 @@ export default function AccountUnavailablePage() {
       <div className="mt-8 flex justify-center gap-3">
         <Link
           href="/"
-          className="inline-flex h-11 items-center rounded-full border px-6 text-sm font-medium hover:bg-accent"
+          className="inline-flex h-11 items-center rounded-md border px-6 text-sm font-medium hover:bg-accent"
         >
           Back to the store
         </Link>

@@ -23,23 +23,26 @@ function many(n: number): BannerDTO[] {
   )
 }
 
+/** The offer cards' own links — the section header also carries one ("All offers"). */
+const offerLinks = () => screen.queryAllByRole("link", { name: /^view offer/i })
+
 describe("OffersPanels — the composition degrades, it never pads (FR-018)", () => {
-  it("renders one large panel and two stacked for three offers", () => {
+  it("renders three cards for three offers", () => {
     render(<OffersPanels banners={many(3)} />)
 
-    expect(screen.getAllByRole("link")).toHaveLength(3)
+    expect(offerLinks()).toHaveLength(3)
   })
 
   it("renders only what it has data for with two offers", () => {
     render(<OffersPanels banners={many(2)} />)
 
-    expect(screen.getAllByRole("link")).toHaveLength(2)
+    expect(offerLinks()).toHaveLength(2)
   })
 
   it("renders a single panel for one offer", () => {
     render(<OffersPanels banners={many(1)} />)
 
-    expect(screen.getAllByRole("link")).toHaveLength(1)
+    expect(offerLinks()).toHaveLength(1)
   })
 
   /**
@@ -55,7 +58,7 @@ describe("OffersPanels — the composition degrades, it never pads (FR-018)", ()
   it("shows at most three panels even when handed more", () => {
     render(<OffersPanels banners={many(7)} />)
 
-    expect(screen.getAllByRole("link")).toHaveLength(3)
+    expect(offerLinks()).toHaveLength(3)
   })
 })
 
@@ -69,7 +72,7 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
   it("uses the server-composed href", () => {
     render(<OffersPanels banners={[banner({ key: "x", href: "/promotions/x" })]} />)
 
-    expect(screen.getByRole("link").getAttribute("href")).toBe("/promotions/x")
+    expect(offerLinks()[0]!.getAttribute("href")).toBe("/promotions/x")
   })
 
   /** Mobile routes on `target`; web on `href`. When href is absent they must not disagree. */
@@ -82,13 +85,13 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
       />,
     )
 
-    expect(screen.getByRole("link").getAttribute("href")).toBe("/promotions/abc")
+    expect(offerLinks()[0]!.getAttribute("href")).toBe("/promotions/abc")
   })
 
   it("never sends a promotion to the unfiltered store", () => {
     render(<OffersPanels banners={many(3)} />)
 
-    for (const link of screen.getAllByRole("link")) {
+    for (const link of offerLinks()) {
       expect(link.getAttribute("href")).not.toBe("/search")
     }
   })
@@ -100,25 +103,28 @@ describe("OffersPanels — where a panel leads (029's post-mortem)", () => {
   it("renders a non-tappable panel when there is no destination at all", () => {
     render(<OffersPanels banners={[banner({ href: null, target: null })]} />)
 
-    expect(screen.queryByRole("link")).toBeNull()
+    expect(offerLinks()).toHaveLength(0)
     expect(screen.getByText(/20% off/)).toBeTruthy()
   })
 })
 
 describe("OffersPanels — the message survives the artwork", () => {
-  it("puts a scrim over every panel, whatever the image is", () => {
+  /**
+   * 084: an offer card is words on a white card. The message can no longer be lost against artwork,
+   * because there is no artwork under it — so there is nothing to scrim and no gradient to draw.
+   */
+  it("draws no artwork and no gradient under the words", () => {
     const { container } = render(<OffersPanels banners={many(3)} />)
 
-    expect(container.querySelectorAll("[class*='bg-linear']")).toHaveLength(3)
+    expect(container.querySelectorAll("[class*='bg-linear']")).toHaveLength(0)
+    expect(container.querySelector("img")).toBeNull()
   })
 
-  it("renders a neutral tile instead of a broken frame when a promotion has no artwork", () => {
-    const { container } = render(
-      <OffersPanels banners={[banner({ imageUrl: null, title: "Winter shop" })]} />,
-    )
+  it("says whether an offer carries a code", () => {
+    render(<OffersPanels banners={[banner({ code: "FRESH10" }), banner({ key: "n", code: null })]} />)
 
-    expect(container.querySelector("img")).toBeNull()
-    expect(screen.getByText("W")).toBeTruthy()
+    expect(screen.getByText("Code")).toBeTruthy()
+    expect(screen.getByText("Offer")).toBeTruthy()
   })
 
   /**
@@ -140,6 +146,6 @@ describe("OffersPanels — the message survives the artwork", () => {
   it("names each panel for assistive technology", () => {
     render(<OffersPanels banners={[banner({ title: "Winter shop" })]} />)
 
-    expect(screen.getByRole("link", { name: "Winter shop" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "View offer: Winter shop" })).toBeTruthy()
   })
 })

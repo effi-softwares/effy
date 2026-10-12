@@ -3,7 +3,7 @@
 import type { FacetDTO, FacetSetDTO } from "@effy/shared-types"
 import { useEffect, useState } from "react"
 
-import { ActionButton } from "@/components/storefront/actions"
+import { ActionButton, btnClass } from "@/components/storefront/actions"
 
 /**
  * The advanced filter controls (043 US1) — one presentational component rendered in BOTH the desktop
@@ -55,15 +55,15 @@ export default function FilterControls({
   const multiFacets = (facetSet?.facets ?? []).filter((f) => f.type === "multi_select")
 
   return (
-    <div className="space-y-5">
+    <div>
       {/* Offers — a fixed toggle, not a server facet in this slice (contract). */}
       <Section title="Offers">
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
+        <label className="flex min-h-7 cursor-pointer items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={selected.saleOnly}
             onChange={onToggleSale}
-            className="h-4 w-4 accent-primary"
+            className="size-4 rounded-sm accent-primary"
           />
           On sale
         </label>
@@ -75,14 +75,15 @@ export default function FilterControls({
 
       {category && category.options.length > 0 && (
         <Section title={category.label}>
-          <ul className="space-y-1.5">
+          <ul className="space-y-1">
             <li>
               <button
                 type="button"
                 onClick={() => onCategory(null)}
-                className={`text-sm ${selected.category === null ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                className={`flex min-h-7 items-center gap-2 text-sm ${radio(selected.category === null)}`}
                 aria-pressed={selected.category === null}
               >
+                <span aria-hidden="true" data-dot className="size-4 shrink-0 rounded-full border border-input shadow-xs" />
                 All categories
               </button>
             </li>
@@ -91,12 +92,13 @@ export default function FilterControls({
                 <button
                   type="button"
                   onClick={() => onCategory(o.value)}
-                  className={`flex w-full items-center justify-between gap-2 text-left text-sm ${
-                    selected.category === o.value ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`flex min-h-7 w-full items-center justify-between gap-2 text-left text-sm ${radio(selected.category === o.value)}`}
                   aria-pressed={selected.category === o.value}
                 >
-                  <span className="truncate">{o.label}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden="true" data-dot className="size-4 shrink-0 rounded-full border border-input shadow-xs" />
+                    <span className="truncate">{o.label}</span>
+                  </span>
                   <span className="tabular-nums text-xs text-muted-foreground">{o.count}</span>
                 </button>
               </li>
@@ -120,7 +122,7 @@ export default function FilterControls({
       )}
 
       {activeCount > 0 && (
-        <ActionButton type="button" onClick={onClearAll} size="md" className="w-full">
+        <ActionButton type="button" onClick={onClearAll} variant="outline" size="md" className="mt-4 w-full">
           Clear all filters
         </ActionButton>
       )}
@@ -128,9 +130,16 @@ export default function FilterControls({
   )
 }
 
+/** The category list reads as radios: the chosen one fills its dot blue. */
+function radio(on: boolean): string {
+  return on
+    ? "font-medium [&_[data-dot]]:border-primary [&_[data-dot]]:bg-primary [&_[data-dot]]:shadow-[inset_0_0_0_3px_var(--background)]"
+    : "hover:text-foreground"
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border-t pt-5 first:border-t-0 first:pt-0">
+    <div className="border-b py-4 first:pt-0">
       <h3 className="mb-3 text-sm font-medium">{title}</h3>
       {children}
     </div>
@@ -164,7 +173,7 @@ function FacetSection({
 
   return (
     <Section title={facet.label}>
-      <ul className="space-y-1.5">
+      <ul className="space-y-1">
         {visible.map((o) => (
           <li key={o.value}>
             <label className="flex cursor-pointer items-center justify-between gap-2 text-sm">
@@ -173,7 +182,7 @@ function FacetSection({
                   type="checkbox"
                   checked={selectedValues.includes(o.value)}
                   onChange={() => onToggle(o.value)}
-                  className="h-4 w-4 shrink-0 accent-primary"
+                  className="size-4 shrink-0 rounded-sm accent-primary"
                 />
                 <span className="truncate">{o.label}</span>
               </span>
@@ -186,7 +195,7 @@ function FacetSection({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-2 text-sm font-medium text-primary hover:underline"
+          className="mt-3 text-sm font-medium text-primary underline underline-offset-4"
         >
           {expanded ? "Show less" : `Show ${facet.options.length - FACET_COLLAPSE_LIMIT} more`}
         </button>
@@ -236,7 +245,7 @@ function PriceRange({
         inputMode="decimal"
         placeholder={bounds ? bounds.min : "Min"}
         aria-label="Minimum price"
-        className="w-16 rounded-md border bg-transparent px-2 py-1 text-sm outline-none"
+        className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm shadow-xs"
       />
       <span aria-hidden="true" className="text-muted-foreground">
         –
@@ -247,9 +256,9 @@ function PriceRange({
         inputMode="decimal"
         placeholder={bounds ? bounds.max : "Max"}
         aria-label="Maximum price"
-        className="w-16 rounded-md border bg-transparent px-2 py-1 text-sm outline-none"
+        className="h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm shadow-xs"
       />
-      <button type="submit" className="rounded-full px-3 py-1 text-sm font-medium text-primary hover:bg-accent">
+      <button type="submit" className={btnClass("outline", "md", "px-3")}>
         Go
       </button>
     </form>

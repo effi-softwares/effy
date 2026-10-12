@@ -1,4 +1,3 @@
-import { pageSurface } from "@/components/storefront/kit"
 
 import { CheckoutFooter } from "./_components/CheckoutFooter"
 import { CheckoutHeader } from "./_components/CheckoutHeader"
@@ -27,7 +26,7 @@ export default function CheckoutLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className={`flex min-h-svh flex-col ${pageSurface}`}>
+    <div className="flex min-h-svh flex-col bg-background text-foreground">
       <CheckoutHeader />
       <main className="flex-1">{children}</main>
       <CheckoutFooter />

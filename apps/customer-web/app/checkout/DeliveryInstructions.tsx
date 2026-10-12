@@ -2,7 +2,7 @@
 
 import { useId } from "react"
 
-import { Label, Textarea } from "@effy/design-system/ui"
+import { Label, Textarea } from "@/components/ui/form"
 
 import {
   clampNote,
@@ -48,12 +48,15 @@ export function DeliveryInstructions({
 
   return (
     <section aria-label={heading}>
-      <h3 className="text-sm font-medium">{heading}</h3>
+      <h2 className="text-lg font-semibold">
+        <span aria-hidden="true">3. </span>
+        {heading}
+      </h2>
       <p id={hintId} className="mt-1 text-sm text-muted-foreground">
         {hint}
       </p>
 
-      <div role="group" aria-label="How should we hand it over?" className="mt-3 flex flex-wrap gap-2">
+      <div role="group" aria-label="How should we hand it over?" className="mt-4 inline-flex overflow-hidden rounded-md border border-input shadow-xs">
         {HANDOVER_CHOICES.map((choice) => {
           const pressed = value.handover === choice.value
           return (
@@ -64,12 +67,9 @@ export function DeliveryInstructions({
               disabled={disabled}
               onClick={() => onChange({ ...value, handover: pressed ? null : choice.value })}
               className={
-                "min-h-11 rounded-md border px-3 text-sm font-medium transition-colors " +
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring " +
+                "min-h-11 border-l border-input px-4 text-sm font-medium transition-colors first:border-l-0 " +
                 "disabled:cursor-not-allowed disabled:opacity-50 " +
-                (pressed
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-muted")
+                (pressed ? "bg-accent text-foreground" : "bg-background hover:bg-accent")
               }
             >
               {choice.label}
@@ -78,7 +78,7 @@ export function DeliveryInstructions({
         })}
       </div>
 
-      <div className="mt-3">
+      <div className="mt-4">
         <Label htmlFor={noteId} className="text-sm">
           Note for the driver
         </Label>
@@ -90,7 +90,7 @@ export function DeliveryInstructions({
           placeholder="Gate code, which door, where to leave it"
           aria-describedby={`${hintId} ${countId}`}
           onChange={(e) => onChange({ ...value, note: clampNote(e.target.value) })}
-          className="mt-1"
+          className="mt-2"
         />
         {/* `polite`, so a screen reader hears the count settle rather than every keystroke. */}
         <p id={countId} aria-live="polite" className="mt-1 text-xs text-muted-foreground">

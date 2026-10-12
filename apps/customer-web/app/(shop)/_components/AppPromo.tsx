@@ -1,4 +1,5 @@
-import { Display, MediaFrame, sectionSpacing } from "@/components/storefront/kit"
+import { Card } from "@/components/ui/card"
+import { sectionSpacing } from "@/components/storefront/kit"
 
 import { StoreBadges } from "./StoreBadges"
 
@@ -20,32 +21,16 @@ import { StoreBadges } from "./StoreBadges"
 export function AppPromo() {
   return (
     <section className={`container ${sectionSpacing}`}>
-      <div className="grid items-center gap-8 rounded-3xl bg-muted px-6 py-10 sm:px-10 sm:py-12 lg:grid-cols-2 lg:gap-12">
+      <Card className="flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <Display size="sub">The Effy app is on its way</Display>
-
-          <p className="mt-3 max-w-md text-sm text-muted-foreground sm:text-base">
+          <h2 className="text-lg font-semibold">The Effy app is on its way</h2>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">
             We&rsquo;re building Effy for iPhone and Android — the same shop, the same basket, in your
             pocket. It isn&rsquo;t in the stores yet. When it is, it&rsquo;ll be right here.
           </p>
-
-          <div className="mt-7">
-            <StoreBadges />
-          </div>
         </div>
-
-        {/* Space for app artwork. There is none yet, so this is the neutral placeholder — the same
-            supported-absence path the hero uses, rather than a stock phone mockup of a screen that
-            does not look like the app. */}
-        <MediaFrame
-          src={null}
-          alt=""
-          ratio="wide"
-          fallbackLabel="Effy"
-          rounded="rounded-2xl"
-          className="hidden lg:block"
-        />
-      </div>
+        <StoreBadges tone="dark" />
+      </Card>
     </section>
   )
 }

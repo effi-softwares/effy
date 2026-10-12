@@ -51,14 +51,14 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
   const stocked = categories.filter((c) => c.productCount > 0).slice(0, CATEGORY_SHORTCUT_CAP)
 
   return (
-    <SectionShell title="Shop by category" href="/search" linkLabel="Shop all products">
+    <SectionShell title="Shop by aisle" href="/search" linkLabel="All products">
       {stocked.length > 0 ? (
-        <ul className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-2 scrollbar-none sm:mx-0 sm:gap-8 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden">
           {stocked.map((category) => (
             <li key={category.key} className="shrink-0">
               <Link
                 href={`/search?category=${encodeURIComponent(category.key)}`}
-                className="group flex w-24 flex-col items-center gap-3 rounded-xl py-2 text-center hover:bg-accent sm:w-28"
+                className="group flex w-[5.5rem] flex-col items-center gap-3 rounded-lg py-2 text-center sm:w-28"
                 aria-label={`${category.name}, ${category.productCount} ${
                   category.productCount === 1 ? "item" : "items"
                 }`}
@@ -72,9 +72,9 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
                   rounded="rounded-full"
                   fallbackLabel={category.name.charAt(0).toUpperCase()}
                   sizes="112px"
-                  className="w-20 transition-transform group-hover:scale-105 sm:w-24"
+                  className="w-[4.5rem] ring-ring transition-shadow group-hover:ring-2 sm:w-24"
                 />
-                <span className="text-sm font-medium leading-tight">{category.name}</span>
+                <span className="text-xs leading-tight font-medium sm:text-sm">{category.name}</span>
               </Link>
             </li>
           ))}

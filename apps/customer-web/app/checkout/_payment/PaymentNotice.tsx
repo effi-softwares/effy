@@ -27,20 +27,20 @@ export function PaymentNotice({
     <div
       role="alert"
       className={[
-        "flex gap-3 border-l-2 py-1 pl-3.5",
-        kind === "error" ? "border-destructive" : "border-border",
+        "flex gap-3 rounded-lg border px-4 py-3",
+        kind === "error" ? "border-destructive" : "border-transparent bg-muted",
       ].join(" ")}
     >
       <Icon
         className={[
           "mt-0.5 size-4 shrink-0",
-          kind === "error" ? "text-destructive" : "text-muted-foreground",
+          kind === "error" ? "text-foreground" : "text-muted-foreground",
         ].join(" ")}
         aria-hidden="true"
       />
       <p className="text-sm leading-relaxed">
-        <span className="font-medium">{failure.title}</span>{" "}
-        <span className="text-muted-foreground">{failure.detail}</span>
+        <span className={kind === "error" ? "font-semibold" : "font-medium"}>{failure.title}</span>{" "}
+        <span className={kind === "error" ? "" : "text-muted-foreground"}>{failure.detail}</span>
       </p>
     </div>
   )
