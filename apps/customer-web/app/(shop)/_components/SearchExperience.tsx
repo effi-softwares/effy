@@ -46,7 +46,14 @@ const SORT_LABELS: Record<ProductSort, string> = {
 
 const PAGE_SIZE = 24
 
-export function SearchExperience() {
+/** What the page needs to NAME a category: its own name and where it sits. */
+export interface CategoryName {
+  key: string
+  name: string
+  parentKey: string | null
+}
+
+export function SearchExperience({ categories = [] }: { categories?: readonly CategoryName[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -132,6 +139,24 @@ export function SearchExperience() {
 
   // value → label lookup per facet, so a chip reads "Vegan", not "vegan" (FR-012). A selected value is
   // always present in its facet (own-selection is excluded from that facet's counts), so it resolves.
+  /**
+   * The chosen category and the aisles above it, outermost first.
+   *
+   * ⚠ FROM THE CATEGORY TREE, NOT FROM THE FACET COUNTS. The counts only list categories that have a
+   * product filed DIRECTLY in them, and an aisle ("Fruit & veg") holds everything in its sub-aisles
+   * and nothing itself — so naming the page from the counts called every such aisle "All products"
+   * and labelled its filter chip with the raw key.
+   */
+  const categoryTrail = useMemo(() => {
+    const byKey = new Map(categories.map((c) => [c.key, c]))
+    const trail: CategoryName[] = []
+    // Bounded: a malformed tree must not be able to loop this.
+    for (let c = category ? byKey.get(category) : undefined; c && trail.length < 8; c = c.parentKey ? byKey.get(c.parentKey) : undefined) {
+      trail.unshift(c)
+    }
+    return trail
+  }, [categories, category])
+
   const facetLabel = useMemo(() => {
     const m: Record<string, Record<string, string>> = {}
     for (const f of facetSet?.facets ?? []) m[f.key] = Object.fromEntries(f.options.map((o) => [o.value, o.label]))
@@ -142,7 +167,7 @@ export function SearchExperience() {
   const chips = useMemo(() => {
     const out: { key: string; label: string; remove: () => void }[] = []
     if (category)
-      out.push({ key: "cat", label: facetLabel.category?.[category] ?? category, remove: () => setParam({ category: null }) })
+      out.push({ key: "cat", label: categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? category, remove: () => setParam({ category: null }) })
     for (const b of brands) out.push({ key: `brand:${b}`, label: b, remove: () => toggleParamValue("brand", b) })
     for (const [k, vals] of Object.entries(attributes))
       for (const v of vals)
@@ -153,7 +178,7 @@ export function SearchExperience() {
       out.push({ key: "price", label, remove: () => setParam({ minPrice: null, maxPrice: null }) })
     }
     return out
-  }, [category, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
+  }, [category, categoryTrail, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
 
   // ── Request builders ──────────────────────────────────────────────────────────────────────────
   const filterParams = useCallback(() => {
@@ -279,7 +304,7 @@ export function SearchExperience() {
     />
   )
 
-  const aisleName = category ? (facetLabel.category?.[category] ?? null) : null
+  const aisleName = category ? (categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? null) : null
   const heading = q.trim()
     ? `Results for “${q.trim()}”`
     : aisleName
@@ -289,7 +314,13 @@ export function SearchExperience() {
         : "All products"
   const crumbs: Crumb[] = [{ label: "Home", href: "/" }]
   if (q.trim()) crumbs.push({ label: "Search" })
-  else if (aisleName || saleOnly) crumbs.push({ label: "All products", href: "/search" }, { label: heading })
+  else if (aisleName || saleOnly)
+    crumbs.push(
+      { label: "All products", href: "/search" },
+      // The aisles above the one being shown, each a way back up.
+      ...categoryTrail.slice(0, -1).map((c) => ({ label: c.name, href: `/search?category=${encodeURIComponent(c.key)}` })),
+      { label: heading },
+    )
   else crumbs.push({ label: "All products" })
 
   return (
