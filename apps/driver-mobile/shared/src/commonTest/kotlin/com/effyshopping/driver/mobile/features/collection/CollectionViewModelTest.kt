@@ -10,7 +10,10 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
 import com.effyshopping.driver.mobile.features.collection.domain.GetCollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
-import com.effyshopping.driver.mobile.features.collection.domain.ReportCollectionIssue
+import com.effyshopping.driver.mobile.features.collection.domain.CollectionPackage
+import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
+import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
+import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionViewModel
@@ -30,12 +33,13 @@ private class FakeCollectionRepo(
 ) : CollectionRepository {
     var collectedStop: String? = null
     override suspend fun getRun(runId: String): CollectionRun = fail?.let { throw AppException(it) } ?: run!!
+    var packages: List<CollectionPackage> = emptyList()
+    var outcomes: List<PackageOutcome>? = null
     override suspend fun getStop(runId: String, stopId: String): ShopStop =
-        ShopStop(stopId, "Shop", "S1", emptyList(), StopStatus.ASSIGNED)
-    override suspend fun collect(runId: String, stopId: String, changeId: String) {
-        fail?.let { throw AppException(it) }; collectedStop = stopId
+        ShopStop(stopId, "Shop", "S1", packages, StopStatus.ASSIGNED)
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>) {
+        fail?.let { throw AppException(it) }; collectedStop = stopId; this.outcomes = outcomes
     }
-    override suspend fun reportIssue(runId: String, stopId: String, kind: String, note: String?, changeId: String) {}
     override suspend fun checkIn(runId: String, changeId: String): HubSplit = fail?.let { throw AppException(it) } ?: split!!
 }
 
@@ -47,7 +51,6 @@ class CollectionViewModelTest {
         getRun = GetCollectionRun(repo),
         getStop = GetShopStop(repo),
         collectStop = CollectStop(repo),
-        reportIssue = ReportCollectionIssue(repo),
         checkInHub = CheckInHub(repo),
         newChangeId = { "cid" },
     )
@@ -74,6 +77,40 @@ class CollectionViewModelTest {
         v.collect("s1") { done = true }
         assertEquals("s1", repo.collectedStop)
         assertEquals(true, done)
+    }
+
+    private fun pkg(id: String) = CollectionPackage(
+        ref = "EFY-$id", destinationSuburb = "Carlton", method = PackageMethod.SAME_DAY,
+        items = emptyList(), summary = ClassSummary.Empty, packageId = id,
+    )
+
+    /**
+     * A report names ITS package and rides the collect. It used to be a request of its own that named
+     * none, which the platform reads as every package at the stop.
+     */
+    @Test fun a_reported_package_is_sent_as_not_collected_and_the_rest_as_collected() = runTest {
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a"), pkg("b")) }
+        val v = vm(repo); v.loadStop("s1")
+        v.togglePackage("a")
+        v.reportPackage("b", "Damaged", "box crushed")
+        v.collect("s1") {}
+        assertEquals(
+            listOf(PackageOutcome("a", true, null), PackageOutcome("b", false, "Damaged — box crushed")),
+            repo.outcomes,
+        )
+    }
+
+    /** Coming back from the problem screen opens the same stop again; the ticks must still be there. */
+    @Test fun reopening_the_same_stop_keeps_ticks_and_a_different_stop_drops_them() = runTest {
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a"), pkg("b")) }
+        val v = vm(repo); v.loadStop("s1")
+        v.togglePackage("a"); v.reportPackage("b", "Damaged", null)
+        v.loadStop("s1")
+        assertEquals(setOf("a"), v.state.value.confirmedPackageIds)
+        assertEquals(setOf("b"), v.state.value.reportedPackages.keys)
+        v.loadStop("s2")
+        assertEquals(emptySet(), v.state.value.confirmedPackageIds)
+        assertEquals(emptyMap(), v.state.value.reportedPackages)
     }
 
     @Test fun check_in_stores_the_split() = runTest {

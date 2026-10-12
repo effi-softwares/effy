@@ -9,6 +9,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
+import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
@@ -89,6 +90,19 @@ class DeliveryViewModel(
         }
     }
 
+    /**
+     * A drop was just delivered or failed: read the round again so the count of drops left, and which
+     * drop is next, do not still include it. Best-effort — the drop is closed whether or not this reads.
+     */
+    private suspend fun refreshRunAfterClose() {
+        runCatching { getRun(runId) }.onSuccess { fresh -> _state.update { it.copy(run = fresh) } }
+    }
+    /** The next drop still to do on this round after [dropId], in round order; null when none. */
+    fun nextOpenDrop(dropId: String): String? =
+        _state.value.run?.drops
+            ?.filter { it.dropId != dropId && it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED }
+            ?.minByOrNull { it.sequence }
+            ?.dropId
     fun loadRun() {
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
@@ -151,6 +165,7 @@ class DeliveryViewModel(
         viewModelScope.launch {
             try {
                 action()
+                refreshRunAfterClose()
                 _state.update { it.copy(isWorking = false, delivered = true) }
             } catch (e: AppException) {
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }
@@ -164,6 +179,7 @@ class DeliveryViewModel(
         viewModelScope.launch {
             try {
                 failDrop(dropId, reason, note, newChangeId())
+                refreshRunAfterClose()
                 _state.update { it.copy(isWorking = false, failed = true) }
             } catch (e: AppException) {
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }

@@ -2,6 +2,7 @@ package com.effyshopping.driver.mobile.features.today.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.presentation.userMessage
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
@@ -76,7 +77,12 @@ class TodayViewModel(
     private suspend fun refreshQuietly() {
         val now = _state.value
         if (now.dutyStatus != DutyStatus.ON_DUTY || now.isLoading) return
-        runCatching { getToday() }.onSuccess { fresh -> _state.update { it.copy(today = fresh) } }
+        // The channel also speaks when it reconnects — the moment queued writes can be sent (FR-040).
+        // Until now they waited for the driver to pull to refresh on this one screen.
+        runCatching { syncFlush() }
+        runCatching { getToday() }.onSuccess { fresh ->
+            _state.update { it.copy(today = fresh, loadFailed = false, offline = false) }
+        }
     }
 
     fun refresh() {
@@ -85,9 +91,20 @@ class TodayViewModel(
         viewModelScope.launch {
             runCatching { syncFlush() } // drain any queued offline writes before re-reading (FR-040)
             try {
-                _state.update { it.copy(today = getToday(), isLoading = false) }
+                _state.update { it.copy(today = getToday(), isLoading = false, loadFailed = false, offline = false) }
             } catch (e: AppException) {
-                _state.update { it.copy(isLoading = false, message = e.error.userMessage()) }
+                // ⚠ With nothing to show, a failed read is the error screen. It used to fall through
+                // to the idle body, which told a driver whose run did not load "You're all caught up".
+                _state.update {
+                    // With a round already on screen, no connection is the offline banner over it.
+                    val offline = e.error == AppError.Network && it.today != null
+                    it.copy(
+                        isLoading = false,
+                        message = if (offline) null else e.error.userMessage(),
+                        loadFailed = it.today == null,
+                        offline = offline,
+                    )
+                }
             }
         }
     }
@@ -101,7 +118,7 @@ class TodayViewModel(
                 val driver: Driver = setDuty(goingOn, newChangeId())
                 _state.update { it.copy(dutyStatus = driver.dutyStatus, isTogglingDuty = false) }
                 if (driver.dutyStatus == DutyStatus.ON_DUTY) refresh()
-                else _state.update { it.copy(today = null) }
+                else _state.update { it.copy(today = null, loadFailed = false) }
             } catch (e: AppException) {
                 _state.update { it.copy(isTogglingDuty = false, message = e.error.userMessage()) }
             }

@@ -16,6 +16,8 @@ data class CollectionStop(
     val shopCode: String,
     val packageCount: Int,
     val status: StopStatus,
+    /** 063 — the shop's street address in one line; null when the shop has none. */
+    val address: String? = null,
 )
 
 data class CollectionRun(
@@ -45,7 +47,14 @@ data class CollectionPackage(
     val toCourier: Boolean? = null,
     /** 082 — the day and window an Effy parcel is for, in the server's words; null when none. */
     val windowLabel: String? = null,
+    /**
+     * The package's own id — what a collect names when it says which package was left behind. Null
+     * from a server that does not send it yet; such a package cannot be reported from the app.
+     */
+    val packageId: String? = null,
 ) {
+    /** What the screen keys a package's tick or report by. */
+    val key: String get() = packageId ?: ref
     /** Who takes it from the hub, in the two words a driver reads (082). */
     val goesToCourier: Boolean get() = toCourier ?: (method != PackageMethod.SAME_DAY)
 }
@@ -58,6 +67,8 @@ data class ShopStop(
     val status: StopStatus,
     /** 072 — when this stop's round opens; null = open. */
     val opening: Opening? = null,
+    /** 063 — the shop's street address in one line; null when the shop has none. */
+    val address: String? = null,
     /**
      * 065 — true when this is the LAST LOADED copy, served because the device has no connection.
      * The items are real; anything the shop changed since is not reflected, and the screen says so.
@@ -100,11 +111,16 @@ data class HubSplit(
  */
 data class EffyGroup(val label: String, val count: Int, val dueToday: Boolean)
 
+/**
+ * What happened to one package at a stop, sent WITH the collect (063 FR-026) so the platform never
+ * believes a package is in the van when it was left at the shop.
+ */
+data class PackageOutcome(val packageId: String, val collected: Boolean, val note: String? = null)
 interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun
     suspend fun getStop(runId: String, stopId: String): ShopStop
-    suspend fun collect(runId: String, stopId: String, changeId: String)
-    suspend fun reportIssue(runId: String, stopId: String, kind: String, note: String?, changeId: String)
+    /** [outcomes] empty = every package at the stop was collected. */
+    suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList())
     suspend fun checkIn(runId: String, changeId: String): HubSplit
 }
 
@@ -115,11 +131,8 @@ class GetShopStop(private val repo: CollectionRepository) {
     suspend operator fun invoke(runId: String, stopId: String) = repo.getStop(runId, stopId)
 }
 class CollectStop(private val repo: CollectionRepository) {
-    suspend operator fun invoke(runId: String, stopId: String, changeId: String) = repo.collect(runId, stopId, changeId)
-}
-class ReportCollectionIssue(private val repo: CollectionRepository) {
-    suspend operator fun invoke(runId: String, stopId: String, kind: String, note: String?, changeId: String) =
-        repo.reportIssue(runId, stopId, kind, note, changeId)
+    suspend operator fun invoke(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList()) =
+        repo.collect(runId, stopId, changeId, outcomes)
 }
 class CheckInHub(private val repo: CollectionRepository) {
     suspend operator fun invoke(runId: String, changeId: String) = repo.checkIn(runId, changeId)

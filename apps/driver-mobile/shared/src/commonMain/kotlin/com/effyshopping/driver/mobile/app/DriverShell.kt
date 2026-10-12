@@ -54,6 +54,11 @@ import com.effyshopping.driver.mobile.features.onboarding.PermissionDeniedScreen
 import com.effyshopping.driver.mobile.features.account.HelpScreen
 import com.effyshopping.driver.mobile.features.account.AppearanceScreen
 import com.effyshopping.driver.mobile.core.nav.PermissionDeniedRoute
+import com.effyshopping.driver.mobile.core.observability.AnalyticsEvent
+import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
+import com.effyshopping.driver.mobile.features.today.domain.TodayItem
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import com.effyshopping.driver.mobile.core.nav.HelpRoute
 import com.effyshopping.driver.mobile.core.nav.AppearanceRoute
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionRunScreen
@@ -140,27 +145,30 @@ fun DriverShell(
         ) { route ->
             when (route) {
                 TodayRoot -> {
-                    val vm = viewModel {
-                        TodayViewModel(
-                            initialDuty = session.driver.dutyStatus,
-                            getToday = container.getToday,
-                            setDuty = container.setDuty,
-                            newChangeId = container::newChangeId,
-                            syncFlush = { container.syncCoordinator.flush() },
-                            liveChanges = container.live.changes(LiveKind.WORK),
-                        )
-                    }
+                    // One ViewModel for Today, the Map and the sign-out question — keyed, so the three
+                    // read one copy of the driver's work instead of fetching it three times.
+                    val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
                     androidx.compose.foundation.layout.Column {
                         // 071 FR-015 — if the live channel cannot be held, say so: a work list that
                         // has stopped updating must not look current. Nothing is shown while live.
                         LiveStatusLine(container.live, onRefresh = vm::refresh)
+                        PendingWritesLine(container)
                         TodayScreen(
                             driver = session.driver,
                             state = state,
-                            onToggleDuty = vm::toggleDuty,
+                            onToggleDuty = {
+                                container.analyticsDriver.capture(
+                                    AnalyticsEvent.DutyToggled(on = state.dutyStatus == DutyStatus.OFF_DUTY),
+                                )
+                                vm.toggleDuty()
+                            },
                             onRefresh = vm::refresh,
                             onOpenRun = { runId, phase ->
+                                container.analyticsDriver.capture(
+                                    if (phase == Phase.COLLECTION) AnalyticsEvent.CollectionRunOpened(runId)
+                                    else AnalyticsEvent.DeliveryRunOpened(runId),
+                                )
                                 tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
                             },
                             onOpenActivity = { tabs.push(ActivityRoute) },
@@ -200,30 +208,33 @@ fun DriverShell(
                 is ShopStopRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    // ⚠ Clearing on stopId change is what stops one stop's ticks appearing at the
-                    // next: the ViewModel is keyed per RUN, not per stop, so the set outlives a stop.
-                    androidx.compose.runtime.LaunchedEffect(route.stopId) {
-                        vm.clearConfirmations()
-                        vm.loadStop(route.stopId)
-                    }
+                    // The ViewModel is keyed per RUN, so `loadStop` is what drops one stop's ticks when
+                    // a different stop opens — and keeps them when this one is come back to.
+                    androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
                     ShopStopScreen(
                         state = st,
                         onBack = { tabs.pop() },
-                        onCollect = { vm.collect(route.stopId) { tabs.pop() } },
+                        onCollect = {
+                            vm.collect(route.stopId) {
+                                container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
+                                tabs.pop()
+                            }
+                        },
                         onTogglePackage = vm::togglePackage,
                         onOpenProblem = { tabs.push(ShopProblemRoute(route.runId, route.stopId)) },
                         onRetry = { vm.loadStop(route.stopId) },
+                        onNavigate = { address -> mapLauncher.navigateTo(address) },
                     )
                 }
                 is ShopProblemRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
+                    // No load of its own: it reports on the stop the driver came from, already held.
                     ShopProblemScreen(
                         state = st,
                         onBack = { tabs.pop() },
-                        onSubmit = { ref, kind, note ->
-                            vm.reportPackage(route.stopId, ref, kind, note)
+                        onSubmit = { key, kind, note ->
+                            vm.reportPackage(key, kind, note)
                             tabs.pop()
                         },
                     )
@@ -234,7 +245,10 @@ fun DriverShell(
                     HubCheckinScreen(
                         state = st,
                         onBack = { tabs.pop() },
-                        onCheckIn = { vm.checkIn() },
+                        onCheckIn = {
+                            container.analyticsDriver.capture(AnalyticsEvent.HubCheckedIn(route.runId))
+                            vm.checkIn()
+                        },
                         onDone = { while (tabs.canGoBack) tabs.pop() },
                     )
                 }
@@ -258,58 +272,73 @@ fun DriverShell(
                         onBack = { tabs.pop() },
                         onNavigate = { address -> mapLauncher.navigateTo(address) },
                         onAdvance = { to -> vm.advance(route.dropId, to) },
-                        onDeliverContactless = { bytes, note -> vm.deliverContactless(route.dropId, bytes, note) },
-                        onDeliverPhoto = { bytes, note -> vm.deliverWithPhoto(route.dropId, bytes, note) },
-                        onDeliverSignature = { bytes, note -> vm.deliverWithSignature(route.dropId, bytes, note) },
+                        onDeliverContactless = { bytes, note ->
+                            container.analyticsDriver.capture(AnalyticsEvent.DropCompleted("contactless"))
+                            vm.deliverContactless(route.dropId, bytes, note)
+                        },
+                        onDeliverPhoto = { bytes, note ->
+                            container.analyticsDriver.capture(AnalyticsEvent.DropCompleted("photo"))
+                            vm.deliverWithPhoto(route.dropId, bytes, note)
+                        },
+                        onDeliverSignature = { bytes, note ->
+                            container.analyticsDriver.capture(AnalyticsEvent.DropCompleted("signature"))
+                            vm.deliverWithSignature(route.dropId, bytes, note)
+                        },
+                        // The camera was refused: say what is lost and how to turn it back on.
+                        onCameraDenied = { tabs.push(PermissionDeniedRoute) },
                         onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
-                        onNext = { tabs.pop() },
+                        // ⚠ "Next drop" used to do exactly what "Back to run" does.
+                        onNext = {
+                            val next = vm.nextOpenDrop(route.dropId)
+                            tabs.pop()
+                            if (next != null) tabs.push(DropRoute(route.runId, next))
+                        },
+                        onBackToRun = { tabs.pop() },
                         reducedMotion = reducedMotion,
                         onRetry = { vm.loadDrop(route.dropId) },
                     )
                 }
 
                 MapRoot -> {
-                    // ⚠ The map derives its stops from the runs the driver ALREADY has, so it
-                    // carries no fetch of its own and cannot disagree with Today. Positions are
-                    // placeholder (register: map.markerCoordinates) — the cartography is real.
-                    var mapMode by rememberSaveable { mutableStateOf(MapMode.COLLECTION) }
-                    val todayVm = viewModel(key = "today") {
-                        TodayViewModel(
-                            initialDuty = session.driver.dutyStatus,
-                            getToday = container.getToday,
-                            setDuty = container.setDuty,
-                            newChangeId = container::newChangeId,
-                            syncFlush = { container.syncCoordinator.flush() },
-                            liveChanges = container.live.changes(LiveKind.WORK),
-                        )
-                    }
+                    // ⚠ The map draws the round the driver ALREADY has, from the same ViewModel Today
+                    // uses — it carries no read of its own and cannot disagree with Today.
+                    // Null = follow the phase the driver is in; a tap on a mode pins it.
+                    var pickedMode by rememberSaveable { mutableStateOf<MapMode?>(null) }
+                    val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
                     val todaySt by todayVm.state.collectAsState()
                     val today = todaySt.today
-
-                    val stops = buildList {
-                        today?.active?.let {
-                            add(MapStop(it.id, 1, it.title, it.subtitle.orEmpty()))
-                        }
-                        today?.upNext?.forEachIndexed { i, item ->
-                            add(MapStop(item.id, i + 2, item.title, item.subtitle.orEmpty()))
-                        }
-                        if (mapMode == MapMode.COLLECTION) {
-                            session.driver.hub?.takeIf { it.isNotBlank() }?.let {
-                                add(MapStop("hub", 0, it, "Check in every package · ends the run", isHub = true))
-                            }
-                        }
+                    val mapMode = pickedMode
+                        ?: if (today?.phase == Phase.SAME_DAY_DELIVERY) MapMode.SAME_DAY else MapMode.COLLECTION
+                    // ⚠ A mode shows ITS round only. Both modes used to list whatever Today held, so
+                    // "Delivery" showed the shops of a collection round.
+                    val modeIsCurrent = when (mapMode) {
+                        MapMode.COLLECTION -> today?.phase == Phase.COLLECTION
+                        MapMode.SAME_DAY -> today?.phase == Phase.SAME_DAY_DELIVERY
                     }
-
+                    val items = if (modeIsCurrent) listOfNotNull(today?.active) + today?.upNext.orEmpty() else emptyList()
+                    val stops = items.mapIndexed { i, item ->
+                        val isHub = item.kind == TodayItem.Kind.HUB_CHECKIN
+                        MapStop(
+                            id = item.id,
+                            sequence = i + 1,
+                            title = if (isHub) session.driver.hub?.takeIf { it.isNotBlank() } ?: item.title else item.title,
+                            subtitle = if (isHub) "Check in every package · ends the run" else item.subtitle.orEmpty(),
+                            isHub = isHub,
+                        )
+                    }
                     MapScreen(
                         state = MapUiState(mode = mapMode, stops = stops),
-                        onModeChange = { mapMode = it },
+                        onModeChange = { pickedMode = it },
+                        // ⚠ Opens the stop that was tapped. Every row used to open the whole run.
                         onOpenStop = { stop ->
-                            today?.activeRunId?.let { runId ->
-                                if (mapMode == MapMode.COLLECTION) {
-                                    tabs.push(CollectionRunRoute(runId))
-                                } else {
-                                    tabs.push(DeliveryRunRoute(runId))
-                                }
+                            items.firstOrNull { it.id == stop.id }?.let { item ->
+                                tabs.push(
+                                    when (item.kind) {
+                                        TodayItem.Kind.COLLECTION_STOP -> ShopStopRoute(item.runId, item.id)
+                                        TodayItem.Kind.HUB_CHECKIN -> CollectionRunRoute(item.runId)
+                                        TodayItem.Kind.DELIVERY_DROP -> DropRoute(item.runId, item.id)
+                                    },
+                                )
                             }
                         },
                     )
@@ -330,20 +359,34 @@ fun DriverShell(
                     androidx.compose.runtime.LaunchedEffect(route.id) { vm.loadDetail(route.kind, route.id) }
                     HistoryDetailScreen(state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() })
                 }
-                AccountRoot -> AccountScreen(
-                    driver = session.driver,
-                    appearanceMode = appearanceMode,
-                    signingOut = signingOut,
-                    onOpenAppearance = { tabs.push(AppearanceRoute) },
-                    onOpenHelp = { tabs.push(HelpRoute) },
-                    onSignOut = {
-                        if (!signingOut) {
-                            signingOut = true
-                            tabs.resetForSignOut(DriverTab.TODAY)
-                            scope.launch { container.session.signOutLocally() }
-                        }
-                    },
-                )
+                AccountRoot -> {
+                    val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
+                    val todaySt by todayVm.state.collectAsState()
+                    AccountScreen(
+                        // The duty row follows the toggle, not the value the session started with.
+                        driver = session.driver.copy(dutyStatus = todaySt.dutyStatus),
+                        appearanceMode = appearanceMode,
+                        signingOut = signingOut,
+                        onOpenAppearance = { tabs.push(AppearanceRoute) },
+                        onOpenHelp = { tabs.push(HelpRoute) },
+                        outstandingWork = todaySt.today?.remainingCount,
+                        onSignOut = {
+                            if (!signingOut) {
+                                signingOut = true
+                                tabs.resetForSignOut(DriverTab.TODAY)
+                                scope.launch {
+                                    // ⚠ The dialog says signing out sets the driver off duty, and
+                                    // nothing did: a signed-out driver stayed on duty and kept being
+                                    // given work. Best-effort — signing out never waits on it.
+                                    if (todaySt.dutyStatus == DutyStatus.ON_DUTY) {
+                                        runCatching { container.setDuty(false, container.newChangeId()) }
+                                    }
+                                    container.session.signOutLocally()
+                                }
+                            }
+                        },
+                    )
+                }
                 AppearanceRoute -> AppearanceScreen(
                     mode = appearanceMode,
                     onModeChange = container.appearance::setMode,
@@ -351,6 +394,7 @@ fun DriverShell(
                 )
                 HelpRoute -> HelpScreen(driver = session.driver, onBack = { tabs.pop() })
                 PermissionDeniedRoute -> PermissionDeniedScreen(onBack = { tabs.pop() })
+
                 // ⚠ `ComingSoonScreen` is DELETED (FR-003, SC-002): no destination in this app may
                 // show a placeholder. This branch is unreachable — every AppNavKey above is
                 // handled and RouteSerializerGuardTest enumerates them — so it renders nothing
@@ -402,12 +446,38 @@ private fun RailAvatar(initials: String) {
     }
 }
 
+private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) = TodayViewModel(
+    initialDuty = session.driver.dutyStatus,
+    getToday = container.getToday,
+    setDuty = container.setDuty,
+    newChangeId = container::newChangeId,
+    syncFlush = { container.syncCoordinator.flush() },
+    liveChanges = container.live.changes(LiveKind.WORK),
+)
+
+/**
+ * Says when something the driver did has not reached the platform yet. ⚠ The offline queue has held
+ * such writes since 049 and showed them nowhere, so a driver could not tell a queued collect from a
+ * lost one.
+ */
+@Composable
+private fun PendingWritesLine(container: AppContainer) {
+    val pending by container.offlineQueue.pending.collectAsState()
+    if (pending.isEmpty()) return
+    Text(
+        if (pending.size == 1) "1 update saved on this phone — it sends when you reconnect."
+        else "${pending.size} updates saved on this phone — they send when you reconnect.",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+    )
+}
+
 private fun newCollectionVm(container: AppContainer, runId: String) = CollectionViewModel(
     runId = runId,
     getRun = container.getCollectionRun,
     getStop = container.getShopStop,
     collectStop = container.collectStop,
-    reportIssue = container.reportCollectionIssue,
     checkInHub = container.checkInHub,
     newChangeId = container::newChangeId,
     liveChanges = container.live.changes(LiveKind.WORK),

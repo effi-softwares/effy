@@ -265,6 +265,12 @@ export interface ManifestLine {
 }
 
 export interface CollectionPackage {
+  /**
+   * The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was on the
+   * wire the app could not say WHICH package a report was about, so it sent none and the whole stop
+   * was marked unavailable. Optional only so an app built against it still reads an older server.
+   */
+  packageId?: string;
   ref: string; // the order number the package belongs to
   destinationSuburb: string;
   /** @deprecated 082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9). */

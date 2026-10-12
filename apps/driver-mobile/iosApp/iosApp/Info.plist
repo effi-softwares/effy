@@ -4,5 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Effy Driver uses the camera to photograph proof of delivery.</string>
 </dict>
 </plist>

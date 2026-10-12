@@ -12,22 +12,15 @@ import com.effyshopping.driver.mobile.core.placeholder.operational
  */
 object DeliveryPlaceholders {
 
-    /**
-     * ⚠ Design: "12:30–1:00" against every drop. **052 R4 settled this**: the platform's delivery
-     * promise is *date-granular*. There is no time window and none can be derived — a driver
-     * reading one would repeat it to a customer as a commitment Effy has not made.
-     */
-    val deliveryWindow: Sourced<Nothing?> = operational("A delivery time-window model (052 R4)")
-
     /** ⚠ Design: "ETA 12:41" on the drop card and the en-route sheet. */
     val dropEta: Sourced<Nothing?> = operational("A routing provider + address geocoding")
 
     /** ⚠ Design: "3.9 km" on the en-route sheet. */
     val dropDistance: Sourced<Nothing?> = operational("Address geocoding")
 
-    /** The en-route and drop-card map panels. Real cartography lands in Phase 5; pins do not. */
+    /** The en-route map panel: neutral. Real cartography was built and removed (see `EffyMapCanvas`). */
     val mapPanel: Sourced<String> =
-        decorative("map-pending", "Phase 5 (MapLibre + OpenFreeMap) and address geocoding for pins")
+        decorative("map-pending", "A map renderer that runs under Xcode's debug build, and address geocoding for pins")
 
     /**
      * ⚠ Design: "27 Rathdowne St · 22 Aug 12:44 pm AEST" under the viewfinder. The address is real

@@ -38,7 +38,6 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectStop
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRepository
 import com.effyshopping.driver.mobile.features.collection.domain.GetCollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
-import com.effyshopping.driver.mobile.features.collection.domain.ReportCollectionIssue
 import com.effyshopping.driver.mobile.features.delivery.data.HttpDeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
@@ -120,7 +119,6 @@ class AppContainer(
     val getCollectionRun by lazy { GetCollectionRun(collection) }
     val getShopStop by lazy { GetShopStop(collection) }
     val collectStop by lazy { CollectStop(collection) }
-    val reportCollectionIssue by lazy { ReportCollectionIssue(collection) }
     val checkInHub by lazy { CheckInHub(collection) }
 
     // same-day delivery (US2)

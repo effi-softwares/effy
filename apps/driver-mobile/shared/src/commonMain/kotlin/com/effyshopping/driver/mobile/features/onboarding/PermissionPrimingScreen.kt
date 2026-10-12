@@ -34,7 +34,7 @@ import com.effyshopping.driver.mobile.core.platform.rememberCorePermissionReques
 
 /**
  * Permission priming (049 US1, FR-004). Explains — in plain words, BEFORE the OS prompts — why the app
- * needs location, notifications and camera. "Allow access" triggers the system dialogs; "Not now" skips
+ * needs notifications and the camera. "Allow access" triggers the system dialogs; "Not now" skips
  * (a driver can grant later from settings, and the permission-denied recovery path guides them). Shown
  * once after first sign-in.
  */
@@ -51,7 +51,7 @@ fun PermissionPrimingScreen(onContinue: () -> Unit) {
         // declines.
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            repeat(3) { index ->
+            repeat(2) { index ->
                 Box(
                     Modifier
                         .weight(1f)
@@ -69,7 +69,7 @@ fun PermissionPrimingScreen(onContinue: () -> Unit) {
         }
         Spacer(Modifier.height(30.dp))
         Text(
-            "Three things Effy needs",
+            "Two things Effy needs",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -82,8 +82,6 @@ fun PermissionPrimingScreen(onContinue: () -> Unit) {
         Spacer(Modifier.height(24.dp))
 
         Column {
-            Rationale("Location", "To match you with nearby work and navigate to your stops.")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Rationale("Notifications", "To let you know the moment new work is assigned.")
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Rationale("Camera", "To capture proof of delivery when you drop off an order.")

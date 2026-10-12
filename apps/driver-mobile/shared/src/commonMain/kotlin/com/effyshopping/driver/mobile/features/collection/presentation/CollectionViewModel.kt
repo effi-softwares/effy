@@ -10,7 +10,7 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.GetCollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
-import com.effyshopping.driver.mobile.features.collection.domain.ReportCollectionIssue
+import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -38,14 +38,20 @@ data class CollectionUiState(
      * than discovered on a loading dock.
      */
     val confirmedPackageIds: Set<String> = emptySet(),
+    /** Packages the driver said they are NOT collecting, by [CollectionPackage.key]. Sent with the collect. */
+    val reportedPackages: Map<String, PackageProblem> = emptyMap(),
 )
+
+/** What is wrong with a package the driver is leaving at the shop. [kind] is the words they chose. */
+data class PackageProblem(val kind: String, val note: String?) {
+    fun asNote(): String = listOfNotNull(kind, note).joinToString(" — ")
+}
 
 class CollectionViewModel(
     private val runId: String,
     private val getRun: GetCollectionRun,
     private val getStop: GetShopStop,
     private val collectStop: CollectStop,
-    private val reportIssue: ReportCollectionIssue,
     private val checkInHub: CheckInHub,
     private val newChangeId: () -> String,
     /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
@@ -86,7 +92,15 @@ class CollectionViewModel(
     }
 
     fun loadStop(stopId: String) {
-        _state.update { it.copy(isLoading = true, stop = null, message = null) }
+        // ⚠ Ticks and reports belong to ONE stop. They are dropped when a different stop opens — and
+        // kept when the same one is opened again, which is what coming back from the problem screen is.
+        _state.update {
+            if (it.stop?.stopId == stopId) it.copy(isLoading = true, message = null)
+            else it.copy(
+                isLoading = true, stop = null, message = null,
+                confirmedPackageIds = emptySet(), reportedPackages = emptyMap(),
+            )
+        }
         viewModelScope.launch {
             try {
                 _state.update { it.copy(stop = getStop(runId, stopId), isLoading = false) }
@@ -96,12 +110,22 @@ class CollectionViewModel(
         }
     }
 
+    /**
+     * Commit the stop. ⚠ Every package's outcome goes IN this one request (063 FR-026): a package the
+     * driver reported is sent as not collected with what was wrong, and the rest as collected.
+     */
     fun collect(stopId: String, onDone: () -> Unit) {
         if (_state.value.isWorking) return
+        val now = _state.value
+        val outcomes = now.stop?.takeIf { it.stopId == stopId }?.packages.orEmpty().mapNotNull { pkg ->
+            val id = pkg.packageId ?: return@mapNotNull null
+            val problem = now.reportedPackages[pkg.key]
+            PackageOutcome(packageId = id, collected = problem == null, note = problem?.asNote())
+        }
         _state.update { it.copy(isWorking = true, message = null) }
         viewModelScope.launch {
             try {
-                collectStop(runId, stopId, newChangeId())
+                collectStop(runId, stopId, newChangeId(), outcomes)
                 _state.update { it.copy(isWorking = false) }
                 onDone()
             } catch (e: AppException) {
@@ -111,50 +135,31 @@ class CollectionViewModel(
     }
 
     /**
-     * Tick or untick one package at the current stop (060 FR-019).
-     *
-     * ⚠ **Local only — this sends nothing.** The platform has no per-package collect endpoint, and
-     * 060 is a presentation slice (FR-024). The single `collect` call still fires on the swipe
-     * commit. Stated consequence: the ticks do not survive process death.
+     * Tick or untick one package at the current stop (060 FR-019). A memory aid while loading: the
+     * stop screen asks before committing with a package neither ticked nor reported. Ticking a
+     * reported package withdraws the report — it is in the van after all.
      */
-    fun togglePackage(ref: String) {
+    fun togglePackage(key: String) {
         _state.update { st ->
             val next = st.confirmedPackageIds.toMutableSet()
-            if (!next.add(ref)) next.remove(ref)
-            st.copy(confirmedPackageIds = next)
+            if (!next.add(key)) next.remove(key)
+            st.copy(confirmedPackageIds = next, reportedPackages = st.reportedPackages - key)
         }
     }
 
-    /** Clear the tick state when moving to a different stop, so it cannot bleed across stops. */
-    fun clearConfirmations() {
-        _state.update { it.copy(confirmedPackageIds = emptySet()) }
-    }
-
     /**
-     * Report a missing or short package (060 FR-021).
+     * Record that one package is not being collected, and why (060 FR-021).
      *
-     * ⚠ **The package reference is carried IN THE NOTE, not as its own field.** `reportIssue` has
-     * no package parameter — 049 built it as a stop-level report — and adding one would be backend
-     * work this slice excludes. Prefixing the note keeps the driver's answer legible to whoever
-     * reads it in back-office, which is the only consumer today. Recorded rather than left as a
-     * quiet encoding: a later slice that adds a real column should strip this prefix.
+     * ⚠ NOTHING IS SENT HERE. The report rides the stop's collect, so it can never arrive without
+     * the collect or the collect without it. Until this, the report was its own request that named no
+     * package, and the platform marked every package at the stop unavailable.
      */
-    fun reportPackage(stopId: String, packageRef: String?, kind: String, note: String?) {
-        val composed = listOfNotNull(
-            packageRef?.takeIf { it.isNotBlank() }?.let { "Package $it" },
-            note?.takeIf { it.isNotBlank() },
-        ).joinToString(" — ").ifBlank { null }
-        report(stopId, kind, composed)
-    }
-
-    fun report(stopId: String, kind: String, note: String?) {
-        viewModelScope.launch {
-            try {
-                reportIssue(runId, stopId, kind, note, newChangeId())
-                _state.update { it.copy(message = "Reported. Collect the rest as normal.") }
-            } catch (e: AppException) {
-                _state.update { it.copy(message = e.error.userMessage()) }
-            }
+    fun reportPackage(key: String, kind: String, note: String?) {
+        _state.update { st ->
+            st.copy(
+                reportedPackages = st.reportedPackages + (key to PackageProblem(kind, note?.takeIf { it.isNotBlank() })),
+                confirmedPackageIds = st.confirmedPackageIds - key,
+            )
         }
     }
 

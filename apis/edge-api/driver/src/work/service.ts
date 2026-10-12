@@ -262,6 +262,7 @@ export async function collectionStop(
       // package and the app counts them per package, so three packages each claimed the stop's total.
       const manifest = manifests.get(p.package_id);
       return {
+        packageId: p.package_id,
         ref: p.order_number,
         destinationSuburb: p.destination_suburb ?? "",
         method: p.method,

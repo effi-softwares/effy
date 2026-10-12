@@ -31,14 +31,6 @@ object TodayPlaceholders {
     val distance: Sourced<Nothing?> = operational("Shop geodata — `shop.address` + geocoding")
 
     /**
-     * ⚠ The design shows "12:30–1:00" against a drop. 052 R4 established the platform's delivery
-     * promise is **date-granular** — there is no time window anywhere and none can be derived. A
-     * driver telling a customer "between 12:30 and 1" would be inventing a commitment Effy has not
-     * made.
-     */
-    val deliveryWindow: Sourced<Nothing?> = operational("A delivery time-window model (052 R4)")
-
-    /**
      * ⚠ Off-duty "Stops done" and "Shift length". There is no shift or roster model, and no
      * completed-stop count. Rendering `0` after a full shift would tell a driver their work did not
      * register — which is why these are OPERATIONAL and not decorative.
@@ -49,12 +41,11 @@ object TodayPlaceholders {
     // ── DECORATIVE: invented, but acting on them costs nothing ───────────────────────────────────
 
     /**
-     * The map strip on the current-stop hero. Real OpenStreetMap cartography arrives in Phase 5;
-     * until then the card reserves its space with a neutral panel rather than collapsing, so the
-     * layout a driver learns does not change under them later.
+     * The map strip on the current-stop hero: a neutral panel. Real cartography was built and
+     * removed (see `EffyMapCanvas`), and there are no coordinates to put pins on.
      */
     val heroMapStrip: Sourced<String> =
-        decorative("map-pending", "Phase 5 (MapLibre + OpenFreeMap) and shop geodata for the pins")
+        decorative("map-pending", "A map renderer that runs under Xcode's debug build, and shop geodata for the pins")
 
     /** The design's "bay 2" / "dock A" detail. `shop` carries no premises information. */
     val bayDetail: Sourced<String> = decorative("", "Premises fields on `shop` (bay, dock, access notes)")

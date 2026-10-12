@@ -20,13 +20,6 @@ object CollectionPlaceholders {
     /** ⚠ Design: "0.6 km" per stop. */
     val stopDistance: Sourced<Nothing?> = operational("Shop geodata — `shop.address` + geocoding")
 
-    /**
-     * ⚠ Design: a street address under every shop name. `CollectionStop` carries name and code
-     * only, and `shop` has **no address field at all** — the same root cause as the missing
-     * coordinates.
-     */
-    val stopAddress: Sourced<Nothing?> = operational("`shop.address`")
-
     /** ⚠ Design: "bay 2", "dock A", "rear lane". No premises detail exists on a shop. */
     val bayDetail: Sourced<String> = decorative("", "Premises fields on `shop` (bay, dock, access)")
 

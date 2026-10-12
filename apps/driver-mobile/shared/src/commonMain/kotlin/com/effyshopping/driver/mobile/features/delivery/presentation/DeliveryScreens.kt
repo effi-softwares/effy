@@ -215,7 +215,10 @@ fun DropDetailScreen(
     onDeliverPhoto: (ByteArray, String?) -> Unit,
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
+    /** Go on to the next drop still to do — or back to the run when there is none. */
     onNext: () -> Unit,
+    onBackToRun: () -> Unit = onNext,
+    onCameraDenied: () -> Unit = {},
     reducedMotion: Boolean = false,
     onRetry: (() -> Unit)? = null,
 ) {
@@ -234,7 +237,7 @@ fun DropDetailScreen(
                     it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED
                 },
                 onNextDrop = onNext,
-                onBackToRun = onNext,
+                onBackToRun = onBackToRun,
             )
             return
         }
@@ -298,9 +301,10 @@ fun DropDetailScreen(
                     onDeliverPhoto = onDeliverPhoto,
                     onDeliverSignature = onDeliverSignature,
                     onFail = onFail,
+                    onCameraDenied = onCameraDenied,
                 )
 
-                else -> Centered { Text("This drop is closed.") }
+                else -> ClosedDropBody(drop)
             }
         }
     }
@@ -412,6 +416,7 @@ private fun ArrivedFlow(
     onDeliverPhoto: (ByteArray, String?) -> Unit,
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
+    onCameraDenied: () -> Unit,
 ) {
     var step by remember(drop.dropId) { mutableStateOf<ProofStep?>(null) }
     var failing by remember(drop.dropId) { mutableStateOf(false) }
@@ -419,8 +424,6 @@ private fun ArrivedFlow(
     var failNote by remember(drop.dropId) { mutableStateOf("") }
     var reason by remember(drop.dropId) { mutableStateOf<FailureReason?>(null) }
     var spot by remember(drop.dropId) { mutableStateOf<DropSpot?>(null) }
-
-    val photoCapture = rememberPhotoCapture { bytes -> onDeliverPhoto(bytes, note.ifBlank { null }) }
 
     when {
         failing -> ProofFailScreen(
@@ -438,6 +441,7 @@ private fun ArrivedFlow(
             working = state.isWorking,
             onBack = { step = null },
             onCaptured = { bytes -> onDeliverPhoto(bytes, note.ifBlank { null }) },
+            onPermissionDenied = onCameraDenied,
         )
 
         step == ProofStep.SIGNATURE -> Column(
@@ -476,6 +480,7 @@ private fun ArrivedFlow(
             drop = drop,
             working = state.isWorking,
             onBack = { step = ProofStep.CONTACTLESS },
+            onPermissionDenied = onCameraDenied,
             onCaptured = { bytes ->
                 // \u26a0 The chosen spot is serialised into the note the repository already takes, so
                 // no contract change (FR-023, carried over from 060).
@@ -571,13 +576,42 @@ private fun FailedState(onNext: () -> Unit) {
     }
 }
 
-
+/**
+ * A drop that is finished — delivered, or marked undeliverable. ⚠ It used to read "This drop is
+ * closed." and nothing else, so a driver checking what they had handed over, or to whom, was told
+ * nothing. Read-only: who, where, and what was in it.
+ */
 @Composable
-private fun Header(title: String, onBack: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = onBack) { Text("‹ Back") }
-        Spacer(Modifier.width(4.dp))
-        Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+private fun ClosedDropBody(drop: Drop) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+    ) {
+        StatusChip(if (drop.status == DropStatus.DELIVERED) "Delivered" else "Undeliverable")
+        Spacer(Modifier.height(18.dp))
+        Text(
+            drop.customerName,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            drop.addressFull,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            if (drop.status == DropStatus.DELIVERED) {
+                "This drop is done. Its proof is in History."
+            } else {
+                "This drop was marked undeliverable. Back-office will follow up."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
+        DropManifest(drop)
+        Spacer(Modifier.height(24.dp))
     }
 }
 

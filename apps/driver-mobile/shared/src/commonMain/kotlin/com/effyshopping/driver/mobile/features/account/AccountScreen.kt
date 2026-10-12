@@ -150,8 +150,9 @@ fun AccountScreen(
                         append("Signing out sets you off duty")
                         if (outstandingWork != null && outstandingWork > 0) {
                             append(
-                                " and dispatch reassigns the $outstandingWork " +
-                                    "drop${if (outstandingWork == 1) "" else "s"} you have left",
+                                ". You still have $outstandingWork " +
+                                    "stop${if (outstandingWork == 1) "" else "s"} on your run — tell " +
+                                    "dispatch if you can't finish ${if (outstandingWork == 1) "it" else "them"}",
                             )
                         }
                         append(". You'll need your work email and a new code to sign back in.")

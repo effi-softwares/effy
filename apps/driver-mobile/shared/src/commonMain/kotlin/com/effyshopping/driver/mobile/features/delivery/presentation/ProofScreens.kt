@@ -198,9 +198,10 @@ internal fun ProofPhotoScreen(
     working: Boolean,
     onBack: () -> Unit,
     onCaptured: (ByteArray) -> Unit,
+    onPermissionDenied: () -> Unit = {},
 ) {
     val controller = rememberCameraCaptureController()
-    val systemCamera = rememberPhotoCapture(onCaptured)
+    val systemCamera = rememberPhotoCapture(onCaptured, onPermissionDenied)
 
     Column(Modifier.fillMaxSize()) {
         ProofHeader(

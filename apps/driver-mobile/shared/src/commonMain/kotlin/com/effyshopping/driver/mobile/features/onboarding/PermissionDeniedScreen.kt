@@ -44,8 +44,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun PermissionDeniedScreen(
     onBack: () -> Unit,
-    capability: String = "Location",
-    consequence: String = "Effy can't plot your stops or hand off to your maps app without it.",
+    capability: String = "Camera",
+    consequence: String = "Effy can't photograph proof of delivery without it. You can still complete " +
+        "a drop with the customer's signature.",
 ) {
     Column(
         Modifier

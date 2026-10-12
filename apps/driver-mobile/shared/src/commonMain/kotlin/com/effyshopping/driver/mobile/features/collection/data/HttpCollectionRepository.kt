@@ -1,8 +1,8 @@
 package com.effyshopping.driver.mobile.features.collection.data
 
 import com.effyshopping.driver.mobile.contract.CollectRequest
-import com.effyshopping.driver.mobile.contract.CollectionIssueKind
-import com.effyshopping.driver.mobile.contract.CollectionIssueRequest
+import com.effyshopping.driver.mobile.contract.Outcome
+import com.effyshopping.driver.mobile.contract.Package as CollectPackage
 import com.effyshopping.driver.mobile.contract.CollectionStopDTO
 import com.effyshopping.driver.mobile.contract.CollectionStopStatus
 import com.effyshopping.driver.mobile.contract.DriverCollectionRunDTO
@@ -26,6 +26,7 @@ import com.effyshopping.driver.mobile.features.collection.domain.EffyGroup
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
+import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
 import io.ktor.client.HttpClient
@@ -56,22 +57,23 @@ class HttpCollectionRepository(
         }
     }
 
-    override suspend fun collect(runId: String, stopId: String, changeId: String) {
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>) {
         val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
-        val body = CollectRequest(changeID = changeId)
+        // ⚠ Each package's outcome travels IN the collect (063 FR-026). The separate `/issue` call
+        // this app used to make named no package, and the platform reads "no package" as "every
+        // package at this stop" — one report marked the whole stop unavailable.
+        val body = CollectRequest(
+            changeID = changeId,
+            packages = outcomes.takeIf { it.isNotEmpty() }?.map {
+                CollectPackage(
+                    note = it.note,
+                    outcome = if (it.collected) Outcome.PickedUp else Outcome.NotAvailable,
+                    packageID = it.packageId,
+                )
+            },
+        )
         request {
             offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop") {
-                api.post(path) { setBody(body) }.ensureSuccess()
-            }
-        }
-    }
-
-    override suspend fun reportIssue(runId: String, stopId: String, kind: String, note: String?, changeId: String) {
-        val k = if (kind == "missing") CollectionIssueKind.Missing else CollectionIssueKind.KindShort
-        val path = "driver/v1/collection/runs/$runId/stops/$stopId/issue"
-        val body = CollectionIssueRequest(changeID = changeId, kind = k, note = note, shopFulfillmentID = null)
-        request {
-            offline.withReplay(path, json.encodeToString(CollectionIssueRequest.serializer(), body), changeId, "Report a package issue") {
                 api.post(path) { setBody(body) }.ensureSuccess()
             }
         }
@@ -122,7 +124,7 @@ private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
     runId = runID,
     status = status,
     stops = stops.map {
-        CollectionStop(it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status))
+        CollectionStop(it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status), it.address)
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
@@ -137,8 +139,10 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
             p.ref, p.destinationSuburb, method(p.method), p.items.map { it.toDomain() }, p.summary.toDomain(),
             toCourier = p.deliveredBy?.let { it == DtoDeliveredBy.Courier },
             windowLabel = p.windowLabel,
+            packageId = p.packageID,
         )
     },
     status = stopStatus(status),
     opening = opening.toOpening(),
+    address = address,
 )

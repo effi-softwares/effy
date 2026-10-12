@@ -51,18 +51,18 @@ enum class ProblemKind(val wire: String, val label: String) {
  * screen too, because a driver who thinks a report halts their round will avoid filing one — and
  * then nobody at Effy learns anything.
  *
- * ⚠ **The package reference travels in the NOTE.** `reportIssue` has no package parameter (049
- * built it stop-level) and adding one is backend work this slice excludes. `reportPackage` composes
- * it; see that function for why this is recorded rather than quietly encoded.
+ * ⚠ **A PACKAGE MUST BE CHOSEN, and nothing is sent from this screen.** The report is held and
+ * travels with the stop's collect, naming the package by its own id. It used to be its own request
+ * that named no package — which the platform reads as "every package at this stop".
  */
 @Composable
 fun ShopProblemScreen(
     state: CollectionUiState,
     onBack: () -> Unit,
-    onSubmit: (packageRef: String?, kind: String, note: String?) -> Unit,
+    onSubmit: (packageKey: String, kind: String, note: String?) -> Unit,
 ) {
     val stop = state.stop
-    var selectedRef by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var kind by rememberSaveable { mutableStateOf<ProblemKind?>(null) }
     var note by rememberSaveable { mutableStateOf("") }
 
@@ -78,19 +78,20 @@ fun ShopProblemScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             SectionLabel("WHICH PACKAGE?")
-            val refs = stop?.packages?.map { it.ref }.orEmpty()
-            if (refs.isEmpty()) {
+            // Only a package the platform can name can be reported on.
+            val reportable = stop?.packages?.filter { it.packageId != null }.orEmpty()
+            if (reportable.isEmpty()) {
                 Text(
-                    "No packages loaded for this stop.",
+                    "Packages at this stop can't be reported from the app right now. Tell dispatch.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 ChoiceChips(
-                    options = refs,
-                    selected = selectedRef,
-                    onSelect = { selectedRef = it },
-                    label = { it },
+                    options = reportable.map { it.key },
+                    selected = selectedKey,
+                    onSelect = { selectedKey = it },
+                    label = { key -> reportable.first { it.key == key }.ref },
                 )
             }
 
@@ -116,7 +117,7 @@ fun ShopProblemScreen(
 
             Spacer(Modifier.height(4.dp))
             Text(
-                "Reporting doesn't block the rest of this stop or your run.",
+                "The package stays at the shop. Reporting doesn't block the rest of this stop or your run.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -134,11 +135,12 @@ fun ShopProblemScreen(
 
         Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
             Button(
-                // ⚠ A kind is required; a package reference is not. A driver may know something is
-                // wrong before they know which parcel it was, and refusing the report in that case
-                // loses the only signal Effy would ever get.
-                onClick = { kind?.let { onSubmit(selectedRef, it.wire, note.ifBlank { null }) } },
-                enabled = kind != null && !state.isWorking,
+                onClick = {
+                    val key = selectedKey
+                    val k = kind
+                    if (key != null && k != null) onSubmit(key, k.label, note.ifBlank { null })
+                },
+                enabled = selectedKey != null && kind != null && !state.isWorking,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {

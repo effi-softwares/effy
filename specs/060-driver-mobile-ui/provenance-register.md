@@ -47,19 +47,16 @@ Keys are `<feature>.<declaration>`. Every one is described in the per-screen sec
 <!-- PLACEHOLDER-KEYS
 today.eta
 today.distance
-today.deliveryWindow
 today.stopsDoneToday
 today.shiftLength
 today.heroMapStrip
 today.bayDetail
 collection.stopEta
 collection.stopDistance
-collection.stopAddress
 collection.bayDetail
 collection.assignedAt
 collection.hubDock
 collection.hubDropCount
-delivery.deliveryWindow
 delivery.dropEta
 delivery.dropDistance
 delivery.mapPanel
@@ -82,7 +79,7 @@ sections are filled in as each phase lands.
 |---|---|---|---|---|
 | Stop / drop **ETA** | home, collection-run, map, enroute | ⛔ | No routing engine, and no coordinates to route between. | Shop geodata + a routing provider |
 | **Distance** to a stop | home, collection-run, enroute | ⛔ | Same — no coordinates. | Shop geodata |
-| **Delivery window** (e.g. "12:30–1:00") | home-delivery, delivery-run, drop-detail | ⛔ | ⚠ 052 R4 established the platform's delivery promise is **date-granular**; there is no time window and none can be derived. | A time-window model (a backend slice) |
+| **Delivery window** | home-delivery, delivery-run, drop-detail | ✅ | **Real since 069**: the window the customer was sold at checkout, read from the order and never derived. A drop with no window shows none. | — |
 | Map **marker coordinates** | map-collection, map-delivery | 🟡 | ⚠ 049 R13: shops carry no address or coordinates; orders carry an un-geocoded address. Decorative because the map is illustrative, not navigational — **Navigate still hands off to the device's own maps app with the real address string**. | `shop.address` + geocoding |
 | Map **cartography** | map-collection, map-delivery | ✅ | Real OpenStreetMap data via OpenFreeMap. ⚠ *Not* OSM's own tile servers, which forbid app distribution (R2). | — |
 | **Dispatch phone number** | help | ⛔ | ⚠ An outward-facing real-world identifier. The constitution requires these be **operator-supplied, never inferred**; the design's `1800 EFFY OPS` is sample content. Shown as unavailable. | The operator supplying a real number |
@@ -133,11 +130,11 @@ reason · history records and timelines · activity items and read state · app 
 | "Today" + stops-remaining line | 🔢 | Derived from `today.remainingCount` (✅) and `today.phase` (✅) |
 | Duty pill "ON DUTY" | ✅ | `driver.dutyStatus`. ⚠ Deliberately **not** interactive — see `DutyPill` |
 | Phase bar titles + active phase | ✅ | `today.phase` |
-| Phase bar meta ("In progress" / "Locked until check-in") | 🔢 | Derived from `today.phase` |
+| Phase bar meta ("In progress" / "Not your current round") | 🔢 | Derived from `today.phase` |
 | Hero title | ✅ | `today.active.title` |
 | Hero subtitle | ✅ | `today.active.subtitle` |
 | Hero status chip | ✅ | `today.active.status` |
-| Hero **map strip** | 🟡 | Neutral panel reserving the space. **Unblocked by**: Phase 5 (MapLibre + OpenFreeMap) **and** shop geodata for the pins |
+| Hero **map strip** | 🟡 | Neutral panel. Real cartography was built and removed (see the map section). **Unblocked by**: a map renderer that runs under Xcode's debug build **and** shop geodata for the pins |
 | Hero **ETA** | ⛔ | ⚠ **OMITTED from the metrics row**, not dashed — in an inline dot-separated row a string of dashes reads as a broken screen. **Unblocked by**: a routing provider + shop geodata (049 R13) |
 | Hero **distance** | ⛔ | Same. **Unblocked by**: `shop.address` + geocoding |
 | Hero **bay / dock** | 🟡 | `shop` carries no premises detail. Currently unused. **Unblocked by**: premises fields on `shop` |
@@ -146,7 +143,7 @@ reason · history records and timelines · activity items and read state · app 
 | Queue row title / subtitle | ✅ | `TodayItem.title` / `.subtitle` |
 | Queue row **ETA** | ⛔ | ⚠ **OMITTED on every row.** A driver sequences their round by these. **Unblocked by**: routing + geodata |
 | "Then: hub check-in" + hub name | ✅ | `driver.hub`; the row is hidden when unassigned. Collection phase only |
-| Drop **delivery window** ("12:30–1:00") | ⛔ | ⚠ **OMITTED.** 052 R4: the platform's delivery promise is **date-granular**; there is no time window and none can be derived. Telling a customer "between 12:30 and 1" would invent a commitment Effy has not made. **Unblocked by**: a delivery time-window model |
+| Drop **delivery window** | ✅ | **Real since 069** — `deliveryWindow` on the drop; shown with whether it is open or missed. |
 
 **Screen 12 · `home-empty`** — all ✅ / static copy. Pulsing indicator suppressed under reduced motion.
 
@@ -169,7 +166,7 @@ offline queue's own timestamp, ⚠ not invented.
 | Hub block name | ✅ | `driver.hub`; falls back to the generic "Effy hub" when unassigned |
 | Stop **ETA** | ⛔ | ⚠ **OMITTED on every stop.** **Unblocked by**: routing + shop geodata (049 R13) |
 | Stop **distance** | ⛔ | ⚠ **OMITTED.** **Unblocked by**: `shop.address` + geocoding |
-| Stop **address** | — | ⚠ **OMITTED — the platform has none.** `CollectionStop` carries name and code only; `shop` has no address field at all. The design shows a street address per stop. **Unblocked by**: `shop.address` |
+| Stop **address** | ✅ | **Real since 063** — `address` on the stop; shown under the shop name with Navigate. Omitted when the shop has none. |
 | Stop **bay / dock** | 🟡 | No premises detail on `shop`. Unused. **Unblocked by**: premises fields |
 | **"assigned 9:02 am by dispatch"** | 🟡 | ⚠ **OMITTED rather than invented** — assignment time is not on the run DTO. **Unblocked by**: a field on the run DTO |
 
@@ -225,9 +222,9 @@ offline queue's own timestamp, ⚠ not invented.
 | Customer name, full address, instructions | ✅ | `Drop` |
 | Package references | ✅ | `Drop.packages[].ref` |
 | Status chips | ✅ | `Drop.status` |
-| **Delivery window** | ⛔ | ⚠ **OMITTED everywhere.** 052 R4: the promise is date-granular. A driver would repeat an invented window to a customer. **Unblocked by**: a time-window model |
+| **Delivery window** | ✅ | **Real since 069** — the window the customer was sold, from the order. |
 | **ETA / distance** | ⛔ | ⚠ **OMITTED.** **Unblocked by**: routing + geodata |
-| Map panel (en-route) | 🟡 | Neutral panel. **Unblocked by**: Phase 5 + geodata |
+| Map panel (en-route) | 🟡 | Neutral panel. **Unblocked by**: a map renderer that runs under Xcode's debug build + geodata |
 | Call / masked contact | — | ⚠ Disabled with a stated reason — the relay is unbuilt (049 R6) |
 
 **Screens 25–31 · proof and outcome**

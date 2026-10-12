@@ -133,6 +133,16 @@ data class CollectionPackage (
     val items: List<ManifestLine>,
 
     val method: PackageMethod,
+
+    /**
+     * The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was
+     * on the wire the app could not say WHICH package a report was about, so it sent none and
+     * the whole stop was marked unavailable. Optional only so an app built against it still
+     * reads an older server.
+     */
+    @SerialName("packageId")
+    val packageID: String? = null,
+
     val ref: String,
     val summary: ClassSummary,
 
@@ -735,8 +745,7 @@ data class HubCheckinResponse (
      * shows two groups, "Effy delivery" (these) and "Courier", and the driver classifies
      * nothing. ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am –
      * 12 pm"): the app has no timezone database and never formats a day itself. A parcel sold
-     * no window has null instants. ⚠ `sameDayCount` / `standardCount` above stay for driver
-     * builds that predate these (E9 removes them).
+     * no window has null instants. ⚠ `sameDayCount` / `standardCount` above are
      */
     val effyCount: Long? = null,
 

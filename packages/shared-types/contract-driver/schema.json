@@ -204,6 +204,10 @@
           "$ref": "#/definitions/PackageMethod",
           "deprecated": "082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9)."
         },
+        "packageId": {
+          "description": "The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was on the wire the app could not say WHICH package a report was about, so it sent none and the whole stop was marked unavailable. Optional only so an app built against it still reads an older server.",
+          "type": "string"
+        },
         "ref": {
           "type": "string"
         },
@@ -1121,7 +1125,8 @@
         },
         "effyCount": {
           "$ref": "#/definitions/WireInt",
-          "description": "082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two groups, \"Effy delivery\" (these) and \"Courier\", and the driver classifies nothing. ⚠ `label` is written by the server (\"Today, 4 pm – 6 pm\", \"Thu 15 Oct, 10 am – 12 pm\"): the app has no timezone database and never formats a day itself. A parcel sold no window has null instants. ⚠ `sameDayCount` / `standardCount` above stay for driver builds that predate these (E9 removes them)."
+          "deprecated": "— compatibility (083): kept so installed apps keep working\n(a driver build from before 082 reads them). So are the `same_day_delivery` values of\n`DriverPhase`, `DriverRunType` and a round's `kind`: they mean \"an Effy delivery round\".",
+          "description": "082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two groups, \"Effy delivery\" (these) and \"Courier\", and the driver classifies nothing. ⚠ `label` is written by the server (\"Today, 4 pm – 6 pm\", \"Thu 15 Oct, 10 am – 12 pm\"): the app has no timezone database and never formats a day itself. A parcel sold no window has null instants. ⚠ `sameDayCount` / `standardCount` above are"
         },
         "effyGroups": {
           "items": {

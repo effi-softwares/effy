@@ -51,7 +51,7 @@ fun HistoryScreen(state: HistoryUiState, onOpenDrop: (String) -> Unit, onOpenRun
                         day.runs.forEach { run ->
                             RecordRow(
                                 title = if (run.type == "collection") "Collection run" else "Delivery run",
-                                subtitle = "${run.stopCount} stop(s)",
+                                subtitle = "${run.stopCount} stop${if (run.stopCount == 1) "" else "s"}",
                                 trailing = null,
                                 onClick = { onOpenRun(run.runId) },
                             )

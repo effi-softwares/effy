@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -35,6 +36,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +64,8 @@ import com.effyshopping.mobile.kit.ui.SwipeToConfirm
  * ⚠ **A RECORDED CARD EXCEPTION** (Principle V, plan Complexity Tracking, research R12): each stop
  * block carries **its own action button**, and a list row with a primary action inside it is a card
  * however it is named. Calling it a row would be a naming dodge rather than a layout decision.
+ *
+ * Each stop shows the shop's address (on the wire since 063).
  *
  * ⚠ The design shows an ETA per stop. Omitted — there is no routing engine and no coordinates
  * (049 R13), and a driver sequences their round by exactly those numbers.
@@ -173,7 +181,7 @@ private fun StopBlock(stop: CollectionStop, onOpen: () -> Unit) {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        stop.shopCode,
+                        listOfNotNull(stop.address?.takeIf { it.isNotBlank() }, stop.shopCode).joinToString(" · "),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -288,10 +296,21 @@ fun ShopStopScreen(
     onTogglePackage: (String) -> Unit,
     onOpenProblem: () -> Unit,
     onRetry: (() -> Unit)? = null,
+    /** Hand the shop's address to the device's maps app. */
+    onNavigate: (String) -> Unit = {},
 ) {
     val stop = state.stop
     val confirmed = state.confirmedPackageIds
+    val reported = state.reportedPackages
     val total = stop?.packages?.size ?: 0
+    // Packages the driver has neither ticked nor reported. Committing sends them as collected, so the
+    // swipe asks first — a tick the driver skipped must not become a package the platform thinks is
+    // in the van.
+    val unaccounted = stop?.packages?.count { it.key !in confirmed && it.key !in reported } ?: 0
+    var askUnticked by remember(stop?.stopId) { mutableStateOf(false) }
+    // SwipeToConfirm latches once committed; a new key gives the driver a fresh one after they back
+    // out of the question, or after a collect that failed.
+    var swipeAttempt by remember(stop?.stopId) { mutableStateOf(0) }
     val done = stop?.status == StopStatus.COLLECTED || stop?.status == StopStatus.SHORT
     // 072 — nothing here can be collected, ticked or reported before the round opens. Re-judged
     // while the screen is up, so a driver waiting at the shop sees it come alive by itself.
@@ -324,6 +343,20 @@ fun ShopStopScreen(
                         .padding(horizontal = 20.dp),
                 ) {
                     if (stop.stale) StaleNotice()
+                    stop.address?.takeIf { it.isNotBlank() }?.let { address ->
+                        Text(
+                            address,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        OutlinedButton(
+                            onClick = { onNavigate(address) },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                        ) { Text("Navigate \u2197") }
+                        Spacer(Modifier.height(16.dp))
+                    }
                     if (!open) {
                         OpensLine(stop.opening, style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.height(10.dp))
@@ -348,9 +381,10 @@ fun ShopStopScreen(
                             spokenContents = pkg.summary.spoken,
                             toCourier = pkg.goesToCourier,
                             windowLabel = pkg.windowLabel,
-                            checked = pkg.ref in confirmed,
+                            checked = pkg.key in confirmed,
+                            problem = reported[pkg.key]?.kind,
                             enabled = !done && open,
-                            onToggle = { onTogglePackage(pkg.ref) },
+                            onToggle = { onTogglePackage(pkg.key) },
                         )
                         // Sits OUTSIDE the tick row on purpose: opening the list must not confirm
                         // a package the driver has not loaded.
@@ -384,20 +418,46 @@ fun ShopStopScreen(
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                         ) { Text("Collected ✓") }
                     } else {
-                        // ⚠ The driver may swipe with packages unticked — the ticks are a memory
-                        // aid, not a gate. Blocking the swipe on a full set would strand a driver
-                        // whose stop genuinely came up short; that is what the problem report is
-                        // for, and FR-021 says reporting must not block the rest of the stop.
-                        SwipeToConfirm(
-                            label = if (open) "Swipe to confirm collected" else (stop.opening?.sentence ?: "Not open yet"),
-                            onConfirm = onCollect,
-                            enabled = !state.isWorking && open,
-                        )
+                        // ⚠ The ticks are a memory aid, not a gate: a stop that came up short is what
+                        // the problem report is for (FR-021). A package neither ticked nor reported
+                        // is asked about once, because committing sends it as collected.
+                        key(swipeAttempt, state.message) {
+                            SwipeToConfirm(
+                                label = if (open) "Swipe to confirm collected" else (stop.opening?.sentence ?: "Not open yet"),
+                                onConfirm = { if (unaccounted > 0) askUnticked = true else onCollect() },
+                                enabled = !state.isWorking && open,
+                            )
+                        }
                     }
                 }
             }
         }
     }
+
+    if (askUnticked) {
+        UntickedDialog(
+            count = unaccounted,
+            onLoaded = { askUnticked = false; onCollect() },
+            onGoBack = { askUnticked = false; swipeAttempt++ },
+        )
+    }
+}
+
+/** Asked when the driver commits a stop with packages neither ticked nor reported. */
+@Composable
+private fun UntickedDialog(count: Int, onLoaded: () -> Unit, onGoBack: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onGoBack,
+        title = { Text(if (count == 1) "1 package isn't ticked" else "$count packages aren't ticked") },
+        text = {
+            Text(
+                "Confirming records ${if (count == 1) "it" else "them"} as loaded in your van. " +
+                    "If ${if (count == 1) "it isn't" else "any aren't"} here, go back and report it.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onLoaded) { Text("All loaded") } },
+        dismissButton = { TextButton(onClick = onGoBack) { Text("Go back") } },
+    )
 }
 
 @Composable
@@ -408,6 +468,8 @@ private fun PackageRow(
     toCourier: Boolean,
     windowLabel: String?,
     checked: Boolean,
+    /** What the driver reported about this package; null when nothing. It is then not collected. */
+    problem: String?,
     enabled: Boolean,
     onToggle: () -> Unit,
 ) {
@@ -415,7 +477,11 @@ private fun PackageRow(
     // word for the delivery.
     val goes = if (toCourier) "courier" else listOfNotNull("Effy delivery", windowLabel).joinToString(", ")
     val spoken = "$ref, $line, $spokenContents, $goes, " +
-        if (checked) "confirmed" else "not confirmed"
+        when {
+            problem != null -> "reported, $problem, not collected"
+            checked -> "confirmed"
+            else -> "not confirmed"
+        }
     Row(
         Modifier
             .fillMaxWidth()
@@ -435,6 +501,14 @@ private fun PackageRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (problem != null) {
+                Text(
+                    "Reported: $problem · staying at the shop",
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             // 082 — the day and window an Effy parcel is for, so it can be shelved for it at the hub.
             if (!toCourier && windowLabel != null) {
                 Text(
@@ -521,8 +595,9 @@ fun HubCheckinScreen(
     onCheckIn: () -> Unit,
     onDone: () -> Unit,
 ) {
-    LaunchedEffect(Unit) { if (state.hubSplit == null) onCheckIn() }
-
+    // ⚠ CHECK-IN IS THE DRIVER'S ACT, NOT THE SCREEN'S. Opening this screen used to check the round
+    // in by itself, and the swipe at the bottom only left the screen — so a driver who opened it to
+    // look had already committed, and a check-in that failed had nothing to try again with.
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         ScreenHeader(
             title = "Hub check-in",
@@ -535,7 +610,42 @@ fun HubCheckinScreen(
         val split = state.hubSplit
         when {
             state.isWorking && split == null -> Centered { CircularProgressIndicator() }
-            split == null -> Centered { Text(state.message ?: "Checking in\u2026") }
+            split == null -> {
+                val shops = state.run?.stops?.size
+                val packages = state.run?.stops?.sumOf { it.packageCount }
+                Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
+                    Text(
+                        "Check in at the hub",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        listOfNotNull(
+                            if (shops != null && packages != null) {
+                                "This round has $packages package${if (packages == 1) "" else "s"} from " +
+                                    "$shops shop${if (shops == 1) "" else "s"}."
+                            } else {
+                                null
+                            },
+                            "Check in once you are at the hub with the load. It ends your collection run.",
+                        ).joinToString(" "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                state.message?.let { ErrorText(it) }
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                    // Keyed on the message so a failed check-in hands back a fresh swipe to retry with.
+                    key(state.message) {
+                        SwipeToConfirm(
+                            label = "Swipe to check in at the hub",
+                            onConfirm = onCheckIn,
+                            enabled = !state.isWorking,
+                        )
+                    }
+                }
+            }
             else -> {
                 val shops = state.run?.stops?.size
                 // 082 — "nothing to deliver today": no Effy parcel on this run goes out today. Parcels for
@@ -604,30 +714,23 @@ fun HubCheckinScreen(
                 state.message?.let { ErrorText(it) }
 
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    if (nothingSameDay) {
-                        // \u26a0 A plain button, not a swipe. Nothing is being committed about goods the
-                        // driver is carrying \u2014 the run simply ends \u2014 so the deliberate gesture would
-                        // be friction without a reason. FR-018 names the two acts that need it.
-                        Button(
-                            onClick = onDone,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                        ) {
-                            Text(
-                                "End collection run",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                        }
-                    } else {
-                        SwipeToConfirm(
-                            label = "Swipe to end collection run",
-                            onConfirm = onDone,
-                            enabled = !state.isWorking,
+                    // A plain button: the check-in above was the commitment, and it has happened. This
+                    // only leaves the screen, so a deliberate gesture here would claim more than it does.
+                    Button(
+                        onClick = onDone,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                    ) {
+                        Text(
+                            "Done",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
                         )
+                    }
+                    if (!nothingSameDay) {
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            "Unlocks your delivery run \u00b7 ${split.dueToday} " +
+                            "Checked in \u00b7 your delivery run has ${split.dueToday} " +
                                 "package${if (split.dueToday == 1) "" else "s"}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

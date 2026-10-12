@@ -356,7 +356,7 @@ private fun PhaseBar(phase: Phase) {
             PhaseHalf(
                 kicker = "PHASE 1",
                 title = "Collection run",
-                meta = if (phase == Phase.COLLECTION) "In progress" else "Done",
+                meta = if (phase == Phase.COLLECTION) "In progress" else "Not your current round",
                 active = phase == Phase.COLLECTION,
                 modifier = Modifier.weight(1f),
             )
@@ -369,7 +369,9 @@ private fun PhaseBar(phase: Phase) {
             PhaseHalf(
                 kicker = "PHASE 2",
                 title = "Delivery run",
-                meta = if (phase == Phase.SAME_DAY_DELIVERY) "In progress" else "Locked until check-in",
+                // ⚠ Not "Locked until check-in": a delivery round is planned for its own window and
+                // may belong to a driver who collected nothing (082).
+                meta = if (phase == Phase.SAME_DAY_DELIVERY) "In progress" else "Not your current round",
                 active = phase == Phase.SAME_DAY_DELIVERY,
                 modifier = Modifier.weight(1f),
             )
