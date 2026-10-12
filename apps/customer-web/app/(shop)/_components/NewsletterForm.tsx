@@ -4,7 +4,8 @@ import { useActionState, useEffect, useState } from "react"
 
 import type { NewsletterSubscribeResult } from "@effy/shared-types"
 
-import { btnClass, input } from "@/components/storefront/kit"
+import { btnClass } from "@/components/storefront/actions"
+import { input } from "@/components/storefront/fields"
 
 import { subscribeToNewsletter } from "../newsletter/actions"
 

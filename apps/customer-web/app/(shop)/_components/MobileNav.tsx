@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 
 /**
  * The small-screen navigation drawer (025 UI refresh).
@@ -119,7 +119,7 @@ export function MobileNav({
   }
 
   return (
-    <div className={cn("lg:hidden", className)}>
+    <div className={clsx("lg:hidden", className)}>
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
@@ -166,7 +166,7 @@ export function MobileNav({
           <div className="relative flex-1 overflow-hidden">
             <div
               inert={!atRoot}
-              className={cn(panelBase, atRoot ? "translate-x-0" : "-translate-x-1/4 opacity-0")}
+              className={clsx(panelBase, atRoot ? "translate-x-0" : "-translate-x-1/4 opacity-0")}
             >
               <nav aria-label="Primary" className="px-3 py-4">
                 <ul className="flex flex-col gap-1">
@@ -180,7 +180,7 @@ export function MobileNav({
                           // drawer stays open over the page the shopper just asked for.
                           onClick={close}
                           aria-current={active ? "page" : undefined}
-                          className={cn(
+                          className={clsx(
                             "flex h-11 items-center rounded-md px-3 text-sm font-medium transition-colors",
                             active
                               ? "bg-accent text-foreground"
@@ -202,7 +202,7 @@ export function MobileNav({
                 inert={atRoot}
                 // ⚠ An explicit `bg-card`, matching the drawer. The levels overlap during the slide,
                 // and a transparent incoming panel would show the outgoing one straight through it.
-                className={cn(
+                className={clsx(
                   panelBase,
                   "bg-background",
                   atRoot ? "translate-x-full" : "translate-x-0",
@@ -266,7 +266,7 @@ export function MobileNav({
 /** The shell's copy, rendered while the route-aware drawer streams in. */
 export function MobileNavFallback({ className }: { className?: string }) {
   return (
-    <div className={cn("lg:hidden", className)}>
+    <div className={clsx("lg:hidden", className)}>
       <span
         aria-hidden="true"
         className="-ml-2 inline-flex size-10 items-center justify-center rounded-md"

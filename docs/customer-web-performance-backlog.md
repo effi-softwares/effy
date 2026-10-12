@@ -49,15 +49,27 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Caveat:** that build predates commit `b9b7d584` (21:02), which moved Motion to on-demand loading
   (~2.9 KB). The current number was not re-measured.
 - **Why it matters:** `amplify.yml` runs `size` after `build`; a failure keeps the last good version live.
-- **Tasks**
-  - [ ] Rebuild and re-run `pnpm --filter @effy/customer-web size` to get the current numbers.
-  - [ ] Run `pnpm --filter @effy/customer-web analyze` and attribute the growth chunk by chunk.
-  - [ ] Move menu / carousel / phone-menu behaviour that is not needed at first paint behind
-        `next/dynamic` or an on-interaction import (the pattern `lib/slide-motion.ts` already uses).
-  - [ ] Check `components/storefront/kit.tsx` vs `actions.tsx` imports on the chrome — a button imported
-        through `kit` drags `next/image` in (the file's own warning).
-  - [ ] Only if the floor itself moved (framework upgrade): ratchet the budget in a reviewed diff with
-        the measurement, per the script's rules. Do not raise it to pass.
+- **Done 2026-10-12** (Amplify job 137 failed on this gate; budget NOT raised). Fresh build, every
+  guest route: `/` 171.6 KB, `/search` 173.2, `/cart` 171.2, `/product/[id]` 168.5, `/help` 169.9,
+  `/offers` 165.5, `/delete-account` 165.9, `/legal/*` 164.0 — against 174.
+- **What it was** (attributed with `next experimental-analyze -o`, not guessed):
+  - [x] **`tailwind-merge`, 8.1 KB on every route.** `btnClass` merged a call site's override into the
+        button's utilities, and client components import it. The button is now component-layer CSS
+        (`.btn`, `.btn-primary`, … in `app/globals.css`), where a call site's utility wins by the
+        cascade; `btnClass` only names the classes. `Skeleton`, `MediaFrame` and `EmptyState` take the
+        same route (`.sf-*`); `badge`, `alert`, `misc`, `kit` and the chrome's client components join
+        classes with `clsx`. ⚠ `cn` (`lib/utils`) is still fine in a module only the server renders —
+        the cost is a CLIENT module importing one that imports it.
+  - [x] **`next/dynamic`'s runtime, 1.3 KB on every route**, to lazy-load two things. Replaced by
+        `lib/use-on-demand.ts` (telemetry island, search filters).
+  - [x] **The mini-cart's contents** (with `next/image` and the cart's write actions) now load when the
+        pointer or focus reaches the cart button, or on the first press — `MiniCartBody.tsx`.
+  - [x] **`/cart`'s "On sale now" rail** loads its code with its products (it already waited on a fetch).
+  - [x] `NewsletterForm` / `CopyCodeButton` no longer import through `kit` (field strings moved to
+        `components/storefront/fields.ts`). Worth 0.9 KB, not the cause.
+- **Not the cause:** Motion (already on demand), the All aisles menu, the carousels, the phone menu.
+- **Open:** not walked in a browser — buttons, badges, skeletons and the cart drawer's first open want
+  a look on dev. Headroom is 0.8 KB on `/search`; the next client-side addition there must be measured.
 - **Done when:** every guest route passes the gate on a fresh build.
 
 ---

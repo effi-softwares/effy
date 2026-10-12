@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ChevronRight } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 
 export function Separator({
   orientation = "horizontal",
@@ -13,14 +13,14 @@ export function Separator({
   return (
     <span
       aria-hidden="true"
-      className={cn("block shrink-0 bg-border", orientation === "horizontal" ? "h-px w-full" : "h-5 w-px", className)}
+      className={clsx("block shrink-0 bg-border", orientation === "horizontal" ? "h-px w-full" : "h-5 w-px", className)}
     />
   )
 }
 
 /** A loading placeholder. ⚠ Decorative: the region it stands in for carries the `aria-busy`. */
 export function Skeleton({ className }: { className?: string }) {
-  return <span aria-hidden="true" className={cn("block animate-pulse rounded-md bg-muted", className)} />
+  return <span aria-hidden="true" className={clsx("sf-skeleton", className)} />
 }
 
 export function Avatar({
@@ -35,7 +35,7 @@ export function Avatar({
   return (
     <span
       aria-hidden="true"
-      className={cn(
+      className={clsx(
         "inline-grid shrink-0 place-items-center overflow-hidden rounded-full bg-muted font-semibold",
         size === "md" ? "size-8 text-[13px]" : "size-12 text-base",
         className,
@@ -58,7 +58,7 @@ export function Breadcrumb({ items, className }: { items: Crumb[]; className?: s
           return (
             <li key={`${c.label}-${i}`} className="flex items-center gap-1.5">
               {last || !c.href ? (
-                <span aria-current={last ? "page" : undefined} className={cn(last && "text-foreground")}>
+                <span aria-current={last ? "page" : undefined} className={clsx(last && "text-foreground")}>
                   {c.label}
                 </span>
               ) : (
@@ -95,9 +95,9 @@ export function Progress({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct}
-      className={cn("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={clsx("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
     >
-      <div className={cn("h-full rounded-full", tone === "brand" ? "bg-brand" : "bg-primary")} style={{ width: `${pct}%` }} />
+      <div className={clsx("h-full rounded-full", tone === "brand" ? "bg-brand" : "bg-primary")} style={{ width: `${pct}%` }} />
     </div>
   )
 }

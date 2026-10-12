@@ -95,6 +95,85 @@
 }
 
 @layer components {
+  /* ── THE storefront button (PERF-01) ───────────────────────────────────────────────────────────
+   *
+   * `btnClass` in components/storefront/actions.tsx returns these class names and nothing else.
+   *
+   * ⚠ WHY THE BUTTON IS COMPONENT CSS AND NOT A STRING OF UTILITIES. A call site may override the
+   * shape (`btnClass("primary", "md", "h-11 w-full")`). As utilities, `h-9` and `h-11` collide and the
+   * winner is stylesheet order, so the helper needed `tailwind-merge` to drop the loser — and because
+   * client components import the helper, 8 KB of it shipped on EVERY guest page. A utility always
+   * outranks a rule in the components layer, so here the call site's class wins by the cascade and
+   * nothing is merged in the browser.
+   *
+   * ⚠ ORDER IS THE RULE. Base, then variants, then sizes: a variant's border colour and a size's
+   * text size and gap replace the base's because they come later at the same specificity. */
+  .btn {
+    @apply inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-transparent text-sm font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4;
+  }
+  .btn-primary {
+    @apply bg-primary text-primary-foreground shadow-xs hover:bg-primary/90;
+  }
+  .btn-brand {
+    @apply bg-brand text-brand-foreground shadow-xs hover:bg-brand/90;
+  }
+  .btn-outline {
+    @apply border-input bg-background text-foreground shadow-xs hover:bg-accent;
+  }
+  .btn-muted {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/70;
+  }
+  .btn-ghost {
+    @apply text-foreground hover:bg-accent;
+  }
+  .btn-destructive {
+    @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
+  }
+  /* The reference's button heights: sm 32 · md 36 · lg 40 · xl 48. Phone primary actions use lg or
+     xl, which is what keeps a 44px target there. */
+  .btn-sm {
+    @apply h-8 gap-1.5 px-3 text-[13px];
+  }
+  .btn-md {
+    @apply h-9 px-4;
+  }
+  .btn-lg {
+    @apply h-10 px-6;
+  }
+  .btn-xl {
+    @apply h-12 px-6 text-[15px];
+  }
+  /* After the sizes, and important: a text link has no box whatever size it was asked for. */
+  .btn-link {
+    @apply h-auto! p-0! text-primary underline underline-offset-4;
+  }
+  /* A square icon-only button (32 / 36 / 40). */
+  .btn-icon-sm {
+    @apply size-8 p-0;
+  }
+  .btn-icon-md {
+    @apply size-9 p-0;
+  }
+  .btn-icon-lg {
+    @apply size-10 p-0;
+  }
+
+  /* ── Bases a call site may override (PERF-01) ──────────────────────────────────────────────────
+   *
+   * The same reason as the button above: these three take a `className` that replaces part of their
+   * base (`<Skeleton className="rounded-lg">`, `<MediaFrame className="bg-secondary w-24">`,
+   * `<EmptyState className="py-16">`). In the components layer the caller's utility wins by the
+   * cascade, so the modules that define them need no `tailwind-merge` in the browser. */
+  .sf-skeleton {
+    @apply block animate-pulse rounded-md bg-muted;
+  }
+  .sf-media-frame {
+    @apply relative w-full overflow-hidden bg-muted;
+  }
+  .sf-empty-state {
+    @apply flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center;
+  }
+
   /* ── Native <dialog> transitions ───────────────────────────────────────────────────────────────
    *
    * The guest path forbids `radix-ui`, `sonner` and `vaul` (contracts/customer-ui.contract.md §1,

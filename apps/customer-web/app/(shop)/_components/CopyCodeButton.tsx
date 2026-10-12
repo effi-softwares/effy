@@ -3,7 +3,7 @@
 import { Copy } from "lucide-react"
 import { useState } from "react"
 
-import { btnClass } from "@/components/storefront/kit"
+import { btnClass } from "@/components/storefront/actions"
 
 /**
  * Copy a promotion's code to the clipboard.

@@ -1,7 +1,7 @@
 import { CircleAlert, CircleCheck, Info } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+import { clsx } from "clsx"
 
 const variants = {
   default: { box: "border-border bg-card", icon: "" , Icon: Info },
@@ -42,20 +42,20 @@ export function Alert({
     <div
       data-slot="alert"
       role={announce ? (variant === "destructive" ? "alert" : "status") : undefined}
-      className={cn(
+      className={clsx(
         "grid grid-cols-[1rem_1fr] items-start gap-x-3 gap-y-0.5 rounded-lg border px-4 py-3 text-sm",
         v.box,
         className,
       )}
       {...props}
     >
-      <Icon aria-hidden="true" className={cn("mt-0.5 size-4", v.icon)} />
+      <Icon aria-hidden="true" className={clsx("mt-0.5 size-4", v.icon)} />
       <div className="min-w-0">
         {title && (
-          <p className={cn("leading-5", variant === "destructive" ? "font-semibold" : "font-medium")}>{title}</p>
+          <p className={clsx("leading-5", variant === "destructive" ? "font-semibold" : "font-medium")}>{title}</p>
         )}
         {children && (
-          <div className={cn("leading-5", variant === "destructive" ? "text-foreground" : "text-muted-foreground")}>
+          <div className={clsx("leading-5", variant === "destructive" ? "text-foreground" : "text-muted-foreground")}>
             {children}
           </div>
         )}

@@ -24,9 +24,9 @@ import { refreshCart } from "@/lib/cart-sync"
 import { edgeApiBaseUrl } from "@/lib/config"
 import { formatMoney } from "@/lib/money"
 import { toast } from "@/lib/toast-store"
+import { useOnDemand } from "@/lib/use-on-demand"
 
 import { PaymentMarks } from "../_components/PaymentMarks"
-import { ProductRail } from "../_components/ProductRail"
 import { PromoField } from "./PromoField"
 
 /**
@@ -351,8 +351,14 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
   )
 }
 
+// ⚠ The rail's CODE is fetched with its products, not with the page (PERF-01): it sits under the cart
+// and shows nothing until its request answers, and the product card, the save control and the kit
+// behind it are what put `/cart` over the guest bundle gate.
+const loadProductRail = () => import("../_components/ProductRail").then((m) => m.ProductRail)
+
 /** "On sale now" under the cart (reference: Cart). Client-fetched, so it never holds the cart up; absent on failure. */
 function OnSaleRail() {
+  const ProductRail = useOnDemand(loadProductRail)
   const [products, setProducts] = useState<StorefrontProductCardDTO[]>([])
   useEffect(() => {
     const controller = new AbortController()
@@ -362,7 +368,7 @@ function OnSaleRail() {
       .catch(() => undefined)
     return () => controller.abort()
   }, [])
-  if (products.length === 0) return null
+  if (!ProductRail || products.length === 0) return null
   return <ProductRail title="On sale now" products={products} href="/search?saleOnly=true" className="mt-4 px-0!" />
 }
 
