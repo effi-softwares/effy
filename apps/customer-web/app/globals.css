@@ -9,6 +9,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ⚠ Tailwind scans only this app's own tree. The shared components the storefront still imports from
+   `@effy/design-system/ui` (the code field, the dialogs the account pages open) ship as raw TSX, so
+   without this line their classes are never generated and they render unstyled — which is what broke
+   the six code boxes on sign-in when 084 dropped it. */
+@source "../../../packages/design-system/src/ui";
+
 /* Tokens, the @theme mapping and the self-hosted Geist faces, all from the design system. */
 @import "@effy/design-system/storefront.css";
 

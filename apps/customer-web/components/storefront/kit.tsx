@@ -243,19 +243,32 @@ export function Field({
   htmlFor,
   error,
   hint,
+  labelAction,
   children,
 }: {
   label: string
   htmlFor?: string
   error?: string | null
   hint?: string
+  /** A link that belongs to this field and sits at the end of its label row ("Forgot your password?"). */
+  labelAction?: React.ReactNode
   children: React.ReactNode
 }) {
+  const labelEl = (
+    <label htmlFor={htmlFor} className="text-sm font-medium leading-none">
+      {label}
+    </label>
+  )
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor={htmlFor} className="text-sm font-medium leading-none">
-        {label}
-      </label>
+      {labelAction ? (
+        <div className="flex items-center justify-between gap-3">
+          {labelEl}
+          {labelAction}
+        </div>
+      ) : (
+        labelEl
+      )}
       {children}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
       {error && (

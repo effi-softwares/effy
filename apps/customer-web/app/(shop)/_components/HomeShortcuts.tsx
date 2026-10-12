@@ -5,7 +5,7 @@ import type { OrderSummaryDTO, PointsBalanceDTO, SavedItemDTO } from "@effy/shar
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { formatMoney } from "@/lib/money"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
 
 /**
  * The signed-in shortcuts under the home banner (reference: Home — signed in; FR-020).
@@ -20,7 +20,7 @@ import { readServerSession } from "@/lib/session"
  * Points are said as what they are worth, never as a discount (they are a way of paying).
  */
 export async function HomeShortcuts() {
-  const session = await readServerSession()
+  const session = await getSession()
   if (!session) return null
 
   const api = edgeApi(session)

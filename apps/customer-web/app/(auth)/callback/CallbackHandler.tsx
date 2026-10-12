@@ -6,8 +6,10 @@
 import "aws-amplify/auth/enable-oauth-listener"
 
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Hub } from "aws-amplify/utils"
+import { CircleX } from "lucide-react"
 
 import { btnClass } from "@/components/storefront/actions"
 import { safeNextTarget } from "@/lib/next-target"
@@ -16,6 +18,8 @@ import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
 import { capture } from "@/lib/telemetry"
 import { startGoogleSignIn, takePendingNext } from "../_lib/auth-actions"
 import { ensureCustomerRecord } from "../_lib/seed-actions"
+import { HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
+import { AltJourney, StepShell } from "../_components/AuthKit"
 
 const RETRY_FLAG = "effy_google_retry"
 
@@ -51,6 +55,14 @@ export function CallbackHandler() {
       if (payload.event === "signInWithRedirect") {
         handled.current = true
         sessionStorage.removeItem(RETRY_FLAG)
+        void completeSignIn()
+      }
+
+      async function completeSignIn() {
+        if (!(await handOverSession())) {
+          setError(HAND_OVER_FAILED)
+          return
+        }
         capture({ name: "sign_in_completed", props: { route: "google" } })
         capture({ name: "account_linked", props: { provider: "google" } })
         // 027 FR-011 — the federated route needs the same merge as the native ones.
@@ -78,7 +90,6 @@ export function CallbackHandler() {
         }
         router.replace(next)
         router.refresh()
-        return
       }
 
       if (payload.event === "signInWithRedirect_failure") {
@@ -99,7 +110,7 @@ export function CallbackHandler() {
 
         sessionStorage.removeItem(RETRY_FLAG)
         setError(
-          "We couldn't finish signing you in with Google. Try again, or use your email instead.",
+          "Google sign-in was cancelled or something went wrong. Nothing has changed — try again or use your email.",
         )
       }
     })
@@ -107,17 +118,37 @@ export function CallbackHandler() {
     return () => stop()
   }, [router])
 
+  // Reference: Google sign-in failed.
   if (error) {
     return (
-      <div className="space-y-4 text-center">
-        <h1 className="text-xl font-semibold">Sign-in didn&apos;t complete</h1>
-        <p role="alert" data-testid="auth-error" className="text-sm text-muted-foreground">
-          {error}
-        </p>
-        <a href="/sign-in" className={btnClass("primary", "md")}>
-          Back to sign in
-        </a>
-      </div>
+      <StepShell
+        icon={<CircleX aria-hidden="true" />}
+        title="We couldn't sign you in with Google"
+        subtitle={
+          <span role="alert" data-testid="auth-error">
+            {error}
+          </span>
+        }
+        footer={
+          <AltJourney lead="Don't have an account?" href="/sign-up">
+            Join
+          </AltJourney>
+        }
+      >
+        <div className="space-y-3">
+          <button
+            type="button"
+            data-testid="google-retry"
+            onClick={() => void startGoogleSignIn(safeNextTarget(null))}
+            className={btnClass("primary", "lg", "h-11 w-full")}
+          >
+            Try Google again
+          </button>
+          <Link href="/sign-in" className={btnClass("outline", "lg", "h-11 w-full")}>
+            Sign in with email
+          </Link>
+        </div>
+      </StepShell>
     )
   }
 

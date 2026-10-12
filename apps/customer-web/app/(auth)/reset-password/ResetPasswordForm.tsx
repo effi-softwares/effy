@@ -1,10 +1,11 @@
 "use client"
 
 import { useCallback, useRef, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { CircleCheck } from "lucide-react"
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
+import { btnClass } from "@/components/storefront/actions"
 import { markCodeSent } from "@/lib/otp-cooldown"
 
 import { authErrorMessage, startPasswordReset } from "../_lib/auth-actions"
@@ -12,6 +13,7 @@ import { useStepHistory } from "../_lib/step-history"
 import { useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
 import {
+  AltJourney,
   ErrorNote,
   Field,
   inlineActionClass,
@@ -57,12 +59,12 @@ const FIELDS = {
 } satisfies Record<string, FieldConfig>
 
 export function ResetPasswordForm() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  const [finished, setFinished] = useState(false)
   const validation = useFieldValidation(FIELDS)
 
   const codeSent = useRef(false)
@@ -114,6 +116,40 @@ export function ResetPasswordForm() {
     [go],
   )
 
+  // ── Done (reference: Reset — done) ──────────────────────────────────────────────────────────────
+  //
+  // ⚠ THE COPY DEPARTS FROM THE REFERENCE, WHICH SAYS "You're signed in". Here that would be false: a
+  // password change ends every session (012 FR-024), so signing in with the new password is the only
+  // way on, and the primary action says so.
+  if (finished) {
+    return (
+      <StepShell
+        icon={<CircleCheck aria-hidden="true" />}
+        title="Password updated"
+        subtitle="You've been signed out everywhere. Sign in with your new password."
+      >
+        <div className="space-y-3">
+          <Link
+            href="/sign-in"
+            data-testid="reset-done-sign-in"
+            className={btnClass("primary", "lg", "h-11 w-full")}
+          >
+            Sign in
+          </Link>
+          <Link href="/" className={btnClass("outline", "lg", "h-11 w-full")}>
+            Continue shopping
+          </Link>
+        </div>
+      </StepShell>
+    )
+  }
+
+  const signInLink = (
+    <AltJourney lead="Remembered it?" href="/sign-in">
+      Sign in
+    </AltJourney>
+  )
+
   if (step === "code") {
     // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
     // step shell (above the back control, detached from the layout) while CodeStep rendered a second
@@ -128,8 +164,9 @@ export function ResetPasswordForm() {
         onSubmit={holdCode}
         onResend={sendCode}
         onChangeEmail={back}
-        onBack={back}
         flow="reset"
+        purpose=" to reset your password"
+        footer={signInLink}
         distinguishableRefusals
       />
     )
@@ -137,23 +174,7 @@ export function ResetPasswordForm() {
 
   if (step === "password") {
     return (
-      <StepShell
-        anchor
-        title="Choose a new password"
-        subtitle="Almost done — pick something you'll remember."
-        onBack={back}
-        bottom={
-          <Submit
-            pending={pending}
-            label="Set new password"
-            testId="submit-reset"
-            blocked={password.length < PASSWORD_MIN_LENGTH}
-            // ⚠ FR-020 — pressing an unavailable action must SAY what is missing.
-            onBlocked={() => validation.check([["password", password]])}
-            form="reset-password-form"
-          />
-        }
-      >
+      <StepShell title="Choose a new password" subtitle={<>For {address}</>}>
         {error && <ErrorNote>{error}</ErrorNote>}
         <form
           id="reset-password-form"
@@ -171,7 +192,7 @@ export function ResetPasswordForm() {
                 return
               }
               // 012 FR-024 — a password change ends every session, so sign-in is the only way on.
-              router.replace("/sign-in?reason=password-changed")
+              setFinished(true)
             })
           }}
         >
@@ -189,9 +210,10 @@ export function ResetPasswordForm() {
             hint={
               password.length > 0 && password.length < PASSWORD_MIN_LENGTH
                 ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
-                : `At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`
+                : `At least ${PASSWORD_MIN_LENGTH} characters.`
             }
           />
+          <Submit pending={pending} label="Save new password" testId="submit-reset" />
         </form>
       </StepShell>
     )
@@ -199,27 +221,21 @@ export function ResetPasswordForm() {
 
   return (
     <StepShell
-        anchor
       title="Reset your password"
-      subtitle="Enter your email and we'll send you a code."
-      bottom={
-        <>
-          <Submit
-            pending={pending}
-            label="Send code"
-            testId="submit-reset-email"
-            form="reset-email-form"
-          />
+      subtitle="Enter your email and we'll send you a code to reset it."
+      footer={
+        <div className="space-y-3">
+          {signInLink}
           {/* ⚠ Load-bearing, not a footnote: a customer who registered by code has NEVER set a
               password, and this is the line that stops them hammering a recovery flow that may not
               be able to help them (036 FR-015). */}
-          <p className="text-center text-sm font-medium text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
             Never set a password?{" "}
             <Link href="/sign-in" className={inlineActionClass}>
               Sign in with an email code instead
             </Link>
           </p>
-        </>
+        </div>
       }
     >
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -254,6 +270,7 @@ export function ResetPasswordForm() {
           autoComplete="username"
           required
         />
+        <Submit pending={pending} label="Send reset code" testId="submit-reset-email" />
       </form>
     </StepShell>
   )

@@ -17,7 +17,7 @@ import type { LucideIcon } from "lucide-react"
 
 import { Avatar } from "@/components/ui/misc"
 import { initialsFor } from "@/lib/initials"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
 
 import { AccountNavLink } from "./AccountNavLink"
 
@@ -93,7 +93,7 @@ export function AccountNav() {
 }
 
 async function Identity() {
-  const session = await readServerSession()
+  const session = await getSession()
   if (!session) return <div aria-hidden="true" className="h-12" />
   const name = [session.givenName, session.familyName].filter(Boolean).join(" ") || "Your account"
   return (

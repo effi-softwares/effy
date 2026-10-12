@@ -17,7 +17,6 @@
     "analyze": "next experimental-analyze"
   },
   "dependencies": {
-    "@aws-amplify/adapter-nextjs": "^1.7.3",
     "@effy/api-client": "workspace:*",
     "@effy/design-system": "workspace:*",
     "@effy/legal-content": "workspace:*",
@@ -26,6 +25,7 @@
     "@stripe/react-stripe-js": "^6.8.0",
     "@stripe/stripe-js": "^9.10.0",
     "aws-amplify": "^6.18.0",
+    "aws-jwt-verify": "^4.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",

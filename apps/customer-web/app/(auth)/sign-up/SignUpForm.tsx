@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import Link from "next/link"
+import { LogIn, ShoppingCart } from "lucide-react"
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
 import { safeNextTarget } from "@/lib/next-target"
@@ -19,16 +19,19 @@ import {
   signUpWithPassword,
 } from "../_lib/auth-actions"
 import { seedCredentialRoute } from "../_lib/seed-actions"
+import { HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
 import { useStepHistory } from "../_lib/step-history"
 import { messageFor, useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
 import { GoogleButton } from "../_components/GoogleButton"
 import { NameStep } from "../_components/NameStep"
 import {
+  AltJourney,
   Divider,
+  EmailChip,
   ErrorNote,
-  inlineActionClass,
   Field,
+  NoticeCard,
   PasswordField,
   StepShell,
   Submit,
@@ -148,6 +151,13 @@ export function SignUpForm() {
           await completeAutoSignIn()
         }
 
+        // The account exists and Cognito has signed them in; the server takes the session over
+        // before anything that needs it (the two calls below do).
+        if (!(await handOverSession())) {
+          setError(HAND_OVER_FAILED)
+          return "failed"
+        }
+
         // 012 FR-013 — the platform CANNOT ask Cognito whether this customer has a password, so
         // registration is the one moment it can learn. Seeded on the record's creating upsert.
         // ⚠ Its result is now checked rather than swallowed; the name step needs the record to exist.
@@ -181,12 +191,9 @@ export function SignUpForm() {
   }, [address])
 
   const signInLink = (
-    <p className="text-center text-sm font-medium text-muted-foreground">
-      Already have an account?{" "}
-      <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className={inlineActionClass}>
-        Sign in
-      </Link>
-    </p>
+    <AltJourney lead="Already have an account?" href={`/sign-in?next=${encodeURIComponent(next)}`}>
+      Sign in
+    </AltJourney>
   )
 
   // ── Step 4: who are you? ────────────────────────────────────────────────────────────────────────
@@ -204,13 +211,14 @@ export function SignUpForm() {
       <CodeStep
         parentError={error}
         destination={address}
-        submitLabel="Create account"
+        submitLabel="Continue"
         submitTestId="submit-confirm"
         onSubmit={submitCode}
         onResend={sendCode}
         onChangeEmail={back}
-        onBack={back}
         flow="sign_up"
+        purpose=" to confirm it is yours"
+        footer={signInLink}
         // ⚠ Managed flow → the refusals really are distinguishable here.
         distinguishableRefusals
       />
@@ -219,24 +227,41 @@ export function SignUpForm() {
 
   // ── Steps 1 and 2: the credential ───────────────────────────────────────────────────────────────
   const onPassword = step === "password"
+  const changeAddress = () => {
+    setError(null)
+    validation.reset()
+    back()
+  }
   return (
     <StepShell
-        title={onPassword ? "Choose a password" : "Create your account"}
-        subtitle={
-          onPassword ? (
-            <>
-              Creating an account for <strong className="text-foreground">{address}</strong>
-            </>
-          ) : next !== "/" ? (
-            <span data-testid="deferred-reason">
-              You&apos;ll need an account to place your order. We&apos;ll take you straight back.
-            </span>
-          ) : (
-            "Start with your email — we'll do the rest in a moment."
-          )
-        }
-      onBack={onPassword ? back : undefined}
-      bottom={signInLink}
+      title={onPassword ? "Choose a password" : "Create your account"}
+      subtitle={
+        onPassword ? (
+          <>Signing up as {address}</>
+        ) : (
+          "Start with your email — we'll do the rest in a moment."
+        )
+      }
+      notice={
+        onPassword || next === "/" ? undefined : next.startsWith("/checkout") ? (
+          <NoticeCard
+            testId="deferred-reason"
+            icon={<ShoppingCart aria-hidden="true" />}
+            title="Your cart is saved"
+          >
+            You&apos;ll need an account to place your order. We&apos;ll take you straight back.
+          </NoticeCard>
+        ) : (
+          <NoticeCard
+            testId="deferred-reason"
+            icon={<LogIn aria-hidden="true" />}
+            title="Create an account to continue"
+          >
+            We&apos;ll take you straight back to where you were.
+          </NoticeCard>
+        )
+      }
+      footer={signInLink}
     >
         {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -302,9 +327,11 @@ export function SignUpForm() {
             />
           </div>
 
+          {onPassword && <EmailChip email={address} onChange={changeAddress} />}
+
           {onPassword && (
             <PasswordField
-              label="Password"
+              label="Create a password"
               id="password"
               value={password}
               onChange={setPassword}
@@ -328,7 +355,7 @@ export function SignUpForm() {
               hint={
                 password.length > 0 && password.length < PASSWORD_MIN_LENGTH
                   ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
-                  : `At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`
+                  : `At least ${PASSWORD_MIN_LENGTH} characters.`
               }
             />
           )}
@@ -344,30 +371,29 @@ export function SignUpForm() {
           <TermsNotice />
           <Submit
             pending={pending}
-            label={onPassword ? "Create account" : "Email me a code"}
+            label={onPassword ? "Continue" : "Email me a code"}
             testId={onPassword ? "submit-password" : "submit-email"}
           />
 
-          <TextAction
-            testId="toggle-route"
-            onClick={() => {
-              setError(null)
-              if (onPassword) {
+          {/* The way back from the password step is the address row's "Change" (reference: Join —
+              password), so the route toggle is offered on the email step only. */}
+          {!onPassword && (
+            <TextAction
+              testId="toggle-route"
+              onClick={() => {
+                setError(null)
+                // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
+                // without a usable address produces a screen that can refuse but cannot explain, and
+                // it is how the shopper ended up being told "Something went wrong." about an address
+                // they had never typed (BASELINE.md, D-11).
+                if (!validation.check([["email", address]])) return
                 validation.reset()
-                back()
-                return
-              }
-              // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
-              // without a usable address produces a screen that can refuse but cannot explain, and
-              // it is how the shopper ended up being told "Something went wrong." about an address
-              // they had never typed (BASELINE.md, D-11).
-              if (!validation.check([["email", address]])) return
-              validation.reset()
-              go("password")
-            }}
-          >
-            {onPassword ? "Email me a code instead" : "Set a password instead"}
-          </TextAction>
+                go("password")
+              }}
+            >
+              Set a password instead
+            </TextAction>
+          )}
         </form>
 
         {!onPassword && (

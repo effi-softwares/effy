@@ -1,13 +1,11 @@
 import "server-only"
 
 import { cache } from "react"
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { fetchAuthSession } from "aws-amplify/auth/server"
 import type { CustomerDTO } from "@effy/shared-types"
 
-import { runWithAmplifyServerContext } from "@/lib/amplify-server"
 import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { getSession } from "@/lib/session"
 
 /**
  * THE DATA ACCESS LAYER — the authoritative authorization boundary (research D20).
@@ -29,8 +27,8 @@ import { edgeApi, perCustomer } from "@/lib/api/edge"
  *
  * So the model is two-tier, and the split is deliberate:
  *
- *   • `proxy.ts`  — OPTIMISTIC. A cookie-presence check, to redirect early and keep the customer's
- *                   destination. No network. No database. It is a UX affordance, not a gate.
+ *   • `proxy.ts`  — OPTIMISTIC. Keeps the session cookies fresh and redirects a guest early,
+ *                   keeping their destination. It verifies nothing: a UX affordance, not a gate.
  *   • THIS FILE   — AUTHORITATIVE. Verifies the session AND consults the platform's own customer
  *                   record, because a valid token is not permission: a BARRED customer holds a
  *                   perfectly valid token and must still be refused (FR-025).
@@ -39,51 +37,8 @@ import { edgeApi, perCustomer } from "@/lib/api/edge"
  * are treated as public endpoints, because that is exactly what they are — a POST anyone can craft.
  */
 
-export interface Session {
-  sub: string
-  /** Authorizes at the gateway (the JWT authorizer's `audience` is the app client id). */
-  idToken: string
-  /**
-   * Authorizes at COGNITO (012). The password + sign-out endpoints relay this to
-   * ChangePassword / GlobalSignOut / the attribute-verification pair, all of which are
-   * token-authorized rather than IAM-authorized — which is why this slice needs almost no IAM.
-   *
-   * ⚠ The backend refuses any request whose access-token `sub` differs from the gateway-verified
-   * one. See `apis/edge-api/customer/src/password/identity.ts` for the attack that closes.
-   */
-  accessToken: string | null
-}
-
-/**
- * The verified session, or null.
- *
- * `cache()` de-duplicates this within a single request, so a page that checks auth and then fetches
- * data does not decode the token twice.
- */
-export const getSession = cache(async (): Promise<Session | null> => {
-  const session = await runWithAmplifyServerContext({
-    nextServerContext: { cookies },
-    operation: async (ctx) => {
-      try {
-        return await fetchAuthSession(ctx)
-      } catch {
-        return null
-      }
-    },
-  })
-
-  const idToken = session?.tokens?.idToken
-  if (!idToken) return null
-
-  const sub = idToken.payload.sub
-  if (typeof sub !== "string") return null
-
-  return {
-    sub,
-    idToken: idToken.toString(),
-    accessToken: session?.tokens?.accessToken?.toString() ?? null,
-  }
-})
+// The session read itself lives in lib/session.ts; re-exported because this is where pages look for it.
+export { getSession, type Session } from "@/lib/session"
 
 /**
  * The customer, as the PLATFORM sees them — or a redirect to sign-in.

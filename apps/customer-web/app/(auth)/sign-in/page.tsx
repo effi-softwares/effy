@@ -29,10 +29,15 @@ export default function SignInPage() {
 
 function FormSkeleton() {
   return (
-    <div className="space-y-4" aria-hidden="true">
-      <div className="h-8 w-40 animate-pulse rounded bg-muted" />
-      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+    <div className="space-y-8" aria-hidden="true">
+      <div className="space-y-2">
+        <div className="h-10 w-64 animate-pulse rounded-md bg-muted" />
+        <div className="h-5 w-48 animate-pulse rounded-md bg-muted" />
+      </div>
+      <div className="space-y-4">
+        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
+        <div className="h-11 w-full animate-pulse rounded-md bg-muted" />
+      </div>
     </div>
   )
 }

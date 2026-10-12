@@ -1,101 +1,155 @@
 import "server-only"
 
+import { cache } from "react"
 import { cookies } from "next/headers"
+import { CognitoJwtVerifier } from "aws-jwt-verify"
+import { SimpleJsonFetcher } from "aws-jwt-verify/https"
+import { SimpleJwksCache } from "aws-jwt-verify/jwk"
+
+import { refreshTokens, type FreshTokens } from "@/lib/cognito"
+import { cognitoConfig } from "@/lib/config"
+import { SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-cookies"
 
 /**
- * Reading the session ON THE SERVER, for guest-facing pages.
+ * THE customer session, on the server. One read, used by everything.
  *
- * This is the mechanism that lets the storefront show "Hi Janith" in the header while shipping
- * a guest ZERO bytes of the auth SDK (FR-006). The tokens are in cookies (Amplify's `ssr: true`
- * mode puts them there precisely so the server can read them), so the server can tell who the
- * visitor is without any client-side JavaScript being involved at all.
+ * How a session exists at all:
+ *   1. the browser signs in with Cognito directly (`app/(auth)`);
+ *   2. it hands the tokens to `POST /api/session` once, which verifies them and stores them in
+ *      `HttpOnly` cookies — from then on no page script can read them;
+ *   3. `proxy.ts` swaps expired tokens for fresh ones before a request is rendered;
+ *   4. `getSession()` below verifies the id token and says who the customer is.
  *
- * ⚠ Anything that calls this becomes REQUEST-TIME. That is fine — and expected — inside a
- * <Suspense> boundary, where it becomes a streamed hole in an otherwise static page. It is a
- * catastrophe anywhere above one: reading cookies in a layout defers the ENTIRE APP to request
- * time and destroys the static shell for every page. See app/layout.tsx.
+ * ⚠ Anything that calls `getSession` becomes REQUEST-TIME. Fine inside a <Suspense> boundary;
+ * never above one (see app/layout.tsx).
  *
- * This is a PRESENTATION-level read only: "is someone signed in, and what do we call them?"
- * It is NOT an authorization decision. Authorization happens in lib/dal.ts, against the
- * platform's own customer record — because a token says who you are, and only our record says
- * whether you are allowed (FR-025).
+ * ⚠ A token says who you are. Whether you may do something is the backend's decision, made again
+ * on every call with this same token — and `requireCustomer` (lib/dal.ts) for pages.
  */
-
-/** Amplify stores tokens under `CognitoIdentityServiceProvider.<clientId>.<user>.idToken`. */
-const ID_TOKEN_RE = /^CognitoIdentityServiceProvider\..+\.idToken$/
-
-export interface ServerSession {
+export interface Session {
   sub: string
-  email: string | null
-  /**
-   * The raw ID token, straight from the cookie, for FORWARDING to a backend (030).
-   *
-   * ⚠ Read the warning on `decodeJwtPayload` below: nothing here is verified. That is fine for this
-   * one use — the token is passed to the API Gateway's JWT authorizer, which DOES verify the
-   * signature and pins the issuer to the customer pool. Forging this cookie buys an attacker a 401.
-   *
-   * ⚠ It exists so a guest-path server component can call a customer endpoint WITHOUT importing
-   * `aws-amplify`, which is barred from the public path and machine-guarded (011 FR-006). Do not
-   * reach for `lib/dal`'s `getSession` from anything under `app/(shop)/` — the guard will stop you,
-   * and it is right to.
-   *
-   * ⚠ It may be EXPIRED — this path does no refresh. A caller must treat a 401 as "no seed", never
-   * as an error worth showing anyone.
-   */
   idToken: string
-  /**
-   * Name parts, from the ID token's standard `given_name` / `family_name` claims. For the header
-   * greeting and the avatar's initials — PRESENTATION ONLY.
-   *
-   * ⚠ These are CLAIMS, not the record. They can lag the record by up to a token lifetime, which is
-   * why `updateProfile` forces a token refresh after a name change (012 FR-008, research R11). Do not
-   * make any decision from them beyond what to draw.
-   */
+  accessToken: string | null
+  email: string | null
   givenName: string | null
   familyName: string | null
 }
 
-/** The signed-in customer, or null for a guest. Never throws — a guest is not an error. */
-export async function readServerSession(): Promise<ServerSession | null> {
-  const jar = await cookies()
+/* ── Verification ────────────────────────────────────────────────────────────────────────────── */
 
-  const idCookie = jar.getAll().find((c) => ID_TOKEN_RE.test(c.name))
-  if (!idCookie?.value) return null
+/**
+ * ⚠ THE KEY DOWNLOAD GETS TEN SECONDS, NOT THE LIBRARY'S 1.5. A cold connection to the pool's region
+ * has been measured at over three seconds from a developer's machine; at 1.5s every signed-in
+ * customer was treated as signed out, with nothing logged. Keys are cached for the life of the
+ * process, so this is paid once.
+ */
+const jwksCache = new SimpleJwksCache({
+  fetcher: new SimpleJsonFetcher({ defaultRequestOptions: { responseTimeout: 10_000 } }),
+})
 
-  const claims = decodeJwtPayload(idCookie.value)
-  if (!claims?.sub) return null
+function verifier(tokenUse: "id" | "access") {
+  const { userPoolId, userPoolClientId } = cognitoConfig()
+  return CognitoJwtVerifier.create({ userPoolId, clientId: userPoolClientId, tokenUse }, { jwksCache })
+}
 
-  return {
-    sub: String(claims.sub),
-    idToken: idCookie.value,
-    email: typeof claims.email === "string" ? claims.email : null,
-    givenName: typeof claims.given_name === "string" ? claims.given_name : null,
-    familyName: typeof claims.family_name === "string" ? claims.family_name : null,
+let idVerifier: ReturnType<typeof verifier> | undefined
+let accessVerifier: ReturnType<typeof verifier> | undefined
+
+/**
+ * Is this failure "we could not check" rather than "this token is bad"?
+ *
+ * ⚠ THE DISTINCTION IS THE POINT. A bad token means nobody is signed in. Not being able to fetch
+ * the pool's keys means we do not know — and that must surface as an error, never as a quiet
+ * sign-out.
+ */
+function couldNotCheck(err: unknown): boolean {
+  const name = (err as { name?: string } | null)?.name ?? ""
+  return name === "FetchError" || name === "NonRetryableFetchError" || name === "WaitPeriodNotYetEndedJwkError"
+}
+
+type Claims = Record<string, unknown> & { sub: string }
+
+/** The token's claims, or `null` if it is not a valid, unexpired token of ours. Throws if unknowable. */
+async function verify(token: string, use: "id" | "access"): Promise<Claims | null> {
+  try {
+    if (use === "id") return (await (idVerifier ??= verifier("id")).verify(token)) as Claims
+    return (await (accessVerifier ??= verifier("access")).verify(token)) as Claims
+  } catch (err) {
+    if (couldNotCheck(err)) throw new Error("The sign-in keys could not be fetched", { cause: err })
+    return null
   }
 }
 
-/**
- * Decode (NOT verify) a JWT payload.
- *
- * ⚠ There is no signature check here, and that is deliberate — but it means the result is
- * UNTRUSTED. It is safe for exactly one thing: deciding whether to render "Sign in" or a name
- * in the header. A forged cookie buys an attacker the ability to see their own name spelled
- * wrong on their own screen.
- *
- * It MUST NOT be used to authorize anything. Every protected read goes through lib/dal.ts and
- * is validated by the API Gateway's JWT authorizer at the backend, which does verify the
- * signature and pins the issuer to the customer pool.
- */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  const parts = token.split(".")
-  if (parts.length !== 3) return null
-  try {
-    const json = Buffer.from(
-      parts[1].replace(/-/g, "+").replace(/_/g, "/"),
-      "base64",
-    ).toString("utf8")
-    return JSON.parse(json) as Record<string, unknown>
-  } catch {
-    return null
+/* ── Reading ─────────────────────────────────────────────────────────────────────────────────── */
+
+const text = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : null)
+
+/** Who is signed in, or `null`. Memoised per request. */
+export const getSession = cache(async (): Promise<Session | null> => {
+  const jar = await cookies()
+  const idToken = jar.get(SESSION_COOKIES.id)?.value
+  if (!idToken) return null
+
+  const claims = await verify(idToken, "id")
+  if (!claims) return null
+
+  return {
+    sub: claims.sub,
+    idToken,
+    accessToken: jar.get(SESSION_COOKIES.access)?.value ?? null,
+    email: text(claims.email),
+    givenName: text(claims.given_name),
+    familyName: text(claims.family_name),
   }
+})
+
+/* ── Writing (Route Handlers and Server Actions only — a Server Component cannot set cookies) ──── */
+
+/**
+ * Start a session from tokens the browser was just issued.
+ *
+ * Returns `false` when the tokens are not ours, not current, or do not belong to one person.
+ */
+export async function startSession(tokens: {
+  idToken: string
+  accessToken: string
+  refreshToken: string
+}): Promise<boolean> {
+  const [id, access] = await Promise.all([
+    verify(tokens.idToken, "id"),
+    verify(tokens.accessToken, "access"),
+  ])
+  if (!id || !access || id.sub !== access.sub) return false
+
+  const jar = await cookies()
+  const options = sessionCookieOptions()
+  jar.set(SESSION_COOKIES.id, tokens.idToken, options)
+  jar.set(SESSION_COOKIES.access, tokens.accessToken, options)
+  jar.set(SESSION_COOKIES.refresh, tokens.refreshToken, options)
+  return true
+}
+
+/**
+ * Fetch new tokens NOW, ahead of their expiry — after a profile change, so the header's greeting
+ * (a claim in the id token) is right on the very next render.
+ */
+export async function renewSession(): Promise<void> {
+  const jar = await cookies()
+  const refreshToken = jar.get(SESSION_COOKIES.refresh)?.value
+  if (!refreshToken) return
+  let fresh: FreshTokens | null
+  try {
+    fresh = await refreshTokens(refreshToken)
+  } catch {
+    return // the current tokens stay; the claim catches up at the next hourly refresh
+  }
+  if (!fresh) return
+  const options = sessionCookieOptions()
+  jar.set(SESSION_COOKIES.id, fresh.idToken, options)
+  jar.set(SESSION_COOKIES.access, fresh.accessToken, options)
+}
+
+export async function clearSessionCookies(): Promise<void> {
+  const jar = await cookies()
+  for (const name of Object.values(SESSION_COOKIES)) jar.delete(name)
 }

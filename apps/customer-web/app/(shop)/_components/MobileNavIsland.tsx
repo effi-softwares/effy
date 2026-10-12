@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Avatar } from "@/components/ui/misc"
 import { initialsFor } from "@/lib/initials"
 import { ACCOUNT_LINKS } from "@/components/header/account-links"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
 
 import { aisleIcon } from "@/components/chrome/aisle-icon"
 import { btnClass } from "@/components/storefront/actions"
@@ -30,7 +30,7 @@ import { MobileNav } from "./MobileNav"
  * passed in as children — the same trick `AccountMenu` uses. A guest downloads none of it.
  */
 export async function MobileNavIsland() {
-  const [session, categories] = await Promise.all([readServerSession(), getCategoriesSafe()])
+  const [session, categories] = await Promise.all([getSession(), getCategoriesSafe()])
   const top = topLevel(categories)
   const aisles =
     top.length > 0 ? (

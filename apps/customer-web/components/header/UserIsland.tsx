@@ -5,7 +5,7 @@ import { AccountMenu } from "@/components/header/AccountMenu"
 import { AuthSync } from "@/components/header/AuthSync"
 import { btnClass } from "@/components/storefront/actions"
 import { edgeApi, perCustomer } from "@/lib/api/edge"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
 
 /**
  * The personalized corner of the header — a streamed server island.
@@ -18,7 +18,7 @@ import { readServerSession } from "@/lib/session"
  * shows the name alone rather than telling a customer with points that they have none.
  */
 export async function UserIsland() {
-  const session = await readServerSession()
+  const session = await getSession()
 
   if (!session) {
     return (

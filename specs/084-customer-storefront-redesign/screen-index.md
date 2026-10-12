@@ -26,7 +26,7 @@ Width: **D** desktop (1440), **P** phone (~390).
 | S3 | Checkout header | D | `checkout/_components/CheckoutHeader.tsx`, `CheckoutFooter.tsx` | **R** (3-step indicator) |
 | S4 | Product card | D | `(shop)/_components/ProductCard.tsx`, `AddToCartControl`, `SaveControl` | **L** (Add → stepper in place, badges) |
 | S5 | Account navigation | D | `(account)/account/AccountTabs.tsx`, `tabs.ts` | **L** (tabs → sidebar, one page per section) |
-| S6 | Auth card template | D | `(auth)/layout.tsx`, `_components/AuthKit.tsx`, `BrandPanel.tsx` | **L** (split panel → one centred card) |
+| S6 | Auth card template | D | `(auth)/layout.tsx`, `_components/AuthKit.tsx`, `BrandPanel.tsx` | **L** (art panel left, one 400px form column right; form only below `lg`) |
 
 ## 1. Home (12)
 

@@ -88,10 +88,14 @@ tests only for new logic (new routes, guards, view-model derivations).
 
 ## Phase 8: US6 — sign in and join (P2)
 
-- [ ] T056 [US6] Sign in: email, code, password, from-checkout note, cookie notice — J1–J4, J7, J16, J17 — frame (one centred card), inputs, buttons, notes restyled through `AuthKit`; individual steps not walked; cookie notice (J7) not built
-- [ ] T057 [P] [US6] Join: email, code, password, name — J8–J11, J18, J19
-- [ ] T058 [P] [US6] Reset: email, sent, new password, done — J12–J15
-- [ ] T059 [P] [US6] Code expired; Google failed — J5, J6
+- [x] T056 [US6] Sign in: email, code, password, from-checkout note, cookie notice — J1–J4, J7, J16, J17 — rebuilt to the reference's split frame (art panel + 400px column); the first pass had drawn one centred card, which the reference does not. Cookie notice (J7) is the existing consent bar
+- [x] T057 [P] [US6] Join: email, code, password, name — J8–J11, J18, J19 — **no marketing checkbox** on the name step: the customer record has nowhere to keep that consent. Password hint says the real minimum (12), not the reference's 8
+- [x] T058 [P] [US6] Reset: email, sent, new password, done — J12–J15 — **the platform sends a code, not a link**, so J13 is the code step; J15 says "sign in with your new password" (a reset signs out everywhere), not "You're signed in"
+- [x] T059 [P] [US6] Code expired; Google failed — J5, J6
+- **Defect fixed with this phase**: 084 dropped `@source "…/packages/design-system/src"` from `app/globals.css`, so classes used only inside `@effy/design-system/ui` were never generated — the sign-in code boxes collapsed and overlapped. Restored (scoped to `src/ui`); the auth code step now uses the storefront's own `CodeField`.
+- **Session handling re-implemented (operator direction, 2026-10-12)**: the Amplify adapter's server-side token check gave the pool's key download 1.5s and silently treated a slow one as "signed out", which bounced every signed-in customer back to sign-in from the operator's machine. Now: the browser signs in with Cognito (Amplify, `app/(auth)` only, tab `sessionStorage`) and hands the tokens to `POST /api/session`; the server verifies them and keeps them in three `HttpOnly` cookies (`lib/session-cookies.ts`); `getSession` (`lib/session.ts`) is the one read; `proxy.ts` is the one refresher (now matches every page and `/api`); sign-out revokes the refresh token (`lib/cognito.ts`). Removed: `lib/amplify-server.ts`, `@aws-amplify/adapter-nextjs`, the unverified `readServerSession`, the leftover-session workaround. Password sign-in now checks Cognito's result. New dependency: `aws-jwt-verify`.
+- **Open for production**: the server now calls Cognito for refreshes (about one per customer per hour). The user-pool WAF rule is 100 requests / 5 min / IP — check it against the storefront's egress before launch.
+- Not verified: a sign-in that SUCCEEDS (no test account in this session), the name step, reset-done and Google-failed screens (typecheck + unit tests only). e2e not run; `otp-entry.spec.ts` / `deferred-signin.spec.ts` will need label updates ("Check your email", no `step-back`, reset no longer redirects to `/sign-in?reason=password-changed`).
 
 ## Phase 9: US7 — saved items (P2)
 
@@ -130,7 +134,7 @@ tests only for new logic (new routes, guards, view-model derivations).
 - **Guest bundle is over budget** on five routes: `/` 177.0, `/search` 180.0, `/product/[id]` 175.2, `/cart` 180.3, `/help` 176.8 against 174 KB. Not raised. Growth: in-card Add stepper, save control on listing cards, cart-page rail, aisle highlight, search aisle chooser. Operator decision pending: trim or record a new floor.
 - **Signed-in pages are not visually verified** — I had no session: checkout, payment, confirmation, orders, order detail, account Overview and sections, saved. They typecheck, build and pass unit tests.
 - **e2e not run.** Expect failures from changed structure and labels (`container.spec.ts` width; account `?tab=` flows; `/feedback`).
-- **Not started**: T002 parity baseline, T013 Stripe appearance, T042–T044 order-list pictures + tracker, T047 dialogs, T057–T061 (auth steps, saved pages beyond shape sweep), T066–T068 info pages, T069–T070 search suggestions, T072–T076.
+- **Not started**: T002 parity baseline, T013 Stripe appearance, T042–T044 order-list pictures + tracker, T047 dialogs, T060–T061 (saved pages beyond shape sweep), T066–T068 info pages, T069–T070 search suggestions, T072–T076.
 - **Icons**: `favicon.ico`, `apple-icon.png`, `public/web-app-*.png`, `manifest.ts` still carry the old mark.
 - Pre-existing, not from 084: `depcruise` reports two circular imports inside `packages/shared-types`.
 

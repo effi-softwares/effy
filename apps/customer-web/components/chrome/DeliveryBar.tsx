@@ -3,7 +3,7 @@ import { COVERAGE_REFUSAL_SENTENCE, DELIVERY_TYPE_WORDS } from "@effy/shared-typ
 import type { AddressDTO } from "@effy/shared-types"
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
 
 /**
  * The black bar across the top: where Effy is delivering, and who delivers there (FR-016).
@@ -18,7 +18,7 @@ import { readServerSession } from "@/lib/session"
  * Read per customer, so it renders inside a Suspense boundary and never holds up the static shell.
  */
 export async function DeliveryBar() {
-  const session = await readServerSession()
+  const session = await getSession()
   if (!session) return <GuestDeliveryBar />
 
   let address: AddressDTO | null = null

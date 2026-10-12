@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { LogIn, ShoppingCart } from "lucide-react"
 
 import { safeNextTarget } from "@/lib/next-target"
 import { mergeCartAfterSignIn } from "@/lib/cart-actions"
@@ -19,17 +20,21 @@ import {
   signInWithPassword,
   submitOtpCode,
 } from "../_lib/auth-actions"
+import { HAND_OVER_FAILED, handOverSession } from "../_lib/session-handoff"
 import { useStepHistory } from "../_lib/step-history"
 import { messageFor, useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
 import { GoogleButton } from "../_components/GoogleButton"
 import { ReasonNotice } from "../_components/ReasonNotice"
 import {
+  AltJourney,
   Divider,
+  EmailChip,
   ErrorNote,
-  inlineActionClass,
   Field,
+  NoticeCard,
   PasswordField,
+  quietActionClass,
   StepShell,
   Submit,
   TextAction,
@@ -122,8 +127,18 @@ export function SignInForm() {
     })
   }
 
+  /**
+   * Cognito said yes. Give the server the session, and only then leave this screen.
+   *
+   * ⚠ `false` MEANS STAY. Navigating before the server holds the session is how a customer used to
+   * be bounced straight back here with nothing said.
+   */
   const done = useCallback(
-    (route: "password" | "otp") => {
+    async (route: "password" | "otp"): Promise<boolean> => {
+      if (!(await handOverSession())) {
+        setError(HAND_OVER_FAILED)
+        return false
+      }
       capture({ name: "sign_in_completed", props: { route } })
       // 027 FR-011: fold this browser's cart into the account cart — union with MAXIMUM quantity, so
       // nothing is lost from either side and a repeated sign-in changes nothing. Fired before
@@ -136,6 +151,7 @@ export function SignInForm() {
       // signed-in customer can land on it again.
       router.replace(next)
       router.refresh()
+      return true
     },
     [next, router],
   )
@@ -153,14 +169,9 @@ export function SignInForm() {
       setError(null)
       try {
         const result = await submitOtpCode(code)
-        if (result.isSignedIn) {
-          done("otp")
-          return "accepted"
-        }
         const nextStep = result.nextStep?.signInStep
-        if (nextStep && classifySignInStep(nextStep) === "done") {
-          done("otp")
-          return "accepted"
+        if (result.isSignedIn || (nextStep && classifySignInStep(nextStep) === "done")) {
+          return (await done("otp")) ? "accepted" : "failed"
         }
         // Cognito asked for the code again → it was not accepted, and attempts remain.
         return "rejected"
@@ -192,12 +203,9 @@ export function SignInForm() {
   }, [address])
 
   const joinLink = (
-    <p className="text-center text-sm font-medium text-muted-foreground">
-      Don&apos;t have an account?{" "}
-      <Link href={`/sign-up?next=${encodeURIComponent(next)}`} className={inlineActionClass}>
-        Join
-      </Link>
-    </p>
+    <AltJourney lead="Don't have an account?" href={`/sign-up?next=${encodeURIComponent(next)}`}>
+      Join
+    </AltJourney>
   )
 
   // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
@@ -215,8 +223,8 @@ export function SignInForm() {
         onSubmit={submitCode}
         onResend={sendCode}
         onChangeEmail={back}
-        onBack={back}
         flow="sign_in"
+        footer={joinLink}
       />
     )
   }
@@ -228,28 +236,41 @@ export function SignInForm() {
   // with a password field to fill and — much more fragilely — to SAVE. Unmounting it is exactly the
   // breakage that identifier-first flows are known for.
   const onPassword = step === "password"
+  const changeAddress = () => {
+    setError(null)
+    // A new step starts clean — carrying "enter your password" back onto the email step would shout
+    // about a field that is no longer the one being asked for.
+    validation.reset()
+    back()
+  }
   return (
     <StepShell
-        title={onPassword ? "Enter your password" : "Sign in to Effy"}
-        subtitle={
-          onPassword ? (
-            <>
-              Signing in as <strong className="text-foreground">{address}</strong>
-            </>
-          ) : next !== "/" ? (
-            // FR-019 — say WHY we are asking now. The customer was browsing happily a moment ago.
-            <span data-testid="deferred-reason">
-              You&apos;ll need an account to place your order. Sign in and we&apos;ll take you
-              straight back.
-            </span>
-          ) : (
-            "It's good to see you again."
-          )
-        }
-      onBack={onPassword ? back : undefined}
+      title={onPassword ? "Enter your password" : "Sign in to Effy"}
+      subtitle={onPassword ? <>Signing in as {address}</> : "It's good to see you again."}
+      // FR-019 — say WHY we are asking now. The customer was browsing happily a moment ago.
+      notice={
+        onPassword || next === "/" ? undefined : next.startsWith("/checkout") ? (
+          <NoticeCard
+            testId="deferred-reason"
+            icon={<ShoppingCart aria-hidden="true" />}
+            title="Your cart is saved"
+          >
+            You&apos;ll need an account to place your order. Sign in and we&apos;ll take you straight
+            back.
+          </NoticeCard>
+        ) : (
+          <NoticeCard
+            testId="deferred-reason"
+            icon={<LogIn aria-hidden="true" />}
+            title="Sign in to continue"
+          >
+            We&apos;ll take you straight back to where you were.
+          </NoticeCard>
+        )
+      }
       // ⚠ The opposite journey is a FOOTER, not an action — it belongs at the foot of the screen,
       // furthest from the thing the shopper came here to do.
-      bottom={joinLink}
+      footer={joinLink}
     >
         <ReasonNotice reason={reason} />
         {error && <ErrorNote>{error}</ErrorNote>}
@@ -290,8 +311,15 @@ export function SignInForm() {
             run(
               async () => {
                 if (onPassword) {
-                  await signInWithPassword(address, password)
-                  done("password")
+                  // ⚠ THE RESULT IS CHECKED. Cognito can answer a correct password with a further
+                  // step (an address never confirmed, a forced reset); treating that as signed in
+                  // sent the customer away still signed out.
+                  const result = await signInWithPassword(address, password)
+                  if (!result.isSignedIn) {
+                    setError("We couldn't sign you in with a password. Email yourself a code instead.")
+                    return
+                  }
+                  await done("password")
                   return
                 }
                 await signInWithOtp(address)
@@ -320,9 +348,18 @@ export function SignInForm() {
             />
           </div>
 
+          {onPassword && <EmailChip email={address} onChange={changeAddress} />}
+
           {onPassword && (
             <PasswordField
               label="Password"
+              // ⚠ FR-019 — reset lives on the password step, beside the field the person who needs
+              // it is looking at.
+              labelAction={
+                <Link href="/reset-password" className={quietActionClass}>
+                  Forgot your password?
+                </Link>
+              }
               id="password"
               value={password}
               onChange={setPassword}
@@ -342,14 +379,11 @@ export function SignInForm() {
           <TextAction
             testId="toggle-mode"
             onClick={() => {
-              setError(null)
               if (onPassword) {
-                // A new step starts clean — carrying "enter your password" back onto the email step
-                // would shout about a field that is no longer the one being asked for.
-                validation.reset()
-                back()
+                changeAddress()
                 return
               }
+              setError(null)
               // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
               // without a usable address produces a screen that can refuse but cannot explain — the
               // email input there is deliberately hidden (FR-040), so its message renders hidden
@@ -378,19 +412,6 @@ export function SignInForm() {
               }}
             />
           </>
-        )}
-
-        {/* ⚠ FR-019 — reset lives on the password step, where the person who needs it is standing.
-
-            ⚠ THE RECOVERY ROUTE, DRAWN AS ONE (operator direction 2026-08-11). It was thin muted text
-            and read as a caption — on the one screen where a person who cannot remember their
-            password is standing, that is the link that must not be missable. */}
-        {onPassword && (
-          <p className="text-center text-sm font-medium text-muted-foreground">
-            <Link href="/reset-password" className={inlineActionClass}>
-              Forgot your password?
-            </Link>
-          </p>
         )}
     </StepShell>
   )

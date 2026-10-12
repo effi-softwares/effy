@@ -9,7 +9,7 @@ import type {
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/dal"
-import { clearSessionCookies } from "@/lib/sign-out"
+import { clearSessionCookies } from "@/lib/session"
 
 /**
  * Account closure (034 US3).

@@ -1,9 +1,7 @@
 "use server"
 
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
-import { fetchAuthSession } from "aws-amplify/auth/server"
 import type {
   CustomerDTO,
   PasswordChallengeResultDTO,
@@ -11,10 +9,9 @@ import type {
   UpdateCustomerDTO,
 } from "@effy/shared-types"
 
-import { runWithAmplifyServerContext } from "@/lib/amplify-server"
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/dal"
-import { clearSessionCookies } from "@/lib/sign-out"
+import { clearSessionCookies, renewSession } from "@/lib/session"
 
 /**
  * The account page's writes (012).
@@ -78,7 +75,7 @@ export async function updateProfile(
       perCustomer,
     )
 
-    await refreshTokens()
+    await renewSession()
 
     revalidatePath("/account")
     revalidatePath("/", "layout") // the header greeting lives in the shell
@@ -169,20 +166,6 @@ export async function writePassword(input: PasswordWriteDTO): Promise<Result> {
  * A form posts to a URL — a *string* — so no module edge exists at all, and sign-out costs the guest
  * bundle exactly zero. See app/(auth)/sign-out/route.ts.
  */
-
-/** Force Amplify to mint fresh tokens and write them back to the cookie jar. */
-async function refreshTokens(): Promise<void> {
-  try {
-    await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (ctx) => fetchAuthSession(ctx, { forceRefresh: true }),
-    })
-  } catch {
-    // Not fatal. The name IS saved — the record is the authority, and the page will show it. Only the
-    // header's greeting lags, until the token next refreshes on its own. A stale greeting is a far
-    // better outcome than telling the customer their save failed when it did not.
-  }
-}
 
 /** The backend's problem-detail message, when it gave one worth showing the customer. */
 function messageFor(err: unknown, fallback: string): string {

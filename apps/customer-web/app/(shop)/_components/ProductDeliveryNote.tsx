@@ -5,7 +5,7 @@ import type { AddressDTO, PointsBalanceDTO } from "@effy/shared-types"
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { formatMoney } from "@/lib/money"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
 
 import { PaymentMarks } from "./PaymentMarks"
 
@@ -21,7 +21,7 @@ import { PaymentMarks } from "./PaymentMarks"
  * A guest gets the general line and the payment marks; both customer rows need a session.
  */
 export async function ProductDeliveryNote() {
-  const session = await readServerSession()
+  const session = await getSession()
 
   let address: AddressDTO | null = null
   let points: PointsBalanceDTO | null = null
