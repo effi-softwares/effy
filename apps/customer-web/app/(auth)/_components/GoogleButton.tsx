@@ -2,6 +2,8 @@
 
 import * as React from "react"
 
+import { btnClass } from "@/components/storefront/actions"
+
 /**
  * The "Continue with Google" control (036 FR-038, FR-039, FR-040).
  *
@@ -46,7 +48,7 @@ export function GoogleButton({
       data-testid={testId}
       disabled={disabled}
       onClick={() => onUnavailable(GOOGLE_UNAVAILABLE)}
-      className="flex h-11 w-full items-center justify-center gap-3 rounded-full border text-sm font-medium hover:bg-accent disabled:opacity-60"
+      className={btnClass("outline", "lg", "h-11 w-full")}
     >
       <GoogleMark />
       {label}

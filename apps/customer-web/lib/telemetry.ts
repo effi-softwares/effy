@@ -219,6 +219,8 @@ export type StorefrontEvent =
       props: { reason: "rate_limited" | "unavailable" | "failed" }
     }
   | { name: "search_performed"; props?: Record<string, never> }
+  /** 084 — a line of the search field's list was chosen. The KIND of line, never its text. */
+  | { name: "search_suggestion_selected"; props: { kind: "phrase" | "aisle" | "product" | "recent" } }
   // 074 customer points. ⚠ NO AMOUNTS, NO BALANCE — a points balance is account data, not behaviour.
   | { name: "points_viewed"; props?: Record<string, never> }
   | { name: "checkout_points_toggled"; props: { on: boolean } }

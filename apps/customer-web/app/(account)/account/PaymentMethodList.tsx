@@ -104,7 +104,7 @@ export function PaymentMethodList({
             </span>
 
             {card.isDefault && card.usable ? (
-              <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+              <span className="shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
                 Default
               </span>
             ) : null}
@@ -114,7 +114,7 @@ export function PaymentMethodList({
               onClick={() => remove(card.id)}
               disabled={removing === card.id}
               // 44px minimum touch target (FR-033) — the icon is 16px, the hit area is not.
-              className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               aria-label={`Remove card ending ${card.last4}`}
             >
               <Trash2 className="size-4" aria-hidden="true" />

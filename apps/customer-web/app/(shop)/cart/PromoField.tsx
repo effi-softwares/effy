@@ -35,7 +35,7 @@ export function PromoField({ applied }: { applied: CartDiscountDTO | null }) {
             await removePromo()
             setBusy(false)
           }}
-          className="text-sm text-muted-foreground hover:underline"
+          className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           Remove
         </button>
@@ -84,18 +84,18 @@ export function PromoField({ applied }: { applied: CartDiscountDTO | null }) {
           placeholder="Promotional code"
           aria-label="Promotional code"
           aria-invalid={error ? true : undefined}
-          className="h-10 flex-1 rounded-full border px-4 text-sm"
+          className="h-10 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-base shadow-xs md:h-9 md:text-sm"
         />
         <button
           type="submit"
           disabled={busy || code.trim() === ""}
-          className="h-10 rounded-full px-4 text-sm font-medium hover:bg-accent disabled:text-muted-foreground"
+          className="h-10 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs hover:bg-accent disabled:opacity-50 md:h-9"
         >
           Apply
         </button>
       </div>
       {error ? (
-        <p role="alert" className="mt-2 text-xs font-medium text-destructive">
+        <p role="alert" className="mt-2 text-xs font-medium text-foreground">
           {error}
         </p>
       ) : null}

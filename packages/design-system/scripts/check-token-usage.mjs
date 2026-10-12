@@ -23,20 +23,24 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../../..");
 
 // The declared vocabulary: every `--color-*` in tokens.css's @theme block.
-const tokensCss = readFileSync(resolve(here, "../src/tokens.css"), "utf8").replace(
-  /\/\*[\s\S]*?\*\//g,
-  "",
-);
-const declared = new Set(
-  [...tokensCss.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]),
-);
-if (declared.size < 20) {
-  console.error("check-token-usage: FAILED — only " + declared.size + " --color-* vars parsed; the guard is not reading tokens.css");
+function declaredIn(file) {
+  const css = readFileSync(resolve(here, file), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  return new Set([...css.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
+}
+
+const consoleDeclared = declaredIn("../src/tokens.css");
+if (consoleDeclared.size < 20) {
+  console.error("check-token-usage: FAILED — only " + consoleDeclared.size + " --color-* vars parsed; the guard is not reading tokens.css");
+  process.exit(1);
+}
+// 084 — the storefront identity is a second @theme. customer-web imports IT and not tokens.css, so a
+// console token name used there (bg-brand-soft, text-success, border-warning…) emits no rule at all.
+const storefrontDeclared = declaredIn("../src/storefront/tokens.css");
+if (storefrontDeclared.size < 15) {
+  console.error("check-token-usage: FAILED — only " + storefrontDeclared.size + " --color-* vars parsed from storefront/tokens.css");
   process.exit(1);
 }
 
-// Utilities that take a colour token. `ring` and `border` also take widths (`ring-2`, `border-2`),
-// and `outline` takes styles, so purely-numeric and keyword suffixes are skipped below.
 const PREFIXES = [
   "bg", "text", "border", "ring", "fill", "stroke", "from", "via", "to",
   "outline", "decoration", "shadow", "accent", "caret", "divide", "placeholder",
@@ -57,11 +61,7 @@ const BUILTIN = new Set([
   "dark", "light", "sans", "mono", "serif", "justify", "opacity", "ring", "background",
 ]);
 
-const files = [];
-for (const app of ["apps/shop-web/src", "apps/back-office/src", "packages/web-kit/src", "packages/design-system/src/ui"]) {
-  walk(resolve(root, app));
-}
-function walk(dir) {
+function walk(dir, files) {
   let entries;
   try {
     entries = readdirSync(dir);
@@ -70,36 +70,56 @@ function walk(dir) {
   }
   for (const e of entries) {
     const p = join(dir, e);
-    if (statSync(p).isDirectory()) walk(p);
+    if (e === "node_modules" || e === ".next") continue;
+    if (statSync(p).isDirectory()) walk(p, files);
     else if (/\.tsx?$/.test(p) && !/\.test\.tsx?$/.test(p)) files.push(p);
   }
 }
 
-const unknown = new Map();
-for (const f of files) {
-  // Strip comments: prose legitimately names tokens that a file does not use.
-  const src = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  for (const m of src.matchAll(RE)) {
-    const name = m[2];
-    if (BUILTIN.has(name)) continue;
-    if (/^\d/.test(name)) continue; // ring-2, border-4, text-3xl handled above
-    // Only judge names that look like OURS: they share a first segment with a declared token.
-    const head = name.split("-")[0];
-    const ours = [...declared].some((d) => d === head || d.startsWith(head + "-"));
-    if (!ours) continue;
-    if (declared.has(name)) continue;
-    if (!unknown.has(name)) unknown.set(name, new Set());
-    unknown.get(name).add(f.replace(root + "/", ""));
+// `declared` is the @theme the surface imports; `known` is every token name either identity has, so a
+// name that belongs to the OTHER identity is caught even when its head is not declared here.
+function scan(label, file, declared, known, roots) {
+  const files = [];
+  for (const r of roots) walk(resolve(root, r), files);
+  const unknown = new Map();
+  for (const f of files) {
+    const src = readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    for (const m of src.matchAll(RE)) {
+      const name = m[2];
+      if (BUILTIN.has(name)) continue;
+      if (/^\d/.test(name)) continue; // ring-2, border-4, text-3xl handled above
+      const head = name.split("-")[0];
+      const ours = [...known].some((d) => d === head || d.startsWith(head + "-"));
+      if (!ours) continue;
+      if (declared.has(name)) continue;
+      if (!unknown.has(name)) unknown.set(name, new Set());
+      unknown.get(name).add(f.replace(root + "/", ""));
+    }
   }
+  if (unknown.size) {
+    console.error(`check-token-usage: FAILED (${label})\n` + [...unknown].map(([n, fs]) =>
+      `  - \`${n}\` is used as a colour utility but ${file} declares no --color-${n}. ` +
+      `Tailwind emits NO RULE for it, so it renders as nothing.\n      ` + [...fs].join("\n      ")
+    ).join("\n"));
+    return false;
+  }
+  console.log(
+    `check-token-usage: OK (${label}) — ${files.length} files, every colour utility resolves to one of ${declared.size} declared tokens`,
+  );
+  return true;
 }
 
-if (unknown.size) {
-  console.error("check-token-usage: FAILED\n" + [...unknown].map(([n, fs]) =>
-    `  - \`${n}\` is used as a colour utility but tokens.css declares no --color-${n}. ` +
-    `Tailwind emits NO RULE for it, so it renders as nothing.\n      ` + [...fs].join("\n      ")
-  ).join("\n"));
-  process.exit(1);
-}
-console.log(
-  `check-token-usage: OK — ${files.length} files, every platform colour utility resolves to one of ${declared.size} declared tokens`,
-);
+const everyToken = new Set([...consoleDeclared, ...storefrontDeclared]);
+const ok = [
+  scan("console", "tokens.css", consoleDeclared, consoleDeclared, [
+    "apps/shop-web/src",
+    "apps/back-office/src",
+    "packages/web-kit/src",
+    "packages/design-system/src/ui",
+  ]),
+  scan("storefront", "storefront/tokens.css", storefrontDeclared, everyToken, [
+    "apps/customer-web/app",
+    "apps/customer-web/components",
+  ]),
+];
+if (ok.includes(false)) process.exit(1);

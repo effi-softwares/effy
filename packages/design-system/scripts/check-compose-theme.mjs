@@ -27,6 +27,7 @@ const targets = [
   // screen where a third party draws pixels inside ours, so a hand edit here would put the card
   // fields on a second, unchecked copy of the brand. Listed so that cannot happen silently.
   resolve(here, "../stripe/appearance.ts"),
+  resolve(here, "../stripe/storefront-appearance.ts"),
   resolve(here, "../compose-payment-android/EffyPaymentAppearance.kt"),
 ];
 const before = new Map(

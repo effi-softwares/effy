@@ -25,43 +25,38 @@ export function RefundBlock({
   fullyRefunded: boolean
 }) {
   return (
-    <section className="rounded-xl border p-6">
-      <h2 className="text-sm font-medium">
+    <section aria-labelledby="refunds-title" className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
+      <h2 id="refunds-title" className="leading-none font-semibold">
         {fullyRefunded ? "This order was refunded" : "Refunds on this order"}
       </h2>
-
-      <ul className="mt-3 flex flex-col gap-2.5">
+      <ul className="flex flex-col gap-3 text-sm">
         {refunds.map((r, i) => (
-          <li key={`${r.amount}-${r.refundedAt ?? i}`} className="flex justify-between gap-4 text-sm">
-            <span className="text-muted-foreground">{STATE_LABEL[r.state]}</span>
+          <li key={`${r.amount}-${r.refundedAt ?? i}`} className="flex justify-between gap-3">
+            <span className={r.state === "completed" ? "font-medium text-brand" : "text-muted-foreground"}>
+              {STATE_LABEL[r.state]}
+            </span>
             <span className="tabular-nums">{r.amount}</span>
           </li>
         ))}
       </ul>
-
-      <dl className="mt-3 flex flex-col gap-1.5 border-t pt-3 text-sm">
-        <div className="flex justify-between gap-4">
-          <dt className="text-muted-foreground">Refunded</dt>
+      <dl className="flex flex-col gap-1.5 border-t pt-4 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt>Refunded</dt>
           <dd className="tabular-nums">{refundedTotal}</dd>
         </div>
-        {/* ⚠ The arithmetic a shopper checks against their bank: what they paid, less what came back.
-            051 and 052 each shipped a receipt whose lines did not add up. */}
-        <div className="flex justify-between gap-4 font-medium">
+        {/* ⚠ The figure the customer checks against their bank: paid, less what came back. It is
+            the server's subtraction, printed — 051 and 052 each shipped a receipt whose lines did
+            not add up. */}
+        <div className="flex justify-between gap-3 text-base font-semibold">
           <dt>You paid</dt>
           <dd className="tabular-nums">{amountPaidAfterRefunds}</dd>
         </div>
       </dl>
-
       <RefundTiming />
     </section>
   )
 }
 
-/**
- * ⚠ FIVE INTERNAL STATES ARRIVE AS THREE, and none of them says why. "Your bank rejected the refund"
- * is staff information: a shopper cannot act on it, and surfacing it invites them to argue with a
- * message that will not change (FR-026). What they need to know is that we know.
- */
 const STATE_LABEL: Record<CustomerRefundDTO["state"], string> = {
   on_its_way: "On its way back to you",
   completed: "Refunded",
@@ -80,7 +75,7 @@ const STATE_LABEL: Record<CustomerRefundDTO["state"], string> = {
  */
 function RefundTiming() {
   return (
-    <p className="mt-3 text-[13px] text-muted-foreground">
+    <p className="text-xs text-muted-foreground">
       Refunds go back to the card or payment method you paid with, usually within a few business days —
       though when it appears depends on your bank. It may show as the original charge disappearing
       rather than as a separate credit.

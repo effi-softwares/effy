@@ -1,6 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { Mail } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 
 /**
  * "Send the receipt again" (052 US4, FR-027).
@@ -62,25 +65,20 @@ export function ResendReceipt({ orderId }: { orderId: string }) {
 
   if (state.kind === "sent") {
     return (
-      // aria-live so the outcome is ANNOUNCED, not merely displayed (SC-009).
-      <p className="text-[13px] text-muted-foreground" aria-live="polite">
+      <p className="inline-flex h-9 items-center text-sm text-muted-foreground" aria-live="polite">
         Sent — check your inbox.
       </p>
     )
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={send}
-        disabled={state.kind === "sending"}
-        className="self-start text-[13px] font-medium text-primary hover:underline disabled:opacity-60"
-      >
+    <div className="flex flex-col items-end gap-1">
+      <Button type="button" variant="outline" onClick={send} disabled={state.kind === "sending"}>
+        <Mail aria-hidden="true" />
         {state.kind === "sending" ? "Sending…" : "Send the receipt again"}
-      </button>
+      </Button>
       {state.kind === "error" ? (
-        <p className="text-[13px] text-muted-foreground" aria-live="polite">
+        <p className="max-w-xs text-right text-xs text-muted-foreground" aria-live="polite">
           {state.message}
         </p>
       ) : null}

@@ -6,7 +6,8 @@ import { Suspense } from "react"
 
 import type { PromotionDTO } from "@effy/shared-types"
 
-import { ActionLink, Display, Rule } from "@/components/storefront/kit"
+import { ActionLink, Rule } from "@/components/storefront/kit"
+import { Breadcrumb } from "@/components/ui/misc"
 import { edgeApiPublic, uncached } from "@/lib/api/edge"
 
 import { CopyCodeButton } from "../../_components/CopyCodeButton"
@@ -92,16 +93,11 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
   if (!promotion) notFound()
 
   return (
-    <article className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6">
-      <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-sm">
-        <Link href="/" className="text-muted-foreground hover:text-foreground">
-          Home
-        </Link>
-        <span aria-hidden="true" className="text-muted-foreground">
-          ›
-        </span>
-        <span>Offer</span>
-      </nav>
+    <article className="container max-w-3xl! py-6">
+      <Breadcrumb
+        items={[{ label: "Home", href: "/" }, { label: "Offers", href: "/offers" }, { label: promotion.title }]}
+        className="mb-6"
+      />
 
       {promotion.imageUrl && (
         // The same 2:1 the artwork is authored and validated at, so the picture an operator approved
@@ -122,9 +118,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
         </div>
       )}
 
-      <Display as="h1" size="sub" className="sm:text-3xl">
-        {promotion.title}
-      </Display>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{promotion.title}</h1>
       {promotion.subtitle && (
         <p className="mt-2 text-base text-muted-foreground">{promotion.subtitle}</p>
       )}
@@ -134,7 +128,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">Code</p>
-          <p className="mt-1 inline-block rounded-lg border px-4 py-2 text-lg font-bold tracking-wide">
+          <p className="mt-1 inline-block rounded-md border px-4 py-2 font-mono text-lg font-semibold">
             {promotion.code}
           </p>
         </div>
@@ -171,7 +165,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
 /** The streamed shell. Same shape as the content, so nothing jumps when the promotion lands. */
 function PromotionSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6" aria-hidden="true">
+    <div className="container max-w-3xl! py-6" aria-hidden="true">
       <div className="mb-6 h-5 w-32 rounded bg-muted" />
       <div className="mb-6 aspect-2/1 w-full rounded-xl bg-muted" />
       <div className="h-8 w-2/3 rounded bg-muted" />

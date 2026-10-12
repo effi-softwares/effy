@@ -1,9 +1,13 @@
+import { Package } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
 import type { StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { Badge } from "@/components/ui/badge"
 import { formatMoney, isDiscounted } from "@/lib/money"
+
+import { CardAdd } from "./CardAdd"
 
 /**
  * A product tile — Principle V's recorded no-card exception (a scannable product grid IS the right
@@ -46,30 +50,23 @@ import { formatMoney, isDiscounted } from "@/lib/money"
  * separation because a card's own name and price already sit below its image; without extra
  * vertical air, the row below reads as a continuation of the row above.
  */
-const gutters = "gap-x-6 gap-y-12 sm:gap-x-10 sm:gap-y-14"
+const gutters = "gap-x-4 gap-y-8"
 
 /** Full-bleed listings: the home rails and any page whose grid owns the whole content column. */
-export const productGrid = `grid items-stretch ${gutters} grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5`
+export const productGrid = `grid items-stretch ${gutters} grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5`
 
 /**
  * Listings that share the row with the filter rail (search). One column narrower at every step —
  * the rail takes 16rem, so reusing `productGrid` here would squeeze the tiles below the width the
  * card was designed for.
  */
-export const productGridNarrow = `grid items-stretch ${gutters} grid-cols-2 sm:grid-cols-3 xl:grid-cols-4`
+export const productGridNarrow = `grid items-stretch ${gutters} grid-cols-2 md:grid-cols-3 xl:grid-cols-4`
 
 export function ProductCard({
   product,
   saveControl,
 }: {
   product: StorefrontProductCardDTO
-  /**
-   * ⚠ A SLOT, not a hook inside this component (033). `ProductCard` has NO "use client" directive and
-   * is dual-mode: client-bundled on `/` (via RecentlyViewedRail) and `/search` (via SearchExperience),
-   * but SERVER-rendered on `/product/[id]` (via RelatedProducts). Putting a hook in here would make it
-   * a client component everywhere, including inside RelatedProducts. Passing an already-built island
-   * in as a prop costs the server-rendered call sites nothing.
-   */
   saveControl?: React.ReactNode
 }) {
   const discounted = isDiscounted(product.priceAmount, product.compareAtAmount)
@@ -81,88 +78,79 @@ export function ProductCard({
             100,
         )
       : null
+  const isNew = product.badges.includes("new")
 
   return (
-    // ⚠ RELATIVE WRAPPER, not a <Link> around everything. The card used to be one big anchor, and a
-    // <button> nested inside an <a> is invalid HTML that produces hydration warnings. The link is now
-    // a STRETCHED OVERLAY (`after:absolute after:inset-0`) covering the card, and the save control
-    // sits ABOVE it on the z-axis — so the whole tile is still one big tap target for navigation
-    // while the heart remains independently clickable.
     <div className="group relative flex h-full w-full flex-col">
-      {saveControl ? (
-        // z-10 to sit above the stretched link. `pointer-events-auto` because the wrapper below is
-        // inert to pointers; only these two things take clicks.
-        <div className="absolute right-2 top-2 z-10">{saveControl}</div>
-      ) : null}
+      {saveControl ? <div className="absolute top-2 right-2 z-10">{saveControl}</div> : null}
 
-      <Link
-        href={`/product/${product.id}`}
-        className="absolute inset-0 z-0"
-        aria-label={product.name}
-      />
+      {/* The whole card is one link, laid UNDER the controls: the heart and the Add button sit above
+          it (z-10) and stay separately pressable, and a screen reader meets one link, not three. */}
+      <Link href={`/product/${product.id}`} className="absolute inset-0 z-0 rounded-lg" aria-label={product.name} />
 
-      {/* The tinted tile. No border, no shadow — the tint is the whole separation. */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-background">
+      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
-            alt={product.name}
+            alt=""
             fill
             unoptimized
-            // Matches the widths `productGrid` actually produces: ~14rem from `lg` up (4-up at lg
-            // and 5-up at xl land on nearly the same tile width), then 3-up and 2-up below.
-            // ⚠ Inert while `unoptimized` is set — a presigned URL gets no srcset — but wrong values
-            // become a real over-fetch the moment the media pipeline stops signing URLs.
-            sizes="(min-width: 1024px) 14rem, (min-width: 640px) 30vw, 45vw"
-            // FILLS the area, edge to edge.
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            sizes="(min-width: 1280px) 15rem, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw"
+            className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${product.available ? "" : "opacity-50"}`}
           />
         ) : (
-          <div
-            aria-hidden="true"
-            className="flex h-full w-full items-center justify-center text-sm text-muted-foreground"
-          >
-            No image
+          <div aria-hidden="true" className="grid h-full w-full place-items-center text-muted-foreground">
+            <Package className="size-10" strokeWidth={1.5} />
           </div>
         )}
 
+        {/* ONE badge, by precedence: a product that cannot be bought says so and nothing else. */}
+        <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+          {discounted && product.available ? (
+            <Badge variant="brand">Sale</Badge>
+          ) : isNew && product.available ? (
+            <Badge>New</Badge>
+          ) : null}
+        </div>
         {!product.available && (
-          <div className="absolute inset-0 flex items-center justify-center bg-card/70 text-sm font-semibold">
+          <Badge variant="dark" className="absolute bottom-2 left-2">
             Unavailable
-          </div>
+          </Badge>
         )}
       </div>
 
-      {/* The name is `text-base`, NOT the display weight used for headings. It is a label on a tile,
-          not a heading on a page — at `text-lg font-bold` it competed with the section heading above
-          the grid and made a wall of tiles shout. */}
-      <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug">{product.name}</h3>
+      {product.brand && <p className="mt-3 truncate text-xs text-muted-foreground">{product.brand}</p>}
+      <h3 className={`line-clamp-2 text-sm leading-snug font-medium ${product.brand ? "mt-0.5" : "mt-3"}`}>
+        {product.name}
+      </h3>
 
-      {/* ⚠ The reference's rating row sits here. Nothing to render until reviews exist. */}
-
-      {/* `mt-auto` pins every price row in a grid to the same baseline. */}
-      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2">
-        {/* The price stays the largest thing on the tile — it is what the shopper is scanning for —
-            but one step down from the old `text-2xl`, which out-shouted the name it belongs to. */}
-        <span className="text-xl font-bold">
-          {formatMoney(product.priceAmount, product.currency)}
-        </span>
-        {discounted && product.compareAtAmount && (
-          <>
-            {/* The struck-through price is REFERENCE information, so it is smaller than the price
-                that is actually being charged. Rendering both at the same size (as this did) makes a
-                shopper read the discount twice to work out which number they pay. */}
-            <span className="text-base font-semibold text-muted-foreground/70 line-through">
-              {formatMoney(product.compareAtAmount, product.currency)}
+      <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-baseline gap-x-1.5">
+            <span className="text-base font-semibold tabular-nums">
+              {formatMoney(product.priceAmount, product.currency)}
             </span>
-            {percentOff !== null && percentOff > 0 && (
-              // The reference's soft red discount chip. `destructive` is Effy's terracotta — the
-              // token that already means "negative", so no new colour enters the system.
-              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
-                -{percentOff}%
+            {discounted && product.compareAtAmount && (
+              <span className="text-xs text-muted-foreground tabular-nums line-through">
+                <span className="sr-only">was </span>
+                {formatMoney(product.compareAtAmount, product.currency)}
               </span>
             )}
-          </>
+          </p>
+          {percentOff !== null && percentOff > 0 && (
+            <p className="text-xs font-medium text-brand">{percentOff}% off</p>
+          )}
+        </div>
+        {product.available && (
+          <CardAdd
+            product={{
+              productId: product.id,
+              name: product.name,
+              imageUrl: product.imageUrl,
+              unitPriceAmount: product.priceAmount,
+              currency: product.currency,
+            }}
+          />
         )}
       </div>
     </div>

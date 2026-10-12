@@ -1,79 +1,63 @@
 "use client"
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
+import { Dialog, useDialogOpen } from "@/components/ui/dialog"
 
 /**
- * Delete confirmation (US4), with two faces:
+ * Delete an address — or be told why this one cannot go yet (reference: Account · Address — delete
+ * blocked).
  *
- *  • **confirm** — a normal "are you sure?" with a destructive Delete action (FR-015).
- *  • **blocked** — the customer is trying to delete their default while other addresses exist. There
- *    is NO delete action, only guidance to set another default first (FR-016a). The server enforces
- *    the same rule (409) — this is the UX half, and the 409 is its backstop for a racing device.
+ * ⚠ THE DEFAULT ADDRESS IS NOT DELETED WHILE OTHERS EXIST: the customer picks a new default first,
+ * so checkout is never left without one. The dialog says that, and offers nothing destructive.
+ *
+ * ⚠ An order already placed keeps its own copy of the address; deleting changes nothing about it.
  */
-export function DeleteAddressDialog({
-  open,
-  onOpenChange,
-  blocked,
-  busy,
-  onConfirm,
-}: {
+type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   blocked: boolean
   busy: boolean
   onConfirm: () => void
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        {blocked ? (
-          <>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Set another default first</AlertDialogTitle>
-              <AlertDialogDescription>
-                This is your default delivery address. Choose another address as your default, then you
-                can delete this one.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-6 flex flex-row justify-end gap-3">
-              <AlertDialogCancel>Got it</AlertDialogCancel>
-            </AlertDialogFooter>
-          </>
-        ) : (
-          <>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete this address?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This removes the address from your account. Orders you’ve already placed keep their own
-                delivery address and are unaffected.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-6 flex flex-row justify-end gap-3">
-              <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={(e) => {
-                  // Keep the dialog mounted while the request runs; the list closes it on success.
-                  e.preventDefault()
-                  onConfirm()
-                }}
-                disabled={busy}
-                className="bg-destructive text-white hover:bg-destructive/90"
-              >
-                {busy ? "Deleting…" : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </>
-        )}
-      </AlertDialogContent>
-    </AlertDialog>
+}
+
+/** Nothing is on the page until the question is asked. */
+export function DeleteAddressDialog(props: Props) {
+  return props.open ? <Question {...props} /> : null
+}
+
+function Question({ open, onOpenChange, blocked, busy, onConfirm }: Props) {
+  const dialog = useDialogOpen(open)
+  const close = () => onOpenChange(false)
+  return blocked ? (
+    <Dialog
+      ref={dialog}
+      alert
+      title="Set another default first"
+      description="This is your default delivery address. Choose another address as your default, then you can delete this one."
+      onClose={close}
+      footer={
+        <Button type="button" variant="outline" onClick={close}>
+          Got it
+        </Button>
+      }
+    />
+  ) : (
+    <Dialog
+      ref={dialog}
+      alert
+      title="Delete this address?"
+      description="This removes the address from your account. Orders you’ve already placed keep their own delivery address and are unaffected."
+      onClose={close}
+      footer={
+        <>
+          <Button type="button" variant="outline" disabled={busy} onClick={close}>
+            Cancel
+          </Button>
+          <Button type="button" variant="destructive" disabled={busy} onClick={onConfirm}>
+            {busy ? "Deleting…" : "Delete"}
+          </Button>
+        </>
+      }
+    />
   )
 }

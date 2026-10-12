@@ -8,7 +8,7 @@ import {
 import type { StripeElementStyle } from "@stripe/stripe-js"
 import { useMemo, useState } from "react"
 
-import { paymentAppearanceLight } from "@effy/design-system/stripe-appearance"
+import { storefrontPaymentAppearance } from "@effy/design-system/stripe-storefront-appearance"
 
 import { AcceptedNetworks } from "./BrandMarks"
 import { Field } from "./Field"
@@ -56,7 +56,7 @@ export function CardFields({ state }: { state: CardFieldsController }) {
   // brand change reaches these iframes with no hand edit (Principle II). Light only: this surface is
   // light-only by operator decision and ships no appearance switcher (research R16).
   const style = useMemo<StripeElementStyle>(() => {
-    const v = paymentAppearanceLight.variables
+    const v = storefrontPaymentAppearance.variables
     return {
       base: {
         color: v.colorText,

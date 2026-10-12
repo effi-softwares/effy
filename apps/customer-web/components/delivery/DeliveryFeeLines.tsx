@@ -17,8 +17,8 @@ export function DeliveryFeeLines({ fee, currency }: { fee: DeliveryFeeDTO; curre
         const saving = l.amount.startsWith("-")
         return (
           <div key={`${l.kind}-${i}`} className="flex items-center justify-between">
-            <dt className={saving ? "text-success" : "text-muted-foreground"}>{DELIVERY_FEE_LINE_LABEL[l.kind]}</dt>
-            <dd className={saving ? "font-medium text-success" : "font-medium"}>
+            <dt className={saving ? "text-brand" : "text-muted-foreground"}>{DELIVERY_FEE_LINE_LABEL[l.kind]}</dt>
+            <dd className={saving ? "font-medium text-brand" : "font-medium"}>
               {saving ? `−${formatMoney(l.amount.slice(1), currency)}` : formatMoney(l.amount, currency)}
             </dd>
           </div>

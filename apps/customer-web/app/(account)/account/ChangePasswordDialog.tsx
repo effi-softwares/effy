@@ -2,15 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react"
 
-import {
-  Button,
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@effy/design-system/ui"
+import { ResponsiveModal, ResponsiveModalContent, ResponsiveModalDescription, ResponsiveModalFooter, ResponsiveModalHeader, ResponsiveModalTitle } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
 
 import { PasswordField } from "./PasswordField"
 import { writePassword } from "./actions"

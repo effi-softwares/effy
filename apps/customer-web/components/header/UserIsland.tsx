@@ -1,91 +1,59 @@
 import Link from "next/link"
+import type { PointsBalanceDTO } from "@effy/shared-types"
 
 import { AccountMenu } from "@/components/header/AccountMenu"
 import { AuthSync } from "@/components/header/AuthSync"
-import { readServerSession } from "@/lib/session"
+import { btnClass } from "@/components/storefront/actions"
+import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { getSession } from "@/lib/session"
 
 /**
- * THE PERSONALIZED ISLAND (research D4, FR-007).
+ * The personalized corner of the header — a streamed server island.
  *
- * This component is the answer to the central design problem of an SSR storefront:
+ * ⚠ This is the ONLY place the header reads the session, and it MUST stay inside a <Suspense>
+ * boundary (see app/layout.tsx rule 1): reading cookies above one defers the whole app to request
+ * time and every page loses its static shell.
  *
- *   A header that greets you by name, or shows your cart count, is DIFFERENT FOR EVERY VISITOR.
- *   Naively, that makes every page that contains the header dynamic and uncacheable — which
- *   destroys the CDN, the speed, and the crawlability that this entire surface exists for.
- *   Personalization eats the cache.
- *
- * The resolution is not to give up personalization, and not to give up the cache. It is to make
- * this one component a HOLE:
- *
- *   • The page body around it is `use cache` and PRERENDERS into a static shell.
- *   • This component reads cookies(), so Next defers ONLY THIS SUBTREE to request time.
- *   • It is wrapped in <Suspense> by the (shop) layout, so the shell ships immediately and this
- *     streams into the reserved slot a moment later.
- *
- * The result: ONE html response, no client-side fetch, ZERO added client JS, no layout shift
- * (the skeleton reserves the exact box), and the public content stays cacheable and fully
- * indexable. Next's build output marks such a route `◐ (Partial Prerender)`.
- *
- * ⚠ It is a SERVER component. It must never become a client component, and it must never be
- * hoisted out of its <Suspense> boundary — either change silently converts every page in the
- * app to request-time rendering.
- *
- * ⚠ It reads the session for DISPLAY ONLY. It authorizes nothing. See lib/dal.ts.
+ * The points balance rides the same island. ⚠ A failed read is `null`, never zero — the trigger then
+ * shows the name alone rather than telling a customer with points that they have none.
  */
 export async function UserIsland() {
-  const session = await readServerSession()
+  const session = await getSession()
 
   if (!session) {
-    // The guest path. Note what does NOT happen here: no API call, no SDK, no client JS.
-    // A visitor who never signs in pays nothing for the existence of the account system.
     return (
-      // A bordered OUTLINE button, not a ghost link. Sign-in is the one account action a guest can
-      // take, and next to a cart icon a bare text link reads as a label rather than a control — the
-      // border is what makes it look pressable.
-      <Link
-        href="/sign-in"
-        className="inline-flex h-9 items-center justify-center rounded-md border bg-transparent px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-        data-testid="sign-in-link"
-      >
+      <Link href="/sign-in" className={btnClass("outline", "md")} data-testid="sign-in-link">
         Sign in
       </Link>
     )
   }
 
-  // ⚠ THE GREETING IS NO LONGER IN THIS ROW — it is the first section of the menu panel below.
-  // It sat here as a "Hi, <name>" link beside the avatar, and it was the one control in the header
-  // whose WIDTH depended on the customer: a two-character name and a twenty-character name gave the
-  // search field two different sizes, on a row that is already tight enough that the desktop
-  // threshold had to be raised to `lg`. The avatar keeps the identity visible; the name is one click
-  // away, where the panel's fixed width can hold it.
-  //
-  // ⚠ The name still comes from the ID TOKEN's claim, not the record — which is why `updateProfile`
-  // FORCES A TOKEN REFRESH after a name change. Without it, the customer edits their name, comes back
-  // to the storefront, and is greeted by their OLD one for up to an hour (012 FR-008, research R11).
-  return (
-    <div className="flex items-center gap-3" data-testid="account-link">
-      {/* 012 FR-028 — sign-out reachable from EVERY page, not just the account page. A SERVER
-          component: `<details>` for the disclosure and a `<form>` for sign-out, so it costs zero
-          client JS and never acquires an import path to the auth SDK. */}
-      <AccountMenu givenName={session.givenName} familyName={session.familyName} />
+  let points: number | null = null
+  try {
+    const balance = await edgeApi(session).get<PointsBalanceDTO>("/customer/v1/points", perCustomer)
+    points = Number(balance.points)
+    if (!Number.isFinite(points)) points = null
+  } catch {
+    points = null
+  }
 
-      {/* 012 FR-030 — the ONLY client JS in this island, and it is mounted for a signed-in customer
-          ONLY. A guest downloads none of it. It re-checks the session when the tab is next looked at,
-          so a tab left open after signing out elsewhere corrects itself before it can mislead. */}
+  return (
+    <div className="flex items-center" data-testid="account-link">
+      <AccountMenu
+        givenName={session.givenName}
+        familyName={session.familyName}
+        email={session.email}
+        points={points}
+      />
       <AuthSync />
     </div>
   )
 }
 
-/**
- * The fallback. It MUST reserve the same box the real island occupies — a skeleton that is a
- * different size than its content is a cumulative-layout-shift bug with extra steps (SC-002
- * budgets CLS at 0.05).
- */
 export function UserIslandSkeleton() {
   return (
     <div
-      className="h-9 w-[5.5rem] animate-pulse rounded-md bg-muted"
+      className="h-11 w-28 animate-pulse rounded-md bg-muted"
       aria-hidden="true"
       data-testid="user-island-skeleton"
     />

@@ -10,9 +10,12 @@ import { createPromotionRepository } from "../promotions/repository";
 import { createPromotionService } from "../promotions/service";
 import { createSearchRepository } from "../search/repository";
 import { createSearchService } from "../search/service";
+import { createSuggestRepository } from "../suggest/repository";
+import { createSuggestService } from "../suggest/service";
 
 export const promotionService = createPromotionService(createPromotionRepository());
 export const homeService = createHomeService(createHomeRepository(), promotionService);
 export const searchService = createSearchService(createSearchRepository());
+export const suggestService = createSuggestService(createSuggestRepository());
 export const facetService = createFacetService(createFacetRepository());
 export const catalogService = createCatalogService(createCatalogRepository());

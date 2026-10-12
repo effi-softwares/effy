@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 
 import type { CreateCheckoutIntentResponse, PaymentMethodDTO } from "@effy/shared-types"
 
-import { ActionButton } from "@/components/storefront/actions"
+import { ActionButton, btnClass } from "@/components/storefront/actions"
 import { holdLapsed } from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
 import { capture } from "@/lib/telemetry"
@@ -281,7 +281,7 @@ export function PaymentStep({
   // are the only two controls here.
   if (alreadyPaidOrder) {
     return (
-      <div className="container pt-10">
+      <div className="pt-2">
         <div className="mx-auto max-w-lg py-16 text-center">
           <h1 className="text-lg font-medium">This order has already been paid</h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -291,14 +291,14 @@ export function PaymentStep({
           <div className="mt-6 flex items-center justify-center gap-3">
             <Link
               href={`/checkout/complete?order=${alreadyPaidOrder}`}
-              className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
+              className={btnClass("primary", "lg")}
             >
               View receipt
             </Link>
             <button
               type="button"
               onClick={onBack}
-              className="rounded-full border px-5 py-2.5 text-sm font-medium"
+              className={btnClass("outline", "lg")}
             >
               Back to checkout
             </button>
@@ -309,18 +309,19 @@ export function PaymentStep({
   }
 
   return (
-    <div className="container pt-10">
+    <div className="pt-2">
       <button
         type="button"
         onClick={onBack}
         disabled={busy}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+        className={btnClass("ghost", "sm", "-ml-3")}
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Back to checkout
       </button>
 
-      <div className="mt-6 grid items-start gap-16 lg:grid-cols-[minmax(0,1fr)_448px]">
+      <h2 className="mt-4 text-xl font-semibold">How would you like to pay?</h2>
+      <div className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex flex-col gap-6">
           {/* ⚠ ABOVE the card form, and that ordering is the requirement (FR-008). A wallet is one tap
               against sixteen typed digits; putting it below the form it replaces would bury it. */}
@@ -393,13 +394,13 @@ export function PaymentStep({
         </div>
 
         {/* The pay rail. A border-left and space hold it — not a card (Principle V). */}
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-22 lg:border-l lg:pl-12">
+        <aside className="flex flex-col gap-5 rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
           <div>
             <span className="block text-xs font-medium uppercase tracking-[0.09em] text-muted-foreground">
               Total due
             </span>
             <div className="mt-1.5 flex items-baseline gap-2">
-              <span className="text-[46px] font-semibold leading-none tracking-[-0.035em]">
+              <span className="text-4xl leading-none font-bold tracking-tight tabular-nums">
                 {amount}
               </span>
               <span className="text-sm font-medium text-muted-foreground">{intent.currency}</span>
@@ -419,8 +420,8 @@ export function PaymentStep({
               type="button"
               onClick={pay}
               disabled={!ready || busy}
-              size="lg"
-              className="h-14 w-full text-base"
+              size="xl"
+              className="w-full"
             >
                       {busy ? "Paying…" : `Pay ${amount}`}
             </ActionButton>

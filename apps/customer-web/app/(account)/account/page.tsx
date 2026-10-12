@@ -1,472 +1,295 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import { Heart, ShoppingBag, Tag } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { CircleHelp, CreditCard, Heart, Lock, MapPin, Pencil, ShieldCheck, Tag } from "lucide-react"
+import {
+  DELIVERY_TYPE_WORDS,
+  type AddressDTO,
+  type OrderSummaryDTO,
+  type PaymentMethodDTO,
+  type PointsBalanceDTO,
+  type SavedItemDTO,
+} from "@effy/shared-types"
 
-import { allDocuments } from "@effy/legal-content"
-import type { AddressDTO, PaymentMethodDTO } from "@effy/shared-types"
-
-import { AddressList } from "@/app/(account)/addresses/_components/AddressList"
-import { Avatar } from "@/components/Avatar"
-import { edgeApi, uncached } from "@/lib/api/edge"
+import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote"
+import { btnClass } from "@/components/storefront/actions"
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { Breadcrumb, Skeleton } from "@/components/ui/misc"
+import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
-import { AccountTabsProvider, SectionNav, TabContent } from "./AccountTabs"
-import { EmailDeliveryNotice } from "./EmailDeliveryNotice"
-import { PasswordCard } from "./PasswordCard"
-import { PaymentMethodList } from "./PaymentMethodList"
-import { PointsTab } from "./PointsTab"
-import { PersonalInfo } from "./PersonalInfo"
-import { SessionCard } from "./SessionCard"
+import { formatMoney } from "@/lib/money"
+
 import { parseTab, tabHref } from "./tabs"
-import { DeleteAccountFlow } from "./privacy/DeleteAccountFlow"
 
 export const metadata: Metadata = {
   title: "Your account",
-  // FR-036 — never indexed. An account page in a search index is a data leak with a URL.
   robots: { index: false, follow: false },
 }
 
 /**
- * The account page (012, re-laid-out 2026-08-11, tabbed 2026-08-12).
+ * Account · Overview (reference: Account · Overview; FR-028, FR-029).
  *
- * ⚠ Everything shown here comes from the PLATFORM'S OWN RECORD, not the token's claims. That
- * distinction is the whole reason `public.customer` exists: the claim is the ORIGIN of identity, the
- * record is the AUTHORITY on access. A barred customer never reaches this page, however impeccable
- * their credential — `requireCustomer` asks the backend, and the backend asks the database.
- *
- * ⚠ The <Suspense> boundary is MANDATORY under `cacheComponents`: request-time data read outside one
- * is a BUILD ERROR. `searchParams` is dynamic too, so it is read INSIDE the boundary — the shell
- * (title + subtitle) still prerenders; the customer's details and the active tab stream in.
- *
- * LAYOUT — the settings two-column pattern (Amazon "Login & Security", GitHub, Stripe): a sticky
- * sidebar carrying identity + section navigation, and a main column whose content is chosen by the
- * `?tab=` param. Address management lives here as the `addresses` tab rather than a separate page —
- * clicking it in the sidebar swaps the content area in place.
+ * New in 084. Until then `/account` opened Personal info and the sections were tabs chosen by
+ * `?tab=`. ⚠ An old `?tab=` link still arrives: it is redirected to that section's page (FR-014).
  */
-export default function AccountPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string; cursor?: string }>
-}) {
+export default function AccountPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   return (
-    <div className="container py-3 sm:py-6">
-      <Suspense fallback={<AccountSkeleton />}>
-        <AccountBody searchParams={searchParams} />
+    <>
+      <Breadcrumb items={[{ label: "Account", href: "/account" }, { label: "Overview" }]} className="mb-6" />
+      <Suspense fallback={<Skeleton className="h-96 w-full rounded-lg" />}>
+        <Overview searchParams={searchParams} />
       </Suspense>
-    </div>
+    </>
   )
 }
 
-async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: string; cursor?: string }> }) {
-  const { tab, cursor } = await searchParams
-  const active = parseTab(tab)
+const DATE = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "long", year: "numeric", timeZone: "Australia/Melbourne" })
+const SHORT = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Melbourne" })
 
-  // Return the customer to the SAME tab after a sign-in bounce, not just to the account root.
-  const customer = await requireCustomer(tabHref(active))
-  const name = [customer.givenName, customer.familyName].filter(Boolean).join(" ")
-
-  return (
-    // ⚠ The provider wraps BOTH columns because the two halves of a tab switch live in different
-    // ones: the nav is what was pressed, the content is what is loading. Everything inside is
-    // server-rendered and passed straight through as `children`.
-    <AccountTabsProvider active={active}>
-      <div className="mt-6 grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
-        {/* Sidebar — identity above, section navigation below. Sticks in view on desktop so the nav
-            is reachable no matter how far the main column scrolls; a normal block on phones.
-            ⚠ It does NOT re-render on a tab switch: identity is the same on all four tabs, so
-            replacing it with a skeleton would be motion reporting a change that did not happen. */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <IdentityCard
-            name={name}
-            givenName={customer.givenName}
-            familyName={customer.familyName}
-            email={customer.email}
-            createdAt={customer.createdAt}
-          />
-          <SectionNav />
-        </aside>
-
-        <main className="min-w-0 space-y-6">
-          <TabContent>
-            {active === "addresses" ? (
-              <AddressBook />
-            ) : active === "payment" ? (
-              <PaymentMethods />
-            ) : active === "points" ? (
-              <PointsTab cursor={cursor} />
-            ) : active === "security" ? (
-              <SecuritySection
-                hasPassword={customer.hasPassword}
-                passwordUpdatedAt={customer.passwordUpdatedAt}
-              />
-            ) : active === "privacy" ? (
-              <PrivacySection />
-            ) : active === "legal" ? (
-              <LegalSection />
-            ) : (
-              <>
-                {/*
-                  ⚠ FIRST, ABOVE EVERYTHING (037 FR-030). If the platform cannot email this person,
-                  that is the most important thing on the page — it means their sign-in codes,
-                  receipts and security notices are silently going nowhere. Renders nothing at all in
-                  the common case.
-                */}
-                <EmailDeliveryNotice state={customer.emailDelivery} email={customer.email} />
-
-                {/* Shortcut tiles — things a customer opens their account to reach. Navigational
-                    only. */}
-                <QuickLinks />
-
-                {/* ⚠ 034 FR-007 — NO SIGN-OUT CONTROL ON THE PERSONAL TAB, and no password card
-                    either. Both live under the Security tab, off the account root where a stray tap
-                    could reach them while browsing. */}
-                <PersonalInfo
-                  givenName={customer.givenName}
-                  familyName={customer.familyName}
-                  phone={customer.phone}
-                  email={customer.email}
-                />
-              </>
-            )}
-          </TabContent>
-        </main>
-      </div>
-    </AccountTabsProvider>
-  )
+function day(iso: string | null | undefined, fmt: Intl.DateTimeFormat): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? null : fmt.format(d)
 }
 
 /**
- * The address book (022), rendered in the content area rather than on its own page. The list is
- * fetched server-side and handed to the client `AddressList`, which owns add / edit / delete /
- * set-default and reflects each mutation locally (FR-008) — the same component the old `/addresses`
- * page used, now hosted here so managing addresses never leaves the account hub.
- *
- * Cold path — customer profile management (022, routing law 011 FR-028). Per-customer → no cache.
+ * ⚠ EVERY TILE FAILS ALONE. Five independent reads feed five parts of the page; one that errors
+ * leaves its own tile saying nothing and touches no other. And a tile with nothing true to say shows
+ * its empty wording — never a placeholder number.
  */
-async function AddressBook() {
+async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const tab = parseTab((await searchParams).tab)
+  if (tab) redirect(tabHref(tab))
+
+  const customer = await requireCustomer("/account")
   const session = await getSession()
-  let addresses: AddressDTO[] = []
-  if (session?.idToken) {
-    try {
-      addresses = await edgeApi(session).get<AddressDTO[]>("/customer/v1/addresses", {
-        cache: "no-store",
-      })
-    } catch {
-      addresses = []
-    }
-  }
+  const api = session ? edgeApi(session) : null
+
+  const [orders, points, saved, addresses, cards] = await Promise.all([
+    api?.get<OrderSummaryDTO[]>("/commerce/v1/orders", perCustomer).catch(() => null) ?? null,
+    api?.get<PointsBalanceDTO>("/customer/v1/points", perCustomer).catch(() => null) ?? null,
+    api?.get<SavedItemDTO[]>("/commerce/v1/saved", perCustomer).catch(() => null) ?? null,
+    api?.get<AddressDTO[]>("/customer/v1/addresses", perCustomer).catch(() => null) ?? null,
+    api
+      ?.get<{ paymentMethods: PaymentMethodDTO[] }>("/commerce/v1/payment-methods", perCustomer)
+      .then((r) => r.paymentMethods ?? [])
+      .catch(() => null) ?? null,
+  ])
+
+  const address = addresses?.find((a) => a.isDefault) ?? addresses?.[0] ?? null
+  const card = cards?.find((c) => c.isDefault) ?? cards?.[0] ?? null
+  const recent = (orders ?? []).slice(0, 3)
+  const savedCount = Array.isArray(saved) ? saved.length : null
+  const drops = Array.isArray(saved) ? saved.filter((s) => s.priceDropped).length : 0
+  const since = day(customer.createdAt, DATE)
+  const balance = points ? Number(points.points) : null
 
   return (
-    <section aria-labelledby="address-book-heading">
-      <h2 id="address-book-heading" className="mb-4 text-xl font-semibold">
-        Address book
-      </h2>
-      <AddressList initial={addresses} />
-    </section>
-  )
-}
-
-/**
- * Payment methods (051 US6) — the cards a shopper chose to keep.
- *
- * ⚠ Served by the commerce service, unlike the address book above it (the customer service):
- * listing a card is a call to the payment provider, so it lives with checkout.
- *
- * ⚠ A FAILED READ IS NOT AN EMPTY LIST. Falling back to `[]` here would tell a shopper with saved cards
- * that they have none — a false statement about their own account, and exactly the FR-036 failure mode.
- * The flag keeps the two apart.
- */
-async function PaymentMethods() {
-  const session = await getSession()
-  let cards: PaymentMethodDTO[] = []
-  let loadFailed = false
-  if (session?.accessToken) {
-    try {
-      const res = await edgeApi(session).get<{ paymentMethods: PaymentMethodDTO[] }>(
-        "/commerce/v1/payment-methods",
-        uncached(),
-      )
-      cards = res.paymentMethods ?? []
-    } catch {
-      loadFailed = true
-    }
-  }
-
-  return (
-    <section aria-labelledby="payment-methods-heading">
-      <h2 id="payment-methods-heading" className="mb-4 text-xl font-semibold">
-        Payment methods
-      </h2>
-      <PaymentMethodList initial={cards} loadFailed={loadFailed} />
-    </section>
-  )
-}
-
-/**
- * Security (034 US4) — how you sign in, and the controls that end your sessions.
- *
- * ⚠ COMPOSED FROM THE CREDENTIALS THE ACCOUNT ACTUALLY HOLDS (FR-025), never a fixed row list.
- * `PasswordCard` branches on the platform-owned `hasPassword`, never on how the customer signed in.
- * ⚠ SIGN OUT LIVES HERE (FR-028), off the account root where a stray tap could reach it while
- * browsing — the reason this is its own tab and not part of the personal view.
- */
-function SecuritySection({
-  hasPassword,
-  passwordUpdatedAt,
-}: {
-  hasPassword: boolean
-  passwordUpdatedAt: string | null
-}) {
-  return (
-    <section aria-labelledby="security-heading">
-      <h2 id="security-heading" className="text-xl font-semibold">
-        Security
-      </h2>
-      <div className="mt-6 divide-y">
-        <div className="py-6 first:pt-0">
-          <PasswordCard hasPassword={hasPassword} passwordUpdatedAt={passwordUpdatedAt} />
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Hi {customer.givenName ?? "there"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {customer.email}
+            {since ? ` · Member since ${since}` : ""}
+          </p>
         </div>
-        <div className="py-6">
-          <SessionCard />
-        </div>
+        <Link href="/account/personal" className={btnClass("outline", "md")}>
+          <Pencil aria-hidden="true" />
+          Edit profile
+        </Link>
       </div>
-    </section>
-  )
-}
 
-/**
- * Privacy & data (034 US6) — and the host for account deletion.
- *
- * ⚠ THE DELETION CONTROL IS THE LAST THING IN THE TAB (FR-039), deliberately. `Account → Privacy &
- * data → bottom` matches the VERIFIED Uber path; SC-007 makes a fresh-account reviewer the test.
- */
-function PrivacySection() {
-  return (
-    <div className="space-y-8">
-      <section aria-labelledby="privacy-heading">
-        <h2 id="privacy-heading" className="text-xl font-semibold">
-          Privacy &amp; data
-        </h2>
-        <ul className="mt-4 divide-y">
-          {/* ⚠ An in-app privacy policy link is required by BOTH stores (Apple 5.1.1(i), Google User
-              Data policy) and belongs HERE, in the privacy area. The full list of documents lives in
-              the Legal tab, not duplicated here. */}
-          <li>
-            <Link
-              href="/legal/privacy-policy"
-              className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
-            >
-              Privacy policy
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="gap-2 p-6 lg:col-span-2">
+          {recent[0] ? (
+            <>
+              <p className="text-xs text-muted-foreground">Latest order · {recent[0].orderNumber}</p>
+              <p className="text-xl font-semibold">
+                {recent[0].itemCount} {recent[0].itemCount === 1 ? "item" : "items"} ·{" "}
+                {formatMoney(recent[0].grandTotalAmount, recent[0].currency)}
+              </p>
+              {recent[0].delivery && (
+                <CoverageNote coverage={recent[0].delivery.type} />
+              )}
+              <Link href={`/orders/${recent[0].id}`} className={btnClass("primary", "md", "mt-3 self-start")}>
+                Track
+              </Link>
+            </>
+          ) : (
+            <>
+              <p className="text-xl font-semibold">No orders yet</p>
+              <p className="text-sm text-muted-foreground">When you place one, you can follow it from here.</p>
+              <Link href="/" className={btnClass("primary", "md", "mt-3 self-start")}>
+                Start shopping
+              </Link>
+            </>
+          )}
+        </Card>
+
+        <Card className="gap-1 p-6">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Effy points</p>
+          {balance !== null && points ? (
+            <>
+              <p className="text-4xl font-bold tracking-tight tabular-nums">{balance.toLocaleString("en-AU")}</p>
+              <p className="text-sm text-muted-foreground">
+                worth {formatMoney(points.valueAmount, "AUD")}
+                {points.nextExpiry
+                  ? ` · ${Number(points.nextExpiry.points).toLocaleString("en-AU")} can be used until ${day(points.nextExpiry.date, SHORT) ?? points.nextExpiry.date}`
+                  : ""}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">We couldn&rsquo;t load your points just now.</p>
+          )}
+          <p className="mt-auto pt-3 text-xs text-muted-foreground">
+            Points are credit from Effy. They have no cash value.{" "}
+            <Link href="/account/points" className="text-primary underline underline-offset-4">
+              History
             </Link>
-          </li>
-        </ul>
-      </section>
+          </p>
+        </Card>
+      </div>
 
-      {/*
-        The LAST item in the tab, and the one bordered container in the customer account area.
+      <div className="grid gap-4 md:grid-cols-3">
+        <Tile href="/saved" Icon={Heart} title="Saved items">
+          {savedCount === null ? (
+            "We couldn't load these just now."
+          ) : savedCount === 0 ? (
+            "Nothing saved yet."
+          ) : (
+            <>
+              {savedCount} saved
+              {drops > 0 && (
+                <>
+                  {" · "}
+                  <span className="font-medium text-brand">
+                    {drops} price {drops === 1 ? "drop" : "drops"}
+                  </span>
+                </>
+              )}
+            </>
+          )}
+        </Tile>
+        <Tile href="/addresses" Icon={MapPin} title="Default address">
+          {address ? (
+            <>
+              {address.label ?? address.recipientName} · {address.line1}, {address.city} {address.postalCode}
+              <CoverageNote coverage={address.coverage} className="mt-1" />
+            </>
+          ) : (
+            "No address yet. Add one to see who delivers to you."
+          )}
+        </Tile>
+        <Tile href="/account/payment" Icon={CreditCard} title="Default card">
+          {card ? (
+            <span className="inline-flex items-center gap-2">
+              <Badge variant="outline" className="uppercase">
+                {card.brand}
+              </Badge>
+              •••• {card.last4} · Expires {String(card.expMonth).padStart(2, "0")} / {String(card.expYear).slice(-2)}
+            </span>
+          ) : (
+            "No saved card. Cards are added when you pay."
+          )}
+        </Tile>
+      </div>
 
-        ⚠ A CARD HERE IS A DELIBERATE PRINCIPLE V EXCEPTION, not a lapse. The doctrine's objection is
-        to cards used as a LAYOUT device — a grid of equal-weight boxes that flattens hierarchy. This
-        is the opposite job: a border that QUARANTINES one irreversible action from the reversible
-        policy links above it, so the boundary itself carries the warning. It is the long-established
-        "danger zone" convention, and no sectioned-list alternative separates destructive from
-        non-destructive without it.
-
-        ⚠ The tint is `--destructive` — one of the platform's exactly two semantic colours — used as
-        a BORDER and a barely-there ground, never as a fill or a label. The heading stays neutral: the
-        border and the destructive confirm button are the signal, and a third red would spend the
-        colour's meaning on decoration.
-      */}
-      <section
-        aria-labelledby="delete-heading"
-        data-testid="danger-zone"
-        className="rounded-2xl border border-destructive/40 bg-destructive/3 p-6"
-      >
-        <h2 id="delete-heading" className="text-lg font-medium">
-          Delete account
-        </h2>
-
-        {/* The good explanation that used to live only on the public /delete-account page — shown
-            here too, where a signed-in customer actually deletes. */}
-        <p className="mt-2 text-sm text-muted-foreground">
-          Deleting removes your account, your saved items, your saved addresses and your personal
-          details. We keep completed orders and payment records, because tax and accounting rules
-          require it, and fraud and security signals that protect other customers — as set out in our{" "}
-          <Link href="/legal/privacy-policy" className="underline">
-            privacy policy
+      <Card padded={false} className="p-6">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-semibold">Recent orders</h2>
+          <Link href="/orders" className="text-sm font-medium text-primary underline underline-offset-4">
+            View all
           </Link>
-          . If you have an order in progress, you&rsquo;ll be asked to wait until it&rsquo;s complete.
-        </p>
-
-        <div className="mt-4">
-          <DeleteAccountFlow />
         </div>
-      </section>
-    </div>
-  )
-}
-
-/**
- * The Legal tab (045) — every legal & informational document in one place, from @effy/legal-content
- * (the single source shared with mobile). Contextual links still live where the decision is made
- * (checkout, sign-up, product, footer); this is the canonical "browse them all" home.
- */
-function LegalSection() {
-  const legal = allDocuments().filter((d) => d.category === "legal")
-  const info = allDocuments().filter((d) => d.category === "info")
-
-  return (
-    <section aria-labelledby="legal-heading" className="space-y-8">
-      <div>
-        <h2 id="legal-heading" className="text-xl font-semibold">
-          Legal
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The documents that govern your use of Effy, and how we handle your information.
-        </p>
-      </div>
-
-      <LegalGroup title="Policies & agreements" docs={legal} />
-      <LegalGroup title="About" docs={info} />
-    </section>
-  )
-}
-
-function LegalGroup({ title, docs }: { title: string; docs: ReturnType<typeof allDocuments> }) {
-  return (
-    <div>
-      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-      <ul className="mt-2 divide-y">
-        {docs.map((doc) => (
-          <li key={doc.slug}>
-            <Link
-              href={`/legal/${doc.slug}`}
-              className="flex min-h-[48px] items-center justify-between py-3 text-sm hover:text-foreground/70"
-            >
-              <span>{doc.title}</span>
-              <span className="text-xs text-muted-foreground">Updated {doc.effectiveDate}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-/** Navigational shortcut tiles to the customer's most-used destinations. */
-function QuickLinks() {
-  const tiles: { href: string; label: string; hint: string; Icon: LucideIcon }[] = [
-    { href: "/orders", label: "Orders", hint: "Track & reorder", Icon: ShoppingBag },
-    { href: "/saved", label: "Saved items", hint: "Your watchlist", Icon: Heart },
-    { href: "/search?saleOnly=true", label: "On sale", hint: "Deals & offers", Icon: Tag },
-  ]
-
-  return (
-    <nav aria-label="Account shortcuts">
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {tiles.map(({ href, label, hint, Icon }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              className="flex h-full min-h-[92px] flex-col justify-between rounded-xl border p-4 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Icon aria-hidden className="size-5 text-muted-foreground" />
-              <span className="mt-3">
-                <span className="block text-sm font-medium">{label}</span>
-                <span className="block text-xs text-muted-foreground">{hint}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  )
-}
-
-/**
- * Who Effy thinks you are (FR-001) — answerable at a glance, with no interaction.
- *
- * The avatar sits beside the visible name, so it is DECORATIVE and hidden from assistive technology.
- * Labelling it as well would make a screen reader announce the name twice.
- */
-function IdentityCard({
-  name,
-  givenName,
-  familyName,
-  email,
-  createdAt,
-}: {
-  name: string
-  givenName: string | null
-  familyName: string | null
-  email: string
-  createdAt: string
-}) {
-  return (
-    <section
-      aria-labelledby="identity-heading"
-      className="rounded-xl border bg-card p-6 text-center"
-    >
-      <h2 id="identity-heading" className="sr-only">
-        Your details
-      </h2>
-
-      <Avatar
-        givenName={givenName}
-        familyName={familyName}
-        labelledByAdjacentName
-        className="mx-auto size-16 text-xl"
-      />
-
-      <div className="mt-4 min-w-0">
-        {name ? (
-          <p className="truncate text-lg font-semibold" data-testid="account-name">
-            {name}
+        {recent.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {orders === null ? "We couldn't load your orders just now." : "You haven't placed any orders yet."}
           </p>
         ) : (
-          // FR-003 / FR-015 — having no name is a normal state, not an error. Invite; do not scold.
-          <p
-            className="truncate text-lg font-semibold text-muted-foreground"
-            data-testid="account-name-empty"
-          >
-            Add your name below
-          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th scope="col" className="py-2 pr-4 font-medium">Order</th>
+                  <th scope="col" className="py-2 pr-4 font-medium">Placed</th>
+                  <th scope="col" className="py-2 pr-4 text-right font-medium">Total</th>
+                  <th scope="col" className="py-2"><span className="sr-only">Open</span></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {recent.map((o) => (
+                  <tr key={o.id}>
+                    <td className="py-3 pr-4">
+                      <span className="font-medium">{o.orderNumber}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {o.itemCount} {o.itemCount === 1 ? "item" : "items"}
+                        {o.delivery ? ` · ${DELIVERY_TYPE_WORDS[o.delivery.type]}` : ""}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">{day(o.placedAt, SHORT) ?? "—"}</td>
+                    <td className="py-3 pr-4 text-right tabular-nums">{formatMoney(o.grandTotalAmount, o.currency)}</td>
+                    <td className="py-3 text-right">
+                      <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
+                        View<span className="sr-only"> order {o.orderNumber}</span>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
+      </Card>
 
-        <p className="truncate text-sm text-muted-foreground" data-testid="account-email">
-          {email}
-        </p>
-
-        <p className="mt-3 text-xs text-muted-foreground">
-          Member since{" "}
-          {new Date(createdAt).toLocaleDateString("en-AU", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
-      </div>
-    </section>
+      <section aria-labelledby="quick-links">
+        <h2 id="quick-links" className="mb-3 text-sm font-semibold">
+          Quick links
+        </h2>
+        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            { href: "/account/security", label: "Change password", Icon: Lock },
+            { href: "/help", label: "Get help", Icon: CircleHelp },
+            { href: "/offers", label: "Offers", Icon: Tag },
+            { href: "/account/privacy", label: "Privacy & data", Icon: ShieldCheck },
+          ].map(({ href, label, Icon }) => (
+            <li key={href}>
+              <Link href={href} className={btnClass("outline", "lg", "w-full")}>
+                <Icon aria-hidden="true" />
+                {label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   )
 }
 
-/**
- * The FIRST-LOAD fallback, and only that.
- *
- * ⚠ It no longer stands in for a tab switch. Switching tabs is driven by a client transition that
- * keeps this boundary resolved (see `AccountTabs.tsx`), so the sidebar survives and the spinner is
- * scoped to the column that actually changed. This shape — the whole grid greyed out — is now
- * reserved for arriving at the page cold, when none of it exists yet and all of it is honest.
- */
-function AccountSkeleton() {
+function Tile({
+  href,
+  Icon,
+  title,
+  children,
+}: {
+  href: string
+  Icon: typeof Heart
+  title: string
+  children: React.ReactNode
+}) {
   return (
-    <div className="mt-6 grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]" aria-hidden="true">
-      <div className="space-y-4">
-        <div className="h-52 w-full animate-pulse rounded-xl bg-muted" />
-        <div className="h-56 w-full animate-pulse rounded-xl bg-muted" />
-      </div>
-      <div className="h-80 w-full animate-pulse rounded-xl bg-muted" />
-    </div>
+    <Card className="relative gap-2 p-6">
+      <Icon aria-hidden="true" className="size-5" />
+      <h2 className="font-semibold">
+        <Link href={href} className="after:absolute after:inset-0">
+          {title}
+        </Link>
+      </h2>
+      <div className="text-sm text-muted-foreground">{children}</div>
+    </Card>
   )
 }

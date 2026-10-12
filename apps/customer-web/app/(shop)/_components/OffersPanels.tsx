@@ -2,7 +2,12 @@ import Link from "next/link"
 
 import type { BannerDTO } from "@effy/shared-types"
 
-import { MediaFrame, Scrim, SectionShell, onScrim } from "@/components/storefront/kit"
+import { ArrowRight } from "lucide-react"
+
+import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
+import { SectionShell } from "@/components/storefront/kit"
+import { OFFER_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"
 
 /**
  * The promotional offers block (039 US4, FR-017/FR-018/FR-020) — the reference's one-large-plus-two-
@@ -19,6 +24,18 @@ import { MediaFrame, Scrim, SectionShell, onScrim } from "@/components/storefron
  * renders nothing at all. There is deliberately no placeholder tile — an empty frame in a promotional
  * block reads as a broken advert, and a shopper cannot tell it from a promotion that failed to load.
  */
+export function offerHref(banner: BannerDTO): string | null {
+  return banner.href ?? (banner.target?.kind === "promotion" ? `/promotions/${banner.target.promotionId}` : null)
+}
+
+/**
+ * The home "Offers" row (reference: Home · Offers): up to three cards, each a 16:9 promo banner
+ * carrying the offer's name over a line about it and a way in.
+ *
+ * ⚠ The reference's aisle words ("Bakery offer", the "Bakery" badge) are sample content — a promotion
+ * has no aisle scope (084 research D7), so none is invented here. The banner says "Offer", and the
+ * badge appears only for the one thing that is true of a promotion today: it carries a code.
+ */
 export function OffersPanels({
   banners,
   title = "Offers",
@@ -27,71 +44,93 @@ export function OffersPanels({
   title?: string
 }) {
   const offers = banners.slice(0, 3)
-
   return (
-    <SectionShell title={title} headless={offers.length === 0}>
+    <SectionShell title={title} href="/offers" linkLabel="All offers" headless={offers.length === 0}>
       {offers.length > 0 ? (
-        <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
-          <OfferPanel banner={offers[0]!} size="large" />
-          {offers.length > 1 && (
-            <div className="grid gap-4 sm:gap-5">
-              {offers.slice(1).map((banner) => (
-                <OfferPanel key={banner.key} banner={banner} size="small" />
-              ))}
-            </div>
-          )}
-        </div>
+        <ul className="grid gap-4 md:grid-cols-3">
+          {offers.map((banner, i) => (
+            <li key={banner.key}>
+              <OfferBannerCard banner={banner} theme={OFFER_THEMES[i % OFFER_THEMES.length]!} />
+            </li>
+          ))}
+        </ul>
       ) : null}
     </SectionShell>
   )
 }
 
-function OfferPanel({ banner, size }: { banner: BannerDTO; size: "large" | "small" }) {
-  /**
-   * ⚠ THE DESTINATION COMES FROM THE BANNER, never from a hand-built string. 029's post-mortem records
-   * a banner that pointed every promotion at `/search` — the unfiltered store — for its entire life,
-   * carrying none of the promotion's facts, because the code ignored `target` and the test asserted the
-   * bug. `href` is the web path the server composed; `target` is the closed vocabulary mobile uses, and
-   * it is the fallback here so the two surfaces cannot disagree about where one promotion leads.
-   */
-  const href =
-    banner.href ??
-    (banner.target?.kind === "promotion" ? `/promotions/${banner.target.promotionId}` : null)
-
-  const body = (
-    <MediaFrame
-      src={banner.imageUrl}
-      alt=""
-      ratio={size === "large" ? "wide" : "banner"}
-      fallbackLabel={banner.title.charAt(0).toUpperCase()}
-      sizes={size === "large" ? "(min-width: 1024px) 50vw, 100vw" : "(min-width: 1024px) 25vw, 100vw"}
-      className={size === "large" ? "h-full min-h-[14rem]" : "min-h-[9rem]"}
-    >
-      {/* A scrim regardless of the artwork, so the message is legible over anything an operator
-          uploads — including a promotion image nobody previewed at this size (FR-017). */}
-      <Scrim strength={size === "small" ? "strong" : "standard"} />
-      <div className={`absolute inset-x-0 bottom-0 p-5 sm:p-6 ${onScrim}`}>
-        <h3 className={size === "large" ? "text-xl font-semibold sm:text-2xl" : "text-base font-semibold"}>
-          {banner.title}
-        </h3>
-        {banner.subtitle && (
-          <p className="mt-1 max-w-md text-sm text-white/85">{banner.subtitle}</p>
+/**
+ * One home offer: the banner on top, the words about it below, the whole card one link.
+ *
+ * ⚠ `imageUrl` IS NOT `banner.imageUrl`, and the home page does not pass it yet. It is the slot for a
+ * real 16:9 promo image: given one, the drawn banner is replaced by it at the same size and the
+ * offer's name moves BELOW it — the name stays real text, and is never laid on artwork nobody has
+ * measured for contrast.
+ */
+export function OfferBannerCard({
+  banner,
+  theme,
+  imageUrl,
+}: {
+  banner: BannerDTO
+  theme: PromoTheme
+  imageUrl?: string | null
+}) {
+  const href = offerHref(banner)
+  const name = "text-2xl leading-[1.1] font-semibold tracking-[-0.02em]"
+  return (
+    <Card padded={false} className="relative h-full overflow-hidden">
+      <PromoBanner theme={theme} imageUrl={imageUrl} arcOpacity={0.35} className="aspect-video">
+        {!imageUrl && (
+          <div className="absolute top-5 right-[45%] left-5">
+            <p className="text-xs font-semibold tracking-[0.08em] uppercase opacity-85">Offer</p>
+            <h3 className={`mt-2 ${name}`}>{banner.title}</h3>
+          </div>
         )}
-        {/* ⚠ 029's carry-forward: a promotion with a minimum must not be advertised WITHOUT its terms.
-            FR-037d — a shopper learns of a condition from the banner or from where it leads, never
-            first at payment. */}
-        {banner.terms && <p className="mt-1 text-xs text-white/75">{banner.terms}</p>}
+      </PromoBanner>
+      <div className="flex flex-col items-start px-5 pt-4">
+        {imageUrl && <h3 className={`mb-2 ${name}`}>{banner.title}</h3>}
+        {banner.code && <Badge variant="secondary">Code</Badge>}
+        {banner.subtitle && <p className="mt-2 text-sm text-muted-foreground">{banner.subtitle}</p>}
+        {banner.terms && <p className="mt-1 text-xs text-muted-foreground">{banner.terms}</p>}
       </div>
-    </MediaFrame>
+      <div className="mt-auto px-5 pt-3 pb-5">
+        {href && (
+          <Link
+            href={href}
+            aria-label={`View offer: ${banner.title}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary after:absolute after:inset-0"
+          >
+            View offer
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </Link>
+        )}
+      </div>
+    </Card>
   )
+}
 
-  // ⚠ A promotion with no destination renders as a non-tappable panel rather than a dead link. A tap
-  // that does nothing is worse than no tap (the same rule `BannerTarget` states for mobile).
-  return href ? (
-    <Link href={href} aria-label={banner.title} className="group block h-full">
-      {body}
-    </Link>
-  ) : (
-    body
+/** The plain offer card the Offers index still uses. */
+export function OfferCard({ banner }: { banner: BannerDTO }) {
+  const href = offerHref(banner)
+  return (
+    <Card className="relative h-full gap-3 p-5">
+      <Badge variant="secondary" className="self-start">
+        {banner.code ? "Code" : "Offer"}
+      </Badge>
+      <h3 className="font-semibold">{banner.title}</h3>
+      {banner.subtitle && <p className="text-sm text-muted-foreground">{banner.subtitle}</p>}
+      {banner.terms && <p className="text-xs text-muted-foreground">{banner.terms}</p>}
+      {href && (
+        <Link
+          href={href}
+          aria-label={`View offer: ${banner.title}`}
+          className="mt-auto inline-flex items-center gap-1 pt-2 text-sm font-medium text-primary after:absolute after:inset-0"
+        >
+          View offer
+          <ArrowRight aria-hidden="true" className="size-4" />
+        </Link>
+      )}
+    </Card>
   )
 }

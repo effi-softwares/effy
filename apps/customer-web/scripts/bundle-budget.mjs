@@ -149,7 +149,9 @@ const GUEST_PAGES = [
   // funnel is open to guests). It is a PPR route (static intro shell + a Suspense form island); the
   // shell is what is measured here. The note above records what happens when a public route goes
   // unmeasured: /product/[id] sat 58.8 KB over budget for two features before anyone looked.
-  { route: "/feedback", html: ".next/server/app/feedback.html" },
+  // 084: the message form moved under the help answers; `/feedback` now redirects to `/help`.
+  { route: "/help", html: ".next/server/app/help.html" },
+  { route: "/offers", html: ".next/server/app/offers.html" },
   // ⚠ Added 2026-08-13 with the routes themselves (045). Legal documents are now rendered from
   // @effy/legal-content on statically-generated public routes; /legal/privacy + /legal/terms are now
   // redirect aliases (no measurable HTML), so the canonical document routes are measured instead.

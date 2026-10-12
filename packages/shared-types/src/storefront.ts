@@ -184,12 +184,39 @@ export interface StorefrontCategoryDTO {
   key: string;
   name: string;
   parentKey: string | null;
-  /** Active products in this category (025). Drives "N items" and the empty-category case. */
+  /** Purchasable products in this category AND everything under it (025; subtree since 084) — the
+   * number on an aisle is the number its page shows. Drives "N items" and the empty-category case. */
   productCount: number;
   /** Representative image, DERIVED from a product in the category — categories store no imagery, and
    * 025 FR-001 forbids adding a column for it. Null → the client renders a brand tile, never a broken
    * frame. The choice is deterministic so a category does not change its face between page loads. */
   imageUrl: string | null;
+}
+
+/**
+ * One thing the search field offers to search for (084).
+ *
+ * - no `categorySlug` — search for `text`;
+ * - `categorySlug` and a different `text` — search for `text` inside that aisle ("oat milk in Dairy & eggs");
+ * - `text` equal to `categoryName` — the aisle itself, by name: open it.
+ */
+export interface SearchPhraseDTO {
+  text: string;
+  categorySlug?: string;
+  categoryName?: string;
+}
+
+/**
+ * Suggestions for the text typed so far (GET /v1/storefront/suggestions?q=).
+ *
+ * ⚠ Built from the CATALOGUE — product names, brands, aisles. Never from other shoppers' searches.
+ * Both lists are empty for fewer than two characters.
+ */
+export interface SuggestionsDTO {
+  /** At most five. */
+  phrases: SearchPhraseDTO[];
+  /** At most four, in the ordinary card shape. */
+  products: StorefrontProductCardDTO[];
 }
 
 /** The orderings a result set can be presented in (025 FR-016).

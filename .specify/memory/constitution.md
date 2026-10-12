@@ -1,6 +1,39 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.2.0 → 3.3.0
+Bump rationale: MINOR — guidance materially expanded. No principle is removed, and no existing plan
+                is invalidated: the consoles and the mobile apps keep the identity and every rule
+                they had.
+
+Trigger: feature 084-customer-storefront-redesign. On 2026-10-12 the operator adopted a new design
+(docs/reference-screens/Effy Design System, Effy Storefront Redesign) for the customer website and
+directed that its colours, typeface, wordmark and component shapes replace the storefront's old
+look completely — for the customer website now, the customer mobile app later, and NOT for the
+shop console, back-office, or the driver and shop apps. Principle V said one palette in one file
+drives every surface, dark mode is required everywhere, cards are never shadowed and card layouts
+are avoided. The adopted design differs on each point (084 plan, Complexity Tracking).
+
+What changed in the text:
+  - Principle V gains "The storefront identity": the customer-facing surfaces carry their own
+    identity, declared ONCE in the design-system package beside the console identity. It is a
+    different palette, not a restatement of the platform one.
+  - Principle V: the "one palette, one file" rule now reads one file PER IDENTITY, both inside the
+    design-system package; a surface-local token layer is still prohibited.
+  - Principle V: dark mode is required on the consoles and the mobile apps; the storefront is
+    light only.
+  - Principle V: on the storefront, cards carry the hairline shadow and card layouts are permitted;
+    the no-card doctrine continues to bind the consoles.
+  - Quality Gates: the colour gate names both token sets and their guards.
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged; none names a palette.
+  ⚠ CLAUDE.md (Design system section), packages/design-system/README.md — corrected by 084 (T075).
+  ✅ specs 004–083 — history, not edited.
+
+Follow-up TODOs: customer-mobile adopts the storefront identity in a later feature (084 research D14).
+
+--- previous report ---
 Version change: 3.1.0 → 3.2.0
 Bump rationale: MINOR — guidance materially expanded. No principle is removed or redefined, and no
                 existing plan is invalidated: every service stays where its plan put it.
@@ -696,9 +729,35 @@ One design-system package drives every surface.
   package (`packages/design-system/src/tokens.css`, the SSOT), **never hardcoded per surface** and
   **never restated in a second file**. ⚠ General Sans is retained as the *second* name in `--font-sans`
   because Geist is not self-hosted; that is a fallback, not a second typeface.
-- **One palette, one file.** A surface MUST NOT carry a scoped token layer that restates the platform
-  palette. Two files declaring one palette is the two-sources-for-one-fact shape this repository has
-  shipped repeated defects through.
+- **One palette, one file — per identity.** A surface MUST NOT carry a scoped token layer that
+  restates a palette. Two files declaring one palette is the two-sources-for-one-fact shape this
+  repository has shipped repeated defects through. The platform has **two identities** (below), each
+  declared exactly once, **both inside the design-system package**; a token file under `apps/` is
+  still a defect.
+- **THE STOREFRONT IDENTITY (v3.3.0, feature 084).** The customer-facing surface — the customer
+  website now; the customer mobile app when a later feature moves it — carries its own identity,
+  declared in `packages/design-system/src/storefront/tokens.css`. Everything above this bullet
+  describes the **console identity** (shop console, back-office, and the mobile apps until moved),
+  which is unchanged. The storefront differs, deliberately:
+  - **Five values, rationed**: black (`--foreground`), white (`--background`), zinc greys, **Effy
+    blue `#1d4ed8`** (`--primary` — the ONLY action colour: buttons, links, selection, focus, points,
+    courier) and **Effy green `#0d7a40`** (`--brand` — the wordmark's full stop, Sale, savings,
+    "Delivered by Effy", paid, progress). `--brand` and `--primary` are therefore **different** values
+    here. Green is never an action. No third hue.
+  - **No red.** `--destructive` is the foreground black; an error or destructive action is said with
+    an icon and its wording, never with a hue.
+  - **Light only.** The storefront file has no dark block and storefront source has no `dark:` variant.
+  - **Cards are white, bordered, and carry the hairline `shadow-xs`**; card layouts ARE the pattern —
+    a product, an address, a delivery section is a discrete choosable object. The no-card doctrine
+    below continues to bind the consoles.
+  - **Radius**: sm 4 · md 6 (buttons, inputs) · lg 8 (cards, dialogs, image wells) · xl 12 (hero).
+  - **Geist / Geist Mono, self-hosted** from files in the design-system package; no third-party font
+    request on a public page.
+  - **WCAG AA still binds every text pair.** The one recorded deviation is the reference's own: field
+    borders are a hairline (already the border exception), so every field MUST have a visible label
+    and a focus ring at 3:1 or better.
+  - Enforced by `check-storefront-tokens.mjs`, `check-token-usage.mjs` (which scans the storefront
+    against ITS `@theme`) and `scripts/check-no-storefront-red.sh`.
 - **RETIRED, and swept out of live source**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0),
   Jade `#0FB57E` / fill `#047857` (v1.10.0), and — as of this amendment — **the monochrome neutral
   ramp with its inverting accent and its two-semantic-colour bound** (v1.11.0–v1.13.0, features 026 and
@@ -709,7 +768,8 @@ One design-system package drives every surface.
   `--warning` and the `--brand-*` family are **web-only by design** and are not surfaced to mobile.
   ⚠ Mobile takes **three** radius steps (sm 4 / md 6 / default 10), not the web scale's four — the
   generator emits no `lg 8`. Drift between the two is caught by `tokens:check`.
-- Dark mode is REQUIRED on every surface, and MUST be user-selectable (Light / Dark / Follow-System).
+- Dark mode is REQUIRED on every surface of the console identity, and MUST be user-selectable
+  (Light / Dark / Follow-System). The storefront identity is light only (above).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
   polish.
@@ -856,7 +916,11 @@ Compliance is enforced at merge time, not discovered later.
   pair, the no-`-foreground` rule), `check-component-shape.mjs`, `check-token-usage.mjs` (a colour
   utility naming a token `@theme` does not declare emits **no CSS rule at all** — the element renders
   as nothing, with no error anywhere), and the retired-hue sweeps.
-- A **second file restating the platform palette** is a defect, not a scoping choice (Principle V).
+- A **second file restating a palette** is a defect, not a scoping choice (Principle V). The
+  storefront identity is not one: it is a different palette, declared once, in the design-system
+  package, and held by its own guards (`check-storefront-tokens.mjs`, the storefront pass of
+  `check-token-usage.mjs`, `scripts/check-no-storefront-red.sh`). The colour gate above binds the
+  console identity; a storefront colour outside the storefront token set is the same defect.
 
 ## Governance
 
@@ -878,4 +942,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.2.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-08
+**Version**: 3.3.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-12

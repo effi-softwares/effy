@@ -42,9 +42,12 @@ const openChooser = (productId: string) =>
 export function SaveControl({
   productId,
   className = "",
+  label = false,
 }: {
   productId: string
   className?: string
+  /** The product page's wide "Save" button; on a card the control is the heart alone. */
+  label?: boolean
 }) {
   const savedIds = useSavedIds()
   const saved = savedIds.includes(productId)
@@ -73,9 +76,10 @@ export function SaveControl({
       // ⚠ Stable name + separate state. Do not move the state into the label.
       aria-label="Save to saved items"
       aria-pressed={saved}
-      className={`inline-flex size-9 items-center justify-center rounded-full bg-card/80 backdrop-blur-sm transition hover:bg-card disabled:opacity-60 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-md border bg-background text-sm font-medium shadow-xs transition hover:bg-accent disabled:opacity-60 ${label ? "h-10 border-input px-4" : "size-8"} ${saved ? "text-primary" : ""} ${className}`}
     >
-      <Heart className={saved ? "size-5 fill-current" : "size-5"} aria-hidden="true" />
+      <Heart className={saved ? "size-4 fill-current" : "size-4"} aria-hidden="true" />
+      {label && (saved ? "Saved" : "Save")}
     </button>
   )
 }

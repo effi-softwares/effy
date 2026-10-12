@@ -3,7 +3,11 @@ import { Suspense } from "react"
 
 import type { NewsletterConfirmResult } from "@effy/shared-types"
 
-import { ActionLink, Display } from "@/components/storefront/kit"
+import { CircleCheck, Clock, Loader } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+
+import { NewsletterForm } from "@/app/(shop)/_components/NewsletterForm"
+import { ActionLink } from "@/components/storefront/kit"
 import { edgeApiPublic, perCustomer } from "@/lib/api/edge"
 
 /**
@@ -30,55 +34,43 @@ export default function NewsletterConfirmPage({
   searchParams: Promise<{ token?: string }>
 }) {
   return (
-    <div className="container py-20">
-      <Suspense fallback={<Outcome title="Confirming…" body="One moment." />}>
-        <ConfirmOutcome searchParams={searchParams} />
-      </Suspense>
+    <div className="container py-10">
+      <div className="mx-auto max-w-[480px] py-12">
+        <Suspense fallback={<Outcome icon={Loader} title="Confirming…" body="One moment." />}>
+          <ConfirmOutcome searchParams={searchParams} />
+        </Suspense>
+      </div>
     </div>
   )
 }
 
 /**
- * ⚠ THE TOKEN APPEARS IN THIS PAGE'S RSC PAYLOAD, AND THAT IS ACCEPTED — with the reasoning recorded,
- * because it looks alarming and a later reader will want to know it was considered.
+ * What following the link in the confirmation email did (reference: Help & info · Newsletter —
+ * confirmed / expired).
  *
- * Next serialises a page's `searchParams` into the flight payload whether or not anything renders them,
- * so `?token=…` shows up in the served HTML three times even though nothing here prints it.
- *
- * A confirm-then-redirect was built to remove it and **reverted**, for two reasons:
- *
- *   1. It did not work. `redirect()` inside a streamed `<Suspense>` boundary does not produce an HTTP
- *      3xx — the response is still 200 with the shell, and the redirect resolves on the client. The
- *      token stayed in the payload of that first response regardless.
- *   2. It broke the page without JavaScript. A client that does not run the redirect sits on
- *      "Confirming…" forever, which is a real regression traded for a theoretical gain.
- *
- * ⚠ The decisive point is that **the token is already spent by the time this HTML exists**. The confirm
- * call happens before render, the token is single-use, and the row's hash is cleared — so what appears
- * in the payload is a dead credential, on a `noindex` page, in the browser of the one person who held
- * it. Removing it properly needs a Route Handler that redirects before any HTML is produced; that is
- * recorded as an option, not built, because the exposure does not justify a second route.
+ * ⚠ AN EXPIRED LINK IS NOT A DEAD END: the same subscribe form is right there, and it sends a fresh
+ * link. ⚠ The address is never shown back — this page is reached from a link that can be forwarded.
  */
 async function ConfirmOutcome({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token } = await searchParams
-
-  // ⚠ A missing token takes the SAME path as a dead one. There is nothing useful to say differently,
-  // and distinguishing them would confirm that some tokens are recognised.
   const status = token ? await confirmToken(token) : "expired"
 
   return status === "confirmed" ? (
     <Outcome
+      icon={CircleCheck}
       title="You're subscribed"
-      body="Thanks — we'll be in touch when there's something worth sending."
-      action={{ label: "Start shopping", href: "/" }}
+      body="Thanks for confirming. We'll be in touch when there's something worth sending."
+      action={{ label: "Start shopping", href: "/", primary: true }}
     />
   ) : (
     <Outcome
-      title="This link has expired"
-      body="Confirmation links last a short while and can only be used once. Subscribe again from the
-            home page and we'll send a fresh one."
-      action={{ label: "Back to the store", href: "/" }}
-    />
+      icon={Clock}
+      title="That link has expired"
+      body="Confirmation links last a short while and can only be used once. Enter your email and we'll send a new one."
+      action={{ label: "Start shopping", href: "/", primary: false }}
+    >
+      <NewsletterForm />
+    </Outcome>
   )
 }
 
@@ -98,22 +90,30 @@ async function confirmToken(token: string): Promise<NewsletterConfirmResult["sta
 }
 
 function Outcome({
+  icon: Icon,
   title,
   body,
   action,
+  children,
 }: {
+  icon: LucideIcon
   title: string
   body: string
-  action?: { label: string; href: string }
+  action?: { label: string; href: string; primary: boolean }
+  children?: React.ReactNode
 }) {
   return (
-    <div className="mx-auto max-w-md text-center">
-      <Display as="h1" size="page">
-        {title}
-      </Display>
-      <p className="mx-auto mt-4 text-sm text-muted-foreground sm:text-base">{body}</p>
+    <div className="flex flex-col items-center gap-6 rounded-lg border bg-card p-6 text-center shadow-xs">
+      <div className="flex flex-col items-center gap-1.5">
+        <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
+          <Icon aria-hidden="true" className="size-6" />
+        </span>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <p className="text-sm text-muted-foreground">{body}</p>
+      </div>
+      {children && <div className="w-full text-left">{children}</div>}
       {action && (
-        <ActionLink href={action.href} size="lg" className="mt-8">
+        <ActionLink href={action.href} size="md" variant={action.primary ? "primary" : "ghost"}>
           {action.label}
         </ActionLink>
       )}

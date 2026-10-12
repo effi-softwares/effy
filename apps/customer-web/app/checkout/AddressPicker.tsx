@@ -1,9 +1,11 @@
 "use client"
 
+import { Plus } from "lucide-react"
 import { useState } from "react"
 
 import type { AddressDTO } from "@effy/shared-types"
-import { Badge, Button } from "@effy/design-system/ui"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 import { AddressForm } from "@/app/(account)/addresses/_components/AddressForm"
 import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote"
@@ -81,26 +83,26 @@ export function AddressPicker({
   return (
     <div>
       {!expanded ? (
-        <div className="flex items-start justify-between gap-4 rounded-md border p-3">
+        <div className="flex items-start justify-between gap-4 rounded-md border border-primary bg-primary-muted/40 p-4 ring-1 ring-primary">
           <AddressSummary address={selected} showCoverage={showCoverage} />
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="shrink-0 text-sm font-medium text-primary hover:underline"
+            className="shrink-0 text-sm font-medium text-primary underline underline-offset-4"
           >
             Change
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          <ul className="space-y-2" role="radiogroup" aria-label="Saved addresses">
+          <ul className="grid gap-3 md:grid-cols-2" role="radiogroup" aria-label="Saved addresses">
             {addresses.map((a) => (
               <li key={a.id}>
-                <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3 hover:bg-accent">
+                <label className="flex h-full cursor-pointer items-start gap-3 rounded-md border p-4 shadow-xs hover:bg-accent has-checked:border-primary has-checked:ring-1 has-checked:ring-primary">
                   <input
                     type="radio"
                     name={`${idPrefix}-address`}
-                    className="mt-1"
+                    className="mt-1 accent-primary"
                     checked={selectedId === a.id}
                     disabled={busy}
                     onChange={() => {
@@ -111,7 +113,7 @@ export function AddressPicker({
                   <span className="min-w-0 flex-1 text-sm">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{a.recipientName}</span>
-                      {a.isDefault && <Badge variant="success">Default</Badge>}
+                      {a.isDefault && <Badge variant="secondary">Default</Badge>}
                     </span>
                     <span className="block text-muted-foreground">{addressLines(a)}</span>
                     {showCoverage ? <CoverageNote coverage={a.coverage} /> : null}
@@ -122,11 +124,12 @@ export function AddressPicker({
           </ul>
           {formOpen ? (
             <div className="rounded-md border p-4">
-              <h3 className="mb-3 text-sm font-medium">Add a new address</h3>
+              <h3 className="mb-3 text-sm font-medium">Add a delivery address</h3>
               <AddressForm onSaved={handleSaved} onCancel={() => setFormOpen(false)} />
             </div>
           ) : (
             <Button type="button" variant="outline" onClick={() => setFormOpen(true)}>
+              <Plus aria-hidden="true" />
               Add a new address
             </Button>
           )}
@@ -145,7 +148,7 @@ function AddressSummary({ address, showCoverage }: { address: AddressDTO | null;
     <div className="min-w-0 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{address.recipientName}</span>
-        {address.isDefault && <Badge variant="success">Default</Badge>}
+        {address.isDefault && <Badge variant="secondary">Default</Badge>}
       </div>
       <p className="text-muted-foreground">{addressLines(address)}</p>
       {showCoverage ? <CoverageNote coverage={address.coverage} /> : null}

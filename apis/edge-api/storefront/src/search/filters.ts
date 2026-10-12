@@ -4,6 +4,7 @@
  */
 import type { ProductSort } from "@effy/shared-types";
 
+import { categorySubtreeByKey } from "../lib/category-tree";
 import type { Cursor } from "./cursor";
 
 /** The repository-level query (cursor already decoded, limit already +1 for lookahead). */
@@ -101,7 +102,8 @@ export function filters(p: SearchParams, next: Binder): string {
     sql += `\n  AND (p.name ILIKE ${q} OR p.brand ILIKE ${q} OR p.short_description ILIKE ${q})`;
   }
   if (p.categoryKey !== "") {
-    sql += `\n  AND p.primary_category_id = (SELECT id FROM public.category WHERE key = ${next(p.categoryKey)})`;
+    // The category and everything under it — an aisle link shows the whole aisle (lib/category-tree.ts).
+    sql += `\n  AND p.primary_category_id IN ${categorySubtreeByKey(next(p.categoryKey))}`;
   }
   if (p.minPrice !== "") sql += `\n  AND p.price_amount >= ${next(p.minPrice)}::numeric`;
   if (p.maxPrice !== "") sql += `\n  AND p.price_amount <= ${next(p.maxPrice)}::numeric`;

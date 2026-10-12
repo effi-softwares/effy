@@ -9,8 +9,15 @@ import {
   type SavedVerdict,
 } from "@effy/shared-types"
 
+import Link from "next/link"
+import { CircleCheck, CircleX, Clock, Heart, ListPlus, Plus, ShoppingCart, Tag, Trash2 } from "lucide-react"
+
 import { openListChooser } from "@/app/(shop)/_components/ListChooser"
-import { EmptyState } from "@/components/storefront/kit"
+import { EmptyState, MediaFrame, select } from "@/components/storefront/kit"
+import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { DEFAULT_PACKAGE_KEY, useCart } from "@/lib/cart-store"
 import { addItem } from "@/lib/cart-actions"
 import { addToList, fetchListItems, removeFromList } from "@/lib/list-actions"
@@ -129,13 +136,14 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
     })
   }
 
+  // The one most recent removal, offered back at the foot of the list it left.
   const undoNotice = removed && (
-    <p role="status" className="mb-4 flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
-      <span className="min-w-0 flex-1">
+    <p role="status" className="flex flex-wrap items-center gap-x-6 gap-y-1 bg-muted px-4 py-6 text-sm">
+      <span>
         Removed {removed.item.name}
         {isDefault ? "." : " from this list."}
       </span>
-      <button type="button" onClick={undo} className="font-medium underline-offset-4 hover:underline">
+      <button type="button" onClick={undo} className="font-medium text-primary underline underline-offset-4">
         Undo
       </button>
     </p>
@@ -145,10 +153,12 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
 
   if (items.length === 0) {
     return (
-      <>
-        {undoNotice}
+      <div className="space-y-6">
+        {undoNotice && <div className="overflow-hidden rounded-lg border">{undoNotice}</div>}
         {isDefault ? (
           <EmptyState
+            icon={Heart}
+            className="py-16"
             title="Nothing saved yet"
             description="Tap the heart on anything you want to keep an eye on. We'll show you when the price drops or it comes back in stock. Saved before signing in? Those stay on this device until you sign in."
             action={{ label: "Start shopping", href: "/search" }}
@@ -157,156 +167,181 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
           // ⚠ A DIFFERENT message from the one above (068 FR-026). "Nothing saved yet" on an empty
           // named list would tell a shopper with a full "Saved" list that they had lost everything.
           <EmptyState
+            icon={ListPlus}
+            className="py-16"
             title="This list is empty"
             description="Open any product and choose Add to list to put it here."
             action={{ label: "Browse products", href: "/search" }}
           />
         )}
-      </>
+      </div>
     )
   }
 
-  // ⚠ A NOTICE, not a replacement for the list.
-  //
-  // ⚠ THIS USED TO REPLACE THE WHOLE LIST. When nothing could be delivered, the page rendered an
-  // empty state instead of the items — hiding things the shopper had deliberately saved and making a
-  // full list look like a lost one. That is FR-041's rule ("a withdrawn product must not silently
-  // vanish") broken one level up, and it over-read FR-057: the spec asks for a distinct MESSAGE, not
-  // for the list to be replaced by one. The per-item note already says which items cannot come.
+  // ⚠ A NOTICE, not a replacement for the list. When nothing can be delivered the items still show,
+  // each with its own note: a withdrawn product must not silently vanish (FR-041), and a full list
+  // must never look like a lost one.
   return (
-    <>
-      
-      {undoNotice}
+    <div className="space-y-6">
       {merged > 0 && isDefault && (
-        <p role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
-          {merged === 1
-            ? "1 item you saved before signing in was added to your saved items."
-            : `${merged} items you saved before signing in were added to your saved items.`}{" "}
+        <Alert
+          variant="info"
+          live
+          title={
+            merged === 1
+              ? "1 item you saved before signing in was added to your saved items."
+              : `${merged} items you saved before signing in were added to your saved items.`
+          }
+        >
           {/* ⚠ Individually removable, which is what makes an automatic join acceptable on a shared
               device: it is visible and reversible rather than confirmed-in-advance. */}
-          You can remove anything you don't want below.
-        </p>
+          You can remove anything you don&apos;t want below.
+        </Alert>
       )}
-      <div className="mb-4 flex items-center gap-2 text-sm">
-        <label htmlFor="saved-order" className="text-muted-foreground">
-          Sort
-        </label>
-        <select
-          id="saved-order"
-          value={order}
-          onChange={(e) => setOrder(e.target.value as typeof order)}
-          className="rounded-md border bg-card px-2 py-1"
-        >
-          <option value="recent">Recently saved</option>
-          <option value="available">Available first</option>
-          <option value="aisle">By aisle</option>
-        </select>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <label htmlFor="saved-order" className="text-sm text-muted-foreground">
+            Sort
+          </label>
+          <select
+            id="saved-order"
+            value={order}
+            onChange={(e) => setOrder(e.target.value as typeof order)}
+            className={cn(select, "w-[180px]")}
+          >
+            <option value="recent">Recently saved</option>
+            <option value="available">Available first</option>
+            <option value="aisle">By aisle</option>
+          </select>
+        </div>
+        {items.some((i) => isPurchasable(i.verdict)) && (
+          <Button type="button" onClick={addAll} disabled={busy}>
+            <ShoppingCart aria-hidden="true" />
+            Add everything available to cart
+          </Button>
+        )}
       </div>
 
-      {items.some((i) => isPurchasable(i.verdict)) && (
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={addAll}
-            disabled={busy}
-            className="rounded-full border px-4 py-2 text-sm hover:bg-accent disabled:opacity-60"
-          >
-            Add everything available to cart
-          </button>
-        </div>
-      )}
-
       {bulk && (
-        <div role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
-          <p>
-            {bulk.added.length === 1
-              ? "1 item added to your cart."
-              : `${bulk.added.length} items added to your cart.`}
-          </p>
+        <Alert
+          variant="success"
+          live
+          title={
+            bulk.added.length === 1 ? "1 item added to your cart." : `${bulk.added.length} items added to your cart.`
+          }
+        >
           {bulk.skipped.length > 0 && (
             <>
-              <p className="mt-1">These weren't added:</p>
-              <ul className="mt-1 list-disc pl-5">
-                {bulk.skipped.map((s) => (
-                  <li key={s.productId}>
-                    {items.find((i) => i.id === s.productId)?.name ?? s.productId} —{" "}
-                    {skipReason(s.reason)}
-                  </li>
-                ))}
-              </ul>
+              These weren&apos;t added:{" "}
+              {bulk.skipped
+                .map((s) => `${items.find((i) => i.id === s.productId)?.name ?? s.productId} — ${skipReason(s.reason)}`)
+                .join(" · ")}
+              .
             </>
           )}
-        </div>
+        </Alert>
       )}
 
-      {/* ⚠ FR-027: a guest's saves are device-held, and saying so is the difference between a
-          deliberate design and an apparent bug when they sign in on another phone. */}
-      <ul className="divide-y">
-      {shown.map((item) => (
-        <li key={item.id} className="flex items-center gap-4 py-4">
-          <div className="min-w-0 flex-1">
-            <a href={`/product/${item.id}`} className="font-medium hover:underline">
-              {item.name}
-            </a>
-            <p className="mt-1 text-sm">
-              {formatMoney(item.priceAmount, item.currency)}
-              {/* The watchlist's whole reason for existing: what changed since it was saved. */}
-              {item.priceDropped && (
-                <span className="ml-2 text-muted-foreground line-through">
-                  {formatMoney(item.savedPriceAmount, item.currency)}
-                </span>
-              )}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">{verdictNote(item.verdict)}</p>
-          </div>
+      <div className="overflow-hidden rounded-lg border bg-card shadow-xs">
+        <ul className="divide-y">
+          {shown.map((item) => {
+            const available = isPurchasable(item.verdict)
+            const quantity = inCart(cart, item.id)
+            return (
+              <li key={item.id} className="flex flex-wrap items-center gap-4 p-4">
+                <Link
+                  href={`/product/${item.id}`}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  className={cn("w-[72px] shrink-0", !available && "opacity-50")}
+                >
+                  <MediaFrame src={item.imageUrl} alt="" sizes="72px" rounded="rounded-md" className="bg-secondary" />
+                </Link>
+                <div className="min-w-[200px] flex-1 space-y-1">
+                  <Link href={`/product/${item.id}`} className="font-medium hover:underline">
+                    {item.name}
+                  </Link>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-semibold tabular-nums">{formatMoney(item.priceAmount, item.currency)}</span>
+                    {/* The watchlist's whole reason for existing: what changed since it was saved. */}
+                    {item.priceDropped && (
+                      <>
+                        <span className="text-muted-foreground tabular-nums line-through">
+                          {formatMoney(item.savedPriceAmount, item.currency)}
+                        </span>
+                        <Badge variant="brand-muted">
+                          <Tag aria-hidden="true" />
+                          Price dropped
+                        </Badge>
+                      </>
+                    )}
+                  </div>
+                  <VerdictLine verdict={item.verdict} />
+                </div>
 
-          {/* 033 FR-050a: adding to the cart keeps the product in the list, so a row that went on
-              saying "Add to cart" would invite a second tap that is NOT a no-op — it raises the
-              quantity. Say what is already there, and how many. */}
-          {inCart(cart, item.id) > 0 ? (
-            <a href="/cart" className="text-sm underline-offset-4 hover:underline">
-              {inCart(cart, item.id) === 1 ? "In your cart" : `${inCart(cart, item.id)} in your cart`}
-            </a>
-          ) : isPurchasable(item.verdict) && (
-            <button
-              type="button"
-              onClick={() =>
-                addItem({
-                  productId: item.id,
-                  name: item.name,
-                  imageUrl: item.imageUrl,
-                  unitPriceAmount: item.priceAmount,
-                  currency: item.currency,
-                  quantity: 1,
-                  packageKey: DEFAULT_PACKAGE_KEY,
-                })
-              }
-              className="rounded-full border px-3 py-1 text-sm hover:bg-accent"
-            >
-              Add to cart
-            </button>
-          )}
+                <div className="flex items-center gap-2">
+                  {/* 033 FR-050a: adding to the cart keeps the product in the list, so a row that went
+                      on saying "Add to cart" would invite a second tap that is NOT a no-op — it raises
+                      the quantity. Say what is already there, and how many. */}
+                  {quantity > 0 ? (
+                    <Button asChild variant="link" size="sm">
+                      <Link href="/cart">{quantity === 1 ? "In your cart" : `${quantity} in your cart`}</Link>
+                    </Button>
+                  ) : (
+                    available && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          addItem({
+                            productId: item.id,
+                            name: item.name,
+                            imageUrl: item.imageUrl,
+                            unitPriceAmount: item.priceAmount,
+                            currency: item.currency,
+                            quantity: 1,
+                            packageKey: DEFAULT_PACKAGE_KEY,
+                          })
+                        }
+                      >
+                        <Plus aria-hidden="true" />
+                        Add to cart
+                      </Button>
+                    )
+                  )}
+                  <Button type="button" variant="ghost" size="sm" onClick={() => chooseLists(item.id)}>
+                    Add to list
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => remove(item)}
+                    aria-label={`Remove ${item.name}${isDefault ? "" : " from this list"}`}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+        {undoNotice && <div className="border-t">{undoNotice}</div>}
+      </div>
+    </div>
+  )
+}
 
-          <button
-            type="button"
-            onClick={() => chooseLists(item.id)}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Add to list
-          </button>
-
-          <button
-            type="button"
-            onClick={() => remove(item)}
-            aria-label={`Remove ${item.name}${isDefault ? "" : " from this list"}`}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Remove
-          </button>
-        </li>
-      ))}
-      </ul>
-    </>
+/** Whether it can be bought right now — said with a mark as well as a colour. */
+function VerdictLine({ verdict }: { verdict: SavedVerdict }) {
+  const Icon = verdict === "purchasable" ? CircleCheck : verdict === "no_longer_sold" ? CircleX : Clock
+  return (
+    <p className={cn("flex items-center gap-1 text-xs", verdict === "purchasable" ? "text-brand" : "text-muted-foreground")}>
+      <Icon aria-hidden="true" className="size-3" />
+      {verdictNote(verdict)}
+    </p>
   )
 }
 

@@ -1,63 +1,67 @@
 /* Effy customer storefront — global styles.
 
-   The brand lives in ONE place: @effy/design-system (constitution Principle V). The shadcn
-   preset that scaffolded this app shipped its own `:root` / `.dark` token block and its own
-   `@theme inline` mapping — BOTH ARE DELETED HERE and replaced by the design-system import
-   below. A second set of brand tokens on this surface would be a second source of truth, which
-   is exactly what Principle V forbids (SC-014: zero surface-local brand colours).
-
-   The preset's `baseColor: neutral` happens to agree with the platform's brand direction
-   (neutral-leaning surfaces, a single Effy Forest accent), so this is a clean swap rather than a
-   restyle. */
+   The storefront carries the STOREFRONT identity (constitution v3.3.0, Principle V; feature 084):
+   zinc greys, Effy blue for actions, Effy green for brand, black for destructive, light only, Geist.
+   It lives in ONE place — `@effy/design-system/storefront.css` — and this file imports it INSTEAD OF
+   the console identity's `tokens.css`. ⚠ Never both: they declare the same variable names and the
+   second import would silently win. No brand colour is declared on this surface. */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Tailwind v4 scans these for class usage — the design system ships raw TS/TSX source. */
-@source "../../../packages/design-system/src";
+/* ⚠ Tailwind scans only this app's own tree. The shared components the storefront still imports from
+   `@effy/design-system/ui` (the code field, the dialogs the account pages open) ship as raw TSX, so
+   without this line their classes are never generated and they render unstyled — which is what broke
+   the six code boxes on sign-in when 084 dropped it. */
+@source "../../../packages/design-system/src/ui";
 
-/* Tokens + the @theme mapping + the `dark` variant, all from the design system. */
-@import "@effy/design-system/tokens.css";
+/* Tokens, the @theme mapping and the self-hosted Geist faces, all from the design system. */
+@import "@effy/design-system/storefront.css";
+
+/* ── Promo banner colours ──────────────────────────────────────────────────────────────────────
+ *
+ * ⚠ FOR PROMO BANNERS ONLY (operator direction, 2026-10-12: the home hero row and the Offers cards).
+ * The storefront identity is still five values; these six are the grounds a promotion is drawn on,
+ * always with white type, and are read through `PROMO_COLORS` in `components/storefront/PromoBanner.tsx`
+ * and nowhere else. They are not in the design system's storefront tokens on purpose, so no utility
+ * (`bg-…`, `text-…`) exists for them and nothing else on the page can pick one up.
+ */
+:root {
+  --promo-green: #15803d;
+  --promo-blue: #2563eb;
+  --promo-purple: #7c3aed;
+  --promo-orange: #c2410c;
+  --promo-rose: #db2777;
+  --promo-red: #dc2626;
+}
 
 /* ── The content column ────────────────────────────────────────────────────────────────────────
  *
  * ONE definition of "how wide is the page and how far off the edge does it sit", used by every
- * section, layout and page on this surface.
+ * header row, section, page and footer, so left and right edges line up on every page.
  *
- * ⚠ Before this it was the literal string `mx-auto w-full max-w-7xl px-4 sm:px-6`, written out in
- * TWENTY-FOUR places — the header, the footer, the hero, every rail, every page. Four separate
- * decisions (centring, full width, the 80rem cap, the responsive gutter) repeated verbatim, which
- * meant the page's alignment could only be changed by finding all twenty-four and keeping them in
- * step. That is the same drift the product grid's `productGrid` constant was extracted to prevent.
+ * The reference's container: centred, gutters 16 / 24 (sm) / 32 (lg), capped at each breakpoint —
+ * 640 / 768 / 1024 / 1280 / 1400.
  *
  * ── Why a custom `@utility`, not Tailwind's stock `container` ──────────────────────────────────
  *
- * Tailwind v4's built-in `container` is NOT the v3 one: it centres nothing, pads nothing, and has
- * no `center`/`padding` config options — those were removed, and it is now a plain set of
- * breakpoint max-widths. Redefining it with `@utility container` is v4's supported override and is
- * what shadcn's own v4 templates do.
+ * Tailwind v4's built-in `container` centres nothing and pads nothing — it is a plain set of
+ * breakpoint max-widths. Redefining it with `@utility container` is v4's supported override. Its
+ * stock max-widths are kept on purpose (they ARE the reference's steps); the widest one is 1400
+ * because the storefront theme sets `--breakpoint-2xl` to 87.5rem.
  *
- * The values are the previous ones EXACTLY, so this change is a refactor and not a re-layout:
- * 80rem is `max-w-7xl`, and the product grid's column counts were chosen from the card width they
- * produce inside it (see `productGrid` in ProductCard.tsx) — narrowing this silently re-tunes every
- * listing on the storefront.
- *
- * ⚠ It intentionally does NOT grow at `2xl`. A grocery listing at 96rem gets a sixth short column,
- * not a better page.
- *
- * ⚠ Tailwind still emits its OWN `.container` breakpoint rules (40rem…96rem) alongside this one; the
- * override wins on source order, not specificity. Verified in a browser rather than assumed — the
- * computed `max-width` is 1280px and the gutter 16px/24px at 390…1920px. The e2e assertion in
- * `e2e/container.spec.ts` is what keeps that true, because the failure mode is silent: if the stock
- * rules ever won, every page would simply be wider, which looks like a design choice.
+ * ⚠ `e2e/container.spec.ts` holds the computed width and gutters, because the failure mode is
+ * silent: a page that is simply wider or narrower looks like a design choice.
  */
 @utility container {
   width: 100%;
   margin-inline: auto;
-  max-width: 80rem;
   padding-inline: --spacing(4);
   @variant sm {
     padding-inline: --spacing(6);
+  }
+  @variant lg {
+    padding-inline: --spacing(8);
   }
 }
 
@@ -66,166 +70,31 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
-    /* General Sans Regular (400) reads thin at body sizes. Bump the DEFAULT body weight to Medium
-     * (500) — one of the three self-hosted faces — so unmarked copy sits a notch heavier. Headings
-     * (font-semibold → 600) and anything already tagged `font-medium` are unaffected; this only
-     * shifts text that carried no explicit weight. Sample change scoped to customer-web. */
-    font-weight: 500;
+    @apply bg-background text-foreground text-sm;
   }
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role="button"]:not(:disabled),
+  summary {
     cursor: pointer;
+  }
+  /* One focus treatment everywhere: the blue ring, offset so it reads on white and on blue. Field
+     borders are a hairline by design, so the ring is what makes focus visible. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
   }
   html {
     @apply font-sans;
-    /* Customer storefront is LIGHT-ONLY (operator decision) — it never applies the design system's
-     * `.dark` class. Pinning the color-scheme keeps native form controls, scrollbars and the browser
-     * address bar light even when the OS is set to dark, so they can't render dark chrome over the
-     * light page. */
+    /* The storefront is LIGHT ONLY. Pinning the color-scheme keeps native form controls, scrollbars
+     * and the browser address bar light even when the OS is set to dark. */
     color-scheme: light;
-    /* No elastic overscroll (operator decision).
-     *
-     * macOS and iOS rubber-band the page past its bounds by default. `overscroll-behavior: none`
-     * removes that bounce AND stops scroll chaining, so a horizontal carousel that reaches its end
-     * no longer hands the gesture to the page — which on a trackpad is what triggers an accidental
-     * swipe-back navigation mid-browse.
-     *
-     * ⚠ TRADE-OFF, stated because it is not obvious: this also disables PULL-TO-REFRESH in mobile
-     * browsers, since that gesture is overscroll. On a storefront that is an acceptable loss (the
-     * page has no manual-refresh affordance to replace it), but it is a real behaviour change on a
-     * phone, not just a visual one. */
+    /* No elastic overscroll (operator decision). ⚠ TRADE-OFF: this also disables PULL-TO-REFRESH in
+     * mobile browsers, since that gesture is overscroll. */
     overscroll-behavior: none;
   }
 }
 
 @layer components {
-  /* ── The information-bar ticker ────────────────────────────────────────────────────────────────
-   *
-   * Cycles the stacked lines in `InfoBar` with NO JavaScript. Every line is in the HTML at once and
-   * CSS decides which is visible, so the rotation runs inside the cached static shell — the guest
-   * path has ~0.1 KB of budget left and cannot afford a client component for a decorative strip.
-   *
-   * ONE animation, offset per line by `--fx-ticker-i`. Four lines × 5s = a 20s loop, so each line
-   * gets a quarter of it: visible for ~19s/20s of its own quarter, with a short fade and a half-em
-   * rise on the way in and out.
-   *
-   * ⚠ THE 25% IS THE LINE COUNT, and CSS cannot derive a keyframe percentage from a custom property.
-   * Changing how many lines `InfoBar` renders means changing 25% → 100/n here as well; `InfoBar` has
-   * a compile-time guard that fails typecheck if the two fall out of step, because the failure is
-   * otherwise silent — the strip just develops a stutter or a gap that looks like a rendering bug.
-   *
-   * ⚠ Base opacity is 0. Lines 2-4 have not started their animation during the first quarter of the
-   * loop, so without this they would all be painted on top of each other until their turn came.
-   */
-  .fx-ticker > * {
-    opacity: 0;
-    animation: fx-ticker-cycle 20s linear infinite;
-    animation-delay: calc(var(--fx-ticker-i) * 5s);
-  }
-
-  @keyframes fx-ticker-cycle {
-    0% {
-      opacity: 0;
-      transform: translateY(0.5em);
-    }
-    2%,
-    23% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    25%,
-    100% {
-      opacity: 0;
-      transform: translateY(-0.5em);
-    }
-  }
-
-  /* FR-025 — motion is decoration, never information. The strip stops entirely and shows the first
-   * line; the other three stay in the DOM, so a screen reader still reads all four. */
-  @media (prefers-reduced-motion: reduce) {
-    .fx-ticker > * {
-      animation: none;
-    }
-    .fx-ticker > :first-child {
-      opacity: 1;
-    }
-  }
-
-  /* ── The hero rotation ─────────────────────────────────────────────────────────────────────────
-   *
-   * Six artworks, ten seconds each, a one-minute loop — with NO JavaScript. The guest budget on `/`
-   * has ~0.1 KB left, so a client component with a timer would fail the gate outright; and a
-   * library like GSAP is three orders of magnitude more than this needs. All six images are in the
-   * HTML and CSS decides which is on top, so it runs inside the cached static shell.
-   *
-   * ── ⚠ The hard part is the handover, not the fade ─────────────────────────────────────────────
-   *
-   * The obvious version — outgoing fades 1→0 while incoming fades 0→1 — is WRONG here. Mid-fade both
-   * layers sit near 0.5, so the page background shows through the composite and the whole banner
-   * visibly dips every minute. That is a flicker on the largest element of the storefront.
-   *
-   * The fix is to never have two partial layers over nothing. The slides are stacked in DOM order,
-   * so slide n+1 paints ABOVE slide n:
-   *
-   *   • Each slide fades IN over 1s while the slide below it is still fully opaque — the incoming
-   *     image covers an opaque one, so nothing shows through at any point.
-   *   • It then fades OUT only AFTER its successor has reached full opacity on top of it, where the
-   *     fade is invisible because it happens underneath an opaque layer.
-   *   • ⚠ THE WRAP IS WHY THAT SECOND FADE EXISTS AT ALL. Slide 6 has no successor above it — slide 1
-   *     is the FIRST child, i.e. underneath. So the last handover is the reverse: slide 1 has already
-   *     faded in (invisibly, below slide 6) and slide 6 fading out is what reveals it. One keyframe
-   *     set therefore serves every slide, including the wrap, with no special case.
-   *
-   * ⚠ LCP. Slide 1 carries a NEGATIVE delay (`-1s` at index 0), so at t=0 its animation is already
-   * past the fade-in and it paints at full opacity on the first frame. Without that the largest
-   * element on the page would spend a second fading up from nothing, and Chrome does not record LCP
-   * for a transparent element — the metric would move by the length of the fade.
-   *
-   * ⚠ THE PERCENTAGES ENCODE BOTH THE SLIDE COUNT AND THE DWELL, so all four numbers move together.
-   * With a 10s turn, a 1s fade and six slides (a 60s cycle):
-   *
-   *   1.6%   fade-in complete          — just under 1s/60s, so slide 1 is opaque at t=0, not 0.999
-   *   18.4%  start hiding              — just past (10s + 1s)/60s, i.e. after my successor covers me
-   *   20%    fully hidden              — one fade later
-   *
-   * CSS cannot derive a keyframe stop from a custom property, so changing the dwell or the number of
-   * artworks means recomputing these; `lib/hero-asset.ts` fails typecheck if the COUNT falls out of
-   * step. ⚠ Nothing catches a wrong DWELL — get 18.4% wrong in the other direction and slides begin
-   * hiding a fraction before their successor is opaque, which is the background flicker this whole
-   * arrangement exists to prevent.
-   */
-  .fx-hero > * {
-    opacity: 0;
-    animation: fx-hero-cycle 60s linear infinite;
-    animation-delay: calc(var(--fx-hero-i) * 10s - 1s);
-  }
-
-  @keyframes fx-hero-cycle {
-    0% {
-      opacity: 0;
-    }
-    1.6%,
-    18.4% {
-      opacity: 1;
-    }
-    20%,
-    100% {
-      opacity: 0;
-    }
-  }
-
-  /* FR-025 — motion is decoration, never information. The rotation stops and the first artwork
-   * stands still; the rest stay in the DOM but never appear. */
-  @media (prefers-reduced-motion: reduce) {
-    .fx-hero > * {
-      animation: none;
-    }
-    .fx-hero > :first-child {
-      opacity: 1;
-    }
-  }
-
   /* ── Native <dialog> transitions ───────────────────────────────────────────────────────────────
    *
    * The guest path forbids `radix-ui`, `sonner` and `vaul` (contracts/customer-ui.contract.md §1,
@@ -322,6 +191,39 @@
 
   /* FR-025: motion is decoration, never information. Collapse the duration rather than removing the
    * transition — `allow-discrete` still has to run for the close to reach `display: none`. */
+  /* The reference's ResponsiveDialog, in CSS: a centred dialog from `md` up is a BOTTOM SHEET below
+   * it. Add `fx-responsive` to a `fx-dialog fx-dialog-modal` and the same native <dialog> docks to
+   * the bottom edge on a phone, slides up instead of fading, and stacks its actions full width —
+   * so no screen decides this for itself and no script is loaded to do it. */
+  @media (width < 48rem) {
+    .fx-dialog-modal.fx-responsive {
+      /* ⚠ !important: these must beat the dialog's own sizing UTILITIES (`m-auto`, `max-w-md`,
+         `rounded-lg`), and a utility always outranks a rule in the components layer. */
+      margin: auto 0 0 !important;
+      width: 100% !important;
+      max-width: none !important;
+      max-height: 92dvh;
+      border-radius: 1rem 1rem 0 0 !important;
+      border-bottom-width: 0;
+      padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+      opacity: 1;
+      translate: 0 100%;
+    }
+    .fx-dialog-modal.fx-responsive[open] {
+      translate: 0 0;
+    }
+    @starting-style {
+      .fx-dialog-modal.fx-responsive[open] {
+        opacity: 1;
+        translate: 0 100%;
+      }
+    }
+  }
+
+  .fx-dialog::backdrop {
+    background: var(--scrim);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .fx-dialog,
     .fx-dialog::backdrop {

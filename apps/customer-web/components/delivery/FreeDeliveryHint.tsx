@@ -20,7 +20,7 @@ export function FreeDeliveryHint({
   freeApplied: boolean
   currency: string
 }) {
-  if (freeApplied) return <p className="text-sm font-medium text-success">{DELIVERY_FEE_WORDS.freeReached}</p>
+  if (freeApplied) return <p className="text-sm font-medium text-brand">{DELIVERY_FEE_WORDS.freeReached}</p>
   if (!remainingAmount) return null
   return (
     <p className="text-sm text-muted-foreground">

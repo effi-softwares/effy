@@ -53,6 +53,7 @@ const LINKS = [
   { label: "Home", href: "/" },
   { label: "All products", href: "/search" },
   { label: "On sale", href: "/search?saleOnly=true" },
+  { label: "Offers", href: "/offers" },
 ] as const
 
 /**
@@ -70,7 +71,10 @@ export function MobileNav({
   accountTrigger,
   accountPanel,
   accountTitle,
+  aisles,
 }: {
+  /** The aisle list, rendered on the server and slotted under the fixed links. */
+  aisles?: React.ReactNode
   className?: string
   /**
    * The account control at the foot of the drawer, rendered on the SERVER and passed in.
@@ -120,7 +124,7 @@ export function MobileNav({
         type="button"
         onClick={() => dialogRef.current?.showModal()}
         aria-label="Open menu"
-        className="inline-flex size-10 items-center justify-center rounded-md hover:bg-accent"
+        className="-ml-2 inline-flex size-10 items-center justify-center rounded-md hover:bg-accent"
       >
         <Menu className="size-5" aria-hidden="true" />
       </button>
@@ -142,11 +146,11 @@ export function MobileNav({
         // ⚠ `backdrop:bg-black/50` matches the design-system overlays and the cart drawer. It was
         // `bg-foreground/40`, which looks token-correct and is not: `--foreground` inverts by
         // appearance, so that scrim rendered as a WHITE film on a dark surface. A scrim must darken.
-        className="fx-dialog fx-drawer-left mr-auto h-full max-h-none w-[min(20rem,85vw)] max-w-none border-r bg-card p-0 text-foreground backdrop:bg-black/50"
+        className="fx-dialog fx-drawer-left mr-auto h-full max-h-none w-[85%] max-w-[360px] border-r bg-background p-0 text-foreground shadow-lg"
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b px-5 py-4">
-            <span className="text-lg font-extrabold uppercase tracking-[-0.02em]">Menu</span>
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <span className="text-base font-semibold">Menu</span>
             <button
               type="button"
               onClick={close}
@@ -177,10 +181,10 @@ export function MobileNav({
                           onClick={close}
                           aria-current={active ? "page" : undefined}
                           className={cn(
-                            "flex h-12 items-center rounded-md px-3 text-base transition-colors",
+                            "flex h-11 items-center rounded-md px-3 text-sm font-medium transition-colors",
                             active
-                              ? "bg-accent font-semibold text-foreground"
-                              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                              ? "bg-accent text-foreground"
+                              : "hover:bg-accent",
                           )}
                         >
                           {link.label}
@@ -189,6 +193,7 @@ export function MobileNav({
                     )
                   })}
                 </ul>
+                {aisles}
               </nav>
             </div>
 
@@ -199,7 +204,7 @@ export function MobileNav({
                 // and a transparent incoming panel would show the outgoing one straight through it.
                 className={cn(
                   panelBase,
-                  "bg-card",
+                  "bg-background",
                   atRoot ? "translate-x-full" : "translate-x-0",
                 )}
               >
@@ -264,7 +269,7 @@ export function MobileNavFallback({ className }: { className?: string }) {
     <div className={cn("lg:hidden", className)}>
       <span
         aria-hidden="true"
-        className="inline-flex size-10 items-center justify-center rounded-md"
+        className="-ml-2 inline-flex size-10 items-center justify-center rounded-md"
       >
         <Menu className="size-5" />
       </span>

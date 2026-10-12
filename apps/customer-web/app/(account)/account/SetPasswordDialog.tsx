@@ -2,17 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react"
 
-import {
-  Button,
-  OTP_LENGTH,
-  OtpInput,
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@effy/design-system/ui"
+import { OTP_LENGTH, ResponsiveModal, ResponsiveModalContent, ResponsiveModalDescription, ResponsiveModalFooter, ResponsiveModalHeader, ResponsiveModalTitle } from "@effy/design-system/ui"
+
+import { CodeField } from "@/components/storefront/CodeField"
+import { Button } from "@/components/ui/button"
 
 import { useCodeResend } from "@/app/(auth)/_lib/use-code-resend"
 import { PasswordField } from "./PasswordField"
@@ -193,18 +186,11 @@ export function SetPasswordDialog({
               <label htmlFor="stepup-code" className="mb-4 block text-sm font-medium">
                 Code from your email
               </label>
-              <OtpInput
+              <CodeField
                 id="stepup-code"
                 name="code"
-                // Centre the fixed-size cells within the full-width field (scoped to this dialog —
-                // the class lands on the OtpInput's `w-full` wrapper, so the transparent input still
-                // covers the whole field; only the visible cell row is centred).
-                className="flex justify-center"
-                // ⚠ The cells collapse to a plain field when the value is too long. Six positions can
-                // only show six characters, so an 8-digit paste rendered as cells would LOOK like a
-                // six-digit code — visually reproducing the truncation FR-004 forbids.
-                variant={tooLong ? "plain" : "cells"}
-                aria-invalid={tooLong || error !== null}
+                // A value longer than a code is shown in full as plain text by the field itself (FR-004).
+                invalid={error !== null}
                 aria-describedby={tooLong ? "stepup-code-too-long" : undefined}
                 autoFocus
                 value={code}
@@ -212,7 +198,6 @@ export function SetPasswordDialog({
                   setCode(e.target.value.replace(/\D/g, ""))
                   setError(null)
                 }}
-                data-testid="stepup-code"
               />
 
               {tooLong && (

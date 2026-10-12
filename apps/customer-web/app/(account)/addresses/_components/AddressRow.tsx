@@ -1,20 +1,21 @@
 "use client"
 
-import { Badge } from "@effy/design-system/ui"
+import { Pencil, Trash2 } from "lucide-react"
 
-import { addressLines, chipForLabel, type Address } from "@/lib/addresses/model"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { chipForLabel, type Address } from "@/lib/addresses/model"
 
 import { CoverageNote } from "./CoverageNote"
 
 /**
- * One row of the address book (US1/US3/US4/US5).
+ * One saved address (reference: Account · Address book): what it is called, who and where, who can
+ * deliver there, and its own actions along the foot.
  *
- * ⚠ The **row body** is the edit affordance (FR-017a) — the whole label/recipient/lines block is a
- * single button that opens the pre-filled form. **Set as default** and **Delete** are distinct
- * controls alongside it and MUST NOT open the editor; they sit outside the body button, so there is
- * no nested-interactive ambiguity and no event-propagation trickery to get wrong.
+ * ⚠ WHO DELIVERS IS THE SERVER'S ANSWER FOR THIS ADDRESS, printed through `CoverageNote` — the one
+ * wording there is for it. Nothing here works it out.
  *
- * A LIST row, not a card (Principle V): the visual container is the parent's `divide-y rounded border`.
+ * ⚠ "Set as default" is absent, not disabled, on the default address: there is nothing to do.
  */
 export function AddressRow({
   address,
@@ -30,54 +31,41 @@ export function AddressRow({
   onDelete: () => void
 }) {
   const chip = chipForLabel(address.label)
-
+  const title = chip ? (chip === "Other" ? address.label : chip) : address.recipientName
   return (
-    <li className="flex items-start gap-4 p-4">
-      <button
-        type="button"
-        onClick={onEdit}
-        data-testid="address-row-body"
-        className="min-w-0 flex-1 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={`Edit address for ${address.recipientName}`}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          {chip ? (
-            <span className="text-sm font-medium">{chip === "Other" ? address.label : chip}</span>
-          ) : (
-            <span className="text-sm font-medium">{address.recipientName}</span>
-          )}
+    <li className="flex flex-col rounded-lg border bg-card shadow-xs">
+      <div className="flex flex-1 flex-col gap-1 p-6">
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{title}</span>
           {address.isDefault && (
-            <Badge variant="success" data-testid="default-badge">
+            <Badge variant="secondary" data-testid="default-badge">
               Default
             </Badge>
           )}
-        </div>
-        {chip && <p className="text-sm text-muted-foreground">{address.recipientName}</p>}
-        <p className="truncate text-sm text-muted-foreground">{addressLines(address)}</p>
-        {address.phone && <p className="text-sm text-muted-foreground">{address.phone}</p>}
-        {/* 076 — who delivers here today, or the one refusal: learnt here, not after building an order. */}
-        <CoverageNote coverage={address.coverage} />
-      </button>
-
-      <div className="flex shrink-0 flex-col items-end gap-2 text-sm">
-        {!address.isDefault && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onSetDefault}
-            className="font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-          >
-            Set as default
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onDelete}
-          className="text-muted-foreground hover:text-destructive disabled:opacity-50"
-        >
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {[chip ? address.recipientName : null, address.phone].filter(Boolean).join(" · ")}
+        </p>
+        <p className="text-sm text-muted-foreground">{[address.line1, address.line2].filter(Boolean).join(", ")}</p>
+        <p className="text-sm text-muted-foreground">
+          {[address.city, address.region, address.postalCode].filter(Boolean).join(" ")}
+        </p>
+        <CoverageNote coverage={address.coverage} className="mt-4" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-t px-6 py-4">
+        <Button type="button" variant="outline" size="sm" onClick={onEdit} data-testid="address-row-body" aria-label={`Edit address for ${address.recipientName}`}>
+          <Pencil aria-hidden="true" />
+          Edit
+        </Button>
+        <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onDelete}>
+          <Trash2 aria-hidden="true" />
           Delete
-        </button>
+        </Button>
+        {!address.isDefault && (
+          <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onSetDefault}>
+            Set as default
+          </Button>
+        )}
       </div>
     </li>
   )

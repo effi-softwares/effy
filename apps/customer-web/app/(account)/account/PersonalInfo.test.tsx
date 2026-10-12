@@ -32,7 +32,7 @@ describe("PersonalInfo — the screen at rest (FR-011)", () => {
   it("shows current values as rows and NO input fields", () => {
     render(<PersonalInfo {...props} />)
 
-    expect(screen.getByTestId("row-given-name")).toHaveTextContent("Janith")
+    expect(screen.getByTestId("row-name")).toHaveTextContent("Janith Madarasinghe")
     expect(screen.getByTestId("row-phone")).toHaveTextContent("Not set")
     // The whole point of the redesign: nothing on this screen is an entry surface.
     expect(document.querySelectorAll("input")).toHaveLength(0)
@@ -46,9 +46,9 @@ describe("PersonalInfo — the screen at rest (FR-011)", () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
 
+    // It says so on the row itself — there is nothing to press, so nothing can "do nothing".
+    expect(screen.getByTestId("row-email")).toContainElement(screen.getByTestId("email-locked-note"))
     await user.click(screen.getByTestId("row-email"))
-
-    expect(screen.getByTestId("email-locked-note")).toBeInTheDocument()
     expect(screen.queryByTestId("field-editor-input")).not.toBeInTheDocument()
   })
 
@@ -72,7 +72,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
 
-    await user.click(screen.getByTestId("row-given-name"))
+    await user.click(screen.getByTestId("edit-name"))
 
     const input = await screen.findByTestId("field-editor-input")
     expect(input).toHaveValue("Janith")
@@ -98,7 +98,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
 
-    await user.click(screen.getByTestId("row-given-name"))
+    await user.click(screen.getByTestId("edit-name"))
     const input = await screen.findByTestId("field-editor-input")
     await user.clear(input)
     await user.type(input, "Something else")
@@ -114,7 +114,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} />)
 
-    await user.click(screen.getByTestId("row-given-name"))
+    await user.click(screen.getByTestId("edit-name"))
     await screen.findByTestId("field-editor-input")
 
     await user.click(screen.getByTestId("field-editor-cancel"))
@@ -128,7 +128,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     updateProfile.mockResolvedValue({ ok: false, error: "We couldn't save that." })
     render(<PersonalInfo {...props} />)
 
-    await user.click(screen.getByTestId("row-given-name"))
+    await user.click(screen.getByTestId("edit-name"))
     const input = await screen.findByTestId("field-editor-input")
     await user.clear(input)
     await user.type(input, "Jan")
@@ -148,7 +148,7 @@ describe("PersonalInfo — the editor (FR-012 … FR-021)", () => {
     const user = userEvent.setup()
     render(<PersonalInfo {...props} phone="0400 000 000" />)
 
-    await user.click(screen.getByTestId("row-phone"))
+    await user.click(screen.getByTestId("edit-phone"))
     const input = await screen.findByTestId("field-editor-input")
     await user.clear(input)
     await user.click(screen.getByTestId("field-editor-save"))

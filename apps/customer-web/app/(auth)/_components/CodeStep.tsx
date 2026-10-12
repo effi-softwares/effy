@@ -2,12 +2,15 @@
 
 import * as React from "react"
 
-import { OTP_LENGTH, OtpInput } from "@effy/design-system/ui"
+import { RefreshCcw } from "lucide-react"
+import { OTP_LENGTH } from "@effy/design-system/ui"
 
+import { btnClass } from "@/components/storefront/actions"
 import { capture } from "@/lib/telemetry"
 
 import { useCodeResend } from "../_lib/use-code-resend"
 import { ErrorNote, InlineAction, StepShell, Submit } from "./AuthKit"
+import { CodeField } from "@/components/storefront/CodeField"
 
 /**
  * What the platform told us about a submitted code.
@@ -25,12 +28,11 @@ import { ErrorNote, InlineAction, StepShell, Submit } from "./AuthKit"
  * discarded `confirmSignIn`'s result and treated a re-issued challenge as success, navigating a
  * still-signed-out shopper away with nothing on screen.
  */
-/** The code form’s id — lets the bottom-anchored submit button live outside the <form>. */
-const FORM_ID = "code-step-form"
-/** The exhausted step's restart form — the action is bottom-anchored and so lives outside it. */
-const RESTART_FORM_ID = "code-restart-form"
-
-export type CodeOutcome = "accepted" | "rejected" | "exhausted" | "stale"
+/**
+ * `failed` — the code was fine and something AFTER it went wrong (the session could not be started).
+ * The journey owns the message (`parentError`); this step must not blame the code for it.
+ */
+export type CodeOutcome = "accepted" | "rejected" | "exhausted" | "stale" | "failed"
 
 export function CodeStep({
   destination,
@@ -39,12 +41,17 @@ export function CodeStep({
   onSubmit,
   onResend,
   onChangeEmail,
-  onBack,
   flow,
+  purpose,
+  footer,
   distinguishableRefusals = false,
   parentError = null,
   children,
 }: {
+  /** Why the code was sent, when the journey has a reason to say — " to confirm it is yours". */
+  purpose?: string
+  /** The opposite-journey link at the foot of the step. */
+  footer?: React.ReactNode
   /**
    * A message owned by the surrounding journey — a network failure, a stale session.
    *
@@ -62,7 +69,6 @@ export function CodeStep({
   onSubmit: (code: string) => Promise<CodeOutcome>
   onResend: () => Promise<void>
   onChangeEmail: () => void
-  onBack?: () => void
   /** Which journey this step belongs to — telemetry only. */
   flow: "sign_in" | "sign_up" | "reset"
   /**
@@ -139,13 +145,19 @@ export function CodeStep({
     // ⚠ NO AUTO-SUBMIT ANYWHERE IN THIS COMPONENT. Codes die after three wrong attempts and most
     // customers have no password to fall back on, so a mistyped last digit that submits itself spends
     // an attempt the shopper never chose to spend (FR-005).
-    if (!complete || pending) return
+    if (pending) return
+    if (!complete) {
+      // ⚠ FR-020 — an action that cannot commit must SAY what is missing. Enter in the field lands
+      // here without touching the button.
+      if (code.length === 0) setShortfall(`Enter the ${OTP_LENGTH}-digit code we emailed you.`)
+      return
+    }
     setPending(true)
     setResendNote(null)
     try {
       capture({ name: "auth_code_submitted", props: { flow, attempt: attempts + 1, lengthOk: true } })
       const outcome = await onSubmit(code)
-      if (outcome !== "accepted") {
+      if (outcome !== "accepted" && outcome !== "failed") {
         capture({
           name: "auth_code_rejected",
           props: {
@@ -175,140 +187,101 @@ export function CodeStep({
     }
   }
 
-  // ── The attempt is over (FR-013, SC-019) ────────────────────────────────────────────────────────
+  // ── The attempt is over (FR-013, SC-019; reference: Code expired) ────────────────────────────────
   //
   // ⚠ A step, not a toast. The Cognito session really is finished, so leaving the shopper on a form
   // that still looks usable would invite them to keep typing into nothing.
   if (exhausted) {
     return (
       <StepShell
-        anchor
+        icon={<RefreshCcw aria-hidden="true" />}
         title="Let's start that again"
         subtitle="That code can't be used any more. We'll send you a fresh one."
-        onBack={onBack}
-        bottom={
-          <>
-            {/* ⚠ Also `aria-disabled` rather than `disabled` (044 FR-019/FR-020). This is a
-                committing action too, and at the send ceiling it is the ONE control that can explain
-                why nothing is happening — an inert button cannot. */}
-            <Submit
-              pending={resend.sending}
-              label="Send a new code"
-              testId="start-over"
-              blocked={resend.atCeiling}
-              onBlocked={() => setCeilingNoticed(true)}
-              form={RESTART_FORM_ID}
-            />
-            <form id={RESTART_FORM_ID} onSubmit={(e) => { e.preventDefault(); void resend.resend() }} />
-            {(resend.atCeiling || ceilingNoticed) && (
-              <p className="text-sm font-medium text-muted-foreground" role="status">
-                <CeilingNote />
-              </p>
-            )}
-            <p className="text-center text-sm font-medium text-muted-foreground">
-              Wrong email?{" "}
-              <InlineAction onClick={onChangeEmail} testId="change-email">
-                Use a different one
-              </InlineAction>
-            </p>
-          </>
-        }
+        footer={footer}
       >
-        {null}
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void resend.resend()
+          }}
+        >
+          {/* ⚠ `aria-disabled` rather than `disabled` (044 FR-019/FR-020). At the send ceiling this is
+              the ONE control that can explain why nothing is happening — an inert button cannot. */}
+          <Submit
+            pending={resend.sending}
+            label="Send a new code"
+            testId="start-over"
+            blocked={resend.atCeiling}
+            onBlocked={() => setCeilingNoticed(true)}
+          />
+          <button
+            type="button"
+            data-testid="change-email"
+            onClick={onChangeEmail}
+            className={btnClass("outline", "lg", "h-11 w-full")}
+          >
+            Use a different email
+          </button>
+          {(resend.atCeiling || ceilingNoticed) && (
+            <p className="text-sm text-muted-foreground" role="status">
+              <CeilingNote />
+            </p>
+          )}
+        </form>
       </StepShell>
     )
   }
 
+  // The count is shown WHILE they type (reference: "That's 3 of 6 digits."), so the unavailable
+  // action below it is never a mystery.
+  const hint =
+    code.length > 0 && !complete ? `That's ${code.length} of ${OTP_LENGTH} digits.` : shortfall
+
   return (
     <StepShell
-        anchor
-      title="Enter your code"
+      title="Check your email"
       subtitle={
         <>
-          We sent a code to <strong className="text-foreground">{destination}</strong>. The code works
-          for 5 minutes.
+          We sent a code to {destination}
+          {purpose}. The code works for 5 minutes.
         </>
       }
-      onBack={onBack}
-      bottom={
-        <>
-          {/*
-            ⚠ AT THE BOTTOM OF THE SCREEN, in the thumb's reach — this step has exactly one committing
-            action. The `form` attribute rather than nesting, so the button can live outside the
-            <form> it submits and still be a real submit button.
-          */}
-          <Submit
-            pending={pending}
-            label={submitLabel}
-            testId={submitTestId}
-            blocked={!complete}
-            // ⚠ FR-020 — pressing an unavailable action must SAY what is missing. Before 044 it was
-            // natively `disabled`: the press did nothing, said nothing, and could not even be
-            // reached by keyboard.
-            onBlocked={() =>
-              setShortfall(
-                code.length === 0
-                  ? `Enter the ${OTP_LENGTH}-digit code we emailed you.`
-                  : `That's ${code.length} of ${OTP_LENGTH} digits.`,
-              )
-            }
-            form={FORM_ID}
-          />
-          {/* ⚠ Reads as an ACTION, not as a caption (operator direction 2026-08-11). It was a
-              full-width muted `TextAction`, which at the foot of the screen looked like a closing
-              remark rather than the escape route it is — and it is the only way back to correct a
-              mistyped address without abandoning the flow. Same treatment as the resend, from the
-              same component, so the two cannot drift. */}
-          <p className="text-center text-sm font-medium text-muted-foreground">
-            Wrong email?{" "}
-            <InlineAction onClick={onChangeEmail} testId="change-email">
-              Change it
-            </InlineAction>
-          </p>
-        </>
-      }
+      footer={footer}
     >
-      <form id={FORM_ID} className="space-y-4" onSubmit={submit} noValidate>
+      <form className="space-y-4" onSubmit={submit} noValidate>
         {/* ⚠ ONE ERROR REGION, and it is here — inside the shell, above the field it concerns
             (FR-017). The journey's own message arrives as `parentError` rather than being rendered
             outside this component by the caller (defect D-05). */}
         {message && <ErrorNote>{message}</ErrorNote>}
 
-        {/* ⚠ EXPLICIT MARGINS, NOT `space-y` (operator direction 2026-08-11 — the label sat too close
-            to the cells). `space-y` forces ONE gap for every sibling here, but the two gaps are doing
-            different jobs: the label needs room to read as a heading for a 56px-tall control, while
-            the message below needs to stay tight to the field it is about. One value cannot be right
-            for both. */}
-        <div>
-          <label htmlFor="code" className="mb-4 block text-sm font-medium">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="code" className="text-sm font-medium leading-none">
             Your code
           </label>
-          <OtpInput
+          <CodeField
             id="code"
             name="code"
-            // ⚠ The cells collapse back to a plain field when the value is too long. Six positions can
-            // only show six characters, so an 8-digit paste rendered as cells would LOOK like a
-            // six-digit code — visually reproducing the very truncation FR-004 forbids. Changing shape
-            // is the signal.
-            variant={tooLong ? "plain" : "cells"}
-            aria-invalid={tooLong || message !== null}
-            aria-describedby={tooLong ? "code-too-long" : shortfall ? "code-shortfall" : undefined}
+            invalid={message !== null}
+            aria-describedby={tooLong ? "code-too-long" : hint ? "code-shortfall" : undefined}
             autoFocus
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
           />
           {tooLong ? (
-            <p id="code-too-long" className="mt-2 text-sm text-destructive">
+            <p id="code-too-long" className="text-[13px] font-medium leading-[18px] text-destructive">
               That&apos;s {code.length} digits. An Effy code is always {OTP_LENGTH}.
             </p>
           ) : (
-            shortfall && (
+            hint && (
+              // ⚠ NOT AN ERROR, and deliberately not in the error treatment: it is information about
+              // an unfinished task, not a refusal.
               <p
                 id="code-shortfall"
                 role="status"
-                className="mt-2 text-sm font-medium text-muted-foreground"
+                className="text-[13px] leading-[18px] text-muted-foreground"
               >
-                {shortfall}
+                {hint}
               </p>
             )
           )}
@@ -316,63 +289,58 @@ export function CodeStep({
 
         {children}
 
-        <ResendControl resend={resend} note={resendNote} />
+        <Submit pending={pending} label={submitLabel} testId={submitTestId} blocked={!complete} />
+
+        <ResendLine resend={resend} note={resendNote} onChangeEmail={onChangeEmail} />
       </form>
     </StepShell>
   )
 }
 
-function ResendControl({
+/**
+ * The two ways out of a code that is not arriving, as one quiet line under the action (reference:
+ * "Didn't get it? Resend · Wrong email? Change it").
+ *
+ * ⚠ SUBORDINATE, AND ONE LINE (044 US1 AC-9 / defect D-06). Countdown, resend, note and change-email
+ * used to be separately-weighted lines that together out-massed the input they were advising about.
+ */
+function ResendLine({
   resend,
   note,
+  onChangeEmail,
 }: {
   resend: ReturnType<typeof useCodeResend>
   note: string | null
+  onChangeEmail: () => void
 }) {
   return (
-    /*
-     * ⚠ 044 FR-025 / defect D-03 — LEFT-ALIGNED, LIKE EVERYTHING ELSE ON THE STEP. This block used
-     * to be centred while the heading, the label and the field were not, so a single screen carried
-     * three alignments and nothing established a reading order.
-     *
-     * ⚠ 044 US1 AC-9 / defect D-06 — AND IT IS SUBORDINATE. Countdown, resend, spam-folder note and
-     * support address used to be four separately-weighted lines that together out-massed the input
-     * they were advising about. They are now one `text-sm` line of recovery and one `text-xs` line of
-     * last resort.
-     */
-    <div className="space-y-1.5">
-      {/* ⚠ `aria-live="polite"`, and the countdown lives in its own region so announcing it never
-          moves focus off the code field (FR-015). A shopper mid-typing must not be interrupted. */}
-      <p className="text-sm font-medium text-muted-foreground" aria-live="polite">
+    <div className="space-y-1.5 text-sm text-muted-foreground">
+      {/* ⚠ `aria-live="polite"`: announcing the countdown must never move focus off the code field
+          (FR-015). A shopper mid-typing is not interrupted. */}
+      <p aria-live="polite">
         {resend.atCeiling ? (
           <CeilingNote />
         ) : resend.remaining > 0 ? (
-          <span data-testid="resend-countdown">Send another code in {resend.remaining}s</span>
+          <span data-testid="resend-countdown">Didn&apos;t get it? Resend in {resend.remaining}s</span>
         ) : (
           <>
-            {/* ⚠ A TEXT ACTION, matching mobile word for word (FR-044). Resending is a recovery
-                affordance, not a route through the flow — a bordered button gave it the same weight as
-                a credential choice and stacked a second full-width control above the committing one. */}
             Didn&apos;t get it?{" "}
-            {/* ⚠ `aria-disabled`, not `disabled` (044 FR-019), handled by `InlineAction`. While the
-                cooldown runs this branch is not rendered at all, so the only way to reach the
-                unavailable state is the send ceiling — exactly when the shopper most needs the
-                control to be reachable and to say something. */}
+            {/* ⚠ `aria-disabled`, not `disabled` (044 FR-019), handled by `InlineAction`. */}
             <InlineAction
               testId="resend-code"
               blocked={!resend.canResend}
               onClick={() => void resend.resend()}
             >
-              {resend.sending ? "Sending…" : "Send another code"}
+              {resend.sending ? "Sending…" : "Resend"}
             </InlineAction>
           </>
-        )}
+        )}{" "}
+        · Wrong email?{" "}
+        <InlineAction quiet onClick={onChangeEmail} testId="change-email">
+          Change it
+        </InlineAction>
       </p>
-      {note && (
-        <p className="text-sm font-medium text-muted-foreground" data-testid="resend-note">
-          {note}
-        </p>
-      )}
+      {note && <p data-testid="resend-note">{note}</p>}
     </div>
   )
 }

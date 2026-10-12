@@ -1,23 +1,26 @@
+import { Check, House, Package, Truck } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { OrderStage } from "@effy/shared-types"
 
-import { RECEIPT_STATUS_TONES } from "@/app/checkout/_components/status-palette"
 import { cn } from "@/lib/utils"
 
 /**
- * The four customer-facing stages (052 FR-008).
+ * The order's progress: four steps, the one it is at marked (reference: Orders · Order — on the way).
  *
- * ⚠ THE ORDER OF THIS ARRAY IS THE JOURNEY, and it is the ONLY place the sequence is written on this
- * surface. The stage itself is SERVER-DERIVED (`OrderDTO.stage`) — this component decides where the
- * marker sits, never what the stage IS. A client that recomputed the stage from `fulfillments` would
- * be the second implementation of one rule, which is 029's banner target and 033's `available` flag.
+ * ⚠ THE STAGE IS THE SERVER'S ONE WORD FOR THE WHOLE ORDER. Nothing here reads packages, and nothing
+ * here can show that an order was filled by more than one supplier (052 FR-008).
  *
- * ⚠ It says nothing about HOW the order is fulfilled — no shop, no count, no node (FR-009).
+ * ⚠ EVERY STATE IS SAID AS WELL AS DRAWN: a finished step carries a tick and "completed", the current
+ * one "current step" — a colour alone tells a screen reader, and a colour-blind customer, nothing.
+ *
+ * A row from the width of a phone up; a column in anything narrower (the checkout confirmation's side
+ * panel) — decided by the SPACE IT IS GIVEN, not the screen, so the same component fits both.
  */
-const STEPS: ReadonlyArray<{ stage: OrderStage; label: string; note: string }> = [
-  { stage: "confirmed", label: "Confirmed", note: "We've received your payment" },
-  { stage: "packing", label: "Being packed", note: "Your order is being picked" },
-  { stage: "on_the_way", label: "On the way", note: "Out for delivery" },
-  { stage: "delivered", label: "Delivered", note: "Your order has arrived" },
+const STEPS: ReadonlyArray<{ stage: OrderStage; label: string; note: string; icon: LucideIcon }> = [
+  { stage: "confirmed", label: "Confirmed", note: "We've received your payment", icon: Check },
+  { stage: "packing", label: "Being packed", note: "Your order is being picked", icon: Package },
+  { stage: "on_the_way", label: "On the way", note: "Out for delivery", icon: Truck },
+  { stage: "delivered", label: "Delivered", note: "Your order has arrived", icon: House },
 ]
 
 export function ProgressTrack({ stage, className }: { stage: OrderStage; className?: string }) {
@@ -25,54 +28,51 @@ export function ProgressTrack({ stage, className }: { stage: OrderStage; classNa
     0,
     STEPS.findIndex((s) => s.stage === stage),
   )
+  // Delivered is the end of the line: its step is finished, not "in progress".
+  const finished = stage === "delivered"
 
   return (
-    <ol className={cn("flex flex-col", className)} aria-label="Order progress">
-      {STEPS.map((step, i) => {
-        const done = i < current
-        const isCurrent = i === current
-        const last = i === STEPS.length - 1
-
-        return (
-          <li key={step.stage} className="grid grid-cols-[12px_minmax(0,1fr)] gap-x-3.5">
-            <div className="flex flex-col items-center">
+    <div className={cn("@container", className)}>
+      <ol aria-label="Order progress" className="grid @md:grid-cols-4">
+        {STEPS.map((step, i) => {
+          const done = i < current || (finished && i === current)
+          const isCurrent = i === current && !finished
+          const reached = done || isCurrent
+          const Icon = done ? Check : step.icon
+          return (
+            <li
+              key={step.stage}
+              className={cn(
+                "relative flex items-start gap-3 pb-4 last:pb-0 @md:flex-col @md:items-center @md:gap-1.5 @md:px-1 @md:pb-0 @md:text-center",
+                // The line arriving at this step: down the side in a column, along the top in a row.
+                "before:absolute before:-top-4 before:left-[15px] before:h-4 before:w-0.5 first:before:hidden",
+                "@md:before:top-[15px] @md:before:-left-1/2 @md:before:h-0.5 @md:before:w-full",
+                reached ? "before:bg-brand" : "before:bg-border",
+              )}
+            >
               <span
                 aria-hidden="true"
                 className={cn(
-                  "size-2.5 shrink-0 rounded-full",
-                  done && RECEIPT_STATUS_TONES.paid.dot,
-                  isCurrent && "border-2 border-foreground bg-background",
-                  !done && !isCurrent && "border-2 border-muted-foreground/40 bg-background",
-                )}
-              />
-              {/* The rail below a step. Filled only where the order has actually been. */}
-              {!last ? (
-                <span
-                  aria-hidden="true"
-                  className={cn("min-h-6 w-0.5 flex-1", done ? "bg-muted-foreground/40" : "bg-border")}
-                />
-              ) : null}
-            </div>
-
-            <div className={cn("flex flex-col gap-0.5", !last && "pb-4")}>
-              <span
-                className={cn(
-                  "text-[13.5px]",
-                  done || isCurrent ? "font-medium text-foreground" : "text-muted-foreground",
+                  "relative z-[1] grid size-8 shrink-0 place-items-center rounded-full [&>svg]:size-4",
+                  done && "bg-brand text-brand-foreground",
+                  isCurrent && "bg-background text-brand shadow-[inset_0_0_0_2px_var(--brand)]",
+                  !reached && "bg-muted text-muted-foreground",
                 )}
               >
-                {step.label}
-                {/* The state is announced in WORDS, so the marker's colour is never load-bearing. */}
-                {isCurrent ? <span className="sr-only"> — current step</span> : null}
-                {done ? <span className="sr-only"> — completed</span> : null}
+                <Icon />
               </span>
-              {isCurrent ? (
-                <span className="text-[12.5px] text-muted-foreground">{step.note}</span>
-              ) : null}
-            </div>
-          </li>
-        )
-      })}
-    </ol>
+              <span>
+                <span className={cn("block text-[13px]", reached ? "font-semibold" : "font-medium text-muted-foreground")}>
+                  {step.label}
+                  {isCurrent ? <span className="sr-only"> — current step</span> : null}
+                  {done ? <span className="sr-only"> — completed</span> : null}
+                </span>
+                <span className="block text-xs text-muted-foreground">{step.note}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
   )
 }

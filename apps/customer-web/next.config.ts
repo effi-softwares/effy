@@ -54,7 +54,11 @@ const nextConfig: NextConfig = {
   // into via `?category=`. This permanent redirect keeps any indexed or externally-linked
   // `/browse` URL alive instead of 404-ing it, and tells search engines the page moved.
   async redirects() {
-    return [{ source: "/browse", destination: "/search", permanent: true }]
+    return [
+      { source: "/browse", destination: "/search", permanent: true },
+      // 084 — the message form moved under the help answers. The query (`?from=checkout`) rides along.
+      { source: "/feedback", destination: "/help", permanent: true },
+    ]
   },
 
   // 050 FR-028 — first-party reverse proxy for PostHog. Analytics + error tracking send to `/rc/*` on

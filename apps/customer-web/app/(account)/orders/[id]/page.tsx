@@ -15,10 +15,17 @@ import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
 import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { LiveRefresh } from "@/components/live/LiveRefresh"
-import { ActionLink } from "@/components/storefront/actions"
+
+import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Breadcrumb } from "@/components/ui/misc"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { shortfallsFrom } from "@/lib/fulfillment-progress"
+import { formatMoney } from "@/lib/money"
+import { orderRowWords } from "@/lib/order-summary"
+
+import { ReorderButton } from "../ReorderButton"
 
 export const metadata: Metadata = {
   title: "Order",
@@ -35,22 +42,31 @@ export const metadata: Metadata = {
  */
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
-    <div className="container py-8">
-      {/* 071 — the page follows the order (packed, on the way, delivered, refunded) without a
-          refresh. Outside the Suspense boundary so it is not remounted on each re-render. */}
+    <div>
+      {/* 071 — when this order changes, the page re-reads it; no timer, and nothing to do by hand.
+          Outside the Suspense boundary so it is not remounted on each re-render. */}
       <LiveRefresh />
-      <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-lg bg-muted" />}>
         <OrderDetail params={params} />
       </Suspense>
     </div>
   )
 }
 
+const PLACED = new Intl.DateTimeFormat("en-AU", { dateStyle: "long", timeStyle: "short", timeZone: "Australia/Melbourne" })
+const TONE = { outline: "outline", default: "default", brand: "brand", secondary: "secondary" } as const
+
+/**
+ * One order (reference: Orders · Order — confirmed / on the way / delivered / moved to courier).
+ *
+ * Where it is and when it is coming, first; then the receipt, which is the record; beside them, what
+ * has been refunded and the way to say something is wrong.
+ */
 async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   await requireCustomer(`/orders/${id}`)
-
   const session = await getSession()
+
   let dto: OrderDTO | null = null
   if (session?.accessToken) {
     try {
@@ -62,37 +78,69 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   }
   if (!dto) notFound()
 
-  const shortfalls = dto.status === "paid" ? shortfallsFrom(dto.fulfillments) : []
+  const paid = dto.status === "paid"
+  const shortfalls = paid ? shortfallsFrom(dto.fulfillments) : []
+  const itemCount = dto.items.reduce((n, i) => n + i.quantity, 0)
+  // The same words the order list uses for this order — one definition (lib/order-summary.ts).
+  const words = orderRowWords({
+    id: dto.id, orderNumber: dto.orderNumber, status: dto.status, placedAt: dto.placedAt, itemCount,
+    grandTotalAmount: dto.grandTotalAmount, currency: dto.currency,
+    stage: paid ? dto.stage : undefined, fullyRefunded: dto.fullyRefunded ? true : undefined, delivery: dto.delivery,
+  })
 
   return (
-    <div>
-      <Link href="/orders" className="text-sm text-muted-foreground hover:text-foreground">
-        ← Orders
-      </Link>
+    <div className="space-y-6">
+      <Breadcrumb
+        items={[{ label: "Account", href: "/account" }, { label: "Orders", href: "/orders" }, { label: dto.orderNumber }]}
+      />
 
-      <div className="grid grid-cols-1 items-start gap-8 pt-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <ReceiptDocument order={dto} />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight">
+            Order {dto.orderNumber} <Badge variant={TONE[words.tone]}>{words.badge}</Badge>
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {[
+              dto.placedAt ? `Placed ${PLACED.format(new Date(dto.placedAt))}` : null,
+              `${itemCount} item${itemCount === 1 ? "" : "s"}`,
+              `${formatMoney(dto.grandTotalAmount, dto.currency)}${paid ? " paid" : ""}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        {paid && (
+          <div className="flex flex-wrap items-start gap-2 print:hidden">
+            <ReorderButton orderId={dto.id} />
+            <ResendReceipt orderId={dto.id} />
+          </div>
+        )}
+      </div>
+
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          {/* ⚠ THE STAGE COMES FROM THE SERVER, read as-is. It summarises the whole order in one
+              word and says nothing about how it was fulfilled (052 FR-008). Only a paid order is
+              anywhere: one that never went through has nothing to track. */}
+          {paid && <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />}
 
           {shortfalls.length > 0 ? <Unavailable shortfalls={shortfalls} /> : null}
 
-          <section className="rounded-xl border p-6">
-            <OrderAddresses
-              shipping={dto.deliveryAddress}
-              billing={dto.billingAddress}
-              instructions={dto.deliveryInstructions}
-            />
-          </section>
+          <ReceiptDocument order={dto} unavailable={shortfalls.map((s) => s.productName)} buyAgain={paid}>
+            <div className="grid gap-6 sm:grid-cols-3 [&>section]:mt-0">
+              <OrderAddresses
+                shipping={dto.deliveryAddress}
+                billing={dto.billingAddress}
+                instructions={dto.deliveryInstructions}
+              />
+            </div>
+          </ReceiptDocument>
 
           <DocumentStatusNote />
         </div>
 
-        <div className="flex flex-col gap-5">
-          {/* ⚠ `dto.stage` is SERVER-DERIVED. This page used to recompute it from `fulfillments`; see
-              lib/fulfillment-progress.ts for why that is gone (052 FR-008). */}
-          <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} delivery={dto.delivery} />
-
-          {/* ⚠ NOTHING AT ALL when there are no refunds (FR-028) — the server omits the fields, so an
+        <div className="flex flex-col gap-6 print:hidden">
+          {/* 055 — what has happened to the shopper's money. Absent when nothing has, so an
               unrefunded order renders exactly as it did before 055 (SC-011). */}
           {dto.refunds?.length ? (
             <RefundBlock
@@ -103,45 +151,36 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
             />
           ) : null}
 
-          <div className="flex flex-col gap-2.5">
-            <ActionLink href="/" size="md" className="w-full">
-              Keep shopping
-            </ActionLink>
-          </div>
-
-          {/* ⚠ Present ONLY when the server says so (FR-012). When it is absent the page must not
-              imply the order can never be cancelled — staff still can, right up until it leaves the
-              shop — which is what the "Get help" line below is for. */}
-          {dto.cancellable ? <CancelOrder orderId={dto.id} /> : null}
-
-          <ResendReceipt orderId={dto.id} />
-
-          {/* ⚠ 055 US3 — REPLACES "Get help" pointing at the generic 046 feedback form with NO ORDER
-              REFERENCE ATTACHED. A shopper describing a missing item landed in an inbox where nobody
-              could see which order they meant; the ask now arrives attached to it.
-
-              ⚠ Only on a PAID order. There is nothing to refund on one that never went through, and
-              the request would sit in the queue with no possible outcome. */}
-          {dto.status === "paid" ? (
-            <RequestRefund
-              orderId={dto.id}
-              items={dto.items.map((i) => ({
-                // ⚠ THE LINE's id, never `productId`. Two lines of the same product are
-                // indistinguishable by product id, and passing one for the other does not error —
-                // the server's join matches nothing and every named item is silently dropped.
-                orderItemId: i.orderItemId,
-                productName: i.productName,
-                quantity: i.quantity,
-              }))}
-            />
-          ) : (
-            <p className="text-[13px] text-muted-foreground">
-              Something wrong with this order?{" "}
-              <Link href="/feedback" className="font-medium text-primary hover:underline">
-                Get help
-              </Link>
-            </p>
-          )}
+          <section aria-labelledby="order-help" className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
+            <div className="flex flex-col gap-1.5">
+              <h2 id="order-help" className="leading-none font-semibold">
+                Something wrong with this order?
+              </h2>
+              <p className="text-sm text-muted-foreground">Tell us what happened and we&apos;ll sort it out.</p>
+            </div>
+            <div className="flex flex-col items-stretch gap-2">
+              {/* ⚠ Only a PAID order can be reported on here: there is nothing to put right on one
+                  that never went through, and the request would sit in the queue with no outcome. */}
+              {paid ? (
+                <RequestRefund
+                  orderId={dto.id}
+                  orderNumber={dto.orderNumber}
+                  items={dto.items.map((i) => ({
+                    orderItemId: i.orderItemId,
+                    productName: i.productName,
+                    quantity: i.quantity,
+                  }))}
+                />
+              ) : (
+                <Link href="/help" className="text-sm font-medium text-primary underline underline-offset-4">
+                  Get help
+                </Link>
+              )}
+              {/* 055 — the server's verdict, never recomputed here. It is absent, not disabled, when
+                  the order cannot be cancelled: staff still can, and that is what reporting is for. */}
+              {dto.cancellable ? <CancelOrder orderId={dto.id} /> : null}
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -149,47 +188,24 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
 }
 
 /**
- * Items the customer paid for and will not receive (020 FR-018b).
+ * What a shop could not supply, told once it is settled (020 SC-017).
  *
- * ⚠ 055 CHANGED WHAT THIS MAY SAY. 020 wrote "contact support and we'll sort it out" because no money
- * could move and pointing at a human was the only honest option on a financial record. The platform
- * now PROPOSES a refund for every recorded shortfall automatically (FR-004a), so the honest sentence
- * is that we owe them and are dealing with it — telling a shopper to chase money we already know we
- * owe is the failure gap G3 describes.
- *
- * ⚠ BUT IT STILL PROMISES NO TIMING AND NO AMOUNT. A person decides each proposal (A5b), and a
- * proposal is not a refund: the refund block above appears when one actually exists.
+ * ⚠ The refund is promised in the FUTURE tense because that is what is true when this shows: the
+ * item is not coming, and the money follows.
  */
 function Unavailable({ shortfalls }: { shortfalls: { productName: string; quantity: number }[] }) {
+  const one = shortfalls.length === 1
   return (
-    <section className="rounded-xl border p-6">
-      <div className="flex items-center gap-2.5">
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full bg-[#e01010] dark:bg-[#ff6b6b]"
-        />
-        <h2 className="text-sm font-medium">Unavailable</h2>
-      </div>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {shortfalls.length === 1 ? "This item was" : "These items were"} out of stock and won&apos;t be
-        included:
-      </p>
-      <ul className="mt-1.5 text-sm text-muted-foreground">
-        {shortfalls.map((s) => (
-          <li key={s.productName}>
-            {s.productName}
-            {s.quantity > 1 ? ` × ${s.quantity}` : ""}
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2.5 text-sm text-muted-foreground">
-        You won&apos;t be charged for {shortfalls.length === 1 ? "it" : "these"} — we&apos;ll refund
-        {shortfalls.length === 1 ? " it" : " them"} to your original payment method.{" "}
-        <Link href="/feedback" className="font-medium text-primary hover:underline">
-          Get help
-        </Link>{" "}
-        if something doesn&apos;t look right.
-      </p>
-    </section>
+    <Alert
+      variant="muted"
+      title={`${one ? "This item was" : "These items were"} out of stock and won't be included:`}
+    >
+      {shortfalls.map((s) => `${s.productName} × ${s.quantity}`).join(" · ")}. You won&apos;t be charged for{" "}
+      {one ? "it" : "them"} — we&apos;ll refund {one ? "it" : "them"} to your original payment method.{" "}
+      <Link href="/help" className="underline underline-offset-2">
+        Get help
+      </Link>{" "}
+      if something doesn&apos;t look right.
+    </Alert>
   )
 }

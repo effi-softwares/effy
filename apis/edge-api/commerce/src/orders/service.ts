@@ -159,11 +159,39 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
   }
 
   return {
+    /**
+     * The order history. Each row carries what the list shows beside the totals (084): the one
+     * stage word, the promise it was sold, when it arrived, whether it was refunded, and the
+     * pictures of its first lines.
+     *
+     * ⚠ EVERY ONE OF THOSE IS DERIVED BY THE FUNCTION THE RECEIPT USES — `stageFor`,
+     * `distinctArrivals`, `refundBlock` — so the list and the order page can never tell the same
+     * order two different ways. ⚠ And each is ABSENT, not empty, when it does not apply.
+     */
     async list(customerId: string): Promise<OrderSummaryDTO[]> {
-      return (await repo.list(customerId)).map((r) => ({
-        id: r.id, orderNumber: r.order_number, status: r.status as OrderSummaryDTO["status"], placedAt: r.placed_at,
-        itemCount: r.item_count, grandTotalAmount: r.grand_total_amount, currency: r.currency,
-        ...deliveryOf(r),
+      return Promise.all((await repo.list(customerId)).map(async (r) => {
+        const paid = r.status === "paid";
+        const stage = paid && r.portion_statuses ? stageFor(r.portion_statuses) : undefined;
+        const arrivals = r.delivery_type === "courier" ? [] : distinctArrivals((r.arrivals ?? []).map((a) => ({
+          method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
+          // json_agg hands a timestamp back as text; the receipt's own read hands back a Date.
+          windowStart: a.window_start ? operatingStamp(new Date(a.window_start)) : null,
+          windowEnd: a.window_end ? operatingStamp(new Date(a.window_end)) : null,
+        })));
+        const refunded = refundBlock(r.grand_total_amount, (r.refunds ?? []) as RefundRow[]);
+        // ⚠ A picture must not be able to fail the list: a presign failure is a missing picture.
+        const thumbnails = r.image_keys ? await Promise.all(r.image_keys.map((k) => presign(k).catch(() => null))) : undefined;
+        return {
+          id: r.id, orderNumber: r.order_number, status: r.status as OrderSummaryDTO["status"], placedAt: r.placed_at,
+          itemCount: r.item_count, grandTotalAmount: r.grand_total_amount, currency: r.currency,
+          ...deliveryOf(r),
+          ...(stage ? { stage } : {}),
+          ...(arrivals.length > 0 ? { arrivalEstimates: arrivals as OrderSummaryDTO["arrivalEstimates"] } : {}),
+          ...(stage === "delivered" && r.delivered_at ? { deliveredAt: new Date(r.delivered_at).toISOString() } : {}),
+          ...(refunded.refundedTotal && refunded.refundedTotal !== "0.00" ? { refundedTotal: refunded.refundedTotal } : {}),
+          ...(refunded.fullyRefunded ? { fullyRefunded: true as const } : {}),
+          ...(thumbnails ? { thumbnails } : {}),
+        };
       }));
     },
 

@@ -1,6 +1,9 @@
 import Image from "next/image"
 import Link from "next/link"
 
+import { CircleAlert } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 import { ActionLink } from "./actions"
 
@@ -69,11 +72,11 @@ export function Display({
   return (
     <Tag
       className={cn(
-        "font-extrabold uppercase leading-[0.95] tracking-[-0.02em]",
-        size === "hero" && "text-[2.5rem] sm:text-[3.25rem] lg:text-[4rem]",
-        size === "page" && "text-[2rem] sm:text-[2.5rem]",
-        size === "section" && "text-[1.75rem] sm:text-[2.25rem]",
-        size === "sub" && "text-xl sm:text-2xl",
+        "tracking-tight",
+        size === "hero" && "text-3xl font-bold leading-tight sm:text-4xl",
+        size === "page" && "text-2xl font-semibold sm:text-3xl",
+        size === "section" && "text-xl font-semibold",
+        size === "sub" && "text-base font-semibold",
         className,
       )}
     >
@@ -110,7 +113,7 @@ export function SectionHeading({
     // ⚠ `leading-tight` comes with it. `Display`'s 0.95 leading is tuned for capitals, which have no
     // descenders; in mixed case the g/p/y of "Shop by category" hang below a line box that is shorter
     // than the type itself.
-    <Display size="section" className={cn("normal-case leading-tight text-center sm:text-left", className)}>
+    <Display size="section" className={className}>
       {children}
     </Display>
   )
@@ -127,7 +130,7 @@ export function SectionHeading({
  * Halved from the largest of those (operator direction) — 64px between sections on a phone and 80px
  * on a desktop, down from 96/128.
  */
-export const sectionSpacing = "py-8 sm:py-10"
+export const sectionSpacing = "py-6 sm:py-8"
 
 /**
  * A merchandising section header: title on the left, a "see all" link on the right.
@@ -156,8 +159,7 @@ export function SectionHeader({
     // also why the link is a full row of its own on a phone rather than a corner target.
     <div
       className={cn(
-        "mb-6 flex flex-col items-center gap-2",
-        "sm:flex-row sm:items-end sm:justify-between sm:gap-4",
+        "mb-4 flex items-center justify-between gap-4",
         className,
       )}
     >
@@ -169,7 +171,7 @@ export function SectionHeader({
         // it optically aligned with the heading's baseline.
         <Link
           href={href}
-          className="inline-flex min-h-11 shrink-0 items-center text-sm text-primary hover:underline"
+          className="inline-flex min-h-9 shrink-0 items-center text-sm font-medium text-primary underline underline-offset-4"
         >
           {linkLabel}
         </Link>
@@ -192,15 +194,15 @@ export function PageHeader({
   children?: React.ReactNode
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
         <Display as="h1" size="page">
           {title}
           {typeof count === "number" && (
-            <span className="ml-2 font-normal text-muted-foreground">({count})</span>
+            <span className="ml-2 text-base font-normal tracking-normal text-muted-foreground">· {count}</span>
           )}
         </Display>
-        {description && <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">{description}</p>}
+        {description && <p className="mt-1 max-w-xl text-sm text-muted-foreground">{description}</p>}
       </div>
       {children}
     </div>
@@ -221,7 +223,7 @@ export function Rule({ className }: { className?: string }) {
  * DIRECTLY, not from here — importing a button through `kit` drags `MediaFrame`'s `next/image` into
  * the chunk, which is exactly what pushed `/search` over the 174 KB gate. See the note in `actions.tsx`.
  */
-export { btnClass, ActionLink, ActionButton } from "./actions"
+export { btnClass, iconBtnClass, ActionLink, ActionButton } from "./actions"
 export type { BtnVariant, BtnSize } from "./actions"
 
 /* ── Form controls ───────────────────────────────────────────────────────────────────────────── */
@@ -231,33 +233,47 @@ export type { BtnVariant, BtnSize } from "./actions"
 // fields dropped the halo (operator direction). `bg-card` (not the shared Input's transparent) is
 // deliberate: the storefront page surface is white `--card`, so a field reads as inset on it.
 export const input =
-  "h-11 w-full rounded-full border border-input bg-card px-4 text-sm placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive"
+  "h-10 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/10 disabled:opacity-50 md:h-9 md:text-sm"
 
 export const select =
-  "h-11 rounded-full border border-input bg-card px-4 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive"
+  "h-10 rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 aria-invalid:border-destructive md:h-9 md:text-sm"
 
 export function Field({
   label,
   htmlFor,
   error,
   hint,
+  labelAction,
   children,
 }: {
   label: string
   htmlFor?: string
   error?: string | null
   hint?: string
+  /** A link that belongs to this field and sits at the end of its label row ("Forgot your password?"). */
+  labelAction?: React.ReactNode
   children: React.ReactNode
 }) {
+  const labelEl = (
+    <label htmlFor={htmlFor} className="text-sm font-medium leading-none">
+      {label}
+    </label>
+  )
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-sm font-medium">
-        {label}
-      </label>
+    <div className="flex flex-col gap-2">
+      {labelAction ? (
+        <div className="flex items-center justify-between gap-3">
+          {labelEl}
+          {labelAction}
+        </div>
+      ) : (
+        labelEl
+      )}
       {children}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="flex items-start gap-1.5 text-xs font-medium text-destructive">
+          <CircleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
           {error}
         </p>
       )}
@@ -275,29 +291,38 @@ export function EmptyState({
   title,
   description,
   action,
+  icon: Icon,
   className,
 }: {
   title: string
   description?: string
   action?: { label: string; href: string }
+  /** The reference's empty states lead with a glyph in a muted tile. */
+  icon?: LucideIcon
   className?: string
 }) {
   return (
-    <div className={cn("rounded-2xl border border-dashed px-6 py-14 text-center", className)}>
-      <h2 className="text-base font-semibold">{title}</h2>
-      {description && (
-        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
+    <div
+      className={cn(
+        "flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center",
+        className,
       )}
+    >
+      {Icon && (
+        <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
+          <Icon aria-hidden="true" className="size-6" />
+        </span>
+      )}
+      <h2 className="text-xl font-semibold">{title}</h2>
+      {description && <p className="max-w-md text-sm text-muted-foreground">{description}</p>}
       {action && (
-        <ActionLink href={action.href} variant="outline" size="md" className="mt-6">
+        <ActionLink href={action.href} variant="primary" size="md" className="mt-2">
           {action.label}
         </ActionLink>
       )}
     </div>
   )
 }
-
-/* ── Merchandised-landing primitives (039) ───────────────────────────────────────────────────── */
 
 /**
  * A fixed-ratio image box that CANNOT render a broken frame (039 FR-011/FR-014/FR-018).
@@ -325,7 +350,7 @@ export function MediaFrame({
   fallbackLabel,
   sizes,
   priority = false,
-  rounded = "rounded-2xl",
+  rounded = "rounded-lg",
   className,
   children,
 }: {

@@ -37,5 +37,30 @@ export async function RelatedProducts({
   const products = result.items.filter((p) => p.id !== excludeProductId)
   if (products.length === 0) return null
 
-  return <ProductRail title="You might also like" products={products} className="!px-0" />
+  return <ProductRail title="You might also like" products={products} className="px-0!" />
+}
+
+/** "More from {brand}" (reference: Product detail). Absent when the brand has nothing else on the shelf. */
+export async function MoreFromBrand({ brand, excludeProductId }: { brand: string; excludeProductId: string }) {
+  let result: ProductSearchResultDTO
+  try {
+    result = await edgeApiPublic().get<ProductSearchResultDTO>(
+      `/storefront/v1/products?brand=${encodeURIComponent(brand)}&limit=12`,
+      uncached(),
+    )
+  } catch {
+    return null
+  }
+
+  const products = result.items.filter((p) => p.id !== excludeProductId)
+  if (products.length === 0) return null
+
+  return (
+    <ProductRail
+      title={`More from ${brand}`}
+      products={products}
+      href={`/search?brand=${encodeURIComponent(brand)}`}
+      className="px-0!"
+    />
+  )
 }

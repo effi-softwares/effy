@@ -2,186 +2,146 @@
 
 import { useEffect, useRef, useState, useTransition } from "react"
 
-import {
-  Button,
-  Input,
-  Label,
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/dialog"
+import { Input, Label } from "@/components/ui/form"
+
+export interface EditorField {
+  name: string
+  label: string
+  initialValue: string
+  maxLength: number
+  inputMode?: "text" | "tel"
+  autoComplete?: string
+}
 
 /**
- * ONE FIELD, ONE EDITOR (034 US1).
+ * Edit one thing about the account in a dialog (reference: Account · Edit name, Change mobile
+ * number): a centred dialog from `md`, a sheet from the bottom edge on a phone.
  *
- * The screen behind shows label/value/chevron rows and holds no inputs at all; activating a row opens
- * this. Built on the EXISTING `ResponsiveModal` from the design system — a centred Dialog at/above
- * the mobile breakpoint and a bottom Drawer below it — so the web surface reuses the container
- * feature 022 already introduced rather than growing a second overlay (Principle II).
+ * ⚠ NOTHING IS AN ENTRY SURFACE UNTIL IT IS OPENED (034 FR-011). The fields exist only while the
+ * dialog is open, so the page at rest holds no inputs — and a password manager has nothing to fill.
  *
- * ⚠ WHY A DISPLAY ROW RATHER THAN AN INLINE INPUT, since that is the actual argument:
- * a row with a live input in it cannot also show a verified state, a "managed by Google" state, or a
- * pending-change state without becoming cramped. A value-and-chevron row is a DISPLAY surface, so it
- * can carry status; an input row is an ENTRY surface and cannot.
+ * ⚠ A CHANGED VALUE NEVER VANISHES SILENTLY (FR-018). Cancel, the close button and Escape all go
+ * through the same question; an unchanged form just closes.
  *
- * ── The dirty-check is mandatory, not a nicety (FR-018 / FR-019) ──────────────────────────────
- *
- * A changed value must never be discarded silently. On the web there are FOUR ways out — the close
- * control, Escape, a backdrop click, and browser back — and a single `onOpenChange` guard cannot tell
- * a deliberate Save-driven close from an accidental one. So every dismissal route funnels through
- * `attemptClose`, which compares against the value the editor OPENED with.
- *
- * ⚠ And the confirmation is an `confirm()`-style alert, NOT a second overlay: stacking a sheet on a
- * sheet is exactly what FR-023 forbids, and FR-023a records this exemption explicitly.
+ * ⚠ A FAILED SAVE KEEPS THE DIALOG OPEN WITH WHAT WAS TYPED, and says why, beside the fields.
  */
 export function FieldEditor({
   open,
   onOpenChange,
   title,
   description,
-  label,
-  initialValue,
-  maxLength,
-  inputMode,
-  autoComplete,
+  fields,
   onSave,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
-  label: string
-  initialValue: string
-  maxLength: number
-  inputMode?: "text" | "tel"
-  autoComplete?: string
-  /** Returns an error message, or null on success. */
-  onSave: (value: string) => Promise<string | null>
+  fields: EditorField[]
+  /** Resolves to an error to show, or `null` when saved. */
+  onSave: (values: Record<string, string>) => Promise<string | null>
 }) {
-  const [value, setValue] = useState(initialValue)
+  if (!open) return null
+  return (
+    <OpenEditor title={title} description={description} fields={fields} onSave={onSave} onClose={() => onOpenChange(false)} />
+  )
+}
+
+function OpenEditor({
+  title,
+  description,
+  fields,
+  onSave,
+  onClose,
+}: {
+  title: string
+  description?: string
+  fields: EditorField[]
+  onSave: (values: Record<string, string>) => Promise<string | null>
+  onClose: () => void
+}) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [values, setValues] = useState(() => Object.fromEntries(fields.map((f) => [f.name, f.initialValue])))
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Re-seed whenever the editor opens, so it always reflects what the server last told us rather
-  // than whatever was typed and abandoned last time.
   useEffect(() => {
-    if (open) {
-      setValue(initialValue)
-      setError(null)
-      // FR-013 — focused without further interaction. The timeout lets the overlay finish mounting;
-      // focusing during the same tick lands on a node that is about to be replaced.
-      const t = setTimeout(() => inputRef.current?.focus(), 50)
-      return () => clearTimeout(t)
-    }
-  }, [open, initialValue])
+    dialog.current?.showModal()
+  }, [])
 
-  const dirty = value !== initialValue
+  const dirty = fields.some((f) => values[f.name] !== f.initialValue)
 
-  /** Every dismissal route funnels through here (FR-018). */
   function attemptClose() {
-    if (
-      dirty &&
-      !window.confirm("Discard your changes?\n\nWhat you typed here will not be saved.")
-    ) {
-      return
-    }
-    onOpenChange(false)
+    if (dirty && !window.confirm("Discard your changes?\n\nWhat you typed here will not be saved.")) return
+    onClose()
   }
 
   function submit() {
     setError(null)
     start(async () => {
-      const err = await onSave(value)
+      const err = await onSave(values)
       if (err) {
-        // ⚠ The editor STAYS OPEN and the typed value survives (FR-020 / FR-021). Losing what
-        // someone just typed because the network hiccuped is the most infuriating form bug there is.
         setError(err)
         return
       }
-      onOpenChange(false)
+      onClose()
     })
   }
 
   return (
-    <ResponsiveModal
-      open={open}
-      onOpenChange={(next) => {
-        // Radix reports both opening and closing here. Only closing needs the guard, and it must run
-        // for Escape and backdrop clicks as well as the close control.
-        if (!next) attemptClose()
-        else onOpenChange(true)
-      }}
-    >
-      <ResponsiveModalContent>
-        <ResponsiveModalHeader>
-          <ResponsiveModalTitle>{title}</ResponsiveModalTitle>
-          {description ? (
-            <ResponsiveModalDescription>{description}</ResponsiveModalDescription>
-          ) : null}
-        </ResponsiveModalHeader>
-
-        <form
-          className="space-y-2 px-4 sm:px-0"
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
-          }}
-        >
-          {/* Label ABOVE the field, never a placeholder standing in for one — a placeholder vanishes
-              the moment someone types, in the one container with no surrounding context to recover
-              the meaning from. */}
-          <Label htmlFor="field-editor-input">{label}</Label>
-          <Input
-            id="field-editor-input"
-            ref={inputRef}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            maxLength={maxLength}
-            inputMode={inputMode}
-            autoComplete={autoComplete}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "field-editor-error" : undefined}
-            data-testid="field-editor-input"
-          />
-          {error ? (
-            <p
-              id="field-editor-error"
-              role="alert"
-              data-testid="field-editor-error"
-              className="text-sm text-destructive"
-            >
-              {error}
-            </p>
-          ) : null}
-        </form>
-
-        {/* Cancel on the LEFT and de-weighted as a ghost; Save (the action ~95% of opens end in) on
-            the RIGHT. The ghost weighting is what keeps a mis-tap off the destructive path. */}
-        <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={attemptClose}
-            disabled={pending}
-            data-testid="field-editor-cancel"
-          >
+    <Dialog
+      ref={dialog}
+      title={title}
+      description={description}
+      onDismiss={attemptClose}
+      footer={
+        <>
+          {/* Cancel is the quieter of the two, and never the first thing a thumb lands on. */}
+          <Button type="button" variant="outline" onClick={attemptClose} disabled={pending} data-testid="field-editor-cancel">
             Cancel
           </Button>
-          <Button
-            type="button"
-            onClick={submit}
-            disabled={pending}
-            aria-busy={pending}
-            data-testid="field-editor-save"
-          >
+          <Button type="submit" form="field-editor-form" disabled={pending} aria-busy={pending} data-testid="field-editor-save">
             {pending ? "Saving…" : "Save"}
           </Button>
-        </ResponsiveModalFooter>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+        </>
+      }
+    >
+      <form
+        id="field-editor-form"
+        className="flex flex-col gap-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit()
+        }}
+      >
+        <div className={fields.length > 1 ? "grid grid-cols-2 gap-3" : undefined}>
+          {fields.map((field, i) => (
+            <div key={field.name} className="flex flex-col gap-2">
+              {/* A real label, not a placeholder: a placeholder disappears the moment someone types. */}
+              <Label htmlFor={`field-editor-${field.name}`}>{field.label}</Label>
+              <Input
+                id={`field-editor-${field.name}`}
+                autoFocus={i === 0}
+                value={values[field.name] ?? ""}
+                onChange={(e) => setValues((v) => ({ ...v, [field.name]: e.target.value }))}
+                maxLength={field.maxLength}
+                inputMode={field.inputMode}
+                autoComplete={field.autoComplete}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "field-editor-error" : undefined}
+                data-testid={i === 0 ? "field-editor-input" : `field-editor-input-${field.name}`}
+              />
+            </div>
+          ))}
+        </div>
+        {error ? (
+          <p id="field-editor-error" role="alert" data-testid="field-editor-error" className="text-sm font-medium text-destructive">
+            {error}
+          </p>
+        ) : null}
+      </form>
+    </Dialog>
   )
 }

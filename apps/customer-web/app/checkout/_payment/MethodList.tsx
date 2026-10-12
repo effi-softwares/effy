@@ -110,12 +110,10 @@ function Row({
   return (
     <div
       className={cn(
-        "rounded-xl bg-card transition-shadow",
+        "rounded-lg bg-card shadow-xs transition-shadow",
         // Selection reads as a doubled border rather than a fill, so it looks the same in either
         // appearance — the monochrome accent inverts, a fill would not (Principle V).
-        selected
-          ? "border"
-          : "border border-input",
+        selected ? "border border-primary ring-1 ring-primary" : "border border-input",
       )}
     >
       <button
@@ -128,10 +126,10 @@ function Row({
         <span
           className={cn(
             "flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px]",
-            selected ? "border-foreground" : "border-input",
+            selected ? "border-primary" : "border-input",
           )}
         >
-          <span className={cn("size-2.5 rounded-full", selected && "bg-foreground")} />
+          <span className={cn("size-2.5 rounded-full", selected && "bg-primary")} />
         </span>
         <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-secondary">
           {icon}

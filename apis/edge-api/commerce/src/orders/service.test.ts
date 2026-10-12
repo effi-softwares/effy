@@ -158,6 +158,62 @@ describe("the receipt", () => {
   });
 });
 
+describe("what the order list says beside the totals (084)", () => {
+  const base = { id: ORDER, order_number: "EFY-ABC123", placed_at: null, item_count: 3, grand_total_amount: "26.00", currency: "AUD" };
+  const presign = async (k: string | null) => (k ? `https://img/${k}` : null);
+  const list = async (row: object) =>
+    (await createOrdersService({ repo: repoWith({ list: async () => [{ ...base, ...row } as never] }), presign }).list("cust"))[0]!;
+
+  it("⚠ the stage is the least advanced package's — one word, never the packages", async () => {
+    const o = await list({ status: "paid", delivery_type: "effy", portion_statuses: ["collected", "received"] });
+    expect(o.stage).toBe("packing");
+    expect(JSON.stringify(o)).not.toContain("collected");
+  });
+
+  it("an unpaid or cancelled order has no stage at all", async () => {
+    expect(await list({ status: "canceled", portion_statuses: [] })).not.toHaveProperty("stage");
+    expect(await list({ status: "pending_payment", portion_statuses: [] })).not.toHaveProperty("stage");
+  });
+
+  it("carries the promise it was sold once, however many packages share it", async () => {
+    const window = { method: "same_day", promised_from: null, promised_to: null, window_start: "2026-10-12T05:00:00Z", window_end: "2026-10-12T07:00:00Z" };
+    const o = await list({ status: "paid", delivery_type: "effy", portion_statuses: ["received", "received"], arrivals: [window, window] });
+    expect(o.arrivalEstimates).toHaveLength(1);
+  });
+
+  it("⚠ a courier order carries no arrival promise — its estimate is the delivery's own", async () => {
+    const o = await list({ status: "paid", delivery_type: "courier", courier_estimate: "2 to 4 business days", portion_statuses: ["received"],
+      arrivals: [{ method: "standard", promised_from: null, promised_to: null, window_start: null, window_end: null }] });
+    expect(o).not.toHaveProperty("arrivalEstimates");
+    expect(o.delivery?.courierEstimate).toBe("2 to 4 business days");
+  });
+
+  it("says when it arrived only once all of it has", async () => {
+    const at = "2026-10-05 06:12:00+00";
+    expect(await list({ status: "paid", portion_statuses: ["delivered"], delivered_at: at })).toMatchObject({ stage: "delivered", deliveredAt: "2026-10-05T06:12:00.000Z" });
+    expect(await list({ status: "paid", portion_statuses: ["delivered", "collected"], delivered_at: at })).not.toHaveProperty("deliveredAt");
+  });
+
+  it("marks a refund, and a full refund, and says nothing when there was none", async () => {
+    const ok = (amount: string) => ({ amount, status: "succeeded", settled_at: null });
+    expect(await list({ status: "paid", portion_statuses: [], refunds: [ok("26.00")] })).toMatchObject({ refundedTotal: "26.00", fullyRefunded: true });
+    const part = await list({ status: "paid", portion_statuses: [], refunds: [ok("6.00")] });
+    expect(part.refundedTotal).toBe("6.00");
+    expect(part).not.toHaveProperty("fullyRefunded");
+    expect(await list({ status: "paid", portion_statuses: [] })).not.toHaveProperty("refundedTotal");
+  });
+
+  it("pictures follow the lines, and a failed picture is a missing picture, not a failed list", async () => {
+    const o = await list({ status: "paid", portion_statuses: [], image_keys: ["a.jpg", null] });
+    expect(o.thumbnails).toEqual(["https://img/a.jpg", null]);
+    const failing = createOrdersService({
+      repo: repoWith({ list: async () => [{ ...base, status: "paid", image_keys: ["a.jpg"] } as never] }),
+      presign: async () => { throw new Error("s3"); },
+    });
+    expect((await failing.list("cust"))[0]!.thumbnails).toEqual([null]);
+  });
+});
+
 describe("what happened to the shopper's money", () => {
   const r = (amount: string, status: string, settled_at: string | null = null) => ({ amount, status, settled_at });
 

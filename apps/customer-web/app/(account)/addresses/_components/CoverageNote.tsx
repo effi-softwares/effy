@@ -1,30 +1,30 @@
+import { CircleX, Package, Truck } from "lucide-react"
 import { COVERAGE_LABEL, COVERAGE_REFUSAL_SENTENCE, type CoverageKind } from "@effy/shared-types"
 
 /**
- * Who delivers to an address — "Delivered by Effy", "Courier delivery" — or the one sentence that
- * says nobody does (076).
+ * Who delivers to an address, in the platform's own words (076): "Delivered by Effy" in green,
+ * "Courier delivery" in blue, or the ONE refusal sentence.
  *
- * ⚠ THE WORDS ARE NOT WRITTEN HERE. They come from `@effy/shared-types`, the same constants the
- * server puts in a checkout refusal and the mobile app mirrors, because the spec requires the
- * refusal to be the SAME sentence wherever a customer meets it (FR-022). Before 076 the website had
- * its own wording and the server another.
- *
- * ⚠ It shows the answer and nothing about WHY — no group, no distance, no reason (FR-023). There is
- * no prop through which one could arrive.
- *
- * Renders nothing when the server did not say (an API older than 076).
+ * ⚠ The refusal is black with a glyph, not a hue — there is no red on the storefront. The words are
+ * never retyped here: they come from `@effy/shared-types`, where a test pins them.
  */
 export function CoverageNote({ coverage, className = "" }: { coverage: CoverageKind | undefined; className?: string }) {
   if (!coverage) return null
   if (coverage === "none") {
     return (
-      <p className={`text-sm text-destructive ${className}`} data-testid="coverage-refusal">
+      <p className={`flex items-center gap-1.5 text-sm font-medium ${className}`} data-testid="coverage-refusal">
+        <CircleX aria-hidden="true" className="size-4 shrink-0" />
         {COVERAGE_REFUSAL_SENTENCE}
       </p>
     )
   }
+  const Icon = coverage === "effy" ? Truck : Package
   return (
-    <p className={`text-sm text-muted-foreground ${className}`} data-testid="coverage-label">
+    <p
+      className={`flex items-center gap-1.5 text-sm font-medium ${coverage === "effy" ? "text-brand" : "text-primary"} ${className}`}
+      data-testid="coverage-label"
+    >
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
       {COVERAGE_LABEL[coverage]}
     </p>
   )

@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { MapPin, Plus } from "lucide-react"
 
-import { Button } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
 
 import { deleteAddress, setDefault } from "@/lib/addresses/repo"
 import { toAddress, type Address } from "@/lib/addresses/model"
@@ -90,26 +91,31 @@ export function AddressList({ initial }: { initial: Address[] }) {
   }
 
   return (
-    <div>
-      <div className="mb-4 flex justify-end">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-semibold tracking-tight">Address book</h1>
+          <p className="text-sm text-muted-foreground">Where we deliver. Each address shows who can deliver there.</p>
+        </div>
         <Button onClick={openAdd} data-testid="add-address">
+          <Plus aria-hidden="true" />
           Add address
         </Button>
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-12 text-center" data-testid="addresses-empty">
-          <p className="text-muted-foreground">You haven’t saved any addresses yet.</p>
-          <button
-            type="button"
-            onClick={openAdd}
-            className="mt-3 inline-block text-sm font-medium text-primary hover:underline"
-          >
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-16 text-center" data-testid="addresses-empty">
+          <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
+            <MapPin aria-hidden="true" className="size-6" />
+          </span>
+          <p className="text-xl font-semibold">No addresses yet</p>
+          <p className="max-w-md text-sm text-muted-foreground">You haven’t saved any addresses yet.</p>
+          <Button onClick={openAdd} className="mt-2">
             Add your first address
-          </button>
+          </Button>
         </div>
       ) : (
-        <ul className="divide-y rounded-2xl border">
+        <ul className="grid items-start gap-4 md:grid-cols-2">
           {items.map((a) => (
             <AddressRow
               key={a.id}

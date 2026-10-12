@@ -80,14 +80,14 @@ export function SavedCards({
                 ) : (
                   // ⚠ The reason is STATED, never left for the shopper to work out. A card that is
                   // simply greyed out with no explanation reads as a bug in the page.
-                  <span id={`${card.id}-reason`} className="text-xs text-destructive">
+                  <span id={`${card.id}-reason`} className="text-xs font-medium text-foreground">
                     {card.unusableReason ?? "This card can't be used."}
                   </span>
                 )}
               </span>
 
               {card.isDefault && card.usable ? (
-                <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+                <span className="shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-semibold text-foreground">
                   Default
                 </span>
               ) : null}
@@ -104,7 +104,7 @@ export function SavedCards({
                 }}
                 disabled={busy || removing === card.id}
                 // 44px minimum touch target (FR-033) — the icon is 16px, the hit area is not.
-                className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                 aria-label={`Remove card ending ${card.last4}`}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
@@ -174,5 +174,5 @@ export function SaveCardConsent({
 
 /** A tick used to mark a completed field. Kept here so the payment step imports one place. */
 export function CompleteMark() {
-  return <Check className="size-3.5 text-success" aria-hidden="true" />
+  return <Check className="size-3.5 text-brand" aria-hidden="true" />
 }

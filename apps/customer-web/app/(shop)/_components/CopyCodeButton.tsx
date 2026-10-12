@@ -1,5 +1,6 @@
 "use client"
 
+import { Copy } from "lucide-react"
 import { useState } from "react"
 
 import { btnClass } from "@/components/storefront/kit"
@@ -16,7 +17,7 @@ import { btnClass } from "@/components/storefront/kit"
  * bundle gate measures it; a convenience button is not a reason to pull a dependency onto a public
  * route. `navigator.clipboard` is the platform API — no library.
  */
-export function CopyCodeButton({ code }: { code: string }) {
+export function CopyCodeButton({ code, className }: { code: string; className?: string }) {
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -32,7 +33,8 @@ export function CopyCodeButton({ code }: { code: string }) {
   }
 
   return (
-    <button type="button" onClick={copy} className={btnClass("primary", "sm")}>
+    <button type="button" onClick={copy} className={btnClass("outline", "sm", className)} aria-live="polite">
+      <Copy aria-hidden="true" />
       {copied ? "Copied" : "Copy code"}
     </button>
   )

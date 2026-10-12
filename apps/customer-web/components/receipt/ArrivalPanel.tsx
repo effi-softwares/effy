@@ -2,9 +2,9 @@ import {
   courierLines, DELIVERY_TYPE_WORDS, formatArrival, movedLines, type ArrivalEstimateDTO, type OrderDeliveryDTO, type OrderStage,
 } from "@effy/shared-types"
 
-import { toneForDeliveryMethod } from "@/app/checkout/_components/status-palette"
+import { Package, Truck } from "lucide-react"
+
 import { ProgressTrack } from "@/components/receipt/ProgressTrack"
-import { StatusPill } from "@/components/receipt/StatusPill"
 import { TrackingLink } from "@/components/receipt/TrackingLink"
 
 /**
@@ -26,22 +26,21 @@ export function ArrivalPanel({
 }: {
   stage: OrderStage
   arrivals: ArrivalEstimateDTO[]
-  /** 079 — who delivers the order. Absent on an order placed before orders had a delivery type. */
   delivery?: OrderDeliveryDTO | null
 }) {
-  // 079 — a courier delivers: no window and no day to state, so the panel says who and the ESTIMATE
-  // the order was sold. ⚠ Never the arrivals — a courier order's packages are only routed as
-  // "standard", and reading them here would print "Standard" over a parcel a courier is carrying.
+  // ── A courier order: who carries it and an ESTIMATE — never a window, never a promised day ──────
   if (delivery?.type === "courier" && delivery.courierEstimate) {
     const [partner, estimate] = courierLines(delivery.courierEstimate)
     return (
-      <section className="rounded-xl border p-5">
-        <div className="flex flex-col gap-2 border-b pb-4" data-testid="arrival-courier">
-          <p className="text-[13px] text-muted-foreground">{DELIVERY_TYPE_WORDS.courier}</p>
-          <p className="text-xl font-semibold leading-tight tracking-[-0.01em]">{partner}</p>
+      <section className="rounded-lg border bg-card shadow-xs">
+        <div className="flex flex-col gap-1.5 px-6 pt-6" data-testid="arrival-courier">
+          <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary">
+            <Package aria-hidden="true" className="size-3.5" />
+            {DELIVERY_TYPE_WORDS.courier}
+          </p>
+          <p className="text-2xl font-semibold tracking-tight">{partner}</p>
           <p className="text-sm text-muted-foreground">{estimate}</p>
-          {/* 080 Q8 — one consignment: its link; several: each parcel's tracking comes by email.
-              ⚠ Never a count. */}
+          {/* 080 — ONE link, or "by email" once several parcels are with the courier. ⚠ Never a count. */}
           {delivery.tracking?.kind === "link" ? (
             <TrackingLink url={delivery.tracking.url} courierName={delivery.tracking.courierName} />
           ) : delivery.tracking?.kind === "email" ? (
@@ -49,42 +48,38 @@ export function ArrivalPanel({
           ) : null}
           <MovedNote delivery={delivery} />
         </div>
-        <div className="pt-4">
+        <div className="p-6">
           <ProgressTrack stage={stage} />
         </div>
       </section>
     )
   }
 
-  // An order Effy delivers says so; one placed before delivery types says "Arriving", as it always has.
+  // "Delivered by Effy" on an order that says so; an order from before delivery types just "Arriving".
   const label = delivery?.type === "effy" ? DELIVERY_TYPE_WORDS.effy : "Arriving"
   return (
-    <section className="rounded-xl border p-5">
+    <section className="rounded-lg border bg-card shadow-xs">
       {arrivals.length > 0 ? (
-        <div className="flex flex-col gap-4 border-b pb-4">
+        <div className="flex flex-col gap-4 px-6 pt-6">
           {arrivals.map((a, i) => (
             <Arrival key={`${a.method}-${i}`} arrival={a} multiple={arrivals.length > 1} index={i} label={label} />
           ))}
+          <p className="text-sm text-muted-foreground">Updates here as your order moves — no need to refresh.</p>
           <MovedNote delivery={delivery} />
         </div>
       ) : null}
-
-      <div className={arrivals.length > 0 ? "pt-4" : undefined}>
+      <div className="p-6">
         <ProgressTrack stage={stage} />
       </div>
     </section>
   )
 }
 
-/**
- * 081 — Effy moved the order to courier delivery (or back): what changed, and what the customer
- * received for it, in the one wording every surface prints (`movedLines`). ⚠ Never why.
- */
 function MovedNote({ delivery }: { delivery: OrderDeliveryDTO | null }) {
   const lines = movedLines(delivery?.moved)
   if (lines.length === 0) return null
   return (
-    <div className="flex flex-col gap-1 text-sm" data-testid="delivery-moved">
+    <div className="flex flex-col gap-1 rounded-lg bg-muted px-4 py-3 text-sm" data-testid="delivery-moved">
       {lines.map((l) => (
         <p key={l}>{l}</p>
       ))}
@@ -104,23 +99,18 @@ function Arrival({
   label: string
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-[13px] text-muted-foreground">
-          {multiple ? `Delivery ${index + 1}` : label}
-        </p>
-        <StatusPill tone={toneForDeliveryMethod(arrival.method)}>{methodLabel(arrival.method)}</StatusPill>
-      </div>
-      <p className="text-xl font-semibold leading-tight tracking-[-0.01em]">{arrivalLabel(arrival)}</p>
+    <div className="flex flex-col gap-1.5">
+      <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand">
+        <Truck aria-hidden="true" className="size-3.5" />
+        <span>{multiple ? `Delivery ${index + 1}` : label}</span>
+        <span aria-hidden="true">·</span>
+        <span>{methodLabel(arrival.method)}</span>
+      </p>
+      <p className="text-2xl font-semibold tracking-tight">{arrivalLabel(arrival)}</p>
     </div>
   )
 }
 
-/**
- * The pill beside an Effy delivery: the customer's own short word for it. ⚠ Unchanged by 079, on
- * purpose — nothing a customer already sees changes when that feature is released. Never reached for
- * a courier order, which is neither word.
- */
 function methodLabel(method: string): string {
   if (method === "same_day") return "Same-day"
   if (method === "scheduled") return "Scheduled"

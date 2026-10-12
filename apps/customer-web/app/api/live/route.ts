@@ -12,9 +12,9 @@ import { getSession } from "@/lib/dal"
  *
  * ⚠ THIS RETURNS THE ID TOKEN TO THE PAGE, deliberately. The socket is opened by the browser, so
  * the browser must present a credential, and the only one the channel's authorizer accepts is the
- * customer's own token. It grants nothing new: Amplify's `ssr: true` mode already keeps this same
- * token in a cookie the page's own scripts can read. It is sent only to the signed-in customer, on
- * their own same-origin request, and never cached.
+ * customer's own token. ⚠ This is the ONE place a token reaches page script: the session cookies
+ * are `HttpOnly` (lib/session-cookies.ts). It is the hour-long id token only — never the refresh
+ * token — sent only to the signed-in customer, on their own same-origin request, and never cached.
  *
  * 204 = no live channel for this visitor (signed out, or none in this environment). The page then
  * simply does not update by itself, as it never did before 071.

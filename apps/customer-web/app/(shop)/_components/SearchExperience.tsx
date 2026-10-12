@@ -6,10 +6,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { FacetSetDTO, ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } from "@effy/shared-types"
 
-import { ActionButton } from "@/components/storefront/actions"
+import { ChevronUp, CloudOff, SearchX, SlidersHorizontal, X } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+
+import { ActionButton, btnClass, iconBtnClass } from "@/components/storefront/actions"
+import { Breadcrumb, type Crumb } from "@/components/ui/misc"
 import { edgeApiBaseUrl } from "@/lib/config"
 
 import { ProductCard, productGridNarrow } from "./ProductCard"
+import { SaveControl } from "./SaveControl"
 import type { SelectedFilters } from "./filters/FilterControls"
 
 /**
@@ -41,7 +46,14 @@ const SORT_LABELS: Record<ProductSort, string> = {
 
 const PAGE_SIZE = 24
 
-export function SearchExperience() {
+/** What the page needs to NAME a category: its own name and where it sits. */
+export interface CategoryName {
+  key: string
+  name: string
+  parentKey: string | null
+}
+
+export function SearchExperience({ categories = [] }: { categories?: readonly CategoryName[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
@@ -127,6 +139,24 @@ export function SearchExperience() {
 
   // value → label lookup per facet, so a chip reads "Vegan", not "vegan" (FR-012). A selected value is
   // always present in its facet (own-selection is excluded from that facet's counts), so it resolves.
+  /**
+   * The chosen category and the aisles above it, outermost first.
+   *
+   * ⚠ FROM THE CATEGORY TREE, NOT FROM THE FACET COUNTS. The counts only list categories that have a
+   * product filed DIRECTLY in them, and an aisle ("Fruit & veg") holds everything in its sub-aisles
+   * and nothing itself — so naming the page from the counts called every such aisle "All products"
+   * and labelled its filter chip with the raw key.
+   */
+  const categoryTrail = useMemo(() => {
+    const byKey = new Map(categories.map((c) => [c.key, c]))
+    const trail: CategoryName[] = []
+    // Bounded: a malformed tree must not be able to loop this.
+    for (let c = category ? byKey.get(category) : undefined; c && trail.length < 8; c = c.parentKey ? byKey.get(c.parentKey) : undefined) {
+      trail.unshift(c)
+    }
+    return trail
+  }, [categories, category])
+
   const facetLabel = useMemo(() => {
     const m: Record<string, Record<string, string>> = {}
     for (const f of facetSet?.facets ?? []) m[f.key] = Object.fromEntries(f.options.map((o) => [o.value, o.label]))
@@ -137,7 +167,7 @@ export function SearchExperience() {
   const chips = useMemo(() => {
     const out: { key: string; label: string; remove: () => void }[] = []
     if (category)
-      out.push({ key: "cat", label: facetLabel.category?.[category] ?? category, remove: () => setParam({ category: null }) })
+      out.push({ key: "cat", label: categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? category, remove: () => setParam({ category: null }) })
     for (const b of brands) out.push({ key: `brand:${b}`, label: b, remove: () => toggleParamValue("brand", b) })
     for (const [k, vals] of Object.entries(attributes))
       for (const v of vals)
@@ -148,7 +178,7 @@ export function SearchExperience() {
       out.push({ key: "price", label, remove: () => setParam({ minPrice: null, maxPrice: null }) })
     }
     return out
-  }, [category, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
+  }, [category, categoryTrail, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
 
   // ── Request builders ──────────────────────────────────────────────────────────────────────────
   const filterParams = useCallback(() => {
@@ -274,70 +304,86 @@ export function SearchExperience() {
     />
   )
 
+  const aisleName = category ? (categoryTrail.at(-1)?.name ?? facetLabel.category?.[category] ?? null) : null
+  const heading = q.trim()
+    ? `Results for “${q.trim()}”`
+    : aisleName
+      ? aisleName
+      : saleOnly
+        ? "On sale"
+        : "All products"
+  const crumbs: Crumb[] = [{ label: "Home", href: "/" }]
+  if (q.trim()) crumbs.push({ label: "Search" })
+  else if (aisleName || saleOnly)
+    crumbs.push(
+      { label: "All products", href: "/search" },
+      // The aisles above the one being shown, each a way back up.
+      ...categoryTrail.slice(0, -1).map((c) => ({ label: c.name, href: `/search?category=${encodeURIComponent(c.key)}` })),
+      { label: heading },
+    )
+  else crumbs.push({ label: "All products" })
+
   return (
     <div className="container py-6">
-      <div className="mt-2 grid gap-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
-        {/* Desktop: a persistent filter side panel (FR-019). It pins to the viewport and scrolls
-            INDEPENDENTLY of the results — the heading stays put while a long facet list scrolls inside
-            the column, and the product grid scrolls the page as normal. Below lg it is hidden — the
-            sheet takes over. */}
-        <aside className="hidden rounded-2xl border lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:overflow-hidden">
-          <h2 className="border-b px-5 py-4 text-lg font-bold">Filters</h2>
-          <div className="min-h-0 flex-1 overflow-y-auto p-5">{controls}</div>
+      <Breadcrumb items={crumbs} />
+      <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
+      <p role="status" aria-live="polite" className="mt-1 min-h-5 text-sm text-muted-foreground">
+        {total === null ? (loading ? "Searching…" : "") : `${total.toLocaleString()} ${total === 1 ? "result" : "results"}`}
+      </p>
+
+      <div className="mt-6 grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+        <aside className="hidden lg:sticky lg:top-40 lg:block lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto lg:pr-1">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Filters</h2>
+            {activeCount > 0 && (
+              <button type="button" onClick={clearAllFilters} className={btnClass("ghost", "sm")}>
+                Clear all
+              </button>
+            )}
+          </div>
+          {controls}
         </aside>
 
         <div className="min-w-0">
-          {/* Below lg: a Filters button (with the applied-count badge) opens the sheet (FR-018/FR-019). */}
-          <div className="mb-3 lg:hidden">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setSheetOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium hover:bg-accent"
+              className={btnClass("outline", "lg", "lg:hidden")}
             >
+              <SlidersHorizontal aria-hidden="true" />
               Filters
               {activeCount > 0 && (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
                   {activeCount}
                 </span>
               )}
             </button>
-          </div>
 
-          {/* Active filters, each individually removable (FR-012). */}
-          {chips.length > 0 && (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {chips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={chip.remove}
-                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary px-3 py-1 text-sm text-primary-foreground"
-                  aria-label={`Remove filter: ${chip.label}`}
-                >
-                  {chip.label}
-                  <span aria-hidden="true" className="text-xs leading-none">
-                    &times;
-                  </span>
-                </button>
-              ))}
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={chip.remove}
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium hover:bg-accent max-lg:hidden"
+                aria-label={`Remove filter: ${chip.label}`}
+              >
+                {chip.label}
+                <X aria-hidden="true" className="size-3" />
+              </button>
+            ))}
+            {chips.length > 0 && (
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                className="text-sm font-medium text-primary underline underline-offset-4 max-lg:hidden"
               >
                 Clear all
               </button>
-            </div>
-          )}
+            )}
 
-          {/* Result count + sort (025 FR-016). */}
-          <div className="mt-1 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-            <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-              {total === null ? (loading ? "Searching…" : "") : `${total.toLocaleString()} ${total === 1 ? "result" : "results"}`}
-            </p>
-
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Sort</span>
+            <label className="ml-auto flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground max-sm:sr-only">Sort by</span>
               <select
                 value={appliedSort}
                 onChange={(e) => {
@@ -345,7 +391,7 @@ export function SearchExperience() {
                   setParam({ sort: next === "newest" ? null : next })
                   void import("@/lib/telemetry").then(({ capture }) => capture({ name: "search_sorted", props: { sort: next } }))
                 }}
-                className="h-9 rounded-full border bg-card px-3 text-sm"
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm shadow-xs lg:h-9"
               >
                 {q.trim() && <option value="relevance">{SORT_LABELS.relevance}</option>}
                 <option value="newest">{SORT_LABELS.newest}</option>
@@ -355,61 +401,97 @@ export function SearchExperience() {
             </label>
           </div>
 
-          {/* Results */}
+          {/* Phones: the chips get their own row so the Filters button and Sort stay on one line. */}
+          {chips.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 lg:hidden">
+              {chips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={chip.remove}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium"
+                  aria-label={`Remove filter: ${chip.label}`}
+                >
+                  {chip.label}
+                  <X aria-hidden="true" className="size-3" />
+                </button>
+              ))}
+            </div>
+          )}
+
           {failed ? (
             <ResultState
+              icon={CloudOff}
               title="We couldn’t load results just now"
-              body="Please try again in a moment."
+              body="This is on us, not you. Please try again in a moment."
               action={{ label: "Try again", onClick: () => setParam({}) }}
             />
           ) : items.length === 0 && !loading ? (
             <ResultState
-              title={q.trim() ? `No results for “${q.trim()}”` : "Start typing to search"}
-              body={activeCount > 0 ? "Your filters may be too narrow — try removing one." : "Or browse the store by category."}
+              icon={SearchX}
+              title={q.trim() ? `No results for “${q.trim()}”` : "Nothing here yet"}
+              body={activeCount > 0 ? "Your filters may be too narrow — try removing one." : "Check the spelling, try a shorter word, or browse the aisles."}
               action={
                 activeCount > 0
                   ? { label: "Clear all filters", onClick: clearAllFilters }
-                  : { label: "Browse categories", href: "/" }
+                  : { label: "Browse the aisles", href: "/" }
               }
             />
+          ) : items.length === 0 && loading ? (
+            <div className={`mt-6 ${productGridNarrow}`} aria-hidden="true">
+              {Array.from({ length: 8 }, (_, i) => (
+                <div key={i} className="space-y-3">
+                  <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
+                  <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
+                  <div className="h-5 w-1/3 animate-pulse rounded-md bg-muted" />
+                </div>
+              ))}
+            </div>
           ) : (
             <div className={`mt-6 ${productGridNarrow}`}>
               {items.map((p) => (
-                <ProductCard key={p.id} product={p} />
+                <ProductCard key={p.id} product={p} saveControl={<SaveControl productId={p.id} />} />
               ))}
             </div>
           )}
 
           <div ref={sentinelRef} className="h-10" aria-hidden="true" />
-          {loading && <p className="py-4 text-center text-sm text-muted-foreground">Loading…</p>}
-          {exhausted && items.length > 0 && <p className="py-4 text-center text-sm text-muted-foreground">That’s everything.</p>}
+          {loading && items.length > 0 && (
+            <p className="border-t py-4 text-center text-sm text-muted-foreground">Loading more…</p>
+          )}
+          {exhausted && items.length > 0 && (
+            <div className="flex flex-col items-center gap-3 border-t py-6">
+              <p className="text-sm text-muted-foreground">That’s everything.</p>
+              <a href="#top" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0 }) }} className={btnClass("ghost", "sm")}>
+                <ChevronUp aria-hidden="true" />
+                Back to top
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Mobile/tablet filter sheet — a lightweight slide-up overlay (bundle: no vaul). */}
       {sheetOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
           <button
             type="button"
             aria-label="Close filters"
             onClick={() => setSheetOpen(false)}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-scrim"
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-card p-5 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Filters</h2>
-              <button
-                type="button"
-                onClick={() => setSheetOpen(false)}
-                className="text-sm text-muted-foreground underline underline-offset-2"
-              >
-                Close
+          <div className="absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-xl border-t bg-background shadow-lg">
+            <div className="flex items-center justify-between px-4 pt-4 pb-3">
+              <h2 className="text-base font-semibold">Filters</h2>
+              <button type="button" onClick={() => setSheetOpen(false)} aria-label="Close" className={iconBtnClass("ghost", "md")}>
+                <X aria-hidden="true" />
               </button>
             </div>
-            {controls}
-            <ActionButton type="button" onClick={() => setSheetOpen(false)} size="md" className="mt-5 w-full">
-              Show {total ?? ""} results
-            </ActionButton>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4">{controls}</div>
+            <div className="border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <ActionButton type="button" onClick={() => setSheetOpen(false)} size="xl" className="w-full">
+                Show {total ?? ""} results
+              </ActionButton>
+            </div>
           </div>
         </div>
       )}
@@ -418,29 +500,30 @@ export function SearchExperience() {
 }
 
 function ResultState({
+  icon: Icon,
   title,
   body,
   action,
 }: {
+  icon: LucideIcon
   title: string
   body: string
   action?: { label: string; onClick?: () => void; href?: string }
 }) {
   return (
-    <div className="mt-12 rounded-lg border border-dashed p-10 text-center">
-      <h2 className="text-base font-medium">{title}</h2>
-      <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">{body}</p>
+    <div className="mt-6 flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center">
+      <span className="mb-2 grid size-12 place-items-center rounded-lg bg-muted">
+        <Icon aria-hidden="true" className="size-6" />
+      </span>
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <p className="max-w-md text-sm text-muted-foreground">{body}</p>
       {action &&
         (action.href ? (
-          <a href={action.href} className="mt-4 inline-flex h-10 items-center rounded-full border px-5 text-sm hover:bg-accent">
+          <a href={action.href} className={btnClass("primary", "md", "mt-2")}>
             {action.label}
           </a>
         ) : (
-          <button
-            type="button"
-            onClick={action.onClick}
-            className="mt-4 inline-flex h-10 items-center rounded-full border px-5 text-sm hover:bg-accent"
-          >
+          <button type="button" onClick={action.onClick} className={btnClass("primary", "md", "mt-2")}>
             {action.label}
           </button>
         ))}

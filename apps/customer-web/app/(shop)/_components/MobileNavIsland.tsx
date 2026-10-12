@@ -1,9 +1,14 @@
 import { LogOut } from "lucide-react"
 import Link from "next/link"
 
-import { Avatar } from "@/components/Avatar"
+import { Avatar } from "@/components/ui/misc"
+import { initialsFor } from "@/lib/initials"
 import { ACCOUNT_LINKS } from "@/components/header/account-links"
-import { readServerSession } from "@/lib/session"
+import { getSession } from "@/lib/session"
+
+import { aisleIcon } from "@/components/chrome/aisle-icon"
+import { btnClass } from "@/components/storefront/actions"
+import { aisleHref, getCategoriesSafe, topLevel } from "@/lib/categories"
 
 import { MobileNav } from "./MobileNav"
 
@@ -25,15 +30,39 @@ import { MobileNav } from "./MobileNav"
  * passed in as children — the same trick `AccountMenu` uses. A guest downloads none of it.
  */
 export async function MobileNavIsland() {
-  const session = await readServerSession()
+  const [session, categories] = await Promise.all([getSession(), getCategoriesSafe()])
+  const top = topLevel(categories)
+  const aisles =
+    top.length > 0 ? (
+      <>
+        <p className="mt-4 mb-1 px-3 text-xs font-medium text-muted-foreground">Aisles</p>
+        <ul className="flex flex-col gap-1">
+          {top.map((aisle) => {
+            const Icon = aisleIcon(aisle.name)
+            return (
+              <li key={aisle.key}>
+                <Link
+                  href={aisleHref(aisle.key)}
+                  className="flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium hover:bg-accent"
+                >
+                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  {aisle.name}
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </>
+    ) : null
 
   if (!session) {
     return (
       <MobileNav
+        aisles={aisles}
         accountTrigger={
           <Link
             href="/sign-in"
-            className="inline-flex h-10 w-full items-center justify-center rounded-md border bg-transparent px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+            className={btnClass("primary", "lg", "w-full")}
             data-testid="drawer-sign-in-link"
           >
             Sign in
@@ -47,16 +76,11 @@ export async function MobileNavIsland() {
 
   return (
     <MobileNav
+      aisles={aisles}
       accountTitle={name}
       accountTrigger={
         <>
-          <Avatar
-            givenName={session.givenName}
-            familyName={session.familyName}
-            // The name sits right beside it, so announcing the avatar too would read the name twice.
-            labelledByAdjacentName
-            className="size-9 text-sm"
-          />
+          <Avatar initials={initialsFor(session.givenName, session.familyName) ?? "·"} />
           <span className="truncate text-sm font-medium">{name}</span>
         </>
       }
@@ -68,11 +92,11 @@ export async function MobileNavIsland() {
                 <Link
                   href={href}
                   data-testid={testId}
-                  className="flex h-12 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  className="flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent"
                 >
                   {/* The same glyph the desktop menu shows — it comes from the shared entry, so the
                       two cannot disagree. `aria-hidden` because the label already says it. */}
-                  <Icon className="size-5 shrink-0" aria-hidden="true" />
+                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   {label}
                 </Link>
               </li>
@@ -87,9 +111,9 @@ export async function MobileNavIsland() {
             <button
               type="submit"
               data-testid="drawer-sign-out"
-              className="flex h-12 w-full items-center gap-3 rounded-md px-3 text-left text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors hover:bg-accent"
             >
-              <LogOut className="size-5 shrink-0" aria-hidden="true" />
+              <LogOut className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               Sign out
             </button>
           </form>

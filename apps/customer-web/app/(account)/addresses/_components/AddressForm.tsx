@@ -3,7 +3,8 @@
 import { useState } from "react"
 
 import type { CreateAddressRequest, UpdateAddressRequest } from "@effy/shared-types"
-import { Button, Input, Label } from "@effy/design-system/ui"
+import { Button } from "@/components/ui/button"
+import { Input, Label } from "@/components/ui/form"
 
 import { DeliveryInstructions } from "@/app/checkout/DeliveryInstructions"
 import { createAddress, updateAddress, type SaveResult } from "@/lib/addresses/repo"
@@ -170,7 +171,7 @@ export function AddressForm({
                 aria-pressed={selected}
                 onClick={() => setChip(selected ? null : c)}
                 className={
-                  "rounded-full border px-3 py-1 text-sm transition-colors " +
+                  "rounded-md border px-3 py-1 text-sm transition-colors " +
                   (selected
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input hover:bg-accent")

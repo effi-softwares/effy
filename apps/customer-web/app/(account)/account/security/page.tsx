@@ -1,10 +1,28 @@
-import { redirect } from "next/navigation"
+import type { Metadata } from "next"
+import { Suspense } from "react"
 
-/**
- * Security moved INTO the account page as its `security` tab (2026-08-12) — the password and
- * session controls now swap into the account content area rather than living on a separate page.
- * This route is kept so existing links and bookmarks land in the right place.
- */
-export default function SecurityPage() {
-  redirect("/account?tab=security")
+import { Breadcrumb, Skeleton } from "@/components/ui/misc"
+import { requireCustomer } from "@/lib/dal"
+
+import { SecuritySection } from "../sections"
+
+export const metadata: Metadata = {
+  title: "Security",
+  robots: { index: false, follow: false },
+}
+
+export default function Page() {
+  return (
+    <>
+      <Breadcrumb items={[{ label: "Account", href: "/account" }, { label: "Security" }]} className="mb-6" />
+      <Suspense fallback={<Skeleton className="h-64 w-full rounded-lg" />}>
+        <Body />
+      </Suspense>
+    </>
+  )
+}
+
+async function Body() {
+  const customer = await requireCustomer("/account/security")
+  return <SecuritySection hasPassword={customer.hasPassword} passwordUpdatedAt={customer.passwordUpdatedAt} />
 }

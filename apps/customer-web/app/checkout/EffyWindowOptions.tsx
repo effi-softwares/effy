@@ -1,9 +1,12 @@
 "use client"
 
+import { Clock } from "lucide-react"
 import { useEffect, useId, useState } from "react"
 
 import { DELIVERY_TYPE_WORDS, effyWindowsView, type EffyDayView, type EffyWindowsDTO } from "@effy/shared-types"
 
+import { Alert } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { formatCents, parseCents } from "@/lib/cart-totals"
 import type { ChosenWindow } from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
@@ -69,46 +72,58 @@ export function EffyWindowOptions({
   if (view.unavailable) {
     return (
       <section aria-label="Delivery">
-        <h2 className="mb-3 text-xl font-semibold">{DELIVERY_TYPE_WORDS.effy}</h2>
-        <p role="status" className="rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
+        <h2 className="text-lg font-semibold">
+          <span aria-hidden="true">2. </span>
+          {DELIVERY_TYPE_WORDS.effy}
+        </h2>
+        <Alert variant="muted" live className="mt-4">
           {view.unavailable}
-        </p>
+        </Alert>
       </section>
     )
   }
 
+  /**
+   * A day's windows as radio CARDS. The radio itself is visually hidden but still the control: the
+   * label is the hit area, arrow keys move within the group, and a closed window is a disabled radio —
+   * shown, struck through, and not choosable.
+   */
   const windowList = (day: EffyDayView) => (
-    <div className="mt-2 divide-y rounded-lg border">
+    <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-4">
       {day.windows.map((w) => {
         const selected = chosen?.slotId === w.slotId && chosen.date === w.date
         return (
           <label
             key={`${w.date}-${w.slotId}`}
             className={
-              "flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm " +
-              (w.closed ? "cursor-not-allowed opacity-50" : "cursor-pointer")
+              "flex min-h-14 flex-col justify-center rounded-md border px-3 py-2 text-sm shadow-xs has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring " +
+              (w.closed
+                ? "cursor-not-allowed border-dashed bg-muted text-muted-foreground shadow-none"
+                : selected
+                  ? "cursor-pointer border-primary bg-primary-muted ring-1 ring-primary"
+                  : "cursor-pointer hover:bg-accent")
             }
           >
-            <span className="flex items-center gap-2">
-              <input
-                type="radio"
-                name={`${group}-window`}
-                value={`${w.date}|${w.slotId}`}
-                checked={selected}
-                // Greyed out the moment its cutoff passes, without waiting for a re-quote. The server
-                // refuses it regardless; this only spares the shopper finding out at the pay button.
-                disabled={w.closed}
-                onChange={() => onChoose({ slotId: w.slotId, date: w.date })}
-              />
-              <span>
-                <span className="font-medium">{w.label}</span>
-                {w.note ? <span className="ml-2 text-muted-foreground">{w.note}</span> : null}
-              </span>
+            <input
+              type="radio"
+              name={`${group}-window`}
+              value={`${w.date}|${w.slotId}`}
+              checked={selected}
+              disabled={w.closed}
+              onChange={() => onChoose({ slotId: w.slotId, date: w.date })}
+              className="sr-only"
+            />
+            <span className={"font-medium " + (w.closed ? "line-through" : "")}>{w.label}</span>
+            {/* The "·" between the two is drawn in CSS, so the label's text stays exactly the shared
+                view's words (`label` + `note` + the surcharge) with nothing typed in between. */}
+            <span className="flex flex-wrap text-xs text-muted-foreground">
+              {w.note ? <span>{w.note}</span> : null}
+              {w.surchargeAmount ? (
+                <span className={"tabular-nums " + (w.note ? "before:mx-1 before:content-['·']" : "")}>
+                  +{formatMoney(formatCents(parseCents(w.surchargeAmount)), currency)}
+                </span>
+              ) : null}
             </span>
-            {/* 077 FR-030 — what this window adds, BEFORE it is chosen. Nothing when it adds nothing. */}
-            {w.surchargeAmount ? (
-              <span className="font-medium">+{formatMoney(formatCents(parseCents(w.surchargeAmount)), currency)}</span>
-            ) : null}
           </label>
         )
       })}
@@ -117,19 +132,30 @@ export function EffyWindowOptions({
 
   return (
     <section aria-label="Delivery">
-      <h2 className="mb-3 text-xl font-semibold">{DELIVERY_TYPE_WORDS.effy}</h2>
+      <h2 className="text-lg font-semibold">
+        <span aria-hidden="true">2. </span>
+        {DELIVERY_TYPE_WORDS.effy}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">Choose one window for the whole order.</p>
 
       {today ? (
-        <fieldset disabled={disabled}>
-          <legend className="text-sm font-medium">{view.sameDayTitle}</legend>
-          {today.sentence ? <p className="mt-1 text-sm text-muted-foreground">{today.sentence}</p> : windowList(today)}
+        <fieldset disabled={disabled} className="mt-5">
+          <legend className="flex items-center gap-2 text-sm font-medium">
+            {/* Decoration: the legend's name is the pinned title alone. */}
+            <Badge variant="dark" aria-hidden="true">
+              <Clock />
+              Today
+            </Badge>
+            {view.sameDayTitle}
+          </legend>
+          {today.sentence ? <p className="mt-2 text-sm text-muted-foreground">{today.sentence}</p> : windowList(today)}
         </fieldset>
       ) : null}
 
       {shown ? (
-        <fieldset disabled={disabled} className="mt-6">
+        <fieldset disabled={disabled} className={today ? "mt-6 border-t pt-6" : "mt-5"}>
           <legend className="text-sm font-medium">{view.standardTitle}</legend>
-          <div role="tablist" aria-label="Delivery day" className="mt-2 flex flex-wrap gap-2">
+          <div role="tablist" aria-label="Delivery day" className="mt-3 flex flex-wrap gap-2">
             {later.map((d) => {
               const selected = d.date === shown.date
               return (
@@ -142,9 +168,8 @@ export function EffyWindowOptions({
                   aria-controls={`${group}-panel`}
                   onClick={() => setTab(d.date)}
                   className={
-                    "min-h-11 rounded-md border px-3 text-sm font-medium transition-colors " +
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 " +
-                    (selected ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted")
+                    "min-h-11 rounded-md border px-3 text-sm font-medium shadow-xs transition-colors disabled:opacity-50 " +
+                    (selected ? "border-primary bg-primary-muted ring-1 ring-primary" : "bg-background hover:bg-accent")
                   }
                 >
                   {d.label}
@@ -153,7 +178,7 @@ export function EffyWindowOptions({
             })}
           </div>
           <div role="tabpanel" id={`${group}-panel`} aria-labelledby={`${group}-tab-${shown.date}`}>
-            {shown.sentence ? <p className="mt-2 text-sm text-muted-foreground">{shown.sentence}</p> : windowList(shown)}
+            {shown.sentence ? <p className="mt-3 text-sm text-muted-foreground">{shown.sentence}</p> : windowList(shown)}
           </div>
         </fieldset>
       ) : null}

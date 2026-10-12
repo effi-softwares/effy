@@ -3,7 +3,7 @@ import { Suspense } from "react"
 
 import { DEFAULT_LIST_ID } from "@effy/shared-types"
 
-import { PageHeader } from "@/components/storefront/kit"
+import { SavedSkeleton } from "./SavedSkeleton"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { ListTabs } from "./ListTabs"
@@ -25,9 +25,8 @@ export default function SavedPage() {
     // `container` (80rem), not the `max-w-2xl` the other account pages use: those are forms and
     // settings, where a narrow measure is correct. This is a LIST of products with prices and
     // verdicts, and it is the same content the storefront lists at full width.
-    <div className="container py-8">
-      <PageHeader title="Saved items" />
-      <Suspense fallback={<p className="py-10 text-sm text-muted-foreground">Loading…</p>}>
+    <div className="space-y-6">
+      <Suspense fallback={<SavedSkeleton />}>
         <Saved />
       </Suspense>
     </div>
@@ -41,7 +40,11 @@ async function Saved() {
 
   return (
     <>
-      <ListTabs lists={lists} currentId={DEFAULT_LIST_ID} />
+      <ListTabs
+        lists={lists}
+        currentId={DEFAULT_LIST_ID}
+        droppedCount={(items ?? []).filter((i) => i.priceDropped).length}
+      />
       <SavedList initial={items ?? []} listId={DEFAULT_LIST_ID} />
     </>
   )

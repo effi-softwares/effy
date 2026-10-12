@@ -111,46 +111,17 @@ export function NameStep({
     }
   }
 
-  const complete = given.trim().length > 0 && family.trim().length > 0
-
   return (
     <StepShell
-        anchor
       title="What should we call you?"
-      subtitle="We'll use this when we say hello and when we hand over your order."
-      bottom={
-        <>
-          <Submit
-            pending={pending}
-            label="Finish"
-            testId="submit-name"
-            blocked={!complete}
-            onBlocked={() => validation.check([["given", given], ["family", family]])}
-            form="name-step-form"
-          />
-          {/*
-            ⚠ 044 FR-035 / defect D-15 — A WAY PAST, BECAUSE THIS STEP MUST NEVER GATE ACCESS.
-            The account already exists by the time this renders and the shopper is already signed in;
-            036 wrote down that abandoning here "must never lock anyone out" and then gave them no way
-            to abandon except closing the tab. What was meant as a courtesy read as a wall.
-
-            ⚠ Subordinate to finishing, deliberately: a text action, not a second full-width button.
-            It calls the SAME `onDone` the finish path calls, so the guest cart and saved-list merges
-            still run and the shopper lands in the shop signed in — it skips the profile write, not
-            the journey.
-          */}
-          <TextAction tone="subtle" testId="skip-name" onClick={() => { capture({ name: "auth_name_step_skipped", props: { route } }); onDone() }}>
-            I&apos;ll do this later
-          </TextAction>
-        </>
-      }
+      subtitle="We use your name on deliveries and receipts."
     >
       <form id="name-step-form" className="space-y-4" noValidate onSubmit={submit}>
         {error && <ErrorNote>{error}</ErrorNote>}
         {/* ⚠ 044 FR-033 / defect D-19 — STACKED ON A PHONE. This was `grid-cols-2` at every width,
-            so on a 320px screen each name field got roughly half a cramped column. Two columns is
-            fine once there is room for them. */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            so on a 320px screen each name field got roughly half a cramped column. Two columns
+            (the reference's phone layout) from 360px, where there is room for them. */}
+        <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
           <Field
             label="First name"
             id="given-name"
@@ -175,6 +146,28 @@ export function NameStep({
             required
           />
         </div>
+        <Submit pending={pending} label="Create account" testId="submit-name" />
+        {/*
+          ⚠ 044 FR-035 / defect D-15 — A WAY PAST, BECAUSE THIS STEP MUST NEVER GATE ACCESS.
+          The account already exists by the time this renders and the shopper is already signed in;
+          036 wrote down that abandoning here "must never lock anyone out" and then gave them no way
+          to abandon except closing the tab. What was meant as a courtesy read as a wall.
+
+          ⚠ Subordinate to finishing, deliberately: a text action, not a second full-width button.
+          It calls the SAME `onDone` the finish path calls, so the guest cart and saved-list merges
+          still run and the shopper lands in the shop signed in — it skips the profile write, not
+          the journey.
+        */}
+        <TextAction
+          tone="subtle"
+          testId="skip-name"
+          onClick={() => {
+            capture({ name: "auth_name_step_skipped", props: { route } })
+            onDone()
+          }}
+        >
+          I&apos;ll do this later
+        </TextAction>
       </form>
     </StepShell>
   )

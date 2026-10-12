@@ -34,7 +34,7 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
 
   if (!product.available) {
     return (
-      <p className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+      <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
         This item is currently unavailable.
       </p>
     )
@@ -66,46 +66,36 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center rounded-full bg-background">
+    <div className="flex items-center gap-3">
+      <div className="flex h-12 items-center rounded-md border border-input shadow-xs lg:h-10">
         <button
           type="button"
           onClick={() => setQty((q) => Math.max(1, q - 1))}
-          className="flex size-10 items-center justify-center hover:bg-accent disabled:opacity-40"
+          className="grid h-full w-10 place-items-center rounded-l-md hover:bg-accent disabled:opacity-40"
           disabled={qty <= 1}
           aria-label="Decrease quantity"
         >
           <Minus className="size-4" />
         </button>
-        <span className="w-10 text-center text-sm font-medium" aria-live="polite">
+        <span className="w-8 text-center text-sm font-medium tabular-nums" aria-live="polite">
           {qty}
         </span>
         <button
           type="button"
           onClick={() => setQty((q) => Math.min(99, q + 1))}
-          className="flex size-10 items-center justify-center hover:bg-accent disabled:opacity-40"
+          className="grid h-full w-10 place-items-center rounded-r-md hover:bg-accent disabled:opacity-40"
           disabled={qty >= 99}
           aria-label="Increase quantity"
         >
           <Plus className="size-4" />
         </button>
       </div>
-
-      <ActionButton type="button" onClick={add} size="lg" className="flex-1 sm:flex-none">
+      <ActionButton type="button" onClick={add} size="xl" className="min-w-0 flex-1 lg:h-10 lg:text-sm">
         <ShoppingCart className="size-4" />
-        {added ? "Added" : "Add to cart"}
+        {added
+          ? "Added"
+          : `Add to cart · ${formatMoney((Number(product.unitPriceAmount) * qty).toFixed(2), product.currency)}`}
       </ActionButton>
-
-      {/* 025 FR-024: the line total, so choosing a quantity does not require mental arithmetic to
-          know what is about to be added. Shown only when it differs from the unit price. */}
-      {qty > 1 && (
-        <span className="text-sm text-muted-foreground">
-          Total{" "}
-          <span className="font-medium text-foreground">
-            {formatMoney((Number(product.unitPriceAmount) * qty).toFixed(2), product.currency)}
-          </span>
-        </span>
-      )}
     </div>
   )
 }

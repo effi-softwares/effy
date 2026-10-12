@@ -2,6 +2,9 @@
 
 import { courierLines, DELIVERY_TYPE_WORDS, type CourierQuoteDTO } from "@effy/shared-types"
 
+import { Package } from "lucide-react"
+
+import { Alert } from "@/components/ui/alert"
 import { formatMoney } from "@/lib/money"
 
 /**
@@ -24,15 +27,23 @@ export function CourierDelivery({ courier, currency }: { courier: CourierQuoteDT
   const [partner, estimate] = courierLines(courier.estimate)
   return (
     <section aria-label="Delivery" data-testid="courier-delivery">
-      <h2 className="mb-3 text-xl font-semibold">{DELIVERY_TYPE_WORDS.courier}</h2>
+      <h2 className="text-lg font-semibold">
+        <span aria-hidden="true">2. </span>
+        {DELIVERY_TYPE_WORDS.courier}
+      </h2>
       {courier.reason === "no_window" ? (
-        <p role="status" className="mb-3 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
+        <Alert variant="muted" live className="mt-4">
           {DELIVERY_TYPE_WORDS.noWindowsLeft} {DELIVERY_TYPE_WORDS.courierInsteadOfWindows}
-        </p>
+        </Alert>
       ) : null}
-      <p className="text-sm">{partner}</p>
-      <p className="text-sm text-muted-foreground">{estimate}</p>
-      <p className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
+      <div className="mt-4 flex gap-3 rounded-md bg-primary-muted p-4">
+        <Package aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
+        <div className="min-w-0 text-sm">
+          <p className="font-medium">{partner}</p>
+          <p className="text-muted-foreground">{estimate}</p>
+        </div>
+      </div>
+      <p className="mt-4 flex items-center justify-between border-t pt-4 text-sm">
         <span className="text-muted-foreground">Courier delivery fee</span>
         <span className="font-medium tabular-nums">{formatMoney(courier.fee.totalAmount, currency)}</span>
       </p>

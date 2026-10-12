@@ -1,14 +1,19 @@
 "use client"
 
 import * as React from "react"
-import { Eye, EyeOff } from "lucide-react"
+import Link from "next/link"
+import { CircleAlert, Eye, EyeOff, User } from "lucide-react"
 
 import {
-  Display,
   Field as KitField,
   btnClass,
+  iconBtnClass,
   input as inputClass,
 } from "@/components/storefront/kit"
+import { cn } from "@/lib/utils"
+
+/** The reference draws every auth field and button 44px tall, at every width. */
+const fieldClass = cn(inputClass, "h-11 md:h-11")
 
 /**
  * The primitives every auth step shares.
@@ -58,7 +63,7 @@ export function Field({
         // so the border changes as well as the message appearing.
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`${inputClass} aria-invalid:border-destructive`}
+        className={fieldClass}
         {...rest}
       />
     </KitField>
@@ -74,7 +79,7 @@ export function Field({
  * sign-up did not, and mobile sign-up never had a confirm field — so the two customer surfaces
  * disagreed. 036 settled it by REMOVING the field from web, not by adding one to mobile.
  *
- * ⚠ The toggle is `size-11` (44px) and carries `aria-pressed` plus a label naming its own field —
+ * ⚠ The toggle has a 44px target and carries `aria-pressed` plus a label naming its own field —
  * "Show password" alone is ambiguous the moment a screen has two password inputs.
  */
 export function PasswordField({
@@ -84,6 +89,7 @@ export function PasswordField({
   onChange,
   hint,
   error,
+  labelAction,
   ...rest
 }: {
   label: string
@@ -92,10 +98,12 @@ export function PasswordField({
   onChange: (v: string) => void
   hint?: string
   error?: string | null
+  /** Sits at the end of the label row — "Forgot your password?" on the sign-in step. */
+  labelAction?: React.ReactNode
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id" | "type">) {
   const [revealed, setRevealed] = React.useState(false)
   return (
-    <KitField label={label} htmlFor={id} hint={hint} error={error}>
+    <KitField label={label} htmlFor={id} hint={hint} error={error} labelAction={labelAction}>
       <div className="relative">
         <input
           id={id}
@@ -105,7 +113,7 @@ export function PasswordField({
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : undefined}
-          className={`${inputClass} pr-14 aria-invalid:border-destructive`}
+          className={cn(fieldClass, "pr-12")}
           {...rest}
         />
         <button
@@ -113,7 +121,8 @@ export function PasswordField({
           onClick={() => setRevealed((r) => !r)}
           aria-pressed={revealed}
           aria-label={`${revealed ? "Hide" : "Show"} ${label.toLowerCase()}`}
-          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          // ⚠ Drawn 32px, pressable 44px: the `after` box extends the target without moving anything.
+          className={iconBtnClass("ghost", "sm", "absolute top-1.5 right-1.5 after:absolute after:-inset-1.5")}
         >
           {revealed ? (
             <EyeOff aria-hidden className="size-4" />
@@ -197,7 +206,7 @@ export function Submit({
         e.preventDefault()
         if (!pending) onBlocked?.()
       }}
-      className={btnClass("primary", "md", `w-full ${pending ? "opacity-80" : ""}`)}
+      className={btnClass("primary", "lg", "h-11 w-full")}
     >
       {pending && (
         <span
@@ -225,8 +234,9 @@ export function Submit({
  * requires that one to stay visually SUBORDINATE to finishing, so it keeps the muted treatment — but
  * at medium weight rather than regular, so it is still legible rather than merely quiet.
  *
- * ⚠ `min-h-11`, not bare text. A step form turns these from decoration into the primary way people
- * move backwards, and 033 shipped a 32px target under a comment claiming it cleared the minimum.
+ * ⚠ A 44px target, not bare text (`hitArea`). A step form turns these from decoration into the
+ * primary way people move backwards, and 033 shipped a 32px target under a comment claiming it
+ * cleared the minimum.
  */
 export function TextAction({
   children,
@@ -240,18 +250,22 @@ export function TextAction({
   tone?: "default" | "subtle"
 }) {
   return (
-    <button
-      type="button"
-      data-testid={testId}
-      onClick={onClick}
-      className={`min-h-11 w-full rounded-full text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-        tone === "subtle"
-          ? "font-medium text-muted-foreground hover:text-foreground"
-          : "font-semibold text-foreground underline underline-offset-4 hover:opacity-80"
-      }`}
-    >
-      {children}
-    </button>
+    <div className="flex justify-center">
+      <button
+        type="button"
+        data-testid={testId}
+        onClick={onClick}
+        className={cn(
+          "rounded-sm text-sm",
+          hitArea,
+          tone === "subtle"
+            ? "font-medium text-muted-foreground hover:text-foreground"
+            : "font-semibold text-foreground underline underline-offset-4 hover:opacity-80",
+        )}
+      >
+        {children}
+      </button>
+    </div>
   )
 }
 
@@ -279,20 +293,33 @@ export function TextAction({
  * report was that these "are not noticeable, too thin". On a monochrome platform there is no hue to
  * mark an action with, so weight, contrast and the underline are the entire vocabulary available.
  */
-export const inlineActionClass =
-  "min-h-11 rounded font-semibold text-foreground underline underline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-disabled:text-muted-foreground aria-disabled:no-underline aria-disabled:font-medium"
+/**
+ * A 44px-tall pressable box around a one-line text control, drawn at the height of its text. The
+ * reference sets these links a line apart; padding them out to 44px would push every step's rhythm.
+ */
+const hitArea = "relative after:absolute after:inset-x-0 after:-inset-y-3"
+
+export const inlineActionClass = cn(
+  "rounded-sm font-medium text-primary underline underline-offset-4 hover:opacity-80 aria-disabled:text-muted-foreground aria-disabled:no-underline",
+  hitArea,
+)
+
+/** The quiet variant — "Wrong email? Change it" — underlined, in the colour of the sentence around it. */
+export const quietActionClass = cn("rounded-sm underline underline-offset-4 hover:text-foreground", hitArea)
 
 export function InlineAction({
   children,
   onClick,
   testId,
   blocked,
+  quiet = false,
 }: {
   children: React.ReactNode
   onClick: () => void
   testId?: string
   /** Unavailable, but still reachable and still able to explain itself — same rule as `Submit`. */
   blocked?: boolean
+  quiet?: boolean
 }) {
   return (
     <button
@@ -303,7 +330,7 @@ export function InlineAction({
         if (blocked) return
         onClick()
       }}
-      className={inlineActionClass}
+      className={quiet ? quietActionClass : inlineActionClass}
     >
       {children}
     </button>
@@ -328,9 +355,10 @@ export function ErrorNote({ children }: { children: React.ReactNode }) {
     <p
       role="alert"
       data-testid="auth-error"
-      className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground"
+      className="flex items-start gap-3 rounded-lg border border-destructive bg-card px-4 py-3 text-sm font-medium text-foreground"
     >
-      {children}
+      <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      <span>{children}</span>
     </p>
   )
 }
@@ -348,7 +376,7 @@ export function InfoNote({ children }: { children: React.ReactNode }) {
     <p
       role="status"
       data-testid="auth-notice"
-      className="rounded-md border border-border bg-muted/50 p-3 text-sm text-foreground"
+      className="rounded-lg bg-muted px-4 py-3 text-sm text-foreground"
     >
       {children}
     </p>
@@ -375,13 +403,13 @@ export function InfoNote({ children }: { children: React.ReactNode }) {
  */
 export function TermsNotice() {
   return (
-    <p className="text-xs text-foreground">
+    <p className="text-xs leading-[1.6] text-foreground">
       By continuing you agree to Effy&apos;s{" "}
-      <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+      <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
         Terms of Service
       </a>{" "}
       and acknowledge our{" "}
-      <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+      <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
         Privacy Policy
       </a>
       .
@@ -391,13 +419,10 @@ export function TermsNotice() {
 
 export function Divider() {
   return (
-    <div className="relative">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">or</span>
-      </div>
+    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <span className="h-px flex-1 bg-border" />
+      OR
+      <span className="h-px flex-1 bg-border" />
     </div>
   )
 }
@@ -405,106 +430,125 @@ export function Divider() {
 /* ── Step chrome ─────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * Step chrome: a title, an optional subtitle, and a back affordance (036 FR-043).
+ * The address a step is acting on, with the way to change it (reference: Sign in — password,
+ * Join — password).
  *
- * ⚠ "Where am I and can I go back" is a requirement, not polish. The old screens replaced the whole
- * form body with no announcement at all, so a screen-reader user had no signal that anything had
- * moved. `aria-live="polite"` on the heading region announces the new step without stealing focus.
+ * ⚠ This is what replaced the "← Back" control. On a step that no longer shows the email field, the
+ * shopper still has to be able to see WHICH address they are about to sign in as, and fix it.
+ */
+export function EmailChip({ email, onChange }: { email: string; onChange: () => void }) {
+  return (
+    <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+      <User aria-hidden="true" className="size-3.5 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{email}</span>
+      <InlineAction onClick={onChange} testId="change-address">
+        Change
+      </InlineAction>
+    </div>
+  )
+}
+
+/**
+ * The opposite journey — "Don't have an account? Join" — at the foot of a step.
+ *
+ * ⚠ A FOOTER, not an action: furthest from the thing the shopper came here to do.
+ */
+export function AltJourney({
+  lead,
+  href,
+  children,
+}: {
+  lead: string
+  href: string
+  children: React.ReactNode
+}) {
+  return (
+    <p className="text-center text-sm text-muted-foreground">
+      {lead}{" "}
+      <Link
+        href={href}
+        className={cn("rounded-sm font-semibold text-foreground underline underline-offset-4", hitArea)}
+      >
+        {children}
+      </Link>
+    </p>
+  )
+}
+
+/**
+ * A titled notice above a step's heading — "Your cart is saved" when checkout sent the shopper here.
+ */
+export function NoticeCard({
+  icon,
+  title,
+  children,
+  testId,
+}: {
+  icon: React.ReactNode
+  title: string
+  children: React.ReactNode
+  testId?: string
+}) {
+  return (
+    <div
+      role="status"
+      data-testid={testId}
+      className="grid grid-cols-[16px_1fr] items-start gap-x-3 gap-y-0.5 rounded-lg bg-primary-muted px-4 py-3 text-sm [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:text-primary"
+    >
+      {icon}
+      <div className="font-medium">{title}</div>
+      <div className="col-start-2 text-muted-foreground">{children}</div>
+    </div>
+  )
+}
+
+/**
+ * One step: an optional notice, what this screen is, what you do here, and the way to the opposite
+ * journey (reference: Shared components · Auth card template).
+ *
+ * ⚠ "Where am I" is a requirement, not polish (036 FR-043). Every step replaces the whole form body,
+ * so the heading region is `aria-live="polite"`: a screen-reader user hears the new step without
+ * focus being moved.
+ *
+ * ⚠ THE SPACING IS DELIBERATELY UNEVEN: 8px inside the heading, 32px between the groups, 16px inside
+ * the body. Proximity only groups when the between-group gap is unmistakably the larger one.
  */
 export function StepShell({
   title,
   subtitle,
-  onBack,
-  bottom,
-  anchor = false,
+  icon,
+  notice,
+  footer,
   children,
 }: {
   title: string
   subtitle?: React.ReactNode
-  onBack?: () => void
-  /**
-   * Fill the phone viewport and pin `bottom` to the foot of it.
-   *
-   * ⚠ OPT-IN, AND IT USED TO BE UNCONDITIONAL — which is the defect this fixes. `bottom` holds two
-   * different things (see its own note): on a step with ONE committing action it is that action, and
-   * pinning it in the thumb's reach is correct. On a step offering several routes it holds only the
-   * opposite-journey link — "Don't have an account? Join" — and pinning THAT stretched the column to
-   * full height, so the form sat at the top of a phone screen with a few hundred pixels of nothing
-   * under it and a footer stranded at the bottom.
-   *
-   * Default is off: the content is its own height and the layout centres it.
-   */
-  anchor?: boolean
-  /**
-   * The bottom group — pinned to the foot of the screen on a phone.
-   *
-   * ⚠ TWO DIFFERENT THINGS GO HERE depending on the screen. On a step with ONE committing action
-   * (the code step, the name step, a password step) it is that action, in the thumb's reach. On a
-   * step offering several routes the actions belong with the fields they act on, and this holds only
-   * the opposite-journey link — "Don't have an account? Join" — which is genuinely a footer.
-   */
-  bottom?: React.ReactNode
-  children: React.ReactNode
+  /** A state step's mark — code expired, link sent, done. Drawn in a muted tile above the title. */
+  icon?: React.ReactNode
+  notice?: React.ReactNode
+  footer?: React.ReactNode
+  children?: React.ReactNode
 }) {
   return (
-    // ⚠ THE SPACING IS DELIBERATELY UNEVEN, and that is the whole change. Everything used to sit in
-    // one `space-y-6` stack, so the gap between the heading and the first field was the same as the
-    // gap between a label and its input — and the screen read as a single crammed block. Gestalt
-    // proximity only groups when the between-group gap is unmistakably larger than the within-group
-    // one, so: 8px inside the heading, 40px to the body, 40px to the bottom group.
-    //
-    // ⚠ `min-h` ONLY WHEN ANCHORED, and only below `sm`. `mt-auto` on the bottom group can only push
-    // if the column is taller than its content, so the height is what makes anchoring work — and it
-    // is also what makes a non-anchored step look empty. `5rem` is the layout's own vertical padding.
-    <div
-      className={`flex flex-col ${
-        anchor ? "min-h-[calc(100svh-5rem)] flex-1 sm:min-h-0 sm:flex-none" : ""
-      }`}
-    >
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          data-testid="step-back"
-          // ⚠ `font-medium text-foreground`, not thin muted grey. It is chrome, so it stays
-          // un-underlined and does not compete with the step's own routes — but on a step form it is
-          // how people move backwards, and it has to be findable.
-          className="-ml-1 mb-6 flex min-h-11 w-fit items-center gap-1 rounded-full pr-3 text-sm font-medium text-foreground hover:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <span aria-hidden>←</span> Back
-        </button>
-      )}
+    <div className="space-y-8">
+      {notice}
 
-      {/* GROUP 1 — what this screen is. Title and subtitle are one thought.
-          ⚠ 044 FR-024 — the heading composes the storefront's own `Display` in NORMAL CASE and at a
-          responsive size. It used to hardcode the merchandising all-caps display treatment at one
-          fixed size, so "ENTER YOUR CODE" shouted at the same 30px on a 320px phone as on a desktop
-          (defect D-18), and the storefront moved section headings off all-caps on 2026-08-09 while
-          these screens did not. */}
       <div className="space-y-2" aria-live="polite">
-        <Display as="h1" size="section" className="normal-case leading-tight">
+        {icon && (
+          <div className="mb-3 grid size-12 place-items-center rounded-lg bg-muted [&>svg]:size-6">
+            {icon}
+          </div>
+        )}
+        <h1 className="text-[38px] font-semibold leading-[1.1] tracking-[-0.025em] text-balance">
           {title}
-        </Display>
-        {/* ⚠ `font-medium`, not regular (operator direction 2026-08-11). General Sans at regular
-            weight in the muted step is thin enough to read as a caption; the supporting line on a
-            step form carries real information ("we sent a code to X", "the code works for 5
-            minutes") and has to survive being glanced at. */}
-        {subtitle && <div className="text-sm font-medium text-muted-foreground">{subtitle}</div>}
+        </h1>
+        {subtitle && <div className="text-muted-foreground">{subtitle}</div>}
       </div>
 
-      {/* GROUP 2 — what you do here. ⚠ Skipped entirely when a step has no body (the exhausted code
-          step is title + one action), so it does not leave a 40px hole where content would be. */}
-      {children && <div className="mt-10 space-y-4">{children}</div>}
+      {/* ⚠ Skipped entirely when a step has no body, so it leaves no hole where content would be. */}
+      {children && <div className="space-y-4">{children}</div>}
 
-      {/* GROUP 3 — pushed to the bottom by `mt-auto` on a phone; a plain gap once centred.
-          ⚠ 044 FR-027 — `sticky` on small screens with its own ground, so the committing action
-          survives a software keyboard and a short landscape window. A keyboard does not shrink
-          `vh`, which is why the column above it is measured in `svh`/`dvh` (see the auth layout). */}
-      {bottom && (
-        <div className="mt-auto space-y-3 pt-10 sm:static sticky bottom-0 bg-background pb-2 sm:bg-transparent sm:pb-0">
-          {bottom}
-        </div>
-      )}
+      {footer}
     </div>
   )
 }

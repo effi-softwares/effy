@@ -1,7 +1,10 @@
 import Link from "next/link"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
-import { pageSurface } from "@/components/storefront/kit"
+import { Suspense } from "react"
+import { Lock } from "lucide-react"
+
+import { CheckoutSteps } from "./CheckoutSteps"
 
 /**
  * A minimal, distraction-free CHECKOUT header — deliberately NOT the storefront's `StorefrontChrome`.
@@ -15,19 +18,23 @@ import { pageSurface } from "@/components/storefront/kit"
  */
 export function CheckoutHeader({ showFeedbackPrompt = true }: { showFeedbackPrompt?: boolean }) {
   return (
-    <header className={`sticky top-0 z-40 border-b ${pageSurface}`}>
-      <div className="container flex h-16 items-center justify-between gap-4">
-        <BrandMark href="/" />
-
-        {showFeedbackPrompt && (
-          <p className="hidden text-sm text-muted-foreground sm:block">
-            How do you like our checkout?{" "}
-            <Link href="/feedback?from=checkout" className="font-medium text-primary hover:underline">
-              Give us feedback
-            </Link>
-          </p>
-        )}
+    <header className="sticky top-0 z-40 border-b bg-background">
+      <div className="container flex h-14 items-center justify-between gap-4 lg:h-16">
+        <BrandMark href="/" className="max-lg:text-[22px]!" />
+        {/* `usePathname` suspends while a dynamic route prerenders; the steps are decoration there. */}
+        <Suspense fallback={null}>
+          <CheckoutSteps />
+        </Suspense>
+        <span className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Lock aria-hidden="true" className="size-4" />
+          <span className="max-sm:sr-only">Secure checkout</span>
+        </span>
       </div>
+      {showFeedbackPrompt && (
+        <p className="sr-only">
+          How do you like our checkout? <Link href="/help?from=checkout">Give us feedback</Link>
+        </p>
+      )}
     </header>
   )
 }
