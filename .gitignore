@@ -87,3 +87,5 @@ override.tf.json
 # A rule here covers every service that exists and every one that will.
 **/.serverless/
 **/.esbuild/
+
+docs/reference-screens

@@ -1,5 +1,8 @@
 package com.effyshopping.driver.mobile.features.delivery.presentation
 
+import com.effyshopping.driver.mobile.core.platform.localTimeText
+import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
+import com.effyshopping.driver.mobile.core.presentation.BackButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -238,9 +241,11 @@ internal fun ProofPhotoScreen(
             }
         }
 
-        // Caption bar — only what the platform actually knows.
+        // Caption bar — only what is actually known: where, and when on this phone's clock. (The
+        // platform stamps the proof itself when it is recorded; this is for the driver.)
+        val openedAt = remember { localTimeText(nowEpochMillis(), withDay = true) }
         Text(
-            drop.addressFull,
+            "${drop.addressFull}\n$openedAt",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -583,16 +588,7 @@ private fun ProofHeader(title: String, trailing: String?, onBack: () -> Unit) {
         Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = RoundedCornerShape(11.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.size(48.dp).clickable(onClick = onBack),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("←", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BackButton(onBack)
         Spacer(Modifier.width(12.dp))
         Text(
             title,

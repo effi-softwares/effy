@@ -20,4 +20,13 @@ class IosMapLauncher : MapLauncher {
         val url = NSURL(string = "http://maps.apple.com/?q=$q")
         UIApplication.sharedApplication.openURL(url)
     }
+
+    override fun dial(phoneNumber: String) {
+        val digits = phoneNumber.filter { it.isDigit() || it == '+' }
+        NSURL(string = "tel:$digits")?.let { UIApplication.sharedApplication.openURL(it) }
+    }
+
+    override fun openLink(url: String) {
+        NSURL(string = url)?.let { UIApplication.sharedApplication.openURL(it) }
+    }
 }

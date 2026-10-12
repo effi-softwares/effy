@@ -1,5 +1,7 @@
 package com.effyshopping.driver.mobile.features.delivery.presentation
 
+import com.effyshopping.driver.mobile.core.platform.localTimeText
+import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
 import com.effyshopping.driver.mobile.core.presentation.OpensLine
 import androidx.compose.foundation.background
@@ -221,6 +223,8 @@ fun DropDetailScreen(
     onCameraDenied: () -> Unit = {},
     reducedMotion: Boolean = false,
     onRetry: (() -> Unit)? = null,
+    /** Opens the dialler on dispatch; null when the operator has not supplied a number. */
+    onCallDispatch: (() -> Unit)? = null,
 ) {
     val drop = state.drop
     when {
@@ -230,8 +234,8 @@ fun DropDetailScreen(
                 orderRef = d?.orderRef.orEmpty(),
                 packageCount = d?.packages?.size ?: 0,
                 address = d?.addressFull.orEmpty(),
-                // \u26a0 The method is known; the design's "12:44 pm" is not \u2014 no clock dependency.
-                methodLabel = null,
+                // When the app was told the delivery was recorded, on the phone's own clock.
+                methodLabel = remember(d?.dropId) { "Delivered ${localTimeText(nowEpochMillis(), withDay = false)}" },
                 dropsDone = state.run?.drops?.count { it.status == DropStatus.DELIVERED },
                 dropsLeft = state.run?.drops?.count {
                     it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED
@@ -289,6 +293,7 @@ fun DropDetailScreen(
                     working = state.isWorking,
                     onNavigate = onNavigate,
                     onArrived = { onAdvance("arrived") },
+                    onCallDispatch = onCallDispatch,
                 )
 
                 DropStatus.ARRIVED -> ArrivedFlow(
@@ -302,6 +307,7 @@ fun DropDetailScreen(
                     onDeliverSignature = onDeliverSignature,
                     onFail = onFail,
                     onCameraDenied = onCameraDenied,
+                    onCallDispatch = onCallDispatch,
                 )
 
                 else -> ClosedDropBody(drop)
@@ -417,6 +423,7 @@ private fun ArrivedFlow(
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
     onCameraDenied: () -> Unit,
+    onCallDispatch: (() -> Unit)?,
 ) {
     var step by remember(drop.dropId) { mutableStateOf<ProofStep?>(null) }
     var failing by remember(drop.dropId) { mutableStateOf(false) }
@@ -506,6 +513,7 @@ private fun ArrivedFlow(
             working = state.isWorking,
             onComplete = { step = ProofStep.PICK },
             onCantDeliver = { failing = true },
+            onCallDispatch = onCallDispatch,
         )
     }
 }

@@ -23,4 +23,14 @@ class AndroidMapLauncher(private val context: Context) : MapLauncher {
             context.startActivity(web)
         }
     }
+
+    override fun dial(phoneNumber: String) = 
+        open(Uri.parse("tel:" + phoneNumber.filter { it.isDigit() || it == '+' }), Intent.ACTION_DIAL)
+
+    override fun openLink(url: String) = open(Uri.parse(url), Intent.ACTION_VIEW)
+
+    /** Nothing on the phone may handle it (a tablet with no dialler): that must not crash the app. */
+    private fun open(uri: Uri, action: String) {
+        runCatching { context.startActivity(Intent(action, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
 }

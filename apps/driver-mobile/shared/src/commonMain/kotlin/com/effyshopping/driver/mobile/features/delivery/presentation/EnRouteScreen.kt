@@ -46,6 +46,8 @@ fun EnRouteScreen(
     working: Boolean,
     onNavigate: (String) -> Unit,
     onArrived: () -> Unit,
+    /** Opens the dialler on dispatch; null when the operator has not supplied a number. */
+    onCallDispatch: (() -> Unit)? = null,
 ) {
     Column(Modifier.fillMaxSize()) {
         MapPanel()
@@ -103,20 +105,23 @@ fun EnRouteScreen(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f).height(52.dp),
                 ) { Text("Navigate ↗") }
-                // ⚠ Masked contact is still unbuilt (049 R6) — a disabled control with a stated
-                // reason, never a button that silently does nothing.
+                // ⚠ The CUSTOMER cannot be called: the platform gives a driver no number, and masked
+                // contact is unbuilt (049 R6). Dispatch can be, when the operator has supplied its
+                // number — otherwise a disabled control with a stated reason, never a dead button.
                 OutlinedButton(
-                    onClick = {},
-                    enabled = false,
+                    onClick = { onCallDispatch?.invoke() },
+                    enabled = onCallDispatch != null,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f).height(52.dp),
-                ) { Text("Call") }
+                ) { Text("Call dispatch") }
             }
-            Text(
-                "Calling a customer without showing their number isn't built yet.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (onCallDispatch == null) {
+                Text(
+                    "Dispatch's number isn't set up in the app yet. Customers can't be called from the app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             Button(
                 onClick = onArrived,

@@ -12,6 +12,7 @@ import com.effyshopping.driver.mobile.core.observability.IosCrashBridge
 import com.effyshopping.driver.mobile.core.observability.IosCrashReporter
 import com.effyshopping.driver.mobile.core.platform.IosMapLauncher
 import com.effyshopping.driver.mobile.core.platform.IosPlatformUiController
+import platform.Foundation.NSBundle
 import platform.UIKit.UIViewController
 
 /**
@@ -30,6 +31,8 @@ fun MainViewController(
         authDriver = IosAuthDriver(authBridge),
         crashReporter = IosCrashReporter(crashBridge),
         analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
+        // What this installed build calls itself — shown on Help.
+        appVersion = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String,
     )
     container.startObservability(analyticsConsented = true)
     val viewController = ComposeUIViewController {

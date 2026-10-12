@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.account
 
+import com.effyshopping.driver.mobile.core.presentation.BackButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -128,17 +129,7 @@ internal fun AccountSubHeader(title: String, onBack: () -> Unit) {
         Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 4.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = RoundedCornerShape(11.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.size(48.dp)
-                .selectable(selected = false, role = Role.Button, onClick = onBack),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("←", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BackButton(onBack)
         Spacer(Modifier.width(12.dp))
         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     }

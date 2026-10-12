@@ -21,6 +21,11 @@ object AppConfig {
     val posthogKey: String get() = BuildKonfig.POSTHOG_KEY
     val posthogHost: String get() = BuildKonfig.POSTHOG_HOST
     val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
+
+    // ── Help contacts (OPTIONAL — operator-supplied; null ⇒ the app says it is not set up) ─────
+    val dispatchPhone: String? get() = BuildKonfig.DISPATCH_PHONE.trim().ifEmpty { null }
+    val hubDeskPhone: String? get() = BuildKonfig.HUB_DESK_PHONE.trim().ifEmpty { null }
+    val handbookUrl: String? get() = BuildKonfig.HANDBOOK_URL.trim().ifEmpty { null }
 }
 
 /**

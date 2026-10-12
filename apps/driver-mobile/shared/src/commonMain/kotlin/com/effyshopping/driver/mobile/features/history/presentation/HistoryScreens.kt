@@ -26,7 +26,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.effyshopping.driver.mobile.core.presentation.BackButton
+import com.effyshopping.driver.mobile.core.presentation.dayText
+import com.effyshopping.driver.mobile.core.presentation.timeText
+import com.effyshopping.driver.mobile.core.presentation.whenText
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,35 +38,55 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/** History list — completed runs + drops grouped by day, read-only (FR-033). */
+/**
+ * History list — completed runs + drops grouped by day, read-only (FR-033).
+ *
+ * ⚠ Pull to refresh: this list was read once when the tab opened and had no way to be read again, so
+ * a round finished a minute ago was missing until the app was restarted.
+ */
 @Composable
-fun HistoryScreen(state: HistoryUiState, onOpenDrop: (String) -> Unit, onOpenRun: (String) -> Unit) {
+fun HistoryScreen(
+    state: HistoryUiState,
+    onOpenDrop: (String) -> Unit,
+    onOpenRun: (String) -> Unit,
+    onRefresh: () -> Unit = {},
+) {
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(20.dp)) {
         Text("History", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(12.dp))
-        when {
-            state.isLoading && state.history == null -> Centered { CircularProgressIndicator() }
-            state.isEmpty -> Centered { Text("No completed work yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            state.history == null -> Centered { Text(state.message ?: "Couldn't load history.") }
-            else -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                state.history.days.forEach { day ->
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(day.date, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        day.runs.forEach { run ->
-                            RecordRow(
-                                title = if (run.type == "collection") "Collection run" else "Delivery run",
-                                subtitle = "${run.stopCount} stop${if (run.stopCount == 1) "" else "s"}",
-                                trailing = null,
-                                onClick = { onOpenRun(run.runId) },
-                            )
-                        }
-                        day.drops.forEach { drop ->
-                            RecordRow(
-                                title = drop.orderRef,
-                                subtitle = drop.customerSuburb,
-                                trailing = if (drop.proofCaptured) "proof ✓" else null,
-                                onClick = { onOpenDrop(drop.dropId) },
-                            )
+        EffyPullToRefresh(onRefresh = { onRefresh() }, modifier = Modifier.weight(1f)) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                when {
+                    state.isLoading && state.history == null -> Notice { CircularProgressIndicator() }
+                    state.isEmpty -> Notice { Text("No completed work yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    state.history == null -> Notice { Text(state.message ?: "Couldn't load history.") }
+                    else -> state.history.days.forEach { day ->
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(dayText(day.date), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            day.runs.forEach { run ->
+                                RecordRow(
+                                    title = if (run.type == "collection") "Collection run" else "Delivery run",
+                                    subtitle = listOfNotNull(
+                                        "${run.stopCount} stop${if (run.stopCount == 1) "" else "s"}",
+                                        run.completedAt?.let { "finished ${timeText(it)}" },
+                                    ).joinToString(" · "),
+                                    trailing = null,
+                                    onClick = { onOpenRun(run.runId) },
+                                )
+                            }
+                            day.drops.forEach { drop ->
+                                RecordRow(
+                                    title = drop.orderRef,
+                                    subtitle = listOf(drop.customerSuburb, timeText(drop.completedAt))
+                                        .filter { it.isNotBlank() }
+                                        .joinToString(" · "),
+                                    trailing = if (drop.proofCaptured) "Proof kept" else null,
+                                    onClick = { onOpenDrop(drop.dropId) },
+                                )
+                            }
                         }
                     }
                 }
@@ -85,8 +109,8 @@ fun HistoryScreen(state: HistoryUiState, onOpenDrop: (String) -> Unit, onOpenRun
 fun HistoryDetailScreen(state: HistoryUiState, title: String, kind: String, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(20.dp)) {
         Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("\u2039 Back") }
-            Spacer(Modifier.width(4.dp))
+            BackButton(onBack)
+            Spacer(Modifier.width(12.dp))
             Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         }
         val detail = state.detail
@@ -118,7 +142,7 @@ fun HistoryDetailScreen(state: HistoryUiState, title: String, kind: String, onBa
                             modifier = Modifier.weight(1f),
                         )
                         Text(
-                            entry.at.take(19).replace('T', ' '),
+                            whenText(entry.at),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -157,7 +181,7 @@ private fun ProofRecordBlock(proof: ProofRecord) {
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    proof.capturedAt.take(19).replace('T', ' '),
+                    whenText(proof.capturedAt),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -187,6 +211,12 @@ private fun RecordRow(title: String, subtitle: String, trailing: String?, onClic
 @Composable
 private fun SectionLabel(text: String) {
     Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** A loading or empty line inside the scrolling list, so the list can still be pulled. */
+@Composable
+private fun Notice(content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 96.dp), horizontalAlignment = Alignment.CenterHorizontally) { content() }
 }
 
 @Composable

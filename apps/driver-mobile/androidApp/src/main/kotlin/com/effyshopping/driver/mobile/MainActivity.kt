@@ -1,6 +1,7 @@
 package com.effyshopping.driver.mobile
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.effyshopping.driver.mobile.app.App
 import com.effyshopping.driver.mobile.core.platform.AndroidMapLauncher
 import com.effyshopping.driver.mobile.core.platform.AndroidPlatformUiController
+import com.effyshopping.driver.mobile.core.push.PushOpen
 
 class MainActivity : ComponentActivity() {
     private lateinit var platformUiController: AndroidPlatformUiController
@@ -34,6 +36,8 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         val container = (application as EffyApp).container
+        // Opened by tapping a notification: tell the shell, which goes to the driver's work.
+        PushOpen.consume(intent)?.let { container.openedNotification.value = it }
         platformUiController = AndroidPlatformUiController(this, window)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
@@ -44,6 +48,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(container, platformUiController, AndroidMapLauncher(applicationContext))
         }
+    }
+
+    /** A notification tapped while the app was already open arrives here, not in [onCreate]. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        PushOpen.consume(intent)?.let { (application as EffyApp).container.openedNotification.value = it }
     }
 
     override fun onDestroy() {

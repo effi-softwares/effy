@@ -137,3 +137,26 @@ class CollectStop(private val repo: CollectionRepository) {
 class CheckInHub(private val repo: CollectionRepository) {
     suspend operator fun invoke(runId: String, changeId: String) = repo.checkIn(runId, changeId)
 }
+
+/** What the driver has ticked and reported at ONE stop, before the swipe sends it. */
+data class StopDraft(
+    val stopId: String,
+    val confirmed: Set<String>,
+    /** Package key → what the driver said is wrong, in the words sent with the collect. */
+    val reported: Map<String, ReportedProblem>,
+)
+
+data class ReportedProblem(val kind: String, val note: String?)
+
+/**
+ * Keeps the stop the driver is working on across the app being closed.
+ *
+ * ⚠ Ticks and reports lived in memory only. A phone that reclaimed the app while the driver was
+ * carrying boxes lost every "this one is missing" they had entered, and the swipe then recorded
+ * those packages as collected. One stop at a time: it is the stop in front of the driver.
+ */
+interface StopDrafts {
+    fun load(runId: String, stopId: String): StopDraft?
+    fun save(runId: String, draft: StopDraft)
+    fun clear()
+}

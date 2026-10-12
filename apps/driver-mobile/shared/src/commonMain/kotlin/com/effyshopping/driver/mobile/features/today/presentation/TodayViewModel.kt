@@ -8,7 +8,10 @@ import com.effyshopping.driver.mobile.core.presentation.userMessage
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
 import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
 import com.effyshopping.driver.mobile.features.driver.domain.SetDuty
+import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
+import com.effyshopping.driver.mobile.features.today.domain.DayStats
 import com.effyshopping.driver.mobile.features.today.domain.GetToday
+import com.effyshopping.driver.mobile.features.today.domain.ShiftClock
 import com.effyshopping.driver.mobile.features.today.domain.Today
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -30,20 +33,19 @@ data class TodayUiState(
      * was broken or the signal was.
      */
     val offline: Boolean = false,
-    /**
-     * When the shown run was last synced. ⚠ PLATFORM data, read from the offline queue's own
-     * timestamp — NOT invented. The design's "Last synced 9:14 am" is a real fact the app already has.
-     *
-     * An ISO-8601 string, matching how every other timestamp crosses into this app's presentation
-     * layer (history entries do `at.take(19).replace('T', ' ')`). The app has no kotlinx-datetime
-     * dependency and this feature does not add one for a label.
-     */
-    val cachedAt: String? = null,
+    /** When the shown run was last read from the platform — the offline banner's "Last synced". */
+    val syncedAtEpochMillis: Long? = null,
     /**
      * ⚠ Distinct from [message], which today does double duty as both error text and informational
      * text — so a screen cannot tell a failed load from a note and renders both as a red line.
      */
     val loadFailed: Boolean = false,
+    /** Activity items the driver has not opened yet — the number beside "Activity". */
+    val newActivity: Int = 0,
+    /** What was finished today; null until it has been read (and the figures are then not drawn). */
+    val dayStats: DayStats? = null,
+    /** How long the last shift on this phone ran; null when not known. */
+    val lastShiftMillis: Long? = null,
 )
 
 /**
@@ -60,12 +62,21 @@ class TodayViewModel(
     private val syncFlush: suspend () -> Unit = {},
     /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
+    /** How many activity items are new to this driver. */
+    private val countNewActivity: suspend () -> Int = { 0 },
+    /** What was finished today, from the driver's history. */
+    private val loadDayStats: suspend () -> DayStats? = { null },
+    private val shiftClock: ShiftClock? = null,
+    private val now: () -> Long = ::nowEpochMillis,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(TodayUiState(dutyStatus = initialDuty))
+    private val _state = MutableStateFlow(
+        TodayUiState(dutyStatus = initialDuty, lastShiftMillis = shiftClock?.lastShiftMillis()),
+    )
     val state = _state.asStateFlow()
 
     init {
         if (initialDuty == DutyStatus.ON_DUTY) refresh()
+        refreshSideInfo()
         viewModelScope.launch { liveChanges.collect { refreshQuietly() } }
     }
 
@@ -81,8 +92,22 @@ class TodayViewModel(
         // Until now they waited for the driver to pull to refresh on this one screen.
         runCatching { syncFlush() }
         runCatching { getToday() }.onSuccess { fresh ->
-            _state.update { it.copy(today = fresh, loadFailed = false, offline = false) }
+            _state.update { it.copy(today = fresh, loadFailed = false, offline = false, syncedAtEpochMillis = now()) }
         }
+        readSideInfo()
+    }
+
+    /**
+     * The two things beside the round: how much activity is new, and what was finished today.
+     * Best-effort and silent — neither is worth an error on the home screen.
+     */
+    fun refreshSideInfo() {
+        viewModelScope.launch { readSideInfo() }
+    }
+
+    private suspend fun readSideInfo() {
+        runCatching { countNewActivity() }.onSuccess { n -> _state.update { it.copy(newActivity = n) } }
+        runCatching { loadDayStats() }.onSuccess { stats -> if (stats != null) _state.update { it.copy(dayStats = stats) } }
     }
 
     fun refresh() {
@@ -91,7 +116,11 @@ class TodayViewModel(
         viewModelScope.launch {
             runCatching { syncFlush() } // drain any queued offline writes before re-reading (FR-040)
             try {
-                _state.update { it.copy(today = getToday(), isLoading = false, loadFailed = false, offline = false) }
+                val fresh = getToday()
+                _state.update {
+                    it.copy(today = fresh, isLoading = false, loadFailed = false, offline = false, syncedAtEpochMillis = now())
+                }
+                readSideInfo()
             } catch (e: AppException) {
                 // ⚠ With nothing to show, a failed read is the error screen. It used to fall through
                 // to the idle body, which told a driver whose run did not load "You're all caught up".
@@ -116,9 +145,19 @@ class TodayViewModel(
         viewModelScope.launch {
             try {
                 val driver: Driver = setDuty(goingOn, newChangeId())
-                _state.update { it.copy(dutyStatus = driver.dutyStatus, isTogglingDuty = false) }
+                if (driver.dutyStatus == DutyStatus.ON_DUTY) shiftClock?.started(now()) else shiftClock?.ended(now())
+                _state.update {
+                    it.copy(
+                        dutyStatus = driver.dutyStatus,
+                        isTogglingDuty = false,
+                        lastShiftMillis = shiftClock?.lastShiftMillis(),
+                    )
+                }
                 if (driver.dutyStatus == DutyStatus.ON_DUTY) refresh()
-                else _state.update { it.copy(today = null, loadFailed = false) }
+                else {
+                    _state.update { it.copy(today = null, loadFailed = false) }
+                    readSideInfo()
+                }
             } catch (e: AppException) {
                 _state.update { it.copy(isTogglingDuty = false, message = e.error.userMessage()) }
             }

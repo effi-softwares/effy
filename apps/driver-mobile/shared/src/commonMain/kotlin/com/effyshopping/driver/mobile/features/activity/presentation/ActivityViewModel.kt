@@ -5,8 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.presentation.userMessage
 import com.effyshopping.driver.mobile.features.activity.domain.ActivityItem
+import com.effyshopping.driver.mobile.features.activity.domain.ActivitySeen
+import com.effyshopping.driver.mobile.features.activity.domain.isNewSince
 import com.effyshopping.driver.mobile.features.activity.domain.GetActivity
 import com.effyshopping.driver.mobile.features.activity.domain.MarkActivityRead
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -24,32 +28,34 @@ data class ActivityUiState(
 class ActivityViewModel(
     private val getActivity: GetActivity,
     private val markRead: MarkActivityRead,
+    /** Where "already shown" is kept. Null in tests that do not care which items are new. */
+    private val seen: ActivitySeen? = null,
+    /** 071 — "your work changed": the feed is about that work, so it re-reads too. */
+    private val liveChanges: Flow<Unit> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(ActivityUiState())
     val state = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch { liveChanges.collect { if (_state.value.loaded && !_state.value.isLoading) load() } }
+    }
 
     fun load() {
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
             try {
-                val items = getActivity()
+                val fetched = getActivity()
+                // ⚠ The platform sends every item as unread, always — it has nowhere to record a
+                // read. What is NEW is judged against what this phone has already shown, and the
+                // dots stay for this visit so the driver can see which ones they are.
+                val items = seen?.let { store ->
+                    val lastSeen = store.lastSeen()
+                    fetched.map { it.copy(read = !it.isNewSince(lastSeen)) }
+                } ?: fetched
                 _state.update { it.copy(items = items, isLoading = false, loaded = true) }
-                // Mark the unread ones read once seen.
+                fetched.maxOfOrNull { it.createdAt }?.let { newest -> seen?.markSeen(newest) }
                 val unread = items.filter { !it.read }.map { it.id }
-                if (unread.isNotEmpty()) {
-                    runCatching { markRead(unread) }
-                        // ⚠ 060: the local state was NEVER updated after this call, so every
-                        // unread dot stayed on screen until the driver reloaded the tab — the
-                        // server knew they were read and the app kept saying otherwise. That is
-                        // also why the design's "Mark all read" button is absent: items are marked
-                        // read the moment the screen opens, so the button would do nothing visible,
-                        // and a control that does nothing is worse than none (054).
-                        .onSuccess {
-                            _state.update { st ->
-                                st.copy(items = st.items.map { it.copy(read = true) })
-                            }
-                        }
-                }
+                if (unread.isNotEmpty()) runCatching { markRead(unread) }
             } catch (e: AppException) {
                 _state.update { it.copy(isLoading = false, loaded = true, message = e.error.userMessage()) }
             }

@@ -53,6 +53,18 @@ import com.effyshopping.driver.mobile.features.activity.data.HttpActivityReposit
 import com.effyshopping.driver.mobile.features.activity.domain.ActivityRepository
 import com.effyshopping.driver.mobile.features.activity.domain.GetActivity
 import com.effyshopping.driver.mobile.features.activity.domain.MarkActivityRead
+import com.effyshopping.driver.mobile.core.observability.AnalyticsEvent
+import com.effyshopping.driver.mobile.core.platform.localDateIso
+import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
+import com.effyshopping.driver.mobile.features.activity.data.SettingsActivitySeen
+import com.effyshopping.driver.mobile.features.activity.domain.ActivitySeen
+import com.effyshopping.driver.mobile.features.activity.domain.CountNewActivity
+import com.effyshopping.driver.mobile.features.collection.data.SettingsStopDrafts
+import com.effyshopping.driver.mobile.features.collection.domain.StopDrafts
+import com.effyshopping.driver.mobile.features.today.data.SettingsShiftClock
+import com.effyshopping.driver.mobile.features.today.domain.DayStats
+import com.effyshopping.driver.mobile.features.today.domain.ShiftClock
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,6 +87,11 @@ class AppContainer(
     val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
+    /**
+     * The version the installed app reports about itself, read by each platform's entry point. ⚠ Help
+     * showed a version typed into the source ("0.1.0 (dev)") that no build had ever carried.
+     */
+    val appVersion: String? = null,
 ) {
     // ── data ──────────────────────────────────────────────────────────────────────────────────────
     private val driverClient by lazy {
@@ -102,11 +119,24 @@ class AppContainer(
     private val driver: DriverRepository by lazy { HttpDriverRepository(driverClient) }
     private val today: TodayRepository by lazy { HttpTodayRepository(driverClient) }
     private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient, offlineQueue) }
-    private val delivery: DeliveryRepository by lazy { HttpDeliveryRepository(driverClient, offlineQueue) }
+    private val delivery: DeliveryRepository by lazy {
+        HttpDeliveryRepository(
+            driverClient,
+            offlineQueue,
+            // ⚠ Only the phone can see this: the image goes straight to storage, so when the upload
+            // fails the platform receives nothing at all (064 FR-006).
+            onProofUploadFailed = { reason -> analyticsDriver.capture(AnalyticsEvent.ProofUploadFailed(reason)) },
+        )
+    }
     private val historyRepo: HistoryRepository by lazy { HttpHistoryRepository(driverClient) }
     private val activityRepo: ActivityRepository by lazy { HttpActivityRepository(driverClient) }
 
     val appearance: AppearancePreferenceStore by lazy { AppearancePreferenceStore(Settings()) }
+
+    // Kept on the phone: the stop in progress, how far the activity feed was read, and shift timing.
+    val stopDrafts: StopDrafts by lazy { SettingsStopDrafts(Settings()) }
+    val activitySeen: ActivitySeen by lazy { SettingsActivitySeen(Settings()) }
+    val shiftClock: ShiftClock by lazy { SettingsShiftClock(Settings()) }
 
     // ── domain (use cases) — the layer ViewModels + SessionManager depend on ─────────────────────────
     val requestSignInCode by lazy { RequestSignInCode(authDriver) }
@@ -135,6 +165,20 @@ class AppContainer(
     // activity feed (US6)
     val getActivity by lazy { GetActivity(activityRepo) }
     val markActivityRead by lazy { MarkActivityRead(activityRepo) }
+    val countNewActivity by lazy { CountNewActivity(activityRepo, activitySeen) }
+
+    /** What the driver finished today, counted from their history on the phone's own calendar day. */
+    suspend fun dayStats(): DayStats {
+        val today = localDateIso(nowEpochMillis())
+        val day = getHistory().days.firstOrNull { it.date == today }
+        return DayStats(runsFinished = day?.runs?.size ?: 0, deliveries = day?.drops?.size ?: 0)
+    }
+
+    /**
+     * A notification the driver tapped, waiting for the shell to act on it; null when there is none.
+     * Set by the platform's entry point, cleared by the shell once it has gone where the tap leads.
+     */
+    val openedNotification = MutableStateFlow<String?>(null)
 
     // ── app services / presentation wiring ───────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getDriverIdentity, appScope) }

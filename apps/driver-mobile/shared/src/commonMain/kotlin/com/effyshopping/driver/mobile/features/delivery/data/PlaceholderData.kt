@@ -23,12 +23,6 @@ object DeliveryPlaceholders {
         decorative("map-pending", "A map renderer that runs under Xcode's debug build, and address geocoding for pins")
 
     /**
-     * ⚠ Design: "27 Rathdowne St · 22 Aug 12:44 pm AEST" under the viewfinder. The address is real
-     * and IS shown; the time is not — this app has no clock dependency.
-     */
-    val photoTimestamp: Sourced<Nothing?> = operational("A date/time formatting dependency")
-
-    /**
      * ⚠ Design: "geotagged Brunswick VIC" on a captured proof. No location capture is wired, and a
      * **wrong** geotag on a delivery record is evidence in a dispute — worse than none.
      */

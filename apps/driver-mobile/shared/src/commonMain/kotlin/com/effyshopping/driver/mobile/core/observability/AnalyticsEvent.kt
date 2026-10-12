@@ -8,17 +8,10 @@ package com.effyshopping.driver.mobile.core.observability
  * ⚠ ADD AN EVENT HERE FIRST — never a free string at a call site (FR-007). ⚠ NO PII: run ids + bounded
  * enums only — never a customer name, address, order total, or proof-image field (Principle VII).
  *
- * ⚠⚠ PRE-EXISTING AND RECORDED BY 064: ONLY `ScreenViewed` HAS A CALL SITE. Every driver-workflow
- * event below — `DutyToggled`, `CollectionRunOpened`, `ShopStopCollected`, `HubCheckedIn`,
- * `DeliveryRunOpened`, `DropCompleted`, and 064's own `ProofUploadFailed` — is declared, documented
- * and emitted by NOTHING. The drift test asserts each name is documented; it does not and cannot
- * assert that anything ever fires one.
- *
- * This is not 064's doing (it has been true since 049/050) and 064 did not fix it, because wiring an
- * analytics driver through the ViewModels is its own change. It is written down here so the next
- * person reads "declared, not emitted" rather than assuming these dashboards have data. 050 recorded
- * the same shape on customer-web, where PostHog was never initialised and `capture()` was a no-op
- * platform-wide for eleven slices.
+ * ⚠ EVERY EVENT HERE HAS A CALL SITE NOW, except the three push-permission events (the prompt is
+ * the OS's, raised by the Android activity). For years only `ScreenViewed` was declared with a
+ * helper and nothing at all was emitted; the drift test asserts each name is documented and cannot
+ * assert that anything fires one, so check `DriverShell` and `AppContainer` before trusting a dashboard.
  */
 sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = emptyMap()) {
     // Cross-surface (platform-events.md)
@@ -37,7 +30,7 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
      *
      * ⚠ NO ITEM NAMES AND NO ORDER REFERENCE: what a customer bought is theirs, and three bounded
      * values answer the only questions this event exists for — do drivers open the list, and how
-     * often are cold goods involved. ⚠ DECLARED, NOT EMITTED, like every driver-workflow event above.
+     * often are cold goods involved.
      */
     class ManifestOpened(surface: String, hasCold: Boolean, lineCount: Int) : AnalyticsEvent(
         "driver_manifest_opened",

@@ -13,6 +13,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import com.effyshopping.driver.mobile.core.config.AppConfig
+import com.effyshopping.driver.mobile.features.manifest.presentation.LocalManifestOpened
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -124,6 +128,22 @@ fun DriverShell(
         if (tabs.canGoBack) tabs.pop() else tabs.selectTab(DriverTab.TODAY)
     }
 
+    // Which SCREEN is up — its kind only, never the run or drop it is showing.
+    val screenName = tabs.currentRoute::class.simpleName.orEmpty().removeSuffix("Route").removeSuffix("Root")
+    LaunchedEffect(screenName) {
+        if (screenName.isNotEmpty()) container.analyticsDriver.screen(screenName.lowercase())
+    }
+
+    // A tapped notification is about the driver's work, and Today is where their work is.
+    val openedNotification by container.openedNotification.collectAsState()
+    LaunchedEffect(openedNotification) {
+        val type = openedNotification ?: return@LaunchedEffect
+        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type))
+        tabs.selectTab(DriverTab.TODAY)
+        while (tabs.canGoBack) tabs.pop()
+        container.openedNotification.value = null
+    }
+
     val destinations = DriverTab.entries.map { tab ->
         ResponsiveDestination(
             tab = tab,
@@ -149,11 +169,15 @@ fun DriverShell(
                     // read one copy of the driver's work instead of fetching it three times.
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
+                    // Coming back to Today (from the feed, from a finished stop): the count of new
+                    // activity and today's figures are re-read. The round itself is the channel's job.
+                    LaunchedEffect(Unit) { vm.refreshSideInfo() }
                     androidx.compose.foundation.layout.Column {
                         // 071 FR-015 — if the live channel cannot be held, say so: a work list that
                         // has stopped updating must not look current. Nothing is shown while live.
                         LiveStatusLine(container.live, onRefresh = vm::refresh)
                         PendingWritesLine(container)
+                        RefusedWritesLine(container)
                         TodayScreen(
                             driver = session.driver,
                             state = state,
@@ -177,12 +201,18 @@ fun DriverShell(
                     }
                 }
                 ActivityRoute -> {
-                    val vm = viewModel(key = "activity") { ActivityViewModel(container.getActivity, container.markActivityRead) }
+                    val vm = viewModel(key = "activity") {
+                        ActivityViewModel(
+                            container.getActivity, container.markActivityRead, container.activitySeen,
+                            container.live.changes(LiveKind.WORK),
+                        )
+                    }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(Unit) { vm.load() }
                     ActivityScreen(
                         state = st,
                         onBack = { tabs.pop() },
+                        onRefresh = vm::load,
                         onOpen = { item ->
                             when {
                                 item.dropId != null && item.runId != null -> tabs.push(DropRoute(item.runId, item.dropId))
@@ -211,6 +241,7 @@ fun DriverShell(
                     // The ViewModel is keyed per RUN, so `loadStop` is what drops one stop's ticks when
                     // a different stop opens — and keeps them when this one is come back to.
                     androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
+                    CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "pickup")) {
                     ShopStopScreen(
                         state = st,
                         onBack = { tabs.pop() },
@@ -225,6 +256,7 @@ fun DriverShell(
                         onRetry = { vm.loadStop(route.stopId) },
                         onNavigate = { address -> mapLauncher.navigateTo(address) },
                     )
+                    }
                 }
                 is ShopProblemRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
@@ -267,6 +299,7 @@ fun DriverShell(
                     val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(route.dropId) { vm.loadDrop(route.dropId) }
+                    CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "drop")) {
                     DropDetailScreen(
                         state = st,
                         onBack = { tabs.pop() },
@@ -296,7 +329,9 @@ fun DriverShell(
                         onBackToRun = { tabs.pop() },
                         reducedMotion = reducedMotion,
                         onRetry = { vm.loadDrop(route.dropId) },
+                        onCallDispatch = AppConfig.dispatchPhone?.let { number -> { mapLauncher.dial(number) } },
                     )
+                    }
                 }
 
                 MapRoot -> {
@@ -344,17 +379,18 @@ fun DriverShell(
                     )
                 }
                 HistoryRoot -> {
-                    val vm = viewModel(key = "history") { HistoryViewModel(container.getHistory, container.getHistoryDetail) }
+                    val vm = viewModel(key = "history") { newHistoryVm(container) }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(Unit) { vm.load() }
                     HistoryScreen(
                         state = st,
                         onOpenDrop = { dropId -> tabs.push(HistoryDetailRoute("drop", dropId, "Delivery")) },
                         onOpenRun = { runId -> tabs.push(HistoryDetailRoute("run", runId, "Run")) },
+                        onRefresh = vm::load,
                     )
                 }
                 is HistoryDetailRoute -> {
-                    val vm = viewModel(key = "history") { HistoryViewModel(container.getHistory, container.getHistoryDetail) }
+                    val vm = viewModel(key = "history") { newHistoryVm(container) }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(route.id) { vm.loadDetail(route.kind, route.id) }
                     HistoryDetailScreen(state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() })
@@ -392,7 +428,16 @@ fun DriverShell(
                     onModeChange = container.appearance::setMode,
                     onBack = { tabs.pop() },
                 )
-                HelpRoute -> HelpScreen(driver = session.driver, onBack = { tabs.pop() })
+                HelpRoute -> HelpScreen(
+                    driver = session.driver,
+                    onBack = { tabs.pop() },
+                    appVersion = container.appVersion,
+                    dispatchPhone = AppConfig.dispatchPhone,
+                    hubDeskPhone = AppConfig.hubDeskPhone,
+                    handbookUrl = AppConfig.handbookUrl,
+                    onDial = mapLauncher::dial,
+                    onOpenLink = mapLauncher::openLink,
+                )
                 PermissionDeniedRoute -> PermissionDeniedScreen(onBack = { tabs.pop() })
 
                 // ⚠ `ComingSoonScreen` is DELETED (FR-003, SC-002): no destination in this app may
@@ -453,7 +498,18 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
     newChangeId = container::newChangeId,
     syncFlush = { container.syncCoordinator.flush() },
     liveChanges = container.live.changes(LiveKind.WORK),
+    countNewActivity = { container.countNewActivity() },
+    loadDayStats = { container.dayStats() },
+    shiftClock = container.shiftClock,
 )
+
+private fun newHistoryVm(container: AppContainer) = HistoryViewModel(
+    container.getHistory, container.getHistoryDetail, container.live.changes(LiveKind.WORK),
+)
+
+/** A driver opened a package's item list on [surface] (`pickup` | `drop`). No item, no order. */
+private fun manifestOpened(container: AppContainer, surface: String): (Boolean, Int) -> Unit =
+    { hasCold, lineCount -> container.analyticsDriver.capture(AnalyticsEvent.ManifestOpened(surface, hasCold, lineCount)) }
 
 /**
  * Says when something the driver did has not reached the platform yet. ⚠ The offline queue has held
@@ -473,6 +529,31 @@ private fun PendingWritesLine(container: AppContainer) {
     )
 }
 
+/**
+ * Says when the platform REFUSED something the driver did while offline. ⚠ Such writes were dropped
+ * without a word, so a stop collected in a loading dock could be refused later — reassigned, ended —
+ * and the driver never learned it was not recorded.
+ */
+@Composable
+private fun RefusedWritesLine(container: AppContainer) {
+    val refused by container.offlineQueue.refused.collectAsState()
+    if (refused.isEmpty()) return
+    androidx.compose.foundation.layout.Row(
+        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(start = 20.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Not recorded: ${refused.map { it.label }.distinct().joinToString(", ")}. " +
+                "It was saved while you were offline and the platform has since refused it — " +
+                "check that work and tell dispatch.",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+        )
+        androidx.compose.material3.TextButton(onClick = container.offlineQueue::clearRefused) { Text("OK") }
+    }
+}
+
 private fun newCollectionVm(container: AppContainer, runId: String) = CollectionViewModel(
     runId = runId,
     getRun = container.getCollectionRun,
@@ -481,6 +562,7 @@ private fun newCollectionVm(container: AppContainer, runId: String) = Collection
     checkInHub = container.checkInHub,
     newChangeId = container::newChangeId,
     liveChanges = container.live.changes(LiveKind.WORK),
+    drafts = container.stopDrafts,
 )
 
 private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryViewModel(

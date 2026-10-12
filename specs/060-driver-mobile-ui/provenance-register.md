@@ -47,8 +47,6 @@ Keys are `<feature>.<declaration>`. Every one is described in the per-screen sec
 <!-- PLACEHOLDER-KEYS
 today.eta
 today.distance
-today.stopsDoneToday
-today.shiftLength
 today.heroMapStrip
 today.bayDetail
 collection.stopEta
@@ -60,13 +58,9 @@ collection.hubDropCount
 delivery.dropEta
 delivery.dropDistance
 delivery.mapPanel
-delivery.photoTimestamp
 delivery.photoGeotag
 delivery.cameraControls
 delivery.iosLivePreview
-account.dispatchPhone
-account.hubDeskContact
-account.handbookLink
 map.routeSchematic
 -->
 
@@ -82,9 +76,9 @@ sections are filled in as each phase lands.
 | **Delivery window** | home-delivery, delivery-run, drop-detail | ✅ | **Real since 069**: the window the customer was sold at checkout, read from the order and never derived. A drop with no window shows none. | — |
 | Map **marker coordinates** | map-collection, map-delivery | 🟡 | ⚠ 049 R13: shops carry no address or coordinates; orders carry an un-geocoded address. Decorative because the map is illustrative, not navigational — **Navigate still hands off to the device's own maps app with the real address string**. | `shop.address` + geocoding |
 | Map **cartography** | map-collection, map-delivery | ✅ | Real OpenStreetMap data via OpenFreeMap. ⚠ *Not* OSM's own tile servers, which forbid app distribution (R2). | — |
-| **Dispatch phone number** | help | ⛔ | ⚠ An outward-facing real-world identifier. The constitution requires these be **operator-supplied, never inferred**; the design's `1800 EFFY OPS` is sample content. Shown as unavailable. | The operator supplying a real number |
+| **Dispatch phone number** | help | ✅ | ⚠ **OPERATOR-SUPPLIED at build time** (`DISPATCH_PHONE` in `secrets.properties`), never sample content — the design's `1800 EFFY OPS` is not used. Blank shows as unavailable. | — |
 | Proof photo **geotag** | proof-photo, history-detail | ⛔ | No location capture is wired. A wrong geotag on a delivery record is evidence in a dispute. | Location capture + permission |
-| **Shift length** / **stops done** (off-duty) | offduty | ⛔ | ⚠ **RECLASSIFIED during implementation, 🟡 → ⛔.** The planning note called these decorative "because a driver does not route on them". Building the screen showed that is the wrong test: the figure a driver checks is *"did my stops register?"*, and rendering `0` after a full shift answers it **wrongly**. They render `—`. | A shift/roster model with a completed-stop count |
+| **Shift length** / **stops done** (off-duty) | offduty | ✅ | ⚠ **REAL since the driver-app review.** "Deliveries today" and "Runs finished" are counted from the driver's own history for the phone's calendar day; "Last shift" is timed on the phone from the duty toggle. A figure that is not known is **left out**, never drawn as `0` or a dash. | — |
 | **Bay / dock** detail | home, collection-run, hub-checkin | 🟡 | `shop` has no premises detail. | Shop premises fields |
 | **"assigned 9:02 am by dispatch"** | collection-run | 🟡 | Assignment time is not exposed by the driver API. | A field on the run DTO |
 
@@ -118,9 +112,9 @@ reason · history records and timelines · activity items and read state · app 
 | Duty pill "OFF DUTY" | ✅ | `driver.dutyStatus` |
 | Zone line | ✅ | `driver.zone`; omitted when unassigned |
 | Date ("Wednesday 22 Aug") | — | ⚠ **OMITTED, not placeholder.** The app has no date-formatting dependency and 060 adds no capability for a label. Unblocked by: a date utility, if a later slice wants one. |
-| Greeting name | ✅ | `driver.display` — ⚠ the design's time-of-day ("Morning,") is dropped; it needs a clock |
-| "Stops done" | ⛔ | No shift model and no completed-stop count. Renders `—`. ⚠ Showing `0` after a full shift would tell a driver their work did not register. **Unblocked by**: a shift/roster model |
-| "Shift length" | ⛔ | Same. Renders `—`. **Unblocked by**: a shift/roster model |
+| Greeting name | ✅ | `driver.display`, with the time of day ("Morning,") from the phone's clock |
+| "Deliveries today" / "Runs finished" | ✅ | Counted from the driver's history for the phone's calendar day. Replaces the design's "Stops done", which no record could back exactly. Left out until the history has been read. |
+| "Last shift" | ✅ | Timed on the phone from the duty toggle. ⚠ Left out when the shift did not start on this phone — the driver's record does not say when they went on duty. |
 | "Go on duty" action | ✅ | Real — calls `setDuty` |
 
 **Screens 10–11 · `home` / `home-delivery`** — `TodayScreen`, `CurrentWorkCard`, `UpNextList`
@@ -236,7 +230,7 @@ offline queue's own timestamp, ⚠ not invented.
 | Drop-spot choice (contactless) | ✅ | Serialised into the note (FR-023) |
 | Captured photo / signature bytes | ✅ | Real capture → real upload |
 | Photo caption **address** | ✅ | `Drop.addressFull` |
-| Photo caption **timestamp** | — | ⚠ **OMITTED** — no clock dependency |
+| Photo caption **timestamp** | ✅ | The phone's clock when the capture screen opened, in the phone's time zone. For the driver; the platform stamps the proof itself. |
 | Photo caption **geotag** | ⛔ | ⚠ **OMITTED.** A wrong geotag on a delivery record is evidence in a dispute. **Unblocked by**: location capture + permission |
 | Flash / flip controls | — | ⚠ **NOT RENDERED.** Neither path exposes torch or lens selection; a dead button is worse than an absent one |
 | iOS live viewfinder | 🟡 | Stand-in + system-camera handoff. ⚠ **Still an improvement**: iOS had *no* photo proof at all. **Unblocked by**: a Swift AVFoundation bridge |
@@ -286,11 +280,11 @@ the platform actually knows.
 | Duty status row | ✅ | `driver.dutyStatus` |
 | Delivery zone, home hub, vehicle | ✅ | `Driver` — ⚠ render `—` when unassigned, which is a real state for a newly provisioned driver, not a gap |
 | Appearance value | ✅ | The persisted `AppearanceMode` |
-| App version | ✅ | Build config |
+| App version | ✅ | What the installed build reports about itself (Android package info / iOS bundle) |
 | Sign-out warning's outstanding-work count | 🔢 | Derived from the active run when known; the clause is **omitted** when it is not, rather than guessing |
-| **Dispatch phone number** | ⛔ | ⚠ **REFUSED ON CONSTITUTIONAL GROUNDS.** The design supplies `1800 EFFY OPS`. A number a driver would dial is an outward-facing real-world identifier, and the constitution requires those be operator-supplied and **never inferred** — the rule exists because 037 read an address from session context and AWS mailed a real person. A plausible wrong number is worse than a blank one: the driver dials it and reaches a stranger, and every automated gate passes, because the defect is one of AUTHORITY not correctness. **Unblocked by**: the operator supplying one |
-| **Hub desk contact** | ⛔ | No contact on the operating-hub record. **Unblocked by**: a hub contact field |
-| **Driver handbook** | ⛔ | No such document exists. **Unblocked by**: an operator-published handbook URL |
+| **Dispatch phone number** | ✅ | ⚠ **OPERATOR-SUPPLIED at build time** (`DISPATCH_PHONE`), never inferred and never the design's sample `1800 EFFY OPS`. Tapping it opens the dialler. Blank ⇒ shown as unavailable with a line saying where to get the number. |
+| **Hub desk contact** | ✅ | Operator-supplied at build time (`HUB_DESK_PHONE`). Blank ⇒ unavailable. |
+| **Driver handbook** | ✅ | Operator-supplied at build time (`HANDBOOK_URL`). Blank ⇒ unavailable. |
 
 ### Group 10 — Cross-cutting
 *Pending — Phase 7.*

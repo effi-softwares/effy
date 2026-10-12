@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -229,6 +230,13 @@ private fun ManifestRow(line: ManifestLine) {
  * ⚠ The toggle is its OWN 48 dp target and is not the row above it: on the pickup screen the row
  * confirms the package, and a driver opening the list must not tick a package they have not loaded.
  */
+/**
+ * Told when a driver opens a package's item list: whether cold goods are in it, and how many lines.
+ * ⚠ An ambient rather than a parameter because the list sits four composables deep on two screens,
+ * and what it reports is telemetry, not behaviour. Never an item name or an order reference.
+ */
+val LocalManifestOpened = staticCompositionLocalOf<(hasCold: Boolean, lineCount: Int) -> Unit> { { _, _ -> } }
+
 @Composable
 fun ExpandableManifest(
     key: String,
@@ -238,6 +246,7 @@ fun ExpandableManifest(
     onExpanded: () -> Unit = {},
 ) {
     var open by rememberSaveable(key) { mutableStateOf(false) }
+    val reportOpened = LocalManifestOpened.current
     Column(modifier) {
         ClassSummaryRow(summary)
         if (items.isNotEmpty()) {
@@ -249,7 +258,10 @@ fun ExpandableManifest(
                     .heightIn(min = 48.dp)
                     .clickable {
                         open = !open
-                        if (open) onExpanded()
+                        if (open) {
+                            onExpanded()
+                            reportOpened(summary.hasCold, items.size)
+                        }
                     }
                     .semantics { role = Role.Button },
                 verticalAlignment = Alignment.CenterVertically,

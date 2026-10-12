@@ -62,4 +62,21 @@ class OfflineQueueTest {
         settings.putString("driver.offline.queue.v1", "not json at all {[")
         assertTrue(OfflineQueue(settings).pending.value.isEmpty())
     }
+
+    /** A write the platform refused is no longer sent — and is kept until the driver has been told. */
+    @Test
+    fun a_refused_action_leaves_the_queue_and_is_kept_to_show() {
+        val settings = MapSettings()
+        val q = OfflineQueue(settings)
+        q.enqueue(action("a"))
+        q.enqueue(action("b"))
+        q.refuse("a")
+        assertEquals(listOf("b"), q.pending.value.map { it.changeId })
+        assertEquals(listOf("a"), q.refused.value.map { it.changeId })
+        // Still there after the app is closed and opened again.
+        assertEquals(listOf("a"), OfflineQueue(settings).refused.value.map { it.changeId })
+        q.clearRefused()
+        assertTrue(q.refused.value.isEmpty())
+        assertTrue(OfflineQueue(settings).refused.value.isEmpty())
+    }
 }

@@ -8,6 +8,8 @@ import com.effyshopping.driver.mobile.features.history.domain.GetHistory
 import com.effyshopping.driver.mobile.features.history.domain.GetHistoryDetail
 import com.effyshopping.driver.mobile.features.history.domain.History
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDetail
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -25,9 +27,21 @@ data class HistoryUiState(
 class HistoryViewModel(
     private val getHistory: GetHistory,
     private val getDetail: GetHistoryDetail,
+    /** 071 — "your work changed": a round or drop that just finished belongs in this list. */
+    private val liveChanges: Flow<Unit> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(HistoryUiState())
     val state = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch { liveChanges.collect { reloadQuietly() } }
+    }
+
+    /** Re-read the list without the loading state: the driver did nothing, so nothing should appear to happen. */
+    private suspend fun reloadQuietly() {
+        if (_state.value.history == null || _state.value.isLoading) return
+        runCatching { getHistory() }.onSuccess { fresh -> _state.update { it.copy(history = fresh) } }
+    }
 
     fun load() {
         _state.update { it.copy(isLoading = true, message = null) }

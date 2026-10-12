@@ -41,7 +41,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.effyshopping.driver.mobile.core.placeholder.unavailableLabel
+import androidx.compose.runtime.remember
+import com.effyshopping.driver.mobile.core.platform.localDateIso
+import com.effyshopping.driver.mobile.core.platform.localHour
+import com.effyshopping.driver.mobile.core.platform.localTimeText
+import com.effyshopping.driver.mobile.core.presentation.dayText
+import com.effyshopping.driver.mobile.core.presentation.durationText
+import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
 import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
 import com.effyshopping.driver.mobile.features.today.domain.Phase
@@ -91,7 +97,7 @@ fun TodayScreen(
                     .padding(horizontal = 20.dp),
             ) {
                 when {
-                    state.dutyStatus == DutyStatus.OFF_DUTY -> OffDutyBody(driver)
+                    state.dutyStatus == DutyStatus.OFF_DUTY -> OffDutyBody(driver, state)
                     state.isLoading && state.today == null -> TodaySkeleton(reducedMotion)
                     state.loadFailed -> LoadFailedBody(onRefresh)
                     state.today == null || state.today.phase == Phase.IDLE -> IdleBody(reducedMotion)
@@ -136,14 +142,17 @@ private fun Header(
                     )
                 }
             }
-            TextButton(onClick = onOpenActivity) { Text("Activity") }
+            // ⚠ The count is what is NEW to this driver — the feed gave no sign of anything unread.
+            TextButton(onClick = onOpenActivity) {
+                Text(if (state.newActivity > 0) "Activity · ${state.newActivity} new" else "Activity")
+            }
             DutyPill(onDuty = onDuty)
         }
 
         // ⚠ The offline state the app has never had an interface for. The write queue has existed
         // since 049 (FR-040); a driver in a loading dock could not tell whether the app was broken
         // or the signal was.
-        if (state.offline) OfflineBanner(state.cachedAt)
+        if (state.offline) OfflineBanner(state.syncedAtEpochMillis)
     }
 }
 
@@ -212,7 +221,7 @@ private fun DutyPill(onDuty: Boolean) {
 }
 
 @Composable
-private fun OfflineBanner(cachedAt: String?) {
+private fun OfflineBanner(syncedAtEpochMillis: Long?) {
     Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
         Row(
             Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -229,9 +238,9 @@ private fun OfflineBanner(cachedAt: String?) {
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
-                cachedAt?.let {
+                syncedAtEpochMillis?.let {
                     Text(
-                        "Last synced ${it.take(16).replace('T', ' ')}. Anything you confirm now " +
+                        "Last synced ${localTimeText(it, withDay = false)}. Anything you confirm now " +
                             "uploads when you reconnect.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
@@ -245,24 +254,24 @@ private fun OfflineBanner(cachedAt: String?) {
 // ── Bodies ──────────────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun OffDutyBody(driver: Driver) {
+private fun OffDutyBody(driver: Driver, state: TodayUiState) {
+    val now = remember { nowEpochMillis() }
     Column(Modifier.fillMaxWidth().padding(top = 32.dp)) {
-        // ⚠ The design's "Wednesday 22 Aug · Melbourne". The DATE is omitted: this app has no
-        // date-formatting dependency and 060 adds no capability for a label. The zone is real.
-        driver.zone?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(10.dp))
-        }
-
-        // ⚠ The design reads "Morning, Jomo." The TIME OF DAY is dropped — it needs a clock this
-        // app has no dependency for — but the name is real PLATFORM data and personalisation is the
-        // point of the screen, so it stays.
+        // The day on the phone's own calendar, then what the driver is cleared to cover.
         Text(
-            "Hello,\n${driver.display.substringBefore(' ')}.",
+            listOfNotNull(dayText(localDateIso(now)), driver.zone?.takeIf { it.isNotBlank() }).joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+
+        val greeting = when (localHour(now)) {
+            in 5..11 -> "Morning"
+            in 12..17 -> "Afternoon"
+            else -> "Evening"
+        }
+        Text(
+            "$greeting,\n${driver.display.substringBefore(' ')}.",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.SemiBold,
         )
@@ -274,17 +283,23 @@ private fun OffDutyBody(driver: Driver) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(Modifier.height(28.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(18.dp))
-
-        // ⚠ BOTH figures are PLACEHOLDER_OPERATIONAL — there is no shift model and no completed-stop
-        // count. They render as "—" rather than a number, because showing `0` after a full shift
-        // would tell a driver their work did not register. The dash is legible HERE (a labelled
-        // column reads as "not available") where it would not be in the hero's inline metrics row.
-        Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            ShiftStat("Stops done", unavailableLabel())
-            ShiftStat("Shift length", unavailableLabel())
+        // ⚠ These were two dashes: "Stops done" and "Shift length" had nothing behind them. What is
+        // drawn now is counted from the driver's own history, and timed from the duty toggle on this
+        // phone. A figure that is not known is LEFT OUT — a `0` after a full shift would tell a
+        // driver their work did not register.
+        val stats = state.dayStats
+        val shift = state.lastShiftMillis
+        if (stats != null || shift != null) {
+            Spacer(Modifier.height(28.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(18.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                stats?.let {
+                    ShiftStat("Deliveries today", it.deliveries.toString())
+                    ShiftStat("Runs finished", it.runsFinished.toString())
+                }
+                shift?.let { ShiftStat("Last shift", durationText(it)) }
+            }
         }
     }
 }

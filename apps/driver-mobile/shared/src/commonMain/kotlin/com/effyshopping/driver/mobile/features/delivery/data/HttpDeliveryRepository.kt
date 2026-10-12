@@ -45,6 +45,8 @@ class HttpDeliveryRepository(
     private val api: HttpClient,
     private val offline: OfflineQueue,
     private val json: Json = Json { encodeDefaults = true },
+    /** Told when a proof image did not reach storage, with a bounded reason — never the image. */
+    private val onProofUploadFailed: (reason: String) -> Unit = {},
 ) : DeliveryRepository {
 
     override suspend fun getRun(runId: String): DeliveryRun = request {
@@ -90,7 +92,10 @@ class HttpDeliveryRepository(
         // a key to something already stored, so a delivery can never be marked against proof that
         // failed to upload. This is also why the media path is not offline-queueable: bytes do not
         // belong in a replay queue (research R9).
-        if (!uploaded) throw AppException(AppError.Network)
+        if (!uploaded) {
+            onProofUploadFailed("upload_rejected")
+            throw AppException(AppError.Network)
+        }
 
         // ⚠ THIS WAS `if (method == PHOTO) Photo else Signature`, AND IT WAS A LATENT DEFECT. Any
         // method that was not PHOTO became a SIGNATURE — harmless while only two methods reached

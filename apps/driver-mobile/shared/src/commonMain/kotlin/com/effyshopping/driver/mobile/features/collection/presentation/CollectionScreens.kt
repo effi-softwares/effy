@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.collection.presentation
 
+import com.effyshopping.driver.mobile.core.presentation.BackButton
 import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
 import com.effyshopping.driver.mobile.core.presentation.OpensLine
 import androidx.compose.foundation.BorderStroke
@@ -893,16 +894,7 @@ internal fun ScreenHeader(title: String, subtitle: String?, onBack: () -> Unit) 
         Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 4.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = RoundedCornerShape(11.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.size(48.dp).clickable(onClick = onBack),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("←", style = MaterialTheme.typography.titleMedium)
-            }
-        }
+        BackButton(onBack)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)

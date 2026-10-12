@@ -25,8 +25,8 @@ import kotlinx.io.IOException
  *  - **2xx** (applied, or a benign idempotent no-op) → remove from the queue.
  *  - **Network down again** → stop the drain; keep this and the rest for the next trigger.
  *  - **Definitive refusal** (a 4xx that is not network — e.g. the run ended, a validation error) →
- *    **dead-letter** it (remove) after a few attempts: retrying forever cannot help, and the backend
- *    has already decided. The mirror reconciles on the next read.
+ *    stop sending it and keep it as **refused** ([OfflineQueue.refused]) so the driver is told:
+ *    retrying forever cannot help, and the backend has already decided.
  *
  * Triggered on app launch and on the home refresh (the driver coming back online refreshes there). No
  * connectivity API is assumed; a trigger that runs while still offline simply fails fast and re-queues.
@@ -45,10 +45,10 @@ class SyncCoordinator(
                 val action = queue.peek() ?: break
                 when (replay(action)) {
                     Result.Applied -> queue.remove(action.changeId)
-                    Result.Dead -> queue.remove(action.changeId)
+                    Result.Dead -> queue.refuse(action.changeId)
                     Result.Retry -> {
                         queue.bumpAttempts(action.changeId)
-                        if (action.attempts + 1 >= MAX_ATTEMPTS) queue.remove(action.changeId) else break
+                        if (action.attempts + 1 >= MAX_ATTEMPTS) queue.refuse(action.changeId) else break
                     }
                     Result.Offline -> break // still offline — leave everything for the next trigger
                 }

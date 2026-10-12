@@ -44,6 +44,8 @@ fun ArrivedScreen(
     working: Boolean,
     onComplete: () -> Unit,
     onCantDeliver: () -> Unit,
+    /** Opens the dialler on dispatch; null when the operator has not supplied a number. */
+    onCallDispatch: (() -> Unit)? = null,
 ) {
     Column(
         Modifier.fillMaxSize().padding(horizontal = 20.dp),
@@ -91,13 +93,15 @@ fun ArrivedScreen(
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // Masked contact remains unbuilt (049 R6) — disabled with a reason, not a dead button.
+            // ⚠ This read "Call customer" and could never be pressed: the platform gives a driver no
+            // customer number (masked contact is unbuilt, 049 R6). Dispatch is who a driver at a
+            // door can actually reach, when the operator has supplied its number.
             OutlinedButton(
-                onClick = {},
-                enabled = false,
+                onClick = { onCallDispatch?.invoke() },
+                enabled = onCallDispatch != null,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.weight(1f).height(52.dp),
-            ) { Text("Call customer") }
+            ) { Text("Call dispatch") }
         }
 
         Spacer(Modifier.height(14.dp))

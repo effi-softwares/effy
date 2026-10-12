@@ -11,7 +11,10 @@ import com.effyshopping.driver.mobile.features.collection.domain.GetCollectionRu
 import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
+import com.effyshopping.driver.mobile.features.collection.domain.ReportedProblem
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
+import com.effyshopping.driver.mobile.features.collection.domain.StopDraft
+import com.effyshopping.driver.mobile.features.collection.domain.StopDrafts
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,11 +34,9 @@ data class CollectionUiState(
      * read-only before: a driver confirmed the whole stop with one button and had no way to work
      * through the packages as they loaded them.
      *
-     * ⚠ **UI-LOCAL. Ticking sends nothing.** The existing single "collect" call still fires on the
-     * swipe commit, which is what keeps 060 a presentation slice (FR-024) — a per-package endpoint
-     * would be backend work. Stated consequence: this does NOT survive process death, so a driver who
-     * leaves the stop and returns starts the ticking again. Recorded in the spec's edge cases rather
-     * than discovered on a loading dock.
+     * ⚠ **Ticking sends nothing.** Every package's outcome goes with the one "collect" call on the
+     * swipe commit. Until then the ticks and reports are kept on the phone ([StopDrafts]), so they
+     * are still there if the app is closed while the driver is loading.
      */
     val confirmedPackageIds: Set<String> = emptySet(),
     /** Packages the driver said they are NOT collecting, by [CollectionPackage.key]. Sent with the collect. */
@@ -56,6 +57,8 @@ class CollectionViewModel(
     private val newChangeId: () -> String,
     /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
+    /** Where the stop in progress is kept across the app being closed. Null in tests that do not care. */
+    private val drafts: StopDrafts? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionUiState())
     val state = _state.asStateFlow()
@@ -96,10 +99,15 @@ class CollectionViewModel(
         // kept when the same one is opened again, which is what coming back from the problem screen is.
         _state.update {
             if (it.stop?.stopId == stopId) it.copy(isLoading = true, message = null)
-            else it.copy(
-                isLoading = true, stop = null, message = null,
-                confirmedPackageIds = emptySet(), reportedPackages = emptyMap(),
-            )
+            else {
+                // A different stop — unless it is the one the driver was on when the app was closed.
+                val kept = drafts?.load(runId, stopId)
+                it.copy(
+                    isLoading = true, stop = null, message = null,
+                    confirmedPackageIds = kept?.confirmed.orEmpty(),
+                    reportedPackages = kept?.reported.orEmpty().mapValues { (_, p) -> PackageProblem(p.kind, p.note) },
+                )
+            }
         }
         viewModelScope.launch {
             try {
@@ -126,6 +134,7 @@ class CollectionViewModel(
         viewModelScope.launch {
             try {
                 collectStop(runId, stopId, newChangeId(), outcomes)
+                drafts?.clear()
                 _state.update { it.copy(isWorking = false) }
                 onDone()
             } catch (e: AppException) {
@@ -145,6 +154,20 @@ class CollectionViewModel(
             if (!next.add(key)) next.remove(key)
             st.copy(confirmedPackageIds = next, reportedPackages = st.reportedPackages - key)
         }
+        keepDraft()
+    }
+
+    private fun keepDraft() {
+        val now = _state.value
+        val stopId = now.stop?.stopId ?: return
+        drafts?.save(
+            runId,
+            StopDraft(
+                stopId = stopId,
+                confirmed = now.confirmedPackageIds,
+                reported = now.reportedPackages.mapValues { (_, p) -> ReportedProblem(p.kind, p.note) },
+            ),
+        )
     }
 
     /**
@@ -161,6 +184,7 @@ class CollectionViewModel(
                 confirmedPackageIds = st.confirmedPackageIds - key,
             )
         }
+        keepDraft()
     }
 
     fun checkIn() {

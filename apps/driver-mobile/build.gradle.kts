@@ -60,7 +60,14 @@ if (missingKeys.isNotEmpty()) {
 }
 
 // Exposed to the :shared module's BuildKonfig block (shared/build.gradle.kts).
-val optionalKeys = listOf("POSTHOG_KEY", "POSTHOG_HOST", "TELEMETRY_ENABLED")
+//
+// DISPATCH_PHONE / HUB_DESK_PHONE / HANDBOOK_URL are the Help screen's contacts. ⚠ They are real-world
+// identifiers a driver will dial, so they are OPERATOR-SUPPLIED and have no default: left blank, the
+// app says the contact is not set up rather than showing a number nobody chose.
+val optionalKeys = listOf(
+    "POSTHOG_KEY", "POSTHOG_HOST", "TELEMETRY_ENABLED",
+    "DISPATCH_PHONE", "HUB_DESK_PHONE", "HANDBOOK_URL",
+)
 
 // 050 — OPTIONAL telemetry config; missing values bake in "" so telemetry stays a no-op (FR-027).
 extra["effyConfig"] =

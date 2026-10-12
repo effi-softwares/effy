@@ -29,6 +29,8 @@ class EffyApp : Application() {
                 host = AppConfig.posthogHost,
             ),
             pushTokenProvider = FirebasePushTokenProvider(applicationContext),
+            // What this installed build calls itself — shown on Help.
+            appVersion = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull(),
         )
     }
 

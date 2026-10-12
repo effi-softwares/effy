@@ -30,14 +30,6 @@ object TodayPlaceholders {
     /** ⚠ Same cause: no coordinates, so no distance. */
     val distance: Sourced<Nothing?> = operational("Shop geodata — `shop.address` + geocoding")
 
-    /**
-     * ⚠ Off-duty "Stops done" and "Shift length". There is no shift or roster model, and no
-     * completed-stop count. Rendering `0` after a full shift would tell a driver their work did not
-     * register — which is why these are OPERATIONAL and not decorative.
-     */
-    val stopsDoneToday: Sourced<Nothing?> = operational("A shift/roster model with a completed-stop count")
-    val shiftLength: Sourced<Nothing?> = operational("A shift/roster model")
-
     // ── DECORATIVE: invented, but acting on them costs nothing ───────────────────────────────────
 
     /**

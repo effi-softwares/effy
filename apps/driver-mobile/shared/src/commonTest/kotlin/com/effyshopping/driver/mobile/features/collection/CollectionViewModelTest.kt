@@ -16,6 +16,9 @@ import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
+import com.effyshopping.driver.mobile.features.collection.domain.StopDrafts
+import com.effyshopping.driver.mobile.features.collection.data.SettingsStopDrafts
+import com.russhwolf.settings.MapSettings
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -46,14 +49,41 @@ private class FakeCollectionRepo(
 class CollectionViewModelTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 
-    private fun vm(repo: FakeCollectionRepo) = CollectionViewModel(
+    private fun vm(repo: FakeCollectionRepo, drafts: StopDrafts? = null) = CollectionViewModel(
         runId = "r1",
         getRun = GetCollectionRun(repo),
         getStop = GetShopStop(repo),
         collectStop = CollectStop(repo),
         checkInHub = CheckInHub(repo),
         newChangeId = { "cid" },
+        drafts = drafts,
     )
+
+    /** The phone closed the app while the driver was loading: what they entered must still be there. */
+    @Test fun ticks_and_reports_survive_the_app_being_closed_and_go_once_collected() = runTest {
+        val drafts = SettingsStopDrafts(MapSettings())
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a"), pkg("b")) }
+        vm(repo, drafts).apply { loadStop("s1"); togglePackage("a"); reportPackage("b", "Damaged", "torn") }
+
+        val reopened = vm(repo, drafts)
+        reopened.loadStop("s1")
+        assertEquals(setOf("a"), reopened.state.value.confirmedPackageIds)
+        assertEquals("Damaged — torn", reopened.state.value.reportedPackages["b"]?.asNote())
+
+        reopened.collect("s1") {}
+        val after = vm(repo, drafts)
+        after.loadStop("s1")
+        assertEquals(emptySet(), after.state.value.confirmedPackageIds)
+    }
+
+    @Test fun a_kept_stop_is_not_applied_to_a_different_stop() = runTest {
+        val drafts = SettingsStopDrafts(MapSettings())
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a")) }
+        vm(repo, drafts).apply { loadStop("s1"); togglePackage("a") }
+        val other = vm(repo, drafts)
+        other.loadStop("s2")
+        assertEquals(emptySet(), other.state.value.confirmedPackageIds)
+    }
 
     @Test fun loads_a_run() = runTest {
         val repo = FakeCollectionRepo(run = CollectionRun("r1", "active", listOf(
