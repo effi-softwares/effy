@@ -2,6 +2,7 @@
 import { availabilityPredicate, pooled, type Queryable } from "@effy/edge-shared";
 
 import { CARD_SELECT, type CardRow } from "../lib/cards";
+import { categorySubtreeByKey } from "../lib/category-tree";
 
 /** A category that directly holds purchasable products (drives the Home category rails). */
 export interface RailCandidate {
@@ -42,11 +43,11 @@ ${RAIL_WHERE}
 ORDER BY p.created_at DESC
 LIMIT $1`, [limit]),
 
-    /** A category rail — purchasable products whose primary category is `categoryKey`. */
+    /** A category rail — purchasable products filed in `categoryKey` or anywhere under it. */
     categoryCards: (categoryKey, limit) =>
       cards(`${CARD_SELECT}
 ${RAIL_WHERE}
-  AND p.primary_category_id = (SELECT id FROM public.category WHERE key = $1)
+  AND p.primary_category_id IN ${categorySubtreeByKey("$1")}
 ORDER BY p.created_at DESC
 LIMIT $2`, [categoryKey, limit]),
 

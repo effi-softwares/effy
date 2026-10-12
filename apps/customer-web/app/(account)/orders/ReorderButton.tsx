@@ -1,18 +1,16 @@
 "use client"
 
 import { useState } from "react"
+import { RefreshCcw } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { reorderPastOrder } from "@/lib/cart-actions"
 
 /**
- * "Buy again" — a past order back in the cart (027 FR-034).
+ * Buy again: put a past order's items back in the cart.
  *
- * A client island on an otherwise server-rendered page: the order list is a request-time server read and
- * stays that way, and only this button needs to be interactive.
- *
- * ⚠ The OUTCOME is announced, not just the action. Adding a subset silently is the one result the shopper
- * cannot detect for themselves — they would go to the cart believing they had reordered everything
- * (FR-035). The message carries counts only, never a shop (FR-062).
+ * ⚠ IT SAYS WHAT DID NOT GO IN. Some of an old order may no longer be sold or in stock; adding the
+ * rest silently would leave the shopper believing the whole order was in their cart.
  */
 export function ReorderButton({ orderId }: { orderId: string }) {
   const [busy, setBusy] = useState(false)
@@ -23,7 +21,6 @@ export function ReorderButton({ orderId }: { orderId: string }) {
     setMessage(null)
     const result = await reorderPastOrder(orderId)
     setBusy(false)
-
     if (!result) {
       setMessage("We couldn’t reorder that just now.")
       return
@@ -40,14 +37,10 @@ export function ReorderButton({ orderId }: { orderId: string }) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void reorder()}
-        className="text-sm font-medium hover:underline disabled:text-muted-foreground disabled:no-underline"
-      >
+      <Button type="button" variant="outline" disabled={busy} onClick={() => void reorder()}>
+        <RefreshCcw aria-hidden="true" />
         {busy ? "Adding…" : "Buy again"}
-      </button>
+      </Button>
       {message ? (
         <span role="status" className="text-xs text-muted-foreground">
           {message}

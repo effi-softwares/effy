@@ -67,6 +67,22 @@ export interface OrderSummaryDTO {
    * or how many suppliers fill the order.
    */
   thumbnails?: (string | null)[];
+  /**
+   * 084 — what the order list says beside the totals. ⚠ ALL OPTIONAL, each absent (never empty or
+   * false) when it does not apply or the server predates it; a client then says less, never something
+   * else. ⚠ Each is derived by the same function the receipt uses, so the list and the order page
+   * cannot disagree — and none of them says how many suppliers or packages there are.
+   */
+  /** The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order. */
+  stage?: OrderStage;
+  /** The promise the order was sold, as on the receipt. Absent for a courier order. */
+  arrivalEstimates?: ArrivalEstimateDTO[];
+  /** When the whole order had arrived (ISO). Only once `stage` is `delivered`. */
+  deliveredAt?: string;
+  /** What has gone back to the customer so far. Absent when nothing has. */
+  refundedTotal?: string;
+  /** The whole amount has gone back. */
+  fullyRefunded?: true;
 }
 
 /** A line on the receipt (product snapshot — never a shop). */

@@ -3,52 +3,76 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 
 import { LIST_NAME_MAX, type SavedListDTO } from "@effy/shared-types"
 
 import { btnClass } from "@/components/storefront/actions"
+import { Field, input } from "@/components/storefront/kit"
+import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/dialog"
 import { createList, deleteList, listLabel, nameRemaining, refusalText, renameList } from "@/lib/list-actions"
 
 const href = (list: SavedListDTO) => (list.isDefault ? "/saved" : `/saved/${list.id}`)
 
 /**
- * The shopper's lists, in one place (068 FR-027): "Saved" first, each with its count.
+ * The head of every saved-items page (reference: Saved items, Named list): which list this is and
+ * what is in it, the list's own actions, and the shopper's lists as a row of tabs — "Saved" first,
+ * each with its count (068 FR-027).
  *
- * ⚠ TABS OVER ONE LIST OF ROWS, not a grid of list cards (Principle V). The row scrolls sideways
- * rather than wrapping, so twenty lists stay one line on a phone.
+ * ⚠ TABS OVER ONE LIST OF ROWS, not a grid of list cards. The row scrolls sideways rather than
+ * wrapping, so twenty lists stay one line on a phone.
  */
-export function ListTabs({ lists, currentId }: { lists: SavedListDTO[]; currentId: string }) {
+export function ListTabs({
+  lists,
+  currentId,
+  droppedCount = 0,
+}: {
+  lists: SavedListDTO[]
+  currentId: string
+  /** How many of this list's items cost less than when they were saved. */
+  droppedCount?: number
+}) {
   const current = lists.find((l) => l.id === currentId)
+  const count = current?.count ?? 0
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-3 border-b">
-        <nav aria-label="Your lists" className="-mb-px flex min-w-0 flex-1 gap-1 overflow-x-auto">
-          {lists.map((list) => {
-            const selected = list.id === currentId
-            return (
-              <Link
-                key={list.id}
-                href={href(list)}
-                aria-current={selected ? "page" : undefined}
-                className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm ${
-                  selected
-                    ? "border-primary font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {/* Plain text: a list name is the shopper's own and is never interpreted. */}
-                {listLabel(list)} <span className="text-muted-foreground">({list.count})</span>
-              </Link>
-            )
-          })}
-        </nav>
-        <NewList />
+    <>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          {/* Plain text: a list name is the shopper's own and is never interpreted. */}
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {current && !current.isDefault ? listLabel(current) : "Saved items"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {count === 1 ? "1 item" : `${count} items`}
+            {droppedCount > 0 && ` · ${droppedCount} dropped in price`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {/* "Saved" offers neither: it cannot be renamed or deleted (FR-003). */}
+          {current && !current.isDefault && <ManageList list={current} />}
+          <NewList />
+        </div>
       </div>
 
-      {/* "Saved" offers neither: it cannot be renamed or deleted (FR-003). */}
-      {current && !current.isDefault && <ManageList list={current} />}
-    </div>
+      <nav aria-label="Your lists" className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+        {lists.map((list) => {
+          const selected = list.id === currentId
+          return (
+            <Link
+              key={list.id}
+              href={href(list)}
+              aria-current={selected ? "page" : undefined}
+              className={btnClass(selected ? "muted" : "ghost", "sm")}
+            >
+              {listLabel(list)}{" "}
+              <span className="font-normal text-muted-foreground">{list.count}</span>
+            </Link>
+          )
+        })}
+      </nav>
+    </>
   )
 }
 
@@ -64,34 +88,25 @@ function NameField({
   error: string | null
 }) {
   const remaining = nameRemaining(value, LIST_NAME_MAX)
+  const tooLong = remaining < 0
   return (
-    <>
+    <Field
+      label="Name"
+      htmlFor={id}
+      error={error ?? (tooLong ? `${-remaining} too many characters` : null)}
+      hint={`${remaining} characters left`}
+    >
       <input
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"
-        aria-invalid={error !== null || remaining < 0}
-        aria-describedby={`${id}-hint`}
-        className="mt-2 h-10 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:border-ring aria-invalid:border-destructive"
+        aria-invalid={error !== null || tooLong || undefined}
+        className={input}
       />
-      <p id={`${id}-hint`} className="mt-1 text-xs text-muted-foreground">
-        {error ? (
-          <span role="alert" className="text-destructive">
-            {error}
-          </span>
-        ) : remaining < 0 ? (
-          `${-remaining} too many characters`
-        ) : (
-          `${remaining} characters left`
-        )}
-      </p>
-    </>
+    </Field>
   )
 }
-
-const dialogClass =
-  "fx-dialog fx-dialog-modal fx-responsive m-auto w-[calc(100%-2rem)] max-w-md rounded-lg border bg-background p-6 text-foreground shadow-lg"
 
 function NewList() {
   const router = useRouter()
@@ -119,28 +134,29 @@ function NewList() {
 
   return (
     <>
-      <button type="button" onClick={() => ref.current?.showModal()} className={btnClass("outline", "sm", "mb-1 shrink-0")}>
+      <Button type="button" onClick={() => ref.current?.showModal()}>
+        <Plus aria-hidden="true" />
         New list
-      </button>
-      <dialog ref={ref} aria-labelledby="new-list-title" className={dialogClass}>
-        <form onSubmit={submit}>
-          <h2 id="new-list-title" className="text-base font-semibold">
-            New list
-          </h2>
-          <label htmlFor="new-list-name" className="mt-3 block text-sm">
-            Name
-          </label>
-          <NameField id="new-list-name" value={name} onChange={setName} error={error} />
-          <div className="mt-4 flex justify-end gap-2">
-            <button type="button" onClick={() => ref.current?.close()} className={btnClass("muted", "md")}>
+      </Button>
+      <Dialog
+        ref={ref}
+        title="New list"
+        description="Group items you buy together, like a weekly shop."
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => ref.current?.close()}>
               Cancel
-            </button>
-            <button type="submit" disabled={busy || nameRemaining(name, LIST_NAME_MAX) < 0} className={btnClass("primary", "md")}>
+            </Button>
+            <Button type="submit" form="new-list-form" disabled={busy || nameRemaining(name, LIST_NAME_MAX) < 0}>
               Create
-            </button>
-          </div>
+            </Button>
+          </>
+        }
+      >
+        <form id="new-list-form" onSubmit={submit}>
+          <NameField id="new-list-name" value={name} onChange={setName} error={error} />
         </form>
-      </dialog>
+      </Dialog>
     </>
   )
 }
@@ -182,56 +198,60 @@ function ManageList({ list }: { list: SavedListDTO }) {
   }
 
   return (
-    <div className="mt-3 flex gap-4 text-sm">
-      <button type="button" onClick={() => renameRef.current?.showModal()} className="text-muted-foreground hover:underline">
-        Rename list
-      </button>
-      <button type="button" onClick={() => deleteRef.current?.showModal()} className="text-muted-foreground hover:underline">
+    <>
+      <Button type="button" variant="outline" onClick={() => renameRef.current?.showModal()}>
+        <Pencil aria-hidden="true" />
+        Rename
+      </Button>
+      <Button type="button" variant="outline" onClick={() => deleteRef.current?.showModal()}>
+        <Trash2 aria-hidden="true" />
         Delete list
-      </button>
+      </Button>
 
-      <dialog ref={renameRef} aria-labelledby="rename-list-title" className={dialogClass}>
-        <form onSubmit={rename}>
-          <h2 id="rename-list-title" className="text-base font-semibold">
-            Rename list
-          </h2>
-          <label htmlFor="rename-list-name" className="mt-3 block text-sm">
-            Name
-          </label>
-          <NameField id="rename-list-name" value={name} onChange={setName} error={error} />
-          <div className="mt-4 flex justify-end gap-2">
-            <button type="button" onClick={() => renameRef.current?.close()} className={btnClass("muted", "md")}>
+      <Dialog
+        ref={renameRef}
+        title="Rename list"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => renameRef.current?.close()}>
               Cancel
-            </button>
-            <button type="submit" disabled={busy || nameRemaining(name, LIST_NAME_MAX) < 0} className={btnClass("primary", "md")}>
+            </Button>
+            <Button type="submit" form="rename-list-form" disabled={busy || nameRemaining(name, LIST_NAME_MAX) < 0}>
               Save
-            </button>
-          </div>
+            </Button>
+          </>
+        }
+      >
+        <form id="rename-list-form" onSubmit={rename}>
+          <NameField id="rename-list-name" value={name} onChange={setName} error={error} />
         </form>
-      </dialog>
+      </Dialog>
 
-      <dialog ref={deleteRef} aria-labelledby="delete-list-title" className={dialogClass}>
-        <h2 id="delete-list-title" className="text-base font-semibold">
-          Delete "{listLabel(list)}"?
-        </h2>
-        {/* ⚠ FR-006: BOTH numbers. What is in the list, and how much of it lives nowhere else — the
-            second is what the shopper actually loses, and the delete un-saves exactly that many. */}
-        <p className="mt-2 text-sm">{deleteSummary(list)}</p>
+      <Dialog
+        ref={deleteRef}
+        alert
+        title={`Delete "${listLabel(list)}"?`}
+        // ⚠ FR-006: BOTH numbers. What is in the list, and how much of it lives nowhere else — the
+        // second is what the shopper actually loses, and the delete un-saves exactly that many.
+        description={deleteSummary(list)}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => deleteRef.current?.close()}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={remove} disabled={busy}>
+              Delete list
+            </Button>
+          </>
+        }
+      >
         {error && (
-          <p role="alert" className="mt-2 text-sm text-destructive">
+          <p role="alert" className="text-sm font-medium text-destructive">
             {error}
           </p>
         )}
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={() => deleteRef.current?.close()} className={btnClass("muted", "md")}>
-            Cancel
-          </button>
-          <button type="button" onClick={remove} disabled={busy} className={btnClass("destructive", "md")}>
-            Delete list
-          </button>
-        </div>
-      </dialog>
-    </div>
+      </Dialog>
+    </>
   )
 }
 

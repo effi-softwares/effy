@@ -1,10 +1,13 @@
 import Image from "next/image"
+import { Package } from "lucide-react"
 
 import { sellerIdentity } from "@effy/legal-content"
 import { DELIVERY_FEE_LINE_LABEL, type OrderDTO, type OrderItemDTO, type PaymentMethodSummaryDTO } from "@effy/shared-types"
 
-import { StatusPill } from "@/components/receipt/StatusPill"
+import { BuyLineAgain, PrintReceipt } from "@/components/receipt/ReceiptActions"
+import { Badge } from "@/components/ui/badge"
 import { formatMoney } from "@/lib/money"
+import { cn } from "@/lib/utils"
 
 /**
  * THE RECEIPT DOCUMENT — the itemised record of one paid order (052 US1).
@@ -21,88 +24,90 @@ import { formatMoney } from "@/lib/money"
  * Pure and synchronous, so it is unit-testable: the pages hosting it are async Server Components,
  * which Vitest cannot render. (The same reasoning as `OrderAddresses`.)
  */
-export function ReceiptDocument({ order }: { order: OrderDTO }) {
+export function ReceiptDocument({
+  order,
+  unavailable = [],
+  buyAgain = false,
+  children,
+}: {
+  order: OrderDTO
+  /** Names of lines that were out of stock and are not coming. They stay on the record, marked. */
+  unavailable?: readonly string[]
+  /** Offer "Buy again" on each line (the order page; not the confirmation a moment after buying). */
+  buyAgain?: boolean
+  /** The receipt's foot — where it was sent, and to whom it was billed. */
+  children?: React.ReactNode
+}) {
+  const missing = new Set(unavailable)
   return (
-    <section className="overflow-hidden rounded-lg border">
+    <section aria-labelledby="receipt-title" className="rounded-lg border bg-card shadow-xs">
       <Masthead order={order} />
-
-      <div className="px-6 pt-1">
-        <LineItemHeader />
-        {order.items.map((item, i) => (
-          <LineItem
-            key={item.productId}
-            item={item}
-            currency={order.currency}
-            last={i === order.items.length - 1}
-          />
-        ))}
+      <div className="px-6 pb-6">
+        <table className="w-full border-collapse text-sm tabular-nums">
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th scope="col" className="h-10 px-2 text-left font-medium">Item</th>
+              <th scope="col" className="h-10 px-2 text-right font-medium">Qty</th>
+              <th scope="col" className="h-10 px-2 text-right font-medium">Amount</th>
+              {buyAgain && (
+                <th scope="col" className="h-10 px-2 max-md:hidden print:hidden">
+                  <span className="sr-only">Actions</span>
+                </th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {order.items.map((item) => (
+              <LineItem
+                key={item.productId}
+                item={item}
+                currency={order.currency}
+                unavailable={missing.has(item.productName)}
+                buyAgain={buyAgain}
+              />
+            ))}
+          </tbody>
+        </table>
+        <Totals order={order} />
       </div>
-
-      <Totals order={order} />
+      {children && <div className="border-t p-6">{children}</div>}
     </section>
   )
 }
 
+/**
+ * Who sold it, to which order, and when — the three things that make this a record.
+ *
+ * ⚠ THE SELLER'S IDENTITY COMES FROM `@effy/legal-content` AND ONLY WHAT IS RECORDED IS SHOWN. A
+ * missing ABN or address is omitted, never filled with a placeholder: this is a document a customer
+ * keeps (052; `legal-absence.test.tsx`).
+ */
 function Masthead({ order }: { order: OrderDTO }) {
   const paid = order.paymentStatus === "succeeded" || order.status === "paid"
-  return (
-    <div className="flex items-start justify-between gap-6 border-b p-6">
-      <div className="flex flex-col gap-2.5">
-        <div className="flex items-center gap-2.5">
-          <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Receipt</h2>
-          {paid ? <StatusPill tone="paid">Paid</StatusPill> : null}
-        </div>
-        <div className="flex flex-col gap-0.5 text-[13px] text-muted-foreground">
-          <p>
-            Order <span className="font-medium tabular-nums text-foreground">{order.orderNumber}</span>
-          </p>
-          {order.placedAt ? <p>{formatPlacedAt(order.placedAt)}</p> : null}
-        </div>
-      </div>
-
-      <SellerIdentityBlock />
-    </div>
-  )
-}
-
-/**
- * The seller identity block (FR-030).
- *
- * ⚠ EVERY OPTIONAL FIELD IS OMITTED WHEN UNSUPPLIED — never blank, never the bracketed placeholder
- * (FR-031). `sellerIdentity()` owns that decision so three surfaces cannot each get it subtly wrong;
- * an unsupplied ABN arrives here as `null` and renders as nothing at all.
- *
- * ⚠ The ABN's ABSENCE is a first-class fact, not an oversight: it is one of the two reasons this
- * document is a receipt rather than a tax invoice (research R13).
- */
-function SellerIdentityBlock() {
   const seller = sellerIdentity()
-  return (
-    <div className="flex shrink-0 flex-col gap-0.5 text-right">
-      <p className="text-[13px] font-semibold">{seller.tradingName}</p>
-      {seller.legalEntityName ? (
-        <p className="text-[12.5px] text-muted-foreground">{seller.legalEntityName}</p>
-      ) : null}
-      {seller.abn ? <p className="text-[12.5px] text-muted-foreground">ABN {seller.abn}</p> : null}
-      {seller.registeredAddress ? (
-        <p className="text-[12.5px] text-muted-foreground">{seller.registeredAddress}</p>
-      ) : null}
-      <p className="text-[12.5px] text-muted-foreground">{seller.supportEmail}</p>
-    </div>
-  )
-}
+  const facts = [
+    order.placedAt ? formatPlacedAt(order.placedAt) : null,
+    seller.tradingName,
+    seller.legalEntityName,
+    seller.abn ? `ABN ${seller.abn}` : null,
+    seller.registeredAddress,
+    seller.supportEmail,
+  ].filter((f): f is string => Boolean(f))
 
-function LineItemHeader() {
   return (
-    <div className="grid grid-cols-[56px_minmax(0,1fr)_56px_92px] items-center gap-4 border-b py-3.5">
-      <span />
-      <span className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">Item</span>
-      <span className="text-center text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
-        Qty
-      </span>
-      <span className="text-right text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
-        Amount
-      </span>
+    <div className="flex items-start justify-between gap-4 p-6">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <h2 id="receipt-title" className="flex items-center gap-2 leading-none font-semibold">
+          Receipt {paid ? <Badge variant="secondary">Paid</Badge> : null}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Order <span className="font-medium text-foreground tabular-nums">{order.orderNumber}</span>
+          {facts.map((f) => (
+            <span key={f}> · {f}</span>
+          ))}
+        </p>
+      </div>
+      <PrintReceipt />
     </div>
   )
 }
@@ -110,83 +115,67 @@ function LineItemHeader() {
 function LineItem({
   item,
   currency,
-  last,
+  unavailable,
+  buyAgain,
 }: {
   item: OrderItemDTO
   currency: string
-  last: boolean
+  unavailable: boolean
+  buyAgain: boolean
 }) {
   return (
-    <div
-      className={`grid grid-cols-[56px_minmax(0,1fr)_56px_92px] items-center gap-4 py-4 ${last ? "" : "border-b border-muted"}`}
-    >
-      {/*
-        ⚠ DECORATION ONLY. A missing image renders an empty tile and the line stays whole — nothing
-        here is gated on it (FR-003). Every OTHER field is the order's own immutable snapshot, which
-        is why a renamed or re-priced product still shows what was actually bought (FR-011).
-      */}
-      <div className="relative size-14 shrink-0 overflow-hidden rounded-md border bg-muted">
-        {item.imageUrl ? (
-          <Image src={item.imageUrl} alt="" fill sizes="56px" className="object-cover" unoptimized />
-        ) : null}
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-[14.5px] font-medium leading-tight">{item.productName}</span>
-        {/* ⚠ The unit price. It has been on the wire since 019 and NO surface rendered it — which is
-            what makes a line checkable rather than merely stated (FR-003). */}
-        <span className="text-[12.5px] tabular-nums text-muted-foreground">
-          {formatMoney(item.unitPriceAmount, currency)} each
-        </span>
-      </div>
-
-      <span className="text-center text-sm tabular-nums">{item.quantity}</span>
-      <span className="text-right text-[14.5px] font-medium tabular-nums">
+    <tr className="border-b last:border-b-0">
+      <td className="px-2 py-2.5">
+        <div className="flex items-center gap-3">
+          {/*
+            ⚠ DECORATION ONLY. A missing picture is a plain tile and the line stays whole — nothing
+            here is gated on it (FR-003). Every OTHER field is the order's own immutable snapshot,
+            which is why a renamed or re-priced product still shows what was actually bought (FR-011).
+          */}
+          <div className={cn("relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-muted-foreground", unavailable && "opacity-50")}>
+            {item.imageUrl ? (
+              <Image src={item.imageUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
+            ) : (
+              <Package aria-hidden="true" className="size-[18px]" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className={cn("font-medium", unavailable && "text-muted-foreground")}>{item.productName}</div>
+            {/* The unit price beside the line total: what makes a line checkable, not merely stated. */}
+            <div className="text-xs text-muted-foreground">
+              <span>{formatMoney(item.unitPriceAmount, currency)} each</span>
+              {unavailable && <span> · Out of stock — not included</span>}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td className={cn("px-2 py-2.5 text-right", unavailable && "text-muted-foreground")}>{item.quantity}</td>
+      <td className={cn("px-2 py-2.5 text-right", unavailable && "text-muted-foreground line-through")}>
         {formatMoney(item.lineSubtotalAmount, currency)}
-      </span>
-    </div>
+      </td>
+      {buyAgain && (
+        <td className="px-2 py-2.5 text-right max-md:hidden print:hidden">
+          <BuyLineAgain
+            productId={item.productId}
+            name={item.productName}
+            imageUrl={item.imageUrl ?? null}
+            unitPriceAmount={item.unitPriceAmount}
+            currency={currency}
+          />
+        </td>
+      )}
+    </tr>
   )
 }
 
-/**
- * ⚠ THE RESERVED TAX-INVOICE BLOCK (052 FR-033/FR-034) — deliberately NOT RENDERED.
- *
- * When this platform can issue a compliant Australian tax invoice, it slots in HERE, between the
- * totals and the addresses, and the document's structure does not otherwise change:
- *
- *     [LEGAL ENTITY NAME]              ABN 00 000 000 000
- *     Taxable supplies                            $19.00
- *     GST-free supplies                            $9.80
- *     GST included                                 $1.73
- *
- * TWO prerequisites stand in the way. NEITHER is engineering work in this slice, and both are
- * recorded in specs/052-order-confirmation-invoice/research.md § R13:
- *
- *   1. ⚠ The ABN is UNSUPPLIED. `packages/legal-content/src/identifiers.json` holds the fail-loud
- *      placeholder `[ABN]`; the constitution forbids inferring a real-world identifier. Operator input.
- *
- *   2. ⚠ Per-item GST treatment is UNMODELLED, and for a grocer this is the harder one. Basic food is
- *      GST-free in Australia, so an Effy basket is a MIXED SUPPLY: "total price includes GST" is FALSE
- *      for most orders, and the ATO's "extent to which each sale is taxable" requirement cannot be met
- *      from data that does not exist. It needs a taxable/GST-free flag on `public.product`.
- *
- * ⚠ Supplying the ABN alone is NOT enough — `canIssueTaxInvoice()` stays false until (2) lands too.
- */
-
-/**
- * ⚠ EVERY LINE MUST ADD UP (FR-004, SC-002): items − discount + delivery = total = what was charged.
- *
- * A component that is genuinely zero is OMITTED rather than rendered as a dash — a dash reads as
- * "unknown", and on a financial record those are different claims.
- */
 function Totals({ order }: { order: OrderDTO }) {
   const discount = order.discountAmount && order.discountAmount !== "0.00" ? order.discountAmount : null
   const delivery =
     order.deliveryFeeAmount && order.deliveryFeeAmount !== "0.00" ? order.deliveryFeeAmount : null
 
   return (
-    <div className="border-t bg-muted/40 px-6 pb-5 pt-4">
-      <dl className="flex flex-col gap-2.5">
+    <div className="mt-4 ml-auto max-w-sm">
+      <dl className="flex flex-col gap-2">
         <Row label="Items subtotal" value={formatMoney(order.itemSubtotalAmount, order.currency)} />
         {discount ? (
           <Row
@@ -212,16 +201,16 @@ function Totals({ order }: { order: OrderDTO }) {
           : delivery ? <Row label="Delivery" value={formatMoney(delivery, order.currency)} /> : null}
       </dl>
 
-      <div className="mt-3.5 flex items-baseline justify-between gap-4 border-t pt-3.5">
+      <div className="mt-3 flex items-baseline justify-between gap-4 border-t pt-3">
         <dt className="text-base font-semibold">Total paid</dt>
-        <dd className="text-2xl font-semibold tracking-[-0.01em] tabular-nums">
+        <dd className="text-base font-semibold tabular-nums">
           {formatMoney(order.grandTotalAmount, order.currency)}
         </dd>
       </div>
 
       {/* 074 — points are a way of PAYING: a line beside the card's, never a discount above the total. */}
       {order.paymentSplit ? (
-        <p className="mt-3.5 border-t pt-3.5 text-[13.5px] text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground">
           Paid with{" "}
           <span className="font-medium text-foreground tabular-nums">
             {order.paymentSplit.pointsUsed.toLocaleString("en-AU")} Effy points
@@ -240,8 +229,8 @@ function Totals({ order }: { order: OrderDTO }) {
 function Row({ label, value }: { label: React.ReactNode; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-sm tabular-nums">{value}</dd>
+      <dt className={cn("text-sm", value.startsWith("−") && "font-medium text-brand")}>{label}</dt>
+      <dd className={cn("text-sm tabular-nums", value.startsWith("−") && "font-medium text-brand")}>{value}</dd>
     </div>
   )
 }
@@ -252,7 +241,7 @@ function Row({ label, value }: { label: React.ReactNode; value: string }) {
  */
 function PaidWith({ method }: { method: PaymentMethodSummaryDTO }) {
   return (
-    <p className="mt-3.5 border-t pt-3.5 text-[13.5px] text-muted-foreground">
+    <p className="mt-2 text-xs text-muted-foreground">
       Paid with <span className="font-medium capitalize text-foreground">{brandLabel(method)}</span>
       {method.last4 ? (
         <>

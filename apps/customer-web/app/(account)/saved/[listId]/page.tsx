@@ -4,7 +4,7 @@ import { Suspense } from "react"
 
 import { DEFAULT_LIST_ID } from "@effy/shared-types"
 
-import { PageHeader } from "@/components/storefront/kit"
+import { SavedSkeleton } from "../SavedSkeleton"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { ListTabs } from "../ListTabs"
@@ -27,9 +27,8 @@ export const metadata: Metadata = {
  */
 export default function ListPage({ params }: { params: Promise<{ listId: string }> }) {
   return (
-    <div>
-      <PageHeader title="Saved items" />
-      <Suspense fallback={<p className="py-10 text-sm text-muted-foreground">Loading…</p>}>
+    <div className="space-y-6">
+      <Suspense fallback={<SavedSkeleton />}>
         <List params={params} />
       </Suspense>
     </div>
@@ -50,7 +49,11 @@ async function List({ params }: { params: Promise<{ listId: string }> }) {
 
   return (
     <>
-      <ListTabs lists={lists} currentId={listId} />
+      <ListTabs
+        lists={lists}
+        currentId={listId}
+        droppedCount={(items).filter((i) => i.priceDropped).length}
+      />
       {/* `key`: moving between two named lists reuses this route segment, and the rows are state. */}
       <SavedList key={listId} initial={items} listId={listId} />
     </>

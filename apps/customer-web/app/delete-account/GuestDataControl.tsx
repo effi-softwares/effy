@@ -25,8 +25,8 @@ export function GuestDataControl() {
   const [cleared, setCleared] = useState(false)
 
   return (
-    <div className="mt-8 border-t pt-6">
-      <h2 className="text-lg font-medium">Don&rsquo;t have an account?</h2>
+    <div className="border-t pt-8">
+      <h2 className="text-xl font-semibold">Don&rsquo;t have an account?</h2>
       <p className="mt-2 text-sm text-muted-foreground">
         If you&rsquo;ve been browsing without signing in, we don&rsquo;t hold an account for you —
         your saved items and basket are stored only in this browser. You can clear them here.

@@ -1,6 +1,8 @@
 // The category tree and the product detail page. SQL only.
 import { availabilityPredicate, pooled, type Queryable } from "@effy/edge-shared";
 
+import { categorySubtreeById } from "../lib/category-tree";
+
 export interface CategoryRow {
   key: string;
   name: string;
@@ -69,7 +71,8 @@ SELECT c.key AS key,
        (SELECT pc.key FROM public.category pc WHERE pc.id = c.parent_id) AS parent_key,
        (SELECT count(*)::int
           FROM public.product p
-         WHERE p.primary_category_id = c.id AND ${availabilityPredicate("p")}) AS product_count,
+         -- The category and everything under it: the number on an aisle is what its page shows.
+         WHERE p.primary_category_id IN ${categorySubtreeById("c.id")} AND ${availabilityPredicate("p")}) AS product_count,
        (SELECT m.storage_key
           FROM public.product p
           JOIN LATERAL (
@@ -83,7 +86,7 @@ SELECT c.key AS key,
          -- category's representative PICTURE, not something to buy. Letting stock choose it would
          -- make a category change its face as units come and go, and a thumbnail makes no claim
          -- that the product behind it is purchasable.
-         WHERE p.primary_category_id = c.id AND p.status = 'active'
+         WHERE p.primary_category_id IN ${categorySubtreeById("c.id")} AND p.status = 'active'
          ORDER BY p.created_at ASC, p.id ASC
          LIMIT 1) AS image_key
 FROM public.category c

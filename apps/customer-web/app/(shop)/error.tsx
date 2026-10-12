@@ -1,19 +1,20 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect } from "react"
+import { CloudOff, RefreshCcw } from "lucide-react"
 
-import { ActionButton } from "@/components/storefront/actions"
+import { btnClass } from "@/components/storefront/actions"
 
 /**
- * The recoverable degraded state (FR-030).
+ * Something failed while a storefront page was being put together (reference: Help & info · Error).
  *
- * When a backend is unreachable or slow to wake, the storefront must degrade to something
- * clear and RECOVERABLE — not a blank page and not a stack trace. The customer gets a way
- * forward (retry), not a dead end.
+ * ⚠ IT SAYS WHOSE FAULT IT IS — ours — and what is safe: the cart and saved items live apart from
+ * the page that failed. A shopper who believes they lost their cart does not try again.
  *
- * Note where this boundary sits: inside `(shop)`, not at the root. A failure in a personalized
- * region must never take down the public content of the page around it (FR-030) — which is also
- * why the personalized island lives behind its own <Suspense>.
+ * ⚠ The reference is the error's DIGEST: an opaque id that lets us find the failure in our logs. The
+ * error's own message is never shown — it is written for us, and may say more than a visitor should
+ * read.
  */
 export default function ShopError({
   error,
@@ -23,23 +24,30 @@ export default function ShopError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Routed to PostHog error tracking by the telemetry layer (Principle VII).
-    // The message only — never a token, never the customer's email.
     console.error("storefront error:", error.message)
   }, [error])
 
   return (
-    <section className="mx-auto w-full max-w-2xl px-4 py-24 text-center sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Something went wrong on our side
-      </h1>
-      <p className="mt-3 text-muted-foreground">
-        This is our problem, not yours. Try again — and if it keeps happening, come back in a
-        few minutes.
-      </p>
-      <ActionButton onClick={reset} type="button" size="md" className="mt-8">
-        Try again
-      </ActionButton>
-    </section>
+    <div className="container py-10">
+      <div className="mx-auto max-w-[520px] space-y-4 py-16 text-center">
+        <span className="mx-auto grid size-12 place-items-center rounded-lg bg-muted">
+          <CloudOff aria-hidden="true" className="size-6" />
+        </span>
+        <h1 className="text-3xl font-semibold tracking-tight">Something went wrong on our side</h1>
+        <p className="text-base text-muted-foreground">
+          It&apos;s not you. Your cart and saved items are safe. Please try again in a moment.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2 pt-2">
+          <button type="button" onClick={reset} className={btnClass("primary", "md")}>
+            <RefreshCcw aria-hidden="true" />
+            Try again
+          </button>
+          <Link href="/" className={btnClass("outline", "md")}>
+            Go to the home page
+          </Link>
+        </div>
+        {error.digest && <p className="pt-4 font-mono text-xs text-muted-foreground">Reference: {error.digest}</p>}
+      </div>
+    </div>
   )
 }

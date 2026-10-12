@@ -1,7 +1,13 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { History, Trash2 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { sellerIdentity } from "@effy/legal-content"
 
 import { ActionLink } from "@/components/storefront/actions"
+import { Badge } from "@/components/ui/badge"
+import { Breadcrumb } from "@/components/ui/misc"
+
 import { GuestDataControl } from "./GuestDataControl"
 
 export const metadata: Metadata = {
@@ -11,93 +17,96 @@ export const metadata: Metadata = {
 }
 
 /**
- * THE PUBLIC ACCOUNT-DELETION RESOURCE (034 FR-050 / FR-050a).
+ * How to delete an Effy account, and what happens to the data (reference: Help & info · Deleting
+ * your account).
  *
- * ⚠ GOOGLE PLAY REQUIRES THIS AND APPLE DOES NOT — which is exactly why it gets skipped, and why a
- * missing or invalid deletion link is the most-reported Play rejection in this area. Google's User
- * Data policy requires a readily discoverable option to initiate deletion "from within your app AND
- * OUTSIDE of your app", declared in the Play Console Data safety form.
+ * ⚠ THIS PAGE IS PUBLIC AND MUST STAY REACHABLE WITHOUT THE APP OR A SIGN-IN: the app stores link
+ * to it as the account-deletion address, and someone who cannot sign in still has to be able to read
+ * it and reach us.
  *
- * ⚠ IT MUST WORK FOR SOMEONE WHO HAS UNINSTALLED THE APP (FR-050a). Google's three stated criteria
- * are that the link be FUNCTIONAL (loads without error), RELEVANT IN SCOPE (the deletion path is
- * prominently featured on the page), and that it REFERENCE THE APP OR DEVELOPER NAME. All three are
- * satisfied here. Signing in on the web is acceptable — a customer can do that without the app; the
- * failure mode to avoid is a page whose only route to deletion needs something the app alone can give.
- *
- * ⚠ THIS ROUTE IS PUBLIC AND THEREFORE IN THE GUEST BUNDLE GATE. It is listed in
- * `scripts/bundle-budget.mjs` in the same change that created it (FR-058c) — the file's own comments
- * record a public route that sat 58.8 KB over budget for two features because it was never listed.
- *
- * ⚠ Deliberately `/delete-account`, NOT `/account/delete`: the latter would put one URL subtree
- * across two route groups with different layouts and different auth posture, so a guard later added
- * to the `(account)` layout would silently fail to cover it.
+ * ⚠ The contact address is the business's own, read from `@effy/legal-content` — never typed here.
  */
 export default function DeleteAccountPage() {
+  const { supportEmail } = sellerIdentity()
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-16 sm:px-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Delete your Effy account</h1>
+    <div className="container py-10">
+      <Breadcrumb
+        className="mb-6"
+        items={[{ label: "Home", href: "/" }, { label: "Legal", href: "/legal" }, { label: "Deleting your account" }]}
+      />
+      <article className="mx-auto max-w-[760px] space-y-8">
+        <header className="space-y-3">
+          <h1 className="text-3xl font-semibold tracking-tight">Delete your Effy account</h1>
+          <p className="text-base text-muted-foreground">
+            You can permanently delete your Effy account and the personal data that goes with it. You don&apos;t need
+            the Effy app installed to do this.
+          </p>
+        </header>
 
-      <p className="mt-4 text-sm text-muted-foreground">
-        You can permanently delete your Effy account and the personal data associated with it. You do
-        not need the Effy app installed to do this.
-      </p>
-
-      {/* The deletion path, prominently featured — Google's "relevant in scope" criterion. */}
-      <div className="mt-8 border-y py-6">
-        <h2 className="text-lg font-medium">How to delete your account</h2>
-        <ol className="mt-3 space-y-2 text-sm">
-          <li>
-            1. Sign in to your Effy account, then go to{" "}
-            <Link href="/account?tab=privacy" className="font-medium underline">
-              Account → Privacy &amp; data → Delete account
-            </Link>
-            .
-          </li>
-          <li>2. We&rsquo;ll email you a code to confirm it&rsquo;s really you.</li>
-          <li>3. Enter the code to confirm. Your account is closed straight away.</li>
-        </ol>
-
-        <ActionLink href="/account?tab=privacy" size="md" className="mt-6">
-          Delete my Effy account
-        </ActionLink>
-      </div>
-
-      <section className="mt-8 space-y-3">
-        <h2 className="text-lg font-medium">What is deleted, and what we keep</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Kept icon={Trash2} title="Deleted straight away">
+            <li>Your sign-in and profile</li>
+            <li>Saved items and lists</li>
+            <li>Addresses</li>
+            <li>Unused Effy points</li>
+            <li>Saved cards</li>
+          </Kept>
+          <Kept icon={History} title="Kept for the time the law requires">
+            <li>Order and payment records</li>
+            <li>Receipts and refunds</li>
+            <li>Fraud and security records that protect other customers</li>
+          </Kept>
+        </div>
         <p className="text-sm text-muted-foreground">
-          Deleting removes your account, your saved items, your saved addresses and your personal
-          details.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          We keep completed orders and payment records, because tax and accounting rules require it,
-          and fraud and security signals that protect other customers. These are retained under the
-          terms set out in our{" "}
-          <Link href="/legal/privacy" className="underline">
+          What we keep, and for how long, is set out in our{" "}
+          <Link href="/legal/privacy-policy" className="text-foreground underline underline-offset-2">
             privacy policy
           </Link>
           .
         </p>
-        {/* ⚠ The exact retention window stated to a customer is set by the app's deletion flow, which
-            reads it from the platform rather than repeating it here — one number, one source. */}
-        <p className="text-sm text-muted-foreground">
-          If you have an order in progress, you&rsquo;ll be asked to wait until it&rsquo;s complete
-          before deleting.
-        </p>
-      </section>
 
-      {/* FR-046 — the guest's route. See the component for why it lives on the PUBLIC page. */}
-      <GuestDataControl />
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">How to delete your account</h2>
+          <ol className="space-y-3 text-sm">
+            <Step n={1}>Sign in and go to Account → Privacy &amp; data.</Step>
+            <Step n={2}>Select Delete account. We&apos;ll email you a 6-digit code.</Step>
+            {/* The wait for an order in progress is the platform's rule; it is stated, not numbered. */}
+            <Step n={3}>Enter the code to confirm. You can&apos;t delete while an order is in progress.</Step>
+          </ol>
+        </section>
 
-      <section className="mt-8">
-        <h2 className="text-lg font-medium">Need help?</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Email{" "}
-          <a href="mailto:support@effyshopping.com" className="underline">
-            support@effyshopping.com
-          </a>{" "}
-          and we&rsquo;ll help you.
-        </p>
-      </section>
-    </main>
+        <div className="flex flex-wrap gap-2">
+          <ActionLink href="/account/privacy">Go to Privacy &amp; data</ActionLink>
+          <ActionLink href={`mailto:${supportEmail}`} variant="outline">
+            Ask us instead
+          </ActionLink>
+        </div>
+
+        <GuestDataControl />
+      </article>
+    </div>
+  )
+}
+
+function Kept({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4 rounded-lg border bg-card p-6 shadow-xs">
+      <div className="flex flex-col gap-1.5">
+        <Icon aria-hidden="true" className="size-5" />
+        <h2 className="leading-tight font-semibold">{title}</h2>
+      </div>
+      <ul className="space-y-2 text-sm text-muted-foreground">{children}</ul>
+    </div>
+  )
+}
+
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-3">
+      <Badge variant="dark" aria-hidden="true">
+        {n}
+      </Badge>
+      <span>{children}</span>
+    </li>
   )
 }

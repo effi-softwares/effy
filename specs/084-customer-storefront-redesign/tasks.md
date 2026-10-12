@@ -52,7 +52,7 @@ tests only for new logic (new routes, guards, view-model derivations).
 - [x] T029 [P] [US2] Listing loading / no results / error — B4, B5, B6, B9
 - [x] T030 [US2] Product page, single page, delivery + points panel, sticky phone bar — P1, P2, P6 — sticky phone add bar not built; buy box is in flow
 - [ ] T031 [P] [US2] Add-to-list dialog — P5 — chooser dialog reshaped to the responsive dialog; not walked
-- [ ] T032 [P] [US2] `not-found.tsx`, `(shop)/error.tsx`, `global-error` — I14, I15, I16
+- [x] T032 [P] [US2] `not-found.tsx`, `(shop)/error.tsx`, `global-error` — I14, I15, I16 — the 404 sits inside the storefront with a search, the aisles and what is on sale; the error page shows the failure's reference id
 
 ## Phase 5: US3 — cart, checkout, payment (P1)
 
@@ -68,12 +68,12 @@ tests only for new logic (new routes, guards, view-model derivations).
 
 ## Phase 6: US4 — orders (P2)
 
-- [ ] T042 [P] [US4] `OrderSummaryDTO` + `thumbnails`, `stage` in `packages/shared-types/src/order.ts`
-- [ ] T043 [US4] `apis/edge-api/commerce/src/orders/{repository,service}.ts`: thumbnails + stage on the list; tests
-- [ ] T044 [US4] `components/storefront/OrderTracker.tsx`
-- [x] T045 [US4] Order history + empty — O1, O2, O9 — rows show date, status, who delivers, total, both actions; pictures appear when the server sends `thumbnails` (T043 not written yet)
-- [ ] T046 [US4] Order page (all stages, moved to courier), receipt, refunds — O3–O6, O10 — breadcrumb, heading, cards and the Unavailable notice restyled; receipt, tracker (`ProgressTrack`), `ArrivalPanel` keep their 052 structure — **the reference tracker and receipt table are not rebuilt**
-- [ ] T047 [P] [US4] Report-a-problem dialog; cancel alert dialog — O7, O8
+- [x] T042 [P] [US4] `OrderSummaryDTO` gains optional `stage`, `arrivalEstimates`, `deliveredAt`, `refundedTotal`, `fullyRefunded` (and `thumbnails`, already typed) — `stage` is the customer's `OrderStage`, the same word the order page uses, not a package status
+- [x] T043 [US4] `apis/edge-api/commerce/src/orders/{repository,service}.ts`: the list derives each of those with the receipt's own functions; tests — **not deployed**
+- [x] T044 [US4] Order tracker — rebuilt in place as `components/receipt/ProgressTrack.tsx` (a row when it has room, a column when it does not)
+- [x] T045 [US4] Order history + empty — O1, O2, O9 — filter tabs, time period and pages are in the URL; one module (`lib/order-summary.ts`) decides each row's badge, line and filter
+- [x] T046 [US4] Order page (all stages, moved to courier), receipt, refunds — O3–O6, O10 — delivery card, tracker, receipt table with addresses, refunds card. **No download button**: there is no receipt file to download; Print is there. Checked on a preview with sample data, not a real order
+- [x] T047 [P] [US4] Report-a-problem dialog; cancel alert dialog — O7, O8 — the reason chosen leads the message sent (the request has one text field)
 
 ## Phase 7: US5 — account (P2)
 
@@ -99,8 +99,8 @@ tests only for new logic (new routes, guards, view-model derivations).
 
 ## Phase 9: US7 — saved items (P2)
 
-- [ ] T060 [US7] Saved items, named list, empty, phone — V1–V3, V6
-- [ ] T061 [P] [US7] New list dialog; delete list alert — V4, V5
+- [x] T060 [US7] Saved items, named list, empty, phone — V1–V3, V6 — checked against the reference on a preview with sample data, not with a real account
+- [x] T061 [P] [US7] New list dialog; delete list alert — V4, V5 — on the new shared `components/ui/dialog.tsx`
 
 ## Phase 10: US8 — offers (P3)
 
@@ -111,14 +111,18 @@ tests only for new logic (new routes, guards, view-model derivations).
 ## Phase 11: US9 — help and information (P3)
 
 - [x] T065 [US9] `/help` with authored answers + search + message form; `/feedback` redirect — I1–I4 — `/help` built (answers need operator review); `/feedback` redirects in `next.config.ts`
-- [ ] T066 [P] [US9] About; Deleting your account — I5, I6
-- [ ] T067 [P] [US9] Legal index, document, versions — I7–I10
-- [ ] T068 [P] [US9] Newsletter results — I11–I13
+- [x] T066 [P] [US9] About; Deleting your account — I5, I6 — About states no figure the operator sets (courier timeframe, points value); company details show only what is recorded. The authored "about" document still follows, as written
+- [x] T067 [P] [US9] Legal index, document, versions — I7–I10 — contents rail from the document's own headings; an earlier version can now be opened (`/legal/[type]/versions/[version]`) and says it is superseded. **No "what changed" note and no summary column**: a version records text and date only
+- [x] T068 [P] [US9] Newsletter results — I11, I12 — confirmed and expired (with the subscribe form to send a new link). **I13 "unsubscribed" not built**: the web has no unsubscribe route to land from
+- ⚠ **For the operator**: the authored legal documents still print `[LEGAL_ENTITY_NAME]` / `[ABN]` placeholders, "This is a draft prepared for legal review", and a `support@effyshopping.com` address that is not one of the two approved mailboxes (`packages/legal-content`). Not changed here — it is authored legal text.
 
 ## Phase 12: Search suggestions (US2, P1 scenario 5 — sequenced late: new backend)
 
-- [ ] T069 [P] [US2] `SuggestionsDTO`; `GET /storefront/v1/suggestions` (function, `suggest/` service + repository, `serverless.yml`, tests)
-- [ ] T070 [US2] `components/chrome/SearchCommand.tsx` (debounce, cancel, keyboard; plain-field fallback) — H7
+- [x] T069 [P] [US2] `SuggestionsDTO`; `GET /storefront/v1/suggestions` (function, `suggest/` service + repository, `serverless.yml`, tests) — written and tested against a local copy of the schema; **not deployed**
+- [x] T070 [US2] Suggestions in the header search (debounce, cancel, keyboard; plain-field fallback) — H7 — built into `HeaderSearch.tsx` (no separate `SearchCommand`), relayed by `/api/suggestions`; recent searches are device-held
+- [x] All aisles mega menu — H6 — rebuilt (operator direction 2026-10-12): opens on hover or press, aisles → groups with counts → sub-aisles, offers and information carousel (`AisleMenu`, `MenuCarousel`, `AisleRow`). Phones keep the drawer.
+- **Storefront service change riding with it**: a category now means the category AND everything under it (`lib/category-tree.ts`) in search, facets, home rails and category counts. Before, an aisle link matched only products filed in that exact category and top-level aisles showed empty pages.
+- **Dev seed**: `db/seeds/084_storefront_catalogue_dev.sql` — 11 aisles, three levels (157 categories), re-files dev's existing products, adds 86 products (no pictures) to an existing shop. Operator runs it.
 
 ## Phase 13: Sweep
 

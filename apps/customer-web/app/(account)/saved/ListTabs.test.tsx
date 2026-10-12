@@ -33,7 +33,7 @@ describe("068 — the lists tab row", () => {
   it("lists Saved first, each with its count, and marks the current one", () => {
     render(<ListTabs lists={[saved, weekly]} currentId={WEEKLY} />)
     const links = within(screen.getByRole("navigation", { name: "Your lists" })).getAllByRole("link")
-    expect(links.map((l) => l.textContent)).toEqual(["Saved (12)", "Weekly Items (5)"])
+    expect(links.map((l) => l.textContent)).toEqual(["Saved 12", "Weekly Items 5"])
     expect(links[0]).toHaveAttribute("href", "/saved")
     expect(links[1]).toHaveAttribute("href", `/saved/${WEEKLY}`)
     expect(links[1]).toHaveAttribute("aria-current", "page")
@@ -71,7 +71,7 @@ describe("068 — the lists tab row", () => {
     render(<ListTabs lists={[saved, weekly]} currentId={WEEKLY} />)
 
     await userEvent.click(screen.getAllByRole("button", { name: "Delete list" })[0])
-    await userEvent.click(within(screen.getByRole("dialog", { name: /Delete/ })).getByRole("button", { name: "Delete list" }))
+    await userEvent.click(within(screen.getByRole("alertdialog", { name: /Delete/ })).getByRole("button", { name: "Delete list" }))
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/saved"))
     expect(fetchMock).toHaveBeenCalledWith(`/api/lists/${WEEKLY}`, { method: "DELETE" })
@@ -84,7 +84,7 @@ describe("068 — the lists tab row", () => {
     )
     render(<ListTabs lists={[saved, weekly]} currentId={WEEKLY} />)
 
-    await userEvent.click(screen.getByRole("button", { name: "Rename list" }))
+    await userEvent.click(screen.getByRole("button", { name: "Rename" }))
     const dialog = screen.getByRole("dialog", { name: "Rename list" })
     const field = within(dialog).getByLabelText("Name")
     expect(field).toHaveValue("Weekly Items")

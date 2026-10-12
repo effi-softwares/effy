@@ -127,6 +127,14 @@ functions:
           method: GET
           path: /storefront/v1/categories
 
+  suggestionsV1:
+    handler: src/functions/suggestions-v1-get.handler
+    description: Search suggestions for the text typed so far - phrases from the catalogue and a few products. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/suggestions
+
   facetsV1:
     handler: src/functions/facets-v1-get.handler
     description: Facet options and counts for the current search, each counted with its own selection cleared. Public.

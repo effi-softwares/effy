@@ -21,7 +21,7 @@ function respond(status: number, body: unknown = {}) {
 }
 
 const open = async () =>
-  userEvent.click(await screen.findByRole("button", { name: /something wrong with this order/i }))
+  userEvent.click(await screen.findByRole("button", { name: /report a problem/i }))
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -41,12 +41,13 @@ describe("what the form asks for", () => {
   it("sends with no items named", async () => {
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
-    await userEvent.type(screen.getByLabelText(/what went wrong/i), "Everything arrived warm")
+    await userEvent.type(screen.getByLabelText(/details/i), "Everything arrived warm")
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }))
 
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     const body = JSON.parse((fetch as never as ReturnType<typeof vi.fn>).mock.calls[0]![1].body)
-    expect(body.message).toBe("Everything arrived warm")
+    // What went wrong leads the message, so it is the first thing staff read.
+    expect(body.message).toBe("An item was damaged: Everything arrived warm")
     expect(body.items).toEqual([])
   })
 
@@ -56,7 +57,7 @@ describe("what the form asks for", () => {
   it("names items by their LINE id", async () => {
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
-    await userEvent.type(screen.getByLabelText(/what went wrong/i), "The milk was warm")
+    await userEvent.type(screen.getByLabelText(/details/i), "The milk was warm")
     await userEvent.click(screen.getByLabelText(/milk/i))
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }))
 
@@ -72,7 +73,7 @@ describe("what the shopper is told", () => {
   it("confirms the ask was received and promises no refund", async () => {
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
-    await userEvent.type(screen.getByLabelText(/what went wrong/i), "Two cartons missing")
+    await userEvent.type(screen.getByLabelText(/details/i), "Two cartons missing")
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }))
 
     const status = await screen.findByRole("status")
@@ -86,7 +87,7 @@ describe("what the shopper is told", () => {
     respond(409, { error: "you've already told us about this order — we're looking into it" })
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
-    await userEvent.type(screen.getByLabelText(/what went wrong/i), "Again")
+    await userEvent.type(screen.getByLabelText(/details/i), "Again")
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }))
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/already told us/i)
@@ -96,7 +97,7 @@ describe("what the shopper is told", () => {
     respond(401, {})
     render(<RequestRefund orderId="o1" items={ITEMS} />)
     await open()
-    await userEvent.type(screen.getByLabelText(/what went wrong/i), "Two cartons missing")
+    await userEvent.type(screen.getByLabelText(/details/i), "Two cartons missing")
     await userEvent.click(screen.getByRole("button", { name: /^send$/i }))
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/sign-in?next=/orders/o1"))

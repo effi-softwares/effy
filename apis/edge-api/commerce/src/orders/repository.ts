@@ -13,6 +13,19 @@ export interface SummaryRow {
   /** 079 — who delivers the order, and a courier's timeframe as sold. Both null before 079. */
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
+  /**
+   * 084 — what the order list shows beside the totals. All optional, so a fake (or a row from a
+   * query written before 084) still type-checks and simply produces a summary without them.
+   */
+  /** Every package's status — the input to the one stage word. Never sent to a client. */
+  portion_statuses?: string[] | null;
+  /** The primary picture key of the first four lines; null where a line has none. */
+  image_keys?: (string | null)[] | null;
+  /** The promises the order was sold, in the receipt's own order. */
+  arrivals?: ArrivalRow[] | null;
+  /** When the last package arrived. Only meaningful once every package has. */
+  delivered_at?: string | null;
+  refunds?: Pick<RefundRow, "amount" | "status" | "settled_at">[] | null;
 }
 
 export interface OrderRow {
@@ -137,7 +150,27 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.placed_at::text AS placed_at,
        COALESCE((SELECT SUM(quantity) FROM public.order_item WHERE order_id = o.id), 0)::int AS item_count,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
-       o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate
+       o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate,
+       -- 084 — the order list's pictures, stage and status line. ⚠ Each is the SAME read the receipt
+       -- makes (same tables, same order), gathered per order; nothing here selects a shop.
+       ARRAY(SELECT sf.status FROM public.shop_fulfillment sf WHERE sf.order_id = o.id) AS portion_statuses,
+       ARRAY(SELECT pm.storage_key
+               FROM public.order_item oi
+               LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
+              WHERE oi.order_id = o.id
+              ORDER BY oi.created_at ASC
+              LIMIT 4) AS image_keys,
+       (SELECT json_agg(json_build_object(
+                   'method', d.method, 'promised_from', d.promised_from::text, 'promised_to', d.promised_to::text,
+                   'window_start', d.window_start, 'window_end', d.window_end)
+                 ORDER BY d.promised_from ASC NULLS LAST, d.window_start ASC NULLS LAST, d.promised_to ASC NULLS LAST, d.method ASC)
+          FROM public.order_package_delivery d WHERE d.order_id = o.id) AS arrivals,
+       (SELECT max(pa.arrived_at)
+          FROM public.package_arrival pa
+          JOIN public.shop_fulfillment sf ON sf.id = pa.shop_fulfillment_id
+         WHERE sf.order_id = o.id)::text AS delivered_at,
+       (SELECT json_agg(json_build_object('amount', r.amount::text, 'status', r.status, 'settled_at', r.settled_at::text))
+          FROM public.refund r WHERE r.order_id = o.id) AS refunds
 FROM public."order" o
 WHERE o.customer_id = $1
 ORDER BY o.created_at DESC`,

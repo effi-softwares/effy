@@ -1,53 +1,65 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { MessageSquare, Send } from "lucide-react"
+
+import { Field, select } from "@/components/storefront/kit"
+import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/form"
 
 /**
- * Asking for a refund (055 US3, FR-005r).
+ * "Something wrong with this order?" — the ask arrives ATTACHED TO THE ORDER (055; reference:
+ * Orders · Report a problem).
  *
- * ⚠ IT REPLACES "Get help" POINTING AT A GENERIC FORM WITH NO ORDER ATTACHED. Until this, a shopper
- * describing a missing item landed in the 046 feedback inbox where nobody could see which order they
- * meant — which is the customer half of gap G3.
+ * Before 055 this was a link to a general inbox, where nobody could see which order was meant. It is
+ * a request, not a refund: staff decide what happens, and the confirmation says exactly that.
  *
- * ⚠ IT MUST NOT READ AS A DECISION. The wording says the ask was received, never that a refund is
- * coming: a person decides, and promising one here would be a commitment nobody has made, on the
- * screen where a shopper is most likely to hold us to it.
+ * ⚠ THE ITEMS ARE OPTIONAL. "Everything arrived warm" has no item to tick, and a form that demanded
+ * one would send that shopper back to the general inbox.
  *
- * ⚠ NAMING ITEMS IS OPTIONAL. A shopper who cannot point at one line — "the whole thing arrived
- * warm" — must still be able to ask, or they are pushed back to the generic inbox this replaces.
+ * ⚠ WHAT WENT WRONG IS SENT AS WORDS, with the details: the request has one free-text field, and a
+ * category of ours is not something the staff queue filters on. It leads the message so the first
+ * thing staff read is the kind of problem.
  */
+const REASONS = ["An item was damaged", "Something was missing", "Wrong item", "Delivery problem", "Something else"] as const
+
 export function RequestRefund({
   orderId,
+  orderNumber,
   items,
 }: {
   orderId: string
+  orderNumber?: string
   items: { orderItemId: string; productName: string; quantity: number }[]
 }) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
-  const [message, setMessage] = useState("")
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [reason, setReason] = useState<string>(REASONS[0])
+  const [details, setDetails] = useState("")
   const [selected, setSelected] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
 
-  async function submit() {
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (busy || details.trim() === "") return
     setBusy(true)
     setError(null)
     const res = await fetch(`/api/orders/${orderId}/refund-requests`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        message: message.trim(),
+        message: `${reason}: ${details.trim()}`,
         items: Object.entries(selected).map(([orderItemId, quantity]) => ({ orderItemId, quantity })),
       }),
     })
     setBusy(false)
-
     if (res.ok) {
       setSent(true)
-      setOpen(false)
+      dialog.current?.close()
       router.refresh()
       return
     }
@@ -56,96 +68,91 @@ export function RequestRefund({
       return
     }
     const body = (await res.json().catch(() => null)) as { error?: string } | null
-    // ⚠ The server's own sentence. A 409 says their ask is already with us, which is the one thing
-    // that stops them raising it again through the generic inbox.
     setError(body?.error ?? "We couldn’t send that just now. Please try again.")
   }
 
   if (sent) {
     return (
-      <p role="status" className="text-[13px] text-muted-foreground">
+      <p role="status" className="text-sm text-muted-foreground">
         Thanks — we’ve got it and we’ll look into this order. We’ll be in touch about what happens next.
       </p>
     )
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full rounded-lg border px-4 py-2.5 text-sm font-medium hover:bg-accent"
-      >
-        Something wrong with this order?
-      </button>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-xs">
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="refund-request-message" className="text-sm font-medium">
-          What went wrong?
-        </label>
-        <textarea
-          id="refund-request-message"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={3}
-          className="rounded-lg border px-3 py-2 text-sm"
-          placeholder="e.g. two cartons of milk were missing"
-        />
-      </div>
+    <>
+      <Button type="button" variant="outline" onClick={() => dialog.current?.showModal()}>
+        <MessageSquare aria-hidden="true" />
+        Report a problem
+      </Button>
 
-      {items.length > 0 ? (
-        <fieldset className="flex flex-col gap-1.5">
-          {/* ⚠ "if it helps" — naming items is genuinely optional, and a legend that implied
-              otherwise would send the shopper who cannot answer it back to the generic inbox. */}
-          <legend className="text-sm font-medium">Which items, if it helps?</legend>
-          {items.map((item) => (
-            <label key={item.orderItemId} className="flex items-center gap-2.5 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(selected[item.orderItemId])}
-                onChange={(e) =>
-                  setSelected((s) => {
-                    const next = { ...s }
-                    if (e.target.checked) next[item.orderItemId] = item.quantity
-                    else delete next[item.orderItemId]
-                    return next
-                  })
-                }
-              />
-              {item.productName}
-            </label>
-          ))}
-        </fieldset>
-      ) : null}
+      <Dialog
+        ref={dialog}
+        size="lg"
+        title="Something wrong with this order?"
+        description={`${orderNumber ? `Order ${orderNumber} · ` : ""}Tell us what happened and we'll look into it.`}
+        footer={
+          <>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => dialog.current?.close()}>
+              Cancel
+            </Button>
+            <Button type="submit" form="report-problem-form" disabled={busy || details.trim() === ""}>
+              <Send aria-hidden="true" />
+              {busy ? "Sending…" : "Send"}
+            </Button>
+          </>
+        }
+      >
+        <form id="report-problem-form" onSubmit={submit} className="flex flex-col gap-4">
+          <Field label="What went wrong?" htmlFor="report-reason">
+            <select id="report-reason" value={reason} onChange={(e) => setReason(e.target.value)} className={select}>
+              {REASONS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </Field>
 
-      <div className="flex gap-2.5">
-        <button
-          type="button"
-          disabled={busy || message.trim() === ""}
-          onClick={submit}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-        >
-          {busy ? "Sending…" : "Send"}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => setOpen(false)}
-          className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent"
-        >
-          Cancel
-        </button>
-      </div>
+          {items.length > 0 ? (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-sm leading-none font-medium">Which items, if it helps?</legend>
+              {items.map((item) => (
+                <label key={item.orderItemId} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={Boolean(selected[item.orderItemId])}
+                    onChange={(e) =>
+                      setSelected((s) => {
+                        const next = { ...s }
+                        if (e.target.checked) next[item.orderItemId] = item.quantity
+                        else delete next[item.orderItemId]
+                        return next
+                      })
+                    }
+                  />
+                  {item.productName}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
 
-      {error ? (
-        <p role="alert" className="text-[13px] text-muted-foreground">
-          {error}
-        </p>
-      ) : null}
-    </div>
+          <Field label="Details" htmlFor="report-details" hint="Don't include card numbers or passwords.">
+            <Textarea
+              id="report-details"
+              rows={3}
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
+              placeholder="e.g. one carton was split open when it arrived"
+            />
+          </Field>
+
+          {error ? (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </form>
+      </Dialog>
+    </>
   )
 }

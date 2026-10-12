@@ -36,11 +36,20 @@ describe("filters", () => {
   it("numbers placeholders in order across category, price, sale and brand", () => {
     const { sql, args } = build({ categoryKey: "dairy", minPrice: "1.50", maxPrice: "9", saleOnly: true, brands: ["A", "B"] });
     expect(args).toEqual(["dairy", "1.50", "9", ["A", "B"]]);
-    expect(sql).toContain("WHERE key = $1)");
+    expect(sql).toContain("WHERE key = $1 ");
     expect(sql).toContain("p.price_amount >= $2::numeric");
     expect(sql).toContain("p.price_amount <= $3::numeric");
     expect(sql).toContain("p.compare_at_amount > p.price_amount");
     expect(sql).toContain("p.brand = ANY($4::text[])");
+  });
+
+  it("⚠ a category means the category AND everything filed under it", () => {
+    // An aisle holds almost nothing directly — its products are filed in its leaves. An exact match
+    // on the aisle's own id showed an empty page for every aisle link in the header.
+    const { sql } = build({ categoryKey: "dairy_eggs" });
+    expect(sql).toContain("p.primary_category_id IN (WITH RECURSIVE sub AS (");
+    expect(sql).toContain("JOIN sub ON child.parent_id = sub.id");
+    expect(sql).not.toContain("p.primary_category_id = (");
   });
 
   it("an attribute facet is one EXISTS covering text, multi-select and boolean values", () => {
