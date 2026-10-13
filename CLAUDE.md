@@ -66,6 +66,18 @@ show (409 `delivery_fee_changed`). A package carries no fee; a shop never sees d
 - A place is **held at the payment-intent call** (the client confirms payment with the provider directly,
   so that is the last server moment before the charge) and confirmed at payment. ⚠ A window is never
   substituted: one that has gone is a refusal (`slot_unavailable`, `slot_required`, …) and the customer chooses again.
+- ⚠ **AN ORDER WITH NO TIME IS AN ORDER IN THE "ANY TIME" WINDOW (085).** Standard delivery sells a
+  **day with no time** (the default), **"as soon as possible"**, or — opt-in — a window. Staff mark ONE
+  window `any_time`; a day-only order holds a place in it on its day, and an ASAP order is put in it at the
+  payment-intent call on the first day it is open (today included; `resolveAsap`) and told only the
+  business's estimate — **never the day**. ⚠ `judgeWindow`, the fee sum, the hold, `collectionRunFor`, the
+  planner and `round_opens_at` do not know the flag: it is a LABEL ("Any time", written by the server for
+  drivers and dispatch) and a filing rule (`EffyDay.anyTime`, never in `windows[]`, never on the wire for
+  today). It pays the plain fee — no window surcharge, no "Delivery today" surcharge. ⚠ What was sold is
+  `order.delivery_promise` (`window` | `day` | `asap`; NULL before 085 reads as `window`), TWO writers:
+  checkout and `override.ts` (`delivery-type.guard.test.ts`). The customer DTO carries no hours for `day`
+  and no arrival at all for `asap` (`soldArrivals`). Off until staff create the window; ASAP off until they
+  enter the estimate (Delivery days). Staff re-time an Effy order through `changeEffyWindow`.
 - ⚠ **WHAT A CLIENT IS OFFERED, THE QUOTE SAYS**: `effyWindows` → send `deliveryWindow {slotId, date}`;
   `courier` → send `deliveryType: "courier"`. A serviced address answers exactly one. ⚠ The quote carries
   **no package list** — nothing tells a customer how many suppliers fill the order.
@@ -514,6 +526,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **085-flexible-standard-delivery** — Flexible Standard Delivery (a day with no time, "as soon as possible", a time opt-in — all through one "Any time" window) — built; NOT migrated, deployed, walked or signed off
 - **084-customer-storefront-redesign** — Customer Storefront Redesign (its own identity; session re-implemented; aisles include their sub-aisles) — built, `storefront` + `commerce` deployed to dev; not walked or signed off
 - **083-delivery-model-cutover** — Delivery Model Cutover (the switch; the old same-day/standard arrangement removed) — both stages deployed to dev, marked complete; not walked
 - **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
@@ -576,5 +589,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/084-customer-storefront-redesign/plan.md
+at specs/085-flexible-standard-delivery/plan.md
 <!-- SPECKIT END -->

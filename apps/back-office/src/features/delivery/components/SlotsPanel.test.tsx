@@ -157,7 +157,7 @@ describe("SlotsPanel — creating and editing", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Create window" }));
 
     await waitFor(() =>
-      expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "10:00", endTime: "12:00", cutoffTime: "08:00", capacity: 12 }),
+      expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "10:00", endTime: "12:00", cutoffTime: "08:00", capacity: 12, anyTime: false }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
@@ -172,7 +172,7 @@ describe("SlotsPanel — creating and editing", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Create window" }));
 
     await waitFor(() =>
-      expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "10:00", endTime: "12:00", cutoffTime: "08:00", capacity: null }),
+      expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "10:00", endTime: "12:00", cutoffTime: "08:00", capacity: null, anyTime: false }),
     );
   });
 
@@ -217,7 +217,7 @@ describe("SlotsPanel — creating and editing", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Save window" }));
     await waitFor(() =>
-      expect(repo.patchSlot).toHaveBeenCalledWith("s2", { startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: 2 }),
+      expect(repo.patchSlot).toHaveBeenCalledWith("s2", { startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: 2, anyTime: false }),
     );
   });
 
@@ -232,7 +232,23 @@ describe("SlotsPanel — creating and editing", () => {
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Save window" }));
     await waitFor(() =>
-      expect(repo.patchSlot).toHaveBeenCalledWith("s2", { startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: null }),
+      expect(repo.patchSlot).toHaveBeenCalledWith("s2", { startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: null, anyTime: false }),
+    );
+  });
+});
+
+describe("085 — the Any time window", () => {
+  it("is ticked to create one, and the list says so", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: /new window/i }));
+    await user.type(screen.getByLabelText("Starts (HH:MM)"), "12:00");
+    await user.type(screen.getByLabelText("Ends (HH:MM)"), "21:00");
+    await user.type(screen.getByLabelText("Order by (HH:MM)"), "10:00");
+    await user.click(screen.getByLabelText(/Any time \(customers choose the day/));
+    await user.click(screen.getByRole("button", { name: "Create window" }));
+    await waitFor(() =>
+      expect(repo.createSlot).toHaveBeenCalledWith({ startTime: "12:00", endTime: "21:00", cutoffTime: "10:00", capacity: null, anyTime: true }),
     );
   });
 });

@@ -1,4 +1,4 @@
-import { DELIVERY_TYPE_WORDS, formatArrival, type OrderSummaryDTO } from "@effy/shared-types"
+import { asapSentence, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival, type OrderSummaryDTO } from "@effy/shared-types"
 
 /**
  * What one row of the order history SAYS (reference: Orders · Order history): the badge, the line
@@ -74,11 +74,14 @@ function promiseOf(o: OrderSummaryDTO, now: Date): string | null {
       ? `${DELIVERY_TYPE_WORDS.courierEstimatePrefix} ${o.delivery.courierEstimate} ${DELIVERY_TYPE_WORDS.courierEstimateSuffix}`
       : null
   }
+  // 085 — "as soon as possible" was sold an estimate, never a day.
+  if (o.delivery?.promise === "asap") return o.delivery.asapEstimate ? asapSentence(o.delivery.asapEstimate) : null
   const first = o.arrivalEstimates?.[0]
   if (!first) return null
   // No promise on record says so in its own words; that is not something to prefix with "Arriving".
   if (!first.windowStart && !first.promisedFrom && !first.promisedTo) return null
-  return formatArrival(first, now)
+  const day = formatArrival(first, now)
+  return o.delivery?.promise === "day" ? `${day}, ${DELIVERY_WINDOW_WORDS.anyTimeDay.toLowerCase()}` : day
 }
 
 export function matchesFilter(o: OrderSummaryDTO, filter: OrderFilter): boolean {

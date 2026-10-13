@@ -27,9 +27,23 @@ export type DeliveryType = "effy" | "courier";
  */
 export type DeliveryTypeReason = "in_coverage" | "out_of_coverage" | "no_window" | "staff_change";
 
+/**
+ * 085 — what an order Effy delivers was sold: a time on a day, a day with no time, or "as soon as
+ * possible". An order placed before 085 was sold a window.
+ */
+export type DeliveryPromise = "window" | "day" | "asap";
+
 /** An order's delivery, as a customer contract carries it. ABSENT on an order placed before 079. */
 export interface OrderDeliveryDTO {
   type: DeliveryType;
+  /**
+   * 085 — what was sold. Absent on a courier order and on one placed before 085 (read as `window`).
+   * ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries nothing at all —
+   * the customer was told `asapEstimate`, never a day.
+   */
+  promise?: DeliveryPromise;
+  /** The estimate as it was sold ("usually within 2–3 days"). Present exactly when `promise` is `asap`. */
+  asapEstimate?: string;
   /** The courier's usual timeframe as it was sold ("2–4 business days"); null for an Effy order. */
   courierEstimate: string | null;
   /**
@@ -126,6 +140,11 @@ export function courierLines(estimate: string): string[] {
   return [DELIVERY_TYPE_WORDS.courierPartner, courierEstimateSentence(estimate)];
 }
 
+/** 085 — "As soon as possible — usually within 2–3 days". The estimate is the business's own words. */
+export function asapSentence(estimate: string): string {
+  return `${DELIVERY_WINDOW_WORDS.asapEstimatePrefix} ${estimate}`.trim();
+}
+
 /** What a customer surface prints for an order's delivery. */
 export interface DeliverySummary {
   /** "Delivered by Effy" / "Courier delivery"; null for an order placed before 079. */
@@ -157,6 +176,8 @@ export function deliveryMethodWord(method: string | null | undefined): string {
  *   courier                → "Courier delivery" · the partner line, then the estimate as an estimate
  *   Effy, a window today   → "Delivered by Effy" · "Same-day delivery · Today, 4 pm – 6 pm"
  *   Effy, a later day      → "Delivered by Effy" · "Standard delivery · Thu 8 Oct, 4 pm – 6 pm"
+ *   Effy, a day, no time   → "Delivered by Effy" · "Standard delivery · Thu 8 Oct · Any time during the day"
+ *   Effy, as soon as poss. → "Delivered by Effy" · "As soon as possible — usually within 2–3 days"
  *   placed before 079      → no heading · one line per distinct promise, as it was sold
  *   moved by back-office   → the above, then `movedLines` (081)
  *
@@ -175,13 +196,28 @@ export function deliverySummary(order: DeliverySummaryInput, now: Date): Deliver
     lines.push(...movedLines(order.delivery.moved));
     return { heading: DELIVERY_TYPE_WORDS.courier, lines };
   }
+  // 085 — "as soon as possible" reads no arrival either: it was sold an estimate, never a day.
+  if (order.delivery?.promise === "asap") {
+    const lines = [asapSentence(order.delivery.asapEstimate ?? "")];
+    lines.push(...movedLines(order.delivery.moved));
+    return { heading: DELIVERY_TYPE_WORDS.effy, lines };
+  }
+  // A day with no time arrives with its day and no hours; say that the missing hours are the promise.
+  const anyTime = order.delivery?.promise === "day" ? ` · ${DELIVERY_WINDOW_WORDS.anyTimeDay}` : "";
   const arrivals = distinctArrivals(order.arrivalEstimates);
   const lines = arrivals.length === 0
     ? [formatArrival({ promisedFrom: null, promisedTo: null }, now)]
-    : arrivals.map((a) => `${deliveryMethodWord(a.method)} · ${formatArrival(a, now)}`);
+    : arrivals.map((a) => `${deliveryMethodWord(a.method)} · ${formatArrival(a, now)}${anyTime}`);
   lines.push(...movedLines(order.delivery?.moved));
   return { heading: order.delivery?.type === "effy" ? DELIVERY_TYPE_WORDS.effy : null, lines };
 }
+
+/**
+ * 085 — what DRIVERS and STAFF read for a parcel sold a day with no time (the "Any time" window).
+ * ⚠ Never shown to a shop (they are told "Effy driver" and nothing else) and never to a customer,
+ * who reads `DELIVERY_WINDOW_WORDS.anyTimeDay`.
+ */
+export const ANY_TIME_LABEL = "Any time";
 
 /** Who takes a package away from the shop, as SHOP staff read it. Never a window, a day or a fee. */
 export type DeliveredBy = "effy_driver" | "courier";

@@ -3,6 +3,8 @@ package com.effyshopping.customer.mobile.features.checkout
 import com.effyshopping.customer.mobile.commerce.contract.EffyWindowsDTO
 import com.effyshopping.customer.mobile.features.checkout.data.toDomain
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
+import com.effyshopping.customer.mobile.features.checkout.presentation.AnyTimeChoice
+import com.effyshopping.customer.mobile.features.checkout.presentation.AsapView
 import com.effyshopping.customer.mobile.features.checkout.presentation.EffyDayView
 import com.effyshopping.customer.mobile.features.checkout.presentation.EffyWindowLine
 import com.effyshopping.customer.mobile.features.checkout.presentation.EffyWindowsView
@@ -44,6 +46,8 @@ class EffyWindowsViewTest {
                     closed = w.getValue("closed").jsonPrimitive.boolean, surchargeAmount = w.str("surchargeAmount"),
                 )
             },
+            // 085 — a day that can be chosen with no time.
+            anyTime = d["anyTime"]?.takeIf { it !is JsonNull }?.jsonObject?.let { AnyTimeChoice(it.str("slotId")!!, it.str("date")!!) },
         )
     }
 
@@ -53,11 +57,13 @@ class EffyWindowsViewTest {
         standardTitle = e.str("standardTitle")!!,
         today = e["today"]?.takeIf { it !is JsonNull }?.let(::day),
         later = e.getValue("later").jsonArray.map(::day),
+        // 085 — "as soon as possible".
+        asap = e["asap"]?.takeIf { it !is JsonNull }?.jsonObject?.let { AsapView(it.str("title")!!, it.str("hint")!!, it.str("estimate")!!) },
     )
 
     @Test
     fun `every case in the shared fixture is shown the same here`() {
-        assertTrue(cases.size >= 6, "a fixture that loads empty proves nothing")
+        assertTrue(cases.size >= 7, "a fixture that loads empty proves nothing")
         for (case in cases) {
             val c = case.jsonObject
             val windows = json.decodeFromJsonElement(EffyWindowsDTO.serializer(), c.getValue("input")).toDomain()

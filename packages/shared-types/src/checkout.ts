@@ -53,6 +53,13 @@ export interface CreateCheckoutIntentRequest {
    */
   deliveryWindow?: { slotId: string; date: string } | null;
   /**
+   * 085 — "as soon as possible": sent ALONE, with no `deliveryWindow`, when the quote carried
+   * `effyWindows.asap`. The server puts the order on the earliest day it can; the customer is never
+   * told which. Both, or neither, is refused with `slot_required`. (A day with no time is NOT this:
+   * it is `deliveryWindow` naming that day's `anyTime`.)
+   */
+  deliveryPromise?: "asap";
+  /**
    * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server writes
    * nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this differs from
    * what applies now, or when a courier quote is answered without it — so nobody pays a courier fee

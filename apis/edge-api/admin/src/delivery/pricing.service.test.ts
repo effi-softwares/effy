@@ -9,6 +9,7 @@ const repo = vi.hoisted(() => ({
   savePlan: vi.fn(),
   activatePlan: vi.fn(),
   slotIds: vi.fn(),
+  anyTimeSlotIds: vi.fn(),
   activePlanId: vi.fn(),
 }));
 vi.mock("./pricing.repository", async (orig) => ({ ...(await orig<typeof import("./pricing.repository")>()), ...repo }));
@@ -50,6 +51,7 @@ const fieldsOf = (fn: () => unknown): string[] => {
 beforeEach(() => {
   vi.clearAllMocks();
   repo.slotIds.mockResolvedValue(new Set([SLOT]));
+  repo.anyTimeSlotIds.mockResolvedValue(new Set());
   repo.savePlan.mockResolvedValue("plan-1");
   repo.readPlan.mockResolvedValue({ id: "plan-1" });
 });
@@ -104,6 +106,14 @@ describe("saving", () => {
     await expect(createPlan(valid, SUB)).rejects.toMatchObject({ code: "invalid_plan", extra: { fields: [{ field: "slotPremiums.0.slotId" }] } });
     expect(repo.savePlan).not.toHaveBeenCalled();
     expect(announce).not.toHaveBeenCalled();
+  });
+
+  it("085 — refuses a surcharge on the Any time window: an order with no time pays the plain fee", async () => {
+    repo.anyTimeSlotIds.mockResolvedValue(new Set([SLOT]));
+    await expect(createPlan(valid, SUB)).rejects.toMatchObject({
+      code: "invalid_plan", extra: { fields: [{ field: "slotPremiums.0.slotId", message: "the Any time window takes no surcharge" }] },
+    });
+    expect(repo.savePlan).not.toHaveBeenCalled();
   });
 
   it("a draft is named by a real id", async () => {

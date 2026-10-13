@@ -83,6 +83,8 @@ export interface OrderSummaryRow {
   package_ids: string[];
   /** 079 — who delivers the order; null for one placed before 079. */
   delivery_type: "effy" | "courier" | null;
+  /** 085 — what an Effy order was sold; null for courier and pre-085. */
+  delivery_promise?: "window" | "day" | "asap" | null;
 }
 
 export interface ListParams {
@@ -98,6 +100,8 @@ export interface ListParams {
    * definition (`LEGACY_OPEN_ORDER_SQL`), so this list is exactly what the go-live page counts.
    */
   stillOpen?: boolean;
+  /** 085 — what an Effy order was sold. An Effy order from before 085 was sold a window. */
+  promise?: "window" | "day" | "asap";
   cursor?: string;
   limit: number;
 }
@@ -130,6 +134,10 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
   } else if (params.deliveryType) {
     args.push(params.deliveryType);
     where.push(`o.delivery_type = $${args.length}`);
+  }
+  if (params.promise) {
+    args.push(params.promise);
+    where.push(`o.delivery_type = 'effy' AND COALESCE(o.delivery_promise, 'window') = $${args.length}`);
   }
   if (params.cursor) {
     args.push(params.cursor);
@@ -200,6 +208,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             o.grand_total_amount::text,
             o.currency,
             o.delivery_type,
+            o.delivery_promise,
             COALESCE((SELECT SUM(oi.quantity)::int FROM public.order_item oi WHERE oi.order_id = o.id), 0) AS item_count,
             COALESCE(p.package_count, 0)     AS package_count,
             COALESCE(p.awaiting_handover, 0) AS awaiting_handover,
@@ -265,6 +274,9 @@ export interface OrderDetailRow {
   courier_estimate: string | null;
   /** 080 */
   courier_collection: "hub" | "supplier" | null;
+  /** 085 */
+  delivery_promise?: "window" | "day" | "asap" | null;
+  asap_estimate?: string | null;
   payment_status: string | null;
   method_type: string | null;
   method_brand: string | null;
@@ -295,6 +307,7 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.delivery_handover,
             o.delivery_note,
             o.delivery_type, o.delivery_type_reason, o.courier_estimate, o.courier_collection,
+            o.delivery_promise, o.asap_estimate,
             pay.status AS payment_status,
             pay.method_type, pay.method_brand, pay.method_last4,
             o.points_used, o.points_value_amount::text AS points_value_amount, pay.amount::text AS card_paid_amount

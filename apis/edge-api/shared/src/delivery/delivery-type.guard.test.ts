@@ -63,6 +63,15 @@ describe("079 — the order's delivery type", () => {
   });
 });
 
+describe("085 — what an order was sold has two writers", () => {
+  it("delivery_promise is SET by checkout (the pending order) and by the staff moves — nothing else", () => {
+    expect(naming(/\bdelivery_promise\s*=\s*\$/)).toEqual([
+      "commerce/src/checkout/store.ts",
+      "shared/src/delivery/override.ts",
+    ]);
+  });
+});
+
 describe("079 — who takes a package is decided in the database", () => {
   it("nothing in the orders or shop services decides it from the window", () => {
     const where = sources

@@ -85,6 +85,8 @@ export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_a
 function deliveryOf(row: {
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
+  delivery_promise?: "window" | "day" | "asap" | null;
+  asap_estimate?: string | null;
   parcel_count?: number;
   consignments_out?: number;
   only_tracking_url?: string | null;
@@ -102,9 +104,27 @@ function deliveryOf(row: {
   return {
     delivery: {
       type: row.delivery_type, courierEstimate: courier ? row.courier_estimate ?? null : null,
+      // 085 — what was sold; an Effy order from before 085 was sold a window.
+      ...(courier ? {} : { promise: row.delivery_promise ?? "window" }),
+      ...(!courier && row.delivery_promise === "asap" && row.asap_estimate ? { asapEstimate: row.asap_estimate } : {}),
       ...(tracking ? { tracking } : {}), ...(moved ? { moved } : {}),
     },
   };
+}
+
+/**
+ * 085 — the arrival a customer may be told, from what the order was SOLD — not from what its
+ * packages carry. ⚠ A day with no time rides the Any-time window, so its packages have hours; the
+ * customer was promised the day and is never shown them. ⚠ "As soon as possible" was told an
+ * estimate: no day and no hours at all, like a courier order (the planned day is staff's business).
+ */
+function soldArrivals<T extends { windowStart: string | null; windowEnd: string | null }>(
+  row: { delivery_type?: "effy" | "courier" | null; delivery_promise?: "window" | "day" | "asap" | null },
+  arrivals: T[],
+): T[] {
+  if (row.delivery_type === "courier" || row.delivery_promise === "asap") return [];
+  if (row.delivery_promise === "day") return arrivals.map((a) => ({ ...a, windowStart: null, windowEnd: null }));
+  return arrivals;
 }
 
 /**
@@ -172,12 +192,12 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
       return Promise.all((await repo.list(customerId)).map(async (r) => {
         const paid = r.status === "paid";
         const stage = paid && r.portion_statuses ? stageFor(r.portion_statuses) : undefined;
-        const arrivals = r.delivery_type === "courier" ? [] : distinctArrivals((r.arrivals ?? []).map((a) => ({
+        const arrivals = distinctArrivals(soldArrivals(r, (r.arrivals ?? []).map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
           // json_agg hands a timestamp back as text; the receipt's own read hands back a Date.
           windowStart: a.window_start ? operatingStamp(new Date(a.window_start)) : null,
           windowEnd: a.window_end ? operatingStamp(new Date(a.window_end)) : null,
-        })));
+        }))));
         const refunded = refundBlock(r.grand_total_amount, (r.refunds ?? []) as RefundRow[]);
         // ⚠ A picture must not be able to fail the list: a presign failure is a missing picture.
         const thumbnails = r.image_keys ? await Promise.all(r.image_keys.map((k) => presign(k).catch(() => null))) : undefined;
@@ -269,11 +289,13 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
         // ⚠ 079 — EMPTY for a courier order. It has no window and no day, and its packages' own
         // word for the delivery is routing ("standard"), not what the customer was sold: sent on, a
         // client built before 079 would print "Standard delivery" for a parcel a courier is carrying.
-        arrivalEstimates: row.delivery_type === "courier" ? [] : distinctArrivals(arrivals.map((a) => ({
+        // ⚠ 085 — and from what was SOLD (`soldArrivals`): a day's hours and an "as soon as
+        // possible" order's planned day are never the customer's.
+        arrivalEstimates: distinctArrivals(soldArrivals(row, arrivals.map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
           windowStart: a.window_start ? operatingStamp(a.window_start) : null,
           windowEnd: a.window_end ? operatingStamp(a.window_end) : null,
-        }))),
+        })))),
         ...deliveryOf(row),
       };
       return order as unknown as OrderDTO;

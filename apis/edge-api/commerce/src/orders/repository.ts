@@ -13,6 +13,9 @@ export interface SummaryRow {
   /** 079 — who delivers the order, and a courier's timeframe as sold. Both null before 079. */
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
+  /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
+  delivery_promise?: "window" | "day" | "asap" | null;
+  asap_estimate?: string | null;
   /**
    * 084 — what the order list shows beside the totals. All optional, so a fake (or a row from a
    * query written before 084) still type-checks and simply produces a summary without them.
@@ -61,6 +64,9 @@ export interface OrderRow {
    */
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
+  /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
+  delivery_promise?: "window" | "day" | "asap" | null;
+  asap_estimate?: string | null;
   /**
    * 080 — what tracking a customer may be shown: how many parcels the order is, how many have gone
    * to a courier, and — only when exactly one has — its link and courier. Never per parcel.
@@ -151,6 +157,7 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        COALESCE((SELECT SUM(quantity) FROM public.order_item WHERE order_id = o.id), 0)::int AS item_count,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
        o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate,
+       o.delivery_promise AS delivery_promise, o.asap_estimate AS asap_estimate,
        -- 084 — the order list's pictures, stage and status line. ⚠ Each is the SAME read the receipt
        -- makes (same tables, same order), gathered per order; nothing here selects a shop.
        ARRAY(SELECT sf.status FROM public.shop_fulfillment sf WHERE sf.order_id = o.id) AS portion_statuses,
@@ -195,6 +202,7 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.points_used AS points_used, o.points_value_amount::text AS points_value_amount,
        (SELECT amount::text FROM public.payment WHERE order_id = o.id) AS card_paid_amount,
        o.delivery_type AS delivery_type, o.courier_estimate AS courier_estimate,
+       o.delivery_promise AS delivery_promise, o.asap_estimate AS asap_estimate,
        -- 080 — the parcels still on their way to the customer (a withdrawn or unsupplied portion is not one).
        (SELECT count(*) FROM public.shop_fulfillment sf
          WHERE sf.order_id = o.id AND sf.status NOT IN ('withdrawn', 'unfulfillable'))::int AS parcel_count,

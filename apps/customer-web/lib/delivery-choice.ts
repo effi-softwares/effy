@@ -14,11 +14,27 @@ import type { CourierQuoteDTO, DeliveryFeeDTO, DeliveryQuoteDTO, DeliveryType, E
  * `deliveryWindow`; `courier` → nothing to choose.
  */
 
-/** The ONE window chosen for the order: a slot on a day (078). */
+/**
+ * The ONE window chosen for the order: a slot on a day (078). 085 — it may be a later day's "Any
+ * time" window (`EffyDayDTO.anyTime`): the order is then promised the day and no hours.
+ */
 export interface ChosenWindow {
   slotId: string
   date: string
 }
+
+/** 085 — "as soon as possible": no day and no time; the server picks the earliest day it can. */
+export interface ChosenAsap {
+  asap: true
+}
+
+/** What the shopper chose for an Effy order: a window (timed or a day's Any-time one), or ASAP. */
+export type DeliveryChoice = ChosenWindow | ChosenAsap
+
+export const isAsap = (c: DeliveryChoice | null): c is ChosenAsap => c !== null && "asap" in c
+
+/** The window a choice names; null for "as soon as possible" and for no choice. */
+export const windowOf = (c: DeliveryChoice | null): ChosenWindow | null => (c && !isAsap(c) ? c : null)
 
 /** The windows Effy offers this order, or null when a courier delivers or the address is not served. */
 export const effyWindowsOf = (quote: DeliveryQuoteDTO | null): EffyWindowsDTO | null =>
@@ -43,19 +59,32 @@ export function deliveryTypeOf(quote: DeliveryQuoteDTO | null): DeliveryType | n
   return effyWindowsOf(quote) ? "effy" : null
 }
 
-/** The chosen window as the quote offers it NOW; null when nothing is chosen or it is no longer offered. */
-export function findWindow(quote: DeliveryQuoteDTO | null, chosen: ChosenWindow | null): EffyWindowDTO | null {
-  if (!chosen) return null
-  const day = effyWindowsOf(quote)?.days.find((d) => d.date === chosen.date)
-  return day?.windows.find((w) => w.slotId === chosen.slotId) ?? null
+/**
+ * The chosen window as the quote offers it NOW — a timed window or the day's Any-time one (085);
+ * null when nothing is chosen, it is "as soon as possible", or it is no longer offered.
+ */
+export function findWindow(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): EffyWindowDTO | null {
+  const w = windowOf(chosen)
+  if (!w) return null
+  const day = effyWindowsOf(quote)?.days.find((d) => d.date === w.date)
+  if (day?.anyTime?.slotId === w.slotId) return day.anyTime
+  return day?.windows.find((x) => x.slotId === w.slotId) ?? null
+}
+
+/** 085 — what the order is promised: a time, a day with no time, or "as soon as possible". */
+export function promiseOf(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): "window" | "day" | "asap" | null {
+  if (isAsap(chosen)) return "asap"
+  const w = windowOf(chosen)
+  if (!w) return null
+  return effyWindowsOf(quote)?.days.find((d) => d.date === w.date)?.anyTime?.slotId === w.slotId ? "day" : "window"
 }
 
 /**
  * Carry the window across a NEW quote: kept while it is still on offer, dropped when it is not.
  * ⚠ Dropped means NOTHING is selected — a window that has gone is never replaced by another (FR-010).
  */
-export const carryWindow = (quote: DeliveryQuoteDTO | null, chosen: ChosenWindow | null): ChosenWindow | null =>
-  findWindow(quote, chosen) ? chosen : null
+export const carryWindow = (quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryChoice | null =>
+  isAsap(chosen) ? (effyWindowsOf(quote)?.asap ? chosen : null) : findWindow(quote, chosen) ? chosen : null
 
 /** How many days after today a date is, among the days offered (0 = today). -1 when it is not offered. */
 export const dayOffset = (w: EffyWindowsDTO, date: string): number => w.days.findIndex((d) => d.date === date)
@@ -64,11 +93,13 @@ export const dayOffset = (w: EffyWindowsDTO, date: string): number => w.days.fin
  * The delivery charge for what the shopper has chosen (077): the courier's fee, or the chosen
  * window's. Null until a window is chosen — there is no charge to show before there is one.
  */
-export function chosenFee(quote: DeliveryQuoteDTO | null, window: ChosenWindow | null): DeliveryFeeDTO | null {
+export function chosenFee(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryFeeDTO | null {
   if (!quote?.serviced) return null
   // 079 — a courier delivers: ONE fee, already decided.
   if (quote.courier) return quote.courier.fee
-  return findWindow(quote, window)?.fee ?? null
+  // 085 — "as soon as possible" has one fee whatever day it lands on.
+  if (isAsap(chosen)) return effyWindowsOf(quote)?.asap?.fee ?? null
+  return findWindow(quote, chosen)?.fee ?? null
 }
 
 /** Whether the fee shown is free because the basket reached the free-delivery amount. */

@@ -5,7 +5,7 @@
 // slice. A comment asserting a limitation that no longer holds is the stale-claim shape 060 and 063
 // both record, so it was corrected in the same change rather than left to be believed.
 
-import { formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
+import { ANY_TIME_LABEL, formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
 import type {
   ActivityItem,
@@ -40,6 +40,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     delivery_handover: HandoverPreference | null;
     window_start: Date | null;
     window_end: Date | null;
+    any_time: boolean;
   }>(
     `SELECT rs.id                                   AS stop_id,
             rs.status                               AS status,
@@ -59,7 +60,11 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
             (SELECT min(opd.window_start) FROM public.order_package_delivery opd
               WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_start,
             (SELECT min(opd.window_end)   FROM public.order_package_delivery opd
-              WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_end
+              WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_end,
+            -- 085 — sold a day with no time.
+            EXISTS (SELECT 1 FROM public.order_package_delivery opd
+                      JOIN public.delivery_slot ds ON ds.id = opd.slot_id
+                     WHERE opd.order_id = o.id AND ds.any_time) AS any_time
        FROM public.round_stop rs
        JOIN public.driver_round dr ON dr.id = rs.round_id
        JOIN public."order"      o  ON o.id = rs.order_id
@@ -97,7 +102,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     // 069 — when the customer was told to expect it. Null for an order placed before 069: the app
     // then shows no window at all. ⚠ Instants only — "due" and "late" are the app's to derive from
     // these and its own clock, because they change while the screen is open.
-    ...dropWindow(r.window_start, r.window_end),
+    ...dropWindow(r.window_start, r.window_end, r.any_time),
     // ⚠ Every stored state reads back as itself. This used to collapse everything unrecognised to
     // "staged", which is how a drop that HAD started kept showing "Start this drop".
     status: dropStatusOf(r.status),
@@ -415,10 +420,13 @@ export async function activity(driverId: string): Promise<ActivityItem[]> {
 function dropWindow(
   start: Date | null,
   end: Date | null,
+  anyTime = false,
 ): { window: string | null; deliveryWindow: DeliveryWindow | null } {
   if (!start || !end) return { window: null, deliveryWindow: null };
   const deliveryWindow = { startAt: new Date(start).toISOString(), endAt: new Date(end).toISOString() };
   // ⚠ The SERVER words the window, in Melbourne time, with the one shared formatter. The app has no
   // timezone database to do it with, and a second wording is how two screens disagree.
-  return { window: formatDeliveryWindow(deliveryWindow), deliveryWindow };
+  // 085 — sold a day with no time: "Any time", with the round's hours so the driver knows the end.
+  const hours = formatDeliveryWindow(deliveryWindow);
+  return { window: anyTime ? `${ANY_TIME_LABEL} · ${hours}` : hours, deliveryWindow };
 }

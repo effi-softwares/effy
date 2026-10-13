@@ -288,6 +288,11 @@ data class PlaceOrder(
      */
     val deliveryWindow: ChosenWindow? = null,
     /**
+     * 085 — "as soon as possible": sent INSTEAD of [deliveryWindow]. The server puts the order on the
+     * earliest day it can; the shopper is told the estimate, never the day.
+     */
+    val asap: Boolean = false,
+    /**
      * 079 — who delivers the order, as this screen is SHOWING it ([DeliveryQuote.deliveryType]). A
      * courier order is refused without it, and so is one that says "courier" for an address Effy now
      * delivers to ([DeliveryChoiceRefusal.DeliveryTypeChanged]) — nobody pays a courier fee for a
@@ -368,7 +373,15 @@ data class EffyDay(
     val today: Boolean,
     val windows: List<EffyWindow>,
     val closedReason: EffyDayClosed?,
+    /**
+     * 085 — this day sold with NO TIME (the business's "Any time" window). Chosen like any window; the
+     * order is then promised the day. ⚠ Always null for today.
+     */
+    val anyTime: EffyWindow? = null,
 )
+
+/** 085 — "as soon as possible": the business's estimate and the one fee. No day. */
+data class EffyAsap(val estimate: String, val fee: DeliveryFee)
 
 /** Why no day has a window. The shopper reads one sentence for both. */
 enum class WindowsUnavailable { NoWindows, NoneDefined }
@@ -379,10 +392,20 @@ enum class WindowsUnavailable { NoWindows, NoneDefined }
  * ⚠ WHICH CHECKOUT THIS IS, THE QUOTE SAYS. A quote that carries these is the new model; one that
  * does not is the 069 method / slot / day. Nothing in the app reads a switch of its own.
  */
-data class EffyWindows(val days: List<EffyDay>, val unavailable: WindowsUnavailable?) {
-    /** The chosen window as it is offered NOW; null when nothing is chosen or it is no longer offered. */
+data class EffyWindows(val days: List<EffyDay>, val unavailable: WindowsUnavailable?, val asap: EffyAsap? = null) {
+    /**
+     * The chosen window as it is offered NOW — a timed one, or (085) the day's Any time one; null when
+     * nothing is chosen or it is no longer offered.
+     */
     fun find(chosen: ChosenWindow?): EffyWindow? =
-        chosen?.let { c -> days.firstOrNull { it.date == c.date }?.windows?.firstOrNull { it.slotId == c.slotId } }
+        chosen?.let { c ->
+            val day = days.firstOrNull { it.date == c.date }
+            day?.anyTime?.takeIf { it.slotId == c.slotId } ?: day?.windows?.firstOrNull { it.slotId == c.slotId }
+        }
+
+    /** 085 — whether [chosen] is a day's Any time window: the order is then promised the day. */
+    fun isAnyTime(chosen: ChosenWindow?): Boolean =
+        chosen != null && days.firstOrNull { it.date == chosen.date }?.anyTime?.slotId == chosen.slotId
 
     /** 0 for today, 1 for the first later day… -1 when the date is not offered. */
     fun dayOffset(date: String): Int = days.indexOfFirst { it.date == date }
@@ -390,6 +413,9 @@ data class EffyWindows(val days: List<EffyDay>, val unavailable: WindowsUnavaila
 
 /** 079 — who delivers an order. One per order, whatever number of suppliers fill it. */
 enum class DeliveryType { EFFY, COURIER }
+
+/** 085 — what an Effy order was sold: a time, a day with no time, or "as soon as possible". */
+enum class DeliveryPromise { WINDOW, DAY, ASAP }
 
 /**
  * 079 — what a courier order is told and charged. There is NOTHING to choose: no window, no day.
@@ -406,6 +432,10 @@ data class CourierDelivery(val estimate: String, val fee: DeliveryFee, val noWin
 data class OrderDelivery(
     val type: DeliveryType,
     val courierEstimate: String?,
+    /** 085 — what an Effy order was sold; null for courier and orders from before 085 (a window). */
+    val promise: DeliveryPromise? = null,
+    /** 085 — the estimate an "as soon as possible" order was sold with. */
+    val asapEstimate: String? = null,
     val tracking: OrderTracking? = null,
     /** 081 — the latest move by back-office, and what the customer received; null when never moved. */
     val moved: OrderDeliveryMove? = null,
@@ -461,10 +491,12 @@ data class DeliveryQuote(
      * until a window is chosen — nothing to show yet.
      * ⚠ The same rule as customer-web's `chosenFee`; the server re-prices and refuses a mismatch.
      */
-    fun feeFor(window: ChosenWindow?): DeliveryFee? {
+    fun feeFor(window: ChosenWindow?, asap: Boolean = false): DeliveryFee? {
         if (!serviced) return null
         // 079 — a courier delivers: ONE fee, already decided, whatever else is (not) chosen.
         if (courier != null) return courier.fee
+        // 085 — "as soon as possible" has one fee whatever day it lands on.
+        if (asap) return effyWindows?.asap?.fee
         return effyWindows?.find(window)?.fee
     }
 

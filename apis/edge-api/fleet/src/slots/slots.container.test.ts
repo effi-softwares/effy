@@ -166,6 +166,17 @@ d("069 — same-day delivery slots", () => {
     expect(changes).toContainEqual({ from: 4, to: null });
   });
 
+  it("085 — one active Any time window: a second is refused, naming the field; untick the first and it is not", async () => {
+    const first = await createSlot({ startTime: "12:00", endTime: "21:00", cutoffTime: "10:00", capacity: 40, anyTime: true }, ACTOR, scope);
+    expect(first.anyTime).toBe(true);
+    const err = await refusal(createSlot({ ...EVENING, anyTime: true }, ACTOR, scope));
+    expect(err.kind).toBe("conflict");
+    expect(err.fields?.[0]?.field).toBe("anyTime");
+    // A disabled one does not count.
+    await updateSlot(first.id, { status: "disabled" }, ACTOR, scope);
+    expect((await createSlot({ ...EVENING, anyTime: true }, ACTOR, scope)).anyTime).toBe(true);
+  });
+
   it("lists earliest first", async () => {
     await createSlot({ startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", capacity: 2 }, ACTOR, scope);
     await createSlot(EVENING, ACTOR, scope);

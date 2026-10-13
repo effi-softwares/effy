@@ -27,8 +27,17 @@ export interface OrderListParams {
   deliveryType?: AdminOrderDeliveryFilter;
   /** 083 — with `deliveryType: "legacy"`: only the old orders that are still open. */
   stillOpen?: boolean;
+  /** 085 — what an Effy order was sold. */
+  promise?: "window" | "day" | "asap";
   cursor?: string;
 }
+
+/** 085 — what an Effy order was sold, in staff words. */
+export const PROMISE_LABEL: Record<"window" | "day" | "asap", string> = {
+  window: "A time",
+  day: "Day only (any time)",
+  asap: "As soon as possible",
+};
 
 // ── 079: who delivers an order ───────────────────────────────────────────────────────────────────
 

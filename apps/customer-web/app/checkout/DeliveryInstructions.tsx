@@ -59,7 +59,7 @@ export function DeliveryInstructions({
         {hint}
       </p>
 
-      <div role="group" aria-label="How should we hand it over?" className="mt-4 inline-flex overflow-hidden rounded-md border border-input shadow-xs">
+      <div role="group" aria-label="How should we hand it over?" className="mt-4 inline-flex max-w-full overflow-hidden rounded-md border border-input shadow-xs">
         {HANDOVER_CHOICES.map((choice) => {
           const pressed = value.handover === choice.value
           return (
@@ -70,7 +70,7 @@ export function DeliveryInstructions({
               disabled={disabled}
               onClick={() => onChange({ ...value, handover: pressed ? null : choice.value })}
               className={
-                "min-h-11 border-l border-input px-4 text-sm font-medium transition-colors first:border-l-0 " +
+                "min-h-11 min-w-0 border-l border-input px-4 text-sm font-medium transition-colors first:border-l-0 " +
                 "disabled:cursor-not-allowed disabled:opacity-50 " +
                 (pressed ? "bg-accent text-foreground" : "bg-background hover:bg-accent")
               }

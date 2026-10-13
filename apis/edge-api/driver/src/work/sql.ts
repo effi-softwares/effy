@@ -87,15 +87,19 @@ export const ROUND_STOPS = `
          o.delivery_address ->> 'postalCode' AS destination_postcode,
          o.delivery_address ->> 'region'     AS destination_state,
          w.window_start   AS window_start,
-         w.window_end     AS window_end
+         w.window_end     AS window_end,
+         COALESCE(w.any_time, false) AS any_time
     FROM public.round_stop rs
     JOIN public.driver_round dr ON dr.id = rs.round_id
     -- 069 — the window the customer was sold. An order's same-day packages share ONE slot, so MIN is
     -- that slot and not a choice between several. NULL for a pickup, the hub, and any order placed
     -- before 069; a standard package has no window and is never on a delivery round.
     LEFT JOIN LATERAL (
-      SELECT min(opd.window_start) AS window_start, min(opd.window_end) AS window_end
+      SELECT min(opd.window_start) AS window_start, min(opd.window_end) AS window_end,
+             -- 085 — sold a day with no time: the driver is told "Any time", not the hours.
+             bool_or(ds.any_time) AS any_time
         FROM public.order_package_delivery opd
+        LEFT JOIN public.delivery_slot ds ON ds.id = opd.slot_id
        WHERE opd.order_id = rs.order_id AND opd.window_start IS NOT NULL
     ) w ON TRUE
     LEFT JOIN public.shop           s ON s.id = rs.shop_id
@@ -122,6 +126,7 @@ export const ROUND_PACKAGES = `
          ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
          opd.window_start                       AS window_start,
          opd.window_end                         AS window_end,
+         COALESCE((SELECT ds.any_time FROM public.delivery_slot ds WHERE ds.id = opd.slot_id), false) AS any_time,
          o.delivery_address ->> 'city'          AS destination_suburb
     FROM public.round_package rp
     JOIN public.round_stop       rs ON rs.id = rp.stop_id

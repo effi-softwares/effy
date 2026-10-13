@@ -272,6 +272,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  orderDeliveryWindowV1:
+    handler: src/functions/order-delivery-window-v1-post.handler
+    description: Give an Effy order another window or day — or a day with no time — under checkout's window rule; no money moves (085). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/orders/{orderId}/delivery-window
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   orderCourierCollectionV1:
     handler: src/functions/order-courier-collection-v1-put.handler
     description: Change how a courier order reaches the courier (080). Write = admin/manager.

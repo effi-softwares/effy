@@ -366,6 +366,118 @@
           "We've changed this order back to delivery by Effy."
         ]
       }
+    },
+    {
+      "name": "085 — Effy, a day with no time, three suppliers: one line, the day, and no hours",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null,
+          "promise": "day"
+        },
+        "arrivalEstimates": [
+          {
+            "method": "standard",
+            "promisedFrom": "2026-10-10",
+            "promisedTo": "2026-10-10",
+            "windowStart": null,
+            "windowEnd": null
+          },
+          {
+            "method": "standard",
+            "promisedFrom": "2026-10-10",
+            "promisedTo": "2026-10-10",
+            "windowStart": null,
+            "windowEnd": null
+          },
+          {
+            "method": "standard",
+            "promisedFrom": "2026-10-10",
+            "promisedTo": "2026-10-10",
+            "windowStart": null,
+            "windowEnd": null
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "Standard delivery · Sat 10 Oct · Any time during the day"
+        ]
+      }
+    },
+    {
+      "name": "085 — Effy, as soon as possible: the estimate, said as one, and no day",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null,
+          "promise": "asap",
+          "asapEstimate": "usually within 2–3 days"
+        },
+        "arrivalEstimates": []
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "As soon as possible — usually within 2–3 days"
+        ]
+      }
+    },
+    {
+      "name": "085 — as soon as possible never reads an arrival, even if one is sent",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null,
+          "promise": "asap",
+          "asapEstimate": "usually within 2–3 days"
+        },
+        "arrivalEstimates": [
+          {
+            "method": "same_day",
+            "promisedFrom": "2026-10-08",
+            "promisedTo": "2026-10-08",
+            "windowStart": "2026-10-08T12:00:00+11:00",
+            "windowEnd": "2026-10-08T21:00:00+11:00"
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "As soon as possible — usually within 2–3 days"
+        ]
+      }
+    },
+    {
+      "name": "085 — an order sold a window says so explicitly and reads as it always did",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "delivery": {
+          "type": "effy",
+          "courierEstimate": null,
+          "promise": "window"
+        },
+        "arrivalEstimates": [
+          {
+            "method": "standard",
+            "promisedFrom": "2026-10-10",
+            "promisedTo": "2026-10-10",
+            "windowStart": "2026-10-10T18:00:00+11:00",
+            "windowEnd": "2026-10-10T20:30:00+11:00"
+          }
+        ]
+      },
+      "expect": {
+        "heading": "Delivered by Effy",
+        "lines": [
+          "Standard delivery · Sat 10 Oct, 6 pm – 8:30 pm"
+        ]
+      }
     }
   ]
 }

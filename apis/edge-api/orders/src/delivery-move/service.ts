@@ -7,7 +7,7 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { emitMetric, logger, pooled, refused, withTransaction, type RequestScope } from "@effy/edge-shared";
 import {
-  DELIVERY_COMPENSATION_KINDS_SET, DeliveryMoveError, deliveryMovesFor, moveToCourier, moveToEffy, previewMove,
+  changeEffyWindow, DELIVERY_COMPENSATION_KINDS_SET, DeliveryMoveError, deliveryMovesFor, moveToCourier, moveToEffy, previewMove,
 } from "@effy/edge-shared/delivery";
 import { announceDispatch, announceOrder, announceSlots } from "@effy/edge-shared/live";
 import { parseCents } from "@effy/edge-shared";
@@ -44,6 +44,40 @@ export function deliveryMoveError(err: unknown, scope: RequestScope): APIGateway
 
 export function parseTo(v: unknown): DeliveryType | null {
   return v === "courier" || v === "effy" ? v : null;
+}
+
+/**
+ * `POST …/delivery-window` (085) — give an Effy order another window or day: a timed window, or the
+ * day's Any time window. ⚠ No money moves and who delivers does not change; see `changeEffyWindow`.
+ */
+export async function changeWindow(
+  orderId: string,
+  body: Record<string, unknown>,
+  actorSub: string,
+): Promise<{ orderId: string; promise: "window" | "day" }> {
+  if (!UUID.test(orderId)) throw new DeliveryMoveError("not_found");
+  const fields: { field: string; message: string }[] = [];
+  const reason = text(body.reason);
+  if (reason === "") fields.push({ field: "reason", message: "say why" });
+  if (reason.length > MAX_REASON) fields.push({ field: "reason", message: `at most ${MAX_REASON} characters` });
+  const expectedUpdatedAt = text(body.expectedUpdatedAt);
+  if (expectedUpdatedAt === "" || Number.isNaN(Date.parse(expectedUpdatedAt))) fields.push({ field: "expectedUpdatedAt", message: "open the order again" });
+  const w = body.window as { slotId?: unknown; date?: unknown } | null | undefined;
+  if (!w || typeof w.slotId !== "string" || !UUID.test(w.slotId) || typeof w.date !== "string" || !ISO_DATE.test(w.date)) {
+    fields.push({ field: "window", message: "choose a day or a window" });
+  }
+  if (fields.length > 0) throw new DeliveryMoveInputError(fields);
+
+  const result = await withTransaction((tx) =>
+    changeEffyWindow(tx, { orderId, actorSub, reason, window: { slotId: w!.slotId as string, date: w!.date as string }, expectedUpdatedAt }),
+  );
+  // ── After the commit. 071 — the order page (the customer's too: it now says the new promise), the
+  // drivers whose planned work was taken back, the windows screen.
+  emitMetric(NAMESPACE, "DeliveryWindowChanges", 1, { promise: result.promise });
+  await announceOrder(orderId, { slots: true, drivers: true });
+  await announceDispatch(result.driverIds);
+  await announceSlots();
+  return { orderId, promise: result.promise };
 }
 
 /** `GET …/delivery-move?to=` */

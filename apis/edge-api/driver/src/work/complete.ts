@@ -6,7 +6,7 @@
 
 import { deliveredBySql } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
-import { formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse } from "@effy/shared-types";
+import { ANY_TIME_LABEL, formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse } from "@effy/shared-types";
 
 import { assertRoundOpen } from "./open";
 import { NotFoundError } from "./service";
@@ -158,14 +158,17 @@ export async function hubCheckin(
               ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
               opd.window_start                         AS window_start,
               opd.window_end                           AS window_end,
+              -- 085 — the "Any time" window: the customer was sold the day, not these hours.
+              COALESCE(ds.any_time, false)             AS any_time,
               count(*)::int                            AS n
          FROM public.round_package rp
          JOIN public.round_stop       rs ON rs.id = rp.stop_id
          JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
          JOIN public."order"          o  ON o.id = sf.order_id
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
+    LEFT JOIN public.delivery_slot ds ON ds.id = opd.slot_id
         WHERE rs.round_id = $1
-        GROUP BY 1, 2, 3, 4, 5`,
+        GROUP BY 1, 2, 3, 4, 5, 6`,
       [runId],
     );
 
@@ -191,7 +194,13 @@ export async function hubCheckin(
       const g = byWindow.get(key) ?? {
         date: windowStart ? melbourneDate(new Date(windowStart)) : null,
         windowStart, windowEnd,
-        label: windowStart && windowEnd ? formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, at) : "Effy delivery",
+        // 085 — an untimed parcel is labelled by its day and "Any time", never by its window's hours.
+        label: windowStart && windowEnd
+          ? r.any_time
+            ? `${formatArrival({ promisedFrom: melbourneDate(new Date(windowStart)), promisedTo: melbourneDate(new Date(windowStart)) }, at)} · ${ANY_TIME_LABEL}`
+            : formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, at)
+          : "Effy delivery",
+        ...(r.any_time ? { anyTime: true as const } : {}),
         count: 0,
         dueToday: windowStart === null || melbourneDate(new Date(windowStart)) <= melbourneDate(at),
       };

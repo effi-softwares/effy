@@ -3,6 +3,7 @@ package com.effyshopping.customer.mobile.features.checkout.presentation
 import com.effyshopping.customer.mobile.core.platform.melbourneOffsetSeconds
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
 import com.effyshopping.customer.mobile.features.checkout.domain.CustomerCompensation
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryPromise
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
@@ -79,6 +80,9 @@ object DeliveryTypeWords {
     }
 }
 
+/** 085 — "As soon as possible — usually within 2–3 days". The estimate is the business's own words. */
+fun asapSentence(estimate: String): String = "${DeliveryWindowWords.ASAP_ESTIMATE_PREFIX} $estimate".trim()
+
 /** What a customer surface prints for an order's delivery. [heading] is null for an order placed before 079. */
 data class DeliverySummary(val heading: String?, val lines: List<String>)
 
@@ -110,9 +114,15 @@ fun deliverySummary(
         lines += DeliveryTypeWords.movedLines(delivery.moved)
         return DeliverySummary(DeliveryTypeWords.COURIER, lines)
     }
+    // 085 — "as soon as possible" reads no arrival either: it was sold an estimate, never a day.
+    if (delivery?.promise == DeliveryPromise.ASAP) {
+        return DeliverySummary(DeliveryTypeWords.EFFY, listOf(asapSentence(delivery.asapEstimate.orEmpty())) + DeliveryTypeWords.movedLines(delivery.moved))
+    }
+    // A day with no time arrives with its day and no hours; say that the missing hours are the promise.
+    val anyTime = if (delivery?.promise == DeliveryPromise.DAY) " · ${DeliveryWindowWords.ANY_TIME_DAY}" else ""
     fun said(a: ArrivalEstimate?) = DeliveryWindowText.formatArrival(a?.promisedFrom, a?.promisedTo, a?.windowStart, a?.windowEnd, nowEpochMillis, offsetAt)
     val distinct = arrivals.distinctBy { listOf(it.method, it.promisedFrom, it.promisedTo, it.windowStart, it.windowEnd) }
-    val lines = (if (distinct.isEmpty()) listOf(said(null)) else distinct.map { "${DeliveryTypeWords.methodWord(it.method)} · ${said(it)}" }) +
+    val lines = (if (distinct.isEmpty()) listOf(said(null)) else distinct.map { "${DeliveryTypeWords.methodWord(it.method)} · ${said(it)}$anyTime" }) +
         DeliveryTypeWords.movedLines(delivery?.moved)
     return DeliverySummary(if (delivery?.type == DeliveryType.EFFY) DeliveryTypeWords.EFFY else null, lines)
 }

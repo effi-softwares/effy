@@ -760,6 +760,12 @@ data class HubCheckinResponse (
  */
 @Serializable
 data class HubCheckinEffyGroup (
+    /**
+     * 085 — these were sold a day with no time: they ride the "Any time" window. Absent
+     * otherwise.
+     */
+    val anyTime: Boolean? = null,
+
     val count: Long,
 
     /**

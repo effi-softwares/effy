@@ -96,7 +96,9 @@ describe("the customer's delivery wire carries no capacity and no shop", () => {
     expect(dto.freeDeliveryRemainingAmount).toBe("26.00");
     expect(w.startAt).toBe("2026-08-24T17:00:00+10:00"); // Melbourne offset, not Z
     // A full day is said to be full — never how full, and never with its windows.
-    expect(dto.effyWindows.days[1]).toEqual({ date: "2026-08-25", section: "standard", windows: [], closedReason: "full" });
+    // 085 — and with no Any-time window, no day is sold without a time.
+    expect(dto.effyWindows.days[1]).toEqual({ date: "2026-08-25", section: "standard", windows: [], closedReason: "full", anyTime: null });
+    expect(dto.effyWindows.asap).toBeNull();
   });
 
   it("an unserviced quote says so and nothing else", () => {

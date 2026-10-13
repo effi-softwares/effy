@@ -369,6 +369,8 @@ export interface HubCheckinEffyGroup {
   windowEnd: string | null;
   label: string;
   count: WireInt;
+  /** 085 — these were sold a day with no time: they ride the "Any time" window. Absent otherwise. */
+  anyTime?: true;
   /**
    * True when these go out TODAY (their window is today, or they were sold no window): the driver
    * loads them for a delivery round. False = shelved at the hub for a later day. ⚠ Decided by the

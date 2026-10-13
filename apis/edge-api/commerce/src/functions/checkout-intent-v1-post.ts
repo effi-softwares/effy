@@ -54,6 +54,14 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     deliveryWindow = { slotId: w.slotId, date: w.date };
   }
 
+  // 085 — "as soon as possible", sent instead of a window. Anything else in this field is refused:
+  // a day with no time is a `deliveryWindow`, not a second spelling here.
+  const rawPromise: unknown = body.deliveryPromise;
+  if (rawPromise !== undefined && rawPromise !== null && rawPromise !== "asap") {
+    return validationFailed(scope, "deliveryPromise must be asap");
+  }
+  const deliveryPromise = rawPromise === "asap" ? "asap" as const : null;
+
   // 079 — the delivery type the client is showing. Absent means it said nothing (a client built
   // before 079, which can then only buy an Effy delivery).
   const rawType: unknown = body.deliveryType;
@@ -75,7 +83,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     const result = await checkoutService.createIntent(
       customer.id,
       {
-        addressId, billingAddressId, deliveryWindow, deliveryType,
+        addressId, billingAddressId, deliveryWindow, deliveryType, deliveryPromise,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
         shownDeliveryAmount,
       },

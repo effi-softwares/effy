@@ -94,6 +94,9 @@ export interface ReceiptOrderRow {
    */
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
+  /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
+  delivery_promise?: "window" | "day" | "asap" | null;
+  asap_estimate?: string | null;
   grand_total_amount: string;
   delivery_address: Record<string, unknown> | null;
   billing_address: Record<string, unknown> | null;
@@ -141,7 +144,7 @@ export async function loadReceipt(orderId: string): Promise<{
             o.promo_code,
             o.delivery_fee_amount::text  AS delivery_fee_amount,
             o.delivery_fee_breakdown -> 'lines' AS delivery_fee_lines,
-            o.delivery_type, o.courier_estimate,
+            o.delivery_type, o.courier_estimate, o.delivery_promise, o.asap_estimate,
             o.grand_total_amount::text   AS grand_total_amount,
             o.delivery_address, o.billing_address,
             p.method_type, p.method_brand, p.method_last4,

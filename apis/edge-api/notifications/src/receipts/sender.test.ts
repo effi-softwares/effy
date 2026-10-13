@@ -157,3 +157,27 @@ describe("deliveryVars — 079: who delivers decides what the receipt says", () 
     expect(deliveryVars({ delivery_type: null, courier_estimate: null }, [window], now).deliveryLabel).toBe("Arriving");
   });
 });
+
+describe("deliveryVars — 085: what was sold, not what the packages carry", () => {
+  const now = new Date("2026-10-08T09:00:00+11:00");
+  // The Any-time window: an untimed order's packages carry its hours.
+  const anyTime = (date: string) => ({
+    method: "standard", promised_from: date, promised_to: date,
+    window_start: new Date(`${date}T12:00:00+11:00`), window_end: new Date(`${date}T21:00:00+11:00`),
+  });
+
+  it("a day with no time: the day, 'any time during the day', and no hours", () => {
+    const v = deliveryVars({ delivery_type: "effy", delivery_promise: "day" }, [anyTime("2026-10-10"), anyTime("2026-10-10")], now);
+    expect(v.deliveryEstimate).toBe("Sat 10 Oct, any time during the day");
+    expect(Object.values(v).join(" ")).not.toMatch(/\b(am|pm)\b/);
+  });
+
+  it("⚠ as soon as possible: the estimate, said as one — never the day it was planned for", () => {
+    const v = deliveryVars({ delivery_type: "effy", delivery_promise: "asap", asap_estimate: "usually within 2–3 days" }, [anyTime("2026-10-08")], now);
+    expect(v).toEqual({
+      deliveryLabel: "Delivered by Effy", deliveryEstimate: "As soon as possible — usually within 2–3 days", deliveryMethod: "",
+      deliveryPreheader: "As soon as possible — usually within 2–3 days.",
+    });
+    expect(Object.values(v).join(" ")).not.toMatch(/today|\b(am|pm)\b|Oct/);
+  });
+});

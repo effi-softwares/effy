@@ -4,7 +4,7 @@
 // SES has no formatting helpers and a template handed a raw number cannot format it, so the catalogue
 // declares every one of these as a pre-formatted string. This module is where "3.60" becomes "$3.60".
 import {
-  ARRIVAL_UNCONFIRMED, courierEstimateSentence, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, distinctArrivals, formatArrival,
+  ARRIVAL_UNCONFIRMED, asapSentence, courierEstimateSentence, DELIVERY_WINDOW_WORDS, courierLines, DELIVERY_FEE_LINE_LABEL, DELIVERY_TYPE_WORDS, distinctArrivals, formatArrival,
   type DeliveryFeeLineKind,
 } from "@effy/shared-types";
 import { logger } from "@effy/edge-shared";
@@ -133,7 +133,7 @@ export function arrivalText(
  * An order Effy delivers — and every order placed before 079 — reads exactly as it did.
  */
 export function deliveryVars(
-  order: { delivery_type?: string | null; courier_estimate?: string | null },
+  order: { delivery_type?: string | null; courier_estimate?: string | null; delivery_promise?: string | null; asap_estimate?: string | null },
   arrivals: ReceiptArrivalRow[],
   now: Date = new Date(),
 ): { deliveryLabel: string; deliveryEstimate: string; deliveryMethod: string; deliveryPreheader: string } {
@@ -145,6 +145,17 @@ export function deliveryVars(
       deliveryMethod: "",
       deliveryPreheader: courierEstimateSentence(order.courier_estimate),
     };
+  }
+  // 085 — "as soon as possible" was told an estimate: never the day it was planned for.
+  if (order.delivery_promise === "asap" && order.asap_estimate) {
+    const sentence = asapSentence(order.asap_estimate);
+    return { deliveryLabel: DELIVERY_TYPE_WORDS.effy, deliveryEstimate: sentence, deliveryMethod: "", deliveryPreheader: `${sentence}.` };
+  }
+  // 085 — a day with no time: the day, and never the hours of the window it rides.
+  if (order.delivery_promise === "day") {
+    const arrival = arrivalText(arrivals.map((a) => ({ ...a, window_start: null, window_end: null })), now);
+    const estimate = `${arrival.estimate}, ${DELIVERY_WINDOW_WORDS.anyTimeDay.toLowerCase()}`;
+    return { deliveryLabel: "Arriving", deliveryEstimate: estimate, deliveryMethod: arrival.method, deliveryPreheader: `Arriving ${estimate}.` };
   }
   const arrival = arrivalText(arrivals, now);
   return { deliveryLabel: "Arriving", deliveryEstimate: arrival.estimate, deliveryMethod: arrival.method, deliveryPreheader: `Arriving ${arrival.estimate}.` };

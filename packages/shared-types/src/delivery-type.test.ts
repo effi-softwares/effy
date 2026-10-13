@@ -58,6 +58,22 @@ describe("deliverySummary — how an order is delivered, as words (079 P16)", ()
   });
 });
 
+describe("085 — a day with no time, and as soon as possible", () => {
+  const of = (part: string) => fixtures.cases.filter((c) => c.name.includes(part));
+
+  it("a day with no time never prints hours", () => {
+    for (const c of of("a day with no time")) expect(c.expect.lines.join(" ")).not.toMatch(/\b(am|pm)\b/);
+  });
+
+  it("⚠ as soon as possible never prints a day or a time — only the estimate", () => {
+    const asap = of("as soon as possible");
+    expect(asap.length).toBeGreaterThan(1);
+    for (const c of asap) {
+      expect(deliverySummary(c.input, new Date(c.now)).lines.join(" ")).not.toMatch(/today|tomorrow|\b(am|pm)\b|Mon|Tue|Wed|Thu|Fri|Sat|Sun/i);
+    }
+  });
+});
+
 describe("the apps are held to the same fixture and the same words (079 P16)", () => {
   it.runIf(existsSync(CUSTOMER_FIXTURE))("the customer app's embedded fixture is this JSON, to the character", () => {
     const kt = readFileSync(CUSTOMER_FIXTURE, "utf8");

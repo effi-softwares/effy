@@ -254,3 +254,40 @@ describe("what happened to the shopper's money", () => {
     expect(refundBlock("0.00", [r("1.00", "succeeded")])).not.toHaveProperty("fullyRefunded");
   });
 });
+
+describe("085 — the customer is told what was SOLD, not what the packages carry", () => {
+  // The Any-time window: an untimed order's packages carry its hours, 12 pm – 9 pm.
+  const pkg = (date: string) => ({
+    method: date === "2026-10-08" ? "same_day" : "standard", promised_from: date, promised_to: date,
+    window_start: new Date(`${date}T12:00:00+11:00`), window_end: new Date(`${date}T21:00:00+11:00`),
+  });
+  const effy = (over: Record<string, unknown>, arrival = pkg("2026-10-10")) => read({
+    get: async () => ({ ...(await repoWith().get("cust", ORDER))!, delivery_type: "effy", ...over }),
+    arrivals: async () => [arrival, arrival] as never,
+  });
+
+  it("a day with no time: the day, and no hours", async () => {
+    const o = await effy({ delivery_promise: "day" });
+    expect(o.delivery).toEqual({ type: "effy", courierEstimate: null, promise: "day" });
+    expect(o.arrivalEstimates).toEqual([{ method: "standard", promisedFrom: "2026-10-10", promisedTo: "2026-10-10", windowStart: null, windowEnd: null }]);
+  });
+
+  it("⚠ as soon as possible: the estimate, and no day at all — even when it was planned for today", async () => {
+    const o = await effy({ delivery_promise: "asap", asap_estimate: "usually within 2–3 days" }, pkg("2026-10-08"));
+    expect(o.delivery).toEqual({ type: "effy", courierEstimate: null, promise: "asap", asapEstimate: "usually within 2–3 days" });
+    expect(o.arrivalEstimates).toEqual([]);
+    expect(JSON.stringify(o)).not.toContain("2026-10-08T");
+  });
+
+  it("an Effy order from before 085 was sold a window, and still shows it", async () => {
+    const o = await effy({ delivery_promise: null });
+    expect(o.delivery?.promise).toBe("window");
+    expect(o.arrivalEstimates[0]!.windowStart).toBe("2026-10-10T12:00:00+11:00");
+  });
+
+  it("a courier order carries no promise", async () => {
+    const o = await effy({ delivery_type: "courier", courier_estimate: "2–4 business days", delivery_promise: null });
+    expect(o.delivery).not.toHaveProperty("promise");
+    expect(o.arrivalEstimates).toEqual([]);
+  });
+});

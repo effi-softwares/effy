@@ -4,6 +4,58 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**085-flexible-standard-delivery — Flexible Standard Delivery.** 🚧 **BUILT (2026-10-13). NOT MIGRATED, NOT
+DEPLOYED, NOT WALKED, NOT SIGNED OFF.** Standard delivery lets a customer choose a **day with no time**
+(the default), **"No particular day"** (as soon as possible), or — behind "Need a specific time?" — a
+window. Same-day delivery is unchanged. One choice per order, nothing pre-selected. Spec, plan, tasks and
+the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-delivery/tasks.md).
+
+- ⚠ **THE WHOLE FEATURE IS ONE FLAG ON A WINDOW.** An order with no time is an order in the delivery window
+  staff mark **Any time** (`delivery_slot.any_time`, at most one active). Capacity, the hold, the cutoff,
+  the collection run, the round and when it opens are a window's own rules, unchanged — `judgeWindow`,
+  `engine.ts`, `collectionRunFor`, the planner and `round_opens_at` were not edited. Its capacity IS the
+  day's limit for untimed orders.
+- **"As soon as possible"** = at the intent, the first day of the calendar whose Any time window is open
+  (`resolveAsap`), today included. The customer is told the business's estimate
+  (`delivery_settings.asap_estimate`, operator-entered) and never the day; only staff move it afterwards.
+  ⚠ It reaches TODAY only while a collection run can still reach the hub before the Any time window
+  STARTS — with the dev seed's runs, start it at 14:00 or later or ASAP always lands on the next day.
+- **The fee**: an untimed order pays `baseFee` — no window surcharge, and no "Delivery today" surcharge
+  even when ASAP lands today. One line in `quote.ts`; the fee sum is untouched.
+- **What was sold** is `order.delivery_promise` (`window` | `day` | `asap`) + `asap_estimate`; NULL before 085
+  reads as `window`. Two writers (checkout, `override.ts`), guarded. The customer DTO strips the window's
+  hours for `day` and every arrival for `asap` (`soldArrivals` in `commerce/src/orders/service.ts`); the
+  receipt email does the same.
+- **Wire, additive**: quote `days[].anyTime` (never today's) and `effyWindows.asap`; intent
+  `deliveryPromise: "asap"` (a day-only choice is the existing `deliveryWindow` naming the Any time slot);
+  order `delivery.promise` / `asapEstimate`. An installed app that ignores them still buys windows.
+- **Staff**: the "Any time" tick on a window and the estimate (Delivery days panel, `fleet`); Orders shows and
+  filters by what was sold; **Change day or time…** on an Effy order → new staff route
+  `POST /orders/v1/orders/{orderId}/delivery-window` → `changeEffyWindow` (same rule and lock as
+  `moveToEffy`, whose binding block it shares; recorded in `admin.audit_log`, since `delivery_override`
+  needs a type change). `moveToEffy` lists and accepts the Any time window.
+- **Drivers and dispatch**: labels only, written by the server ("Sat 10 Oct · Any time") — no driver-app
+  update. Untimed parcels ride their own round for the Any time window.
+- **Off by default, no flag**: nothing is offered until staff create the Any time window; ASAP until they
+  enter the estimate. Neither is seeded, on purpose.
+- **Also in this change (customer web, ahead of the feature)**: the checkout step no longer overflows on
+  phones (the page grid had no column template below `lg`), and the Back / Continue buttons stack there.
+- **Verified here**: unit suites and typechecks of every touched service, shared-types (both fixtures and
+  their Kotlin copies), customer-web (666), back-office (383), the customer app's host tests, and the
+  wording / legacy / refresh-timer / gateway-capacity / change-map guards.
+- ⚠ **NOT VERIFIED**: no `*.container.test.ts` ran (no Docker in the session) — including the new
+  `changeEffyWindow` and one-Any-time-window cases; the migration has never been applied; nothing was seen
+  in a browser or on a device; the customer app's iOS target was not compiled.
+- ⚠ **KNOWN GAPS**: a staff re-timing tells the customer through the order page only (no push or email —
+  081's moves have none either). Re-timing an order into the window it already holds counts its own
+  booking against the limit. ASAP can be a cheaper way to get an order today than a same-day window
+  (accepted in the spec).
+- **Operator steps, in order**: (1) `CONTAINER_TESTS=1` suites for `shared`, `fleet`, `commerce`, `orders`;
+  (2) `make db-up ENV=dev` (migration `20261013120000_flexible_standard_delivery`); (3) deploy `commerce`
+  and `notifications`, then `fleet`, `driver`, `orders`, `admin`; (4) deploy customer-web and
+  back-office; (5) ship the customer app; (6) in back-office create the Any time window and enter the
+  estimate; (7) walk `quickstart.md`.
+
 **084-customer-storefront-redesign — Customer Storefront Redesign.** 🚧 **BUILT; `storefront` AND `commerce`
 DEPLOYED TO DEV AND THE CATALOGUE SEED RUN (operator-reported, 2026-10-12). NOT WALKED, NOT SIGNED OFF.**
 The customer web storefront rebuilt to the "Effy Storefront Redesign" reference

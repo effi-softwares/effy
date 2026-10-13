@@ -384,6 +384,12 @@ export interface DeliverySlotDTO {
   cutoffTime: string;
   /** How many deliveries the slot takes per day. ⚠ `null` = no limit, which is the default. */
   capacity: number | null;
+  /**
+   * 085 — the "Any time" window: it sells a DAY WITH NO TIME. Its hours are when untimed deliveries
+   * go out; its capacity is the day's limit for untimed orders. At most one active. Absent from a
+   * server older than 085.
+   */
+  anyTime?: boolean;
   status: RingStatus;
   /** Confirmed bookings plus holds that have not lapsed, for today (Melbourne). */
   bookedToday: number;
@@ -426,6 +432,8 @@ export interface DeliverySlotInput {
   cutoffTime: string;
   /** Omitted or `null` = no limit. In a PATCH, `null` removes a limit and an absent key keeps it. */
   capacity?: number | null;
+  /** 085 — mark (or unmark) this as the "Any time" window. Omitted = false on create, unchanged on PATCH. */
+  anyTime?: boolean;
 }
 
 /** PATCH: any of the four, and/or the status. A slot is never deleted. */
@@ -451,9 +459,19 @@ export interface DeliveryDaysDTO {
    * Non-delivery days do not count.
    */
   effyLookaheadDays: number;
+  /**
+   * 085 — what a customer choosing "as soon as possible" is told to expect ("usually within 2–3
+   * days"), at most 80 characters. ⚠ Null = "as soon as possible" is NOT offered. Never seeded.
+   * Absent from a server older than 085.
+   */
+  asapEstimate?: string | null;
   dates: NonDeliveryDateDTO[];
 }
 
+/**
+ * In a PUT, an ABSENT `asapEstimate` keeps the one saved (a console older than 085 must not clear
+ * it); `null` or "" switches "as soon as possible" off.
+ */
 export type DeliveryDaysInput = Omit<DeliveryDaysDTO, "dates">;
 
 export interface NonDeliveryDateInput {

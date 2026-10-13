@@ -301,8 +301,11 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             EffyWindowsSection(
                 view = effyWindowsView(quote.effyWindows, nowEpochMillis()),
                 chosen = s.window,
+                asapChosen = s.asap,
                 enabled = !s.paying,
                 onChoose = vm::setWindow,
+                onClear = vm::clearWindow,
+                onAsap = vm::setAsap,
             )
             // What is charged for delivery, line by line, before Pay (077 FR-028), and how close the
             // basket is to free delivery (FR-029). Nothing to show until a window is chosen.
@@ -314,56 +317,148 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
 }
 
 /**
- * The delivery-window picker (078): ONE window for the whole order.
+ * When the order arrives, when Effy delivers it (078, 085): ONE choice for the whole order.
  *
  *   Same-day delivery   today's open windows, each with the time to order by;
- *   Standard delivery   the next delivery days as a strip, each with its own windows.
+ *   Standard delivery   the next delivery days — a DAY IS A COMPLETE CHOICE (085) — then "No
+ *                       particular day" (as soon as possible), and under the chosen day an optional
+ *                       "Need a specific time?" that shows that day's windows.
  *
- * ⚠ EVERY WORD IS `effyWindowsView`'S — the twin of the function the website renders, pinned to the
- * same fixture. This composable only lays the words out.
- * ⚠ NOTHING IS SELECTED FOR THE SHOPPER. The day strip only decides which day's windows are shown.
- * ⚠ ONE SELECTABLE GROUP across both sections: the order has one window.
- * ⚠ Rows and a strip — no cards. Every target is at least 48dp.
+ * ⚠ EVERY WORD IS `effyWindowsView`'S AND [DeliveryWindowWords]' — twins of what the website renders,
+ * pinned to the same fixture. This composable only lays the words out.
+ * ⚠ NOTHING IS SELECTED FOR THE SHOPPER.
+ * ⚠ WHAT IS SELECTED IS DERIVED FROM THE CHOICE. The only local state is the day tapped when it
+ * cannot be bought without a time (nothing is then chosen, and its windows open by themselves), and
+ * whether the optional time list is open.
+ * ⚠ Rows — no cards. Every target is at least 48dp.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EffyWindowsSection(
     view: EffyWindowsView,
     chosen: ChosenWindow?,
+    asapChosen: Boolean,
     enabled: Boolean,
     onChoose: (slotId: String, date: String) -> Unit,
+    onClear: () -> Unit,
+    onAsap: () -> Unit,
 ) {
     view.unavailable?.let { sentence ->
         Text(sentence, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
         return
     }
 
-    // Which later day is open: the one the shopper tapped, else the chosen window's, else the first with any.
-    var tapped by remember { mutableStateOf<String?>(null) }
-    val shown = view.later.firstOrNull { it.date == tapped }
-        ?: view.later.firstOrNull { it.date == chosen?.date }
-        ?: view.later.firstOrNull { it.windows.isNotEmpty() }
-        ?: view.later.firstOrNull()
+    // A day tapped that cannot be bought without a time — nothing is chosen yet.
+    var pendingDay by remember { mutableStateOf<String?>(null) }
+    // "Need a specific time?" opened under a day that CAN be bought without one.
+    var timeOpen by remember { mutableStateOf(false) }
+
+    val chosenLater = chosen?.let { c -> view.later.firstOrNull { it.date == c.date } }
+    val nothingChosen = chosen == null && !asapChosen
+    val activeDay = chosenLater ?: if (nothingChosen) view.later.firstOrNull { it.date == pendingDay } else null
+    val timedOnActive = activeDay != null && chosen != null && activeDay.anyTime?.slotId != chosen.slotId
+    val timesShown = activeDay != null && (timedOnActive || timeOpen || activeDay.anyTime == null)
 
     Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
         view.today?.let { today ->
             Text(view.sameDayTitle, style = MaterialTheme.typography.labelLarge)
-            EffyDayWindows(today, chosen, enabled, onChoose)
+            EffyDayWindows(today, chosen, enabled) { slotId, date ->
+                pendingDay = null
+                timeOpen = false
+                onChoose(slotId, date)
+            }
         }
 
-        if (shown != null) {
+        if (view.later.isNotEmpty() || view.asap != null) {
             Text(view.standardTitle, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = EffySpacing.s))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                view.later.forEach { day ->
-                    FilterChip(
-                        selected = day.date == shown.date,
-                        onClick = { tapped = day.date },
-                        label = { Text(day.label) },
-                        modifier = Modifier.heightIn(min = 48.dp).semantics { role = Role.Tab },
-                    )
+        }
+        view.later.forEach { day ->
+            val selected = activeDay?.date == day.date
+            val unavailable = day.anyTime == null && day.windows.isEmpty()
+            ChoiceRow(
+                selected = selected,
+                enabled = enabled && !unavailable,
+                title = day.label,
+                // A day with neither untimed room nor a window says why.
+                detail = if (unavailable) day.sentence else null,
+                onClick = {
+                    timeOpen = false
+                    val anyTime = day.anyTime
+                    if (anyTime != null) {
+                        pendingDay = null
+                        onChoose(anyTime.slotId, anyTime.date)
+                    } else {
+                        // No way to buy this day without a time: nothing is chosen until one is.
+                        pendingDay = day.date
+                        onClear()
+                    }
+                },
+            )
+            if (selected) {
+                Column(modifier = Modifier.padding(start = EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+                    val anyTime = day.anyTime
+                    if (anyTime == null) {
+                        Text(DeliveryWindowWords.TIME_REQUIRED, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        if (!timedOnActive) {
+                            Text(DeliveryWindowWords.ANY_TIME_DAY, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (day.windows.isNotEmpty()) {
+                            TextButton(
+                                enabled = enabled,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                                onClick = {
+                                    if (timesShown) {
+                                        timeOpen = false
+                                        // Closing it lets go of a time: the day alone is the choice again.
+                                        if (timedOnActive) onChoose(anyTime.slotId, anyTime.date)
+                                    } else {
+                                        timeOpen = true
+                                    }
+                                },
+                            ) { Text(DeliveryWindowWords.TIME_OPTION_OPEN) }
+                        }
+                    }
+                    if (timesShown && day.windows.isNotEmpty()) {
+                        if (anyTime != null) {
+                            Text(DeliveryWindowWords.TIME_OPTION_HINT, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        EffyDayWindows(day.copy(sentence = null), chosen, enabled, onChoose)
+                    }
                 }
             }
-            EffyDayWindows(shown, chosen, enabled, onChoose)
+        }
+
+        view.asap?.let { asap ->
+            ChoiceRow(
+                selected = asapChosen,
+                enabled = enabled,
+                title = asap.title,
+                // ⚠ Always said as an estimate, in the words the order screen and the receipt use.
+                detail = "${asap.hint} ${asapSentence(asap.estimate)}",
+                onClick = {
+                    pendingDay = null
+                    timeOpen = false
+                    onAsap()
+                },
+            )
+        }
+    }
+}
+
+/** One choice as a whole-row radio: a day, or "No particular day". */
+@Composable
+private fun ChoiceRow(selected: Boolean, enabled: Boolean, title: String, detail: String?, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        Column(modifier = Modifier.padding(start = EffySpacing.s)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }

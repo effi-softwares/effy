@@ -57,8 +57,14 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       id: "window",
       header: "Window",
       cell: ({ row }) => (
-        <span className="font-mono font-medium tabular-nums">
-          {row.original.startTime} – {row.original.endTime}
+        <span className="inline-flex items-center gap-2">
+          <span className="font-mono font-medium tabular-nums">
+            {row.original.startTime} – {row.original.endTime}
+          </span>
+          {/* 085 — sells a day with no time; customers are never shown these hours. */}
+          {row.original.anyTime ? (
+            <Badge variant="outline">Any time</Badge>
+          ) : null}
         </span>
       ),
     },
@@ -183,6 +189,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
   const [cutoffTime, setCutoffTime] = useState(slot?.cutoffTime ?? "");
   const [limited, setLimited] = useState(slot?.capacity != null);
   const [capacity, setCapacity] = useState(slot?.capacity != null ? String(slot.capacity) : "");
+  const [anyTime, setAnyTime] = useState(slot?.anyTime === true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const pending = create.isPending || patch.isPending;
@@ -198,6 +205,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
       // ⚠ Unticked is "no limit", sent as null — on an edit that is what REMOVES a limit. Ticked
       // with nothing typed is sent as 0, so the service refuses it on the field.
       capacity: limited ? Number(capacity) : null,
+      anyTime,
     };
     try {
       if (slot) await patch.mutateAsync({ slotId: slot.id, body });
@@ -260,6 +268,21 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
                 No limit: the window takes every order placed before its cutoff.
               </p>
             )}
+          </div>
+          {/* 085 — the window that sells a DAY with no time. */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Checkbox id="slot-any-time" checked={anyTime} onCheckedChange={(v) => setAnyTime(v === true)} />
+              <Label htmlFor="slot-any-time" className="font-normal">
+                Any time (customers choose the day, not the hours)
+              </Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Customers who pick a day without a time, or “No particular day”, are put in this window. Its hours are when
+              those deliveries go out; its limit is how many such orders a day takes. It never carries a surcharge. Only one
+              window can be Any time.
+            </p>
+            {errors.anyTime ? <p className="text-sm text-destructive">{errors.anyTime}</p> : null}
           </div>
           {slot && limited && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">

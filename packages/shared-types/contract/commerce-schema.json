@@ -907,6 +907,11 @@
           ],
           "description": "066 — what the customer tells the driver for THIS order: a handover preference and/or a note. Absent or null → none. Validated and normalised by the server with the same rule the client uses (`normaliseDeliveryInstructions`); refused with a field error, never truncated.\n\n⚠ The server stores exactly what THIS request carries. It never reads the address's saved default — prefilling from that is the client's job — which is why editing an address later cannot change a placed order."
         },
+        "deliveryPromise": {
+          "const": "asap",
+          "description": "085 — \"as soon as possible\": sent ALONE, with no `deliveryWindow`, when the quote carried `effyWindows.asap`. The server puts the order on the earliest day it can; the customer is never told which. Both, or neither, is refused with `slot_required`. (A day with no time is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)",
+          "type": "string"
+        },
         "deliveryType": {
           "description": "079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this differs from what applies now, or when a courier quote is answered without it — so nobody pays a courier fee for a screen that showed Effy's windows, or the reverse. Optional for an Effy order.",
           "enum": [
@@ -1307,6 +1312,15 @@
       ],
       "type": "object"
     },
+    "DeliveryPromise": {
+      "description": "085 — what an order Effy delivers was sold: a time on a day, a day with no time, or \"as soon as possible\". An order placed before 085 was sold a window.",
+      "enum": [
+        "window",
+        "day",
+        "asap"
+      ],
+      "type": "string"
+    },
     "DeliveryQuoteDTO": {
       "additionalProperties": false,
       "description": "The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted fee — the client never sends a fee (047 FR-036).\n\nA serviced address answers exactly one of two things (083): `effyWindows` — the windows to choose from — or `courier`. ⚠ Nothing about how the order splits across suppliers: no package list.",
@@ -1367,6 +1381,25 @@
       ],
       "type": "string"
     },
+    "EffyAsapDTO": {
+      "additionalProperties": false,
+      "description": "085 — what a customer is told and charged for \"as soon as possible\".",
+      "properties": {
+        "estimate": {
+          "description": "The business's words, e.g. \"usually within 2–3 days\". Print it only as an estimate.",
+          "type": "string"
+        },
+        "fee": {
+          "$ref": "#/definitions/DeliveryFeeDTO",
+          "description": "The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge."
+        }
+      },
+      "required": [
+        "estimate",
+        "fee"
+      ],
+      "type": "object"
+    },
     "EffyDayClosedReason": {
       "description": "Why a day has no window to choose. A later day is only ever \"full\".",
       "enum": [
@@ -1380,6 +1413,17 @@
       "additionalProperties": false,
       "description": "078 — one day on offer: today (`same_day`) or a following delivery day (`standard`).",
       "properties": {
+        "anyTime": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EffyWindowDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "085 — this day sold with NO TIME: the business's \"Any time\" window, when it is open on this day. Sent back as `deliveryWindow` like any window; the order is then promised the day, not the hours. ⚠ Always null for today (`section: \"same_day\"`), and never also present in `windows`. Its `surchargeAmount` is always \"0.00\". Absent from a server that predates 085."
+        },
         "closedReason": {
           "anyOf": [
             {
@@ -1459,6 +1503,17 @@
     "EffyWindowsDTO": {
       "additionalProperties": false,
       "properties": {
+        "asap": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/EffyAsapDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "085 — \"as soon as possible\": offered when an order without a time can be taken on some day (today included) and the business has said what to expect. ⚠ Carries NO DAY: the customer is told the estimate and nothing else. Chosen by sending `deliveryPromise: \"asap\"` on the intent."
+        },
         "days": {
           "description": "Today first, then the next delivery days. Never empty.",
           "items": {
@@ -1900,6 +1955,10 @@
       "additionalProperties": false,
       "description": "An order's delivery, as a customer contract carries it. ABSENT on an order placed before 079.",
       "properties": {
+        "asapEstimate": {
+          "description": "The estimate as it was sold (\"usually within 2–3 days\"). Present exactly when `promise` is `asap`.",
+          "type": "string"
+        },
         "courierEstimate": {
           "description": "The courier's usual timeframe as it was sold (\"2–4 business days\"); null for an Effy order.",
           "type": [
@@ -1910,6 +1969,10 @@
         "moved": {
           "$ref": "#/definitions/OrderDeliveryMoveDTO",
           "description": "081 — present only after back-office moved the order to the other delivery type: the LATEST move, and what the customer received for it. ⚠ Never the staff reason, the courier fee, the difference or Effy's cost — a customer is told what happened and what they got, nothing else."
+        },
+        "promise": {
+          "$ref": "#/definitions/DeliveryPromise",
+          "description": "085 — what was sold. Absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries nothing at all — the customer was told `asapEstimate`, never a day."
         },
         "tracking": {
           "anyOf": [
@@ -2135,12 +2198,28 @@
       "additionalProperties": false,
       "description": "A row in the order history (GET /v1/orders).",
       "properties": {
+        "arrivalEstimates": {
+          "description": "The promise the order was sold, as on the receipt. Absent for a courier order.",
+          "items": {
+            "$ref": "#/definitions/ArrivalEstimateDTO"
+          },
+          "type": "array"
+        },
         "currency": {
+          "type": "string"
+        },
+        "deliveredAt": {
+          "description": "When the whole order had arrived (ISO). Only once `stage` is `delivered`.",
           "type": "string"
         },
         "delivery": {
           "$ref": "#/definitions/OrderDeliveryDTO",
           "description": "079 — who delivers it. ⚠ ABSENT on an order placed before 079."
+        },
+        "fullyRefunded": {
+          "const": true,
+          "description": "The whole amount has gone back.",
+          "type": "boolean"
         },
         "grandTotalAmount": {
           "type": "string"
@@ -2167,8 +2246,26 @@
             "null"
           ]
         },
+        "refundedTotal": {
+          "description": "What has gone back to the customer so far. Absent when nothing has.",
+          "type": "string"
+        },
+        "stage": {
+          "$ref": "#/definitions/OrderStage",
+          "description": "The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order."
+        },
         "status": {
           "$ref": "#/definitions/OrderStatus"
+        },
+        "thumbnails": {
+          "description": "084 — the primary picture of the order's first few lines (at most four), for the order list. Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's; `null` where a line has no picture.\n\n⚠ OPTIONAL, and absent from a server not yet redeployed: the list then shows no pictures, which is what it showed before. ⚠ Pictures of the customer's own lines only — never a shop, a package, or how many suppliers fill the order.",
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -2932,7 +3029,7 @@
           ]
         },
         "productCount": {
-          "description": "Active products in this category (025). Drives \"N items\" and the empty-category case.",
+          "description": "Purchasable products in this category AND everything under it (025; subtree since 084) — the number on an aisle is the number its page shows. Drives \"N items\" and the empty-category case.",
           "type": "number"
         }
       },

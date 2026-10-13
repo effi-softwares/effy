@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import type { DeliveryQuoteDTO } from "@effy/shared-types"
 
-import { carryWindow, chosenFee, courierOf, dayOffset, deliveryTypeOf, effyWindowsOf, findWindow, holdLapsed, isFreeDelivery } from "./delivery-choice"
+import {
+  carryWindow, chosenFee, courierOf, dayOffset, deliveryTypeOf, effyWindowsOf, findWindow, holdLapsed, isAsap, isFreeDelivery, promiseOf, windowOf,
+} from "./delivery-choice"
 
 const fee = (total: string, surcharge?: string) => ({
   lines: [{ kind: "delivery" as const, amount: "6.00" }, ...(surcharge ? [{ kind: "window_surcharge" as const, amount: surcharge }] : [])],
@@ -120,5 +122,41 @@ describe("holdLapsed — must the place be renewed before paying?", () => {
 
   it("a malformed value is treated as no hold, never as a reason to block payment", () => {
     expect(holdLapsed("not-a-time", Date.now())).toBe(false)
+  })
+})
+
+describe("085 — a day with no time, and as soon as possible", () => {
+  const ANY = { ...win("anytime", LATER, "6.00"), startAt: `${LATER}T12:00:00+11:00`, endAt: `${LATER}T21:00:00+11:00` }
+  const ASAP_FEE = fee("6.00")
+  const Q: DeliveryQuoteDTO = {
+    ...EFFY,
+    effyWindows: {
+      ...EFFY.effyWindows!,
+      days: [EFFY.effyWindows!.days[0]!, { ...EFFY.effyWindows!.days[1]!, anyTime: ANY }],
+      asap: { estimate: "usually within 2–3 days", fee: ASAP_FEE },
+    },
+  }
+  const day = { slotId: "anytime", date: LATER }
+
+  it("a day's Any-time window is found, priced and named 'day'", () => {
+    expect(findWindow(Q, day)).toBe(ANY)
+    expect(chosenFee(Q, day)).toEqual(ANY.fee)
+    expect(promiseOf(Q, day)).toBe("day")
+    expect(promiseOf(Q, { slotId: "evening", date: LATER })).toBe("window")
+  })
+
+  it("as soon as possible has the quote's one ASAP fee and no window", () => {
+    expect(isAsap({ asap: true })).toBe(true)
+    expect(windowOf({ asap: true })).toBeNull()
+    expect(findWindow(Q, { asap: true })).toBeNull()
+    expect(chosenFee(Q, { asap: true })).toBe(ASAP_FEE)
+    expect(promiseOf(Q, { asap: true })).toBe("asap")
+  })
+
+  it("each is kept across a new quote only while it is still offered — never replaced", () => {
+    expect(carryWindow(Q, day)).toBe(day)
+    expect(carryWindow(EFFY, day)).toBeNull()
+    expect(carryWindow(Q, { asap: true })).toEqual({ asap: true })
+    expect(carryWindow(EFFY, { asap: true })).toBeNull()
   })
 })

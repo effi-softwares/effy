@@ -35,6 +35,12 @@ export interface EffyDayView {
   /** Why there is nothing to choose that day; null when there is. */
   sentence: string | null;
   windows: EffyWindowLine[];
+  /**
+   * 085 — the day can be chosen with NO TIME: what to send back as `deliveryWindow` for that. Null
+   * when it cannot (today, always; a day with no room for an untimed order; a business with no
+   * "Any time" window) — the customer must then choose one of `windows`.
+   */
+  anyTime: { slotId: string; date: string } | null;
 }
 
 export interface EffyWindowsView {
@@ -46,6 +52,8 @@ export interface EffyWindowsView {
   today: EffyDayView | null;
   /** The following delivery days, under "Standard delivery". */
   later: EffyDayView[];
+  /** 085 — "as soon as possible", when it is offered: its two lines and the business's estimate. */
+  asap: { title: string; hint: string; estimate: string } | null;
 }
 
 function sentenceFor(day: EffyDayDTO): string | null {
@@ -60,6 +68,7 @@ function dayView(day: EffyDayDTO, now: Date): EffyDayView {
     date: day.date,
     label: formatDeliveryDay(day.date),
     sentence: sentenceFor(day),
+    anyTime: !today && day.anyTime ? { slotId: day.anyTime.slotId, date: day.anyTime.date } : null,
     windows: day.windows.map((w) => {
       const closed = now.getTime() > new Date(w.cutoffAt).getTime();
       return {
@@ -84,5 +93,8 @@ export function effyWindowsView(w: EffyWindowsDTO, now: Date): EffyWindowsView {
     standardTitle: DELIVERY_WINDOW_WORDS.sectionStandard,
     today: today ? dayView(today, now) : null,
     later: w.days.filter((d) => d.section === "standard").map((d) => dayView(d, now)),
+    asap: w.asap
+      ? { title: DELIVERY_WINDOW_WORDS.asapTitle, hint: DELIVERY_WINDOW_WORDS.asapHint, estimate: w.asap.estimate }
+      : null,
   };
 }

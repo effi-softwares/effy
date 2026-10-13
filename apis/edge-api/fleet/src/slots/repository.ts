@@ -12,6 +12,7 @@ interface SlotRow {
   end_time: string;
   cutoff_time: string;
   capacity: number | null;
+  any_time: boolean;
   status: "active" | "disabled";
   updated_at: Date;
   booked_today: number;
@@ -25,6 +26,7 @@ function toDTO(r: SlotRow): DeliverySlotDTO {
     endTime: r.end_time,
     cutoffTime: r.cutoff_time,
     capacity: r.capacity,
+    anyTime: r.any_time,
     status: r.status,
     bookedToday: r.booked_today,
     overCapacityToday: r.over_capacity_today,
@@ -77,6 +79,8 @@ export interface SlotValues {
   cutoffTime: string;
   /** null = no limit. */
   capacity: number | null;
+  /** 085 — the "Any time" window. */
+  anyTime: boolean;
   status: "active" | "disabled";
 }
 
@@ -89,13 +93,22 @@ export function isDuplicateWindow(err: unknown): boolean {
   );
 }
 
+/** 085 — the unique-violation for a second active "Any time" window. */
+export function isSecondAnyTime(err: unknown): boolean {
+  return (
+    typeof err === "object" && err !== null &&
+    (err as { code?: string }).code === "23505" &&
+    String((err as { constraint?: string }).constraint ?? "").includes("delivery_slot_any_time_uq")
+  );
+}
+
 export async function insertSlot(
   v: Omit<SlotValues, "status">,
   actorSub: string,
   audit: (tx: pg.PoolClient, id: string) => Promise<void>,
 ): Promise<string> {
   return withTransaction(async (tx) => {
-    const res = await tx.query<{ id: string }>(INSERT_SLOT, [v.startTime, v.endTime, v.cutoffTime, v.capacity, actorSub]);
+    const res = await tx.query<{ id: string }>(INSERT_SLOT, [v.startTime, v.endTime, v.cutoffTime, v.capacity, actorSub, v.anyTime]);
     const id = res.rows[0]!.id;
     await audit(tx, id);
     return id;
@@ -120,17 +133,17 @@ export async function updateSlot(
 ): Promise<boolean> {
   return withTransaction(async (tx) => {
     const cur = await tx.query<{
-      start_time: string; end_time: string; cutoff_time: string; capacity: number | null; status: "active" | "disabled";
+      start_time: string; end_time: string; cutoff_time: string; capacity: number | null; any_time: boolean; status: "active" | "disabled";
     }>(SLOT_FOR_UPDATE, [id]);
     const row = cur.rows[0];
     if (!row) return false;
 
     const before: SlotValues = {
       startTime: row.start_time, endTime: row.end_time, cutoffTime: row.cutoff_time,
-      capacity: row.capacity, status: row.status,
+      capacity: row.capacity, anyTime: row.any_time, status: row.status,
     };
     const after = decide(before);
-    await tx.query(UPDATE_SLOT, [id, after.startTime, after.endTime, after.cutoffTime, after.capacity, after.status, actorSub]);
+    await tx.query(UPDATE_SLOT, [id, after.startTime, after.endTime, after.cutoffTime, after.capacity, after.status, actorSub, after.anyTime]);
     await audit(tx, before, after);
     return true;
   });

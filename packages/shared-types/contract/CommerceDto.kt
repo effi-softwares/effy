@@ -531,7 +531,9 @@ data class StorefrontCategoryDTO (
     val parentKey: String? = null,
 
     /**
-     * Active products in this category (025). Drives "N items" and the empty-category case.
+     * Purchasable products in this category AND everything under it (025; subtree since 084) —
+     * the number on an aisle is the number its page shows. Drives "N items" and the
+     * empty-category case.
      */
     val productCount: Double
 )
@@ -602,6 +604,14 @@ data class CreateCheckoutIntentRequest (
     val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
+     * 085 — "as soon as possible": sent ALONE, with no `deliveryWindow`, when the quote carried
+     * `effyWindows.asap`. The server puts the order on the earliest day it can; the customer is
+     * never told which. Both, or neither, is refused with `slot_required`. (A day with no time
+     * is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)
+     */
+    val deliveryPromise: DeliveryPromise? = null,
+
+    /**
      * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
      * writes nothing and refuses with 409 `delivery_type_changed` and a fresh quote when this
      * differs from what applies now, or when a courier quote is answered without it — so nobody
@@ -650,6 +660,11 @@ data class CreateCheckoutIntentRequest (
      */
     val wantsProviderMethodList: Boolean? = null
 )
+
+@Serializable
+enum class DeliveryPromise(val value: String) {
+    @SerialName("asap") Asap("asap");
+}
 
 /**
  * 079 — the delivery type the client is SHOWING. REQUIRED for a courier order: the server
@@ -796,6 +811,8 @@ data class CreateCheckoutIntentResponse (
  * (FR-032).
  *
  * The courier fee for the whole order (077): lines and a total.
+ *
+ * The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge.
  *
  * The order's delivery charge with this window chosen.
  *
@@ -999,6 +1016,14 @@ enum class CourierQuoteReason(val value: String) {
 @Serializable
 data class EffyWindowsDTO (
     /**
+     * 085 — "as soon as possible": offered when an order without a time can be taken on some
+     * day (today included) and the business has said what to expect. ⚠ Carries NO DAY: the
+     * customer is told the estimate and nothing else. Chosen by sending `deliveryPromise:
+     * "asap"` on the intent.
+     */
+    val asap: EffyAsapDTO? = null,
+
+    /**
      * Today first, then the next delivery days. Never empty.
      */
     val days: List<EffyDayDTO>,
@@ -1012,10 +1037,35 @@ data class EffyWindowsDTO (
 )
 
 /**
+ * 085 — what a customer is told and charged for "as soon as possible".
+ */
+@Serializable
+data class EffyAsapDTO (
+    /**
+     * The business's words, e.g. "usually within 2–3 days". Print it only as an estimate.
+     */
+    val estimate: String,
+
+    /**
+     * The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge.
+     */
+    val fee: DeliveryFeeDTO
+)
+
+/**
  * 078 — one day on offer: today (`same_day`) or a following delivery day (`standard`).
  */
 @Serializable
 data class EffyDayDTO (
+    /**
+     * 085 — this day sold with NO TIME: the business's "Any time" window, when it is open on
+     * this day. Sent back as `deliveryWindow` like any window; the order is then promised the
+     * day, not the hours. ⚠ Always null for today (`section: "same_day"`), and never also
+     * present in `windows`. Its `surchargeAmount` is always "0.00". Absent from a server that
+     * predates 085.
+     */
+    val anyTime: EffyWindowDTO? = null,
+
     /**
      * Why `windows` is empty; null when it is not.
      */
@@ -1029,29 +1079,6 @@ data class EffyDayDTO (
      */
     val windows: List<EffyWindowDTO>
 )
-
-/**
- * Why a day has no window to choose. A later day is only ever "full".
- */
-@Serializable
-enum class EffyDayClosedReason(val value: String) {
-    @SerialName("closed") Closed("closed"),
-    @SerialName("full") Full("full"),
-    @SerialName("not_delivery_day") NotDeliveryDay("not_delivery_day");
-}
-
-/**
- * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today,
- * `standard` = a window on a later day (078). ⚠ No price of its own (077): the fee is ONE
- * amount for the order. ⚠ On an order placed before delivery types (079) `standard` meant a
- * day a carrier delivered — such an order is read through `deliveredBy`, never guessed from
- * this word.
- */
-@Serializable
-enum class DeliveryMethod(val value: String) {
-    @SerialName("same_day") SameDay("same_day"),
-    @SerialName("standard") Standard("standard");
-}
 
 /**
  * 078 — one window on one day.
@@ -1093,6 +1120,29 @@ data class EffyWindowDTO (
      */
     val surchargeAmount: String
 )
+
+/**
+ * Why a day has no window to choose. A later day is only ever "full".
+ */
+@Serializable
+enum class EffyDayClosedReason(val value: String) {
+    @SerialName("closed") Closed("closed"),
+    @SerialName("full") Full("full"),
+    @SerialName("not_delivery_day") NotDeliveryDay("not_delivery_day");
+}
+
+/**
+ * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today,
+ * `standard` = a window on a later day (078). ⚠ No price of its own (077): the fee is ONE
+ * amount for the order. ⚠ On an order placed before delivery types (079) `standard` meant a
+ * day a carrier delivered — such an order is read through `deliveredBy`, never guessed from
+ * this word.
+ */
+@Serializable
+enum class DeliveryMethod(val value: String) {
+    @SerialName("same_day") SameDay("same_day"),
+    @SerialName("standard") Standard("standard");
+}
 
 @Serializable
 enum class Unavailable(val value: String) {
@@ -1607,6 +1657,12 @@ data class OrderAddressDTO (
 @Serializable
 data class OrderDeliveryDTO (
     /**
+     * The estimate as it was sold ("usually within 2–3 days"). Present exactly when `promise`
+     * is `asap`.
+     */
+    val asapEstimate: String? = null,
+
+    /**
      * The courier's usual timeframe as it was sold ("2–4 business days"); null for an Effy
      * order.
      */
@@ -1619,6 +1675,13 @@ data class OrderDeliveryDTO (
      * nothing else.
      */
     val moved: OrderDeliveryMoveDTO? = null,
+
+    /**
+     * 085 — what was sold. Absent on a courier order and on one placed before 085 (read as
+     * `window`). ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries
+     * nothing at all — the customer was told `asapEstimate`, never a day.
+     */
+    val promise: PromiseEnum? = null,
 
     /**
      * 080 — how the customer follows a courier order (Q8). `link`: the order travels as ONE
@@ -1658,6 +1721,21 @@ data class CustomerCompensationDTO (
 enum class CompensationKind(val value: String) {
     @SerialName("points") Points("points"),
     @SerialName("refund") Refund("refund");
+}
+
+/**
+ * 085 — what was sold. Absent on a courier order and on one placed before 085 (read as
+ * `window`). ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries
+ * nothing at all — the customer was told `asapEstimate`, never a day.
+ *
+ * 085 — what an order Effy delivers was sold: a time on a day, a day with no time, or "as
+ * soon as possible". An order placed before 085 was sold a window.
+ */
+@Serializable
+enum class PromiseEnum(val value: String) {
+    @SerialName("asap") Asap("asap"),
+    @SerialName("day") Day("day"),
+    @SerialName("window") Window("window");
 }
 
 /**
@@ -1844,7 +1922,10 @@ enum class PaymentStatus(val value: String) {
  *
  * 052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived
  * server-side from every `shop_fulfillment.status` on the order. See `stageFor` in
- * `apis/edge-api/shared/src/lib/order-completion.ts` for the single rollup that produces it.
+ * `apis/edge-api/shared/src/lib/order-completion.ts` for the single rollup that produces
+ * it.
+ *
+ * The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order.
  */
 @Serializable
 enum class OrderStage(val value: String) {
@@ -1870,12 +1951,27 @@ enum class OrderStatus(val value: String) {
  */
 @Serializable
 data class OrderSummaryDTO (
+    /**
+     * The promise the order was sold, as on the receipt. Absent for a courier order.
+     */
+    val arrivalEstimates: List<ArrivalEstimateDTO>? = null,
+
     val currency: String,
+
+    /**
+     * When the whole order had arrived (ISO). Only once `stage` is `delivered`.
+     */
+    val deliveredAt: String? = null,
 
     /**
      * 079 — who delivers it. ⚠ ABSENT on an order placed before 079.
      */
     val delivery: OrderDeliveryDTO? = null,
+
+    /**
+     * The whole amount has gone back.
+     */
+    val fullyRefunded: Boolean? = null,
 
     val grandTotalAmount: String,
     val id: String,
@@ -1888,7 +1984,28 @@ data class OrderSummaryDTO (
      */
     val promoCode: String? = null,
 
-    val status: OrderStatus
+    /**
+     * What has gone back to the customer so far. Absent when nothing has.
+     */
+    val refundedTotal: String? = null,
+
+    /**
+     * The one word for where a PAID order is. Absent on an unpaid, failed or cancelled order.
+     */
+    val stage: OrderStage? = null,
+
+    val status: OrderStatus,
+
+    /**
+     * 084 — the primary picture of the order's first few lines (at most four), for the order
+     * list. Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's;
+     * `null` where a line has no picture.
+     *
+     * ⚠ OPTIONAL, and absent from a server not yet redeployed: the list then shows no pictures,
+     * which is what it showed before. ⚠ Pictures of the customer's own lines only — never a
+     * shop, a package, or how many suppliers fill the order.
+     */
+    val thumbnails: List<String?>? = null
 )
 
 /**

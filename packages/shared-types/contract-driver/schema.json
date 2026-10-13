@@ -1059,6 +1059,11 @@
       "additionalProperties": false,
       "description": "082 — the Effy parcels of one check-in that wait for one day and window.",
       "properties": {
+        "anyTime": {
+          "const": true,
+          "description": "085 — these were sold a day with no time: they ride the \"Any time\" window. Absent otherwise.",
+          "type": "boolean"
+        },
         "count": {
           "$ref": "#/definitions/WireInt"
         },

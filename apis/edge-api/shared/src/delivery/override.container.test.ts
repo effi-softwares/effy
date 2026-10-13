@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { migrationSql } from "../lib/load-migrations";
 import { slotLoad } from "./slots";
-import { DeliveryMoveError, deliveryMovesFor, latestMoveForCustomer, moveToCourier, moveToEffy, previewMove } from "./override";
+import { changeEffyWindow, DeliveryMoveError, deliveryMovesFor, latestMoveForCustomer, moveToCourier, moveToEffy, previewMove } from "./override";
 
 /**
  * 081 — moving an order between Effy and courier delivery, against the REAL schema: one transaction,
@@ -27,6 +27,7 @@ let pool: Pool;
 let shopA: string;
 let shopB: string;
 let slot: string;
+let anyTimeSlot: string;
 let tightSlot: string;
 let serviceId: string;
 let driverC: string;
@@ -137,6 +138,10 @@ d("081 — moving an order between Effy and courier delivery", () => {
     shopB = (await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('OV-B', 'Shop B') RETURNING id::text AS id`)).id;
     slot = (await one<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ('16:00', '18:00', '14:00', 50, 'test') RETURNING id::text AS id`,
+    )).id;
+    // 085 — the Any time window: a day with no time.
+    anyTimeSlot = (await one<{ id: string }>(
+      `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, any_time, updated_by) VALUES ('12:00', '21:00', '10:00', 50, true, 'test') RETURNING id::text AS id`,
     )).id;
     tightSlot = (await one<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ('18:00', '20:00', '15:00', 1, 'test') RETURNING id::text AS id`,
@@ -393,6 +398,51 @@ d("081 — moving an order between Effy and courier delivery", () => {
     await toCourier(handed.order, "none", 0, await updatedAt(handed.order), "test");
     await pool.query(`INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 'x')`, [handed.packages[0]]);
     expect((await previewMove(pool, handed.order, "effy", NOW)).refusal?.code).toBe("handed_over");
+  });
+
+  it("085 — staff re-time an Effy order: a day with no time, then a time; who delivers and the money do not change", async () => {
+    const o = await effyOrder();
+    const at = (await previewMove(pool, o.order, "courier", NOW)).updatedAt;
+    const day = await tx((c) => changeEffyWindow(c, {
+      orderId: o.order, actorSub: STAFF, reason: "Customer is away until Wednesday", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: at, now: NOW,
+    }));
+    expect(day.promise).toBe("day");
+    // The planned work for the old window went back to the planner.
+    expect(day.driverIds.length).toBeGreaterThan(0);
+    expect(await one(`SELECT delivery_type, delivery_promise, asap_estimate FROM public."order" WHERE id = $1`, [o.order]))
+      .toEqual({ delivery_type: "effy", delivery_promise: "day", asap_estimate: null });
+    expect(await one(`SELECT state, delivery_date::text AS d, slot_id::text AS s FROM public.delivery_slot_booking WHERE order_id = $1`, [o.order]))
+      .toEqual({ state: "confirmed", d: TOMORROW, s: anyTimeSlot });
+    expect(await one(`SELECT action, detail->'to'->>'promise' AS promise, detail->>'reason' AS reason FROM admin.audit_log WHERE target_id = $1 ORDER BY id DESC LIMIT 1`, [o.order]))
+      .toEqual({ action: "order.delivery_window_changed", promise: "day", reason: "Customer is away until Wednesday" });
+
+    const at2 = (await previewMove(pool, o.order, "courier", NOW)).updatedAt;
+    const timed = await tx((c) => changeEffyWindow(c, {
+      orderId: o.order, actorSub: STAFF, reason: "Asked for 4–6", window: { slotId: slot, date: TOMORROW }, expectedUpdatedAt: at2, now: NOW,
+    }));
+    expect(timed.promise).toBe("window");
+    expect((await one<{ p: string }>(`SELECT delivery_promise AS p FROM public."order" WHERE id = $1`, [o.order])).p).toBe("window");
+    expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.refund WHERE order_id = $1`, [o.order])).n)).toBe(0);
+    expect(await deliveryMovesFor(pool, o.order)).toEqual([]);
+  });
+
+  it("085 — re-timing is refused out for delivery, for a courier order, and on a stale order", async () => {
+    const out = await effyOrder({ deliveryRound: "in_progress" });
+    expect(await refusal(tx((c) => changeEffyWindow(c, {
+      orderId: out.order, actorSub: STAFF, reason: "x", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: new Date().toISOString(), now: NOW,
+    })))).toBe("out_for_delivery");
+
+    const courier = await effyOrder();
+    await toCourier(courier.order, "none", 0, await updatedAt(courier.order), "test");
+    expect((await one<{ p: string | null }>(`SELECT delivery_promise AS p FROM public."order" WHERE id = $1`, [courier.order])).p).toBeNull();
+    expect(await refusal(tx((c) => changeEffyWindow(c, {
+      orderId: courier.order, actorSub: STAFF, reason: "x", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: new Date().toISOString(), now: NOW,
+    })))).toBe("already_courier");
+
+    const stale = await effyOrder();
+    expect(await refusal(tx((c) => changeEffyWindow(c, {
+      orderId: stale.order, actorSub: STAFF, reason: "x", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: "2020-01-01T00:00:00Z", now: NOW,
+    })))).toBe("changed");
   });
 
   it("the record is append-only for the shopper role", async () => {

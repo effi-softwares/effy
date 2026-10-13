@@ -74,7 +74,7 @@ export function FeeSimulator({ plans, kind }: { plans: FeePlanDTO[]; kind: FeePl
               <Label htmlFor="sim-window">Window</Label>
               <select id="sim-window" className={SELECT} value={slotId} onChange={(e) => setSlotId(e.target.value)}>
                 <option value="">None — a later day</option>
-                {(slots.data ?? []).map((s) => <option key={s.id} value={s.id}>{s.startTime}–{s.endTime}</option>)}
+                {(slots.data ?? []).filter((s) => !s.anyTime).map((s) => <option key={s.id} value={s.id}>{s.startTime}–{s.endTime}</option>)}
               </select>
             </div>
             <div className="flex h-9 items-center gap-2">

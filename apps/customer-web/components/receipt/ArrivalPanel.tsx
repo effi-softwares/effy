@@ -1,5 +1,5 @@
 import {
-  courierLines, DELIVERY_TYPE_WORDS, formatArrival, movedLines, type ArrivalEstimateDTO, type OrderDeliveryDTO, type OrderStage,
+  asapSentence, courierLines, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival, movedLines, type ArrivalEstimateDTO, type OrderDeliveryDTO, type OrderStage,
 } from "@effy/shared-types"
 
 import { Package, Truck } from "lucide-react"
@@ -55,14 +55,36 @@ export function ArrivalPanel({
     )
   }
 
+  // ── 085 — "as soon as possible": the estimate it was sold, said as one. Never a day. ─────────────
+  if (delivery?.type === "effy" && delivery.promise === "asap" && delivery.asapEstimate) {
+    return (
+      <section className="rounded-lg border bg-card shadow-xs">
+        <div className="flex flex-col gap-1.5 px-6 pt-6" data-testid="arrival-asap">
+          <p className="inline-flex items-center gap-1.5 text-[13px] font-medium text-brand">
+            <Truck aria-hidden="true" className="size-3.5" />
+            {DELIVERY_TYPE_WORDS.effy}
+          </p>
+          <p className="text-2xl font-semibold tracking-tight">{DELIVERY_WINDOW_WORDS.asapTitle}</p>
+          <p className="text-sm text-muted-foreground">{asapSentence(delivery.asapEstimate)}</p>
+          <MovedNote delivery={delivery} />
+        </div>
+        <div className="p-6">
+          <ProgressTrack stage={stage} />
+        </div>
+      </section>
+    )
+  }
+
   // "Delivered by Effy" on an order that says so; an order from before delivery types just "Arriving".
   const label = delivery?.type === "effy" ? DELIVERY_TYPE_WORDS.effy : "Arriving"
+  // 085 — a day with no time: say that the missing hours ARE the promise.
+  const anyTime = delivery?.type === "effy" && delivery.promise === "day"
   return (
     <section className="rounded-lg border bg-card shadow-xs">
       {arrivals.length > 0 ? (
         <div className="flex flex-col gap-4 px-6 pt-6">
           {arrivals.map((a, i) => (
-            <Arrival key={`${a.method}-${i}`} arrival={a} multiple={arrivals.length > 1} index={i} label={label} />
+            <Arrival key={`${a.method}-${i}`} arrival={a} multiple={arrivals.length > 1} index={i} label={label} anyTime={anyTime} />
           ))}
           <p className="text-sm text-muted-foreground">Updates here as your order moves — no need to refresh.</p>
           <MovedNote delivery={delivery} />
@@ -92,11 +114,13 @@ function Arrival({
   multiple,
   index,
   label,
+  anyTime,
 }: {
   arrival: ArrivalEstimateDTO
   multiple: boolean
   index: number
   label: string
+  anyTime: boolean
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -107,6 +131,7 @@ function Arrival({
         <span>{methodLabel(arrival.method)}</span>
       </p>
       <p className="text-2xl font-semibold tracking-tight">{arrivalLabel(arrival)}</p>
+      {anyTime ? <p className="text-sm text-muted-foreground">{DELIVERY_WINDOW_WORDS.anyTimeDay}</p> : null}
     </div>
   )
 }

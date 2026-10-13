@@ -51,6 +51,13 @@ export interface SoldDelivery {
   courierServiceId?: string | null;
   /** 080 — how the order's parcels reach the courier; null unless a courier delivers. */
   courierCollection?: "hub" | "supplier" | null;
+  /**
+   * 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as
+   * possible". Null for a courier order.
+   */
+  promise?: "window" | "day" | "asap" | null;
+  /** 085 — the estimate the customer was told; set exactly when `promise` is `asap`. */
+  asapEstimate?: string | null;
 }
 
 export interface SlotHold {
@@ -407,10 +414,14 @@ UPDATE public."order"
        delivery_type = $4, delivery_type_reason = $5, courier_estimate = $6,
        -- 080 — the service whose timeframe the customer was told, and how the parcels reach the courier.
        courier_service_id = $7::uuid, courier_collection = $8,
+       -- 085 — WHAT WAS SOLD: a window, a day with no time, or "as soon as possible" with the
+       -- estimate the customer was told. Rewritten with the type on every attempt, for the same reason.
+       delivery_promise = $9, asap_estimate = $10,
        updated_at = now()
 WHERE id = $1`,
           [orderId, JSON.stringify(quote), expiresAt, sold?.type ?? null, sold?.reason ?? null, sold?.courierEstimate ?? null,
-           sold?.courierServiceId ?? null, sold?.courierCollection ?? null],
+           sold?.courierServiceId ?? null, sold?.courierCollection ?? null,
+           sold?.type === "effy" ? (sold.promise ?? "window") : null, sold?.promise === "asap" ? (sold.asapEstimate ?? null) : null],
         );
         await tx.query(`DELETE FROM public.order_package_delivery WHERE order_id = $1`, [orderId]);
         for (const p of pkgs) {

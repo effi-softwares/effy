@@ -83,6 +83,10 @@ sealed interface CheckoutUiState {
          */
         val window: ChosenWindow? = null,
         /**
+         * 085 — "as soon as possible" is chosen INSTEAD of a window. At most one of [window] / [asap].
+         */
+        val asap: Boolean = false,
+        /**
          * 066 — what the shopper tells the driver. Starts from the selected address's SAVED default and
          * lives HERE, not in the control, so it survives the hand-off to payment and a failed payment.
          */
@@ -125,13 +129,15 @@ sealed interface CheckoutUiState {
 
         /** Every delivery choice this order needs has been made. A courier order needs none. */
         val deliveryChosen: Boolean
-            get() = courier != null || effyWindows?.let { it.unavailable == null && it.find(window) != null } == true
+            get() = courier != null || effyWindows?.let {
+                it.unavailable == null && (if (asap) it.asap != null else it.find(window) != null)
+            } == true
 
         /**
          * 077 — what delivery costs for what is chosen, as the lines the server priced. Null until a
          * window is chosen. ⚠ Picked, never added up: the server is the judge.
          */
-        val deliveryFee get() = quote?.feeFor(window)
+        val deliveryFee get() = quote?.feeFor(window, asap)
     }
 
 }
@@ -195,6 +201,7 @@ class CheckoutViewModel(
             selectedId = id,
             quote = null,
             window = null,
+            asap = false,
             error = null,
             // ⚠ 066 FR-015: REPLACED by the new address's saved instructions, even over something the
             // shopper typed. A note is about a place — "use the side gate" carried to another building
@@ -235,7 +242,24 @@ class CheckoutViewModel(
         val s = ready() ?: return
         val chosen = ChosenWindow(slotId, date)
         if (s.effyWindows?.find(chosen) == null) return
-        _state.value = s.copy(window = chosen, error = null)
+        // 085 — a window un-chooses "as soon as possible".
+        _state.value = s.copy(window = chosen, asap = false, error = null)
+    }
+
+    /**
+     * 085 — a day that cannot be bought without a time was tapped: nothing is chosen until a time is.
+     * Also how the time option is closed on a day that has no Any time window left.
+     */
+    fun clearWindow() {
+        val s = ready() ?: return
+        _state.value = s.copy(window = null, asap = false)
+    }
+
+    /** 085 — "as soon as possible": no day, no time. Ignored unless the quote offers it. */
+    fun setAsap() {
+        val s = ready() ?: return
+        if (s.effyWindows?.asap == null) return
+        _state.value = s.copy(window = null, asap = true, error = null)
     }
 
     /**
@@ -248,6 +272,7 @@ class CheckoutViewModel(
         quote = q,
         quoting = false,
         window = window?.takeIf { q?.effyWindows?.find(it) != null },
+        asap = asap && q?.effyWindows?.asap != null,
     )
 
     /**
@@ -358,7 +383,9 @@ class CheckoutViewModel(
             billingAddressId = s.effectiveBillingId,
             deliveryInstructions = s.instructions.toInstructions(),
             // ONE window for an Effy order (078); a courier order has nothing to choose (079).
-            deliveryWindow = s.window.takeIf { s.courier == null },
+            deliveryWindow = s.window.takeIf { s.courier == null && !s.asap },
+            // 085 — "as soon as possible", sent instead of a window.
+            asap = s.courier == null && s.asap,
             // 079 — who delivers, as this screen shows it. The server refuses a mismatch, unpaid.
             deliveryType = s.quote?.deliveryType,
             // 074 — "the most I can": the balance. If that is more than the order needs, the server says
@@ -412,7 +439,7 @@ class CheckoutViewModel(
                 val cur = ready() ?: return@launch
                 // The window is dropped whenever the refusal is about it, and never replaced — and
                 // when who delivers has changed (079): nothing chosen for the old answer is kept.
-                val cleared = if (refused.reason == DeliveryChoiceRefusal.SlotRequired) cur else cur.copy(window = null)
+                val cleared = if (refused.reason == DeliveryChoiceRefusal.SlotRequired) cur else cur.copy(window = null, asap = false)
                 _state.value = cleared.withQuote(refused.quote ?: cur.quote).copy(
                     paying = false,
                     error = when (refused.reason) {

@@ -40,11 +40,11 @@ class DeliveryWireContractTest {
         // ⚠ 083: a serviced address answers `effyWindows` (or `courier` — see CourierWireTest) and
         // nothing else. The delivery charge is the ORDER's, one per window (077).
         const val DELIVERY_QUOTE_WIRE =
-            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":"26.00","effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"closedReason":null},{"date":"2026-08-25","section":"standard","windows":[],"closedReason":"full"}],"unavailable":null}}"""
+            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":"26.00","effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[{"slotId":"33333333-3333-3333-3333-333333333333","date":"2026-08-24","startAt":"2026-08-24T17:00:00+10:00","endAt":"2026-08-24T19:00:00+10:00","cutoffAt":"2026-08-24T13:00:00+10:00","surchargeAmount":"5.00","fee":{"lines":[{"kind":"delivery","amount":"6.00"},{"kind":"window_surcharge","amount":"5.00"}],"totalAmount":"11.00"}}],"closedReason":null,"anyTime":null},{"date":"2026-08-25","section":"standard","windows":[],"closedReason":"full","anyTime":null}],"unavailable":null,"asap":null}}"""
 
         // Read by the backend's wire.contract.test.ts, byte for byte.
         const val DELIVERY_QUOTE_NO_WINDOWS_WIRE =
-            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":null,"effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[],"closedReason":"closed"}],"unavailable":"no_windows"}}"""
+            """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":null,"effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[],"closedReason":"closed","anyTime":null}],"unavailable":"no_windows","asap":null}}"""
     }
 
     @Test

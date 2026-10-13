@@ -21,6 +21,15 @@ export interface Slot {
   end: Clock;
   cutoff: Clock;
   capacity: number | null;
+  /**
+   * 085 — the business's "Any time" window: the one that sells a DAY WITH NO TIME. Its hours are
+   * when untimed deliveries go out and its capacity is the day's limit for them.
+   *
+   * ⚠ A LABEL, NOT A RULE. `judgeWindow` does not read it, and neither does the hold, the
+   * collection run or the planner: an untimed order is an order in this window, and everything
+   * that is true of a window is true of it. Only what a customer is OFFERED and TOLD differs.
+   */
+  anyTime: boolean;
 }
 
 /**
@@ -121,6 +130,11 @@ export interface SlotSettings {
   noWeekdays: number[];
   /** Effy delivery days offered after today (078). */
   effyLookaheadDays: number;
+  /**
+   * 085 — what a customer choosing "as soon as possible" is told to expect, in the business's
+   * words. Null = it is not offered. Operator-entered; there is no default.
+   */
+  asapEstimate: string | null;
 }
 
 /**
@@ -132,6 +146,7 @@ const DEFAULT_SLOT_SETTINGS: SlotSettings = {
   turnaroundMin: 60,
   noWeekdays: [],
   effyLookaheadDays: 3,
+  asapEstimate: null,
 };
 
 export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
@@ -141,10 +156,11 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
       sameday_hub_turnaround_min: number;
       standard_no_delivery_weekdays: number[] | null;
       effy_lookahead_days: number;
+      asap_estimate: string | null;
     }>(`
 		SELECT slot_hold_min, sameday_hub_turnaround_min,
 		       standard_no_delivery_weekdays::int[] AS standard_no_delivery_weekdays,
-		       effy_lookahead_days
+		       effy_lookahead_days, asap_estimate
 		FROM public.delivery_settings WHERE id = 1`)
   ).rows[0];
   if (!row) return { ...DEFAULT_SLOT_SETTINGS };
@@ -153,6 +169,7 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
     turnaroundMin: row.sameday_hub_turnaround_min,
     noWeekdays: row.standard_no_delivery_weekdays ?? [],
     effyLookaheadDays: row.effy_lookahead_days,
+    asapEstimate: row.asap_estimate?.trim() || null,
   };
 }
 
@@ -162,7 +179,7 @@ const SLOT_COLUMNS = `id::text AS id,
 		       EXTRACT(HOUR FROM start_time)::int AS start_hour,   EXTRACT(MINUTE FROM start_time)::int AS start_minute,
 		       EXTRACT(HOUR FROM end_time)::int AS end_hour,       EXTRACT(MINUTE FROM end_time)::int AS end_minute,
 		       EXTRACT(HOUR FROM cutoff_time)::int AS cutoff_hour, EXTRACT(MINUTE FROM cutoff_time)::int AS cutoff_minute,
-		       capacity`;
+		       capacity, any_time`;
 
 interface SlotRow {
   id: string;
@@ -173,6 +190,7 @@ interface SlotRow {
   cutoff_hour: number;
   cutoff_minute: number;
   capacity: number | null;
+  any_time: boolean;
 }
 
 const toSlot = (r: SlotRow): Slot => ({
@@ -181,6 +199,7 @@ const toSlot = (r: SlotRow): Slot => ({
   end: { hour: r.end_hour, minute: r.end_minute },
   cutoff: { hour: r.cutoff_hour, minute: r.cutoff_minute },
   capacity: r.capacity,
+  anyTime: r.any_time,
 });
 
 /** The active slots. */

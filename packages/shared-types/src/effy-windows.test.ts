@@ -35,6 +35,39 @@ describe("effyWindowsView — the delivery-window picker, as words", () => {
   });
 });
 
+describe("085 — a day with no time, and as soon as possible", () => {
+  const c = cases.find((x) => x.name.startsWith("085"))!;
+  const view = effyWindowsView(c.input, new Date(c.now));
+
+  it("⚠ today is never offered without a time, even if the quote carries one", () => {
+    expect(c.input.days[0]!.anyTime).toBeTruthy();
+    expect(view.today!.anyTime).toBeNull();
+  });
+
+  it("a day whose windows are all taken can still be chosen without a time — and the reverse", () => {
+    const [, saturday, monday] = view.later;
+    expect(saturday!.windows).toHaveLength(0);
+    expect(saturday!.anyTime).toEqual({ slotId: "anytime", date: "2026-10-10" });
+    expect(monday!.windows.length).toBeGreaterThan(0);
+    expect(monday!.anyTime).toBeNull();
+  });
+
+  it("the any-time window is never listed among a day's windows", () => {
+    for (const d of view.later) expect(d.windows.map((w) => w.slotId)).not.toContain("anytime");
+  });
+
+  it("as soon as possible carries the estimate and no day", () => {
+    expect(view.asap).toEqual({ title: DELIVERY_WINDOW_WORDS.asapTitle, hint: DELIVERY_WINDOW_WORDS.asapHint, estimate: "usually within 2–3 days" });
+    expect(JSON.stringify(view.asap)).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+
+  it("a quote from before 085 shows neither", () => {
+    const old = effyWindowsView(cases[0]!.input, new Date(cases[0]!.now));
+    expect(old.asap).toBeNull();
+    for (const d of old.later) expect(d.anyTime).toBeNull();
+  });
+});
+
 describe("the customer app is held to the same fixture and the same words (P17, P18)", () => {
   it("its embedded fixture is this JSON, to the character", () => {
     const kt = readFileSync(MOBILE, "utf8");
@@ -53,6 +86,13 @@ describe("the customer app is held to the same fixture and the same words (P17, 
       dayFull: value("DAY_FULL"),
       noWindows: value("NO_WINDOWS"),
       cutoffPrefix: value("CUTOFF_PREFIX"),
+      anyTimeDay: value("ANY_TIME_DAY"),
+      timeOptionOpen: value("TIME_OPTION_OPEN"),
+      timeOptionHint: value("TIME_OPTION_HINT"),
+      timeRequired: value("TIME_REQUIRED"),
+      asapTitle: value("ASAP_TITLE"),
+      asapHint: value("ASAP_HINT"),
+      asapEstimatePrefix: value("ASAP_ESTIMATE_PREFIX"),
     }).toEqual(DELIVERY_WINDOW_WORDS);
   });
 });

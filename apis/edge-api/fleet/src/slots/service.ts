@@ -24,7 +24,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  *
  * "HH:MM" strings compare correctly as text, so no time is parsed here — and none is rebuilt.
  */
-export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTime: unknown; capacity?: unknown }): FieldError[] {
+export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTime: unknown; capacity?: unknown; anyTime?: unknown }): FieldError[] {
   const errors: FieldError[] = [];
   const time = (value: unknown, field: string, label: string): value is string => {
     if (typeof value === "string" && HHMM.test(value)) return true;
@@ -47,12 +47,20 @@ export function slotProblems(v: { startTime: unknown; endTime: unknown; cutoffTi
   if (v.capacity != null && (typeof v.capacity !== "number" || !Number.isInteger(v.capacity) || v.capacity < 1)) {
     errors.push({ field: "capacity", message: "a capacity limit must be a whole number of at least 1" });
   }
+  if (v.anyTime !== undefined && typeof v.anyTime !== "boolean") {
+    errors.push({ field: "anyTime", message: "anyTime must be true or false" });
+  }
   return errors;
 }
 
 const DUPLICATE = () =>
   conflict("a slot with this window already exists", [
     { field: "startTime", message: "there is already a slot with these start and end times" },
+  ]);
+/** 085 — one "Any time" window: a second would be two answers to "any time" on one day. */
+const SECOND_ANY_TIME = () =>
+  conflict("there is already an Any time window", [
+    { field: "anyTime", message: "another active window is already the Any time window — untick it there first" },
   ]);
 
 export function listSlots(): Promise<DeliverySlotDTO[]> {
@@ -83,19 +91,21 @@ export async function createSlot(body: DeliverySlotInput, actorSub: string, scop
   if (problems.length > 0) throw validationError("check the slot's times and capacity", problems);
 
   const capacity = body.capacity ?? null;
+  const anyTime = body.anyTime === true;
   let id: string;
   try {
-    id = await repo.insertSlot({ ...body, capacity }, actorSub, (tx, slotId) =>
+    id = await repo.insertSlot({ ...body, capacity, anyTime }, actorSub, (tx, slotId) =>
       recordAudit(
         {
           actorSub, action: "delivery_slot.created", targetType: "delivery_slot", driverId: slotId,
-          detail: { startTime: body.startTime, endTime: body.endTime, cutoffTime: body.cutoffTime, capacity },
+          detail: { startTime: body.startTime, endTime: body.endTime, cutoffTime: body.cutoffTime, capacity, anyTime },
         },
         tx,
       ),
     );
   } catch (err) {
     if (repo.isDuplicateWindow(err)) throw DUPLICATE();
+    if (repo.isSecondAnyTime(err)) throw SECOND_ANY_TIME();
     throw err;
   }
   scope.log.info({ slotId: id }, "delivery slot created");
@@ -121,6 +131,7 @@ export async function updateSlot(id: string, patch: DeliverySlotPatch, actorSub:
           cutoffTime: patch.cutoffTime ?? current.cutoffTime,
           // ⚠ `null` is a VALUE here — it removes the limit — so only an absent key keeps the old one.
           capacity: patch.capacity === undefined ? current.capacity : patch.capacity,
+          anyTime: typeof patch.anyTime === "boolean" ? patch.anyTime : current.anyTime,
           status: patch.status ?? current.status,
         };
         const problems = slotProblems(next);
@@ -130,7 +141,7 @@ export async function updateSlot(id: string, patch: DeliverySlotPatch, actorSub:
       actorSub,
       async (tx, before, after) => {
         const changed: Record<string, unknown> = {};
-        for (const key of ["startTime", "endTime", "cutoffTime", "capacity", "status"] as const) {
+        for (const key of ["startTime", "endTime", "cutoffTime", "capacity", "anyTime", "status"] as const) {
           if (before[key] !== after[key]) changed[key] = { from: before[key], to: after[key] };
         }
         let action: DeliveryConfigAuditAction = "delivery_slot.updated";
@@ -142,6 +153,7 @@ export async function updateSlot(id: string, patch: DeliverySlotPatch, actorSub:
     );
   } catch (err) {
     if (repo.isDuplicateWindow(err)) throw DUPLICATE();
+    if (repo.isSecondAnyTime(err)) throw SECOND_ANY_TIME();
     throw err;
   }
   if (!found) throw notFound("slot not found");

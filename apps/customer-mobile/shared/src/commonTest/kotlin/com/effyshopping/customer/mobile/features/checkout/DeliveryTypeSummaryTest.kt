@@ -2,6 +2,7 @@ package com.effyshopping.customer.mobile.features.checkout
 
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
 import com.effyshopping.customer.mobile.features.checkout.domain.CustomerCompensation
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryPromise
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
@@ -44,6 +45,14 @@ class DeliveryTypeSummaryTest {
             OrderDelivery(
                 type = if (it.str("type") == "courier") DeliveryType.COURIER else DeliveryType.EFFY,
                 courierEstimate = it.str("courierEstimate"),
+                // 085 — what was sold.
+                promise = when (it.str("promise")) {
+                    "window" -> DeliveryPromise.WINDOW
+                    "day" -> DeliveryPromise.DAY
+                    "asap" -> DeliveryPromise.ASAP
+                    else -> null
+                },
+                asapEstimate = it.str("asapEstimate"),
                 tracking = it["tracking"]?.takeIf { t -> t !is JsonNull }?.jsonObject?.let { t ->
                     if (t.str("kind") == "email") OrderTracking.ByEmail else OrderTracking.Link(t.str("url")!!, t.str("courierName")!!)
                 },

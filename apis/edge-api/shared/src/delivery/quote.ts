@@ -69,6 +69,12 @@ export interface EffyWindowsQuote {
   fees: ReadonlyMap<string, PricedFee>;
   /** Why no day has a window; null when one can be chosen. */
   unavailable: "no_windows" | "none_defined" | null;
+  /**
+   * 085 — "as soon as possible", when it can be sold: the business has said what to expect, and
+   * some day (today included) can take an order with no time. ⚠ No day: which one the order lands
+   * on is decided at the payment-intent call and is never the customer's to know.
+   */
+  asap: { estimate: string; fee: PricedFee } | null;
 }
 
 /**
@@ -110,8 +116,7 @@ export type QuoteResult =
       shopIds: string[];
       /**
        * The order's delivery charge on a plain later day, with no window surcharge — what each
-       * window's surcharge is measured against. ⚠ Not something that can be bought: every Effy order
-       * has a window.
+       * window's surcharge is measured against, and (085) what an order with no time pays.
        */
       baseFee: PricedFee;
       /** How much more the basket needs for free delivery; null when unset or reached (077). */
@@ -263,19 +268,28 @@ export async function quote(
     }
   }
 
+  // The order's charge on a plain later day, with nothing added for a window.
+  const baseFee = priceEffyOrder(plan, postcode, km, grams, basketCents, null, false);
   const fees = new Map<string, PricedFee>();
   for (const d of days) {
     for (const w of d.windows) fees.set(windowKey(w.id, d.date), priceEffyOrder(plan, postcode, km, grams, basketCents, w.id, d.isToday));
+    // 085 — an order with NO TIME pays the plain fee: no window surcharge, and no "Delivery today"
+    // premium even when an "as soon as possible" order lands today (FR-017). ⚠ That is this one
+    // line and not a branch in the fee sum: the Any-time window is simply never priced as a window.
+    if (d.anyTime) fees.set(windowKey(d.anyTime.id, d.date), baseFee);
   }
+  const asap = settings.asapEstimate !== null && days.some((d) => d.anyTime !== null)
+    ? { estimate: settings.asapEstimate, fee: baseFee }
+    : null;
 
   return {
     serviced: true,
     coverage: "effy",
     zoneId: coverage.groupId,
     shopIds: distinctShops(pkgs),
-    baseFee: priceEffyOrder(plan, postcode, km, grams, basketCents, null, false),
+    baseFee,
     freeDeliveryRemainingCents:
       plan.freeOverCents !== null && basketCents < plan.freeOverCents ? plan.freeOverCents - basketCents : null,
-    effyWindows: { days, fees, unavailable },
+    effyWindows: { days, fees, unavailable, asap },
   };
 }
