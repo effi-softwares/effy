@@ -57,7 +57,9 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
   booking against the limit. ASAP can be a cheaper way to get an order today than a same-day window
   (accepted in the spec).
 - **Operator steps, in order**: (1) `CONTAINER_TESTS=1` suites for `shared`, `fleet`, `commerce`, `orders`;
-  (2) `make db-up ENV=dev` (migration `20261013120000_flexible_standard_delivery`); (3) deploy `commerce`
+  (2) `make db-up ENV=dev` — TWO migrations: `20261013120000_flexible_standard_delivery` (applied to dev
+  2026-10-13) and `20261013130000_any_time_window_always` (creates the window; proved on a scratch
+  Postgres, not yet applied to dev); (3) deploy `commerce`
   and `notifications`, then `fleet`, `driver`, `orders`, `admin`; (4) deploy customer-web and
   back-office; (5) ship the customer app; (6) optionally set the Any time window's hours and limit in
   back-office; (7) walk `quickstart.md`.

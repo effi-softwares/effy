@@ -223,3 +223,8 @@ US4 all edit `EffyWindowOptions.tsx` and must be done in order.
 - **Not run here**: every `*.container.test.ts` (no Docker in this session) — including the new ones
   in `shared/src/delivery/override.container.test.ts` and `fleet/src/slots/slots.container.test.ts`.
   Run them with `CONTAINER_TESTS=1` before the migration is applied.
+- **A second migration, `20261013130000_any_time_window_always.sql`.** The first was applied to dev before
+  the "no switch" decision; editing it in place (which was done, and reverted) would never have reached
+  dev. Proved on a scratch Postgres: on a copy of dev's five windows it creates 00:00–23:59 with no
+  limit; on an empty database 09:00–21:00; Down and Up both run; the database refuses to disable the
+  window, add a second, or empty the estimate.

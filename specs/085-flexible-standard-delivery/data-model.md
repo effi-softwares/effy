@@ -1,6 +1,10 @@
 # Data Model: Flexible Standard Delivery (085)
 
-One migration. Three added columns and one index; **no new table**, no backfill.
+**Two migrations**, no new table: `20261013120000_flexible_standard_delivery` (the columns and the flag)
+and `20261013130000_any_time_window_always` (creates THE Any time window, makes it permanent, and gives
+the estimate its default). ⚠ Two files because the first had already been applied to dev when the
+operator decided there would be no switch — an applied migration is never edited. This page describes
+the state after both.
 
 ## Changes
 
