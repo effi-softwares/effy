@@ -162,7 +162,7 @@ export const DELIVERY_WINDOW_WORDS = {
   timeOptionHint: "Optional. Pick a window and we'll deliver in it.",
   /** The day has no room left for an order without a time, but a window on it does. */
   timeRequired: "Choose a time for this day.",
-  asapTitle: "No particular day",
+  asapTitle: "Standard",
   asapHint: "We'll deliver as soon as we can.",
   /** Followed by the business's estimate. ⚠ Always an estimate — never a day, never a promise. */
   asapEstimatePrefix: "As soon as possible —",

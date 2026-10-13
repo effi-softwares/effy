@@ -169,13 +169,28 @@ describe("085 — a time is optional", () => {
 })
 
 describe("085 — as soon as possible", () => {
-  it("is one choice, with the estimate said as one and no day", async () => {
+  it("is the first tile in the days' row: 'Standard' and the usual timeframe", async () => {
     const { onChoose, user } = setup(FLEX)
     const asap = screen.getByRole("radio", { name: new RegExp(DELIVERY_WINDOW_WORDS.asapTitle) })
-    expect(asap.closest("label")).toHaveTextContent("As soon as possible — usually within 2–3 days")
+    // The FIRST tile of the days' own row: the word, and how long it usually takes.
+    const row = dayRadio("Fri 9 Oct").closest("label")!.parentElement!
+    expect(row.firstElementChild).toBe(asap.closest("label"))
+    expect(asap.closest("label")).toHaveTextContent("Standardusually within 2–3 days")
     await user.click(asap)
     expect(onChoose).toHaveBeenLastCalledWith({ asap: true })
     expect(checked()).toEqual([asap])
+    // Nothing more is said under the row for it.
+    expect(document.body.textContent).not.toMatch(/as soon as possible/i)
+  })
+
+  it("⚠ the row of days never moves: a chosen day's detail is below the whole row", async () => {
+    const { user } = setup(FLEX)
+    const row = dayRadio("Fri 9 Oct").closest("label")!.parentElement!
+    const before = [...row.children].map((c) => c.textContent)
+    await user.click(dayRadio("Fri 9 Oct"))
+    await user.click(screen.getByRole("button", { name: DELIVERY_WINDOW_WORDS.timeOptionOpen }))
+    expect([...row.children].map((c) => c.textContent)).toEqual(before)
+    expect(row.contains(screen.getByTestId("day-times"))).toBe(false)
   })
 })
 

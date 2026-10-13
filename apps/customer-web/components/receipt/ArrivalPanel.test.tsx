@@ -260,7 +260,7 @@ describe("085 — what was sold, as the receipt panel says it", () => {
         delivery={{ type: "effy", courierEstimate: null, promise: "asap", asapEstimate: "usually within 2–3 days" }}
       />,
     )
-    expect(screen.getByTestId("arrival-asap")).toHaveTextContent("No particular day")
+    expect(screen.getByTestId("arrival-asap")).toHaveTextContent("Standard")
     expect(screen.getByTestId("arrival-asap")).toHaveTextContent("As soon as possible — usually within 2–3 days")
     expect(document.body.textContent).not.toMatch(/Mon|Tue|Wed|Thu|Fri|Sat|Sun|today|tomorrow/i)
   })

@@ -271,8 +271,10 @@ window and confirm the customer's order page says the window.
   chosen, reveals that day's windows; choosing one MUST promise the order for that day in that window.
 - **FR-006**: The time option MUST say in one sentence what choosing a time does and that it is
   optional, and MUST NOT be usable before a day is chosen.
-- **FR-007**: Nothing MUST be chosen for the customer on arrival, on returning to the step, or after
-  the address changes — no window, no day, and not "as soon as possible".
+- **FR-007**: "As soon as possible" MUST be the choice an order starts with, when it is offered — on
+  arrival and after the address changes (changed 2026-10-13 on the operator's direction; it was
+  "nothing is chosen"). A window or a day MUST never be chosen for the customer, and a choice the
+  platform refused MUST NOT be replaced by the default: the customer then chooses again.
 - **FR-008**: The choices MUST exclude each other across the whole section: making one un-makes any
   other, so at most one is highlighted at any time.
 - **FR-009**: Closing the time option or choosing another day MUST let go of a chosen window, leaving

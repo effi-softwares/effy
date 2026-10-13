@@ -4,7 +4,7 @@ import { Elements } from "@stripe/react-stripe-js"
 import { ArrowLeft, CreditCard, Lock } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   COVERAGE_REFUSAL_SENTENCE,
@@ -158,9 +158,20 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // A new quote (a new address, or a re-quote after a refusal) keeps the window only while it is
   // still on offer. ⚠ One that has gone is NOT replaced by another: nothing is selected, and the
   // shopper chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe it.
+  //
+  // 085 — "Standard" is the DEFAULT: the first quote for a destination starts with it chosen
+  // when it is offered, so a shopper with no preference can go straight on. ⚠ Once per destination —
+  // a re-quote after a REFUSED choice never falls back to it: what was refused is not replaced, and
+  // the shopper chooses again.
+  const defaultedFor = useRef<string | null>(null)
   useEffect(() => {
     if (!quote) return
-    setChosenWindow((prev) => carryWindow(quote, prev))
+    const destination = `${selectedId}|${selectedPostcode}`
+    const first = defaultedFor.current !== destination
+    defaultedFor.current = destination
+    setChosenWindow((prev) => carryWindow(quote, prev) ?? (first && effyWindowsOf(quote)?.asap ? { asap: true } : null))
+    // The destination is read at the moment its quote arrives; it is not a reason to run again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote])
 
   // The windows Effy offers, when the quote carries them. Told once per reason when there is

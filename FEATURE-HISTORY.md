@@ -44,6 +44,13 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
 - **On from the migration, no flag**: there is nothing to enable. A day asks for a time only when its
   untimed room is taken; "No particular day" is hidden only while no day has room. Go-live's "windows
   defined" and the `none_defined` alarm still mean TIMED windows.
+- **The picker (customer web)**: ONE row of tiles that never moves — first **"Standard"** with the
+  business's timeframe under it (the as-soon-as-possible choice, named the way most shops name it;
+  `DELIVERY_WINDOW_WORDS.asapTitle`), then the three days. A chosen day's "Any time during the day" and
+  its optional "Need a specific time?" sit below the row. ⚠ **"Standard" is selected by default**, once
+  per destination (`CheckoutFlow.tsx`) — the operator's direction, replacing "nothing is chosen"; a
+  refused choice still leaves nothing chosen. ⚠ The customer APP has the new word but neither the
+  one-row layout nor the default yet.
 - **Also in this change (customer web, ahead of the feature)**: the checkout step no longer overflows on
   phones (the page grid had no column template below `lg`), and the Back / Continue buttons stack there.
 - **Verified here**: unit suites and typechecks of every touched service, shared-types (both fixtures and

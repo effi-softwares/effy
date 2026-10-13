@@ -312,12 +312,25 @@ describe("085 — Standard delivery without a time", () => {
     quotes = [flexQuote()]
   })
 
-  it("one tap on a day is enough: it is sent as that day's Any-time window, at the plain fee", async () => {
+  it("⚠ 'Standard' is chosen by default: a shopper with no preference can go straight on", async () => {
+    const user = userEvent.setup()
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    const asap = await screen.findByRole("radio", { name: /^Standard/ })
+    await waitFor(() => expect(asap).toBeChecked())
+    for (const r of [...windowRadios(), ...tabs()]) expect(r).not.toBeChecked()
+    await waitFor(() => expect(payButton()).toBeEnabled())
+    await user.click(payButton())
+    await waitFor(() => expect(intentBodies).toHaveLength(1))
+    expect(intentBodies[0]).toMatchObject({ deliveryPromise: "asap", shownDeliveryAmount: "6.00" })
+    expect(intentBodies[0]).not.toHaveProperty("deliveryWindow")
+  })
+
+  it("one tap on a day is enough: it replaces the default and is sent as that day's Any-time window, at the plain fee", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await screen.findByRole("group", { name: "Standard delivery" })
-    expect(payButton()).toBeDisabled()
     await user.click(tabs()[0]!)
+    expect(screen.getByRole("radio", { name: /^Standard/ })).not.toBeChecked()
     await waitFor(() => expect(payButton()).toBeEnabled())
     expect(screen.queryByText("Window surcharge")).not.toBeInTheDocument()
     await user.click(payButton())
@@ -328,10 +341,12 @@ describe("085 — Standard delivery without a time", () => {
     expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: 1, promise: "day" } })
   })
 
-  it("as soon as possible is sent ALONE — no window, no day — at the plain fee", async () => {
+  it("as soon as possible, chosen again after something else, is sent ALONE — no window, no day — at the plain fee", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
-    await user.click(await screen.findByRole("radio", { name: /No particular day/ }))
+    await screen.findByRole("group", { name: "Standard delivery" })
+    await user.click(windowRadios()[0]!) // a same-day window first…
+    await user.click(await screen.findByRole("radio", { name: /^Standard/ })) // …then back
     await waitFor(() => expect(payButton()).toBeEnabled())
     await user.click(payButton())
 
@@ -341,7 +356,7 @@ describe("085 — Standard delivery without a time", () => {
     expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: -1, promise: "asap" } })
   })
 
-  it("⚠ a day that has gone by payment is not replaced: told, re-offered, nothing chosen", async () => {
+  it("⚠ a day that has gone by payment is not replaced — not even by the default: told, re-offered, nothing chosen", async () => {
     const user = userEvent.setup()
     quotes = [flexQuote(), flexQuote()]
     intentReplies = [REFUSED("slot_unavailable")]
@@ -356,15 +371,15 @@ describe("085 — Standard delivery without a time", () => {
     expect(payButton()).toBeDisabled()
   })
 
-  it("changing the address leaves nothing chosen — not a day, not as soon as possible", async () => {
+  it("changing the address starts again from the default — a day chosen for one address is not carried to another", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[ADDRESS, { ...ADDRESS, id: "a2", recipientName: "Sam", isDefault: false }]} />)
-    await user.click(await screen.findByRole("radio", { name: /No particular day/ }))
-    await waitFor(() => expect(payButton()).toBeEnabled())
+    await screen.findByRole("group", { name: "Standard delivery" })
+    await user.click(tabs()[0]!)
+    await waitFor(() => expect(tabs()[0]).toBeChecked())
     await user.click(screen.getByRole("button", { name: /change/i }))
     await user.click(screen.getByRole("radio", { name: /Sam/ }))
-    await screen.findByRole("radio", { name: /No particular day/ })
-    expect(screen.getByRole("radio", { name: /No particular day/ })).not.toBeChecked()
-    expect(payButton()).toBeDisabled()
+    await waitFor(() => expect(screen.getByRole("radio", { name: /^Standard/ })).toBeChecked())
+    for (const r of tabs()) expect(r).not.toBeChecked()
   })
 })

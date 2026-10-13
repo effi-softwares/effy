@@ -445,7 +445,7 @@ private fun EffyWindowsSection(
     }
 }
 
-/** One choice as a whole-row radio: a day, or "No particular day". */
+/** One choice as a whole-row radio: a day, or "Standard". */
 @Composable
 private fun ChoiceRow(selected: Boolean, enabled: Boolean, title: String, detail: String?, onClick: () -> Unit) {
     Row(

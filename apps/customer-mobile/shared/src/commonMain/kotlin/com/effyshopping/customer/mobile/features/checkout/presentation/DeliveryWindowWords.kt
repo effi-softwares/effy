@@ -24,7 +24,7 @@ object DeliveryWindowWords {
     const val TIME_OPTION_OPEN = "Need a specific time?"
     const val TIME_OPTION_HINT = "Optional. Pick a window and we'll deliver in it."
     const val TIME_REQUIRED = "Choose a time for this day."
-    const val ASAP_TITLE = "No particular day"
+    const val ASAP_TITLE = "Standard"
     const val ASAP_HINT = "We'll deliver as soon as we can."
     const val ASAP_ESTIMATE_PREFIX = "As soon as possible —"
 }

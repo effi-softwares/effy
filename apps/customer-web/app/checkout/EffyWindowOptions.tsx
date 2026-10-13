@@ -4,7 +4,6 @@ import { ChevronDown, Clock } from "lucide-react"
 import { useId, useState } from "react"
 
 import {
-  asapSentence,
   DELIVERY_TYPE_WORDS,
   DELIVERY_WINDOW_WORDS,
   effyWindowsView,
@@ -24,15 +23,16 @@ import { formatMoney } from "@/lib/money"
  *
  *   Same-day delivery   today's open windows, each with the time to order by;
  *   Standard delivery   the next delivery days — a DAY IS A COMPLETE CHOICE (085) — then
- *                       "No particular day" (as soon as possible), and under the chosen day an
- *                       optional "Need a specific time?" that reveals that day's windows.
+ *                       FIRST in the row, "Standard" with its usual timeframe (as soon as
+ *                       possible); BELOW the row, the chosen day's optional "Need a specific time?".
  *
  * ⚠ EVERY WORD HERE IS `effyWindowsView`'S AND `DELIVERY_WINDOW_WORDS`', NOT THIS FILE'S. The
  * customer app renders the same function's Kotlin twin, pinned to the same fixture.
  *
- * ⚠ NOTHING IS EVER SELECTED FOR THE SHOPPER (FR-010).
+ * ⚠ THIS COMPONENT SELECTS NOTHING. What starts chosen is the checkout's decision (085: "No
+ * particular day", once per destination); a time or a day is never chosen for the shopper.
  *
- * ⚠ ONE QUESTION, ONE ANSWER. Today's windows, the days and "No particular day" are ONE radio group:
+ * ⚠ ONE QUESTION, ONE ANSWER. Today's windows, the days and "Standard" are ONE radio group:
  * at most one is ever checked, by the platform's own rules. A time on a day is a refinement of that
  * day — a second, nested group shown only under the chosen day.
  *
@@ -168,7 +168,7 @@ export function EffyWindowOptions({
   const dayDetail = (d: EffyDayView) => {
     const timesId = `${group}-times-${d.date}`
     return (
-      <div className="col-span-full min-w-0">
+      <div className="mt-3 min-w-0">
         {d.anyTime ? (
           <>
             {timedOnActive ? null : <p className="text-sm text-muted-foreground">{DELIVERY_WINDOW_WORDS.anyTimeDay}</p>}
@@ -190,7 +190,8 @@ export function EffyWindowOptions({
         )}
         {timesShown && d.windows.length > 0 ? (
           <fieldset id={timesId} data-testid="day-times" className="mt-1 min-w-0">
-            <legend className="text-xs text-muted-foreground">
+            {/* The day is already named by the checked day above; say it again only to a screen reader. */}
+            <legend className={d.anyTime ? "text-xs text-muted-foreground" : "sr-only"}>
               {d.anyTime ? DELIVERY_WINDOW_WORDS.timeOptionHint : d.label}
             </legend>
             <div className={grid}>
@@ -231,7 +232,18 @@ export function EffyWindowOptions({
       {later.length > 0 || view.asap ? (
         <fieldset disabled={disabled} className={today ? "mt-6 min-w-0 border-t pt-6" : "mt-5 min-w-0"}>
           <legend className="text-sm font-medium">{view.standardTitle}</legend>
-          <div className={grid}>
+          {/* "Standard" and the three days: one row from tablet width up (two a row on a phone). */}
+          <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+            {/* "Standard" is the FIRST tile of the row, named the way most shops name it: the word
+                and how long it usually takes. The days after it are the same question's other answers. */}
+            {view.asap ? (
+              <label className={optionClass(isAsap(chosen))}>
+                <input type="radio" name={whenName} value="asap" checked={isAsap(chosen)} onChange={pickAsap} className="sr-only" />
+                <span className="font-medium">{view.asap.title}</span>
+                {/* ⚠ The business's own estimate, as it wrote it — an estimate, never a day. */}
+                <span className="text-xs text-muted-foreground">{view.asap.estimate}</span>
+              </label>
+            ) : null}
             {later.map((d) => {
               const selected = activeDay?.date === d.date
               const unavailable = !d.anyTime && d.windows.length === 0
@@ -244,30 +256,20 @@ export function EffyWindowOptions({
                   unavailable={unavailable}
                   className={optionClass(selected, unavailable)}
                   onPick={() => pickDay(d)}
-                  detail={selected ? dayDetail(d) : null}
                 />
               )
             })}
           </div>
-          {view.asap ? (
-            <label className={"mt-2 " + optionClass(isAsap(chosen))}>
-              <input type="radio" name={whenName} value="asap" checked={isAsap(chosen)} onChange={pickAsap} className="sr-only" />
-              <span className="font-medium">{view.asap.title}</span>
-              <span className="text-xs text-muted-foreground">{view.asap.hint}</span>
-              {/* ⚠ Always said as an estimate, in the words the order page and receipt use. */}
-              <span className="text-xs text-muted-foreground">{asapSentence(view.asap.estimate)}</span>
-            </label>
-          ) : null}
+          {/* What a chosen day means sits BELOW the row, so the row never moves: its "any time" line
+              and its optional times. */}
+          {activeDay ? dayDetail(activeDay) : null}
         </fieldset>
       ) : null}
     </section>
   )
 }
 
-/**
- * One later day as a radio. Its detail (the "any time" line and the optional times) is rendered
- * AFTER the label, across the full row, so it never sits inside the label's hit area.
- */
+/** One later day as a radio tile. */
 function DayRow({
   day,
   name,
@@ -275,7 +277,6 @@ function DayRow({
   unavailable,
   className,
   onPick,
-  detail,
 }: {
   day: EffyDayView
   name: string
@@ -283,16 +284,12 @@ function DayRow({
   unavailable: boolean
   className: string
   onPick: () => void
-  detail: React.ReactNode
 }) {
   return (
-    <>
-      <label className={className}>
-        <input type="radio" name={name} value={day.date} checked={selected} disabled={unavailable} onChange={onPick} className="sr-only" />
-        <span className={"font-medium " + (unavailable ? "line-through" : "")}>{day.label}</span>
-        {unavailable && day.sentence ? <span className="text-xs">{day.sentence}</span> : null}
-      </label>
-      {detail}
-    </>
+    <label className={className}>
+      <input type="radio" name={name} value={day.date} checked={selected} disabled={unavailable} onChange={onPick} className="sr-only" />
+      <span className={"font-medium " + (unavailable ? "line-through" : "")}>{day.label}</span>
+      {unavailable && day.sentence ? <span className="text-xs">{day.sentence}</span> : null}
+    </label>
   )
 }

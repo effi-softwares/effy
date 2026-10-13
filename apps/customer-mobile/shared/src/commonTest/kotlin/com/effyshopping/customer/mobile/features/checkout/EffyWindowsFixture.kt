@@ -906,7 +906,7 @@ internal const val EFFY_WINDOWS_FIXTURE = """
           }
         ],
         "asap": {
-          "title": "No particular day",
+          "title": "Standard",
           "hint": "We'll deliver as soon as we can.",
           "estimate": "usually within 2–3 days"
         }

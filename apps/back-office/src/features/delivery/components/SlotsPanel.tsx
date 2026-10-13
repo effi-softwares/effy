@@ -271,7 +271,7 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
           {/* 085 — what these fields mean on THE Any time window. */}
           {slot?.anyTime ? (
             <p className="text-sm text-muted-foreground">
-              This is the Any time window. Customers who choose a day without a time, or “No particular day”, are delivered
+              This is the Any time window. Customers who choose a day without a time, or “Standard”, are delivered
               in it: its hours are when those deliveries go out, and its limit is how many such orders a day takes. It
               cannot be switched off and never carries a surcharge.
             </p>
