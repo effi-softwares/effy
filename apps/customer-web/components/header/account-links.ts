@@ -1,4 +1,16 @@
-import { CircleHelp, Coins, CreditCard, Heart, MapPin, Package, UserRound } from "lucide-react"
+import {
+  CircleHelp,
+  Coins,
+  CreditCard,
+  FileText,
+  Heart,
+  House,
+  Lock,
+  MapPin,
+  Package,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 /**
@@ -30,4 +42,31 @@ export const ACCOUNT_LINKS: ReadonlyArray<{
   { label: "Address book", href: "/addresses", testId: "menu-addresses", Icon: MapPin, group: "account" },
   { label: "Payment methods", href: "/account/payment", testId: "menu-payment", Icon: CreditCard, group: "account" },
   { label: "Help & feedback", href: "/help", testId: "menu-help", Icon: CircleHelp, group: "help" },
+]
+
+/**
+ * Every section of the account area — ONE list again, for the same reason as above: the sidebar
+ * (`AccountNav`, from `lg`) and the phone menu's account level (`MobileNavIsland`, below it) show the
+ * same entries, and a section added to one must not go missing from the other.
+ *
+ * `exact` marks an entry whose path is also the prefix of others (`/account` vs `/account/points`),
+ * so it is current only on its own page.
+ */
+export const ACCOUNT_SECTIONS: ReadonlyArray<{
+  label: string
+  href: string
+  testId: string
+  Icon: LucideIcon
+  exact?: boolean
+}> = [
+  { label: "Overview", href: "/account", testId: "section-overview", Icon: House, exact: true },
+  { label: "Orders", href: "/orders", testId: "section-orders", Icon: Package },
+  { label: "Saved items & lists", href: "/saved", testId: "section-saved", Icon: Heart },
+  { label: "Effy points", href: "/account/points", testId: "section-points", Icon: Coins },
+  { label: "Personal info", href: "/account/personal", testId: "section-personal", Icon: UserRound },
+  { label: "Address book", href: "/addresses", testId: "section-addresses", Icon: MapPin },
+  { label: "Payment methods", href: "/account/payment", testId: "section-payment", Icon: CreditCard },
+  { label: "Security", href: "/account/security", testId: "section-security", Icon: Lock },
+  { label: "Privacy & data", href: "/account/privacy", testId: "section-privacy", Icon: ShieldCheck },
+  { label: "Legal", href: "/account/legal", testId: "section-legal", Icon: FileText },
 ]

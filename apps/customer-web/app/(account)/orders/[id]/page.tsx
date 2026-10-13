@@ -96,7 +96,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight">
+          <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl font-semibold tracking-tight sm:text-3xl">
             Order {dto.orderNumber} <Badge variant={TONE[words.tone]}>{words.badge}</Badge>
           </h1>
           <p className="text-sm text-muted-foreground">

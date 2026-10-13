@@ -71,6 +71,7 @@ export function MobileNav({
   accountTrigger,
   accountPanel,
   accountTitle,
+  accountRoots,
   aisles,
 }: {
   /** The aisle list, rendered on the server and slotted under the fixed links. */
@@ -96,20 +97,33 @@ export function MobileNav({
   accountPanel?: React.ReactNode
   /** The name to head the account level with — the customer's, when we have one. */
   accountTitle?: string
+  /**
+   * The paths of the account area. On a page under one of them the drawer OPENS on the account level:
+   * below `lg` those pages have no sidebar, so this drawer is their section navigation and the menu
+   * button has to land on it — not two taps away behind the avatar.
+   */
+  accountRoots?: readonly string[]
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const pathname = usePathname()
   const params = useSearchParams()
   const saleOnly = params.get("saleOnly") === "true"
 
-  const [level, setLevel] = useState<"root" | "account">("root")
+  // ⚠ The level the drawer opens on is DERIVED from the route, and only a tap inside the drawer
+  // overrides it. Stored instead, it would be set from the page the shopper was leaving (a link
+  // closes the drawer before the route changes) and reopen on the wrong level on the next page.
+  const inAccount =
+    !!accountPanel &&
+    !!accountRoots?.some((root) => pathname === root || pathname.startsWith(root + "/"))
+  const [chosen, setChosen] = useState<"root" | "account" | null>(null)
+  const level = chosen ?? (inAccount ? "account" : "root")
   const atRoot = level === "root"
 
   const close = useCallback(() => dialogRef.current?.close(), [])
 
-  // ⚠ Reset on close, not on open. Reopening the drawer must start at the top level — a menu that
-  // remembers it was left three levels deep reopens showing something the shopper did not ask for.
-  const handleClose = useCallback(() => setLevel("root"), [])
+  // ⚠ Reset on close, not on open. Reopening the drawer must start at the route's own level — a menu
+  // that remembers where it was left reopens showing something the shopper did not ask for.
+  const handleClose = useCallback(() => setChosen(null), [])
 
   function isActive(href: string): boolean {
     const [path, query] = href.split("?")
@@ -211,7 +225,7 @@ export function MobileNav({
                 <div className="flex items-center gap-1 px-3 py-3">
                   <button
                     type="button"
-                    onClick={() => setLevel("root")}
+                    onClick={() => setChosen("root")}
                     // The visible chevron is not a label. Without this a screen reader announces
                     // "button" and nothing else, on the only control that leaves this level.
                     aria-label="Back to menu"
@@ -238,7 +252,7 @@ export function MobileNav({
               {accountPanel ? (
                 <button
                   type="button"
-                  onClick={() => setLevel("account")}
+                  onClick={() => setChosen("account")}
                   // The panel is not in the DOM-order sense "expanded" — it is a sibling level. But
                   // `aria-expanded` is still the right contract: this control reveals the thing named
                   // by the panel, and a screen reader user needs to know it did.

@@ -212,11 +212,12 @@ async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-sm">
+            {/* The date column is dropped on a phone so the table fits instead of scrolling sideways. */}
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th scope="col" className="py-2 pr-4 font-medium">Order</th>
-                  <th scope="col" className="py-2 pr-4 font-medium">Placed</th>
+                  <th scope="col" className="py-2 pr-4 font-medium max-sm:hidden">Placed</th>
                   <th scope="col" className="py-2 pr-4 text-right font-medium">Total</th>
                   <th scope="col" className="py-2"><span className="sr-only">Open</span></th>
                 </tr>
@@ -231,7 +232,7 @@ async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string
                         {o.delivery ? ` · ${DELIVERY_TYPE_WORDS[o.delivery.type]}` : ""}
                       </span>
                     </td>
-                    <td className="py-3 pr-4">{day(o.placedAt, SHORT) ?? "—"}</td>
+                    <td className="py-3 pr-4 max-sm:hidden">{day(o.placedAt, SHORT) ?? "—"}</td>
                     <td className="py-3 pr-4 text-right tabular-nums">{formatMoney(o.grandTotalAmount, o.currency)}</td>
                     <td className="py-3 text-right">
                       <Link href={`/orders/${o.id}`} className="font-medium hover:underline">
@@ -250,7 +251,7 @@ async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string
         <h2 id="quick-links" className="mb-3 text-sm font-semibold">
           Quick links
         </h2>
-        <ul className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
             { href: "/account/security", label: "Change password", Icon: Lock },
             { href: "/help", label: "Get help", Icon: CircleHelp },

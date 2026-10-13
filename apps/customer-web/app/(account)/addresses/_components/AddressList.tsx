@@ -94,7 +94,7 @@ export function AddressList({ initial }: { initial: Address[] }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Address book</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Address book</h1>
           <p className="text-sm text-muted-foreground">Where we deliver. Each address shows who can deliver there.</p>
         </div>
         <Button onClick={openAdd} data-testid="add-address">

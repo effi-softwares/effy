@@ -40,7 +40,7 @@ export default function OrdersPage({ searchParams }: { searchParams: Search }) {
     <div className="space-y-6">
       <Breadcrumb items={[{ label: "Account", href: "/account" }, { label: "Orders" }]} />
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Your orders</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Your orders</h1>
         <p className="text-sm text-muted-foreground">Track deliveries, get receipts and buy things again.</p>
       </div>
       <LiveRefresh />
@@ -144,7 +144,7 @@ async function OrdersList({ searchParams }: { searchParams: Search }) {
       )}
 
       {pages > 1 && (
-        <nav aria-label="Pages" className="flex items-center justify-center gap-1 pt-2">
+        <nav aria-label="Pages" className="flex flex-wrap items-center justify-center gap-1 pt-2">
           <PageLink href={href({ page: page - 1 })} disabled={page === 1}>
             <ChevronLeft aria-hidden="true" />
             Previous
