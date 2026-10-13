@@ -79,7 +79,7 @@ export interface SlotValues {
   cutoffTime: string;
   /** null = no limit. */
   capacity: number | null;
-  /** 085 — the "Any time" window. */
+  /** 085 — THE "Any time" window. Read only: nothing here sets it. */
   anyTime: boolean;
   status: "active" | "disabled";
 }
@@ -93,22 +93,14 @@ export function isDuplicateWindow(err: unknown): boolean {
   );
 }
 
-/** 085 — the unique-violation for a second active "Any time" window. */
-export function isSecondAnyTime(err: unknown): boolean {
-  return (
-    typeof err === "object" && err !== null &&
-    (err as { code?: string }).code === "23505" &&
-    String((err as { constraint?: string }).constraint ?? "").includes("delivery_slot_any_time_uq")
-  );
-}
 
 export async function insertSlot(
-  v: Omit<SlotValues, "status">,
+  v: Omit<SlotValues, "status" | "anyTime">,
   actorSub: string,
   audit: (tx: pg.PoolClient, id: string) => Promise<void>,
 ): Promise<string> {
   return withTransaction(async (tx) => {
-    const res = await tx.query<{ id: string }>(INSERT_SLOT, [v.startTime, v.endTime, v.cutoffTime, v.capacity, actorSub, v.anyTime]);
+    const res = await tx.query<{ id: string }>(INSERT_SLOT, [v.startTime, v.endTime, v.cutoffTime, v.capacity, actorSub]);
     const id = res.rows[0]!.id;
     await audit(tx, id);
     return id;
@@ -143,7 +135,7 @@ export async function updateSlot(
       capacity: row.capacity, anyTime: row.any_time, status: row.status,
     };
     const after = decide(before);
-    await tx.query(UPDATE_SLOT, [id, after.startTime, after.endTime, after.cutoffTime, after.capacity, after.status, actorSub, after.anyTime]);
+    await tx.query(UPDATE_SLOT, [id, after.startTime, after.endTime, after.cutoffTime, after.capacity, after.status, actorSub]);
     await audit(tx, before, after);
     return true;
   });

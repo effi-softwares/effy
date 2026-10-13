@@ -75,8 +75,8 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         noDeliveryWeekdays: closed,
         slotHoldMin: Number(hold),
         hubTurnaroundMin: Number(turnaround),
-        // 085 — empty switches "as soon as possible" off.
-        asapEstimate: asapEstimate.trim() === "" ? null : asapEstimate.trim(),
+        // 085 — what "No particular day" customers are told. The server refuses an empty one.
+        asapEstimate: asapEstimate.trim(),
       });
       setSaved(true);
     } catch (err) {
@@ -120,7 +120,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           setEffyLookahead,
         )}
 
-        {/* 085 — what a customer choosing "No particular day" is told. Empty = not offered. */}
+        {/* 085 — what a customer choosing "No particular day" is told. */}
         <div className="space-y-2">
           <Label htmlFor="days-asapEstimate">“No particular day” — what customers are told</Label>
           <Input
@@ -139,7 +139,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           />
           <p id="days-asapEstimate-hint" className={errors.asapEstimate ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
             {errors.asapEstimate ??
-              "Shown as “As soon as possible — …”. Always an estimate, never a promised day. Leave empty to switch “No particular day” off; it also needs an Any time window."}
+              "Shown as “As soon as possible — …”. Always an estimate, never a promised day."}
           </p>
         </div>
 

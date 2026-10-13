@@ -40,9 +40,10 @@ export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   if (!wholeNumber(v.hubTurnaroundMin, 0, 480)) {
     errors.push({ field: "hubTurnaroundMin", message: "the hub turnaround must be between 0 and 480 minutes" });
   }
-  const asap = v.asapEstimate
-  if (asap !== undefined && asap !== null && (typeof asap !== "string" || asap.trim().length > 80)) {
-    errors.push({ field: "asapEstimate", message: "the estimate is at most 80 characters" });
+  // 085 — absent keeps the one saved; present, it is what customers are told and cannot be empty.
+  const asap: unknown = v.asapEstimate;
+  if (asap !== undefined && (typeof asap !== "string" || asap.trim() === "" || asap.trim().length > 80)) {
+    errors.push({ field: "asapEstimate", message: "say what customers are told, in 1 to 80 characters" });
   }
   return errors;
 }
@@ -60,8 +61,8 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
     noDeliveryWeekdays: [...body.noDeliveryWeekdays].sort((a, b) => a - b),
     slotHoldMin: body.slotHoldMin,
     hubTurnaroundMin: body.hubTurnaroundMin,
-    // 085 — absent keeps it; empty switches "as soon as possible" off.
-    ...(body.asapEstimate === undefined ? {} : { asapEstimate: body.asapEstimate?.trim() || null }),
+    // 085 — absent keeps the one saved.
+    ...(body.asapEstimate === undefined ? {} : { asapEstimate: body.asapEstimate.trim() }),
   };
   const saved = await repo.save(v, actorSub, (tx) =>
     recordAudit({ actorSub, action: "delivery_days.updated", targetType: "delivery_settings", driverId: null, detail: { ...v } }, tx),

@@ -216,9 +216,14 @@ describe("085 — the Any-time window: a day sold with no time", () => {
     const days = open(tue(8), new Map(), onlyAnyTime);
     expect(days.every((d) => d.windows.length === 0)).toBe(true);
     expect(windowsUnavailable(days, onlyAnyTime)).toBeNull();
-    // With it full on every day there is nothing.
+    // With it full on every day there is nothing — and with no TIMED window at all that is still the
+    // alarm it always was: the business has defined none (the Any time window always exists).
     const all = new Map(days.map((d) => [d.date, new Map([["anytime", 2]])]));
-    expect(windowsUnavailable(open(tue(8), all, onlyAnyTime), onlyAnyTime)).toBe("no_windows");
+    expect(windowsUnavailable(open(tue(8), all, onlyAnyTime), onlyAnyTime)).toBe("none_defined");
+    // Timed windows exist and every one, on every day, is gone or taken: nothing left to choose.
+    const limited = [{ ...morning, capacity: 1 }, { ...afternoon, capacity: 1 }, { ...evening, capacity: 1 }, anyTime];
+    const taken = new Map(days.map((d) => [d.date, new Map([["morning", 1], ["afternoon", 1], ["evening", 1], ["anytime", 2]])]));
+    expect(windowsUnavailable(open(tue(8), taken, limited), limited)).toBe("no_windows");
   });
 
   it("a day Effy does not deliver has none", () => {

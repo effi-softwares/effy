@@ -213,8 +213,11 @@ US4 all edit `EffyWindowOptions.tsx` and must be done in order.
   `delivery_override`: that table hangs off a delivery-TYPE change, which Effy → Effy is not.
 - **T037 / T038** — no second new route for the choices: the existing
   `GET …/delivery-move?to=effy` now lists windows for an order Effy already delivers too.
-- **T039** — NOT seeded, deliberately. The Any time window is the feature's switch and the estimate is
-  operator-entered; seeding either would switch the feature on in every fresh environment.
+- **T027–T029, T039 — CHANGED 2026-10-13 on the operator's direction: this is how Standard delivery
+  works, not a switch.** The migration creates THE Any time window and defaults the estimate; the "Any
+  time" tick, the second-window 409 and the "empty = off" estimate were removed. Staff edit the window's
+  hours and limit and reword the estimate; neither can be switched off. The dev seed adds its timed
+  windows when no TIMED window exists.
 - **T033 / T034** — the customer app's checkout host tests pass (`:shared:testAndroidHostTest`); the
   iOS target was not compiled or run here.
 - **Not run here**: every `*.container.test.ts` (no Docker in this session) — including the new ones

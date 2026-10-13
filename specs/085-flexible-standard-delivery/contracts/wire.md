@@ -21,9 +21,8 @@ interface EffyDayDTO {
 interface EffyWindowsDTO {
   // …existing: days, unavailable
   /**
-   * 085 — "as soon as possible": offered when an Any-time window is open on some day in the calendar
-   * (today included) AND the business has entered an estimate. Carries no day — the customer is not
-   * told one.
+   * 085 — "as soon as possible": offered when the Any time window is open on some day in the calendar
+   * (today included). Carries no day — the customer is not told one.
    */
   asap?: { estimate: string; fee: DeliveryFeeDTO } | null;
 }
@@ -96,8 +95,8 @@ estimate } | null`. `deliverySummary` gains the `day` and `asap` forms. Kotlin t
 
 | Route | Service | Change |
 |---|---|---|
-| `/fleet/v1/delivery-slots`, `/fleet/v1/delivery-slots/{slotId}` (existing) | `fleet` | `anyTime: boolean` on a slot. A second active Any time window → 409 naming the `anyTime` field. |
-| `/fleet/v1/delivery-days` settings (existing) | `fleet` | `asapEstimate: string \| null` (≤ 80 chars). Absent in a PUT keeps it; null/"" switches ASAP off. |
+| `/fleet/v1/delivery-slots`, `/fleet/v1/delivery-slots/{slotId}` (existing) | `fleet` | `anyTime` on a slot, READ ONLY — no request sets it. Switching the Any time window off → 409 naming `status`; its hours and limit are edited like any window's. |
+| `/fleet/v1/delivery-days` settings (existing) | `fleet` | `asapEstimate: string` (1–80 chars). Absent in a PUT keeps it; empty or null → 422. |
 | Pricing plans (existing) | `admin` | A surcharge on the Any time window → 422 ("the Any time window takes no surcharge"); the editor does not list it. |
 | Orders list/detail (existing) | `orders` | `promise` on each Effy order; `?promise=window\|day\|asap`; detail adds `asapEstimate`. |
 | `GET /orders/v1/orders/{orderId}/delivery-move?to=effy` (existing) | `orders` | Lists windows for an order Effy ALREADY delivers too (still `allowed: false`, `already_effy`); each day's Any time window is listed first with `anyTime: true`. |

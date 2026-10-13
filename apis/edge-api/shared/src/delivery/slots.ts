@@ -130,12 +130,12 @@ export interface SlotSettings {
   noWeekdays: number[];
   /** Effy delivery days offered after today (078). */
   effyLookaheadDays: number;
-  /**
-   * 085 — what a customer choosing "as soon as possible" is told to expect, in the business's
-   * words. Null = it is not offered. Operator-entered; there is no default.
-   */
-  asapEstimate: string | null;
+  /** 085 — what a customer choosing "as soon as possible" is told to expect, in the business's words. */
+  asapEstimate: string;
 }
+
+/** 085 — the estimate until the business rewords it. The same words the column defaults to. */
+export const ASAP_ESTIMATE_DEFAULT = "usually within 2–3 days";
 
 /**
  * The column defaults of the 069 migration. Used only when the settings row does not exist yet — a
@@ -146,7 +146,7 @@ const DEFAULT_SLOT_SETTINGS: SlotSettings = {
   turnaroundMin: 60,
   noWeekdays: [],
   effyLookaheadDays: 3,
-  asapEstimate: null,
+  asapEstimate: ASAP_ESTIMATE_DEFAULT,
 };
 
 export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
@@ -156,7 +156,7 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
       sameday_hub_turnaround_min: number;
       standard_no_delivery_weekdays: number[] | null;
       effy_lookahead_days: number;
-      asap_estimate: string | null;
+      asap_estimate: string;
     }>(`
 		SELECT slot_hold_min, sameday_hub_turnaround_min,
 		       standard_no_delivery_weekdays::int[] AS standard_no_delivery_weekdays,
@@ -169,7 +169,7 @@ export async function loadSlotSettings(q: Queryable): Promise<SlotSettings> {
     turnaroundMin: row.sameday_hub_turnaround_min,
     noWeekdays: row.standard_no_delivery_weekdays ?? [],
     effyLookaheadDays: row.effy_lookahead_days,
-    asapEstimate: row.asap_estimate?.trim() || null,
+    asapEstimate: row.asap_estimate,
   };
 }
 

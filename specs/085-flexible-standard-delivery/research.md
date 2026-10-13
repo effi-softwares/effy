@@ -95,8 +95,8 @@ page, receipt, email and app follow without their own edits to the words.
 **Why a column and not "derive it from the slot"**: a slot can be edited or disabled after the sale,
 and an order keeps what it was sold (FR-014). ASAP cannot be derived at all — it is stored as a day.
 
-**The ASAP estimate** is a business setting (`delivery_settings.asap_estimate`), operator-entered and
-never seeded — the same shape as the courier service's timeframe. While it is empty, ASAP is not offered.
+**The ASAP estimate** is a business setting (`delivery_settings.asap_estimate`), NOT NULL with the
+default "usually within 2–3 days" (the operator's own words for it); staff may reword it, never empty it.
 
 ## R6 — Staff changing an order's day or time (FR-029)
 
@@ -124,14 +124,20 @@ is neither "same-day" nor "standard".
 
 ## R8 — Rollout
 
-**Decision**: no feature flag. The feature is **off until staff create an Any-time window** and **ASAP
-is off until staff enter the estimate**. With neither, the quote carries `anyTime: null` / `asap: null`
-and both clients render Standard delivery exactly as today.
+**Decision (changed 2026-10-13 on the operator's direction): PERMANENT, not a switch.** The migration
+itself creates THE Any time window — hours spanning the windows that exist (earliest start to latest
+end; 09:00–21:00 where there are none), closing when the earliest of them does, no limit — and gives
+the "as soon as possible" estimate the default "usually within 2–3 days". Staff may change the window's
+hours and limit and reword the estimate; they cannot switch the window off, unmark it, make a second
+one, or empty the estimate. There is no flag and no "off" state anywhere in the code.
+
+⚠ What still varies per day is ROOM, not the feature: a day whose Any time window is full (staff set a
+limit) or closed asks for a time instead, and "as soon as possible" is not offered while no day has room.
 
 **Deploy order**: migration → `commerce` (quote/intent/order) + `notifications` (receipt) → `fleet`,
-`driver`, `orders`, `admin` (the slot flag, the estimate, labels, `changeEffyWindow`, pricing) → web
-clients → mobile. `storefront` is not touched. Each step is
-safe by itself because every wire change is additive.
+`driver`, `orders`, `admin` (the window's read-only flag, the estimate, labels, `changeEffyWindow`,
+pricing) → web clients → mobile. `storefront` is not touched. ⚠ From the moment `commerce` is deployed
+the new choices are on the wire; a client older than 085 ignores them and keeps selling windows.
 
 ## R9 — Gateways and capacity
 

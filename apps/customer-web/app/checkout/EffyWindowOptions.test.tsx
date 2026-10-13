@@ -153,7 +153,7 @@ describe("085 — a time is optional", () => {
     expect(onChoose).toHaveBeenLastCalledWith({ slotId: "morning", date: "2026-10-12" })
   })
 
-  it("with no Any-time window at all (before 085, or none defined), every day works that way", async () => {
+  it("a server from before 085 sends no day without a time: every day then asks for a time", async () => {
     const { onChoose, user } = setup(MAIN)
     expect(screen.queryByRole("radio", { name: new RegExp(DELIVERY_WINDOW_WORDS.asapTitle) })).not.toBeInTheDocument()
     await user.click(dayRadio("Fri 9 Oct"))

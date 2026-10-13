@@ -1,6 +1,7 @@
 // Repository for the delivery calendar (069 US6; Effy delivery days since 078). Raw parameterized SQL, no ORM.
 
 import { query, withTransaction } from "@effy/edge-shared";
+import { ASAP_ESTIMATE_DEFAULT } from "@effy/edge-shared/delivery";
 import type { DeliveryDaysDTO, DeliveryDaysInput, NonDeliveryDateDTO } from "@effy/shared-types";
 import type pg from "pg";
 
@@ -27,7 +28,7 @@ interface SettingsRow {
   slot_hold_min: number;
   sameday_hub_turnaround_min: number;
   effy_lookahead_days: number;
-  asap_estimate: string | null;
+  asap_estimate: string;
 }
 
 /** The migrations' own defaults, used only until the operator has saved the delivery settings. */
@@ -36,7 +37,7 @@ const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
   noDeliveryWeekdays: [],
   slotHoldMin: 10,
   hubTurnaroundMin: 60,
-  asapEstimate: null,
+  asapEstimate: ASAP_ESTIMATE_DEFAULT,
 };
 
 async function dates(): Promise<NonDeliveryDateDTO[]> {
@@ -84,12 +85,12 @@ export async function save(
       `UPDATE public.delivery_settings
           SET effy_lookahead_days = $1, standard_no_delivery_weekdays = $2::smallint[],
               slot_hold_min = $3, sameday_hub_turnaround_min = $4,
-              -- 085 — only when the request said something about it ($7); otherwise kept.
-              asap_estimate = CASE WHEN $7::boolean THEN $6 ELSE asap_estimate END,
+              -- 085 — reworded when the request carries one; kept otherwise.
+              asap_estimate = COALESCE($6, asap_estimate),
               updated_by = $5, updated_at = now()
         WHERE id = 1`,
       [v.effyLookaheadDays, v.noDeliveryWeekdays, v.slotHoldMin, v.hubTurnaroundMin, actorSub,
-       v.asapEstimate ?? null, v.asapEstimate !== undefined],
+       v.asapEstimate ?? null],
     );
     if (res.rowCount === 0) return false;
     await audit(tx);

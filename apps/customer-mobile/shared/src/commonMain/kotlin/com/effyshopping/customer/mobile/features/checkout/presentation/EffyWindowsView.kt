@@ -38,7 +38,7 @@ data class EffyDayView(
     val windows: List<EffyWindowLine>,
     /**
      * 085 — the day can be chosen with NO TIME: what to choose for that. Null when it cannot (today,
-     * always; a day with no untimed room; a business with no "Any time" window).
+     * always; a day with no untimed room left).
      */
     val anyTime: AnyTimeChoice? = null,
 )

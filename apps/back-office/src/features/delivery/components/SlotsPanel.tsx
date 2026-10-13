@@ -61,7 +61,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           <span className="font-mono font-medium tabular-nums">
             {row.original.startTime} – {row.original.endTime}
           </span>
-          {/* 085 — sells a day with no time; customers are never shown these hours. */}
+          {/* 085 — THE window a day with no time is delivered in; customers are never shown these hours. */}
           {row.original.anyTime ? (
             <Badge variant="outline">Any time</Badge>
           ) : null}
@@ -123,7 +123,8 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
                 <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
                   Edit
                 </Button>
-                {row.original.status === "active" ? (
+                {/* 085 — the Any time window is how a day with no time is sold: it is never switched off. */}
+                {row.original.anyTime ? null : row.original.status === "active" ? (
                   <Button variant="ghost" size="sm" disabled={patch.isPending} onClick={() => void setStatus(row.original, "disabled")}>
                     Switch off
                   </Button>
@@ -189,7 +190,6 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
   const [cutoffTime, setCutoffTime] = useState(slot?.cutoffTime ?? "");
   const [limited, setLimited] = useState(slot?.capacity != null);
   const [capacity, setCapacity] = useState(slot?.capacity != null ? String(slot.capacity) : "");
-  const [anyTime, setAnyTime] = useState(slot?.anyTime === true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const pending = create.isPending || patch.isPending;
@@ -205,7 +205,6 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
       // ⚠ Unticked is "no limit", sent as null — on an edit that is what REMOVES a limit. Ticked
       // with nothing typed is sent as 0, so the service refuses it on the field.
       capacity: limited ? Number(capacity) : null,
-      anyTime,
     };
     try {
       if (slot) await patch.mutateAsync({ slotId: slot.id, body });
@@ -269,21 +268,14 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
               </p>
             )}
           </div>
-          {/* 085 — the window that sells a DAY with no time. */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Checkbox id="slot-any-time" checked={anyTime} onCheckedChange={(v) => setAnyTime(v === true)} />
-              <Label htmlFor="slot-any-time" className="font-normal">
-                Any time (customers choose the day, not the hours)
-              </Label>
-            </div>
+          {/* 085 — what these fields mean on THE Any time window. */}
+          {slot?.anyTime ? (
             <p className="text-sm text-muted-foreground">
-              Customers who pick a day without a time, or “No particular day”, are put in this window. Its hours are when
-              those deliveries go out; its limit is how many such orders a day takes. It never carries a surcharge. Only one
-              window can be Any time.
+              This is the Any time window. Customers who choose a day without a time, or “No particular day”, are delivered
+              in it: its hours are when those deliveries go out, and its limit is how many such orders a day takes. It
+              cannot be switched off and never carries a surcharge.
             </p>
-            {errors.anyTime ? <p className="text-sm text-destructive">{errors.anyTime}</p> : null}
-          </div>
+          ) : null}
           {slot && limited && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">
               {slot.bookedToday} deliveries are already booked today. They keep their place; the window

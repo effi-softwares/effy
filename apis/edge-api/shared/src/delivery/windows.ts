@@ -78,7 +78,7 @@ export interface EffyDay extends EffyCalendarDay {
   closedReason: EffyDayClosedReason | null;
   /**
    * 085 — the "Any time" window, when it is open on this day: the day can then be sold with no
-   * time. Null when the business has none, or it is full or closed that day.
+   * time. Null when it is full or closed that day.
    *
    * ⚠ NEVER IN `windows`. A customer who wants a time is shown times; this one has hours only so
    * that drivers have a round to deliver it on. ⚠ Set for TODAY too — an "as soon as possible"
@@ -126,9 +126,11 @@ export function openWindows(
  * one is closed or taken (`no_windows`). Null when at least one window can be chosen.
  */
 export function windowsUnavailable(days: readonly EffyDay[], slots: readonly Slot[]): "no_windows" | "none_defined" | null {
-  if (slots.length === 0) return "none_defined";
   // 085 — a day that can be sold with no time is something to choose, even with every window taken.
-  return days.some((d) => d.windows.length > 0 || d.anyTime !== null) ? null : "no_windows";
+  if (days.some((d) => d.windows.length > 0 || d.anyTime !== null)) return null;
+  // Nothing to choose. `none_defined` is still "the business has no TIMED window" — the Any time
+  // window always exists, so it is not what that alarm is about.
+  return slots.some((s) => !s.anyTime) ? "no_windows" : "none_defined";
 }
 
 /** The key a window's fee is filed under: a window is a slot ON A DAY. */

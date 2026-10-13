@@ -139,10 +139,8 @@ d("081 — moving an order between Effy and courier delivery", () => {
     slot = (await one<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ('16:00', '18:00', '14:00', 50, 'test') RETURNING id::text AS id`,
     )).id;
-    // 085 — the Any time window: a day with no time.
-    anyTimeSlot = (await one<{ id: string }>(
-      `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, any_time, updated_by) VALUES ('12:00', '21:00', '10:00', 50, true, 'test') RETURNING id::text AS id`,
-    )).id;
+    // 085 — THE Any time window: the migration created it; nothing here could add a second.
+    anyTimeSlot = (await one<{ id: string }>(`SELECT id::text AS id FROM public.delivery_slot WHERE any_time`)).id;
     tightSlot = (await one<{ id: string }>(
       `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by) VALUES ('18:00', '20:00', '15:00', 1, 'test') RETURNING id::text AS id`,
     )).id;

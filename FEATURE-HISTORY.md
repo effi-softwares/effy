@@ -10,16 +10,20 @@ DEPLOYED, NOT WALKED, NOT SIGNED OFF.** Standard delivery lets a customer choose
 window. Same-day delivery is unchanged. One choice per order, nothing pre-selected. Spec, plan, tasks and
 the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-delivery/tasks.md).
 
-- ⚠ **THE WHOLE FEATURE IS ONE FLAG ON A WINDOW.** An order with no time is an order in the delivery window
-  staff mark **Any time** (`delivery_slot.any_time`, at most one active). Capacity, the hold, the cutoff,
+- ⚠ **THE WHOLE FEATURE IS ONE WINDOW, AND IT IS NOT A SWITCH.** An order with no time is an order in THE
+  **Any time** delivery window (`delivery_slot.any_time`). The migration creates it (hours spanning the
+  existing windows, no limit); exactly one, always active; no API sets the flag or turns it off — staff
+  edit its hours and limit only. The operator rejected an earlier build in which staff had to create it. Capacity, the hold, the cutoff,
   the collection run, the round and when it opens are a window's own rules, unchanged — `judgeWindow`,
   `engine.ts`, `collectionRunFor`, the planner and `round_opens_at` were not edited. Its capacity IS the
   day's limit for untimed orders.
 - **"As soon as possible"** = at the intent, the first day of the calendar whose Any time window is open
   (`resolveAsap`), today included. The customer is told the business's estimate
-  (`delivery_settings.asap_estimate`, operator-entered) and never the day; only staff move it afterwards.
+  (`delivery_settings.asap_estimate`, default "usually within 2–3 days", reworded but never emptied) and
+  never the day; only staff move it afterwards.
   ⚠ It reaches TODAY only while a collection run can still reach the hub before the Any time window
-  STARTS — with the dev seed's runs, start it at 14:00 or later or ASAP always lands on the next day.
+  STARTS. The migration starts it at the earliest existing window's start, so ASAP usually lands on the
+  next delivery day until staff give the Any time window a later start.
 - **The fee**: an untimed order pays `baseFee` — no window surcharge, and no "Delivery today" surcharge
   even when ASAP lands today. One line in `quote.ts`; the fee sum is untouched.
 - **What was sold** is `order.delivery_promise` (`window` | `day` | `asap`) + `asap_estimate`; NULL before 085
@@ -29,15 +33,17 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
 - **Wire, additive**: quote `days[].anyTime` (never today's) and `effyWindows.asap`; intent
   `deliveryPromise: "asap"` (a day-only choice is the existing `deliveryWindow` naming the Any time slot);
   order `delivery.promise` / `asapEstimate`. An installed app that ignores them still buys windows.
-- **Staff**: the "Any time" tick on a window and the estimate (Delivery days panel, `fleet`); Orders shows and
+- **Staff**: the Any time window's hours and limit (Windows panel — badged, no off switch) and the estimate's
+  wording (Delivery days panel, `fleet`); Orders shows and
   filters by what was sold; **Change day or time…** on an Effy order → new staff route
   `POST /orders/v1/orders/{orderId}/delivery-window` → `changeEffyWindow` (same rule and lock as
   `moveToEffy`, whose binding block it shares; recorded in `admin.audit_log`, since `delivery_override`
   needs a type change). `moveToEffy` lists and accepts the Any time window.
 - **Drivers and dispatch**: labels only, written by the server ("Sat 10 Oct · Any time") — no driver-app
   update. Untimed parcels ride their own round for the Any time window.
-- **Off by default, no flag**: nothing is offered until staff create the Any time window; ASAP until they
-  enter the estimate. Neither is seeded, on purpose.
+- **On from the migration, no flag**: there is nothing to enable. A day asks for a time only when its
+  untimed room is taken; "No particular day" is hidden only while no day has room. Go-live's "windows
+  defined" and the `none_defined` alarm still mean TIMED windows.
 - **Also in this change (customer web, ahead of the feature)**: the checkout step no longer overflows on
   phones (the page grid had no column template below `lg`), and the Back / Continue buttons stack there.
 - **Verified here**: unit suites and typechecks of every touched service, shared-types (both fixtures and
@@ -53,8 +59,8 @@ the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-de
 - **Operator steps, in order**: (1) `CONTAINER_TESTS=1` suites for `shared`, `fleet`, `commerce`, `orders`;
   (2) `make db-up ENV=dev` (migration `20261013120000_flexible_standard_delivery`); (3) deploy `commerce`
   and `notifications`, then `fleet`, `driver`, `orders`, `admin`; (4) deploy customer-web and
-  back-office; (5) ship the customer app; (6) in back-office create the Any time window and enter the
-  estimate; (7) walk `quickstart.md`.
+  back-office; (5) ship the customer app; (6) optionally set the Any time window's hours and limit in
+  back-office; (7) walk `quickstart.md`.
 
 **084-customer-storefront-redesign — Customer Storefront Redesign.** 🚧 **BUILT; `storefront` AND `commerce`
 DEPLOYED TO DEV AND THE CATALOGUE SEED RUN (operator-reported, 2026-10-12). NOT WALKED, NOT SIGNED OFF.**

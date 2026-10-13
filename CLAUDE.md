@@ -67,8 +67,9 @@ show (409 `delivery_fee_changed`). A package carries no fee; a shop never sees d
   so that is the last server moment before the charge) and confirmed at payment. ⚠ A window is never
   substituted: one that has gone is a refusal (`slot_unavailable`, `slot_required`, …) and the customer chooses again.
 - ⚠ **AN ORDER WITH NO TIME IS AN ORDER IN THE "ANY TIME" WINDOW (085).** Standard delivery sells a
-  **day with no time** (the default), **"as soon as possible"**, or — opt-in — a window. Staff mark ONE
-  window `any_time`; a day-only order holds a place in it on its day, and an ASAP order is put in it at the
+  **day with no time** (the default), **"as soon as possible"**, or — opt-in — a window. ⚠ **NOT A
+  SWITCH**: THE `any_time` window is created by its migration, is always active, and no API sets the flag
+  or turns it off (staff edit its hours and limit only). A day-only order holds a place in it on its day, and an ASAP order is put in it at the
   payment-intent call on the first day it is open (today included; `resolveAsap`) and told only the
   business's estimate — **never the day**. ⚠ `judgeWindow`, the fee sum, the hold, `collectionRunFor`, the
   planner and `round_opens_at` do not know the flag: it is a LABEL ("Any time", written by the server for
@@ -76,8 +77,9 @@ show (409 `delivery_fee_changed`). A package carries no fee; a shop never sees d
   today). It pays the plain fee — no window surcharge, no "Delivery today" surcharge. ⚠ What was sold is
   `order.delivery_promise` (`window` | `day` | `asap`; NULL before 085 reads as `window`), TWO writers:
   checkout and `override.ts` (`delivery-type.guard.test.ts`). The customer DTO carries no hours for `day`
-  and no arrival at all for `asap` (`soldArrivals`). Off until staff create the window; ASAP off until they
-  enter the estimate (Delivery days). Staff re-time an Effy order through `changeEffyWindow`.
+  and no arrival at all for `asap` (`soldArrivals`). The estimate (`delivery_settings.asap_estimate`,
+  Delivery days) is always set — reworded, never emptied. A day asks for a time only when its untimed
+  room is taken. Staff re-time an Effy order through `changeEffyWindow`.
 - ⚠ **WHAT A CLIENT IS OFFERED, THE QUOTE SAYS**: `effyWindows` → send `deliveryWindow {slotId, date}`;
   `courier` → send `deliveryType: "courier"`. A serviced address answers exactly one. ⚠ The quote carries
   **no package list** — nothing tells a customer how many suppliers fill the order.

@@ -104,7 +104,7 @@ afterEach(() => {
 
 const payButton = () => screen.getByRole("button", { name: /continue to payment/i })
 const delivery = () => screen.getByRole("region", { name: "Delivery" })
-/** 085 — choose the first later day. These quotes carry no "Any time" window, so its times open by themselves. */
+/** 085 — choose the first later day. These quotes offer no day without a time, so its times open by themselves. */
 async function openFirstDay(user: ReturnType<typeof userEvent.setup>) {
   const days = (await screen.findAllByRole("radio")).filter((r) => /^\d{4}-\d{2}-\d{2}$/.test((r as HTMLInputElement).value))
   await user.click(days[0]!)

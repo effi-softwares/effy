@@ -37,8 +37,8 @@ import { formatMoney } from "@/lib/money"
  * day — a second, nested group shown only under the chosen day.
  *
  * ⚠ WHAT IS HIGHLIGHTED IS DERIVED FROM `chosen`. The only local state is which day the shopper
- * tapped when that day cannot be bought without a time (no untimed room left, or a business with no
- * "Any time" window): the choice is then still empty, and the day's windows open by themselves.
+ * tapped when that day's room for orders without a time has run out: the choice is then still
+ * empty, and the day's windows open by themselves.
  *
  * ⚠ Lists inside a section — no cards (Principle V).
  */

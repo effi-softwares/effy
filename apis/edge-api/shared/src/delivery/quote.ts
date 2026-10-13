@@ -70,8 +70,8 @@ export interface EffyWindowsQuote {
   /** Why no day has a window; null when one can be chosen. */
   unavailable: "no_windows" | "none_defined" | null;
   /**
-   * 085 — "as soon as possible", when it can be sold: the business has said what to expect, and
-   * some day (today included) can take an order with no time. ⚠ No day: which one the order lands
+   * 085 — "as soon as possible", when it can be sold: some day (today included) can take an order
+   * with no time. Null only when every day's untimed room is taken or closed. ⚠ No day: which one the order lands
    * on is decided at the payment-intent call and is never the customer's to know.
    */
   asap: { estimate: string; fee: PricedFee } | null;
@@ -278,9 +278,8 @@ export async function quote(
     // line and not a branch in the fee sum: the Any-time window is simply never priced as a window.
     if (d.anyTime) fees.set(windowKey(d.anyTime.id, d.date), baseFee);
   }
-  const asap = settings.asapEstimate !== null && days.some((d) => d.anyTime !== null)
-    ? { estimate: settings.asapEstimate, fee: baseFee }
-    : null;
+  // "As soon as possible" is offered whenever some day can take an order with no time.
+  const asap = days.some((d) => d.anyTime !== null) ? { estimate: settings.asapEstimate, fee: baseFee } : null;
 
   return {
     serviced: true,

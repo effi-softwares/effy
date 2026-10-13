@@ -77,20 +77,14 @@ describe("daysProblems", () => {
   });
 });
 
-describe("085 — the Any time flag", () => {
-  it("is a yes or a no, and nothing else", () => {
-    expect(slotProblems({ ...OK, anyTime: true })).toEqual([])
-    expect(slotProblems({ ...OK, anyTime: false })).toEqual([])
-    expect(slotProblems({ ...OK, anyTime: "yes" }).map((e) => e.field)).toEqual(["anyTime"])
-  })
-})
-
 describe("085 — the as-soon-as-possible estimate", () => {
   const DAYS = { effyLookaheadDays: 3, noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60 }
-  it("is optional, may be cleared, and is at most 80 characters", () => {
+  it("may be left out (kept), reworded — and never emptied", () => {
     expect(daysProblems(DAYS)).toEqual([])
-    expect(daysProblems({ ...DAYS, asapEstimate: null })).toEqual([])
     expect(daysProblems({ ...DAYS, asapEstimate: "usually within 2–3 days" })).toEqual([])
+    expect(daysProblems({ ...DAYS, asapEstimate: "" }).map((e) => e.field)).toEqual(["asapEstimate"])
+    expect(daysProblems({ ...DAYS, asapEstimate: "   " }).map((e) => e.field)).toEqual(["asapEstimate"])
+    expect(daysProblems({ ...DAYS, asapEstimate: null as never }).map((e) => e.field)).toEqual(["asapEstimate"])
     expect(daysProblems({ ...DAYS, asapEstimate: "x".repeat(81) }).map((e) => e.field)).toEqual(["asapEstimate"])
   })
 })

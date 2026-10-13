@@ -122,6 +122,7 @@ SELECT v.start_time::time, v.end_time::time, v.cutoff_time::time, v.capacity, 'a
     ('14:00', '17:00', '10:00', 20),   -- afternoon
     ('18:00', '21:00', '14:00', 20)    -- evening
   ) AS v (start_time, end_time, cutoff_time, capacity)
- WHERE NOT EXISTS (SELECT 1 FROM public.delivery_slot);
+ -- 085 — the Any time window always exists (its migration creates it); it is not a timed window.
+ WHERE NOT EXISTS (SELECT 1 FROM public.delivery_slot WHERE NOT any_time);
 
 COMMIT;

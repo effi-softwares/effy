@@ -37,8 +37,8 @@ export interface EffyDayView {
   windows: EffyWindowLine[];
   /**
    * 085 — the day can be chosen with NO TIME: what to send back as `deliveryWindow` for that. Null
-   * when it cannot (today, always; a day with no room for an untimed order; a business with no
-   * "Any time" window) — the customer must then choose one of `windows`.
+   * when it cannot (today, always; a day with no room left for an untimed order) — the customer
+   * must then choose one of `windows`.
    */
   anyTime: { slotId: string; date: string } | null;
 }

@@ -387,8 +387,10 @@ window and confirm the customer's order page says the window.
   2026-10-13). ⚠ Accepted consequence: it can be a cheaper way to receive an order today than a
   same-day window — without the certainty, which is what the same-day surcharge buys.
 - **"During the day" means the "Any time" hours staff set for untimed deliveries** (for example midday
-  to 9 pm) — not midnight to midnight. Until staff set them, neither a day-only choice nor "as soon as
-  possible" is offered, and Standard delivery works as it does today.
+  to 9 pm) — not midnight to midnight. ⚠ **This is how Standard delivery works, not an option staff
+  switch on** (decided 2026-10-13): the Any time hours exist from the start, with a starting value staff
+  can change, and can never be removed; the "as soon as possible" estimate likewise starts as "usually
+  within 2–3 days" and can be reworded but never emptied.
 - **A day-only order costs less than or the same as a windowed one**: the order's delivery fee without
   any window surcharge. No new discount or premium is introduced.
 - **The platform, not a person, plans an "as soon as possible" order's day**, at payment; the customer

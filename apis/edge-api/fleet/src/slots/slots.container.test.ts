@@ -166,15 +166,24 @@ d("069 — same-day delivery slots", () => {
     expect(changes).toContainEqual({ from: 4, to: null });
   });
 
-  it("085 — one active Any time window: a second is refused, naming the field; untick the first and it is not", async () => {
-    const first = await createSlot({ startTime: "12:00", endTime: "21:00", cutoffTime: "10:00", capacity: 40, anyTime: true }, ACTOR, scope);
-    expect(first.anyTime).toBe(true);
-    const err = await refusal(createSlot({ ...EVENING, anyTime: true }, ACTOR, scope));
+  it("085 — THE Any time window: its hours and limit change, it is never switched off, and none can be made", async () => {
+    // (This suite empties the table before each test; the migration is what creates the window.)
+    const id = (await pool.query<{ id: string }>(
+      `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, any_time, updated_by)
+       VALUES ('12:00', '21:00', '10:00', NULL, true, 'test') RETURNING id::text AS id`,
+    )).rows[0]!.id;
+    expect((await listSlots()).find((s) => s.id === id)?.anyTime).toBe(true);
+
+    const edited = await updateSlot(id, { startTime: "14:00", cutoffTime: "12:00", capacity: 40 }, ACTOR, scope);
+    expect(edited).toMatchObject({ startTime: "14:00", capacity: 40, anyTime: true, status: "active" });
+
+    const err = await refusal(updateSlot(id, { status: "disabled" }, ACTOR, scope));
     expect(err.kind).toBe("conflict");
-    expect(err.fields?.[0]?.field).toBe("anyTime");
-    // A disabled one does not count.
-    await updateSlot(first.id, { status: "disabled" }, ACTOR, scope);
-    expect((await createSlot({ ...EVENING, anyTime: true }, ACTOR, scope)).anyTime).toBe(true);
+    expect(err.fields?.[0]?.field).toBe("status");
+
+    // A new window is always a timed one, whatever the request carries.
+    const made = await createSlot({ ...EVENING, anyTime: true } as never, ACTOR, scope);
+    expect(made.anyTime).toBe(false);
   });
 
   it("lists earliest first", async () => {

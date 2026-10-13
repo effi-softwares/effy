@@ -8,10 +8,12 @@ One migration. Three added columns and one index; **no new table**, no backfill.
 
 | Column | Type | Notes |
 |---|---|---|
-| `any_time` | `boolean NOT NULL DEFAULT false` | True for the one window that sells a day with no time. Its start/end are the hours untimed deliveries go out; its cutoff and capacity mean what they mean on any window — capacity is the day's limit for untimed orders (FR-020). |
+| `any_time` | `boolean NOT NULL DEFAULT false` | True for THE window that sells a day with no time. Its start/end are the hours untimed deliveries go out; its cutoff and capacity mean what they mean on any window — capacity is the day's limit for untimed orders (FR-020). |
 
-- `CREATE UNIQUE INDEX delivery_slot_any_time_uq ON public.delivery_slot ((true)) WHERE any_time AND status = 'active'`
-  — **at most one active Any-time window**. A second is a 409 in back-office, not a silent pair.
+- `CREATE UNIQUE INDEX delivery_slot_any_time_uq ON public.delivery_slot ((true)) WHERE any_time` and
+  `CHECK (NOT any_time OR status = 'active')` — **exactly one, always on**.
+- ⚠ **THE MIGRATION CREATES IT**: start = earliest active window's start, end = latest end, cutoff = the
+  earliest cutoff (09:00 / 21:00 / 09:00 where no window exists), no limit. No API sets the flag.
 - Existing rows: `false`. Nothing else about a slot changes.
 
 ### `public."order"` — what the customer was sold
@@ -31,7 +33,7 @@ One migration. Three added columns and one index; **no new table**, no backfill.
 
 | Column | Type | Notes |
 |---|---|---|
-| `asap_estimate` | `text` | Operator-entered, e.g. "usually within 2–3 days". NULL = "as soon as possible" is not offered. Never seeded. Max 80 characters. |
+| `asap_estimate` | `text NOT NULL DEFAULT 'usually within 2–3 days'` | What an "as soon as possible" customer is told. Reworded by staff, never empty. 1–80 characters. |
 
 ## Unchanged, deliberately
 
@@ -55,4 +57,5 @@ One migration. Three added columns and one index; **no new table**, no backfill.
 ## Down migration
 
 Dev-only single step: refuses while any order has `delivery_promise IN ('day','asap')` (the 078 rule —
-never strip what a customer was sold); otherwise drops the three columns and the index.
+never strip what a customer was sold); otherwise deletes the Any time window and drops the columns,
+the constraint and the index.

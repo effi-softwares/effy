@@ -24,24 +24,22 @@ Guards that must still pass untouched: `fee.guard.test.ts`, `windows.guard.test.
 
 ## Setup in dev (operator, once)
 
-1. Run the migration; deploy in the order in research R8.
-2. Back-office → Delivery → Windows: add a window **12:00–21:00, order by 10:00, capacity 2**, tick
-   **Any time**.
-3. Back-office → Delivery → Delivery days: set "No particular day — what customers are told" to
-   `usually within 2–3 days`.
+1. Run the migration; deploy in the order in research R8. **That is all** — the migration creates the
+   Any time window and the estimate; there is nothing to switch on.
+2. Optional: Back-office → Delivery → Windows → the row badged **Any time** → Edit, to set the hours
+   untimed deliveries go out and a daily limit (the walk's row 11 needs a limit of 2).
 
 ⚠ **Today and "as soon as possible".** An ASAP order lands on TODAY only while today's Any time window
 is open by the one window rule: its cutoff has not passed AND a collection run can still be made that
-reaches the hub before the window STARTS. With the dev seed's runs (12:00, 16:00, 21:00) and a 60-minute
-turnaround, a 12:00 start is never collectable today — for rows 9–10 either start the Any time window at
-14:00 or later, or expect ASAP to land on the next delivery day.
+reaches the hub before the window STARTS. The migration starts the window at the earliest existing
+window's start, so in most setups ASAP lands on the next delivery day until staff give it a later start.
 
 ## Walk
 
 | # | Do | Expect |
 |---|---|---|
-| 1 | Before step 2 of setup, open checkout at an Effy address | Standard delivery looks and behaves exactly as before 085. |
-| 2 | After setup, open checkout | Nothing highlighted. Continue is disabled. |
+| 1 | Back-office → Delivery → Windows | One row is badged **Any time**; it has Edit and no "Switch off". A new window has no Any time option. |
+| 2 | Open checkout at an Effy address | The days and "No particular day" are offered; nothing highlighted; Continue is disabled. |
 | 3 | Tap a later day | That day alone is highlighted; "Any time during the day"; fee with no surcharge; Continue enabled. |
 | 4 | Open "Need a specific time?", pick a window | Window highlighted; fee follows; day's untimed choice gone. |
 | 5 | Close the time option | Back to the day alone; fee follows. |

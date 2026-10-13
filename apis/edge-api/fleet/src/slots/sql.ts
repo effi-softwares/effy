@@ -53,8 +53,8 @@ export const CLOSED_DATES = `
 `;
 
 export const INSERT_SLOT = `
-  INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, any_time, updated_by)
-  VALUES ($1::time, $2::time, $3::time, $4, $6, $5)
+  INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, updated_by)
+  VALUES ($1::time, $2::time, $3::time, $4, $5)
   RETURNING id
 `;
 
@@ -74,6 +74,6 @@ export const SLOT_FOR_UPDATE = `
 export const UPDATE_SLOT = `
   UPDATE public.delivery_slot
      SET start_time = $2::time, end_time = $3::time, cutoff_time = $4::time,
-         capacity = $5, status = $6, updated_by = $7, any_time = $8, updated_at = now()
+         capacity = $5, status = $6, updated_by = $7, updated_at = now()
    WHERE id = $1
 `;
