@@ -95,8 +95,8 @@ export async function MobileNavIsland() {
               the account sidebar is not rendered, so this level IS the account navigation. The
               entries and their glyphs come from the one shared list the sidebar reads. */}
           <ul className="flex flex-col gap-1">
-            {ACCOUNT_SECTIONS.map(({ href, label, testId, Icon, exact }) => (
-              <li key={href} data-testid={testId}>
+            {ACCOUNT_SECTIONS.map(({ href, label, Icon, exact }) => (
+              <li key={href}>
                 <AccountNavLink href={href} exact={exact} className={drawerLink}>
                   <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   {label}

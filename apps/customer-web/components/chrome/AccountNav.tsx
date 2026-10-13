@@ -10,7 +10,8 @@ import { getSession } from "@/lib/session"
 import { AccountNavLink } from "./AccountNavLink"
 
 const linkBase =
-  "flex h-9 shrink-0 items-center gap-3 rounded-md px-3 text-sm whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-foreground [&_svg]:size-4"
+  "flex h-9 items-center gap-3 rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground [&_svg]:size-4"
+const sectionLink = `${linkBase} aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground`
 
 /**
  * The account area's navigation (reference: Shared components · Account navigation).
@@ -51,7 +52,7 @@ export function AccountNav() {
                   </Link>
                 }
               >
-                <AccountNavLink href={href} exact={exact}>
+                <AccountNavLink href={href} exact={exact} className={sectionLink}>
                   {inner}
                 </AccountNavLink>
               </Suspense>

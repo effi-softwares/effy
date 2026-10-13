@@ -55,18 +55,17 @@ export const ACCOUNT_LINKS: ReadonlyArray<{
 export const ACCOUNT_SECTIONS: ReadonlyArray<{
   label: string
   href: string
-  testId: string
   Icon: LucideIcon
   exact?: boolean
 }> = [
-  { label: "Overview", href: "/account", testId: "section-overview", Icon: House, exact: true },
-  { label: "Orders", href: "/orders", testId: "section-orders", Icon: Package },
-  { label: "Saved items & lists", href: "/saved", testId: "section-saved", Icon: Heart },
-  { label: "Effy points", href: "/account/points", testId: "section-points", Icon: Coins },
-  { label: "Personal info", href: "/account/personal", testId: "section-personal", Icon: UserRound },
-  { label: "Address book", href: "/addresses", testId: "section-addresses", Icon: MapPin },
-  { label: "Payment methods", href: "/account/payment", testId: "section-payment", Icon: CreditCard },
-  { label: "Security", href: "/account/security", testId: "section-security", Icon: Lock },
-  { label: "Privacy & data", href: "/account/privacy", testId: "section-privacy", Icon: ShieldCheck },
-  { label: "Legal", href: "/account/legal", testId: "section-legal", Icon: FileText },
+  { label: "Overview", href: "/account", Icon: House, exact: true },
+  { label: "Orders", href: "/orders", Icon: Package },
+  { label: "Saved items & lists", href: "/saved", Icon: Heart },
+  { label: "Effy points", href: "/account/points", Icon: Coins },
+  { label: "Personal info", href: "/account/personal", Icon: UserRound },
+  { label: "Address book", href: "/addresses", Icon: MapPin },
+  { label: "Payment methods", href: "/account/payment", Icon: CreditCard },
+  { label: "Security", href: "/account/security", Icon: Lock },
+  { label: "Privacy & data", href: "/account/privacy", Icon: ShieldCheck },
+  { label: "Legal", href: "/account/legal", Icon: FileText },
 ]
