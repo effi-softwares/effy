@@ -61,21 +61,28 @@ type SellableQuote = Extract<QuoteResult, { serviced: true }>;
  * ⚠ OPEN WINDOWS ONLY. A full window is absent — never sent with a flag or a count (069 FR-050).
  */
 export function toEffyWindowsDTO(w: EffyWindowsQuote, baseFee: PricedFee): EffyWindowsDTO {
+  const windowDTO = (s: EffyWindowsQuote["days"][number]["windows"][number], date: string) => {
+    const fee = w.fees.get(windowKey(s.id, date)) ?? baseFee;
+    return {
+      slotId: s.id, date, startAt: operatingStamp(s.start), endAt: operatingStamp(s.end), cutoffAt: operatingStamp(s.cutoff),
+      surchargeAmount: formatCents(Math.max(0, fee.totalCents - baseFee.totalCents)),
+      fee: feeDTO(fee),
+    };
+  };
   return {
     days: w.days.map((d) => ({
       date: d.date,
       section: d.isToday ? "same_day" : "standard",
-      windows: d.windows.map((s) => {
-        const fee = w.fees.get(windowKey(s.id, d.date)) ?? baseFee;
-        return {
-          slotId: s.id, date: d.date, startAt: operatingStamp(s.start), endAt: operatingStamp(s.end), cutoffAt: operatingStamp(s.cutoff),
-          surchargeAmount: formatCents(Math.max(0, fee.totalCents - baseFee.totalCents)),
-          fee: feeDTO(fee),
-        };
-      }),
+      windows: d.windows.map((s) => windowDTO(s, d.date)),
       closedReason: d.closedReason,
+      // 085 — a later day sold with no time. ⚠ NEVER TODAY: a customer cannot choose "today, any
+      // time" — today is a same-day window. Today's Any-time window is the server's own, for an
+      // "as soon as possible" order, and is not sent.
+      anyTime: !d.isToday && d.anyTime ? windowDTO(d.anyTime, d.date) : null,
     })),
     unavailable: w.unavailable,
+    // 085 — the estimate and the fee. ⚠ No day: which one it lands on is never the customer's to know.
+    asap: w.asap ? { estimate: w.asap.estimate, fee: feeDTO(w.asap.fee) } : null,
   };
 }
 

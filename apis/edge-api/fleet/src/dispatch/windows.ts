@@ -10,7 +10,7 @@
 
 import { nextRunInstant, packageStatuses, query, type Queryable } from "@effy/edge-shared";
 import { deliveredBySql, effyDays, loadSlotSettings, nonDeliveryDates } from "@effy/edge-shared/delivery";
-import { formatArrival, formatDeliveryDay, type DispatchWindowsResponse } from "@effy/shared-types";
+import { ANY_TIME_LABEL, formatArrival, formatDeliveryDay, formatDeliveryWindow, type DispatchWindowsResponse } from "@effy/shared-types";
 
 import { loadSchedule } from "../planner/repository";
 import { dueRun, isoDateOf } from "../planner/service";
@@ -27,6 +27,7 @@ const WINDOW_PARCELS = `
          sf.status              AS shop_status,
          opd.window_start       AS window_start,
          opd.window_end         AS window_end,
+         COALESCE((SELECT ds.any_time FROM public.delivery_slot ds WHERE ds.id = opd.slot_id), false) AS any_time,
          z.name                 AS group_name,
          -- The local date it reached the hub, if it has.
          (SELECT (min(hc.checked_in_at) AT TIME ZONE 'Australia/Melbourne')::date::text
@@ -69,7 +70,7 @@ const WINDOW_ROUNDS = `
 
 interface ParcelRow {
   package_id: string; order_id: string; order_number: string; shop_status: string;
-  window_start: Date; window_end: Date; group_name: string | null; hub_date: string | null; cold: boolean;
+  window_start: Date; window_end: Date; any_time: boolean; group_name: string | null; hub_date: string | null; cold: boolean;
 }
 
 export async function readWindows(dateParam: string | undefined, now = new Date(), db: Queryable = pooled): Promise<DispatchWindowsResponse> {
@@ -109,7 +110,11 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
       const windowEnd = p.window_end.toISOString();
       w = {
         windowStart, windowEnd,
-        label: formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, now),
+        label: p.any_time
+          // 085 — the day's untimed parcels: "Any time", with the hours they go out in.
+          ? `${formatArrival({ promisedFrom: date, promisedTo: date }, now)} · ${ANY_TIME_LABEL} (${formatDeliveryWindow({ startAt: windowStart, endAt: windowEnd })})`
+          : formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, now),
+        ...(p.any_time ? { anyTime: true as const } : {}),
         rounds: rounds
           .filter((r) => r.window_start_at.getTime() === p.window_start.getTime())
           .map((r) => ({ roundId: r.round_id, driver: { id: r.driver_id, name: r.driver_name }, opensAt: r.opens_at ? r.opens_at.toISOString() : null, parcels: r.parcels })),

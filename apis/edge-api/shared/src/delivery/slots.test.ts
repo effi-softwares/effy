@@ -5,7 +5,7 @@ import { melbourneDate, type CollectionRun } from "./schedule";
 import { at, melbourne, wallClock } from "./test-clock";
 
 const c = (hour: number, minute: number) => ({ hour, minute });
-const evening: Slot = { id: "evening", start: c(17, 0), end: c(19, 0), cutoff: c(15, 0), capacity: 2 };
+const evening: Slot = { id: "evening", start: c(17, 0), end: c(19, 0), cutoff: c(15, 0), capacity: 2, anyTime: false };
 const oneRun: CollectionRun[] = [{ hour: 14, minute: 0 }];
 const run = (hour: number, minute: number): CollectionRun[] => [{ hour, minute }];
 /** A window TODAY — the day on which the collection rule applies. Later days are in `windows.test.ts`. */
@@ -34,7 +34,7 @@ describe("judgeWindow — a window today", () => {
   });
 
   it("⚠ a slot with no limit never fills, and is still closed by its cutoff and the runs", () => {
-    const unlimited: Slot = { ...evening, capacity: null };
+    const unlimited: Slot = { ...evening, capacity: null, anyTime: false };
     expect(judgeToday(at(10, 0), unlimited, 10_000, oneRun, 60, 60).verdict).toBe("open");
     expect(judgeToday(at(15, 1), unlimited, 0, run(16, 30), 0, 0).verdict).toBe("cutoff");
     expect(judgeToday(at(13, 1), unlimited, 0, oneRun, 60, 60).verdict).toBe("uncollectable");

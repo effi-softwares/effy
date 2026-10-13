@@ -45,6 +45,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
   const [closed, setClosed] = useState<number[]>(value.noDeliveryWeekdays);
   const [hold, setHold] = useState(String(value.slotHoldMin));
   const [turnaround, setTurnaround] = useState(String(value.hubTurnaroundMin));
+  const [asapEstimate, setAsapEstimate] = useState(value.asapEstimate ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -55,6 +56,7 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
     setClosed(value.noDeliveryWeekdays);
     setHold(String(value.slotHoldMin));
     setTurnaround(String(value.hubTurnaroundMin));
+    setAsapEstimate(value.asapEstimate ?? "");
   }, [value]);
 
   function toggle(day: number) {
@@ -73,6 +75,8 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         noDeliveryWeekdays: closed,
         slotHoldMin: Number(hold),
         hubTurnaroundMin: Number(turnaround),
+        // 085 — what "Standard" customers are told. The server refuses an empty one.
+        asapEstimate: asapEstimate.trim(),
       });
       setSaved(true);
     } catch (err) {
@@ -115,6 +119,29 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           effyLookahead,
           setEffyLookahead,
         )}
+
+        {/* 085 — what a customer choosing "Standard" is told. */}
+        <div className="space-y-2">
+          <Label htmlFor="days-asapEstimate">“Standard” delivery tile — the timeframe customers are shown</Label>
+          <Input
+            id="days-asapEstimate"
+            className="max-w-sm"
+            maxLength={80}
+            placeholder="usually within 2–3 days"
+            value={asapEstimate}
+            disabled={!canManage}
+            aria-invalid={errors.asapEstimate ? true : undefined}
+            aria-describedby="days-asapEstimate-hint"
+            onChange={(e) => {
+              setSaved(false);
+              setAsapEstimate(e.target.value);
+            }}
+          />
+          <p id="days-asapEstimate-hint" className={errors.asapEstimate ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
+            {errors.asapEstimate ??
+              "Shown under “Standard” at checkout, and as “As soon as possible — …” on the order and receipt. Always an estimate, never a promised day."}
+          </p>
+        </div>
 
         <fieldset disabled={!canManage}>
           <legend className="text-sm font-medium">No delivery on</legend>

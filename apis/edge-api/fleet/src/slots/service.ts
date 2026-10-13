@@ -54,6 +54,14 @@ const DUPLICATE = () =>
   conflict("a slot with this window already exists", [
     { field: "startTime", message: "there is already a slot with these start and end times" },
   ]);
+/**
+ * 085 — THE Any time window is how a day with no time and "as soon as possible" are sold. Its hours
+ * and its limit can be changed; it is never switched off.
+ */
+const ANY_TIME_ALWAYS_ON = () =>
+  conflict("the Any time window cannot be switched off", [
+    { field: "status", message: "customers choosing a day without a time are delivered in it — change its hours or its limit instead" },
+  ]);
 
 export function listSlots(): Promise<DeliverySlotDTO[]> {
   return repo.listSlots();
@@ -121,8 +129,10 @@ export async function updateSlot(id: string, patch: DeliverySlotPatch, actorSub:
           cutoffTime: patch.cutoffTime ?? current.cutoffTime,
           // ⚠ `null` is a VALUE here — it removes the limit — so only an absent key keeps the old one.
           capacity: patch.capacity === undefined ? current.capacity : patch.capacity,
+          anyTime: current.anyTime,
           status: patch.status ?? current.status,
         };
+        if (next.anyTime && next.status !== "active") throw ANY_TIME_ALWAYS_ON();
         const problems = slotProblems(next);
         if (problems.length > 0) throw validationError("check the slot's times and capacity", problems);
         return next;

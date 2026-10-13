@@ -17,7 +17,7 @@ vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")),
 const { DeliveryDaysPanel } = await import("./DeliveryDaysPanel");
 
 const DAYS: DeliveryDaysDTO = {
-  noDeliveryWeekdays: [7], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3,
+  noDeliveryWeekdays: [7], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, asapEstimate: "usually within 2–3 days",
   dates: [{ day: "2026-12-25", label: "Christmas Day", affectedOrders: 0 }],
 };
 
@@ -67,7 +67,7 @@ describe("DeliveryDaysPanel", () => {
 
     await waitFor(() =>
       expect(repo.putDeliveryDays).toHaveBeenCalledWith({
-        effyLookaheadDays: 5, noDeliveryWeekdays: [6, 7], slotHoldMin: 10, hubTurnaroundMin: 60,
+        effyLookaheadDays: 5, noDeliveryWeekdays: [6, 7], slotHoldMin: 10, hubTurnaroundMin: 60, asapEstimate: "usually within 2–3 days",
       }),
     );
     expect(await screen.findByText(/the next checkout uses these/i)).toBeInTheDocument();

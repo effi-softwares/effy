@@ -87,6 +87,8 @@ export function toSummary(
       return a?.collect?.assignmentId === null || a?.deliver?.assignmentId === null;
     }),
     deliveryType: row.delivery_type ?? null,
+    // 085 — what an Effy order was sold; one from before 085 was sold a window.
+    promise: row.delivery_type === "effy" ? (row.delivery_promise ?? "window") : null,
     // 073 — the least advanced package's status, in the words every staff screen uses.
     statusView: leastAdvanced(views),
     id: row.id,
@@ -311,6 +313,9 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     deliveryType: order.delivery_type,
     deliveryTypeReason: order.delivery_type_reason,
     courierEstimate: order.courier_estimate,
+    // 085 — what an Effy order was sold.
+    promise: order.delivery_type === "effy" ? (order.delivery_promise ?? "window") : null,
+    asapEstimate: order.asap_estimate ?? null,
     courierCollection: order.courier_collection ?? null,
     deliveryMoves,
     courierCollectionHistory: collectionHistory.map((h) => ({

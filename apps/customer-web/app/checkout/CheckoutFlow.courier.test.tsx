@@ -104,6 +104,11 @@ afterEach(() => {
 
 const payButton = () => screen.getByRole("button", { name: /continue to payment/i })
 const delivery = () => screen.getByRole("region", { name: "Delivery" })
+/** 085 — choose the first later day. These quotes offer no day without a time, so its times open by themselves. */
+async function openFirstDay(user: ReturnType<typeof userEvent.setup>) {
+  const days = (await screen.findAllByRole("radio")).filter((r) => /^\d{4}-\d{2}-\d{2}$/.test((r as HTMLInputElement).value))
+  await user.click(days[0]!)
+}
 async function switchTo(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
   await user.click(screen.getByRole("button", { name: /change/i }))
   await user.click(screen.getByRole("radio", { name }))
@@ -142,7 +147,8 @@ describe("079 — a courier delivers: the estimate, the fee, and nothing to choo
     render(<CheckoutFlow initialAddresses={[HOME]} />)
     expect(await within(await screen.findByRole("region", { name: "Delivery" })).findByRole("heading", { name: "Delivered by Effy" })).toBeInTheDocument()
     expect(payButton()).toBeDisabled()
-    await user.click(screen.getByRole("radio"))
+    await openFirstDay(user)
+    await user.click(screen.getByRole("radio", { name: /–/ }))
     await waitFor(() => expect(payButton()).toBeEnabled())
     await user.click(payButton())
     await waitFor(() => expect(intentBodies).toHaveLength(1))
@@ -165,6 +171,7 @@ describe("079 — changing the address re-decides everything (US4)", () => {
   it("⚠ Effy → courier → Effy: the window is gone, the fee follows the address, and nothing is pre-selected on the way back", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[HOME, FAR]} />)
+    await openFirstDay(user)
     await user.click(await screen.findByRole("radio", { name: /–/ }))
     await waitFor(() => expect(payButton()).toBeEnabled())
 
@@ -182,12 +189,14 @@ describe("079 — changing the address re-decides everything (US4)", () => {
   it("⚠ back at the Effy address the picker is shown with NOTHING selected, and pay waits for a choice", async () => {
     const user = userEvent.setup()
     render(<CheckoutFlow initialAddresses={[HOME, FAR]} />)
+    await openFirstDay(user)
     await user.click(await screen.findByRole("radio", { name: /–/ }))
     await switchTo(user, /Sam/)
     await screen.findByTestId("courier-delivery")
     await switchTo(user, /Pat/)
 
-    const window = await within(await screen.findByRole("region", { name: "Delivery" })).findByRole("radio")
+    await openFirstDay(user)
+    const window = await within(await screen.findByRole("region", { name: "Delivery" })).findByRole("radio", { name: /–/ })
     expect(window).not.toBeChecked()
     expect(payButton()).toBeDisabled()
     expect(screen.queryByTestId("courier-delivery")).not.toBeInTheDocument()
@@ -201,12 +210,14 @@ describe("079 — changing the address re-decides everything (US4)", () => {
     const WORK = address("work", "Kim", "3141")
     quoteFor.work = { ...EFFY, postcode: "3141" }
     render(<CheckoutFlow initialAddresses={[HOME, WORK]} />)
+    await openFirstDay(user)
     await user.click(await screen.findByRole("radio", { name: /–/ }))
     await waitFor(() => expect(payButton()).toBeEnabled())
 
     await switchTo(user, /Kim/)
     await waitFor(() => expect(quoted).toEqual(["home", "work"]))
-    const window = await within(await screen.findByRole("region", { name: "Delivery" })).findByRole("radio")
+    await openFirstDay(user)
+    const window = await within(await screen.findByRole("region", { name: "Delivery" })).findByRole("radio", { name: /–/ })
     expect(window).not.toBeChecked()
     expect(payButton()).toBeDisabled()
   })
@@ -226,6 +237,7 @@ describe("079 — changing the address re-decides everything (US4)", () => {
   it("the same address with a different POSTCODE is a different destination: re-quoted, and the window dropped", async () => {
     const user = userEvent.setup()
     const { rerender } = render(<CheckoutFlow key="a" initialAddresses={[HOME]} />)
+    await openFirstDay(user)
     await user.click(await screen.findByRole("radio", { name: /–/ }))
     await waitFor(() => expect(payButton()).toBeEnabled())
     // The address book is edited elsewhere and the page comes back with the same id at a new postcode.
@@ -241,6 +253,7 @@ describe("079 — the server says who delivers has changed", () => {
     const user = userEvent.setup()
     intentReplies = [() => jsonRes({ error: "refused", code: "delivery_type_changed" }, false, 409), ACCEPTED]
     render(<CheckoutFlow initialAddresses={[HOME]} />)
+    await openFirstDay(user)
     await user.click(await screen.findByRole("radio", { name: /–/ }))
     await waitFor(() => expect(payButton()).toBeEnabled())
 

@@ -28,7 +28,7 @@ import type {
   AdminDeliveryMoveDTO, CustomerCompensationDTO, OrderDeliveryMoveDTO, DeliveryCompensationKind, DeliveryMoveChoiceDTO,
   DeliveryMovePreviewDTO, DeliveryMoveRefusal, DeliveryMoveWindowDTO, DeliveryType,
 } from "@effy/shared-types";
-import { formatArrival } from "@effy/shared-types";
+import { ANY_TIME_LABEL, formatArrival } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 import { formatCents } from "../lib/money";
@@ -43,7 +43,7 @@ import { PLANNER_PASS_LOCK, removeAssignment } from "./driver-work";
 import { courierFee } from "./engine";
 import { courierValues, loadActivePlan, NoActivePlanError } from "./plan";
 import { collectionSchedule, melbourneDate } from "./schedule";
-import { judgeWindow, loadSlots, loadSlotSettings, lockSlot, nonDeliveryDates, slotLoad, slotLoadByDate } from "./slots";
+import { judgeWindow, loadSlots, loadSlotSettings, lockSlot, nonDeliveryDates, slotLoad, slotLoadByDate, type OpenSlot } from "./slots";
 import { effyDays, openWindows } from "./windows";
 import { normalizePostcode } from "./zone";
 
@@ -344,15 +344,26 @@ async function windowsNow(q: Queryable, now: Date): Promise<DeliveryMoveWindowDT
   const slots = await loadSlots(q);
   const load = await slotLoadByDate(q, calendar.map((d) => d.date));
   const days = openWindows(now, calendar, slots, load, runs, bufferMin, settings.turnaroundMin);
-  return days.flatMap((d) =>
-    d.windows.map((w) => ({
+  return days.flatMap((d) => [
+    // 085 — the day with no time first: staff may put an order on any day's Any time window, today's too.
+    ...(d.anyTime
+      ? [{
+          slotId: d.anyTime.id,
+          date: d.date,
+          start: d.anyTime.start.toISOString(),
+          end: d.anyTime.end.toISOString(),
+          label: `${formatArrival({ promisedFrom: d.date, promisedTo: d.date }, now)} · ${ANY_TIME_LABEL}`,
+          anyTime: true as const,
+        }]
+      : []),
+    ...d.windows.map((w) => ({
       slotId: w.id,
       date: d.date,
       start: w.start.toISOString(),
       end: w.end.toISOString(),
       label: formatArrival({ promisedFrom: null, promisedTo: null, windowStart: w.start.toISOString(), windowEnd: w.end.toISOString() }, now),
     })),
-  );
+  ]);
 }
 
 // ── Preview ─────────────────────────────────────────────────────────────────────────────────────
@@ -403,7 +414,9 @@ export async function previewMove(q: Queryable, orderId: string, to: DeliveryTyp
   if (!f) throw new DeliveryMoveError("not_found");
   if (to === "courier") return previewOf(f, to, guardMove(f, to), null);
   const refusal = await guardBackToEffy(q, f, now);
-  return previewOf(f, to, refusal, refusal ? [] : await windowsNow(q, now));
+  // 085 — an order Effy ALREADY delivers is refused a move, but staff may re-time it
+  // (`changeEffyWindow`): the same windows are listed for that.
+  return previewOf(f, to, refusal, refusal && refusal !== "already_effy" ? [] : await windowsNow(q, now));
 }
 
 // ── The moves ───────────────────────────────────────────────────────────────────────────────────
@@ -510,6 +523,9 @@ export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): P
   );
 
   await setCourierRouting(tx, input.orderId, { serviceId: f.courier.serviceId!, collection }, input.actorSub);
+  // 085 — a courier order was promised no window, day or "as soon as possible". Cleared BEFORE the
+  // type changes: the database ties a promise to an Effy order.
+  await setPromise(tx, input.orderId, null);
   const changeId = await recordedChange(tx, input.orderId, input.actorSub, "courier", f.courier.estimate ?? "", input.reason);
   const overrideId = (await tx.query<{ id: string }>(`SELECT gen_random_uuid()::text AS id`)).rows[0]!.id;
 
@@ -574,13 +590,44 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
   if (refusal) throw new DeliveryMoveError(refusal);
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
 
-  // ⚠ THE ONE WINDOW RULE (078), under the slot's lock — the same lock two customers taking the last
-  // place are serialised by. A day outside the calendar the customer would be offered is refused too.
+  const w = await bindEffyWindow(tx, input.orderId, input.window, now);
+
+  await setCourierRouting(tx, input.orderId, null, input.actorSub);
+  const changeId = await recordedChange(tx, input.orderId, input.actorSub, "effy", null, input.reason);
+  // 085 — what the order is now promised: the window staff chose, or its day when it is the Any time one.
+  await setPromise(tx, input.orderId, w.anyTime ? "day" : "window");
+  const overrideId = (
+    await tx.query<{ id: string }>(
+      `INSERT INTO public.delivery_override
+           (change_id, order_id, to_type, slot_id, delivery_date, window_start, window_end, paid_delivery_cents, compensation, amount_cents, actor_sub)
+       VALUES ($1, $2, 'effy', $3::uuid, $4::date, $5, $6, $7, 'none', 0, $8)
+       RETURNING id::text AS id`,
+      [changeId, input.orderId, w.id, w.date, w.start, w.end, f.paidCents, input.actorSub],
+    )
+  ).rows[0]!.id;
+  await enqueueChanged(tx, input.orderId, overrideId);
+
+  return { overrideId, orderId: input.orderId, driverIds: [], refundToSubmit: null, compensation: "none" };
+}
+
+/**
+ * Bind every package of an order to one window on one day — the window a customer could be sold now.
+ *
+ * ⚠ THE ONE WINDOW RULE (078), under the slot's lock — the same lock two customers taking the last
+ * place are serialised by. A day outside the calendar the customer would be offered is refused too.
+ * Used by `moveToEffy` and (085) `changeEffyWindow`: one way to put an order in a window.
+ */
+async function bindEffyWindow(
+  tx: Queryable,
+  orderId: string,
+  window: { slotId: string; date: string },
+  now: Date,
+): Promise<OpenSlot & { anyTime: boolean }> {
   const settings = await loadSlotSettings(tx);
   const today = melbourneDate(now);
   const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(tx, today));
-  const day = calendar.find((d) => d.date === input.window.date && !d.nonDelivery);
-  const slot = day ? await lockSlot(tx, input.window.slotId) : null;
+  const day = calendar.find((d) => d.date === window.date && !d.nonDelivery);
+  const slot = day ? await lockSlot(tx, window.slotId) : null;
   if (!day || !slot) throw new DeliveryMoveError("window_unavailable");
   const { runs, bufferMin } = await collectionSchedule(tx);
   const load = await slotLoad(tx, day.date);
@@ -595,7 +642,7 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
      ON CONFLICT (order_id) DO UPDATE
         SET slot_id = EXCLUDED.slot_id, delivery_date = EXCLUDED.delivery_date, state = 'confirmed', held_until = NULL,
             window_start = EXCLUDED.window_start, window_end = EXCLUDED.window_end, over_capacity = false, updated_at = now()`,
-    [w.id, w.date, input.orderId, w.start, w.end],
+    [w.id, w.date, orderId, w.start, w.end],
   );
 
   // How an Effy window is stored (078): today's is same-day, a later day's standard — with the window.
@@ -604,27 +651,91 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
     `UPDATE public.order_package_delivery
         SET method = $2, slot_id = $3::uuid, window_start = $4, window_end = $5, promised_from = $6::date, promised_to = $6::date
       WHERE order_id = $1`,
-    [input.orderId, method, w.id, w.start, w.end, w.date],
+    [orderId, method, w.id, w.start, w.end, w.date],
   );
   await tx.query(
     `UPDATE public.shop_fulfillment SET delivery_method = $2, updated_at = now() WHERE order_id = $1 AND status <> 'withdrawn'`,
-    [input.orderId, method],
+    [orderId, method],
   );
 
-  await setCourierRouting(tx, input.orderId, null, input.actorSub);
-  const changeId = await recordedChange(tx, input.orderId, input.actorSub, "effy", null, input.reason);
-  const overrideId = (
-    await tx.query<{ id: string }>(
-      `INSERT INTO public.delivery_override
-           (change_id, order_id, to_type, slot_id, delivery_date, window_start, window_end, paid_delivery_cents, compensation, amount_cents, actor_sub)
-       VALUES ($1, $2, 'effy', $3::uuid, $4::date, $5, $6, $7, 'none', 0, $8)
-       RETURNING id::text AS id`,
-      [changeId, input.orderId, w.id, w.date, w.start, w.end, f.paidCents, input.actorSub],
-    )
-  ).rows[0]!.id;
-  await enqueueChanged(tx, input.orderId, overrideId);
+  return { ...w, anyTime: slot.anyTime };
+}
 
-  return { overrideId, orderId: input.orderId, driverIds: [], refundToSubmit: null, compensation: "none" };
+/** 085 — what an Effy order is promised; null for a courier order. Clears the ASAP estimate unless it stays "asap". */
+async function setPromise(tx: Queryable, orderId: string, promise: "window" | "day" | null): Promise<void> {
+  await tx.query(`UPDATE public."order" SET delivery_promise = $2, asap_estimate = NULL WHERE id = $1`, [orderId, promise]);
+}
+
+export interface ChangeEffyWindowInput {
+  orderId: string;
+  actorSub: string;
+  reason: string;
+  /** A timed window, or the day's Any time window (the order is then promised the day). */
+  window: { slotId: string; date: string };
+  expectedUpdatedAt: string;
+  now?: Date;
+}
+
+/** What a re-timing did: who to tell. */
+export interface ChangeEffyWindowResult {
+  orderId: string;
+  promise: "window" | "day";
+  /** Drivers whose work changed — tell them after commit. */
+  driverIds: string[];
+}
+
+/**
+ * 085 — give an Effy order a different window or day, by back-office: a customer rang to ask for a
+ * time after all, or a day that cannot be met. ⚠ No money moves, and who delivers does not change.
+ *
+ * Under the same rule and lock as `moveToEffy` (`bindEffyWindow`). Refused once a parcel is out for
+ * delivery, handed over or delivered. Driver work that was planned for the old window is taken back;
+ * the planner's next pass gives it to the new window's round. An "as soon as possible" order re-timed
+ * by staff becomes a day or a window, and its estimate is cleared: it now has a real promise.
+ *
+ * ⚠ Recorded in `admin.audit_log` (who, why, from, to). `delivery_override` is for a change of WHO
+ * delivers and cannot hold this.
+ */
+export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInput): Promise<ChangeEffyWindowResult> {
+  const now = input.now ?? new Date();
+  await tx.query(PLANNER_PASS_LOCK);
+  const f = await loadMoveFacts(tx, input.orderId, { lock: true });
+  if (!f) throw new DeliveryMoveError("not_found");
+  if (!f.paid) throw new DeliveryMoveError("not_paid");
+  if (f.type !== "effy") throw new DeliveryMoveError(f.type === null ? "no_delivery_type" : "already_courier");
+  if (f.packages.some((p) => p.delivered)) throw new DeliveryMoveError("delivered");
+  if (f.packages.some((p) => p.handed)) throw new DeliveryMoveError("handed_over");
+  if (f.assignments.some((a) => a.kind === "delivery" && a.state === "assigned" && a.round_status === "in_progress")) {
+    throw new DeliveryMoveError("out_for_delivery");
+  }
+  if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
+
+  // Work planned for the old window goes back to the planner. What a driver already holds stays held.
+  const driverIds = new Set<string>();
+  for (const a of f.assignments) {
+    if (a.state !== "assigned" || a.round_status === "in_progress") continue;
+    await removeAssignment(tx, a);
+    driverIds.add(a.driver_id);
+  }
+
+  const w = await bindEffyWindow(tx, input.orderId, input.window, now);
+  const promise = w.anyTime ? "day" : "window";
+  await setPromise(tx, input.orderId, promise);
+  await tx.query(`UPDATE public."order" SET updated_at = now() WHERE id = $1`, [input.orderId]);
+  await tx.query(
+    `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
+     VALUES ($1, 'order.delivery_window_changed', 'order', $2, $3::jsonb)`,
+    [
+      input.actorSub,
+      input.orderId,
+      JSON.stringify({
+        reason: trimmed(input.reason),
+        from: f.booking ? { slotId: f.booking.slot_id, date: f.booking.delivery_date } : null,
+        to: { slotId: w.id, date: w.date, promise },
+      }),
+    ],
+  );
+  return { orderId: input.orderId, promise, driverIds: [...driverIds] };
 }
 
 // ── Reads ───────────────────────────────────────────────────────────────────────────────────────

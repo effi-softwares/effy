@@ -159,7 +159,8 @@ export function PlanEditor({
                   </tr>
                 </thead>
                 <tbody>
-                  {(slots.data ?? []).map((s, i) => (
+                  {/* 085 — the Any time window takes no surcharge: an order with no time pays the plain fee. */}
+                  {(slots.data ?? []).filter((s) => !s.anyTime).map((s, i) => (
                     <tr key={s.id} className="border-t">
                       <td className="py-1.5 font-mono tabular-nums">
                         {s.startTime}–{s.endTime}

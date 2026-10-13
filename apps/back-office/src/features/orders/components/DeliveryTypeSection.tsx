@@ -1,13 +1,14 @@
 import { useState } from "react";
 
-import { courierEstimateSentence } from "@effy/shared-types";
+import { asapSentence, courierEstimateSentence } from "@effy/shared-types";
 import { Button } from "@effy/design-system/ui";
 
+import { ChangeDeliveryWindowDialog } from "./ChangeDeliveryWindowDialog";
 import { CourierCollection } from "./CourierCollection";
 import { DeliverByEffyDialog } from "./DeliverByEffyDialog";
 import { DeliveryHistory } from "./DeliveryHistory";
 import { SendByCourierDialog } from "./SendByCourierDialog";
-import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, type OrderDetail } from "../model";
+import { DELIVERY_REASON_LABEL, deliveryChangeText, deliveryTypeText, PROMISE_LABEL, type OrderDetail } from "../model";
 
 /**
  * Who delivers this order, why, and every change since (079 US7).
@@ -28,7 +29,7 @@ export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection
   /** 081 — admin/manager: move the order to courier delivery, or back to Effy. The server enforces it too. */
   canMove?: boolean;
 }) {
-  const [moving, setMoving] = useState<"courier" | "effy" | null>(null);
+  const [moving, setMoving] = useState<"courier" | "effy" | "retime" | null>(null);
   if (!order.deliveryType) {
     return (
       <section className="space-y-3">
@@ -59,13 +60,30 @@ export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection
             <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
           </>
         ) : null}
+        {/* 085 — what an Effy order was sold. The packages below show the day and window it is planned for. */}
+        {order.promise ? (
+          <>
+            <dt className="text-muted-foreground">Sold as</dt>
+            <dd>{PROMISE_LABEL[order.promise]}</dd>
+          </>
+        ) : null}
+        {order.promise === "asap" && order.asapEstimate ? (
+          <>
+            <dt className="text-muted-foreground">Customer was told</dt>
+            <dd>{asapSentence(order.asapEstimate)}</dd>
+          </>
+        ) : null}
       </dl>
 
       {/* 081 — an emergency move, and back. Offered to admins and managers; the preview says if it may not. */}
       {canMove && (order.status === "paid") ? (
         <div className="flex flex-wrap gap-2">
           {order.deliveryType === "effy" ? (
-            <Button variant="outline" size="sm" onClick={() => setMoving("courier")}>Send by courier…</Button>
+            <>
+              {/* 085 — another window, or a day with no time. */}
+              <Button variant="outline" size="sm" onClick={() => setMoving("retime")}>Change day or time…</Button>
+              <Button variant="outline" size="sm" onClick={() => setMoving("courier")}>Send by courier…</Button>
+            </>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setMoving("effy")}>Deliver by Effy…</Button>
           )}
@@ -75,6 +93,7 @@ export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection
         <>
           <SendByCourierDialog orderId={order.id} open={moving === "courier"} onOpenChange={(o) => setMoving(o ? "courier" : null)} />
           <DeliverByEffyDialog orderId={order.id} open={moving === "effy"} onOpenChange={(o) => setMoving(o ? "effy" : null)} />
+          <ChangeDeliveryWindowDialog orderId={order.id} open={moving === "retime"} onOpenChange={(o) => setMoving(o ? "retime" : null)} />
         </>
       ) : null}
       <DeliveryHistory moves={order.deliveryMoves ?? []} formatDateTime={(iso) => formatDateTime(iso)} />

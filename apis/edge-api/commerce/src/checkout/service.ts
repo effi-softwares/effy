@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 
 import { isUuid } from "../lib/ids";
 import {
-  DeliveryChoiceError, resolveCourier, resolveEffyWindow, type ChosenWindow,
+  DeliveryChoiceError, resolveCourier, resolveEffyChoice, type ChosenWindow, type SoldPromise,
 } from "./delivery-choice";
 import {
   AddressNotFoundError, CARD_MINIMUM_CENTS, capturedQuote, destinationPostcode, packagesFromLines, QUOTE_VALIDITY_MS, type DeliveryQuoter,
@@ -87,6 +87,8 @@ export interface IntentInput {
    * written, so nobody pays a courier fee for a screen that showed Effy's windows, or the reverse.
    */
   deliveryType?: "effy" | "courier" | null;
+  /** 085 — "as soon as possible": sent INSTEAD of a window. */
+  deliveryPromise?: "asap" | null;
   /** ALREADY validated and normalised. The only source of an order's instructions (066). */
   deliveryInstructions: DeliveryInstructionsDTO;
   /** Set only by a client that renders a provider-owned payment-method list (mobile). */
@@ -316,7 +318,7 @@ export function createCheckoutService(deps: {
       }
       // What the order is recorded as. Every order has a delivery type since 083; only orders placed
       // before delivery types have none, and they keep it that way.
-      const sold: SoldDelivery =
+      const soldType: Omit<SoldDelivery, "promise" | "asapEstimate"> =
         quote.coverage === "courier"
           ? { type: "courier", reason: quote.reason, courierEstimate: quote.estimate, courierServiceId: quote.serviceId, courierCollection: quote.collection }
           : { type: "effy", reason: "in_coverage", courierEstimate: null };
@@ -326,15 +328,20 @@ export function createCheckoutService(deps: {
       let packages: PackageDelivery[];
       let hold: SlotHold | null;
       let fee: PricedFee;
+      let promise: SoldPromise | null;
+      let asapEstimate: string | null;
       try {
-        ({ packages, hold, fee } = quote.coverage === "courier"
+        ({ packages, hold, fee, promise, asapEstimate } = quote.coverage === "courier"
           // 079 — nothing to choose, nothing to hold: the cart's shops, each sent by courier.
           ? resolveCourier(quote, packagesFromLines(lines))
-          : resolveEffyWindow(quote, input.deliveryWindow ?? null, now));
+          // 085 — a window, a day's Any-time window, or "as soon as possible".
+          : resolveEffyChoice(quote, input.deliveryWindow ?? null, input.deliveryPromise === "asap", now));
       } catch (err) {
         if (err instanceof DeliveryChoiceError) meterChoiceRefusal(err);
         throw err;
       }
+      // 085 — WHAT WAS SOLD goes on the order with WHO DELIVERS, in the same write.
+      const sold: SoldDelivery = { ...soldType, promise, asapEstimate };
       // ONE fee for the order (077) — never a sum over packages.
       const deliveryFeeCents = fee.totalCents;
 

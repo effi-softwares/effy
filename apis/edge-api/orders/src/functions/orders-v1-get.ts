@@ -2,7 +2,7 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, unavailable } from "@effy/edge-shared";
-import { ADMIN_ORDER_DELIVERY_FILTERS, ORDER_AWAITING } from "@effy/shared-types";
+import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, ORDER_AWAITING } from "@effy/shared-types";
 import type { AdminOrderDeliveryFilter, AdminOrderListResponse, OrderAwaiting } from "@effy/shared-types";
 
 import { requireStaff } from "../lib/guard";
@@ -42,6 +42,12 @@ export const handler = async (
     return problem(400, VALIDATION_FAILED, "Bad filter", "open=true is used with deliveryType=legacy", guard.scope);
   }
 
+  // 085 — what an Effy order was sold. Validated against the shared const.
+  if (qs.promise !== undefined && !(ADMIN_ORDER_PROMISE_FILTERS as readonly string[]).includes(qs.promise)) {
+    return problem(400, VALIDATION_FAILED, "Bad promise", "promise is window, day or asap", guard.scope);
+  }
+  const promise = qs.promise as (typeof ADMIN_ORDER_PROMISE_FILTERS)[number] | undefined;
+
   const parsed = Number(qs.limit);
   const limit = Number.isFinite(parsed)
     ? Math.min(Math.max(Math.trunc(parsed), 1), MAX_LIMIT)
@@ -56,6 +62,7 @@ export const handler = async (
       needsDriver: qs.needsDriver === "true",
       deliveryType,
       stillOpen: qs.open === "true",
+      promise,
       cursor: qs.cursor || undefined,
       limit,
     });

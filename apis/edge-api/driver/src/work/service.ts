@@ -3,7 +3,7 @@
 // Maps the new round/stop/package model into the 049 wire contract the app is already built against
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
-import { formatArrival, formatDeliveryWindow, formatMoment, type DeliveryWindow } from "@effy/shared-types";
+import { ANY_TIME_LABEL, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops } from "@effy/edge-shared";
 
 import { dropStatusOf } from "./drop-status";
@@ -76,7 +76,9 @@ function ordered(stops: StopRow[]): StopRow[] {
 function windowOf(s: StopRow): { window: string | null; deliveryWindow: DeliveryWindow | null } {
   if (!s.window_start || !s.window_end) return { window: null, deliveryWindow: null };
   const deliveryWindow = { startAt: s.window_start.toISOString(), endAt: s.window_end.toISOString() };
-  return { window: formatDeliveryWindow(deliveryWindow), deliveryWindow };
+  // 085 — sold a day with no time: "Any time", with the round's hours so the driver knows the end.
+  const hours = formatDeliveryWindow(deliveryWindow);
+  return { window: s.any_time ? `${ANY_TIME_LABEL} · ${hours}` : hours, deliveryWindow };
 }
 
 function packagesByStop(rows: PackageRow[]): Map<string, PackageRow[]> {
@@ -269,7 +271,10 @@ export async function collectionStop(
         // 082 — what the app says: who takes it from the hub, and (Effy's) the day and window it is for.
         deliveredBy: p.delivered_by,
         windowLabel: p.delivered_by === "effy" && p.window_start && p.window_end
-          ? formatArrival({ promisedFrom: null, promisedTo: null, windowStart: p.window_start.toISOString(), windowEnd: p.window_end.toISOString() }, new Date())
+          ? p.any_time
+            // 085 — the day and "Any time", never the window's hours.
+            ? `${formatArrival({ promisedFrom: melbourneDate(p.window_start), promisedTo: melbourneDate(p.window_start) }, new Date())} · ${ANY_TIME_LABEL}`
+            : formatArrival({ promisedFrom: null, promisedTo: null, windowStart: p.window_start.toISOString(), windowEnd: p.window_end.toISOString() }, new Date())
           : null,
         items: manifest?.items ?? [],
         summary: manifest?.summary ?? { ...EMPTY_SUMMARY },

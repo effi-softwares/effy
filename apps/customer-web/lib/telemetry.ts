@@ -264,7 +264,9 @@ export type StorefrontEvent =
   //
   // ⚠ WHICH SECTION AND HOW MANY DAYS AHEAD — never the window's id or its clock time (the same
   // reason as the slot event above). `reason` is why nothing could be chosen.
-  | { name: "checkout_window_selected"; props: { section: "same_day" | "standard"; day_offset: number } }
+  // 085 — `promise`: a time, a day with no time, or "as soon as possible" (whose day_offset is -1: the
+  // customer chose no day). No PII.
+  | { name: "checkout_window_selected"; props: { section: "same_day" | "standard"; day_offset: number; promise: "window" | "day" | "asap" } }
   | { name: "checkout_windows_unavailable"; props: { reason: "no_windows" | "none_defined" } }
   // 079 who delivers.
   //

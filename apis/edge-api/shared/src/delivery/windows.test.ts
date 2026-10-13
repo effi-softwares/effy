@@ -7,9 +7,9 @@ import { effyDays, openWindows, windowsUnavailable } from "./windows";
 
 const c = (hour: number, minute = 0) => ({ hour, minute });
 // Three daily windows: late morning (cutoff 09:00), afternoon (14:00), evening (17:00).
-const morning: Slot = { id: "morning", start: c(10), end: c(12), cutoff: c(9), capacity: null };
-const afternoon: Slot = { id: "afternoon", start: c(16), end: c(18), cutoff: c(14), capacity: null };
-const evening: Slot = { id: "evening", start: c(18), end: c(20), cutoff: c(17), capacity: 2 };
+const morning: Slot = { id: "morning", start: c(10), end: c(12), cutoff: c(9), capacity: null, anyTime: false };
+const afternoon: Slot = { id: "afternoon", start: c(16), end: c(18), cutoff: c(14), capacity: null, anyTime: false };
+const evening: Slot = { id: "evening", start: c(18), end: c(20), cutoff: c(17), capacity: 2, anyTime: false };
 const slots = [morning, afternoon, evening];
 // Runs at 08:00, 13:00 and 16:30; shops need 30 minutes' notice; the hub needs 60 to turn goods round.
 const runs: CollectionRun[] = [c(8), c(13), c(16, 30)];
@@ -70,7 +70,7 @@ describe("openWindows", () => {
 
   it("P1 — the cutoff alone closes a window today that a run could still serve, and not tomorrow", () => {
     // Starts 15:00, so the 13:00 run serves it; only its 09:00 cutoff stands in the way at 10:00.
-    const early: Slot = { id: "early", start: c(15), end: c(17), cutoff: c(9), capacity: null };
+    const early: Slot = { id: "early", start: c(15), end: c(17), cutoff: c(9), capacity: null, anyTime: false };
     expect(judgeWindow(tue(10), "2026-10-06", early, 0, runs, BUFFER, TURNAROUND).verdict).toBe("cutoff");
     expect(judgeWindow(tue(9), "2026-10-06", early, 0, runs, BUFFER, TURNAROUND).verdict).toBe("open");
     expect(judgeWindow(tue(10), "2026-10-07", early, 0, runs, BUFFER, TURNAROUND).verdict).toBe("open");
@@ -158,5 +158,83 @@ describe("windowsUnavailable", () => {
     const full = new Map(["2026-10-07", "2026-10-08", "2026-10-09"].map((d) => [d, new Map([["evening", 2]])]));
     const days = openWindows(tue(17, 1), effyDays(tue(17, 1), 3), only, full, runs, BUFFER, TURNAROUND);
     expect(windowsUnavailable(days, only)).toBe("no_windows");
+  });
+});
+
+describe("085 — the Any-time window: a day sold with no time", () => {
+  // Midday to 9 pm, order by 10:00, two orders a day.
+  const anyTime: Slot = { id: "anytime", start: c(12), end: c(21), cutoff: c(10), capacity: 2, anyTime: true };
+  const withAnyTime = [...slots, anyTime];
+  const open = (now: Date, load = new Map<string, Map<string, number>>(), all: readonly Slot[] = withAnyTime) =>
+    openWindows(now, effyDays(now, 3), all, load, runs, BUFFER, TURNAROUND);
+
+  it("⚠ is never listed among a day's windows — it is filed as the day's anyTime", () => {
+    // 07:00 — the 08:00 run can still be made and reaches the hub (09:00) before the window starts.
+    for (const d of open(tue(7))) {
+      expect(d.windows.map((w) => w.id)).not.toContain("anytime");
+      expect(d.anyTime?.id).toBe("anytime");
+      expect(d.anyTime?.date).toBe(d.date);
+    }
+  });
+
+  it("is judged by the ONE window rule: its own cutoff today, its own capacity on each day", () => {
+    // 10:01 — past its cutoff today; tomorrow untouched.
+    const late = open(tue(10, 1));
+    expect(late[0]!.anyTime).toBeNull();
+    expect(late[1]!.anyTime?.id).toBe("anytime");
+    // Thursday has taken its two.
+    const full = open(tue(7), new Map([["2026-10-08", new Map([["anytime", 2]])]]));
+    expect(full.map((d) => d.anyTime?.id ?? null)).toEqual(["anytime", "anytime", null, "anytime"]);
+    // ⚠ TODAY it also needs a collection run that reaches the hub before it STARTS — the same test
+    // as any window. At 08:00 the 08:00 run is gone and the 13:00 one is too late for midday, so
+    // today cannot take an untimed order although its 10:00 cutoff has not passed.
+    expect(open(tue(8))[0]!.anyTime).toBeNull();
+    expect(judgeWindow(tue(8), "2026-10-06", anyTime, 0, runs, BUFFER, TURNAROUND).verdict).toBe("uncollectable");
+    // …and each verdict is exactly judgeWindow's.
+    expect(judgeWindow(tue(10, 1), "2026-10-06", anyTime, 0, runs, BUFFER, TURNAROUND).verdict).toBe("cutoff");
+    expect(judgeWindow(tue(8), "2026-10-08", anyTime, 2, runs, BUFFER, TURNAROUND).verdict).toBe("full");
+  });
+
+  it("a day's untimed room and its windows are independent — each can be gone without the other", () => {
+    // Every timed window on Thursday is taken (only `evening` has a limit, so close the others by
+    // making them limited here), untimed still open.
+    const limited = [{ ...morning, capacity: 1 }, { ...afternoon, capacity: 1 }, evening, anyTime];
+    const load = new Map([["2026-10-08", new Map([["morning", 1], ["afternoon", 1], ["evening", 2]])]]);
+    const thu = open(tue(8), load, limited)[2]!;
+    expect(thu.windows).toEqual([]);
+    expect(thu.closedReason).toBe("full");
+    expect(thu.anyTime?.id).toBe("anytime");
+    // The reverse: untimed full, windows open — and the day's reason is still about its windows.
+    const reverse = open(tue(8), new Map([["2026-10-08", new Map([["anytime", 2]])]]))[2]!;
+    expect(reverse.anyTime).toBeNull();
+    expect(reverse.windows).toHaveLength(3);
+    expect(reverse.closedReason).toBeNull();
+  });
+
+  it("a day that can be sold with no time is something to choose, even with every window gone", () => {
+    const onlyAnyTime = [anyTime];
+    const days = open(tue(8), new Map(), onlyAnyTime);
+    expect(days.every((d) => d.windows.length === 0)).toBe(true);
+    expect(windowsUnavailable(days, onlyAnyTime)).toBeNull();
+    // With it full on every day there is nothing — and with no TIMED window at all that is still the
+    // alarm it always was: the business has defined none (the Any time window always exists).
+    const all = new Map(days.map((d) => [d.date, new Map([["anytime", 2]])]));
+    expect(windowsUnavailable(open(tue(8), all, onlyAnyTime), onlyAnyTime)).toBe("none_defined");
+    // Timed windows exist and every one, on every day, is gone or taken: nothing left to choose.
+    const limited = [{ ...morning, capacity: 1 }, { ...afternoon, capacity: 1 }, { ...evening, capacity: 1 }, anyTime];
+    const taken = new Map(days.map((d) => [d.date, new Map([["morning", 1], ["afternoon", 1], ["evening", 1], ["anytime", 2]])]));
+    expect(windowsUnavailable(open(tue(8), taken, limited), limited)).toBe("no_windows");
+  });
+
+  it("a day Effy does not deliver has none", () => {
+    const now = tue(8);
+    const days = openWindows(now, effyDays(now, 3, [2]), withAnyTime, new Map(), runs, BUFFER, TURNAROUND);
+    expect(days[0]).toMatchObject({ closedReason: "not_delivery_day", anyTime: null });
+  });
+
+  it("with no Any-time window the calendar is what it was before 085, plus anyTime: null", () => {
+    const before = open(tue(10), new Map(), slots);
+    expect(before.every((d) => d.anyTime === null)).toBe(true);
+    expect(before.map((d) => [d.date, d.windows.map((w) => w.id), d.closedReason])).toEqual(ids(tue(10)));
   });
 });

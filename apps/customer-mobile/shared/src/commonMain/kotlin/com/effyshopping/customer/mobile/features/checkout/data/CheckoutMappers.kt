@@ -58,7 +58,9 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     // 066 — null is omitted from the wire (explicitNulls = false), and absent means "none".
     deliveryInstructions = deliveryInstructions?.toWire(),
     // 078 — the one window for the order; null (omitted) for a courier order.
-    deliveryWindow = deliveryWindow?.let { com.effyshopping.customer.mobile.commerce.contract.DeliveryWindow(date = it.date, slotID = it.slotId) },
+    deliveryWindow = deliveryWindow?.takeIf { !asap }?.let { com.effyshopping.customer.mobile.commerce.contract.DeliveryWindow(date = it.date, slotID = it.slotId) },
+    // 085 — "as soon as possible", sent alone.
+    deliveryPromise = if (asap) com.effyshopping.customer.mobile.commerce.contract.DeliveryPromise.Asap else null,
     // 079 — who delivers, as shown.
     deliveryType = when (deliveryType) {
         DeliveryType.EFFY -> ContractDeliveryType.Effy
@@ -107,12 +109,9 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.EffyWindowsDTO.t
         EffyDay(
             date = day.date,
             today = day.section == DeliveryMethodDTO.SameDay,
-            windows = day.windows.map {
-                EffyWindow(
-                    slotId = it.slotID, date = it.date, startAt = it.startAt, endAt = it.endAt, cutoffAt = it.cutoffAt,
-                    surchargeAmount = it.surchargeAmount, fee = it.fee.toDomain(),
-                )
-            },
+            windows = day.windows.map { it.toDomain() },
+            // 085 — never today's, whatever a server sends.
+            anyTime = day.anyTime?.takeIf { day.section != DeliveryMethodDTO.SameDay }?.toDomain(),
             closedReason = when (day.closedReason) {
                 com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.NotDeliveryDay -> EffyDayClosed.NotDeliveryDay
                 com.effyshopping.customer.mobile.commerce.contract.EffyDayClosedReason.Closed -> EffyDayClosed.Closed
@@ -126,6 +125,12 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.EffyWindowsDTO.t
         com.effyshopping.customer.mobile.commerce.contract.Unavailable.NoneDefined -> WindowsUnavailable.NoneDefined
         null -> null
     },
+    asap = asap?.let { com.effyshopping.customer.mobile.features.checkout.domain.EffyAsap(estimate = it.estimate, fee = it.fee.toDomain()) },
+)
+
+private fun com.effyshopping.customer.mobile.commerce.contract.EffyWindowDTO.toDomain(): EffyWindow = EffyWindow(
+    slotId = slotID, date = date, startAt = startAt, endAt = endAt, cutoffAt = cutoffAt,
+    surchargeAmount = surchargeAmount, fee = fee.toDomain(),
 )
 
 internal fun com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO.toDomain(): DeliveryFee = DeliveryFee(
@@ -153,6 +158,13 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.OrderDeliveryDTO
         ContractDeliveryType.Courier -> DeliveryType.COURIER
     },
     courierEstimate = courierEstimate,
+    promise = when (promise) {
+        com.effyshopping.customer.mobile.commerce.contract.PromiseEnum.Window -> com.effyshopping.customer.mobile.features.checkout.domain.DeliveryPromise.WINDOW
+        com.effyshopping.customer.mobile.commerce.contract.PromiseEnum.Day -> com.effyshopping.customer.mobile.features.checkout.domain.DeliveryPromise.DAY
+        com.effyshopping.customer.mobile.commerce.contract.PromiseEnum.Asap -> com.effyshopping.customer.mobile.features.checkout.domain.DeliveryPromise.ASAP
+        null -> null
+    },
+    asapEstimate = asapEstimate,
     tracking = tracking?.let { t ->
         when (t.kind) {
             com.effyshopping.customer.mobile.commerce.contract.TrackingKind.Link ->

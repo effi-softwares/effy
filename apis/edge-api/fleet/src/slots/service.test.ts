@@ -76,3 +76,15 @@ describe("daysProblems", () => {
     expect(f({ hubTurnaroundMin: 1.5 })).toEqual(["hubTurnaroundMin"]);
   });
 });
+
+describe("085 — the as-soon-as-possible estimate", () => {
+  const DAYS = { effyLookaheadDays: 3, noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60 }
+  it("may be left out (kept), reworded — and never emptied", () => {
+    expect(daysProblems(DAYS)).toEqual([])
+    expect(daysProblems({ ...DAYS, asapEstimate: "usually within 2–3 days" })).toEqual([])
+    expect(daysProblems({ ...DAYS, asapEstimate: "" }).map((e) => e.field)).toEqual(["asapEstimate"])
+    expect(daysProblems({ ...DAYS, asapEstimate: "   " }).map((e) => e.field)).toEqual(["asapEstimate"])
+    expect(daysProblems({ ...DAYS, asapEstimate: null as never }).map((e) => e.field)).toEqual(["asapEstimate"])
+    expect(daysProblems({ ...DAYS, asapEstimate: "x".repeat(81) }).map((e) => e.field)).toEqual(["asapEstimate"])
+  })
+})

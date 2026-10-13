@@ -21,7 +21,7 @@ import { DataTable, ErrorState } from "@effy/web-kit/console";
 
 import { ADMIN_ORDER_DELIVERY_FILTERS, type AdminOrderDeliveryFilter } from "@effy/shared-types";
 
-import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, STAGE_LABEL, type OrderSummary } from "./model";
+import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderSummary } from "./model";
 import { ordersListQuery } from "./queries";
 
 const ALL = "all";
@@ -85,7 +85,17 @@ const columns: ColumnDef<OrderSummary>[] = [
     // 079 — who delivers the order: Effy, or a courier. A dash for an order placed before orders
     // had a delivery type — nothing about an old order is guessed.
     cell: ({ row }) =>
-      row.original.deliveryType ? deliveryTypeText(row.original.deliveryType) : <span className="text-muted-foreground">—</span>,
+      row.original.deliveryType ? (
+        <span>
+          {deliveryTypeText(row.original.deliveryType)}
+          {/* 085 — what an Effy order was sold, under who delivers it. */}
+          {row.original.promise && row.original.promise !== "window" ? (
+            <span className="block text-xs text-muted-foreground">{PROMISE_LABEL[row.original.promise]}</span>
+          ) : null}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
   },
   {
     id: "driver",
@@ -145,7 +155,9 @@ export function OrdersListScreen() {
       // 073 — orders with a package nobody is collecting or delivering.
       needsDriver: awaiting === NEEDS_DRIVER ? true : undefined,
       // 079 — who delivers the order.
-      deliveryType: delivery === ALL ? undefined : (delivery as AdminOrderDeliveryFilter),
+      // 085 — "promise:day" etc. are Effy orders by what they were sold.
+      deliveryType: delivery === ALL || delivery.startsWith("promise:") ? undefined : (delivery as AdminOrderDeliveryFilter),
+      promise: delivery.startsWith("promise:") ? (delivery.slice("promise:".length) as "window" | "day" | "asap") : undefined,
       stillOpen: delivery === "legacy" && stillOpen ? true : undefined,
       cursor: cursors[cursors.length - 1],
     }),
@@ -210,6 +222,11 @@ export function OrdersListScreen() {
             {ADMIN_ORDER_DELIVERY_FILTERS.map((f) => (
               <SelectItem key={f} value={f}>
                 {DELIVERY_FILTER_LABEL[f]}
+              </SelectItem>
+            ))}
+            {(["window", "day", "asap"] as const).map((p) => (
+              <SelectItem key={p} value={`promise:${p}`}>
+                {DELIVERY_FILTER_LABEL.effy} — {PROMISE_LABEL[p]}
               </SelectItem>
             ))}
           </SelectContent>

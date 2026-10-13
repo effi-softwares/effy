@@ -7,7 +7,8 @@ import type {
 
 import type { OrderListParams } from "./model";
 import {
-  changeCourierCollection, getOrder, listCourierParcels, listHandovers, listOrders, moveDelivery, previewDeliveryMove, recordArrival,
+  changeCourierCollection, getOrder, listCourierParcels, listHandovers, listOrders, changeDeliveryWindow,
+  moveDelivery, previewDeliveryMove, recordArrival,
   recordConsignmentStep, recordHandoff, saveConsignment,
 } from "./repo";
 
@@ -58,6 +59,9 @@ export const useConsignmentStep = (orderId: string) =>
 /** 081 — moving the order invalidates the order and every list it is on (the preview too: under "orders"). */
 export const useDeliveryMove = (orderId: string) =>
   useOrderMutation(orderId, (body: DeliveryMoveRequest) => moveDelivery(orderId, body));
+/** 085 — re-time an Effy order. */
+export const useChangeDeliveryWindow = (orderId: string) =>
+  useOrderMutation(orderId, (body: Parameters<typeof changeDeliveryWindow>[1]) => changeDeliveryWindow(orderId, body));
 export const useCourierCollection = (orderId: string) =>
   useOrderMutation(orderId, (body: CourierCollectionInput) => changeCourierCollection(orderId, body));
 

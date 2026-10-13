@@ -17,6 +17,7 @@ export const LIST_SLOTS = `
          to_char(s.end_time,    'HH24:MI') AS end_time,
          to_char(s.cutoff_time, 'HH24:MI') AS cutoff_time,
          s.capacity,
+         s.any_time,
          s.status,
          s.updated_at,
          COALESCE(l.booked, 0)        AS booked_today,
@@ -62,6 +63,7 @@ export const SLOT_FOR_UPDATE = `
          to_char(end_time,    'HH24:MI') AS end_time,
          to_char(cutoff_time, 'HH24:MI') AS cutoff_time,
          capacity,
+         any_time,
          status
     FROM public.delivery_slot
    WHERE id = $1

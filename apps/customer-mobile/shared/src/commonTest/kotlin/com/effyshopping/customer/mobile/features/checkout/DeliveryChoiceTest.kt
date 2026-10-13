@@ -17,6 +17,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFee
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLine
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeLineKind
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
+import com.effyshopping.customer.mobile.features.checkout.domain.EffyAsap
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyDay
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindow
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows
@@ -139,6 +140,82 @@ class DeliveryChoiceTest {
         assertFalse(s.handedOffToPayment)
         assertNotNull(s.error)
         assertEquals(listOf("evening"), s.effyWindows!!.days.first().windows.map { it.slotId })
+    }
+
+    // ── 085 — a day with no time, and as soon as possible ───────────────────────────────────────────
+
+    /** Tomorrow can be bought with no time (the Any time window), and "as soon as possible" is offered. */
+    private fun flexQuote(asap: Boolean = true): DeliveryQuote {
+        val q = quote()
+        val fee = DeliveryFee(listOf(DeliveryFeeLine(DeliveryFeeLineKind.Delivery, "6.00")), "6.00")
+        return q.copy(
+            effyWindows = q.effyWindows!!.copy(
+                days = q.effyWindows!!.days.map { if (it.today) it else it.copy(anyTime = window("anytime", it.date)) },
+                asap = if (asap) EffyAsap("usually within 2–3 days", fee) else null,
+            ),
+        )
+    }
+
+    @Test
+    fun `085 - a day with no time is a complete choice, sent as that day's Any time window`() = runTest {
+        val checkout = Checkout(flexQuote())
+        val vm = vm(checkout)
+        assertFalse(ready(vm).deliveryChosen) // nothing is chosen for the shopper
+        vm.setWindow("anytime", "2026-10-09")
+
+        val s = ready(vm)
+        assertTrue(s.deliveryChosen)
+        assertTrue(s.effyWindows!!.isAnyTime(s.window))
+        assertEquals("6.00", s.deliveryFee?.totalAmount)
+        vm.payNow()
+        assertEquals(ChosenWindow("anytime", "2026-10-09"), checkout.orders.single().deliveryWindow)
+        assertFalse(checkout.orders.single().asap)
+    }
+
+    @Test
+    fun `085 - as soon as possible is sent alone, and each choice un-makes the other`() = runTest {
+        val checkout = Checkout(flexQuote())
+        val vm = vm(checkout)
+        vm.setWindow("late", "2026-10-08")
+        vm.setAsap()
+        assertNull(ready(vm).window)
+        assertTrue(ready(vm).asap)
+        assertTrue(ready(vm).deliveryChosen)
+        assertEquals("6.00", ready(vm).deliveryFee?.totalAmount)
+
+        // A window un-chooses it…
+        vm.setWindow("anytime", "2026-10-09")
+        assertFalse(ready(vm).asap)
+        // …and it un-chooses a window.
+        vm.setAsap()
+        vm.payNow()
+        val order = checkout.orders.single()
+        assertTrue(order.asap)
+        assertNull(order.deliveryWindow)
+    }
+
+    @Test
+    fun `085 - as soon as possible is ignored when the quote does not offer it, and a day that needs a time chooses nothing`() = runTest {
+        val vm = vm(Checkout(flexQuote(asap = false)))
+        vm.setAsap()
+        assertFalse(ready(vm).asap)
+        vm.setWindow("evening", "2026-10-09")
+        vm.clearWindow()
+        assertNull(ready(vm).window)
+        assertFalse(ready(vm).deliveryChosen)
+    }
+
+    @Test
+    fun `085 - as soon as possible that has gone is not replaced by anything`() = runTest {
+        val checkout = Checkout(flexQuote())
+        val vm = vm(checkout)
+        vm.setAsap()
+        checkout.refuseWith = DeliveryChoiceRefused(DeliveryChoiceRefusal.SlotUnavailable, flexQuote(asap = false))
+        vm.payNow()
+        val s = ready(vm)
+        assertFalse(s.asap)
+        assertNull(s.window)
+        assertFalse(s.deliveryChosen)
     }
 
     @Test

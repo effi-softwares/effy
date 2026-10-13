@@ -36,7 +36,18 @@ data class EffyDayView(
     /** Why there is nothing to choose that day; null when there is. */
     val sentence: String?,
     val windows: List<EffyWindowLine>,
+    /**
+     * 085 — the day can be chosen with NO TIME: what to choose for that. Null when it cannot (today,
+     * always; a day with no untimed room left).
+     */
+    val anyTime: AnyTimeChoice? = null,
 )
+
+/** 085 — what is sent for a day with no time: that day's Any time window. */
+data class AnyTimeChoice(val slotId: String, val date: String)
+
+/** 085 — "as soon as possible", when it is offered: its two lines and the business's estimate. */
+data class AsapView(val title: String, val hint: String, val estimate: String)
 
 data class EffyWindowsView(
     /** The one sentence when NO day has a window; the sections are then not shown. */
@@ -45,6 +56,7 @@ data class EffyWindowsView(
     val standardTitle: String,
     val today: EffyDayView?,
     val later: List<EffyDayView>,
+    val asap: AsapView? = null,
 )
 
 fun effyWindowsView(
@@ -63,6 +75,7 @@ fun effyWindowsView(
         date = day.date,
         label = DeliveryWindowText.formatDay(day.date),
         sentence = sentence(day),
+        anyTime = day.anyTime?.takeIf { !day.today }?.let { AnyTimeChoice(it.slotId, it.date) },
         windows = day.windows.map { w ->
             val cutoff = DeliveryWindowText.epochMillisOrNull(w.cutoffAt)
             val closed = cutoff != null && nowEpochMillis > cutoff
@@ -89,5 +102,6 @@ fun effyWindowsView(
         standardTitle = DeliveryWindowWords.SECTION_STANDARD,
         today = windows.days.firstOrNull { it.today }?.let(::view),
         later = windows.days.filter { !it.today }.map(::view),
+        asap = windows.asap?.let { AsapView(DeliveryWindowWords.ASAP_TITLE, DeliveryWindowWords.ASAP_HINT, it.estimate) },
     )
 }

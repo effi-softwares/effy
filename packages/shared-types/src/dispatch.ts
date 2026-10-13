@@ -324,8 +324,10 @@ export interface DispatchWindowParcelDTO {
 export interface DispatchWindowDTO {
   windowStart: string;
   windowEnd: string;
-  /** "Wed 14 Oct, 4 pm – 6 pm". */
+  /** "Wed 14 Oct, 4 pm – 6 pm"; 085 — "Wed 14 Oct · Any time (12 pm – 9 pm)" for the Any time window. */
   label: string;
+  /** 085 — the "Any time" window: its parcels were sold the day, not these hours. Absent otherwise. */
+  anyTime?: true;
   /**
    * The window's delivery rounds. ⚠ EMPTY BEFORE ITS DAY, and that is not a gap: a round is planned on
    * its own day (082), so a later day's parcels are waiting, not unassigned.

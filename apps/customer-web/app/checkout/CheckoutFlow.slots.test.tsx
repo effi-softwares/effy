@@ -173,8 +173,10 @@ function windowsQuote(over: Partial<NonNullable<DeliveryQuoteDTO["effyWindows"]>
   })
   return { ...BASE, effyWindows: { days, unavailable: null, ...over } }
 }
-const windowRadios = () => screen.getAllByRole("radio").filter((r) => (r as HTMLInputElement).name.endsWith("-window"))
-const tabs = () => screen.getAllByRole("tab")
+/** Every window radio on the page (its value is `date|slotId`) — not the days, not "as soon as possible". */
+const windowRadios = () => screen.getAllByRole("radio").filter((r) => (r as HTMLInputElement).value.includes("|"))
+/** 085 — the later days, as radios (their value is the date). */
+const tabs = () => screen.getAllByRole("radio").filter((r) => /^\d{4}-\d{2}-\d{2}$/.test((r as HTMLInputElement).value))
 
 describe("078 — choosing one window for the order", () => {
   beforeEach(() => {
@@ -199,14 +201,14 @@ describe("078 — choosing one window for the order", () => {
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await screen.findByRole("group", { name: "Standard delivery" })
     await user.click(tabs()[1]!) // the second later day
-    const standard = screen.getByRole("tabpanel")
+    const standard = screen.getByTestId("day-times")
     await user.click(standard.querySelectorAll("input[type=radio]")[1]!)
     await user.click(payButton())
 
     await waitFor(() => expect(intentBodies).toHaveLength(1))
     expect(intentBodies[0]).toMatchObject({ deliveryWindow: { slotId: "evening", date: day(2) }, shownDeliveryAmount: "6.00" })
     expect(await screen.findByText("Payment step")).toBeInTheDocument()
-    expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: 2 } })
+    expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: 2, promise: "window" } })
   })
 
   it("today's window costs more, shows what it adds before it is chosen, and that total is what is sent", async () => {
@@ -219,7 +221,7 @@ describe("078 — choosing one window for the order", () => {
     await user.click(payButton())
     await waitFor(() => expect(intentBodies).toHaveLength(1))
     expect(intentBodies[0]).toMatchObject({ deliveryWindow: { slotId: "afternoon", date: day(0) }, shownDeliveryAmount: "11.00" })
-    expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "same_day", day_offset: 0 } })
+    expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "same_day", day_offset: 0, promise: "window" } })
   })
 
   it("⚠ a window that has gone is not replaced: the shopper is told, re-offered what is left, and nothing is chosen", async () => {
@@ -228,13 +230,14 @@ describe("078 — choosing one window for the order", () => {
     intentReplies = [REFUSED("slot_unavailable")]
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await screen.findByRole("group", { name: "Standard delivery" })
-    await user.click(screen.getByRole("tabpanel").querySelectorAll("input[type=radio]")[0]!)
+    await user.click(tabs()[0]!) // no day is open until the shopper opens one
+    await user.click(screen.getByTestId("day-times").querySelectorAll("input[type=radio]")[0]!)
     await user.click(payButton())
 
     expect(await screen.findByText(/that delivery time is no longer available/i)).toBeInTheDocument()
     expect(screen.queryByText("Payment step")).not.toBeInTheDocument()
     await waitFor(() => expect(quoteCalls).toBe(2))
-    await waitFor(() => expect(screen.getByRole("tabpanel").querySelectorAll("input[type=radio]")).toHaveLength(1))
+    await waitFor(() => expect(screen.getByTestId("day-times").querySelectorAll("input[type=radio]")).toHaveLength(1))
     for (const r of windowRadios()) expect(r).not.toBeChecked()
     expect(payButton()).toBeDisabled()
   })
@@ -245,12 +248,13 @@ describe("078 — choosing one window for the order", () => {
     intentReplies = [REFUSED("delivery_fee_changed"), ACCEPTED]
     render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
     await screen.findByRole("group", { name: "Standard delivery" })
-    await user.click(screen.getByRole("tabpanel").querySelectorAll("input[type=radio]")[1]!)
+    await user.click(tabs()[0]!) // no day is open until the shopper opens one
+    await user.click(screen.getByTestId("day-times").querySelectorAll("input[type=radio]")[1]!)
     await user.click(payButton())
 
     expect(await screen.findByText(DELIVERY_FEE_WORDS.feeChanged)).toBeInTheDocument()
     await waitFor(() => expect(quoteCalls).toBe(2))
-    await waitFor(() => expect(screen.getByRole("tabpanel").querySelectorAll("input[type=radio]")[1]).toBeChecked())
+    await waitFor(() => expect(screen.getByTestId("day-times").querySelectorAll("input[type=radio]")[1]).toBeChecked())
     await user.click(payButton())
     await waitFor(() => expect(intentBodies).toHaveLength(2))
     expect(intentBodies[1]).toMatchObject({ deliveryWindow: { slotId: "evening", date: day(1) } })
@@ -281,5 +285,101 @@ describe("078 — choosing one window for the order", () => {
     await screen.findByRole("group", { name: "Same-day delivery" })
     for (const r of windowRadios()) expect(r).not.toBeChecked()
     expect(payButton()).toBeDisabled()
+  })
+})
+
+// ── 085 — a day with no time, and as soon as possible ─────────────────────────────────────────────
+
+/** The same quote, with every later day sellable with no time (12 pm – 9 pm) and ASAP offered. */
+function flexQuote(): DeliveryQuoteDTO {
+  const q = windowsQuote()
+  const anyTime = (n: number) => ({
+    slotId: "anytime", date: day(n), startAt: far(n * 24 + 1), endAt: far(n * 24 + 9), cutoffAt: far(n * 24),
+    surchargeAmount: "0.00", fee: FEE(0),
+  })
+  return {
+    ...q,
+    effyWindows: {
+      ...q.effyWindows!,
+      days: q.effyWindows!.days.map((d, n) => (n === 0 ? d : { ...d, anyTime: anyTime(n) })),
+      asap: { estimate: "usually within 2–3 days", fee: FEE(0) },
+    },
+  }
+}
+
+describe("085 — Standard delivery without a time", () => {
+  beforeEach(() => {
+    quotes = [flexQuote()]
+  })
+
+  it("⚠ 'Standard' is chosen by default: a shopper with no preference can go straight on", async () => {
+    const user = userEvent.setup()
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    const asap = await screen.findByRole("radio", { name: /^Standard/ })
+    await waitFor(() => expect(asap).toBeChecked())
+    for (const r of [...windowRadios(), ...tabs()]) expect(r).not.toBeChecked()
+    await waitFor(() => expect(payButton()).toBeEnabled())
+    await user.click(payButton())
+    await waitFor(() => expect(intentBodies).toHaveLength(1))
+    expect(intentBodies[0]).toMatchObject({ deliveryPromise: "asap", shownDeliveryAmount: "6.00" })
+    expect(intentBodies[0]).not.toHaveProperty("deliveryWindow")
+  })
+
+  it("one tap on a day is enough: it replaces the default and is sent as that day's Any-time window, at the plain fee", async () => {
+    const user = userEvent.setup()
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    await screen.findByRole("group", { name: "Standard delivery" })
+    await user.click(tabs()[0]!)
+    expect(screen.getByRole("radio", { name: /^Standard/ })).not.toBeChecked()
+    await waitFor(() => expect(payButton()).toBeEnabled())
+    expect(screen.queryByText("Window surcharge")).not.toBeInTheDocument()
+    await user.click(payButton())
+
+    await waitFor(() => expect(intentBodies).toHaveLength(1))
+    expect(intentBodies[0]).toMatchObject({ deliveryWindow: { slotId: "anytime", date: day(1) }, shownDeliveryAmount: "6.00" })
+    expect(intentBodies[0]).not.toHaveProperty("deliveryPromise")
+    expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: 1, promise: "day" } })
+  })
+
+  it("as soon as possible, chosen again after something else, is sent ALONE — no window, no day — at the plain fee", async () => {
+    const user = userEvent.setup()
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    await screen.findByRole("group", { name: "Standard delivery" })
+    await user.click(windowRadios()[0]!) // a same-day window first…
+    await user.click(await screen.findByRole("radio", { name: /^Standard/ })) // …then back
+    await waitFor(() => expect(payButton()).toBeEnabled())
+    await user.click(payButton())
+
+    await waitFor(() => expect(intentBodies).toHaveLength(1))
+    expect(intentBodies[0]).toMatchObject({ deliveryPromise: "asap", shownDeliveryAmount: "6.00" })
+    expect(intentBodies[0]).not.toHaveProperty("deliveryWindow")
+    expect(capture).toHaveBeenCalledWith({ name: "checkout_window_selected", props: { section: "standard", day_offset: -1, promise: "asap" } })
+  })
+
+  it("⚠ a day that has gone by payment is not replaced — not even by the default: told, re-offered, nothing chosen", async () => {
+    const user = userEvent.setup()
+    quotes = [flexQuote(), flexQuote()]
+    intentReplies = [REFUSED("slot_unavailable")]
+    render(<CheckoutFlow initialAddresses={[ADDRESS]} />)
+    await screen.findByRole("group", { name: "Standard delivery" })
+    await user.click(tabs()[0]!)
+    await user.click(payButton())
+
+    expect(await screen.findByText(/that delivery time is no longer available/i)).toBeInTheDocument()
+    await waitFor(() => expect(quoteCalls).toBe(2))
+    for (const r of screen.getAllByRole("radio")) expect(r).not.toBeChecked()
+    expect(payButton()).toBeDisabled()
+  })
+
+  it("changing the address starts again from the default — a day chosen for one address is not carried to another", async () => {
+    const user = userEvent.setup()
+    render(<CheckoutFlow initialAddresses={[ADDRESS, { ...ADDRESS, id: "a2", recipientName: "Sam", isDefault: false }]} />)
+    await screen.findByRole("group", { name: "Standard delivery" })
+    await user.click(tabs()[0]!)
+    await waitFor(() => expect(tabs()[0]).toBeChecked())
+    await user.click(screen.getByRole("button", { name: /change/i }))
+    await user.click(screen.getByRole("radio", { name: /Sam/ }))
+    await waitFor(() => expect(screen.getByRole("radio", { name: /^Standard/ })).toBeChecked())
+    for (const r of tabs()) expect(r).not.toBeChecked()
   })
 })

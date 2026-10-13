@@ -156,6 +156,16 @@ export const DELIVERY_WINDOW_WORDS = {
   dayFull: "Every window on this day is taken.",
   noWindows: "There are no delivery windows available in the next few days. Please try again later.",
   cutoffPrefix: "Order by",
+  // 085 — Standard delivery without a time. A day is a complete choice; a time is optional.
+  anyTimeDay: "Any time during the day",
+  timeOptionOpen: "Need a specific time?",
+  timeOptionHint: "Optional. Pick a window and we'll deliver in it.",
+  /** The day has no room left for an order without a time, but a window on it does. */
+  timeRequired: "Choose a time for this day.",
+  asapTitle: "Standard",
+  asapHint: "We'll deliver as soon as we can.",
+  /** Followed by the business's estimate. ⚠ Always an estimate — never a day, never a promise. */
+  asapEstimatePrefix: "As soon as possible —",
 } as const;
 
 /** Why a day has no window to choose. A later day is only ever "full". */
@@ -190,6 +200,13 @@ export interface EffyDayDTO {
   windows: EffyWindowDTO[];
   /** Why `windows` is empty; null when it is not. */
   closedReason: EffyDayClosedReason | null;
+  /**
+   * 085 — this day sold with NO TIME: the business's "Any time" window, when it is open on this day.
+   * Sent back as `deliveryWindow` like any window; the order is then promised the day, not the hours.
+   * ⚠ Always null for today (`section: "same_day"`), and never also present in `windows`. Its
+   * `surchargeAmount` is always "0.00". Absent from a server that predates 085.
+   */
+  anyTime?: EffyWindowDTO | null;
 }
 
 export interface EffyWindowsDTO {
@@ -200,6 +217,20 @@ export interface EffyWindowsDTO {
    * (the business has switched none on). The customer reads `DELIVERY_WINDOW_WORDS.noWindows`.
    */
   unavailable: "no_windows" | "none_defined" | null;
+  /**
+   * 085 — "as soon as possible": offered when an order without a time can be taken on some day
+   * (today included) and the business has said what to expect. ⚠ Carries NO DAY: the customer is
+   * told the estimate and nothing else. Chosen by sending `deliveryPromise: "asap"` on the intent.
+   */
+  asap?: EffyAsapDTO | null;
+}
+
+/** 085 — what a customer is told and charged for "as soon as possible". */
+export interface EffyAsapDTO {
+  /** The business's words, e.g. "usually within 2–3 days". Print it only as an estimate. */
+  estimate: string;
+  /** The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge. */
+  fee: DeliveryFeeDTO;
 }
 
 /**

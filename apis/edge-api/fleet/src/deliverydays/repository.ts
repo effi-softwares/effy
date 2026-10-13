@@ -1,6 +1,7 @@
 // Repository for the delivery calendar (069 US6; Effy delivery days since 078). Raw parameterized SQL, no ORM.
 
 import { query, withTransaction } from "@effy/edge-shared";
+import { ASAP_ESTIMATE_DEFAULT } from "@effy/edge-shared/delivery";
 import type { DeliveryDaysDTO, DeliveryDaysInput, NonDeliveryDateDTO } from "@effy/shared-types";
 import type pg from "pg";
 
@@ -27,6 +28,7 @@ interface SettingsRow {
   slot_hold_min: number;
   sameday_hub_turnaround_min: number;
   effy_lookahead_days: number;
+  asap_estimate: string;
 }
 
 /** The migrations' own defaults, used only until the operator has saved the delivery settings. */
@@ -35,6 +37,7 @@ const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
   noDeliveryWeekdays: [],
   slotHoldMin: 10,
   hubTurnaroundMin: 60,
+  asapEstimate: ASAP_ESTIMATE_DEFAULT,
 };
 
 async function dates(): Promise<NonDeliveryDateDTO[]> {
@@ -50,7 +53,7 @@ async function dates(): Promise<NonDeliveryDateDTO[]> {
 export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolean }> {
   const res = await query<SettingsRow>(
     `SELECT standard_no_delivery_weekdays,
-            slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days
+            slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days, asap_estimate
        FROM public.delivery_settings WHERE id = 1`,
   );
   const r = res.rows[0];
@@ -60,6 +63,7 @@ export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolea
         slotHoldMin: r.slot_hold_min,
         hubTurnaroundMin: r.sameday_hub_turnaround_min,
         effyLookaheadDays: r.effy_lookahead_days,
+        asapEstimate: r.asap_estimate,
       }
     : DEFAULTS;
   return { dto: { ...settings, dates: await dates() }, configured: Boolean(r) };
@@ -81,9 +85,12 @@ export async function save(
       `UPDATE public.delivery_settings
           SET effy_lookahead_days = $1, standard_no_delivery_weekdays = $2::smallint[],
               slot_hold_min = $3, sameday_hub_turnaround_min = $4,
+              -- 085 — reworded when the request carries one; kept otherwise.
+              asap_estimate = COALESCE($6, asap_estimate),
               updated_by = $5, updated_at = now()
         WHERE id = 1`,
-      [v.effyLookaheadDays, v.noDeliveryWeekdays, v.slotHoldMin, v.hubTurnaroundMin, actorSub],
+      [v.effyLookaheadDays, v.noDeliveryWeekdays, v.slotHoldMin, v.hubTurnaroundMin, actorSub,
+       v.asapEstimate ?? null],
     );
     if (res.rowCount === 0) return false;
     await audit(tx);

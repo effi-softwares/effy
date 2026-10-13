@@ -4,7 +4,7 @@ import { Elements } from "@stripe/react-stripe-js"
 import { ArrowLeft, CreditCard, Lock } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   COVERAGE_REFUSAL_SENTENCE,
@@ -37,8 +37,11 @@ import {
   dayOffset,
   deliveryTypeOf,
   effyWindowsOf,
+  isAsap,
   isFreeDelivery,
-  type ChosenWindow,
+  promiseOf,
+  windowOf,
+  type DeliveryChoice,
 } from "@/lib/delivery-choice"
 import { formatMoney } from "@/lib/money"
 import { getStripe, paymentElementsOptions } from "@/lib/stripe"
@@ -115,7 +118,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // when someone will be home; kept across steps and a failed payment while it is
   // still offered (FR-011); dropped when the address changes — nothing chosen for one address is
   // silently carried to another.
-  const [chosenWindow, setChosenWindow] = useState<ChosenWindow | null>(null)
+  const [chosenWindow, setChosenWindow] = useState<DeliveryChoice | null>(null)
   // 079 — WHERE the order is going, as far as delivery cares: the address AND its postcode. Who
   // delivers, the fee and the windows are all decided from the postcode, so a different one under the
   // same address id is a different destination and must be re-decided like any other (FR-016).
@@ -155,9 +158,20 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // A new quote (a new address, or a re-quote after a refusal) keeps the window only while it is
   // still on offer. ⚠ One that has gone is NOT replaced by another: nothing is selected, and the
   // shopper chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe it.
+  //
+  // 085 — "Standard" is the DEFAULT: the first quote for a destination starts with it chosen
+  // when it is offered, so a shopper with no preference can go straight on. ⚠ Once per destination —
+  // a re-quote after a REFUSED choice never falls back to it: what was refused is not replaced, and
+  // the shopper chooses again.
+  const defaultedFor = useRef<string | null>(null)
   useEffect(() => {
     if (!quote) return
-    setChosenWindow((prev) => carryWindow(quote, prev))
+    const destination = `${selectedId}|${selectedPostcode}`
+    const first = defaultedFor.current !== destination
+    defaultedFor.current = destination
+    setChosenWindow((prev) => carryWindow(quote, prev) ?? (first && effyWindowsOf(quote)?.asap ? { asap: true } : null))
+    // The destination is read at the moment its quote arrives; it is not a reason to run again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote])
 
   // The windows Effy offers, when the quote carries them. Told once per reason when there is
@@ -313,9 +327,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (deliveryType) body.deliveryType = deliveryType
       if (courier) {
         // Nothing to choose: no window, no slot, no day.
+      } else if (isAsap(chosenWindow)) {
+        // 085 — "as soon as possible": no window and no day. The server puts the order on the
+        // earliest day it can, and the shopper is told the estimate.
+        body.deliveryPromise = "asap"
       } else if (chosenWindow) {
         // 078 — ONE window for the order. The server works out same-day or standard from its date,
         // holds a place on that day, and refuses (409 + `code`) if it is no longer on offer.
+        // 085 — a later day with no time is this too: the day's Any-time window.
         body.deliveryWindow = chosenWindow
       }
       // 066 — sent on EVERY placement, including as null: a shopper who cleared the note and pays
@@ -395,9 +414,11 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setError(data.error ?? "We couldn’t start payment. Please try again.")
         return false
       }
-      if (effyWindows && chosenWindow) {
-        const offset = dayOffset(effyWindows, chosenWindow.date)
-        capture({ name: "checkout_window_selected", props: { section: offset === 0 ? "same_day" : "standard", day_offset: offset } })
+      const promise = promiseOf(quote, chosenWindow)
+      if (effyWindows && chosenWindow && promise) {
+        const w = windowOf(chosenWindow)
+        const offset = w ? dayOffset(effyWindows, w.date) : -1
+        capture({ name: "checkout_window_selected", props: { section: offset === 0 ? "same_day" : "standard", day_offset: offset, promise } })
       }
       capture({
         name: "checkout_delivery_instructions_set",
@@ -447,8 +468,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     // 025 FR-042: two columns above `lg`, with the summary STICKY, so the amount payable never
     // scrolls away from the form it belongs to. 084: each step is its own card, numbered as the
     // reference numbers them.
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-      <div className="space-y-6">
+    // ⚠ `grid-cols-1` is not decoration: with no template the one column is `auto`, which grows to its
+    // widest unbreakable row and takes every card past the screen edge with it.
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+      <div className="min-w-0 space-y-6">
         <section className="rounded-lg border bg-card p-5 shadow-xs sm:p-6">
           <h2 className="text-lg font-semibold">
             <span aria-hidden="true">1. </span>
@@ -561,7 +584,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
               {error}
             </Alert>
           )}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <ActionButton type="button" variant="outline" onClick={() => router.push("/cart")} disabled={busy} size="lg">
               <ArrowLeft className="size-4" aria-hidden="true" />
               Back
@@ -574,7 +597,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         </div>
       </div>
 
-      <aside className="rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
+      <aside className="min-w-0 rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
         <h2 className="font-semibold">Order summary</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex items-center justify-between">

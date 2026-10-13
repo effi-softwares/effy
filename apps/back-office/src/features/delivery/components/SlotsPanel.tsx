@@ -57,8 +57,14 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       id: "window",
       header: "Window",
       cell: ({ row }) => (
-        <span className="font-mono font-medium tabular-nums">
-          {row.original.startTime} – {row.original.endTime}
+        <span className="inline-flex items-center gap-2">
+          <span className="font-mono font-medium tabular-nums">
+            {row.original.startTime} – {row.original.endTime}
+          </span>
+          {/* 085 — THE window a day with no time is delivered in; customers are never shown these hours. */}
+          {row.original.anyTime ? (
+            <Badge variant="outline">Any time</Badge>
+          ) : null}
         </span>
       ),
     },
@@ -117,7 +123,8 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
                 <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
                   Edit
                 </Button>
-                {row.original.status === "active" ? (
+                {/* 085 — the Any time window is how a day with no time is sold: it is never switched off. */}
+                {row.original.anyTime ? null : row.original.status === "active" ? (
                   <Button variant="ghost" size="sm" disabled={patch.isPending} onClick={() => void setStatus(row.original, "disabled")}>
                     Switch off
                   </Button>
@@ -261,6 +268,14 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
               </p>
             )}
           </div>
+          {/* 085 — what these fields mean on THE Any time window. */}
+          {slot?.anyTime ? (
+            <p className="text-sm text-muted-foreground">
+              This is the Any time window. Customers who choose a day without a time, or “Standard”, are delivered
+              in it: its hours are when those deliveries go out, and its limit is how many such orders a day takes. It
+              cannot be switched off and never carries a surcharge.
+            </p>
+          ) : null}
           {slot && limited && capacity.trim() !== "" && Number(capacity) < slot.bookedToday ? (
             <p className="text-sm text-muted-foreground">
               {slot.bookedToday} deliveries are already booked today. They keep their place; the window

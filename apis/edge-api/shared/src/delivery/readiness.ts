@@ -66,7 +66,7 @@ export async function goLiveReadiness(q: Queryable): Promise<GoLiveReadiness> {
   // availability-exempt: public.delivery_slot / delivery_collection_run — a schedule's lifecycle.
   const counts = (
     await q.query<{ windows: string; runs: string }>(
-      `SELECT (SELECT count(*) FROM public.delivery_slot WHERE status = 'active') AS windows,
+      `SELECT (SELECT count(*) FROM public.delivery_slot WHERE status = 'active' AND NOT any_time) AS windows,
               (SELECT count(*) FROM public.delivery_collection_run WHERE status = 'active') AS runs`,
     )
   ).rows[0];

@@ -118,6 +118,14 @@ export async function slotIds(): Promise<Set<string>> {
   return new Set((await query<{ id: string }>(`SELECT id::text AS id FROM public.delivery_slot`)).rows.map((r) => r.id));
 }
 
+/**
+ * 085 — the ids of every "Any time" window. ⚠ Such a window is never priced as a window: an order
+ * with no time pays the plain fee (spec FR-017), so it can carry no surcharge.
+ */
+export async function anyTimeSlotIds(): Promise<Set<string>> {
+  return new Set((await query<{ id: string }>(`SELECT id::text AS id FROM public.delivery_slot WHERE any_time`)).rows.map((r) => r.id));
+}
+
 export async function activePlanId(kind: FeePlanKind): Promise<string | null> {
   return (await query<{ id: string }>(`SELECT id::text AS id FROM public.delivery_fee_plan WHERE is_active AND kind = $1`, [kind])).rows[0]?.id ?? null;
 }

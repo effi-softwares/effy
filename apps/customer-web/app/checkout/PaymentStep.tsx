@@ -321,8 +321,8 @@ export function PaymentStep({
       </button>
 
       <h2 className="mt-4 text-xl font-semibold">How would you like to pay?</h2>
-      <div className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex flex-col gap-6">
+      <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="flex min-w-0 flex-col gap-6">
           {/* ⚠ ABOVE the card form, and that ordering is the requirement (FR-008). A wallet is one tap
               against sixteen typed digits; putting it below the form it replaces would bury it. */}
           <WalletRow
@@ -394,7 +394,7 @@ export function PaymentStep({
         </div>
 
         {/* The pay rail. A border-left and space hold it — not a card (Principle V). */}
-        <aside className="flex flex-col gap-5 rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
+        <aside className="flex min-w-0 flex-col gap-5 rounded-lg border bg-card p-5 shadow-xs sm:p-6 lg:sticky lg:top-24">
           <div>
             <span className="block text-xs font-medium uppercase tracking-[0.09em] text-muted-foreground">
               Total due

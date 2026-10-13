@@ -244,3 +244,24 @@ describe("081 — an order Effy moved to courier delivery (or back)", () => {
     expect(screen.queryByTestId("delivery-moved")).not.toBeInTheDocument()
   })
 })
+
+describe("085 — what was sold, as the receipt panel says it", () => {
+  it("a day with no time: the day, and 'any time during the day'", () => {
+    render(<ArrivalPanel stage="confirmed" arrivals={[est()]} delivery={{ type: "effy", courierEstimate: null, promise: "day" }} />)
+    expect(screen.getByText("Any time during the day")).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/\b(am|pm)\b/)
+  })
+
+  it("⚠ as soon as possible: the estimate, said as one, and never a day", () => {
+    render(
+      <ArrivalPanel
+        stage="confirmed"
+        arrivals={[]}
+        delivery={{ type: "effy", courierEstimate: null, promise: "asap", asapEstimate: "usually within 2–3 days" }}
+      />,
+    )
+    expect(screen.getByTestId("arrival-asap")).toHaveTextContent("Standard")
+    expect(screen.getByTestId("arrival-asap")).toHaveTextContent("As soon as possible — usually within 2–3 days")
+    expect(document.body.textContent).not.toMatch(/Mon|Tue|Wed|Thu|Fri|Sat|Sun|today|tomorrow/i)
+  })
+})

@@ -49,6 +49,8 @@ export interface StopRow {
   /** 069 — the customer's delivery window. Null unless this is a drop for a windowed order. */
   window_start: Date | null;
   window_end: Date | null;
+  /** 085 — sold a day with no time. */
+  any_time?: boolean;
 }
 
 export interface PackageRow {
@@ -61,6 +63,8 @@ export interface PackageRow {
   delivered_by: "effy" | "courier";
   window_start: Date | null;
   window_end: Date | null;
+  /** 085 — sold a day with no time. */
+  any_time?: boolean;
   destination_suburb: string | null;
 }
 
