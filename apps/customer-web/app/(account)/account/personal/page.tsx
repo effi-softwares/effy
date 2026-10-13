@@ -28,7 +28,7 @@ async function Body() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Personal info</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Personal info</h1>
         <p className="text-sm text-muted-foreground">Your name, phone and email. We use these for your orders and receipts.</p>
       </div>
       <EmailDeliveryNotice state={customer.emailDelivery} email={customer.email} />

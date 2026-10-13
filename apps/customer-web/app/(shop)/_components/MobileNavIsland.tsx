@@ -3,7 +3,8 @@ import Link from "next/link"
 
 import { Avatar } from "@/components/ui/misc"
 import { initialsFor } from "@/lib/initials"
-import { ACCOUNT_LINKS } from "@/components/header/account-links"
+import { AccountNavLink } from "@/components/chrome/AccountNavLink"
+import { ACCOUNT_LINKS, ACCOUNT_SECTIONS } from "@/components/header/account-links"
 import { getSession } from "@/lib/session"
 
 import { aisleIcon } from "@/components/chrome/aisle-icon"
@@ -11,6 +12,9 @@ import { btnClass } from "@/components/storefront/actions"
 import { aisleHref, getCategoriesSafe, topLevel } from "@/lib/categories"
 
 import { MobileNav } from "./MobileNav"
+
+const drawerLink =
+  "flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent aria-[current=page]:bg-accent"
 
 /**
  * The drawer, with its account level filled in — A DYNAMIC HOLE (research D4, same shape as
@@ -78,6 +82,7 @@ export async function MobileNavIsland() {
     <MobileNav
       aisles={aisles}
       accountTitle={name}
+      accountRoots={ACCOUNT_SECTIONS.map((s) => s.href)}
       accountTrigger={
         <>
           <Avatar initials={initialsFor(session.givenName, session.familyName) ?? "·"} />
@@ -86,16 +91,24 @@ export async function MobileNavIsland() {
       }
       accountPanel={
         <>
+          {/* ⚠ EVERY section of the account area, not the header dropdown's short list: below `lg`
+              the account sidebar is not rendered, so this level IS the account navigation. The
+              entries and their glyphs come from the one shared list the sidebar reads. */}
           <ul className="flex flex-col gap-1">
-            {ACCOUNT_LINKS.map(({ href, label, testId, Icon }) => (
+            {ACCOUNT_SECTIONS.map(({ href, label, Icon, exact }) => (
               <li key={href}>
-                <Link
-                  href={href}
-                  data-testid={testId}
-                  className="flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors hover:bg-accent"
-                >
-                  {/* The same glyph the desktop menu shows — it comes from the shared entry, so the
-                      two cannot disagree. `aria-hidden` because the label already says it. */}
+                <AccountNavLink href={href} exact={exact} className={drawerLink}>
+                  <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  {label}
+                </AccountNavLink>
+              </li>
+            ))}
+          </ul>
+
+          <ul className="mt-2 flex flex-col gap-1 border-t pt-2">
+            {ACCOUNT_LINKS.filter((l) => l.group === "help").map(({ href, label, testId, Icon }) => (
+              <li key={href}>
+                <Link href={href} data-testid={testId} className={drawerLink}>
                   <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   {label}
                 </Link>
@@ -111,7 +124,7 @@ export async function MobileNavIsland() {
             <button
               type="submit"
               data-testid="drawer-sign-out"
-              className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition-colors hover:bg-accent"
+              className={`${drawerLink} w-full text-left`}
             >
               <LogOut className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               Sign out

@@ -41,7 +41,7 @@ export function ListTabs({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           {/* Plain text: a list name is the shopper's own and is never interpreted. */}
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {current && !current.isDefault ? listLabel(current) : "Saved items"}
           </h1>
           <p className="text-sm text-muted-foreground">

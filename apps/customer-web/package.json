@@ -5,9 +5,9 @@
   "private": true,
   "description": "Effy customer storefront — the platform's first PUBLIC surface (specs/011-customer-storefront-web). Next.js 16 App Router, SSR-first, guest-first, SEO-bearing. LOCAL-ONLY this slice (no hosted deploy).",
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "next dev --port 3043",
     "build": "next build",
-    "start": "next start --port 3000",
+    "start": "next start --port 3043",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
