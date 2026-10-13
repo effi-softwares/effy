@@ -15,9 +15,9 @@ import { createHash } from "node:crypto"
 import { dirname, resolve, relative, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { COLOURWAYS, mono } from "../src/colourways.mjs"
+import { COLOURWAYS, WORDMARK, mono, applyWordmark } from "../src/colourways.mjs"
 import { composition, splashGroundFor } from "../src/compositions.mjs"
-import { TARGETS, KIND } from "../src/targets.mjs"
+import { TARGETS, KIND, EXPORTS } from "../src/targets.mjs"
 import { composeSvg } from "./lib/compose.mjs"
 import { measureBBox, renderWithAlphaPolicy, renderPng } from "./lib/raster.mjs"
 import { buildIco } from "./lib/ico.mjs"
@@ -27,6 +27,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const PKG = resolve(here, "..")
 const REPO = resolve(PKG, "../..")
 const MARK = resolve(PKG, "src/logo.svg")
+const WORDMARK_SRC = resolve(PKG, "src/wordmark.svg")
 const MANIFEST = resolve(PKG, "assets.manifest.json")
 
 const sha256 = (buf) => createHash("sha256").update(buf).digest("hex")
@@ -143,6 +144,20 @@ function sidecars() {
   return out
 }
 
+/**
+ * The standalone SVGs: the logo in its light and dark appearance (the word changes, the full stop
+ * stays green) and the icon exactly as the favicons carry it.
+ */
+function exportsOf(mark, bbox) {
+  const wordmark = readFileSync(WORDMARK_SRC, "utf8")
+  const svg = (s) => Buffer.from(s.trimEnd() + "\n", "utf8")
+  return [
+    { path: EXPORTS.logoLight, bytes: svg(applyWordmark(wordmark, WORDMARK.light)) },
+    { path: EXPORTS.logoDark, bytes: svg(applyWordmark(wordmark, WORDMARK.dark)) },
+    { path: EXPORTS.icon, bytes: svg(composeSvg(mark, bbox, COLOURWAYS.tile, composition("web-icon"))) },
+  ]
+}
+
 /** Build the complete asset set in memory. Shared by the generator and the drift check. */
 export async function buildAll() {
   const mark = readFileSync(MARK, "utf8")
@@ -157,6 +172,10 @@ export async function buildAll() {
   }
   for (const s of sidecars()) {
     files.push({ ...s, surface: s.path.split("/")[1], slot: "asset-catalog-sidecar", target: null })
+  }
+
+  for (const e of exportsOf(mark, bbox)) {
+    files.push({ ...e, surface: "brand", slot: "export", target: null })
   }
 
   // Deterministic ordering — never rely on declaration order for the manifest (rule M4).
@@ -175,6 +194,8 @@ export function buildManifest(mark, files) {
         generatedFrom: {
           mark: "src/logo.svg",
           markSha256: sha256(Buffer.from(mark, "utf8")),
+          wordmark: "src/wordmark.svg",
+          wordmarkSha256: sha256(readFileSync(WORDMARK_SRC)),
           generator: "scripts/gen-brand-assets.mjs",
           // Exact versions: determinism is only guaranteed within a version pair (research R8).
           // This is the first thing to compare when a check fails on someone else's machine.

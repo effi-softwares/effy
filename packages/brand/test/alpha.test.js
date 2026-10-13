@@ -54,8 +54,7 @@ describe("every iOS app icon is submission-safe", () => {
 
 describe("driver-mobile is untouched (FR-020)", () => {
   test("no target writes into apps/driver-mobile", () => {
-    // The request named three web and two mobile apps. Driver is still the base KMP template with
-    // no product surface; branding it belongs to the slice that builds it.
+    // The driver app's launcher icon is not produced here; nothing in this package may write to it.
     const driver = TARGETS.filter((t) => t.path.includes("driver-mobile"))
     assert.equal(driver.length, 0, `driver-mobile must be out of scope, found: ${driver.map((t) => t.path)}`)
   })

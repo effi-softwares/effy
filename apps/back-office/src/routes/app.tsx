@@ -70,7 +70,7 @@ function AppShell() {
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
       <ConsoleShell
         headerActions={<LiveStatus />}
-        brand={{ mark: "E", name: "Effy", surface: "Back-Office" }}
+        brand={{ name: "Effy", surface: "Back-Office" }}
         surfaceLabel="Effy Back-Office"
         nav={NAV}
         roles={identity?.roles ?? []}

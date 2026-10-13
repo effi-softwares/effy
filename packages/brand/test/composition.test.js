@@ -13,11 +13,11 @@ const MARK = readFileSync(resolve(PKG, "src/logo.svg"), "utf8")
 
 // The measured bbox (rule V2). Used as a fixture here so the maths is testable without rendering;
 // the generator itself always MEASURES it rather than trusting this constant.
-const BBOX = { x: 136, y: 71.8, w: 244, h: 343.3 }
+const BBOX = { x: 61.8, y: 110, w: 376.5, h: 280 }
 
 describe("padding ↔ occupancy", () => {
   test("padding is the exact inverse of occupancy", () => {
-    for (const occ of [0.5, 0.595, 0.68, 0.8, 0.96]) {
+    for (const occ of [0.34, 0.42, 0.48, 0.52, 0.9]) {
       const p = paddingFor(occ)
       assert.ok(Math.abs(1 / (1 + 2 * p) - occ) < 1e-12, `round-trip failed for ${occ}`)
     }
@@ -45,7 +45,7 @@ describe("rule P1 — Android adaptive-icon safe zone", () => {
 
 describe("rule P4 — composition happens in vector space", () => {
   test("recentres the viewBox on the content bbox, not the authored canvas", () => {
-    const svg = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["ios-app"])
+    const svg = composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["ios-app"])
     const vb = svg.match(/viewBox="([-\d.\s]+)"/)[1].split(/\s+/).map(Number)
     const [ox, oy, side] = vb
 
@@ -62,28 +62,38 @@ describe("rule P4 — composition happens in vector space", () => {
   })
 
   test("bakes a background only where the composition declares one", () => {
-    const withBg = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["ios-app"])
-    const noBg = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["android-fg"])
+    const withBg = composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["ios-app"])
+    const noBg = composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["android-fg"])
     assert.match(withBg, /<rect[^>]+fill="/)
     assert.doesNotMatch(noBg, /<rect/)
   })
 
-  // 026: the composition decides WHETHER there is a ground; a `groundFromColourway` composition lets
-  // the COLOURWAY decide which. That is the whole polarity mechanism, so assert it directly.
   test("a groundFromColourway composition takes the colourway's ground", () => {
-    const light = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["ios-app"])
-    const dark = composeSvg(MARK, BBOX, COLOURWAYS.dark, COMPOSITIONS["ios-app"])
-    assert.match(light, new RegExp(`<rect[^>]+fill="${COLOURWAYS.light.ground}"`))
-    assert.match(dark, new RegExp(`<rect[^>]+fill="${COLOURWAYS.dark.ground}"`))
+    const other = { ...COLOURWAYS.tile, ground: "#123456" }
+    const out = composeSvg(MARK, BBOX, other, COMPOSITIONS["ios-app"])
+    assert.match(out, /<rect[^>]+fill="#123456"/)
   })
 
-  // ...but the two iOS appearance variants must NOT, or customer's dark-appearance icon turns light
-  // and the tinted source loses the black it needs for luminance-derived tinting.
-  test("ios-dark and ios-tinted keep their own ground regardless of colourway", () => {
-    for (const name of ["ios-dark", "ios-tinted"]) {
-      const out = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS[name])
-      assert.match(out, new RegExp(`<rect[^>]+fill="${COMPOSITIONS[name].background}"`))
-    }
+  // The tinted source needs black for iOS's luminance-derived tinting, whatever the colourway says.
+  test("ios-tinted keeps its own ground regardless of colourway", () => {
+    const out = composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["ios-tinted"])
+    assert.match(out, new RegExp(`<rect[^>]+fill="${COMPOSITIONS["ios-tinted"].background}"`))
+  })
+
+  // A rounded corner is only for files a platform shows as they are. Anything the platform masks
+  // itself must be a full-bleed square, or the mask shows the corner's transparency.
+  test("only the as-is files round their tile", () => {
+    const rounded = Object.entries(COMPOSITIONS).filter(([, c]) => c.radius).map(([n]) => n)
+    assert.deepEqual(rounded.sort(), ["android-legacy", "favicon", "web-icon"])
+    assert.match(composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["web-icon"]), /<rect[^>]+rx="/)
+    assert.doesNotMatch(composeSvg(MARK, BBOX, COLOURWAYS.tile, COMPOSITIONS["maskable"]), /rx="/)
+  })
+
+  // The maskable icon's guaranteed-visible region is a circle of 80% diameter.
+  test("the maskable mark fits inside the safe circle", () => {
+    const occ = COMPOSITIONS.maskable.occupancy
+    const diagonal = occ * Math.hypot(1, BBOX.h / BBOX.w)
+    assert.ok(diagonal <= 0.8, `the mark's diagonal is ${diagonal.toFixed(3)} of the icon`)
   })
 })
 
@@ -111,7 +121,7 @@ describe("iOS compositions", () => {
 })
 
 describe("layer compositions preserve alpha (rule P3)", () => {
-  for (const name of ["favicon", "web-icon", "android-fg", "android-mono", "splash"]) {
+  for (const name of ["android-fg", "android-mono", "badge", "splash"]) {
     test(`${name} keeps its alpha channel`, () => {
       assert.equal(COMPOSITIONS[name].alpha, "preserve")
       assert.equal(COMPOSITIONS[name].background, null, `${name} must not bake a ground`)

@@ -59,7 +59,7 @@ describe("ICO container assembly", () => {
 })
 
 describe("the generated favicons", () => {
-  // Three surfaces, three colourways — each must be a well-formed multi-size ICO.
+  // Three surfaces — each must be a well-formed multi-size ICO.
   for (const p of [
     "apps/customer-web/app/favicon.ico",
     "apps/shop-web/public/favicon.ico",

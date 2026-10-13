@@ -33,9 +33,8 @@ function innerMarkup(svg) {
 /**
  * Build the composed wrapper SVG.
  *
- * The authored viewBox (0 0 500 500) is NOT the content bounds — the mark fills roughly half the
- * width and two-thirds of the height, sitting above and right of centre. Recomputing the viewBox
- * around the measured bbox fixes centring, padding and background in one exact step.
+ * The authored viewBox (0 0 500 500) is NOT the content bounds. Recomputing the viewBox around
+ * the measured bbox fixes centring, padding and background in one exact step.
  *
  * @param {string}  markSvg  the authored master
  * @param {object}  bbox     {x, y, w, h} in viewBox units, MEASURED (rule V2), never hand-counted
@@ -54,12 +53,13 @@ export function composeSvg(markSvg, bbox, cw, comp) {
   const coloured = applyColourway(markSvg, cw)
   const body = innerMarkup(coloured)
 
-  // 026 polarity: the composition decides WHETHER there is a ground; when it opts in via
-  // `groundFromColourway`, the colourway decides WHICH. `mono()` carries no ground, so mono targets
-  // fall back to the composition's own value — which is what `ios-tinted`'s black relies on.
+  // The composition decides WHETHER there is a ground; when it opts in via `groundFromColourway`,
+  // the colourway decides WHICH. `mono()` carries no ground, so mono targets fall back to the
+  // composition's own value — which is what `ios-tinted`'s black relies on.
   const ground = comp.groundFromColourway && cw.ground ? cw.ground : comp.background
+  const rx = comp.radius ? ` rx="${r(side * comp.radius)}"` : ""
   const bg = ground
-    ? `<rect x="${r(ox)}" y="${r(oy)}" width="${r(side)}" height="${r(side)}" fill="${ground}"/>`
+    ? `<rect x="${r(ox)}" y="${r(oy)}" width="${r(side)}" height="${r(side)}"${rx} fill="${ground}"/>`
     : ""
 
   return (

@@ -79,7 +79,7 @@ function AppShell() {
     // only while signed in; signing out closes the connection.
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
       <ConsoleShell
-        brand={{ mark: "E", name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
+        brand={{ name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
         surfaceLabel="Effy Shop"
         sidebarWidth="14rem"
         // ⚠ THE PAGE GUTTER IS `--pad` (24px), NOT THE SHELL'S DEFAULT `p-4` (16px). The design sets
