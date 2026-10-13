@@ -1061,7 +1061,7 @@
       "properties": {
         "anyTime": {
           "const": true,
-          "description": "085 — these were sold a day with no time: they ride the \"Any time\" window. Absent otherwise.",
+          "description": "085 — these were sold a day with no time.",
           "type": "boolean"
         },
         "count": {

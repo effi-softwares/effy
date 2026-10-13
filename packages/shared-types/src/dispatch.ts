@@ -326,7 +326,7 @@ export interface DispatchWindowDTO {
   windowEnd: string;
   /** "Wed 14 Oct, 4 pm – 6 pm"; 085 — "Wed 14 Oct · Any time (12 pm – 9 pm)" for the Any time window. */
   label: string;
-  /** 085 — the "Any time" window: its parcels were sold the day, not these hours. Absent otherwise. */
+  /** 085 — the "Any time" window: its parcels were sold the day, not these hours. */
   anyTime?: true;
   /**
    * The window's delivery rounds. ⚠ EMPTY BEFORE ITS DAY, and that is not a gap: a round is planned on

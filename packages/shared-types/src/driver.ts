@@ -369,7 +369,7 @@ export interface HubCheckinEffyGroup {
   windowEnd: string | null;
   label: string;
   count: WireInt;
-  /** 085 — these were sold a day with no time: they ride the "Any time" window. Absent otherwise. */
+  /** 085 — these were sold a day with no time. */
   anyTime?: true;
   /**
    * True when these go out TODAY (their window is today, or they were sold no window): the driver

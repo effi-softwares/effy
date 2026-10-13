@@ -1,4 +1,4 @@
-// POST /orders/v1/orders/{orderId}/delivery-window — give an Effy order another window or day, with no time if staff choose the Any time window (085). Write = admin/manager.
+// POST /orders/v1/orders/{orderId}/delivery-window — give an Effy order another window or day (085). Write = admin/manager.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";

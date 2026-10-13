@@ -159,19 +159,14 @@ function idOf(v: unknown): string {
 async function checkSlots(input: FeePlanInput): Promise<void> {
   if (input.slotPremiums.length === 0) return;
   const [known, anyTime] = await Promise.all([repo.slotIds(), repo.anyTimeSlotIds()]);
-  const missing = input.slotPremiums.filter((p) => !known.has(p.slotId));
-  if (missing.length > 0) {
-    throw new PricingError(422, "invalid_plan", "check the highlighted values", {
-      fields: missing.map((p) => ({ field: `slotPremiums.${input.slotPremiums.indexOf(p)}.slotId`, message: "that delivery window no longer exists" })),
-    });
-  }
-  // 085 — an order with no time pays the plain fee; the Any time window takes no surcharge.
-  const untimed = input.slotPremiums.filter((p) => anyTime.has(p.slotId));
-  if (untimed.length > 0) {
-    throw new PricingError(422, "invalid_plan", "check the highlighted values", {
-      fields: untimed.map((p) => ({ field: `slotPremiums.${input.slotPremiums.indexOf(p)}.slotId`, message: "the Any time window takes no surcharge" })),
-    });
-  }
+  const fields = input.slotPremiums.flatMap((p, i) => {
+    const message = !known.has(p.slotId)
+      ? "that delivery window no longer exists"
+      // 085 — an order with no time pays the plain fee.
+      : anyTime.has(p.slotId) ? "the Any time window takes no surcharge" : null;
+    return message ? [{ field: `slotPremiums.${i}.slotId`, message }] : [];
+  });
+  if (fields.length > 0) throw new PricingError(422, "invalid_plan", "check the highlighted values", { fields });
 }
 
 // ── reads ───────────────────────────────────────────────────────────────────────────────────────

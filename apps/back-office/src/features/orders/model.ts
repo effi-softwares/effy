@@ -1,5 +1,5 @@
 import { DELIVERY_TYPE_WORDS, formatDeliveryDay, formatDeliveryWindow } from "@effy/shared-types";
-import type { AdminOrderDeliveryFilter, DeliveryType, DeliveryTypeChangeDTO, DeliveryTypeReason } from "@effy/shared-types";
+import type { AdminOrderDeliveryFilter, DeliveryPromise, DeliveryType, DeliveryTypeChangeDTO, DeliveryTypeReason } from "@effy/shared-types";
 import type {
   AdminOrderDetailDTO,
   AdminOrderHistoryEntryDTO,
@@ -28,12 +28,12 @@ export interface OrderListParams {
   /** 083 — with `deliveryType: "legacy"`: only the old orders that are still open. */
   stillOpen?: boolean;
   /** 085 — what an Effy order was sold. */
-  promise?: "window" | "day" | "asap";
+  promise?: DeliveryPromise;
   cursor?: string;
 }
 
 /** 085 — what an Effy order was sold, in staff words. */
-export const PROMISE_LABEL: Record<"window" | "day" | "asap", string> = {
+export const PROMISE_LABEL: Record<DeliveryPromise, string> = {
   window: "A time",
   day: "Day only (any time)",
   asap: "As soon as possible",

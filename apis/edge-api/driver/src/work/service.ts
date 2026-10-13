@@ -3,7 +3,7 @@
 // Maps the new round/stop/package model into the 049 wire contract the app is already built against
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
-import { ANY_TIME_LABEL, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
+import { ANY_TIME_LABEL, anyTimeDayLabel, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops } from "@effy/edge-shared";
 
 import { dropStatusOf } from "./drop-status";
@@ -272,8 +272,7 @@ export async function collectionStop(
         deliveredBy: p.delivered_by,
         windowLabel: p.delivered_by === "effy" && p.window_start && p.window_end
           ? p.any_time
-            // 085 — the day and "Any time", never the window's hours.
-            ? `${formatArrival({ promisedFrom: melbourneDate(p.window_start), promisedTo: melbourneDate(p.window_start) }, new Date())} · ${ANY_TIME_LABEL}`
+            ? anyTimeDayLabel(melbourneDate(p.window_start), new Date())
             : formatArrival({ promisedFrom: null, promisedTo: null, windowStart: p.window_start.toISOString(), windowEnd: p.window_end.toISOString() }, new Date())
           : null,
         items: manifest?.items ?? [],

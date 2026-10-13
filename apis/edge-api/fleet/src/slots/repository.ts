@@ -93,7 +93,6 @@ export function isDuplicateWindow(err: unknown): boolean {
   );
 }
 
-
 export async function insertSlot(
   v: Omit<SlotValues, "status" | "anyTime">,
   actorSub: string,

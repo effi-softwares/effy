@@ -159,10 +159,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // still on offer. ⚠ One that has gone is NOT replaced by another: nothing is selected, and the
   // shopper chooses again (FR-010). Skipped while there is no quote, so a refresh cannot wipe it.
   //
-  // 085 — "Standard" is the DEFAULT: the first quote for a destination starts with it chosen
-  // when it is offered, so a shopper with no preference can go straight on. ⚠ Once per destination —
-  // a re-quote after a REFUSED choice never falls back to it: what was refused is not replaced, and
-  // the shopper chooses again.
+  // 085 — "Standard" is the DEFAULT: the first quote for a destination starts with it chosen when
+  // it is offered. ⚠ Once per destination — a re-quote after a REFUSED choice never falls back to it.
   const defaultedFor = useRef<string | null>(null)
   useEffect(() => {
     if (!quote) return
@@ -328,8 +326,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (courier) {
         // Nothing to choose: no window, no slot, no day.
       } else if (isAsap(chosenWindow)) {
-        // 085 — "as soon as possible": no window and no day. The server puts the order on the
-        // earliest day it can, and the shopper is told the estimate.
+        // 085 — "as soon as possible": no window and no day.
         body.deliveryPromise = "asap"
       } else if (chosenWindow) {
         // 078 — ONE window for the order. The server works out same-day or standard from its date,
@@ -415,7 +412,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         return false
       }
       const promise = promiseOf(quote, chosenWindow)
-      if (effyWindows && chosenWindow && promise) {
+      if (effyWindows && promise) {
         const w = windowOf(chosenWindow)
         const offset = w ? dayOffset(effyWindows, w.date) : -1
         capture({ name: "checkout_window_selected", props: { section: offset === 0 ? "same_day" : "standard", day_offset: offset, promise } })

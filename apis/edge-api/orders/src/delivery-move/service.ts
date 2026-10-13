@@ -46,10 +46,7 @@ export function parseTo(v: unknown): DeliveryType | null {
   return v === "courier" || v === "effy" ? v : null;
 }
 
-/**
- * `POST …/delivery-window` (085) — give an Effy order another window or day: a timed window, or the
- * day's Any time window. ⚠ No money moves and who delivers does not change; see `changeEffyWindow`.
- */
+/** `POST …/delivery-window` (085) — give an Effy order another window or day; see `changeEffyWindow`. */
 export async function changeWindow(
   orderId: string,
   body: Record<string, unknown>,
@@ -71,8 +68,7 @@ export async function changeWindow(
   const result = await withTransaction((tx) =>
     changeEffyWindow(tx, { orderId, actorSub, reason, window: { slotId: w!.slotId as string, date: w!.date as string }, expectedUpdatedAt }),
   );
-  // ── After the commit. 071 — the order page (the customer's too: it now says the new promise), the
-  // drivers whose planned work was taken back, the windows screen.
+  // ── After the commit (071): the order page, the drivers whose work was taken back, the windows screen.
   emitMetric(NAMESPACE, "DeliveryWindowChanges", 1, { promise: result.promise });
   await announceOrder(orderId, { slots: true, drivers: true });
   await announceDispatch(result.driverIds);

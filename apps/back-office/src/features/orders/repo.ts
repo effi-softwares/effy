@@ -113,7 +113,7 @@ export function moveDelivery(orderId: string, body: DeliveryMoveRequest): Promis
   return api.post(`/orders/v1/orders/${orderId}/delivery-move`, body);
 }
 
-/** 085 — give an Effy order another window or day (a day with no time when it is the Any time window). */
+/** 085 — give an Effy order another window or day. */
 export function changeDeliveryWindow(
   orderId: string,
   body: { window: { slotId: string; date: string }; reason: string; expectedUpdatedAt: string },

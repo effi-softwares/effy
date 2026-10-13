@@ -61,7 +61,6 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
     noDeliveryWeekdays: [...body.noDeliveryWeekdays].sort((a, b) => a - b),
     slotHoldMin: body.slotHoldMin,
     hubTurnaroundMin: body.hubTurnaroundMin,
-    // 085 — absent keeps the one saved.
     ...(body.asapEstimate === undefined ? {} : { asapEstimate: body.asapEstimate.trim() }),
   };
   const saved = await repo.save(v, actorSub, (tx) =>

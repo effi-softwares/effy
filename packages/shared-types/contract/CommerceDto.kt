@@ -604,10 +604,9 @@ data class CreateCheckoutIntentRequest (
     val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
-     * 085 — "as soon as possible": sent ALONE, with no `deliveryWindow`, when the quote carried
-     * `effyWindows.asap`. The server puts the order on the earliest day it can; the customer is
-     * never told which. Both, or neither, is refused with `slot_required`. (A day with no time
-     * is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)
+     * 085 — "as soon as possible": sent INSTEAD of `deliveryWindow` when the quote carried
+     * `effyWindows.asap`; both, or neither, is refused with `slot_required`. (A day with no
+     * time is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)
      */
     val deliveryPromise: DeliveryPromise? = null,
 
@@ -812,7 +811,7 @@ data class CreateCheckoutIntentResponse (
  *
  * The courier fee for the whole order (077): lines and a total.
  *
- * The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge.
+ * ⚠ Never carries a window or a delivery-today surcharge.
  *
  * The order's delivery charge with this window chosen.
  *
@@ -1016,10 +1015,8 @@ enum class CourierQuoteReason(val value: String) {
 @Serializable
 data class EffyWindowsDTO (
     /**
-     * 085 — "as soon as possible": offered when an order without a time can be taken on some
-     * day (today included) and the business has said what to expect. ⚠ Carries NO DAY: the
-     * customer is told the estimate and nothing else. Chosen by sending `deliveryPromise:
-     * "asap"` on the intent.
+     * 085 — "as soon as possible", when some day can take an order without a time. ⚠ Carries NO
+     * DAY. Chosen by sending `deliveryPromise: "asap"` on the intent.
      */
     val asap: EffyAsapDTO? = null,
 
@@ -1036,9 +1033,6 @@ data class EffyWindowsDTO (
     val unavailable: Unavailable? = null
 )
 
-/**
- * 085 — what a customer is told and charged for "as soon as possible".
- */
 @Serializable
 data class EffyAsapDTO (
     /**
@@ -1047,7 +1041,7 @@ data class EffyAsapDTO (
     val estimate: String,
 
     /**
-     * The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge.
+     * ⚠ Never carries a window or a delivery-today surcharge.
      */
     val fee: DeliveryFeeDTO
 )
@@ -1058,11 +1052,9 @@ data class EffyAsapDTO (
 @Serializable
 data class EffyDayDTO (
     /**
-     * 085 — this day sold with NO TIME: the business's "Any time" window, when it is open on
-     * this day. Sent back as `deliveryWindow` like any window; the order is then promised the
-     * day, not the hours. ⚠ Always null for today (`section: "same_day"`), and never also
-     * present in `windows`. Its `surchargeAmount` is always "0.00". Absent from a server that
-     * predates 085.
+     * 085 — this day sold with NO TIME. Sent back as `deliveryWindow` like any window; the
+     * order is then promised the day, not the hours. ⚠ Always null for today, and never also in
+     * `windows`.
      */
     val anyTime: EffyWindowDTO? = null,
 
@@ -1657,8 +1649,7 @@ data class OrderAddressDTO (
 @Serializable
 data class OrderDeliveryDTO (
     /**
-     * The estimate as it was sold ("usually within 2–3 days"). Present exactly when `promise`
-     * is `asap`.
+     * Present exactly when `promise` is `asap`.
      */
     val asapEstimate: String? = null,
 
@@ -1677,9 +1668,8 @@ data class OrderDeliveryDTO (
     val moved: OrderDeliveryMoveDTO? = null,
 
     /**
-     * 085 — what was sold. Absent on a courier order and on one placed before 085 (read as
-     * `window`). ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries
-     * nothing at all — the customer was told `asapEstimate`, never a day.
+     * 085 — absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`:
+     * the arrival carries the day and no hours. `asap`: no arrival at all, only `asapEstimate`.
      */
     val promise: PromiseEnum? = null,
 
@@ -1724,12 +1714,12 @@ enum class CompensationKind(val value: String) {
 }
 
 /**
- * 085 — what was sold. Absent on a courier order and on one placed before 085 (read as
- * `window`). ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries
- * nothing at all — the customer was told `asapEstimate`, never a day.
+ * 085 — absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`:
+ * the arrival carries the day and no hours. `asap`: no arrival at all, only
+ * `asapEstimate`.
  *
- * 085 — what an order Effy delivers was sold: a time on a day, a day with no time, or "as
- * soon as possible". An order placed before 085 was sold a window.
+ * 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as
+ * possible".
  */
 @Serializable
 enum class PromiseEnum(val value: String) {

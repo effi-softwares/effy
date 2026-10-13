@@ -6,7 +6,7 @@
 
 import { deliveredBySql } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
-import { ANY_TIME_LABEL, formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse } from "@effy/shared-types";
+import { anyTimeDayLabel, formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse } from "@effy/shared-types";
 
 import { assertRoundOpen } from "./open";
 import { NotFoundError } from "./service";
@@ -194,10 +194,9 @@ export async function hubCheckin(
       const g = byWindow.get(key) ?? {
         date: windowStart ? melbourneDate(new Date(windowStart)) : null,
         windowStart, windowEnd,
-        // 085 — an untimed parcel is labelled by its day and "Any time", never by its window's hours.
         label: windowStart && windowEnd
           ? r.any_time
-            ? `${formatArrival({ promisedFrom: melbourneDate(new Date(windowStart)), promisedTo: melbourneDate(new Date(windowStart)) }, at)} · ${ANY_TIME_LABEL}`
+            ? anyTimeDayLabel(melbourneDate(new Date(windowStart)), at)
             : formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, at)
           : "Effy delivery",
         ...(r.any_time ? { anyTime: true as const } : {}),

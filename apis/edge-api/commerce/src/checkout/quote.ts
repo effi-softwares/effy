@@ -75,13 +75,12 @@ export function toEffyWindowsDTO(w: EffyWindowsQuote, baseFee: PricedFee): EffyW
       section: d.isToday ? "same_day" : "standard",
       windows: d.windows.map((s) => windowDTO(s, d.date)),
       closedReason: d.closedReason,
-      // 085 — a later day sold with no time. ⚠ NEVER TODAY: a customer cannot choose "today, any
-      // time" — today is a same-day window. Today's Any-time window is the server's own, for an
-      // "as soon as possible" order, and is not sent.
+      // 085 — ⚠ NEVER TODAY: today's Any-time window is the server's own, for an "as soon as
+      // possible" order, and is not sent.
       anyTime: !d.isToday && d.anyTime ? windowDTO(d.anyTime, d.date) : null,
     })),
     unavailable: w.unavailable,
-    // 085 — the estimate and the fee. ⚠ No day: which one it lands on is never the customer's to know.
+    // 085 — ⚠ No day: which one it lands on is never the customer's to know.
     asap: w.asap ? { estimate: w.asap.estimate, fee: feeDTO(w.asap.fee) } : null,
   };
 }

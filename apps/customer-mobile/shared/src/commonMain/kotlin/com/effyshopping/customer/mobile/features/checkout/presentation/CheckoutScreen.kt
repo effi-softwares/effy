@@ -320,8 +320,8 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
  * When the order arrives, when Effy delivers it (078, 085): ONE choice for the whole order.
  *
  *   Same-day delivery   today's open windows, each with the time to order by;
- *   Standard delivery   the next delivery days — a DAY IS A COMPLETE CHOICE (085) — then "No
- *                       particular day" (as soon as possible), and under the chosen day an optional
+ *   Standard delivery   the next delivery days — a DAY IS A COMPLETE CHOICE (085) — then
+ *                       "Standard" (as soon as possible), and under the chosen day an optional
  *                       "Need a specific time?" that shows that day's windows.
  *
  * ⚠ EVERY WORD IS `effyWindowsView`'S AND [DeliveryWindowWords]' — twins of what the website renders,

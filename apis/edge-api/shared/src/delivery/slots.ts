@@ -22,12 +22,10 @@ export interface Slot {
   cutoff: Clock;
   capacity: number | null;
   /**
-   * 085 — the business's "Any time" window: the one that sells a DAY WITH NO TIME. Its hours are
-   * when untimed deliveries go out and its capacity is the day's limit for them.
+   * 085 — the "Any time" window, which sells a DAY WITH NO TIME.
    *
-   * ⚠ A LABEL, NOT A RULE. `judgeWindow` does not read it, and neither does the hold, the
-   * collection run or the planner: an untimed order is an order in this window, and everything
-   * that is true of a window is true of it. Only what a customer is OFFERED and TOLD differs.
+   * ⚠ A LABEL, NOT A RULE. `judgeWindow`, the hold, the collection run and the planner do not read
+   * it: an untimed order is an order in this window. Only what a customer is OFFERED and TOLD differs.
    */
   anyTime: boolean;
 }
@@ -130,11 +128,11 @@ export interface SlotSettings {
   noWeekdays: number[];
   /** Effy delivery days offered after today (078). */
   effyLookaheadDays: number;
-  /** 085 — what a customer choosing "as soon as possible" is told to expect, in the business's words. */
+  /** 085 — what an "as soon as possible" customer is told to expect. */
   asapEstimate: string;
 }
 
-/** 085 — the estimate until the business rewords it. The same words the column defaults to. */
+/** 085 — the same words the column defaults to. */
 export const ASAP_ESTIMATE_DEFAULT = "usually within 2–3 days";
 
 /**

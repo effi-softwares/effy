@@ -77,12 +77,10 @@ export interface EffyDay extends EffyCalendarDay {
   /** Null exactly when `windows` is not empty. */
   closedReason: EffyDayClosedReason | null;
   /**
-   * 085 — the "Any time" window, when it is open on this day: the day can then be sold with no
-   * time. Null when it is full or closed that day.
+   * 085 — the "Any time" window, when it is open on this day; null when it is full or closed.
    *
-   * ⚠ NEVER IN `windows`. A customer who wants a time is shown times; this one has hours only so
-   * that drivers have a round to deliver it on. ⚠ Set for TODAY too — an "as soon as possible"
-   * order may land there. Whether a customer may CHOOSE today's is the wire's decision, and it says no.
+   * ⚠ NEVER IN `windows`. ⚠ Set for TODAY too — an "as soon as possible" order may land there;
+   * a customer cannot choose it, and the wire does not send it.
    */
   anyTime: OpenSlot | null;
 }
@@ -107,11 +105,10 @@ export function openWindows(
     let anyTime: OpenSlot | null = null;
     let anyFull = false;
     for (const s of slots) {
-      // ⚠ The SAME rule for the Any-time window (085). It is only filed somewhere else.
       const j = judgeWindow(now, d.date, s, load?.get(s.id) ?? 0, runs, bufferMin, turnaroundMin);
       if (s.anyTime) {
         if (j.verdict === "open") anyTime = j.slot;
-        continue; // it says nothing about why the day's TIMED windows are gone
+        continue;
       }
       if (j.verdict === "open") windows.push(j.slot);
       else if (j.verdict === "full") anyFull = true;
@@ -126,10 +123,8 @@ export function openWindows(
  * one is closed or taken (`no_windows`). Null when at least one window can be chosen.
  */
 export function windowsUnavailable(days: readonly EffyDay[], slots: readonly Slot[]): "no_windows" | "none_defined" | null {
-  // 085 — a day that can be sold with no time is something to choose, even with every window taken.
   if (days.some((d) => d.windows.length > 0 || d.anyTime !== null)) return null;
-  // Nothing to choose. `none_defined` is still "the business has no TIMED window" — the Any time
-  // window always exists, so it is not what that alarm is about.
+  // `none_defined` means no TIMED window: the Any time window always exists.
   return slots.some((s) => !s.anyTime) ? "no_windows" : "none_defined";
 }
 

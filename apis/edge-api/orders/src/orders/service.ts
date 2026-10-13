@@ -313,7 +313,6 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     deliveryType: order.delivery_type,
     deliveryTypeReason: order.delivery_type_reason,
     courierEstimate: order.courier_estimate,
-    // 085 — what an Effy order was sold.
     promise: order.delivery_type === "effy" ? (order.delivery_promise ?? "window") : null,
     asapEstimate: order.asap_estimate ?? null,
     courierCollection: order.courier_collection ?? null,

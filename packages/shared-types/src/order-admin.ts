@@ -149,15 +149,12 @@ export interface AdminOrderSummaryDTO {
   needsDriver: boolean;
   /** 079 — who delivers the order. Null for an order placed before 079. */
   deliveryType: DeliveryType | null;
-  /**
-   * 085 — what an Effy order was sold: a time, a day with no time, or "as soon as possible". Null for
-   * a courier order and an order placed before delivery types. Absent from a server older than 085.
-   */
+  /** 085 — what an Effy order was sold. Null for a courier order and one placed before delivery types. */
   promise?: DeliveryPromise | null;
 }
 
 /** 085 — the order list's promise filter (Effy orders only). */
-export const ADMIN_ORDER_PROMISE_FILTERS = ["window", "day", "asap"] as const;
+export const ADMIN_ORDER_PROMISE_FILTERS = ["window", "day", "asap"] as const satisfies readonly DeliveryPromise[];
 
 /** 079 — the order list's delivery filter. `legacy` = placed before 079 (no delivery type). */
 export const ADMIN_ORDER_DELIVERY_FILTERS = ["effy", "courier", "legacy"] as const;
@@ -332,15 +329,11 @@ export interface AdminOrderDetailDTO {
   deliveryType: DeliveryType | null;
   deliveryTypeReason: DeliveryTypeReason | null;
   /** 079 — the courier timeframe as it was SOLD; null unless a courier delivers. */
-  /**
-   * 085 — what an Effy order was sold: a time, a day with no time ("Any time"), or "as soon as
-   * possible". Null for courier and pre-delivery-type orders. Staff see the planned day too (it is on
-   * the packages); the customer of an "as soon as possible" order never does.
-   */
+  courierEstimate: string | null;
+  /** 085 — what an Effy order was sold. Null for courier and pre-delivery-type orders. */
   promise?: DeliveryPromise | null;
   /** 085 — the estimate an "as soon as possible" customer was told. */
   asapEstimate?: string | null;
-  courierEstimate: string | null;
   /** 079 — oldest first. Empty for an order placed before 079: its history is not invented. */
   deliveryTypeHistory: DeliveryTypeChangeDTO[];
   /** 080 — how this courier order's parcels reach the courier; null unless a courier delivers. */

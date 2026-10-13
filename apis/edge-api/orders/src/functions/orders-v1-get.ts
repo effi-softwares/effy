@@ -42,7 +42,7 @@ export const handler = async (
     return problem(400, VALIDATION_FAILED, "Bad filter", "open=true is used with deliveryType=legacy", guard.scope);
   }
 
-  // 085 — what an Effy order was sold. Validated against the shared const.
+  // 085 — what an Effy order was sold.
   if (qs.promise !== undefined && !(ADMIN_ORDER_PROMISE_FILTERS as readonly string[]).includes(qs.promise)) {
     return problem(400, VALIDATION_FAILED, "Bad promise", "promise is window, day or asap", guard.scope);
   }

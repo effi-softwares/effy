@@ -1,4 +1,4 @@
-import type { CourierQuoteDTO, DeliveryFeeDTO, DeliveryQuoteDTO, DeliveryType, EffyWindowDTO, EffyWindowsDTO } from "@effy/shared-types"
+import type { CourierQuoteDTO, DeliveryFeeDTO, DeliveryPromise, DeliveryQuoteDTO, DeliveryType, EffyWindowDTO, EffyWindowsDTO } from "@effy/shared-types"
 
 /**
  * What a quote lets the shopper choose, and what each choice costs (077–079, one checkout since 083).
@@ -71,8 +71,8 @@ export function findWindow(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoic
   return day?.windows.find((x) => x.slotId === w.slotId) ?? null
 }
 
-/** 085 — what the order is promised: a time, a day with no time, or "as soon as possible". */
-export function promiseOf(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): "window" | "day" | "asap" | null {
+/** 085 — what the choice promises; null when nothing is chosen or it is no longer offered. */
+export function promiseOf(quote: DeliveryQuoteDTO | null, chosen: DeliveryChoice | null): DeliveryPromise | null {
   if (isAsap(chosen)) return "asap"
   const w = windowOf(chosen)
   if (!w) return null

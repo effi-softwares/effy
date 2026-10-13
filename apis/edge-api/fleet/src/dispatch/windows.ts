@@ -10,7 +10,7 @@
 
 import { nextRunInstant, packageStatuses, query, type Queryable } from "@effy/edge-shared";
 import { deliveredBySql, effyDays, loadSlotSettings, nonDeliveryDates } from "@effy/edge-shared/delivery";
-import { ANY_TIME_LABEL, formatArrival, formatDeliveryDay, formatDeliveryWindow, type DispatchWindowsResponse } from "@effy/shared-types";
+import { anyTimeDayLabel, formatArrival, formatDeliveryDay, formatDeliveryWindow, type DispatchWindowsResponse } from "@effy/shared-types";
 
 import { loadSchedule } from "../planner/repository";
 import { dueRun, isoDateOf } from "../planner/service";
@@ -111,8 +111,8 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
       w = {
         windowStart, windowEnd,
         label: p.any_time
-          // 085 — the day's untimed parcels: "Any time", with the hours they go out in.
-          ? `${formatArrival({ promisedFrom: date, promisedTo: date }, now)} · ${ANY_TIME_LABEL} (${formatDeliveryWindow({ startAt: windowStart, endAt: windowEnd })})`
+          // 085 — the day's untimed parcels, with the hours they go out in.
+          ? `${anyTimeDayLabel(date, now)} (${formatDeliveryWindow({ startAt: windowStart, endAt: windowEnd })})`
           : formatArrival({ promisedFrom: null, promisedTo: null, windowStart, windowEnd }, now),
         ...(p.any_time ? { anyTime: true as const } : {}),
         rounds: rounds

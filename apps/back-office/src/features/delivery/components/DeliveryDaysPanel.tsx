@@ -75,7 +75,6 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         noDeliveryWeekdays: closed,
         slotHoldMin: Number(hold),
         hubTurnaroundMin: Number(turnaround),
-        // 085 — what "Standard" customers are told. The server refuses an empty one.
         asapEstimate: asapEstimate.trim(),
       });
       setSaved(true);

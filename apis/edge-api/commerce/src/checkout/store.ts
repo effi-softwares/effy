@@ -7,6 +7,7 @@ import {
   judgeWindow, loadSlotSettings, lockSlot, collectionSchedule, slotLoad, type SlotVerdict,
 } from "@effy/edge-shared/delivery";
 import type { PaymentMethodSummary } from "@effy/edge-shared/payments";
+import type { DeliveryPromise } from "@effy/shared-types";
 import { hold as holdLedgerPoints, loadSettings as loadPointsSettings, usable as usablePoints } from "@effy/edge-shared/points";
 import { randomBytes } from "node:crypto";
 
@@ -51,11 +52,8 @@ export interface SoldDelivery {
   courierServiceId?: string | null;
   /** 080 — how the order's parcels reach the courier; null unless a courier delivers. */
   courierCollection?: "hub" | "supplier" | null;
-  /**
-   * 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as
-   * possible". Null for a courier order.
-   */
-  promise?: "window" | "day" | "asap" | null;
+  /** 085 — what an Effy order was sold; null for a courier order. */
+  promise?: DeliveryPromise | null;
   /** 085 — the estimate the customer was told; set exactly when `promise` is `asap`. */
   asapEstimate?: string | null;
 }
@@ -414,8 +412,7 @@ UPDATE public."order"
        delivery_type = $4, delivery_type_reason = $5, courier_estimate = $6,
        -- 080 — the service whose timeframe the customer was told, and how the parcels reach the courier.
        courier_service_id = $7::uuid, courier_collection = $8,
-       -- 085 — WHAT WAS SOLD: a window, a day with no time, or "as soon as possible" with the
-       -- estimate the customer was told. Rewritten with the type on every attempt, for the same reason.
+       -- 085 — what was sold; rewritten with the type on every attempt, for the same reason.
        delivery_promise = $9, asap_estimate = $10,
        updated_at = now()
 WHERE id = $1`,

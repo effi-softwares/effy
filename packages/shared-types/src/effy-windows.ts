@@ -35,11 +35,7 @@ export interface EffyDayView {
   /** Why there is nothing to choose that day; null when there is. */
   sentence: string | null;
   windows: EffyWindowLine[];
-  /**
-   * 085 — the day can be chosen with NO TIME: what to send back as `deliveryWindow` for that. Null
-   * when it cannot (today, always; a day with no room left for an untimed order) — the customer
-   * must then choose one of `windows`.
-   */
+  /** 085 — what to send as `deliveryWindow` to choose the day with NO TIME; null when it cannot be (today, always). */
   anyTime: { slotId: string; date: string } | null;
 }
 
@@ -52,7 +48,7 @@ export interface EffyWindowsView {
   today: EffyDayView | null;
   /** The following delivery days, under "Standard delivery". */
   later: EffyDayView[];
-  /** 085 — "as soon as possible", when it is offered: its two lines and the business's estimate. */
+  /** 085 — "as soon as possible", when it is offered. */
   asap: { title: string; hint: string; estimate: string } | null;
 }
 

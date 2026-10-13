@@ -70,9 +70,8 @@ export interface EffyWindowsQuote {
   /** Why no day has a window; null when one can be chosen. */
   unavailable: "no_windows" | "none_defined" | null;
   /**
-   * 085 — "as soon as possible", when it can be sold: some day (today included) can take an order
-   * with no time. Null only when every day's untimed room is taken or closed. ⚠ No day: which one the order lands
-   * on is decided at the payment-intent call and is never the customer's to know.
+   * 085 — "as soon as possible", when some day (today included) can take an order with no time.
+   * ⚠ No day: that is decided at the payment-intent call and is never the customer's to know.
    */
   asap: { estimate: string; fee: PricedFee } | null;
 }
@@ -268,17 +267,14 @@ export async function quote(
     }
   }
 
-  // The order's charge on a plain later day, with nothing added for a window.
   const baseFee = priceEffyOrder(plan, postcode, km, grams, basketCents, null, false);
   const fees = new Map<string, PricedFee>();
   for (const d of days) {
     for (const w of d.windows) fees.set(windowKey(w.id, d.date), priceEffyOrder(plan, postcode, km, grams, basketCents, w.id, d.isToday));
-    // 085 — an order with NO TIME pays the plain fee: no window surcharge, and no "Delivery today"
-    // premium even when an "as soon as possible" order lands today (FR-017). ⚠ That is this one
-    // line and not a branch in the fee sum: the Any-time window is simply never priced as a window.
+    // 085 — an order with NO TIME pays the plain fee, even when it lands today (FR-017): the
+    // Any-time window is never priced as a window.
     if (d.anyTime) fees.set(windowKey(d.anyTime.id, d.date), baseFee);
   }
-  // "As soon as possible" is offered whenever some day can take an order with no time.
   const asap = days.some((d) => d.anyTime !== null) ? { estimate: settings.asapEstimate, fee: baseFee } : null;
 
   return {

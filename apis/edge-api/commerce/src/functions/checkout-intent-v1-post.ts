@@ -54,8 +54,7 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     deliveryWindow = { slotId: w.slotId, date: w.date };
   }
 
-  // 085 — "as soon as possible", sent instead of a window. Anything else in this field is refused:
-  // a day with no time is a `deliveryWindow`, not a second spelling here.
+  // 085 — "as soon as possible", sent instead of a window. A day with no time is a `deliveryWindow`.
   const rawPromise: unknown = body.deliveryPromise;
   if (rawPromise !== undefined && rawPromise !== null && rawPromise !== "asap") {
     return validationFailed(scope, "deliveryPromise must be asap");

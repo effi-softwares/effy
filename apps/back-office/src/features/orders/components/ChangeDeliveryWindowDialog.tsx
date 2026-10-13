@@ -12,11 +12,10 @@ const key = (w: { slotId: string; date: string }) => `${w.slotId}|${w.date}`;
 
 /**
  * "Change day or time…" (085) — give an order Effy delivers another window, or a day with no time
- * (the "Any time" entries). A customer rang to ask for a time after all, or a day cannot be met.
+ * (the "Any time" entries).
  *
- * ⚠ ONLY WHAT THE ORDER COULD BE SOLD NOW — the same server list as "Deliver by Effy", from the
- * checkout's own calendar and rule. ⚠ No money moves and who delivers does not change. The customer's
- * order page says the new promise as soon as it is saved.
+ * ⚠ ONLY WHAT THE ORDER COULD BE SOLD NOW — the same server list as "Deliver by Effy". ⚠ No money
+ * moves and who delivers does not change.
  */
 export function ChangeDeliveryWindowDialog({ orderId, open, onOpenChange }: { orderId: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const preview = useQuery(deliveryMovePreviewQuery(orderId, "effy", open));

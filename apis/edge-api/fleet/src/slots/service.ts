@@ -54,10 +54,7 @@ const DUPLICATE = () =>
   conflict("a slot with this window already exists", [
     { field: "startTime", message: "there is already a slot with these start and end times" },
   ]);
-/**
- * 085 — THE Any time window is how a day with no time and "as soon as possible" are sold. Its hours
- * and its limit can be changed; it is never switched off.
- */
+/** 085 — the Any time window is how a day with no time and "as soon as possible" are sold. */
 const ANY_TIME_ALWAYS_ON = () =>
   conflict("the Any time window cannot be switched off", [
     { field: "status", message: "customers choosing a day without a time are delivered in it — change its hours or its limit instead" },

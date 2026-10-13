@@ -53,10 +53,9 @@ export interface CreateCheckoutIntentRequest {
    */
   deliveryWindow?: { slotId: string; date: string } | null;
   /**
-   * 085 — "as soon as possible": sent ALONE, with no `deliveryWindow`, when the quote carried
-   * `effyWindows.asap`. The server puts the order on the earliest day it can; the customer is never
-   * told which. Both, or neither, is refused with `slot_required`. (A day with no time is NOT this:
-   * it is `deliveryWindow` naming that day's `anyTime`.)
+   * 085 — "as soon as possible": sent INSTEAD of `deliveryWindow` when the quote carried
+   * `effyWindows.asap`; both, or neither, is refused with `slot_required`. (A day with no time is
+   * NOT this: it is `deliveryWindow` naming that day's `anyTime`.)
    */
   deliveryPromise?: "asap";
   /**

@@ -1,6 +1,7 @@
 // The customer's order history and receipt: SQL only. Every read is scoped to the order's owner
 // at the first statement; nothing here selects a shop.
 import { pooled, type Queryable } from "@effy/edge-shared";
+import type { DeliveryPromise } from "@effy/shared-types";
 
 export interface SummaryRow {
   id: string;
@@ -14,7 +15,7 @@ export interface SummaryRow {
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
   /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
-  delivery_promise?: "window" | "day" | "asap" | null;
+  delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
   /**
    * 084 — what the order list shows beside the totals. All optional, so a fake (or a row from a
@@ -65,7 +66,7 @@ export interface OrderRow {
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
   /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
-  delivery_promise?: "window" | "day" | "asap" | null;
+  delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
   /**
    * 080 — what tracking a customer may be shown: how many parcels the order is, how many have gone

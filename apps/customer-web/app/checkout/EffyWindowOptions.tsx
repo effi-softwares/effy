@@ -29,8 +29,8 @@ import { formatMoney } from "@/lib/money"
  * ⚠ EVERY WORD HERE IS `effyWindowsView`'S AND `DELIVERY_WINDOW_WORDS`', NOT THIS FILE'S. The
  * customer app renders the same function's Kotlin twin, pinned to the same fixture.
  *
- * ⚠ THIS COMPONENT SELECTS NOTHING. What starts chosen is the checkout's decision (085: "No
- * particular day", once per destination); a time or a day is never chosen for the shopper.
+ * ⚠ THIS COMPONENT SELECTS NOTHING. What starts chosen is the checkout's decision (085:
+ * "Standard", once per destination); a time or a day is never chosen for the shopper.
  *
  * ⚠ ONE QUESTION, ONE ANSWER. Today's windows, the days and "Standard" are ONE radio group:
  * at most one is ever checked, by the platform's own rules. A time on a day is a refinement of that

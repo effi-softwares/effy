@@ -80,7 +80,6 @@ export function DeliveryTypeSection({ order, formatDateTime, canChangeCollection
         <div className="flex flex-wrap gap-2">
           {order.deliveryType === "effy" ? (
             <>
-              {/* 085 — another window, or a day with no time. */}
               <Button variant="outline" size="sm" onClick={() => setMoving("retime")}>Change day or time…</Button>
               <Button variant="outline" size="sm" onClick={() => setMoving("courier")}>Send by courier…</Button>
             </>

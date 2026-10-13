@@ -909,7 +909,7 @@
         },
         "deliveryPromise": {
           "const": "asap",
-          "description": "085 — \"as soon as possible\": sent ALONE, with no `deliveryWindow`, when the quote carried `effyWindows.asap`. The server puts the order on the earliest day it can; the customer is never told which. Both, or neither, is refused with `slot_required`. (A day with no time is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)",
+          "description": "085 — \"as soon as possible\": sent INSTEAD of `deliveryWindow` when the quote carried `effyWindows.asap`; both, or neither, is refused with `slot_required`. (A day with no time is NOT this: it is `deliveryWindow` naming that day's `anyTime`.)",
           "type": "string"
         },
         "deliveryType": {
@@ -1313,7 +1313,7 @@
       "type": "object"
     },
     "DeliveryPromise": {
-      "description": "085 — what an order Effy delivers was sold: a time on a day, a day with no time, or \"as soon as possible\". An order placed before 085 was sold a window.",
+      "description": "085 — what an Effy order was sold: a time on a day, a day with no time, or \"as soon as possible\".",
       "enum": [
         "window",
         "day",
@@ -1383,7 +1383,6 @@
     },
     "EffyAsapDTO": {
       "additionalProperties": false,
-      "description": "085 — what a customer is told and charged for \"as soon as possible\".",
       "properties": {
         "estimate": {
           "description": "The business's words, e.g. \"usually within 2–3 days\". Print it only as an estimate.",
@@ -1391,7 +1390,7 @@
         },
         "fee": {
           "$ref": "#/definitions/DeliveryFeeDTO",
-          "description": "The order's delivery charge. ⚠ Never carries a window or a delivery-today surcharge."
+          "description": "⚠ Never carries a window or a delivery-today surcharge."
         }
       },
       "required": [
@@ -1422,7 +1421,7 @@
               "type": "null"
             }
           ],
-          "description": "085 — this day sold with NO TIME: the business's \"Any time\" window, when it is open on this day. Sent back as `deliveryWindow` like any window; the order is then promised the day, not the hours. ⚠ Always null for today (`section: \"same_day\"`), and never also present in `windows`. Its `surchargeAmount` is always \"0.00\". Absent from a server that predates 085."
+          "description": "085 — this day sold with NO TIME. Sent back as `deliveryWindow` like any window; the order is then promised the day, not the hours. ⚠ Always null for today, and never also in `windows`."
         },
         "closedReason": {
           "anyOf": [
@@ -1512,7 +1511,7 @@
               "type": "null"
             }
           ],
-          "description": "085 — \"as soon as possible\": offered when an order without a time can be taken on some day (today included) and the business has said what to expect. ⚠ Carries NO DAY: the customer is told the estimate and nothing else. Chosen by sending `deliveryPromise: \"asap\"` on the intent."
+          "description": "085 — \"as soon as possible\", when some day can take an order without a time. ⚠ Carries NO DAY. Chosen by sending `deliveryPromise: \"asap\"` on the intent."
         },
         "days": {
           "description": "Today first, then the next delivery days. Never empty.",
@@ -1956,7 +1955,7 @@
       "description": "An order's delivery, as a customer contract carries it. ABSENT on an order placed before 079.",
       "properties": {
         "asapEstimate": {
-          "description": "The estimate as it was sold (\"usually within 2–3 days\"). Present exactly when `promise` is `asap`.",
+          "description": "Present exactly when `promise` is `asap`.",
           "type": "string"
         },
         "courierEstimate": {
@@ -1972,7 +1971,7 @@
         },
         "promise": {
           "$ref": "#/definitions/DeliveryPromise",
-          "description": "085 — what was sold. Absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`: the order's arrival carries the day and NO hours. `asap`: it carries nothing at all — the customer was told `asapEstimate`, never a day."
+          "description": "085 — absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`: the arrival carries the day and no hours. `asap`: no arrival at all, only `asapEstimate`."
         },
         "tracking": {
           "anyOf": [

@@ -19,12 +19,14 @@ import {
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
 
-import { ADMIN_ORDER_DELIVERY_FILTERS, type AdminOrderDeliveryFilter } from "@effy/shared-types";
+import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type AdminOrderDeliveryFilter, type DeliveryPromise } from "@effy/shared-types";
 
 import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderSummary } from "./model";
 import { ordersListQuery } from "./queries";
 
 const ALL = "all";
+/** 085 — prefixes a delivery-filter value that names what an Effy order was sold. */
+const PROMISE = "promise:";
 const NEEDS_DRIVER = "needs_driver";
 
 /**
@@ -156,8 +158,8 @@ export function OrdersListScreen() {
       needsDriver: awaiting === NEEDS_DRIVER ? true : undefined,
       // 079 — who delivers the order.
       // 085 — "promise:day" etc. are Effy orders by what they were sold.
-      deliveryType: delivery === ALL || delivery.startsWith("promise:") ? undefined : (delivery as AdminOrderDeliveryFilter),
-      promise: delivery.startsWith("promise:") ? (delivery.slice("promise:".length) as "window" | "day" | "asap") : undefined,
+      deliveryType: delivery === ALL || delivery.startsWith(PROMISE) ? undefined : (delivery as AdminOrderDeliveryFilter),
+      promise: delivery.startsWith(PROMISE) ? (delivery.slice(PROMISE.length) as DeliveryPromise) : undefined,
       stillOpen: delivery === "legacy" && stillOpen ? true : undefined,
       cursor: cursors[cursors.length - 1],
     }),
@@ -224,8 +226,8 @@ export function OrdersListScreen() {
                 {DELIVERY_FILTER_LABEL[f]}
               </SelectItem>
             ))}
-            {(["window", "day", "asap"] as const).map((p) => (
-              <SelectItem key={p} value={`promise:${p}`}>
+            {ADMIN_ORDER_PROMISE_FILTERS.map((p) => (
+              <SelectItem key={p} value={`${PROMISE}${p}`}>
                 {DELIVERY_FILTER_LABEL.effy} — {PROMISE_LABEL[p]}
               </SelectItem>
             ))}

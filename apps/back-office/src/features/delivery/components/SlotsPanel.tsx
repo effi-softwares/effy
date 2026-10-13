@@ -61,10 +61,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
           <span className="font-mono font-medium tabular-nums">
             {row.original.startTime} – {row.original.endTime}
           </span>
-          {/* 085 — THE window a day with no time is delivered in; customers are never shown these hours. */}
-          {row.original.anyTime ? (
-            <Badge variant="outline">Any time</Badge>
-          ) : null}
+          {row.original.anyTime ? <Badge variant="outline">Any time</Badge> : null}
         </span>
       ),
     },
@@ -268,7 +265,6 @@ function SlotDialog({ slot, onClose }: { slot: DeliverySlotDTO | null; onClose: 
               </p>
             )}
           </div>
-          {/* 085 — what these fields mean on THE Any time window. */}
           {slot?.anyTime ? (
             <p className="text-sm text-muted-foreground">
               This is the Any time window. Customers who choose a day without a time, or “Standard”, are delivered

@@ -7,7 +7,7 @@ import {
   operatingStamp, parseCents, stageFor, type RequestScope,
 } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
-import { distinctArrivals, type CustomerRefundDTO, type OrderDeliveryDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
+import { distinctArrivals, type CustomerRefundDTO, type DeliveryPromise, type OrderDeliveryDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
 import type { OrderRow, OrdersRepository, RefundRow } from "./repository";
@@ -85,7 +85,7 @@ export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_a
 function deliveryOf(row: {
   delivery_type?: "effy" | "courier" | null;
   courier_estimate?: string | null;
-  delivery_promise?: "window" | "day" | "asap" | null;
+  delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
   parcel_count?: number;
   consignments_out?: number;
@@ -114,12 +114,11 @@ function deliveryOf(row: {
 
 /**
  * 085 — the arrival a customer may be told, from what the order was SOLD — not from what its
- * packages carry. ⚠ A day with no time rides the Any-time window, so its packages have hours; the
- * customer was promised the day and is never shown them. ⚠ "As soon as possible" was told an
- * estimate: no day and no hours at all, like a courier order (the planned day is staff's business).
+ * packages carry. ⚠ A day with no time rides the Any-time window, so its packages have hours the
+ * customer is never shown. ⚠ "As soon as possible" was told an estimate: no day and no hours.
  */
 function soldArrivals<T extends { windowStart: string | null; windowEnd: string | null }>(
-  row: { delivery_type?: "effy" | "courier" | null; delivery_promise?: "window" | "day" | "asap" | null },
+  row: { delivery_type?: "effy" | "courier" | null; delivery_promise?: DeliveryPromise | null },
   arrivals: T[],
 ): T[] {
   if (row.delivery_type === "courier" || row.delivery_promise === "asap") return [];
@@ -289,8 +288,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
         // ⚠ 079 — EMPTY for a courier order. It has no window and no day, and its packages' own
         // word for the delivery is routing ("standard"), not what the customer was sold: sent on, a
         // client built before 079 would print "Standard delivery" for a parcel a courier is carrying.
-        // ⚠ 085 — and from what was SOLD (`soldArrivals`): a day's hours and an "as soon as
-        // possible" order's planned day are never the customer's.
+        // ⚠ 085 — and from what was SOLD (`soldArrivals`).
         arrivalEstimates: distinctArrivals(soldArrivals(row, arrivals.map((a) => ({
           method: a.method, promisedFrom: a.promised_from, promisedTo: a.promised_to,
           windowStart: a.window_start ? operatingStamp(a.window_start) : null,
