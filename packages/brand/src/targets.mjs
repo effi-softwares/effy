@@ -1,5 +1,7 @@
 // TARGETS — the full surface × slot × colourway × composition × output-path matrix (024 contract §3).
 //
+// Every surface carries the ONE `tile` colourway: the same "e." icon everywhere.
+//
 // ⚠ Every path below is fixed BY THE CONSUMING PLATFORM. Xcode asset catalogs, Gradle resource
 // merging and Next.js file-convention metadata each discover these by convention. Moving one
 // somewhere "tidier" does not fail loudly — it produces a build with no icon.
@@ -25,6 +27,17 @@ const ANDROID_MIPMAP = [
   ["xxxhdpi", 192],
 ]
 
+/**
+ * The standalone SVGs — the logo in both appearances and the icon — for use outside the apps
+ * (a deck, a store listing, an email signature). Written by the generator like everything else.
+ */
+export const EXPORT_DIR = "packages/brand/svg"
+export const EXPORTS = {
+  logoLight: `${EXPORT_DIR}/effy-logo-light.svg`,
+  logoDark: `${EXPORT_DIR}/effy-logo-dark.svg`,
+  icon: `${EXPORT_DIR}/effy-icon.svg`,
+}
+
 /** Android + iOS assets for one mobile app. `app` is the apps/ directory name. */
 function mobileTargets(app, surface, colourway) {
   const res = `apps/${app}/androidApp/src/main/res`
@@ -47,8 +60,7 @@ function mobileTargets(app, surface, colourway) {
     colourway,
     composition: "android-fg",
     kind: KIND.VD_SOLID,
-    // 026: the adaptive BACKGROUND layer is the tile the mark sits on, so it carries the polarity.
-    // It was a hardcoded white; a white tile under shop's light mark would erase the mark entirely.
+    // The adaptive BACKGROUND layer is the tile the mark sits on.
     solid: COLOURWAYS[colourway].ground,
     sizeDp: 108,
     path: `${res}/drawable/ic_launcher_background.xml`,
@@ -58,9 +70,8 @@ function mobileTargets(app, surface, colourway) {
     slot: "android-adaptive-monochrome",
     colourway,
     composition: "android-mono",
-    // Android re-tints this layer itself, so the authored colour only has to be opaque and let the
-    // silhouette read. It is the outline slot's value, not the retired navy.
-    mono: "#0A0A0A",
+    // Android re-tints this layer itself, so the authored colour only has to be opaque.
+    mono: "#09090b",
     kind: KIND.VD,
     sizeDp: 108,
     path: `${res}/drawable/ic_launcher_monochrome.xml`,
@@ -189,13 +200,13 @@ function viteWebTargets(app, surface, colourway, pwa = false) {
         // ⚠ THE NOTIFICATION BADGE — a separate asset, not a resized icon. Android renders
         // `badge` as a MONOCHROME silhouette in the status bar: every non-transparent pixel becomes
         // white and everything else is dropped. A full-colour icon used here arrives as a solid
-        // white blob. The android-mono composition is the mark already reduced to one channel, which
-        // is exactly what this needs, and 024 authored it for Android's themed-icon layer.
+        // white blob — so this is the mark alone, in one colour, on nothing.
         {
           surface,
           slot: "pwa-badge",
           colourway,
-          composition: "android-mono",
+          composition: "badge",
+          mono: "#ffffff",
           kind: KIND.PNG,
           sizes: [96],
           path: `${pub}/notification-badge-96.png`,
@@ -233,11 +244,11 @@ function viteWebTargets(app, surface, colourway, pwa = false) {
 }
 
 export const TARGETS = [
-  // ── customer-web — Next.js App Router file conventions (Light polarity) ───────────────────────
+  // ── customer-web — Next.js App Router file conventions ────────────────────────────────────────
   {
     surface: "customer-web",
     slot: "favicon-svg",
-    colourway: "light",
+    colourway: "tile",
     composition: "web-icon",
     kind: KIND.SVG,
     path: "apps/customer-web/app/icon.svg",
@@ -245,7 +256,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "favicon-ico",
-    colourway: "light",
+    colourway: "tile",
     composition: "favicon",
     kind: KIND.ICO,
     sizes: [16, 32, 48],
@@ -254,7 +265,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "apple-touch-icon",
-    colourway: "light",
+    colourway: "tile",
     composition: "apple-touch",
     kind: KIND.PNG,
     sizes: [180],
@@ -263,7 +274,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-192",
-    colourway: "light",
+    colourway: "tile",
     composition: "maskable",
     kind: KIND.PNG,
     sizes: [192],
@@ -272,7 +283,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-512",
-    colourway: "light",
+    colourway: "tile",
     composition: "maskable",
     kind: KIND.PNG,
     sizes: [512],
@@ -284,7 +295,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-any-192",
-    colourway: "light",
+    colourway: "tile",
     composition: "web-icon",
     kind: KIND.PNG,
     sizes: [192],
@@ -293,23 +304,22 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-any-512",
-    colourway: "light",
+    colourway: "tile",
     composition: "web-icon",
     kind: KIND.PNG,
     sizes: [512],
     path: "apps/customer-web/public/web-app-icon-512.png",
   },
 
-  // ── shop-web (Dark polarity) · back-office (Mid) ──────────────────────────────────────────────
+  // ── shop-web · back-office ────────────────────────────────────────────────────────────────────
   // ⚠ 059 — shop-web is the platform's first installable console, so it is the only Vite surface
-  // that takes the manifest icons. back-office passes nothing and its assets stay byte-identical,
-  // which is the proof this generalisation changed only the surface that asked for it.
-  ...viteWebTargets("shop-web", "shop-web", "dark", true),
-  ...viteWebTargets("back-office", "back-office", "mid"),
+  // that takes the manifest icons.
+  ...viteWebTargets("shop-web", "shop-web", "tile", true),
+  ...viteWebTargets("back-office", "back-office", "tile"),
 
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────
-  ...mobileTargets("customer-mobile", "customer-mobile", "light"),
-  ...mobileTargets("shop-mobile", "shop-mobile", "dark"),
+  ...mobileTargets("customer-mobile", "customer-mobile", "tile"),
+  ...mobileTargets("shop-mobile", "shop-mobile", "tile"),
 ]
 
 // ⚠ RULE T4 — collisions mean silent overwrite ordering. Fail at import time, not at write time.
@@ -338,6 +348,7 @@ export const TARGETS = [
  * check pass.
  */
 export const MANAGED_DIRS = [
+  EXPORT_DIR,
   "apps/customer-web/public",
   "apps/shop-web/public",
   "apps/back-office/public",

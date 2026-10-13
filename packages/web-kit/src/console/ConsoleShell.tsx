@@ -30,7 +30,7 @@ import type { NavItem } from "./nav";
  * one shell rather than two near-identical copies. No DI framework: the app wires it by hand.
  */
 export interface ConsoleShellProps<TRole extends string> {
-  brand: { mark: string; name: string; surface: string };
+  brand: { name: string; surface: string };
   /** The static left breadcrumb, e.g. "Effy Shop". */
   surfaceLabel: string;
   nav: readonly NavItem<TRole>[];

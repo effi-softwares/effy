@@ -38,8 +38,17 @@ mobile apps keep their identity.
   aisle with nothing filed directly in it was titled "All products".
 - ⚠ **NOT DONE**: the payment step is restyled only — it is still the split card fields, not the Payment
   Element the handoff describes (a money-path change). No "Emails from Effy" switches, no mobile-number
-  verification (texted codes are held), no newsletter "unsubscribed" page, no receipt download. The
-  app icons: see the open question in tasks.md — `brand:check` is RED on `apps/customer-web/app/icon.svg`.
+  verification (texted codes are held), no newsletter "unsubscribed" page, no receipt download.
+- ⚠ **THE LOGO IS NOW THE PLATFORM'S (operator, 2026-10-13).** The "effy." wordmark and its "e." icon
+  (white letter, green square, near-black tile) replaced the bag mark on every surface `packages/brand`
+  generates for: the three web apps' favicons and PWA icons, and the customer and shop mobile launcher
+  icons and splash (ground now `#09090b`). ONE colourway — the three per-surface colourways are gone, so
+  the customer, shop and back-office icons are identical. Two authored vectors (`src/wordmark.svg`,
+  `src/logo.svg`); the logo as files (light / dark — white word, same green / icon) is generated into
+  `packages/brand/svg/`. The consoles' sidebar tile is the icon (`/icon.svg`), not a letter.
+  ⚠ Android's `splash_background` (four `colors.xml`) is hand-maintained and must equal `SPLASH_GROUND`.
+  **Not verified on a device**: the mobile icons and splash were regenerated and pass the package's
+  checks; neither app was built or run.
 - ⚠ **NOT VERIFIED**: signed-in pages were checked on previews with sample data, not with a real account;
   e2e was not run and its specs still describe the old structure; `next build` and the bundle budget
   were not re-run (five guest routes were over budget at last measure).

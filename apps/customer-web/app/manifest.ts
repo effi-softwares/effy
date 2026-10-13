@@ -26,9 +26,9 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Shop fresh groceries and everyday essentials from Effy, delivered to your door.",
     start_url: "/",
     display: "standalone",
-    // The monochrome accent (constitution Principle V, v1.11.0). There is no brand hue: near-black
-    // is the accent on light appearance, which is what a browser chrome/theme colour should reflect.
-    theme_color: "#1A1A1A",
+    // The icon's own tile colour (the storefront's --foreground), so the chrome around an installed
+    // storefront matches the icon it was opened from.
+    theme_color: "#09090b",
     // Matches the design system's light ground (--background), so the PWA splash does not flash a
     // different white before the app paints.
     background_color: "#FFFFFF",

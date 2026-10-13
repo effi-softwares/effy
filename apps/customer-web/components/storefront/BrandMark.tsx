@@ -5,9 +5,10 @@ import { cn } from "@/lib/utils"
 /**
  * The Effy wordmark: "effy" in Geist Bold with a green full stop (feature 084).
  *
- * ⚠ It is TYPE, not an image. No logo file was supplied with the identity — the wordmark IS the logo
- * — so it costs no request, scales with the text around it, and cannot fall out of step with the
- * typeface. The full stop is the one place the brand green appears in the header.
+ * ⚠ It is TYPE, not an image, so it costs no request and scales with the text around it. The same
+ * wordmark as a file — outlined from this typeface at this weight and tracking, in a light and a
+ * dark appearance — is `packages/brand/svg/`, and the app icons are its first letter and full stop.
+ * The full stop is the one place the brand green appears in the header.
  *
  * `href={null}` renders it as plain text (the checkout and auth frames, where leaving mid-flow by
  * accident is the thing to avoid, pass an explicit destination instead).

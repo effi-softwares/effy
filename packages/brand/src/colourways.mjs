@@ -1,104 +1,49 @@
-// COLOURWAYS — colour only. No geometry lives here (024 data-model §2).
+// COLOURWAYS — colour only. No geometry lives here.
 //
-// ⚠ RULE C4 (024 FR-014a): these values are ASSET-LOCAL. They MUST NOT be imported from, or
-// exported into, @effy/design-system. They exist only inside the brand mark and the assets derived
-// from it — they are not design tokens, they never become a UI accent, and no Compose theme is
-// regenerated because of them. Putting them in the token SSOT is exactly the leak FR-014a forbids,
-// which is why this package deliberately does not depend on design-system at all.
+// ⚠ These values are ASSET-LOCAL. They MUST NOT be imported from, or exported into,
+// @effy/design-system — this package deliberately does not depend on it. They happen to equal the
+// storefront's `--foreground` and `--brand`, because the mark is the storefront wordmark's first
+// letter and its full stop; they are restated here, not read from there.
 //
-// ── ⚠ WHAT CHANGED IN 026, AND WHY IT IS NOT A REGRESSION ─────────────────────────────────────────
+// ── ONE IDENTITY ON EVERY SURFACE ─────────────────────────────────────────────────────────────────
 //
-// 024 separated the three surfaces BY HUE — emerald for customer, sky for shop, grey for back-office
-// — while `outline` and `tag` stayed shared. Rule C2 said those two shared slots were "what keeps the
-// three marks recognisably ONE mark".
-//
-// The platform brand is now MONOCHROME (constitution v1.11.0): there is no hue to separate anything
-// with, so hue-separated colourways collapse into one identical asset. Two Effy apps would be
-// indistinguishable on the same home screen.
-//
-// So the separating axis is now GROUND POLARITY — a dark mark on a light tile, or a light mark on a
-// dark tile. The two grounds sit at 15.95:1 against each other, which survives 16 px, greyscale, a
-// busy wallpaper, and colour-blindness. Nothing else available in a hueless palette comes close;
-// varying only the mark's lightness within one polarity was tested against the requirement and
-// rejected, because at launcher size #333 and #666 marks on the same ground read as the same icon.
-//
-// ⚠ RULE C2 IS THEREFORE RESTATED, NOT DROPPED. Under polarity the slot VALUES must differ — that is
-// the entire mechanism. What is shared is the GEOMETRY: every colourway draws the same paths from the
-// same four slots. That is now the invariant, and the test suite asserts it.
+// The mark is "e." — the Effy wordmark's first letter and its green full stop. Until this mark the
+// brand was a shopping bag, drawn in three colourways so the customer, shop and back-office icons
+// could be told apart. On operator direction every surface now carries the SAME icon: a near-black
+// tile, a white letter, a green square. There is one colourway.
 
-/**
- * The four slot values as they appear in the authored master, which IS the `light` colourway.
- * Substitution maps FROM these.
- *
- * ⚠ All four MUST stay distinct strings. `applyColourway` substitutes by exact string match, so two
- * slots sharing a value would make the first substitution consume the second's occurrences and the
- * second would silently find nothing. `fold` and `outline` are both near-black by design and only
- * differ by one step for exactly this reason.
- */
+/** The two slot values as they appear in the authored master (the light logo's colours). */
 export const SLOTS = {
-  body: "#333333", // the bag face
-  fold: "#1A1A1A", // the fold shadow — one step darker than the face
-  outline: "#0A0A0A", // handles, tag border, tag detail
-  tag: "#F5F5F5", // the tag panel
+  letter: "#09090b", // the "e"
+  dot: "#0d7a40", // the full stop — the brand green, the same in every appearance
 }
 
-/**
- * A colourway is four mark slots PLUS the ground the mark sits on.
- *
- * `ground` is new in 026 and is the polarity axis. Compositions still decide WHETHER a target has an
- * opaque ground (and the alpha policy that follows); the colourway decides WHICH ground — because a
- * ground is a colour, and colour belongs here.
- */
+/** A colourway is the two mark slots PLUS the ground the mark sits on. */
 export const COLOURWAYS = {
-  // Dark mark on a light tile — customer-web + customer-mobile.
-  light: {
-    name: "Light",
-    ground: "#F5F5F5",
-    body: "#333333",
-    fold: "#1A1A1A",
-    outline: "#0A0A0A",
-    tag: "#F5F5F5",
-  },
-  // Light mark on a dark tile — shop-web + shop-mobile. The inverse of `light` in every slot, which
-  // is what makes the two apps separable at a glance.
-  dark: {
-    name: "Dark",
-    ground: "#1A1A1A",
-    body: "#CCCCCC",
-    fold: "#999999",
-    outline: "#F5F5F5",
-    tag: "#1A1A1A",
-  },
-  // Light mark on a MID-grey tile — back-office. A third polarity rather than a third lightness:
-  // its mark slots must differ from `light`'s too, not just its ground. The favicon composition has
-  // NO ground at all, so a colourway that varied only `ground` would emit a favicon byte-identical to
-  // customer-web's — and the two would be indistinguishable in a tab strip. The test suite asserts
-  // that no two colourways render the same asset, which is how that was caught.
-  mid: {
-    name: "Mid",
-    ground: "#808080",
-    body: "#E6E6E6",
-    fold: "#B3B3B3",
-    outline: "#FFFFFF",
-    tag: "#1A1A1A",
+  // White letter, green full stop, near-black tile — every icon on every surface.
+  tile: {
+    name: "Tile",
+    ground: "#09090b",
+    letter: "#ffffff",
+    dot: "#0d7a40",
   },
 }
 
+/** The wordmark's two appearances. The full stop is green in both; only the word changes. */
+export const WORDMARK = {
+  light: { word: "#09090b", dot: "#0d7a40" },
+  dark: { word: "#ffffff", dot: "#0d7a40" },
+}
+
 /**
- * MONO is a DERIVATION, not a colourway — it is deliberately exempt from rule C2 because a
- * single-colour treatment cannot preserve an outline/tag distinction by definition.
- *
- * It serves two requirements at once (024 FR-007a + FR-016a): the Android themed-icon layer and the
- * iOS tinted appearance both need it, and back-office's favicon reuses the same composition.
- *
- * The tag panel becomes `none` (transparent) rather than filled, so the silhouette keeps the tag as
- * negative space with its border and three diagonal strokes still reading. A fully-filled mono mark
- * collapses into an unrecognisable blob.
+ * MONO is a DERIVATION, not a colourway: the whole mark in one colour. The Android themed-icon
+ * layer, the iOS tinted appearance and the notification badge all need it — each is re-tinted or
+ * reduced to a silhouette by the platform, so the green cannot survive there anyway.
  *
  * It carries NO ground: mono targets are layers, and their ground comes from the composition.
  */
 export function mono(colour) {
-  return { name: `Mono(${colour})`, body: colour, fold: colour, outline: colour, tag: "none" }
+  return { name: `Mono(${colour})`, letter: colour, dot: colour }
 }
 
 /**
@@ -123,18 +68,27 @@ export const RETIRED_EMERALD = [
 /**
  * Apply a colourway to the authored master by exact string substitution.
  *
- * Deliberately the dumbest possible mechanism: anything cleverer (regex on colour-ish tokens, a
- * parsed DOM) could silently mis-recolour a shade and nobody would notice until an icon shipped.
- * The placeholder pass makes it order-independent, so no substitution can consume another's output.
+ * Deliberately the dumbest possible mechanism: anything cleverer could silently mis-recolour a shade
+ * and nobody would notice until an icon shipped. The placeholder pass makes it order-independent, so
+ * no substitution can consume another's output.
  */
 export function applyColourway(svg, cw) {
+  return substitute(svg, [
+    [SLOTS.letter, cw.letter],
+    [SLOTS.dot, cw.dot],
+  ])
+}
+
+/** Recolour the wordmark master (authored in its light appearance) for one appearance. */
+export function applyWordmark(svg, appearance) {
+  return substitute(svg, [
+    [WORDMARK.light.word, appearance.word],
+    [WORDMARK.light.dot, appearance.dot],
+  ])
+}
+
+function substitute(svg, pairs) {
   let out = svg
-  const pairs = [
-    [SLOTS.fold, cw.fold],
-    [SLOTS.body, cw.body],
-    [SLOTS.tag, cw.tag],
-    [SLOTS.outline, cw.outline],
-  ]
   pairs.forEach(([from], i) => {
     out = out.replaceAll(from, ` SLOT${i} `)
   })

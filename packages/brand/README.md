@@ -1,23 +1,48 @@
 # @effy/brand
 
-The Effy brand mark, and the only sanctioned way to produce it.
+The Effy logo and mark, and the only sanctioned way to produce them.
 
 **One rule: derived assets are GENERATED, never hand-edited.**
 
-Every app icon, splash image and favicon on all six client surfaces comes from one authored vector in
-this package. If you edit a PNG in `apps/**` by hand, `brand:check` will fail and your edit will be
-overwritten by the next regeneration. That is the point — see
-[specs/024-brand-icons-splash](../../specs/024-brand-icons-splash/spec.md), User Story 4.
+Every app icon, splash image and favicon comes from the authored vectors in this package. If you edit
+a PNG in `apps/**` by hand, `brand:check` will fail and your edit will be overwritten by the next
+regeneration.
+
+## The logo
+
+- **The wordmark** — `effy.` in Geist Bold (tracking −0.05em, kerning on, no ligatures), outlined to
+  paths, with a green full stop. `src/wordmark.svg`.
+- **The mark** — `e.`, the wordmark's first letter and its full stop. `src/logo.svg`. Every icon is
+  this mark in white and green on a near-black tile.
+
+Ready-to-use files are in [`svg/`](svg/):
+
+| File | Use |
+|---|---|
+| `effy-logo-light.svg` | The logo on a light ground — near-black word, green full stop |
+| `effy-logo-dark.svg` | The logo on a dark ground — white word, the same green full stop |
+| `effy-icon.svg` | The icon — the same file each web app serves as its tab icon |
+
+| Colour | Value |
+|---|---|
+| Word / tile | `#09090b` |
+| Word on dark / letter on the tile | `#ffffff` |
+| Full stop | `#0d7a40` — the same in every appearance |
+
+The storefront header draws the wordmark as live type (`BrandMark.tsx`), not from these files; the
+two agree because the files were outlined from that typeface at that weight and tracking.
 
 ## Layout
 
 ```
-src/logo.svg          THE authored mark. Emerald colourway is the committed master.
-src/colourways.mjs    Emerald · Sky · Neutral · Mono — colour only, no geometry.
-src/compositions.mjs  Padding / background / alpha per target frame — no colour.
-src/targets.mjs       surface × slot × colourway × composition × output path.
+src/wordmark.svg      THE authored wordmark (its light appearance).
+src/logo.svg          THE authored mark ("e."), in the wordmark's light colours.
+src/colourways.mjs    The tile colourway, the wordmark's two appearances, mono — colour only.
+src/compositions.mjs  Occupancy / ground / corner radius / alpha per target frame — no colour.
+src/targets.mjs       surface × slot × composition × output path, and the svg/ exports.
 scripts/              The generator, the drift check, and their libs.
 test/                 node --test: composition maths, colourways, ICO bytes, alpha.
+svg/                  GENERATED. The standalone logo and icon files.
 assets.manifest.json  GENERATED. Every asset + its sha256. Input to the drift check.
 ```
 
@@ -34,27 +59,18 @@ pnpm --filter @effy/brand test    # unit tests + the drift check
 script — the same wiring `@effy/design-system` uses for `check-tokens.mjs`. Note that `make lint` in
 this repo is **Terraform-only** and does not run it.
 
-## The three colourways
+## One identity on every surface
 
-| Colourway | Surfaces | Body | Fold |
-|---|---|---|---|
-| **Emerald** | customer-web · customer-mobile | `#10b981` | `#065f46` |
-| **Sky** | shop-web · shop-mobile | `#0ea5e9` | `#075985` |
-| **Neutral** | back-office | `#525252` | `#262626` |
+Customer, shop and back-office carry the **same** icon. (Until this mark the brand was a shopping bag
+drawn in three colourways so the three could be told apart; that mark and its colourways are gone.)
+The driver app's launcher icon is not produced here.
 
-The navy outline `#0C1D36` and off-white tag `#F4F5F7` are **shared by every colourway**. That is what
-keeps the three marks recognisably one mark; a colourway that changes them is invalid.
+**These colours are not design tokens.** They are restated in `src/colourways.mjs` and must never be
+imported from, or exported into, `@effy/design-system` — this package does not depend on it.
 
-## Two rules that are easy to break
-
-**The sky blue is not a design token.** It exists only inside the mark and the assets derived from it. It
-must never be imported from, or exported into, `@effy/design-system`, and it must never touch a
-Compose theme or any surface's UI accent. The shop app's interface is emerald, exactly like every
-other surface (constitution Principle V; spec FR-014a).
-
-**The authored master is Emerald, not the original artwork.** The supplied logo used `#0FB57E` /
-`#047857` — values the constitution retired in v1.10.0 and that `scripts/check-no-jade.sh` rejects.
-The committed master is recoloured into the live palette, so the guard passes with **no exemption**.
+**Mobile splash ground.** iOS's launch colour is generated from `SPLASH_GROUND`; Android's
+`splash_background` in each app's `values/` and `values-night/colors.xml` is hand-maintained and must
+equal it.
 
 ## Known limitation: determinism is per-platform
 

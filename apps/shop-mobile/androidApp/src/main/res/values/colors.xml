@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 024 — splash ground. AMENDED 2026-07-27 (operator request): the ground is now a BRAND colour,
-     not the app's own surface. The original FR-011 rationale was seam-removal — the splash handed
-     over to a Compose surface painted the same colour, so no flash was visible. A saturated ground
-     trades that away deliberately: the splash is a brand moment, and the neutral app surface paints
-     immediately after it.
+<!-- Splash ground: the brand mark's own tile colour, so the launcher icon opens into the splash
+     without a change of colour. Hand-maintained; it MUST equal SPLASH_GROUND in
+     packages/brand/src/compositions.mjs, which the iOS launch colour is generated from.
 
-     ⚠ Rule C4 still holds — this is asset-local. It is NOT a design token and NOT a UI accent; the
-     app's own theme is untouched and stays emerald.
-
-     ⚠ values-night/ carries the SAME value. A saturated brand ground has no appearance variant. -->
+     ⚠ Asset-local — NOT a design token and NOT a UI accent; the app's own theme is untouched.
+     ⚠ values-night/ carries the SAME value: the tile has no appearance variant. -->
 <resources>
-    <color name="splash_background">#1A1A1A</color>
+    <color name="splash_background">#09090B</color>
 </resources>
