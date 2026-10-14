@@ -30,7 +30,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
-        cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
+        cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-lighthouse cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
@@ -334,6 +334,9 @@ cw-gates: ## customer-web: the two build-failing gates (Amplify quarantine + gue
 
 cw-size: ## customer-web bundle budget — every guest route MUST stay <= 174 KB gzipped first-load JS
 	@pnpm --filter @effy/customer-web size
+
+cw-lighthouse: ## customer-web lab baseline (PERF-20): Lighthouse mobile ×3 on home/aisle/product → docs/perf/lighthouse/ (BASE=… LABEL=…). Read-only.
+	@cd apps/customer-web && node scripts/lighthouse.mjs --base $(or $(BASE),https://dev.effyshopping.com) --label $(or $(LABEL),run)
 
 cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)
 	@pnpm --filter @effy/customer-web depcruise

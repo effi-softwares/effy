@@ -489,15 +489,53 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 - **Tasks**
   - [ ] Record LCP / INP / CLS / TTFB for `/`, an aisle page and a product page from the existing
-        web-vitals events (PostHog) before PERF-02..09 land.
-  - [ ] Lighthouse (mobile, throttled) on the same three URLs against dev; keep the reports in the
-        feature's `specs/` folder.
-  - [ ] Re-measure after each P1 item.
+        web-vitals events (PostHog) before PERF-02..09 land. *(operator — query below)*
+  - [x] Lighthouse (mobile, throttled) on the same three URLs against dev; keep the reports in the
+        feature's `specs/` folder. *(`docs/perf/lighthouse/` — there is no feature folder)*
+  - [ ] Re-measure after each P1 item. *(now one command; see below)*
+- **2026-10-14 — the lab half is built, but it is an AFTER, not a before.** By the time it ran, dev
+  was already on `84554373` (everything through PERF-19). A lab "before" cannot be taken for code no
+  longer deployed; the field data is the only before there is.
+  - `make cw-lighthouse [BASE=…] [LABEL=…]` — Lighthouse 13.5, mobile, three runs per page, the median
+    run by LCP, summary to `docs/perf/lighthouse/<date>-<label>/` (`summary.md` + `.json`; the full
+    reports are not kept). Read-only.
+  - First run, `2026-10-14-after-p1-p2`: home score 72 / LCP 6.3 s, aisle 92 / 3.1 s, product 93 /
+    2.9 s, CLS 0 everywhere. Two findings, recorded in its summary:
+    - **Home's LCP is the promo hero's headline**, streamed once the home payload arrives — so home's
+      LCP is the home read: fast from a warm server's cache, seconds on a cold one (runs 4.3–7.1 s).
+      PERF-11's two-query home (deploy pending at the time) and PERF-15's cold starts are the levers.
+    - **TTFB is 0.7–1.9 s on every page**, the HTML `private, no-store` and a CloudFront miss:
+      Amplify renders each page per request, the static shell included. Outside this backlog's scope.
+  - **Field numbers — operator.** No PostHog query access here (the project key only sends). In
+    PostHog → SQL, run once for the weeks before 2026-10-14 and once for the week after a deploy:
+
+    ```sql
+    SELECT
+      multiIf(properties.$pathname = '/', 'home',
+              properties.$pathname LIKE '/product/%', 'product',
+              properties.$pathname = '/search' AND properties.$current_url LIKE '%category=%', 'aisle',
+              'other') AS page,
+      properties.metric AS metric,
+      count() AS n,
+      round(quantile(0.75)(toFloat(properties.value)), 3) AS p75
+    FROM events
+    WHERE event = 'web_vitals' AND timestamp >= now() - INTERVAL 14 DAY
+    GROUP BY page, metric
+    ORDER BY page, metric
+    ```
+
+    p75 is the Core Web Vitals convention. Only consenting customers send these.
 
 ### PERF-21 · Guards for what this backlog introduces
 
 - **Tasks**
-  - [ ] A test that no storefront DTO image URL contains a signature query string (after PERF-02).
+  - [x] A test that no storefront DTO image URL contains a signature query string (after PERF-02).
+        *(2026-10-14: `storefront.container.test.ts` — "every picture address a shopper is sent is
+        permanent and unsigned". 086's `media.guard.test.ts` already held the SOURCE of `storefront`
+        and `commerce`; this holds the WIRE: search, the id hydration, home, the aisle list and two
+        product pages, read with the real addressing, every `…Url` field must be a `media.<zone>`
+        address with no query, and a courier-label key filed against a product must come back with no
+        address at all. Proven by appending a signature in `cards.ts`.)*
   - [x] The freshness guard rewritten as an allow-list of cached reads with their maximum age
         (after PERF-05..07).
   - [x] A test that each cached tag has at least one invalidating writer, or a documented TTL-only decision.

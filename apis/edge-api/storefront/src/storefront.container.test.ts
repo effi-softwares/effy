@@ -256,4 +256,59 @@ d("070 — storefront reads against the real schema", () => {
       client.release();
     }
   });
+
+  /**
+   * PERF-21 — what actually leaves the service: every picture address in every storefront answer is
+   * the media CDN's permanent one, with no query string and no signature. `media.guard.test.ts` holds
+   * the SOURCE to that; this holds the WIRE, with the real addressing (`publicImageUrl`), not the
+   * tests' `noImage`. A key outside the public set — a courier label filed against a product by
+   * mistake — must come back with no address at all, never a signed one.
+   */
+  it("every picture address a shopper is sent is permanent and unsigned", async () => {
+    const before = process.env.MEDIA_PUBLIC_BASE_URL;
+    process.env.MEDIA_PUBLIC_BASE_URL = "https://media.test";
+    try {
+      await pool.query(
+        `INSERT INTO public.product_media (product_id, storage_key, is_primary, display_order, alt_text) VALUES
+           ($1, 'products/oat/0.jpg', true, 0, 'Front'),
+           ($1, 'products/oat/1.jpg', false, 1, NULL),
+           ($2, 'courier-label/parcel-1.pdf', true, 0, NULL)`,
+        [ids["Oat Milk"], ids["Sourdough"]],
+      );
+      await pool.query(
+        `INSERT INTO public.media_rendition (storage_key, status, widths) VALUES ('products/oat/0.jpg', 'ready', '{160,320}')`,
+      );
+
+      const promotions = createPromotionService(createPromotionRepository(pool));
+      const answers: unknown[] = [
+        await createSearchService(createSearchRepository(pool)).search(q({ categoryKey: "sft-dairy" })),
+        await createSearchService(createSearchRepository(pool)).cardsByIds([ids["Oat Milk"]!, ids["Sourdough"]!]),
+        await createHomeService(createHomeRepository(pool), promotions).home(),
+        await createCatalogService(createCatalogRepository(pool)).categories(),
+        await createCatalogService(createCatalogRepository(pool)).productDetail(ids["Oat Milk"]!),
+        await createCatalogService(createCatalogRepository(pool)).productDetail(ids["Sourdough"]!),
+      ];
+
+      const urls: string[] = [];
+      const walk = (v: unknown, key = ""): void => {
+        if (Array.isArray(v)) v.forEach((x) => walk(x, key));
+        else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k);
+        else if (typeof v === "string" && /url$/i.test(key)) urls.push(v);
+      };
+      walk(answers);
+
+      expect(urls.length).toBeGreaterThan(3); // it found the pictures — a walk that finds none passes anything
+      for (const url of urls) {
+        expect(url).toMatch(/^https:\/\/media\.test\/(products|promotions|renditions)\//);
+        expect(url).not.toMatch(/[?#]|X-Amz|Signature|amazonaws/i);
+      }
+      expect(urls.some((u) => u.includes("courier-label"))).toBe(false);
+      const loaf = answers[5] as { imageUrl: string | null; gallery: unknown[] };
+      expect(loaf.imageUrl).toBeNull();
+      expect(loaf.gallery).toEqual([]);
+    } finally {
+      if (before === undefined) delete process.env.MEDIA_PUBLIC_BASE_URL;
+      else process.env.MEDIA_PUBLIC_BASE_URL = before;
+    }
+  });
 });
