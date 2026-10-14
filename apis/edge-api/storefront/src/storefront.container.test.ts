@@ -13,6 +13,7 @@ import { createPromotionRepository } from "./promotions/repository";
 import { createPromotionService } from "./promotions/service";
 import { createSearchRepository } from "./search/repository";
 import { createSearchService } from "./search/service";
+import { createSuggestRepository } from "./suggest/repository";
 
 /**
  * 070 — the storefront's SQL against the REAL schema.
@@ -205,5 +206,54 @@ d("070 — storefront reads against the real schema", () => {
     const promotions = createPromotionService(createPromotionRepository(pool), noImage);
     expect(await promotions.promotion("not-a-uuid")).toBeNull();
     expect(await promotions.promotion("00000000-0000-0000-0000-000000000000")).toBeNull();
+  });
+
+  /**
+   * PERF-14 — the suggestion statements that match product names and brands are answered from their
+   * trigram indexes on a catalogue of real size. Inside a transaction that is rolled back: fifty
+   * thousand products, fresh statistics, sequential scans off, and a term that matches a handful of
+   * them. (A term matching a tenth of the catalogue, or a catalogue of a few thousand, is genuinely
+   * cheaper to read through, and the planner rightly does.) A plan that reads every product means an
+   * index is missing or no longer matches the expression the query filters on — the drift
+   * `trigram-index.guard.test.ts` guards for the full search.
+   */
+  it("suggestions are served by the name and brand trigram indexes", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`
+        INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, brand, price_amount,
+                                    shop_price_amount, short_description, created_by, status, approved_at)
+        SELECT (SELECT id FROM public.shop WHERE code = 'SFT'),
+               (SELECT id FROM public.product_type WHERE key = 'sft-type'),
+               (SELECT id FROM public.category WHERE key = 'sft-bakery'),
+               (array['Oat','Soy','Rye','Full cream','Greek','Spelt','Basil','Apple','Cheddar','Rice'])[1 + g % 10] || ' ' ||
+               (array['loaf','yoghurt','roll','bunch','block','juice','pasta','butter'])[1 + (g / 10) % 8] || ' ' || g,
+               'Maker ' || (g % 400), 1, 1, 'x', 'seed', 'active', now()
+        FROM generate_series(1, 50000) g`);
+      await client.query("ANALYZE public.product");
+      // ANALYZE samples at random, and on a borderline estimate the planner then flips between the
+      // index and a scan from run to run. Scans off makes the question the stable one: CAN the index
+      // answer this statement? (Measured at this size with scans allowed: 20 ms read-through → 1.6 ms.)
+      await client.query("SET LOCAL enable_seqscan = off");
+      const plans: string[] = [];
+      const explaining = { query: async (sql: string, args: unknown[]) => {
+        plans.push((await client.query(`EXPLAIN ${sql}`, args)).rows.map((r) => r["QUERY PLAN"]).join("\n"));
+        return { rows: [] };
+      } };
+      const suggest = createSuggestRepository(explaining as never);
+      await suggest.products("cheddar block 12", 5);
+      await suggest.completions("cheddar block 12", 5);
+      await suggest.aislesHolding("cheddar block 12", 5);
+      expect(plans).toHaveLength(3);
+      for (const plan of plans) {
+        expect(plan).toContain("product_name_trgm_idx");
+        expect(plan).not.toMatch(/Seq Scan on product\b/);
+      }
+      expect(plans[1]).toContain("product_brand_trgm_idx");
+    } finally {
+      await client.query("ROLLBACK");
+      client.release();
+    }
   });
 });

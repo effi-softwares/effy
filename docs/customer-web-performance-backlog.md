@@ -328,40 +328,84 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   `home/service.ts` queues on one connection — ~8 round trips in series, not "two waves". 029 measured
   ~135 ms per round trip from a local backend.
 - **Tasks**
-  - [ ] One query for all category rails (`LATERAL` per candidate, or a window function with
+  - [x] One query for all category rails (`LATERAL` per candidate, or a window function with
         `row_number() <= 12`).
-  - [ ] Fold featured + on-sale into the same statement or a single `UNION ALL` with a rail label.
-  - [ ] Correct the "two waves" comment.
+  - [x] Fold featured + on-sale into the same statement or a single `UNION ALL` with a rail label.
+  - [x] Correct the "two waves" comment.
 - **Note:** matters less after PERF-06, but sets the cold-path floor.
+- **Done 2026-10-14; `storefront` NOT deployed.** `HomeRepository.rails` is one statement: the
+  candidates CTE, then Featured, On sale and a `LATERAL` per candidate under one `UNION ALL`, each row
+  labelled with its rail. Home is now two statements (rails, banners) instead of eight.
+  - Run against dev's data beside the old seven queries (read-only session): same rails, same
+    Featured and On sale; **4.2–4.7 s → 0.3 s** measured from a laptop (so mostly round trips).
+  - ⚠ **The category rails can differ from before — on ties only.** The old candidate query ordered by
+    display order then product count with no tie-break, so among the many categories tied at the same
+    count it picked arbitrarily. It now breaks ties by `c.key` and is the same on every load.
 
 ### PERF-12 · Product detail: one round trip
 
 - **Found:** detail, media, attributes and category path are four serial queries.
 - **Tasks**
-  - [ ] Combine with `json_agg` subselects, or one CTE statement.
+  - [x] Combine with `json_agg` subselects, or one CTE statement.
+- **Done 2026-10-14; `storefront` NOT deployed.** `CatalogRepository.productPage` returns the detail
+  row with its gallery and attributes as `json_agg` columns and the aisle path as an array. Compared
+  with the old four queries for **all 136 dev products: every response byte-identical**;
+  **1,140 ms → 300 ms** per page from a laptop.
 
 ### PERF-13 · Categories query
 
 - **Tasks**
-  - [ ] `EXPLAIN ANALYZE` on dev data; the per-category subtree count and image pick are correlated
+  - [x] `EXPLAIN ANALYZE` on dev data; the per-category subtree count and image pick are correlated
         subqueries — replace with one recursive CTE + aggregate if it shows.
+- **Done 2026-10-14; `storefront` NOT deployed.** It showed: each of 157 categories walked its subtree
+  and seq-scanned `product` twice (157 loops each), so cost grew with categories × products —
+  **59 ms on dev's 136 products**. Now one closure walk (`categoryClosure()`, beside
+  `categorySubtreeById` in `lib/category-tree.ts` — still the one definition of "under a category")
+  and one aggregate each for counts and pictures: **4.5 ms**, all 157 rows identical to before.
 
 ### PERF-14 · Suggestions index check
 
 - **Found:** `suggest/repository.ts` uses `ILIKE '%q%'` on product name in three queries per keystroke
   batch. Not verified whether a trigram index covers it.
 - **Tasks**
-  - [ ] Check migrations for a `gin_trgm_ops` index on `product.name`; add one if missing.
-  - [ ] `EXPLAIN` the three statements.
+  - [x] Check migrations for a `gin_trgm_ops` index on `product.name`; add one if missing.
+  - [x] `EXPLAIN` the three statements.
+- **Done 2026-10-14; migration NOT applied.** There was none: the only product trigram index is the
+  full search's, over one combined `lower(name || sku || brand || short_description)` expression, which
+  Postgres uses only for that exact expression. All three name matches and the brand-prefix match read
+  every product. `20261014150000_product_name_trgm.sql` adds `product_name_trgm_idx` and
+  `product_brand_trgm_idx`.
+  - Measured on 50,000 products: a selective name match **20 ms → 1.6 ms**; the brand prefix uses its
+    index. A term matching a tenth of the catalogue, or a catalogue of a few thousand, still reads
+    through — correctly, it is cheaper.
+  - `storefront.container.test.ts` asserts each statement CAN use the indexes (50,000 rows, scans off —
+    with scans on, ANALYZE's random sample made it flip between plans, 1 run in 4). Proven by
+    removing the migration.
 
 ### PERF-15 · Cold starts on the shopper path
 
 - **Found:** every server read is Amplify SSR compute → API Gateway → Lambda → RDS: two possible cold
   starts. Not measured in this review.
 - **Tasks**
-  - [ ] Measure p50/p95 for `home`, `categories`, `product` from CloudWatch (cold vs warm).
+  - [x] Measure p50/p95 for `home`, `categories`, `product` from CloudWatch (cold vs warm).
   - [ ] Only if cold p95 is a problem after caching: consider provisioned concurrency on the two or
         three hottest functions (cost decision — operator's call).
+- **Measured 2026-10-14** — dev, last 14 days, Lambda `REPORT` lines, the version BEFORE PERF-11..13
+  (handler time; a cold start adds its init on top):
+
+  | Function | Warm n | Warm p50 / p95 | Cold n (share) | Cold p50 / p95 | Init avg |
+  |---|---|---|---|---|---|
+  | `homeV1` | 697 | 56 / 305 ms | 142 (17%) | 1,496 / 1,773 ms | 419 ms |
+  | `categoriesV1` | 820 | 133 / 334 ms | 143 (15%) | 836 / 1,045 ms | 412 ms |
+  | `productV1` | 76 | 19 / 213 ms | 37 (33%) | 737 / 816 ms | 408 ms |
+
+  - A cold home view costs ~1.9 s at the median, and most of it is not init: the cold handler opens the
+    database connection (secret fetch + TLS) and then ran seven serial queries on it. PERF-11 removes
+    six of those, so **re-measure after `storefront` is deployed** before deciding anything.
+  - Dev's cold share is high because its traffic is low; it says little about production.
+  - **No recommendation for provisioned concurrency yet.** With PERF-05/06 the storefront asks for
+    home and the aisle list at most about once per 15–30 s per server instance, so these functions
+    see few calls — more of them cold, but far fewer shopper views waiting on one.
 
 ---
 

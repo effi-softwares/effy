@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AttrRow, CatalogRepository, DetailRow } from "./repository";
+import type { AttrRow, CatalogRepository, DetailRow, MediaRow } from "./repository";
 import { createCatalogService, formatAttrValue, groupAttributes } from "./service";
 
 const ID = "00000000-0000-0000-0000-000000000001";
@@ -16,15 +16,32 @@ const detail = (over: Partial<DetailRow> = {}): DetailRow => ({
   is_new: false, available: true, ...over,
 });
 
-function repo(over: Partial<CatalogRepository> = {}) {
+/** The page's parts, faked one by one; `productPage` is assembled from them as the statement would. */
+interface Parts {
+  categories: CatalogRepository["categories"];
+  productDetail: (id: string) => Promise<DetailRow | null>;
+  productMedia: () => Promise<MediaRow[]>;
+  productAttributes: () => Promise<AttrRow[]>;
+  categoryPath: () => Promise<string[]>;
+}
+
+function repo(over: Partial<Parts> = {}) {
   const calls: string[] = [];
-  const r: CatalogRepository = {
+  const parts: Parts = {
     categories: async () => [],
-    productDetail: async (id) => (calls.push(`detail:${id}`), detail()),
+    productDetail: async () => detail(),
     productMedia: async () => [],
     productAttributes: async () => [],
     categoryPath: async () => ["Food", "Dairy"],
     ...over,
+  };
+  const r: CatalogRepository = {
+    categories: parts.categories,
+    productPage: async (id) => {
+      calls.push(`page:${id}`);
+      const row = await parts.productDetail(id);
+      return row && { ...row, media: await parts.productMedia(), attributes: await parts.productAttributes(), category_path: await parts.categoryPath() };
+    },
   };
   return { svc: createCatalogService(r, async (k) => (k ? `signed:${k}` : null)), calls };
 }

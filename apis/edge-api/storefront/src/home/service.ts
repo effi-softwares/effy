@@ -3,10 +3,13 @@ import type { StorefrontHomeDTO, StorefrontRailDTO } from "@effy/shared-types";
 
 import { toCards, type CardRow, type ImageAddress } from "../lib/cards";
 import type { PromotionService } from "../promotions/service";
-import type { HomeRepository } from "./repository";
+import type { HomeRepository, RailRow } from "./repository";
 
 export const RAIL_PRODUCT_LIMIT = 12;
 export const CATEGORY_RAIL_MAX = 4;
+
+/** The two rails whose titles are the storefront's words; a category rail is titled by its name. */
+const TITLES: Record<string, string> = { featured: "Featured", on_sale: "On sale" };
 
 export function createHomeService(repo: HomeRepository, promotions: Pick<PromotionService, "banners">, imageAddress?: ImageAddress) {
   /**
@@ -25,28 +28,23 @@ export function createHomeService(repo: HomeRepository, promotions: Pick<Promoti
      * A Featured rail (newest), an On-sale rail, and up to CATEGORY_RAIL_MAX category rails that
      * actually have products, plus the advertised promotions.
      *
-     * Two waves is the true dependency depth: everything that can be asked at once is, and the
-     * category rails form a second wave only because the first is what names them.
+     * Two statements: every rail in one (the repository says why), the banners in the other. On the
+     * one-connection pool they run one after the other whatever `Promise.all` suggests.
      *
-     * ⚠ Ordering is NOT left to arrival order. Results land in fixed slots and the rails are
-     * assembled in sequence, because the server owns section order: a Home whose sections shuffled
-     * between loads would read as a bug even though nothing was wrong.
+     * ⚠ Ordering is NOT left to arrival order. The rails come back in the order the statement fixes
+     * — Featured, On sale, then the categories as ranked — because the server owns section order: a
+     * Home whose sections shuffled between loads would read as a bug even though nothing was wrong.
      */
     async home(): Promise<StorefrontHomeDTO> {
-      const [featured, onSale, candidates, banners] = await Promise.all([
-        repo.newestCards(RAIL_PRODUCT_LIMIT),
-        repo.onSaleCards(RAIL_PRODUCT_LIMIT),
-        repo.railCandidates(CATEGORY_RAIL_MAX),
-        promotions.banners(),
-      ]);
+      const [rows, banners] = await Promise.all([repo.rails(RAIL_PRODUCT_LIMIT, CATEGORY_RAIL_MAX), promotions.banners()]);
 
-      const categoryRows = await Promise.all(candidates.map((c) => repo.categoryCards(c.key, RAIL_PRODUCT_LIMIT)));
-
-      const rails = await Promise.all([
-        rail("featured", "Featured", featured),
-        rail("on_sale", "On sale", onSale),
-        ...candidates.map((c, i) => rail(`category:${c.key}`, c.name, categoryRows[i] ?? [])),
-      ]);
+      const byRail = new Map<string, { title: string; rows: RailRow[] }>();
+      for (const row of rows) {
+        const entry = byRail.get(row.rail) ?? { title: TITLES[row.rail] ?? row.rail_title ?? row.rail, rows: [] };
+        entry.rows.push(row);
+        byRail.set(row.rail, entry);
+      }
+      const rails = await Promise.all([...byRail].map(([key, { title, rows }]) => rail(key, title, rows)));
 
       // Empty rails are omitted — Home must never render a blank section. `banners` is an empty
       // list, never absent, when nothing is advertised.

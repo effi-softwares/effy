@@ -68,14 +68,9 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
      */
     async productDetail(id: string): Promise<StorefrontProductDetailDTO | null> {
       if (!isUuid(id)) return null;
-      const row = await repo.productDetail(id);
+      const row = await repo.productPage(id);
       if (!row) return null;
-
-      const [mediaRows, attrRows, categoryPath] = await Promise.all([
-        repo.productMedia(id),
-        repo.productAttributes(id),
-        repo.categoryPath(row.primary_category_id),
-      ]);
+      const { media: mediaRows, attributes: attrRows, category_path: categoryPath } = row;
 
       // A missing image never blanks the page: it is dropped from the gallery.
       const gallery: MediaDTO[] = (

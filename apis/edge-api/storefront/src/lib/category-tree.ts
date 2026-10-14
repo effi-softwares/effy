@@ -16,6 +16,19 @@ export function categorySubtreeById(id: string): string {
   return subtree(`id = ${id}`);
 }
 
+/**
+ * Every (category, category-or-descendant) pair, as a recursive CTE body with columns
+ * `root_id, id` — the same "everything filed under it" as `categorySubtreeById`, for every category
+ * at once. Use it as `WITH RECURSIVE tree AS (${categoryClosure()})` when a statement needs the
+ * subtree of MANY categories: one walk of the taxonomy instead of one per category (PERF-13).
+ */
+export function categoryClosure(): string {
+  return (
+    "SELECT id AS root_id, id FROM public.category " +
+    "UNION ALL SELECT tree.root_id, child.id FROM public.category child JOIN tree ON child.parent_id = tree.id"
+  );
+}
+
 function subtree(root: string): string {
   return (
     "(WITH RECURSIVE sub AS (" +
