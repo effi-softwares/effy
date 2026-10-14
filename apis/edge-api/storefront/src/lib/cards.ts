@@ -9,7 +9,7 @@
  * `available` column projected here. Cart and checkout use the same rule to REFUSE, which is the
  * decision that moves money. Same rule, two jobs.
  */
-import { availabilityPredicate, presignRead } from "@effy/edge-shared";
+import { availabilityPredicate, imageWidthsField, publicImageUrl, renditionWidthsSql } from "@effy/edge-shared";
 import type { ProductBadge, StorefrontProductCardDTO } from "@effy/shared-types";
 
 export const CARD_COLUMNS = `p.id::text                 AS id,
@@ -20,6 +20,7 @@ export const CARD_COLUMNS = `p.id::text                 AS id,
        p.compare_at_amount::text  AS compare_at_amount,
        m.storage_key              AS storage_key,
        m.alt_text                 AS alt_text,
+       m.image_widths             AS image_widths,
        p.created_at               AS created_at,
        -- ⚠ The keyset position for the "newest" sort, as TEXT at full microsecond precision. The
        -- driver hands created_at back as a millisecond Date; a cursor built from that would sit
@@ -32,10 +33,10 @@ export const CARD_COLUMNS = `p.id::text                 AS id,
 export const CARD_FROM = `
 FROM public.product p
 LEFT JOIN LATERAL (
-    SELECT storage_key, alt_text
-    FROM public.product_media
-    WHERE product_id = p.id
-    ORDER BY is_primary DESC, display_order ASC, created_at ASC
+    SELECT pm.storage_key, pm.alt_text, ${renditionWidthsSql("pm.storage_key")} AS image_widths
+    FROM public.product_media pm
+    WHERE pm.product_id = p.id
+    ORDER BY pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
     LIMIT 1
 ) m ON true
 `;
@@ -53,6 +54,8 @@ export interface CardRow {
   compare_at_amount: string | null;
   storage_key: string | null;
   alt_text: string | null;
+  /** The picture's smaller copies (086); NULL when none are ready. */
+  image_widths: number[] | null;
   created_at: Date;
   created_at_key: string;
   available: boolean;
@@ -71,26 +74,25 @@ export function deriveBadges(row: Pick<CardRow, "compare_at_amount" | "created_a
   return badges;
 }
 
-/** A presigned image URL, or null. A missing or unsignable image never blanks a read. */
+/**
+ * A picture's permanent public address (086), or null. Built, not signed: the same on every request,
+ * so the browser keeps it. A key outside the public set has no address — never a failed read.
+ */
 export async function imageUrl(storageKey: string | null | undefined): Promise<string | null> {
-  if (!storageKey) return null;
-  try {
-    return await presignRead(storageKey);
-  } catch {
-    return null;
-  }
+  return publicImageUrl(storageKey);
 }
 
-export type Presign = (storageKey: string | null | undefined) => Promise<string | null>;
+export type ImageAddress = (storageKey: string | null | undefined) => Promise<string | null>;
 
-/** Rows → wire cards, images presigned (signing is local — no network call). */
-export async function toCards(rows: readonly CardRow[], presign: Presign = imageUrl): Promise<StorefrontProductCardDTO[]> {
+/** Rows → wire cards, with each picture's public address and its ready copies. */
+export async function toCards(rows: readonly CardRow[], imageAddress: ImageAddress = imageUrl): Promise<StorefrontProductCardDTO[]> {
   return Promise.all(
     rows.map(async (row) => ({
       id: row.id,
       name: row.name,
       brand: row.brand,
-      imageUrl: await presign(row.storage_key),
+      imageUrl: await imageAddress(row.storage_key),
+      ...imageWidthsField(row.image_widths),
       priceAmount: row.price_amount,
       currency: row.currency,
       compareAtAmount: row.compare_at_amount,

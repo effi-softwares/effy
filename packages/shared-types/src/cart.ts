@@ -52,6 +52,8 @@ export interface CartLineDTO {
   productId: string;
   name: string;
   imageUrl: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
   unitPriceAmount: string;
   quantity: WireInt;
   lineSubtotalAmount: string;

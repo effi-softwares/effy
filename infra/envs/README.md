@@ -138,10 +138,12 @@ was to leave `ap-southeast-1` entirely empty. If you relocate the backend:
      `https://truststore.pki.rds.amazonaws.com/<region>/<region>-bundle.pem`.
    - **ACM certificates for anything behind CloudFront** — including **Amplify Hosting**, where the
      web consoles will live — **must be issued in `us-east-1`, not the platform's region** (010
-     research R2). No such certificate exists yet (nothing is behind CloudFront), but the slice that
-     hosts the consoles must create it under a `provider "aws" { alias = "us_east_1" }`, and that
-     alias is a region-pinned value `var.aws_region` does **not** cover. The regional API Gateway
-     certificate is unaffected — it correctly follows `var.aws_region`.
+     research R2). ⚠ **Since 086 the media CDN has one** (`media.<zone>`, `media.tf`), made under
+     `provider "aws" { alias = "us_east_1" }` in `providers.tf` — and the CDN's alarms and their
+     second alerts topic live there too, because CloudFront publishes metrics only in us-east-1. That
+     alias is a region-pinned value `var.aws_region` does **not** cover, and it must STAY us-east-1
+     on a move. The regional API Gateway certificate is unaffected — it correctly follows
+     `var.aws_region`.
    - `Makefile` `AWS_REGION`, `infra/scripts/db-dsn.sh`, `start-db.sh`, `stop-db.sh`.
    - **DNS survives a region move untouched** — Route 53 hosted zones are **global** and have no
      region. Do not recreate them. (Recreating the parent zone mints new name-servers and would

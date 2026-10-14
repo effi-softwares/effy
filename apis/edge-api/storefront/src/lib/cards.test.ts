@@ -8,7 +8,7 @@ const DAY = 24 * 3600_000;
 
 const row = (over: Partial<CardRow> = {}): CardRow => ({
   id: "p1", name: "Oat milk", brand: "Oatly", price_amount: "4.50", currency: "AUD", compare_at_amount: null,
-  storage_key: null, alt_text: null, created_at: new Date(NOW - 30 * DAY), created_at_key: "k", available: true, ...over,
+  storage_key: null, alt_text: null, image_widths: null, created_at: new Date(NOW - 30 * DAY), created_at_key: "k", available: true, ...over,
 });
 
 describe("deriveBadges", () => {

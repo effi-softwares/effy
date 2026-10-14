@@ -6,7 +6,7 @@ import { CATEGORY_RAIL_MAX, createHomeService, RAIL_PRODUCT_LIMIT } from "./serv
 
 const card = (id: string, available = true): CardRow => ({
   id, name: id, brand: null, price_amount: "1.00", currency: "AUD", compare_at_amount: null, storage_key: null,
-  alt_text: null, created_at: new Date("2020-01-01"), created_at_key: "k", available,
+  alt_text: null, image_widths: null, created_at: new Date("2020-01-01"), created_at_key: "k", available,
 });
 
 function build(over: Partial<HomeRepository> = {}, banners = [{ key: "b1" }] as never[]) {

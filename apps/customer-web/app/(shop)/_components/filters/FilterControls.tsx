@@ -3,7 +3,9 @@
 import type { FacetDTO, FacetSetDTO } from "@effy/shared-types"
 import { useEffect, useState } from "react"
 
-import { ActionButton, btnClass } from "@/components/storefront/actions"
+import { X } from "lucide-react"
+
+import { ActionButton, btnClass, iconBtnClass } from "@/components/storefront/actions"
 
 /**
  * The advanced filter controls (043 US1) — one presentational component rendered in BOTH the desktop
@@ -262,5 +264,39 @@ function PriceRange({
         Go
       </button>
     </form>
+  )
+}
+
+/**
+ * The phone and tablet filter sheet: a native bottom overlay around the same controls. Lives here so
+ * it arrives with them, on demand, and never in /search's first-load chunk.
+ */
+export function FilterSheet({
+  total,
+  onClose,
+  children,
+}: {
+  total: number | null
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
+      <button type="button" aria-label="Close filters" onClick={onClose} className="absolute inset-0 bg-scrim" />
+      <div className="absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-xl border-t bg-background shadow-lg">
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
+          <h2 className="text-base font-semibold">Filters</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className={iconBtnClass("ghost", "md")}>
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4">{children}</div>
+        <div className="border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <ActionButton type="button" onClick={onClose} size="xl" className="w-full">
+            Show {total ?? ""} results
+          </ActionButton>
+        </div>
+      </div>
+    </div>
   )
 }

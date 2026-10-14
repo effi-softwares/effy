@@ -168,10 +168,14 @@ export async function presignRead(storageKey: string): Promise<string> {
 }
 
 /**
- * A presigned read URL for an image, or null — when there is no key, or it cannot be signed.
+ * A presigned read URL for a stored object, or null — when there is no key, or it cannot be signed.
  *
- * For shopper-facing reads (070): a product, cart or order line with a missing or unsignable image
- * renders without one. It must never fail the read around it.
+ * It must never fail the read around it.
+ *
+ * ⚠ 086 — THIS IS THE PRIVATE READER. Shopper pictures no longer come through here: they have a
+ * permanent public address (`publicImageUrl`, media-public.ts). What still does is private — `orders`
+ * reads COURIER LABELS through this function. Never turn it into a public builder to "fix" a caller:
+ * a label carries a customer's name and address.
  */
 export async function imageUrlOrNull(storageKey: string | null | undefined): Promise<string | null> {
   if (!storageKey) return null;

@@ -1,9 +1,9 @@
 import { Package } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 
 import type { StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { Badge } from "@/components/ui/badge"
 import { formatMoney, isDiscounted } from "@/lib/money"
 
@@ -30,8 +30,7 @@ import { CardAdd } from "./CardAdd"
  * Invented stars would be a lie printed on every tile. The slot is marked below; when reviews exist,
  * it goes there and the rest of the card is unchanged.
  *
- * Images are presigned, expiring S3 URLs, so they render `unoptimized` (R7) — the Next optimizer
- * cannot cache a signed URL.
+ * Pictures come from the media CDN at the size the card is drawn (086, `CatalogImage`).
  */
 /**
  * The grid every product listing uses.
@@ -62,12 +61,37 @@ export const productGrid = `grid items-stretch ${gutters} grid-cols-2 md:grid-co
  */
 export const productGridNarrow = `grid items-stretch ${gutters} grid-cols-2 md:grid-cols-3 xl:grid-cols-4`
 
+/** The grid before its products arrive — the same tiles, so the swap-in moves nothing. */
+export function ProductGridSkeleton({ className, count = 8 }: { className: string; count?: number }) {
+  return (
+    <div className={className} aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="space-y-3">
+          <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
+          <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
+          <div className="h-5 w-1/3 animate-pulse rounded-md bg-muted" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** How many cards open a listing above the fold — one row at the widest layout the rails and the search grid share. */
+export const FIRST_ROW = 4
+
 export function ProductCard({
   product,
   saveControl,
+  priority = false,
 }: {
   product: StorefrontProductCardDTO
   saveControl?: React.ReactNode
+  /**
+   * The card opens the page's first listing: its picture is fetched with the document instead of
+   * waiting for layout to prove it is on screen. ⚠ No preload in the head — that would also write a
+   * preload into the head, and four of those would compete with the stylesheet and the typeface.
+   */
+  priority?: boolean
 }) {
   const discounted = isDiscounted(product.priceAmount, product.compareAtAmount)
   const percentOff =
@@ -90,11 +114,12 @@ export function ProductCard({
 
       <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
         {product.imageUrl ? (
-          <Image
+          <CatalogImage
             src={product.imageUrl}
+            widths={product.imageWidths}
             alt=""
             fill
-            unoptimized
+            priority={priority}
             sizes="(min-width: 1280px) 15rem, (min-width: 1024px) 22vw, (min-width: 768px) 30vw, 45vw"
             className={`object-cover transition-transform duration-300 group-hover:scale-[1.03] ${product.available ? "" : "opacity-50"}`}
           />
@@ -147,6 +172,7 @@ export function ProductCard({
               productId: product.id,
               name: product.name,
               imageUrl: product.imageUrl,
+              imageWidths: product.imageWidths,
               unitPriceAmount: product.priceAmount,
               currency: product.currency,
             }}

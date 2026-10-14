@@ -1,5 +1,5 @@
 // The category tree and the product detail page. SQL only.
-import { availabilityPredicate, pooled, type Queryable } from "@effy/edge-shared";
+import { availabilityPredicate, pooled, renditionWidthsSql, type Queryable } from "@effy/edge-shared";
 
 import { categorySubtreeById } from "../lib/category-tree";
 
@@ -9,6 +9,8 @@ export interface CategoryRow {
   parent_key: string | null;
   product_count: number;
   image_key: string | null;
+  /** 086 — the representative picture's ready copies; NULL for none. */
+  image_widths: number[] | null;
 }
 
 /** The detail projection: the card fields plus the long description and the primary category. */
@@ -31,6 +33,8 @@ export interface DetailRow {
 export interface MediaRow {
   storage_key: string;
   alt_text: string | null;
+  /** 086 — this picture's ready copies; NULL for none. */
+  image_widths: number[] | null;
 }
 
 /** One typed attribute value with its definition's label, data type and unit. */
@@ -66,7 +70,11 @@ export function createCatalogRepository(db: Queryable = pooled): CatalogReposito
     async categories() {
       return (
         await db.query<CategoryRow>(`
+-- 086: the representative picture's ready copies, looked up once it is chosen.
+SELECT t.*, ${renditionWidthsSql("t.image_key")} AS image_widths
+FROM (
 SELECT c.key AS key,
+       c.display_order AS display_order,
        c.name AS name,
        (SELECT pc.key FROM public.category pc WHERE pc.id = c.parent_id) AS parent_key,
        (SELECT count(*)::int
@@ -92,7 +100,8 @@ SELECT c.key AS key,
 FROM public.category c
 -- availability-exempt: public.category — the taxonomy's own lifecycle.
 WHERE c.status = 'active'
-ORDER BY c.display_order ASC, c.name ASC`)
+) t
+ORDER BY t.display_order ASC, t.name ASC`)
       ).rows;
     },
 
@@ -131,10 +140,10 @@ WHERE p.id = $1 AND p.status = 'active'`,
       return (
         await db.query<MediaRow>(
           `
-SELECT storage_key, alt_text
-FROM public.product_media
-WHERE product_id = $1
-ORDER BY is_primary DESC, display_order ASC, created_at ASC`,
+SELECT pm.storage_key, pm.alt_text, ${renditionWidthsSql("pm.storage_key")} AS image_widths
+FROM public.product_media pm
+WHERE pm.product_id = $1
+ORDER BY pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC`,
           [id],
         )
       ).rows;

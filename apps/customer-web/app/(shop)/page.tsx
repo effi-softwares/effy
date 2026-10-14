@@ -153,6 +153,8 @@ async function HomeContent() {
     return <EmptyStore />
   }
 
+  const firstRail = sections.find((section) => section.kind === "rail")
+
   return (
     <>
       {/* ⚠ The page RENDERS A COMPOSED SEQUENCE, it does not decide the order here. `composeSections`
@@ -174,6 +176,7 @@ async function HomeContent() {
               title={section.rail.title}
               products={section.rail.products}
               href={section.href}
+              priority={section === firstRail}
             />
           )}
           {/* The reference closes each merchandising section with a hairline rule. */}

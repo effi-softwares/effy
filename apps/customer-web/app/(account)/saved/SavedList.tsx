@@ -256,7 +256,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                   tabIndex={-1}
                   className={cn("w-[72px] shrink-0", !available && "opacity-50")}
                 >
-                  <MediaFrame src={item.imageUrl} alt="" sizes="72px" rounded="rounded-md" className="bg-secondary" />
+                  <MediaFrame src={item.imageUrl} widths={item.imageWidths} alt="" sizes="72px" rounded="rounded-md" className="bg-secondary" />
                 </Link>
                 <div className="min-w-[200px] flex-1 space-y-1">
                   <Link href={`/product/${item.id}`} className="font-medium hover:underline">

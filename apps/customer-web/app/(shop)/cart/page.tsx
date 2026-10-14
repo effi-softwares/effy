@@ -1,11 +1,11 @@
 "use client"
 
 import { ArrowRight, CircleAlert, Lock, Minus, Plus, ShoppingCart } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import type { ProductSearchResultDTO, StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
 import { Alert } from "@/components/ui/alert"
 import { Breadcrumb } from "@/components/ui/misc"
@@ -214,7 +214,7 @@ export default function CartPage() {
 function Thumb({ line }: { line: GuestCartLine }) {
   return (
     <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-      {line.imageUrl && <Image src={line.imageUrl} alt="" fill unoptimized sizes="5rem" className="object-cover" />}
+      {line.imageUrl && <CatalogImage src={line.imageUrl} widths={line.imageWidths} alt="" fill sizes="5rem" className="object-cover" />}
     </div>
   )
 }

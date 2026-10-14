@@ -52,6 +52,8 @@ export interface GuestCartLine {
   productId: string
   name: string
   imageUrl: string | null
+  /** 086 — the picture's smaller copies, when the read that added the line said. */
+  imageWidths?: number[]
   unitPriceAmount: string
   currency: string
   quantity: number
@@ -350,6 +352,7 @@ function fromDTO(dto: CartDTO): CartMirror {
     productId: l.productId,
     name: l.name,
     imageUrl: l.imageUrl,
+    ...(l.imageWidths?.length ? { imageWidths: l.imageWidths } : {}),
     unitPriceAmount: l.unitPriceAmount,
     currency: dto.currency,
     quantity: l.quantity,

@@ -29,14 +29,14 @@ const MILK = "1a7b0000-0000-0000-0000-000000000002";
 
 function savedWith(over: Partial<SavedRepository>) {
   const repo = { membershipIds: async () => [], namedProductIds: async () => [], list: async () => [], lists: async () => [], ...over } as SavedRepository;
-  return createSavedService({ repo, addToCart: async () => undefined, presign: async (k) => (k ? `https://media.example/${k}` : null) });
+  return createSavedService({ repo, addToCart: async () => undefined, imageAddress: async (k) => (k ? `https://media.example/${k}` : null) });
 }
 
 describe("saved items and lists", () => {
   it("a saved item", async () => {
     const row: ListRow = {
       product_id: EGGS, name: "Free Range Eggs 12pk", brand: "Effy", price_amount: "6.50", currency: "AUD", compare_at_amount: "8.00",
-      storage_key: "eggs.jpg", saved_at: new Date("2026-07-20T04:11:00.000Z"), saved_price_amount: "8.00", category_key: "dairy-eggs",
+      storage_key: "eggs.jpg", image_widths: null, saved_at: new Date("2026-07-20T04:11:00.000Z"), saved_price_amount: "8.00", category_key: "dairy-eggs",
       is_new: false, price_dropped: true, verdict: "purchasable",
     };
     const [item] = await savedWith({ list: async () => [row] }).list("c", "default");
@@ -45,7 +45,7 @@ describe("saved items and lists", () => {
 
   it("a saved item with nothing to say omits the optional keys rather than sending null", async () => {
     const row: ListRow = {
-      product_id: "p1", name: "Milk", brand: null, price_amount: "3.10", currency: "AUD", compare_at_amount: null, storage_key: null,
+      product_id: "p1", name: "Milk", brand: null, price_amount: "3.10", currency: "AUD", compare_at_amount: null, storage_key: null, image_widths: null,
       saved_at: new Date("2026-07-20T04:11:00Z"), saved_price_amount: "3.10", category_key: null, is_new: false, price_dropped: false, verdict: "purchasable",
     };
     const [item] = await savedWith({ list: async () => [row] }).list("c", "default");
@@ -157,10 +157,10 @@ describe("an order line", () => {
           delivery_handover: null, delivery_note: null, item_subtotal_amount: "13.00", discount_amount: "0.00", promo_code: null,
           delivery_fee_amount: "0.00", grand_total_amount: "13.00", currency: "AUD", payment_status: "succeeded",
         }),
-        items: async () => [{ order_item_id: "1a2b3c4d-0000-0000-0000-000000000009", product_id: EGGS, product_name: "Free Range Eggs 12pk", unit_price_amount: "6.50", quantity: 2, line_subtotal_amount: "13.00", image_key: null }],
+        items: async () => [{ order_item_id: "1a2b3c4d-0000-0000-0000-000000000009", product_id: EGGS, product_name: "Free Range Eggs 12pk", unit_price_amount: "6.50", quantity: 2, line_subtotal_amount: "13.00", image_key: null, image_widths: null }],
         fulfillments: async () => [], shortfalls: async () => [], arrivals: async () => [], paymentMethod: async () => null, refunds: async () => [], list: async () => [],
       },
-      presign: async () => null,
+      imageAddress: async () => null,
     });
     const order = await orders.get({ log: { warn: () => undefined } } as never, "c", "11111111-1111-4111-8111-111111111111");
     expect(JSON.stringify(order.items[0])).toBe(

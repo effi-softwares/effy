@@ -15,7 +15,7 @@
 //
 // ⚠ There is NO whole-cart replace. Merge has no "delete what is absent" clause — that clause is
 // what would let a stale device wipe lines it had never heard of (027 FR-010).
-import { parseCents, pooled, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
+import { parseCents, pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 
 import type { PromoCode, PromoUsage } from "../promo/promo";
 
@@ -36,6 +36,8 @@ export interface CartLineRow {
   /** NULL exactly when the product is untracked. */
   stock_on_hand: number | null;
   storage_key: string | null;
+  /** 086 — the line picture's ready copies; NULL for none. */
+  image_widths: number[] | null;
   /**
    * The price when the line was added — NULL for a line predating 027, and NULL is not
    * "unchanged", it is "unknown": the service must not fabricate a price-change notice from it.
@@ -80,13 +82,15 @@ const LINE_PROJECTION = `
        p.stock_on_hand        AS stock_on_hand,
        ci.unit_price_at_add::text AS unit_price_at_add,
        ci.added_at            AS added_at,
-       m.storage_key          AS storage_key`;
+       m.storage_key          AS storage_key,
+       m.image_widths         AS image_widths`;
 
 const PRIMARY_MEDIA_JOIN = `
 LEFT JOIN LATERAL (
-    SELECT storage_key FROM public.product_media
-    WHERE product_id = p.id
-    ORDER BY is_primary DESC, display_order ASC, created_at ASC
+    SELECT pm.storage_key, ${renditionWidthsSql("pm.storage_key")} AS image_widths
+    FROM public.product_media pm
+    WHERE pm.product_id = p.id
+    ORDER BY pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
     LIMIT 1
 ) m ON true`;
 
@@ -308,7 +312,8 @@ SELECT ''::text              AS id,
        p.stock_tracked       AS stock_tracked,
        p.stock_on_hand       AS stock_on_hand,
        NULL::text            AS unit_price_at_add,
-       m.storage_key         AS storage_key
+       m.storage_key         AS storage_key,
+       m.image_widths        AS image_widths
 FROM public.product p${PRIMARY_MEDIA_JOIN}
 WHERE p.id = ANY($1::uuid[])`,
           [[...productIds]],

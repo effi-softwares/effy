@@ -23,7 +23,7 @@ set -euo pipefail
 # whether it has been redeployed yet. With this set, a service that does not answer where it is
 # listed is tried on the other gateway(s) and reported with WHERE it answered, instead of as down.
 #
-# ⚠ `auth` (035) and `live` (071) are deliberately ABSENT and must stay absent: neither has an HTTP
+# ⚠ `auth` (035), `live` (071) and `media` (086) are deliberately ABSENT and must stay absent: none has an HTTP
 # route to probe. Adding one would report DOWN forever and train everyone to ignore a red row.
 if [ -z "${TARGETS:-}" ]; then
   API_URL="${API_URL:?set TARGETS, or API_URL (from /effy/<env>/edge/api_endpoint)}"

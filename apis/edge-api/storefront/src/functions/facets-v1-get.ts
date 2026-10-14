@@ -4,6 +4,7 @@
 // describe exactly the set the grid shows. A malformed price is the caller's error, not an outage.
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
+import { cacheable } from "../lib/cache";
 import { attributeFacets, badRequest, nonEmptyValues, queryOf, validPrice } from "../lib/request";
 import { facetService } from "../lib/wiring";
 
@@ -25,7 +26,7 @@ export const handler = shopperHandler(async (event, context) => {
       brands: nonEmptyValues(q.getAll("brand")) ?? [],
       attributes: attributeFacets(q) ?? {},
     });
-    return json(200, facets, scope);
+    return cacheable(json(200, facets, scope), "listing");
   } catch (err) {
     if (err instanceof ConnectionLimitError) throw err;
     scope.log.error({ err }, "storefront: facets read failed");

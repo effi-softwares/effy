@@ -10,7 +10,7 @@ const id = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")
 
 const row = (n: number, over: Partial<SearchRow> = {}): SearchRow => ({
   id: id(n), name: `P${n}`, brand: null, price_amount: `${n}.00`, currency: "AUD",
-  compare_at_amount: null, storage_key: null, alt_text: null,
+  compare_at_amount: null, storage_key: null, alt_text: null, image_widths: null,
   created_at: new Date("2020-01-01T00:00:00Z"), created_at_key: `2020-01-01T00:00:00.00000${n % 10}Z`,
   available: true, score: 0.5, ...over,
 });

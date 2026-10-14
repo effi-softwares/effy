@@ -4,6 +4,56 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**086-catalogue-image-delivery — Catalogue Pictures That Load Once.** 🚧 **BUILT (2026-10-14). NOT APPLIED,
+NOT MIGRATED, NOT DEPLOYED, NOT WALKED.** Backlog PERF-02 + PERF-03. Every shopper picture (product,
+aisle, promotion) has ONE permanent address on a CDN that browsers keep for a year, and is delivered as a
+WebP copy at about the size it is drawn. Spec, plan, tasks: [specs/086-catalogue-image-delivery/](specs/086-catalogue-image-delivery/tasks.md).
+
+- ⚠ **THE BUCKET STAYS PRIVATE, AND THE CDN READS ONLY THE PUBLIC SET.** CloudFront at `media.<zone>`
+  (`infra/envs/dev/media.tf`) reaches `effy-<env>-product-media` through Origin Access Control; the
+  bucket policy grants `s3:GetObject` on `products/`, `promotions/`, `renditions/` ONLY, and NO
+  `ListBucket` — so a missing key and a refused one both answer 403. Labels (`courier-label/`) and
+  proof (`proof/`) stay presigned-only. ⚠ The set is stated twice — `PUBLIC_MEDIA_PREFIXES`
+  (`@effy/edge-shared` `media-public.ts`) and `local.public_media_prefixes` — and
+  `media-public.guard.test.ts` reads `media.tf` to hold them equal and to keep proof and labels out.
+- ⚠ **ONE BUILDER OF A PUBLIC ADDRESS**: `publicImageUrl` (null outside the set, throws when
+  `MEDIA_PUBLIC_BASE_URL` is unset). Only `storefront` and `commerce` call it (guarded), and neither may
+  call `presignRead` / `imageUrlOrNull` (guarded). ⚠ `imageUrlOrNull` is now the PRIVATE reader —
+  `orders` reads LABELS through it; never "fix" it into a public one. Both shopper services lost
+  `S3_MEDIA_BUCKET` and their S3 permission.
+- **Copies are made at upload, not on request.** Uploads under `products/` / `promotions/` notify an SQS
+  queue (DLQ after 3); the new route-less **`media`** service (`apis/edge-api/media`, no gateway — the
+  `live` precedent) makes WebP q78 copies at 160/320/640/1280 below the source width **plus the source's
+  own width when ≤ 1280** (a mid-size picture is never an enlarged smaller copy), under
+  `renditions/<key without extension>/w<width>.webp` (never notified — no loop). Animated pictures get
+  none (served whole). It records what exists in **`public.media_rendition`** (its ONE writer); readers
+  join it through `renditionWidthsSql`. `sharp` 0.34.5 is an esbuild external installed for linux-arm64
+  at package time.
+- **Wire, additive**: `imageUrl` keeps its type — now the CDN address of the original — and
+  `imageWidths` is added to cards, gallery, categories, banners, promotions, cart, saved and order lines
+  (`thumbnailWidths` on the order list). ⚠ **Sent only when copies exist**, so a picture with none is
+  byte-identical to before (the app's strict wire fixtures). Clients derive a copy's address with
+  `renditionUrl` (`@effy/shared-types` `media.ts`, pinned by `media.fixtures.json`; the worker's
+  `renditionKey` is tested against the same fixtures). Installed apps ignore the field (FR-007).
+- **customer-web**: every catalogue picture is `CatalogImage` — a plain `<picture>` with a WebP `<source>`
+  over the original `<img>`. ⚠ **`next/image` is gone from customer-web**, and with it ~4.6 KB on every
+  guest route (`/search` 173.8 → 169.2 KB) and the `**.amazonaws.com` remote pattern.
+- **Alarms**: DLQ ≥ 1; render errors; **any** `RenditionFailed` (FR-020); CloudFront 5xx/4xx rate —
+  ⚠ in **us-east-1**, with a second alerts topic there (CloudFront metrics exist only there) subscribed
+  to the same `var.alert_email`.
+- **Verified here**: every edge-api suite and typecheck; the new guards; the migration applied with every
+  other migration to a scratch Postgres 18 and its CHECKs probed; the changed storefront, commerce and
+  worker SQL run against that schema; the worker on real generated pictures (sizes, alpha, EXIF,
+  animation, corrupt); customer-web tests (677), production build and bundle budget; `terraform validate`;
+  `trivy` (nothing new).
+- ⚠ **NOT VERIFIED**: no `*.container.test.ts` ran (no Docker); nothing applied, deployed or seen in a
+  browser; the `sharp` packaging has never run on Lambda; whether CloudFront stamps the year-long
+  `Cache-Control` on a 403 (quickstart §1 checks; research R3 has the fix).
+- **Operator steps, in order** (quickstart.md): (0) Lighthouse baseline (PERF-20); (1) `make apply
+  ENV=dev`, confirm the us-east-1 subscription email, curl checks incl. a real label and proof key → 403;
+  (2) `make db-up ENV=dev`; (3) deploy `media`, upload one picture, check its row and `w320.webp`, run
+  `renditionBackfill` (twice); (4) deploy `storefront` and `commerce`; (5) deploy customer-web; (6) walk.
+
 **085-flexible-standard-delivery — Flexible Standard Delivery.** 🚧 **BUILT (2026-10-13). NOT MIGRATED, NOT
 DEPLOYED, NOT WALKED, NOT SIGNED OFF.** Standard delivery lets a customer choose a **day with no time**
 (the default), **"No particular day"** (as soon as possible), or — behind "Need a specific time?" — a

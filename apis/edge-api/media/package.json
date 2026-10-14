@@ -1,0 +1,28 @@
+{
+  "name": "@effy/edge-media",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy media worker (086-catalogue-image-delivery) — makes the smaller WebP copies of every catalogue and promotion picture when it is uploaded, and records which exist. NO HTTP route: it is fed by the bucket's upload notifications through a queue, and attaches to neither gateway.",
+  "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1088.0",
+    "@aws-sdk/client-sqs": "3.1088.0",
+    "@effy/edge-shared": "workspace:*",
+    "@effy/shared-types": "workspace:*",
+    "pg": "8.22.0",
+    "pino": "10.3.1",
+    "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12.0.4",
+    "@types/aws-lambda": "8.10.162",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "esbuild": "0.28.1",
+    "serverless": "3.40.0",
+    "serverless-esbuild": "1.57.2",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

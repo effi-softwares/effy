@@ -19,6 +19,7 @@ import {
 } from "@effy/edge-shared/delivery";
 import type { DeliveryOfferDTO, ServiceabilityDTO } from "@effy/shared-types";
 
+import { cacheable } from "../lib/cache";
 import { badRequest, queryOf } from "../lib/request";
 
 export const handler = shopperHandler(async (event, context) => {
@@ -34,11 +35,7 @@ export const handler = shopperHandler(async (event, context) => {
     emitMetric(metricNamespace(), "ServiceabilityChecks", 1, { serviced: String(serviced), coverage });
     const offer = coverage === "effy" ? await offerFor(scope) : null;
     const body: ServiceabilityDTO = { postcode, serviced, coverage, ...(offer ? { offer } : {}) };
-    const res = json(200, body, scope);
-    // ⚠ FIVE MINUTES, NOT A DAY (076). Staff now add and remove postcodes from a screen; a day of
-    // public caching would keep telling people "yes" about a postcode that had left the list,
-    // while the checkout — which is never cached — refused them.
-    return { ...res, headers: { ...res.headers, "cache-control": "public, max-age=300" } };
+    return cacheable(json(200, body, scope), "serviceability");
   } catch (err) {
     if (err instanceof ConnectionLimitError) throw err;
     scope.log.error({ err }, "storefront: serviceability failed");

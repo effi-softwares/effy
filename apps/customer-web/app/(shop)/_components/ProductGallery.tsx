@@ -1,6 +1,6 @@
-import Image from "next/image"
-
 import type { StorefrontProductDetailDTO } from "@effy/shared-types"
+
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 
 /**
  * The product gallery (025 US2 / FR-022), laid out from the reference template.
@@ -39,11 +39,11 @@ export function ProductGallery({
   if (gallery.length === 1) {
     return (
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
-        <Image
+        <CatalogImage
           src={gallery[0].imageUrl}
+          widths={gallery[0].imageWidths}
           alt={gallery[0].alt ?? name}
           fill
-          unoptimized
           sizes="(min-width: 768px) 40rem, 100vw"
           className="object-cover"
           priority
@@ -63,7 +63,7 @@ export function ProductGallery({
             aria-label={`Show image ${i + 1} of ${gallery.length}`}
             className="relative aspect-square w-16 shrink-0 overflow-hidden rounded-md border bg-muted hover:border-foreground md:w-full"
           >
-            <Image src={m.imageUrl} alt="" fill unoptimized sizes="92px" className="object-cover" />
+            <CatalogImage src={m.imageUrl} widths={m.imageWidths} alt="" fill sizes="92px" className="object-cover" />
           </a>
         ))}
       </div>
@@ -75,11 +75,11 @@ export function ProductGallery({
             id={`product-slide-${i}`}
             className="relative aspect-square w-full shrink-0 snap-center bg-muted"
           >
-            <Image
+            <CatalogImage
               src={m.imageUrl}
+              widths={m.imageWidths}
               alt={m.alt ?? `${name} — image ${i + 1} of ${gallery.length}`}
               fill
-              unoptimized
               sizes="(min-width: 768px) 36rem, 100vw"
               className="object-cover"
               priority={i === 0}

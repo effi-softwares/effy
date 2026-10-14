@@ -103,8 +103,16 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [ ] Mobile apps: confirm they render whatever URL the DTO carries (no client change expected).
 - **Done when:** the same product shows the same image URL across two requests, and a repeat page view
   loads its images from the browser cache.
+- **Built 2026-10-14** with PERF-03 as feature 086 (`specs/086-catalogue-image-delivery/`). NOT applied,
+  migrated or deployed — the operator steps are in its quickstart. Built as above, with two changes: the
+  CDN host is `media.<zone>`, and `next/image` was removed from customer-web entirely (a plain `<picture>`),
+  which also dropped the `**.amazonaws.com` pattern and ~4.6 KB from every guest route.
 
 ### PERF-03 · Right-sized, modern-format images — **spec** (rides PERF-02)
+
+- **Built 2026-10-14 in 086**: copies made at upload by a queue-fed worker (WebP only; the original is the
+  fallback), 160/320/640/1280 plus the source's own width. Not deployed. The unchecked tasks below are
+  superseded by 086's tasks.md.
 
 - **Found:** every `<Image>` is `unoptimized` (ProductCard, ProductGallery, MiniCart, cart, checkout,
   receipt, `MediaFrame`), so a 72px thumbnail downloads the original upload — up to 10 MB is accepted
@@ -133,6 +141,17 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [ ] Verify the product gallery's first image (already `priority`) is the only eager one there.
 - **Done when:** the hero image request starts before any below-the-fold image in a network trace.
 - **Note:** small and independent — can ship before PERF-02.
+- **Done 2026-10-14**, differently from the tasks above:
+  - ⚠ **The hero has no artwork.** `PromoHero` never passes `imageUrl`; the band is drawn. The lazy
+    `<img>` in `PromoBanner` is reached only by `OfferBannerCard`, which the home page does not give
+    an image either. Nothing to prioritise there, so `PromoBanner` is unchanged.
+  - `ProductCard` takes `priority` (`loading="eager"`, `fetchPriority="high"` — not `next/image`'s
+    `priority`, which would also write four preloads into the head). The first `FIRST_ROW` (4) cards
+    of the home page's first rail and of the search grid get it; related rails do not (the gallery
+    is that page's largest element).
+  - The gallery's first image is the only eager one there (checked, unchanged).
+  - Not seen in a browser: dev's newest products have no pictures, so the attributes were not
+    observed in rendered HTML.
 
 ---
 
@@ -196,6 +215,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [ ] One shared helper in `storefront/src/lib` so the values live in one place.
   - [ ] Contract test asserting each public route's header.
 - **Done when:** repeating the same search within 30s issues no network request.
+- **Done 2026-10-14; `storefront` NOT deployed.** `storefront/src/lib/cache.ts` holds every value
+  (the three older ones moved in); `cache.contract.test.ts` lists every function with its policy or
+  `null`, so a new route must state one.
+  - ⚠ **`max-age=30, stale-while-revalidate=30`, not `=60` as written above**: the two add up to the
+    oldest answer a browser shows, and 30 + 60 is 90 seconds — past FR-015a's 60. The test holds the sum.
 
 ---
 
@@ -216,6 +240,19 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [ ] Check `robots.ts` — facet params are disallowed; decide whether `?category=` aisle pages should
         be indexable now that they have content.
 - **Done when:** the raw HTML of an aisle URL contains product cards.
+- **Done 2026-10-14** — a production build served locally against dev returned `/search` with 24
+  product cards in the raw HTML. Not walked in a browser.
+  - The query is built once for server and browser (`lib/search-query.ts`); the browser shows the
+    server's page only when it answers the query the address asks.
+  - ⚠ **Refinements now rewrite the address with `history.replaceState`, not the router** — the page
+    reads its search params on the server, so a router navigation would read the listing there on
+    every filter tick as well.
+  - ⚠ **Bundle: `/search` is 173.8 KB of 174.** The phone filter sheet's markup moved into the
+    on-demand filter chunk to get there. The next client-side byte on this route must come out of it.
+  - **Open (operator's call): `robots.ts` unchanged.** Aisle pages now have content, but `/search?`
+    stays disallowed and every search URL is canonical to `/search`. Indexing single-aisle URLs
+    means an Allow for `/search?category=`, a Disallow for `/search?category=*&`, a per-aisle
+    title and canonical, and sitemap entries — a change to 011's route contract.
 
 ### PERF-10 · Remove the debounce on first load; keep results across Back
 
@@ -224,6 +261,14 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - [ ] Keep loaded pages and scroll position when returning from a product page (module-level store
         keyed by the query string, or session storage) — today Back refetches from page one.
   - [ ] `loadMore` failure currently sets `exhausted`, silently ending the list; show a retry instead.
+- **Done 2026-10-14**, all three, in `SearchExperience.tsx`. Not walked in a browser.
+  - Only a refinement waits 250 ms.
+  - The last listing is kept for the life of the tab and shown again on return — ⚠ **only while its
+    first page is under 60 seconds old** (FR-015a); older than that, Back reads page one again.
+    Keeping it longer needs FR-015a amended.
+  - A failed page says so and offers "Try again"; scrolling does not retry on its own.
+  - Also fixed on the way: a page arriving for an earlier refinement is dropped, and an aborted read
+    no longer clears "loading" under the one that replaced it.
 
 ---
 

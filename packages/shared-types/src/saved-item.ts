@@ -56,6 +56,8 @@ export interface SavedItemDTO {
   name: string;
   brand: string | null;
   imageUrl: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
   priceAmount: string;
   currency: string;
   compareAtAmount: string | null;

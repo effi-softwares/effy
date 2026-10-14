@@ -12,7 +12,7 @@ describe("a Home banner", () => {
   it("byte for byte — `position` an integer, the target its own promotion, the terms composed here", async () => {
     const banner = await toBanner(
       {
-        id: "3f2a", code: "FIRST20", banner_title: "20% off your first order", banner_subtitle: "Stock up", banner_image_key: null,
+        id: "3f2a", code: "FIRST20", banner_title: "20% off your first order", banner_subtitle: "Stock up", banner_image_key: null, banner_image_widths: null,
         banner_position: 2, minimum_subtotal_amount: "30.00", currency: "AUD", banner_placement: "carousel", ends_at: null,
       },
       async () => null,

@@ -63,7 +63,7 @@ d("070 — cart repository against the real schema", () => {
     ).rows.map((r) => r.id) as [string, string];
 
     repo = createCartRepository(pool, transactorFor(pool));
-    svc = createCartService({ repo, policy: () => loadCartPolicy(pool), presign: async () => null });
+    svc = createCartService({ repo, policy: () => loadCartPolicy(pool), imageAddress: async () => null });
     cartId = await repo.getOrCreateCartId(customerId);
   }, 180_000);
 

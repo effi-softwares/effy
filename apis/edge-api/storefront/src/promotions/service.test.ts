@@ -5,7 +5,7 @@ import { createPromotionService, promoTerms, promoValidity, toBanner } from "./s
 
 const promo = (over: Partial<AdvertisedPromoRow> = {}): AdvertisedPromoRow => ({
   id: "11111111-1111-1111-1111-111111111111", code: "SPRING10", banner_title: "Spring", banner_subtitle: null,
-  banner_image_key: null, banner_position: 2, minimum_subtotal_amount: "50.00", currency: "AUD",
+  banner_image_key: null, banner_image_widths: null, banner_position: 2, minimum_subtotal_amount: "50.00", currency: "AUD",
   banner_placement: "top", ends_at: null, ...over,
 });
 

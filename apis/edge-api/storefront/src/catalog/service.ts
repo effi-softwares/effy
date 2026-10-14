@@ -1,5 +1,6 @@
 // Category and product-detail shaping. No HTTP, no SQL. The customer projection never exposes
 // which shop fulfils a product (019 FR-038).
+import { imageWidthsField } from "@effy/edge-shared";
 import type {
   MediaDTO,
   ProductAttributeGroupDTO,
@@ -8,7 +9,7 @@ import type {
   StorefrontProductDetailDTO,
 } from "@effy/shared-types";
 
-import { imageUrl, type Presign } from "../lib/cards";
+import { imageUrl, type ImageAddress } from "../lib/cards";
 import { isUuid } from "../lib/request";
 import type { AttrRow, CatalogRepository } from "./repository";
 
@@ -42,7 +43,7 @@ export function groupAttributes(rows: readonly AttrRow[]): ProductAttributeGroup
   return groups;
 }
 
-export function createCatalogService(repo: CatalogRepository, presign: Presign = imageUrl) {
+export function createCatalogService(repo: CatalogRepository, imageAddress: ImageAddress = imageUrl) {
   return {
     async categories(): Promise<StorefrontCategoryDTO[]> {
       return Promise.all(
@@ -52,7 +53,8 @@ export function createCatalogService(repo: CatalogRepository, presign: Presign =
           parentKey: c.parent_key,
           productCount: c.product_count,
           // Null when no product in the category has media — the client renders a brand tile.
-          imageUrl: await presign(c.image_key),
+          imageUrl: await imageAddress(c.image_key),
+          ...imageWidthsField(c.image_widths),
         })),
       );
     },
@@ -77,8 +79,10 @@ export function createCatalogService(repo: CatalogRepository, presign: Presign =
 
       // A missing image never blanks the page: it is dropped from the gallery.
       const gallery: MediaDTO[] = (
-        await Promise.all(mediaRows.map(async (m) => ({ imageUrl: await presign(m.storage_key), alt: m.alt_text })))
-      ).filter((m): m is MediaDTO => m.imageUrl !== null);
+        await Promise.all(
+          mediaRows.map(async (m) => ({ imageUrl: await imageAddress(m.storage_key), ...imageWidthsField(m.image_widths), alt: m.alt_text })),
+        )
+      ).flatMap((m) => (m.imageUrl === null ? [] : [{ ...m, imageUrl: m.imageUrl }]));
 
       const badges: ProductBadge[] = [];
       if (row.compare_at_amount !== null) badges.push("on_sale");
@@ -90,6 +94,7 @@ export function createCatalogService(repo: CatalogRepository, presign: Presign =
         brand: row.brand,
         // The primary gallery image doubles as the card image.
         imageUrl: gallery[0]?.imageUrl ?? null,
+        ...imageWidthsField(gallery[0]?.imageWidths),
         priceAmount: row.price_amount,
         currency: row.currency,
         compareAtAmount: row.compare_at_amount,
