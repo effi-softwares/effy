@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { chromePrefetch } from "@/lib/account-routes"
+
 const base =
   "flex min-h-12 flex-col items-center gap-0.5 py-1.5 text-[11px] leading-[14px] font-medium text-muted-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground [&_svg]:size-[22px]"
 
@@ -28,7 +30,7 @@ export function BottomBarLink({
   const pathname = usePathname()
   const active = exact ? pathname === href : prefixes.some((p) => pathname.startsWith(p))
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} className={base}>
+    <Link href={href} prefetch={chromePrefetch(href)} aria-current={active ? "page" : undefined} className={base}>
       {children}
     </Link>
   )
@@ -37,7 +39,7 @@ export function BottomBarLink({
 /** Before the URL is known: the same link, never marked current. */
 export function BottomBarLinkFallback({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className={base}>
+    <Link href={href} prefetch={chromePrefetch(href)} className={base}>
       {children}
     </Link>
   )

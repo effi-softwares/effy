@@ -231,6 +231,14 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 ### How P1 caching was built (PERF-05..07)
 
+- ⚠ **Fixed 2026-10-14 — PERF-05/06 had made the build depend on the backend.** `next build` ran the
+  cached aisle and home reads while prerendering; when one threw, every page under the header failed to
+  prerender and the build stopped. Seen twice: the backend answering 503 (seven build workers at once
+  against the shopper role's connection limit), and the backend unreachable. The shared reads now await
+  `connection()` first, so only a request makes them (`lib/cache-life.ts`; held by the freshness
+  guard). Measured: with the backend unreachable, the build before PERF-05 passes, after it failed,
+  now passes.
+
 - **Next's `"use cache"`**, not the fetch-level `cached()` option: `getCategories` (`lib/categories.ts`),
   `getHome` (`app/(shop)/home-data.ts`), the product page's content. Each is still wrapped in React's
   `cache()` for one lookup per render.
@@ -417,32 +425,61 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   fetch de-duplication: `/customer/v1/points` (`UserIsland`, `HomeShortcuts`, `ProductDeliveryNote`),
   `/customer/v1/addresses` (`DeliveryBar`, `ProductDeliveryNote`).
 - **Tasks**
-  - [ ] `lib/customer-reads.ts`: `getPoints`, `getAddresses`, `getSavedItems`, `getOrders` wrapped in
+  - [x] `lib/customer-reads.ts`: `getPoints`, `getAddresses`, `getSavedItems`, `getOrders` wrapped in
         React `cache()` (same reasoning as `getHome`).
-  - [ ] Point the islands at them.
+  - [x] Point the islands at them.
+- **Done 2026-10-14.** `UserIsland`, `DeliveryBar`, `HomeShortcuts`, `ProductDeliveryNote` and the
+  account overview read through them. Each takes no argument (it reads the session itself), so a
+  render has one cache entry per read; a guest costs no request; a failure still throws and each
+  caller keeps its own fallback. Also `defaultAddress()` — the "default, else first" rule was written
+  out in four places. Not walked signed in.
 
 ### PERF-17 · Preload the typeface, remove the swap shift
 
 - **Found:** Geist (57 KB variable) loads through plain `@font-face` with `font-display: swap` and no
   preload — text paints in the fallback, then shifts. The root layout already records the fix.
 - **Tasks**
-  - [ ] `next/font/local` pointing at the design-system's existing `Geist-Variable.woff2` (not a second
+  - [x] `next/font/local` pointing at the design-system's existing `Geist-Variable.woff2` (not a second
         copy), with `adjustFontFallback`.
-  - [ ] Confirm Geist Mono is not downloaded on pages that show no code field.
-  - [ ] Check CLS before/after from the web-vitals events.
+  - [x] Confirm Geist Mono is not downloaded on pages that show no code field.
+  - [ ] Check CLS before/after from the web-vitals events. *(needs a deploy and a few days of data)*
+- **Done 2026-10-14** (`app/fonts.ts`). The two `@font-face` rules left
+  `packages/design-system/src/storefront/tokens.css` (customer-web is its only importer); its font
+  tokens now read `--font-geist` / `--font-geist-mono`, which the `<html>` class sets. Served locally:
+  Geist is preloaded (a `Link: …; rel=preload; as="font"` response header) and Mono is not.
+  - Mono: a guest home view did not download it. ⚠ It IS drawn on home when an offer with a code is
+    advertised (the hero's code chip, `PromoHero`), and then it costs 58 KB for a few characters —
+    worth setting the chip in Geist with `tabular-nums` if that matters. Not changed.
 
 ### PERF-18 · Recently viewed and other on-load client fetches
 
 - **Tasks**
-  - [ ] `RecentlyViewedRail`: defer the fetch until the rail is near the viewport.
-  - [ ] List every request a guest's first page view makes (cart preview, saved ids, live, telemetry)
+  - [x] `RecentlyViewedRail`: defer the fetch until the rail is near the viewport.
+  - [x] List every request a guest's first page view makes (cart preview, saved ids, live, telemetry)
         and confirm none fires for an empty cart / a guest who cannot use it.
+- **Done 2026-10-14.** Captured with Chrome (390 px wide) against a local production build:
+  - The rail's `products?ids=` read now starts only when it nears the viewport (600 px margin); a
+    device with no viewed products renders no marker and makes no request.
+  - A guest's home view made **no** cart-preview, saved-ids, live-channel or telemetry request, and no
+    per-customer API call.
+  - ⚠ **It made ~48 RSC prefetches, six of them for pages a guest cannot open.** Next prefetches every
+    link that scrolls into view; the chrome (top bar "Track an order", header heart, phone tab bar,
+    footer "Your account") links to Account, Orders and Saved, so each was fetched, redirected by the
+    proxy, and the sign-in page prefetched again after it. Links to pages that need an account are
+    now never prefetched (`lib/account-routes.ts` — the proxy's list moved there, so the two cannot
+    disagree). After: none to Account, Orders or Saved.
+  - **Open — operator's call:** the other ~40 prefetches are Next's default for every product card,
+    offer and aisle link in view, each fetched as several segment requests, and on Amplify each is an
+    SSR compute invocation. Turning prefetch off for product cards (or to hover-only) would cut that
+    sharply at the cost of a slower first tap. Not changed.
 
 ### PERF-19 · Remaining plain `<img>`
 
 - **Tasks**
-  - [ ] `app/(account)/orders/page.tsx:220` — add `loading="lazy"`, `decoding="async"` and dimensions
+  - [x] `app/(account)/orders/page.tsx:220` — add `loading="lazy"`, `decoding="async"` and dimensions
         (or use `MediaFrame`).
+- **Already done by 086**: the thumbnail is a `CatalogImage` (lazy, async, smallest copy for 56 px).
+  The one remaining plain `<img>` (`PromoBanner`) is already lazy and async.
 
 ---
 

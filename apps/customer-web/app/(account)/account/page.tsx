@@ -3,14 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { CircleHelp, CreditCard, Heart, Lock, MapPin, Pencil, ShieldCheck, Tag } from "lucide-react"
-import {
-  DELIVERY_TYPE_WORDS,
-  type AddressDTO,
-  type OrderSummaryDTO,
-  type PaymentMethodDTO,
-  type PointsBalanceDTO,
-  type SavedItemDTO,
-} from "@effy/shared-types"
+import { DELIVERY_TYPE_WORDS, type PaymentMethodDTO } from "@effy/shared-types"
 
 import { CoverageNote } from "@/app/(account)/addresses/_components/CoverageNote"
 import { btnClass } from "@/components/storefront/actions"
@@ -18,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Breadcrumb, Skeleton } from "@/components/ui/misc"
 import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { defaultAddress, getAddresses, getOrders, getPoints, getSavedItems } from "@/lib/customer-reads"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
 
@@ -68,17 +62,17 @@ async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string
   const api = session ? edgeApi(session) : null
 
   const [orders, points, saved, addresses, cards] = await Promise.all([
-    api?.get<OrderSummaryDTO[]>("/commerce/v1/orders", perCustomer).catch(() => null) ?? null,
-    api?.get<PointsBalanceDTO>("/customer/v1/points", perCustomer).catch(() => null) ?? null,
-    api?.get<SavedItemDTO[]>("/commerce/v1/saved", perCustomer).catch(() => null) ?? null,
-    api?.get<AddressDTO[]>("/customer/v1/addresses", perCustomer).catch(() => null) ?? null,
+    getOrders().catch(() => null),
+    getPoints().catch(() => null),
+    getSavedItems().catch(() => null),
+    getAddresses().catch(() => null),
     api
       ?.get<{ paymentMethods: PaymentMethodDTO[] }>("/commerce/v1/payment-methods", perCustomer)
       .then((r) => r.paymentMethods ?? [])
       .catch(() => null) ?? null,
   ])
 
-  const address = addresses?.find((a) => a.isDefault) ?? addresses?.[0] ?? null
+  const address = defaultAddress(addresses)
   const card = cards?.find((c) => c.isDefault) ?? cards?.[0] ?? null
   const recent = (orders ?? []).slice(0, 3)
   const savedCount = Array.isArray(saved) ? saved.length : null

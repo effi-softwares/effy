@@ -4,6 +4,7 @@ import { ArrowRight, ChevronRight, LayoutGrid, Tag } from "lucide-react"
 import type { StorefrontCategoryDTO } from "@effy/shared-types"
 
 import { getHome } from "@/app/(shop)/home-data"
+import { chromePrefetch } from "@/lib/account-routes"
 import { offerHref } from "@/app/(shop)/_components/OffersPanels"
 import { MENU_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"
 import { btnClass } from "@/components/storefront/actions"
@@ -186,7 +187,7 @@ function Slide({
       <Badge className="self-start">{badge}</Badge>
       <p className="mt-3 text-base leading-snug font-semibold">{title}</p>
       {text && <p className="mt-1.5 text-sm text-muted-foreground">{text}</p>}
-      <Link href={href} className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-medium text-primary">
+      <Link href={href} prefetch={chromePrefetch(href)} className="mt-auto inline-flex items-center gap-1 pt-4 text-sm font-medium text-primary">
         {action}
         <ArrowRight aria-hidden="true" className="size-4" />
       </Link>

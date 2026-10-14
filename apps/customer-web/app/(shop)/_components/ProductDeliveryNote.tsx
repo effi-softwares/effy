@@ -3,7 +3,7 @@ import { Coins, Truck } from "lucide-react"
 import { COVERAGE_REFUSAL_SENTENCE, DELIVERY_TYPE_WORDS } from "@effy/shared-types"
 import type { AddressDTO, PointsBalanceDTO } from "@effy/shared-types"
 
-import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { defaultAddress, getAddresses, getPoints } from "@/lib/customer-reads"
 import { formatMoney } from "@/lib/money"
 import { getSession } from "@/lib/session"
 
@@ -26,12 +26,11 @@ export async function ProductDeliveryNote() {
   let address: AddressDTO | null = null
   let points: PointsBalanceDTO | null = null
   if (session) {
-    const api = edgeApi(session)
     const [addresses, balance] = await Promise.all([
-      api.get<AddressDTO[]>("/customer/v1/addresses", perCustomer).catch(() => null),
-      api.get<PointsBalanceDTO>("/customer/v1/points", perCustomer).catch(() => null),
+      getAddresses().catch(() => null),
+      getPoints().catch(() => null),
     ])
-    address = addresses?.find((a) => a.isDefault) ?? addresses?.[0] ?? null
+    address = defaultAddress(addresses)
     points = balance && Number(balance.points) > 0 ? balance : null
   }
 

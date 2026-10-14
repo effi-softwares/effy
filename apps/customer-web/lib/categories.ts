@@ -1,4 +1,5 @@
 import { cacheLife, cacheTag } from "next/cache"
+import { connection } from "next/server"
 import { cache } from "react"
 import type { StorefrontCategoryDTO } from "@effy/shared-types"
 
@@ -30,7 +31,10 @@ async function readCategories(): Promise<StorefrontCategoryDTO[]> {
  * ⚠ Throws when the catalogue is unreachable (a failure is never kept). Chrome callers catch and
  * render without aisles — a header must never take the page down with it.
  */
-export const getCategories = cache(readCategories)
+export const getCategories = cache(async (): Promise<StorefrontCategoryDTO[]> => {
+  await connection() // request time only — see `atRequestTime` in lib/cache-life.ts
+  return readCategories()
+})
 
 export async function getCategoriesSafe(): Promise<StorefrontCategoryDTO[]> {
   try {

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 
 import "./globals.css"
 import { cn } from "@/lib/utils"
+import { geist, geistMono } from "./fonts"
 import { siteUrl } from "@/lib/config"
 // 050 — the telemetry client island (consent + analytics + error tracking). It imports NO auth SDK and
 // NO analytics SDK at module scope (both are dynamically imported), so it is safe here per the two
@@ -26,17 +27,9 @@ import { TelemetryBootClient } from "@/app/_components/TelemetryBootClient"
     .dependency-cruiser.cjs (a build failure). They are written out here because a guard tells
     you that you broke a rule, never why the rule exists.                                       */
 
-// ⚠ THE TYPEFACE IS NO LONGER WIRED HERE. General Sans (constitution Principle V, v1.11.0) is NOT on
-// Google Fonts and has no @fontsource package, so `next/font/google` cannot resolve it. It is
-// self-hosted from WOFF2 committed in @effy/design-system and declared by @font-face in tokens.css,
-// which globals.css imports — so all three web surfaces get it from one place (Principle II) and this
-// file needs no font config at all.
-//
-// ⚠ TRADEOFF, recorded rather than hidden: next/font/google supplied a metric-matched fallback
-// (`size-adjust`) that eliminated swap-induced layout shift. A plain @font-face with `font-display:
-// swap` does not. The faces are small (~23 KB each) and same-origin so the swap window is short, but
-// if CLS regresses on the storefront the fix is `next/font/local` pointing at those same WOFF2 files
-// with `adjustFontFallback` — NOT a second copy of the font.
+// The typeface: Geist, through `next/font/local` (./fonts.ts) from the files committed in
+// @effy/design-system — preloaded, with a metric-matched fallback so the swap shifts nothing
+// (PERF-17). The class on <html> below sets the variables the design system's font tokens read.
 
 export const metadata: Metadata = {
   // Every relative canonical/OG url in the app resolves against this.
@@ -66,7 +59,7 @@ export default function RootLayout({
     // class, so every page renders on the light `:root` tokens. `color-scheme: light` is pinned in
     // globals.css so form controls, scrollbars and the address bar stay light even on an OS set to
     // dark — otherwise the browser would render native chrome dark over a light page.
-    <html lang="en" className={cn("antialiased", "font-sans")}>
+    <html lang="en" className={cn("antialiased", "font-sans", geist.variable, geistMono.variable)}>
       <body>
         {children}
         <TelemetryBootClient />

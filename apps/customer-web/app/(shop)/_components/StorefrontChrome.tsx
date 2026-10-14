@@ -7,6 +7,7 @@ import { DeliveryBar, DeliveryBarFallback } from "@/components/chrome/DeliveryBa
 import { SavedLink } from "@/components/chrome/SavedLink"
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
 import { BrandMark } from "@/components/storefront/BrandMark"
+import { chromePrefetch } from "@/lib/account-routes"
 import { getCategoriesSafe, topLevel } from "@/lib/categories"
 
 import { HeaderSearch, HeaderSearchFallback } from "./HeaderSearch"
@@ -46,7 +47,7 @@ export function StorefrontChrome({
             <DeliveryBar />
           </Suspense>
           <span className="flex shrink-0 items-center gap-4 max-md:hidden">
-            <Link href="/orders" className="opacity-85 hover:underline hover:opacity-100">
+            <Link href="/orders" prefetch={chromePrefetch("/orders")} className="opacity-85 hover:underline hover:opacity-100">
               Track an order
             </Link>
             <Link href="/help" className="opacity-85 hover:underline hover:opacity-100">

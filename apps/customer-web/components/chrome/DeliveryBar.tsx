@@ -2,7 +2,7 @@ import Link from "next/link"
 import { COVERAGE_REFUSAL_SENTENCE, DELIVERY_TYPE_WORDS } from "@effy/shared-types"
 import type { AddressDTO } from "@effy/shared-types"
 
-import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { defaultAddress, getAddresses } from "@/lib/customer-reads"
 import { getSession } from "@/lib/session"
 
 /**
@@ -23,8 +23,7 @@ export async function DeliveryBar() {
 
   let address: AddressDTO | null = null
   try {
-    const addresses = await edgeApi(session).get<AddressDTO[]>("/customer/v1/addresses", perCustomer)
-    address = addresses.find((a) => a.isDefault) ?? addresses[0] ?? null
+    address = defaultAddress(await getAddresses())
   } catch {
     return <DeliveryBarFallback />
   }

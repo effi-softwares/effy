@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { needsAccount } from "@/lib/account-routes"
 import { refreshTokens, type FreshTokens } from "@/lib/cognito"
 import { safeNextTarget } from "@/lib/next-target"
 import { jwtExpiry, SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-cookies"
@@ -19,8 +20,6 @@ import { jwtExpiry, SESSION_COOKIES, sessionCookieOptions } from "@/lib/session-
  * ⚠⚠ THIS IS NOT THE AUTHORIZATION GATE. It never verifies a token. Every protected page and Server
  * Action checks the session itself (`lib/dal.ts`, `lib/session.ts`) and the backend checks it again.
  */
-const PROTECTED = ["/account", "/addresses", "/checkout", "/orders", "/saved"]
-
 /** Refresh a little early, so a token cannot expire between here and the backend. */
 const EXPIRY_MARGIN_SECONDS = 60
 
@@ -54,8 +53,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const path = request.nextUrl.pathname
-  const needsAccount = PROTECTED.some((p) => path === p || path.startsWith(`${p}/`))
-  const response = needsAccount ? NextResponse.redirect(signInUrl(request)) : NextResponse.next()
+  const response = needsAccount(path) ? NextResponse.redirect(signInUrl(request)) : NextResponse.next()
   if (refreshToken || expiry !== null) {
     for (const name of Object.values(SESSION_COOKIES)) response.cookies.delete(name)
   }

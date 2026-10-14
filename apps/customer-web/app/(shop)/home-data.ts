@@ -1,4 +1,5 @@
 import { cacheLife, cacheTag } from "next/cache"
+import { connection } from "next/server"
 import { cache } from "react"
 
 import type { StorefrontHomeDTO } from "@effy/shared-types"
@@ -34,4 +35,7 @@ async function readHome(): Promise<StorefrontHomeDTO> {
  * merchandised sections render in another. React's `cache()` makes the dedupe explicit — one lookup
  * per render by construction, rather than by two call sites happening to match.
  */
-export const getHome = cache(readHome)
+export const getHome = cache(async (): Promise<StorefrontHomeDTO> => {
+  await connection() // request time only — see `atRequestTime` in lib/cache-life.ts
+  return readHome()
+})

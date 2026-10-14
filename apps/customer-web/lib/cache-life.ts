@@ -11,6 +11,14 @@
  * ⚠ NO TAG IS EVER REVALIDATED, ON PURPOSE. Each server instance keeps its own cache in memory, so a
  * revalidate call would reach the one instance that took it. The lifetimes are the whole contract.
  *
+ * ⚠ EVERY CACHED READ IS REACHED ONLY AT REQUEST TIME — its caller awaits `connection()` first.
+ * Without that, `next build` RUNS each cached read while prerendering (a short lifetime keeps the
+ * answer out of the static shell, but not the call out of the build), and one that throws fails the
+ * prerender of every page under the header. With the backend down — or answering 503 because seven
+ * build workers hit the shopper role's connection limit at once — the whole build failed. Before
+ * PERF-05 these reads were plain uncached fetches and the build never made them. Measured: a build
+ * with the backend unreachable passes before PERF-05, failed after it, passes with this.
+ *
  * Objects rather than named profiles in next.config.ts: a named profile is typed only by the types
  * `next build` generates, so `tsc` refuses it on a clean checkout.
  */

@@ -91,6 +91,17 @@ describe("storefront reads keep only what FR-015a allows (054)", () => {
     }
   })
 
+  it("every cached read is reached only at request time, so a build never makes it", () => {
+    // Shared reads await connection() before the cached call. The product page's read needs no
+    // marker: it is keyed by the product id, which only exists at request time (`await params`).
+    // See lib/cache-life.ts for the build this broke.
+    for (const file of Object.keys(ALLOWED)) {
+      const src = readFileSync(join(root, file), "utf8")
+      if (file.includes("[id]")) expect(src, file).toMatch(/const \{ id \} = await params/)
+      else expect(src, file).toMatch(/await connection\(\)/)
+    }
+  })
+
   it("no cached read is per-customer", () => {
     for (const file of Object.keys(ALLOWED)) {
       const src = readFileSync(join(root, file), "utf8")

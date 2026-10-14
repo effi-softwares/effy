@@ -1,9 +1,8 @@
 import Link from "next/link"
 import { Coins, Heart, RotateCcw } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import type { OrderSummaryDTO, PointsBalanceDTO, SavedItemDTO } from "@effy/shared-types"
 
-import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { getOrders, getPoints, getSavedItems } from "@/lib/customer-reads"
 import { formatMoney } from "@/lib/money"
 import { getSession } from "@/lib/session"
 
@@ -23,11 +22,10 @@ export async function HomeShortcuts() {
   const session = await getSession()
   if (!session) return null
 
-  const api = edgeApi(session)
   const [points, saved, orders] = await Promise.all([
-    api.get<PointsBalanceDTO>("/customer/v1/points", perCustomer).catch(() => null),
-    api.get<SavedItemDTO[]>("/commerce/v1/saved", perCustomer).catch(() => null),
-    api.get<OrderSummaryDTO[]>("/commerce/v1/orders", perCustomer).catch(() => null),
+    getPoints().catch(() => null),
+    getSavedItems().catch(() => null),
+    getOrders().catch(() => null),
   ])
 
   const tiles: { key: string; href: string; Icon: LucideIcon; label: string; body: React.ReactNode }[] = []

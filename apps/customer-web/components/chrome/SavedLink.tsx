@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Heart } from "lucide-react"
 
+import { chromePrefetch } from "@/lib/account-routes"
 import { useSavedIds } from "@/lib/saved-store"
 
 /** The header's heart, with how many items are saved. Works for a guest too — saves live on the device. */
@@ -11,6 +12,7 @@ export function SavedLink() {
   return (
     <Link
       href="/saved"
+      prefetch={chromePrefetch("/saved")}
       aria-label={count > 0 ? `Saved items, ${count}` : "Saved items"}
       className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-md hover:bg-accent"
     >

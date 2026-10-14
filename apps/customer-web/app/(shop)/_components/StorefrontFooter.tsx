@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { BrandMark } from "@/components/storefront/BrandMark"
+import { chromePrefetch } from "@/lib/account-routes"
 
 import { NewsletterForm } from "./NewsletterForm"
 import { PaymentMarks } from "./PaymentMarks"
@@ -73,6 +74,7 @@ export function StorefrontFooter() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
+                      prefetch={chromePrefetch(link.href)}
                       className="block py-1 text-sm break-words text-muted-foreground hover:text-foreground"
                     >
                       {link.label}

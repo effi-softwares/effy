@@ -1,10 +1,9 @@
 import Link from "next/link"
-import type { PointsBalanceDTO } from "@effy/shared-types"
 
 import { AccountMenu } from "@/components/header/AccountMenu"
 import { AuthSync } from "@/components/header/AuthSync"
 import { btnClass } from "@/components/storefront/actions"
-import { edgeApi, perCustomer } from "@/lib/api/edge"
+import { getPoints } from "@/lib/customer-reads"
 import { getSession } from "@/lib/session"
 
 /**
@@ -30,9 +29,9 @@ export async function UserIsland() {
 
   let points: number | null = null
   try {
-    const balance = await edgeApi(session).get<PointsBalanceDTO>("/customer/v1/points", perCustomer)
-    points = Number(balance.points)
-    if (!Number.isFinite(points)) points = null
+    const balance = await getPoints()
+    points = balance ? Number(balance.points) : null
+    if (points !== null && !Number.isFinite(points)) points = null
   } catch {
     points = null
   }
