@@ -91,14 +91,14 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   - Storefront DTOs carry a stable CDN URL built from the storage key instead of a signed one.
   - Long `Cache-Control: public, max-age=31536000, immutable` (keys are already collision-free per upload).
 - **Tasks**
-  - [ ] Spec + plan (infra: CloudFront + certificate in `us-east-1`, DNS name under the env zone, SSM
+  - [x] Spec + plan (infra: CloudFront + certificate in `us-east-1`, DNS name under the env zone, SSM
         parameter for the media base URL; constitution check — CloudFront is managed, not compute).
-  - [ ] Terraform: distribution, OAC, bucket policy scoped to the public prefixes.
-  - [ ] Backend: a `publicImageUrl(storageKey)` helper in `@effy/edge-shared`; `storefront` (and
+  - [x] Terraform: distribution, OAC, bucket policy scoped to the public prefixes.
+  - [x] Backend: a `publicImageUrl(storageKey)` helper in `@effy/edge-shared`; `storefront` (and
         `commerce` cart/order lines) use it instead of `presignRead` for catalogue images.
-  - [ ] Keep `presignRead` for operator surfaces and private objects; add a guard so a private prefix
+  - [x] Keep `presignRead` for operator surfaces and private objects; add a guard so a private prefix
         can never be given a public URL.
-  - [ ] `next.config.ts` `images.remotePatterns`: add the CDN host; drop the `**.amazonaws.com` wildcard
+  - [x] `next.config.ts` `images.remotePatterns`: add the CDN host; drop the `**.amazonaws.com` wildcard
         once nothing uses it.
   - [ ] Mobile apps: confirm they render whatever URL the DTO carries (no client change expected).
 - **Done when:** the same product shows the same image URL across two requests, and a repeat page view
@@ -122,10 +122,10 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
   Alternative: let the Next image optimizer fetch from the CDN (works once URLs are stable, but runs on
   the SSR compute and is billed per transformation).
 - **Tasks**
-  - [ ] Decide: upload-time variants (S3 event → Lambda) vs. Next optimizer. Record in the plan.
-  - [ ] Backfill variants for existing media.
-  - [ ] Replace `unoptimized` with a loader (or `srcSet`) that picks a variant; keep `sizes` as written.
-  - [ ] Remove the `unoptimized` rationale comments in `next.config.ts` / `ProductCard.tsx` when true.
+  - [x] Decide: upload-time variants (S3 event → Lambda) vs. Next optimizer. Record in the plan.
+  - [x] Backfill variants for existing media.
+  - [x] Replace `unoptimized` with a loader (or `srcSet`) that picks a variant; keep `sizes` as written.
+  - [x] Remove the `unoptimized` rationale comments in `next.config.ts` / `ProductCard.tsx` when true.
 - **Done when:** a product card on a phone downloads an image of roughly its displayed size in AVIF/WebP.
 
 ### PERF-04 · Prioritise the largest image on each page
@@ -135,10 +135,10 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
     home page's largest element.
   - `ProductCard.tsx` gives no priority to the first row on home, search or related rails.
 - **Tasks**
-  - [ ] `PromoBanner`: add a `priority` prop; the first hero slide passes it (`loading="eager"`,
+  - [x] ~~`PromoBanner`: add a `priority` prop;~~ *(not applicable: the hero has no artwork, see below)* the first hero slide passes it (`loading="eager"`,
         `fetchPriority="high"`); other slides and `OffersPanels` stay lazy.
-  - [ ] `ProductCard`: accept `priority`; `ProductRail` / search grid pass it to the first row only.
-  - [ ] Verify the product gallery's first image (already `priority`) is the only eager one there.
+  - [x] `ProductCard`: accept `priority`; `ProductRail` / search grid pass it to the first row only.
+  - [x] Verify the product gallery's first image (already `priority`) is the only eager one there.
 - **Done when:** the hero image request starts before any below-the-fold image in a network trace.
 - **Note:** small and independent — can ship before PERF-02.
 - **Done 2026-10-14**, differently from the tasks above:
@@ -169,14 +169,17 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Fix:** cache names/tree/images for minutes under a `categories` tag; either drop the live count from
   the cached payload or accept a 60s-stale count (FR-015a already allows 60s for listings).
 - **Tasks**
-  - [ ] Amend FR-015a to state what may be cached and for how long; update the guard's message and add
+  - [x] Amend FR-015a to state what may be cached and for how long; update the guard's message and add
         an allow-list rather than deleting the guard.
-  - [ ] `getCategories`: `cached({ tags: ["categories"], revalidate: 300 })` (or `'use cache'` + `cacheTag`).
-  - [ ] Backend: `Cache-Control: public, max-age=60, stale-while-revalidate=300` on the route.
-  - [ ] Invalidate on taxonomy change: a revalidate endpoint the `catalog` service calls after commit,
-        or accept the TTL (decide in the plan).
+  - [x] `getCategories`: ~~`cached({ tags: ["categories"], revalidate: 300 })`~~ `'use cache'` + `cacheTag`.
+  - [x] Backend: ~~`Cache-Control: public, max-age=60, stale-while-revalidate=300`~~ the `listing` policy.
+  - [x] Invalidate on taxonomy change: ~~a revalidate endpoint~~ accept the TTL.
 - **Done when:** a warm page view makes no categories request to the backend.
 - **Depends on:** PERF-02 for the category images (a cached payload must not carry a 15-minute URL).
+- **Done 2026-10-14, with PERF-06/07** (see "How P1 caching was built" below). Not deployed or walked.
+  - ⚠ **60 seconds, not 300**: `productCount` is stock-derived and decides which aisles home shows, so
+    the list is FR-015a's listing tier. Because the cache is that short, a 15-minute presigned
+    category picture is harmless — PERF-02 is not a deploy prerequisite here.
 
 ### PERF-06 · Cache the home payload and banners for up to 60 seconds — **spec amendment**
 
@@ -185,11 +188,16 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Fix:** 60s revalidate with tags `home`, `promotions`; invalidate `promotions` when staff publish,
   pause or end one.
 - **Tasks**
-  - [ ] Amend 029 / 054 wording to allow ≤60s on home rails and banners.
-  - [ ] `getHome`: tagged cache, 60s.
-  - [ ] Backend `Cache-Control` on `/storefront/v1/home` and `/promotions/{id}`.
-  - [ ] Tag invalidation from the admin promotion writes.
+  - [x] Amend 029 / 054 wording to allow ≤60s on home rails and banners. (029's spec says nothing about
+        caching — only its tasks and code comments did; FR-015a carries the rule.)
+  - [x] `getHome`: tagged cache, 60s.
+  - [x] Backend `Cache-Control` on `/storefront/v1/home` ~~and `/promotions/{id}`~~ — see below.
+  - [x] ~~Tag invalidation from the admin promotion writes.~~ TTL only.
 - **Depends on:** PERF-02.
+- **Done 2026-10-14.** Not deployed or walked. The header's offers menu (`AisleRow`) and `/offers` read
+  the same payload, so this also took a home read off every non-home page view.
+  - ⚠ **`/promotions/[id]` stays live** (and sends no header): it is the page a shopper copies the code
+    from, it is one indexed row, and nothing reads it per page view.
 
 ### PERF-07 · Split the product page into cached content and live availability — **spec amendment**
 
@@ -198,22 +206,62 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Fix:** cache the static part per product (tag `product:<id>`); read `available` + price live in a
   small streamed island (or a slim `/availability` read).
 - **Tasks**
-  - [ ] Decide whether price is "static" or "live" (it moves money — recommend live).
-  - [ ] Backend: slim availability/price route, or split DTO.
-  - [ ] Page: cached `ProductContent` + live `<Suspense>` buy column.
-  - [ ] Invalidate `product:<id>` on shop/back-office product edits.
-  - [ ] With the product cached, give `generateMetadata` the real name and description (today every
+  - [x] Decide whether price is "static" or "live" (it moves money — recommend live). **Live.**
+  - [x] Backend: ~~slim availability/price route, or split DTO~~ — neither: the existing
+        `/storefront/v1/products?ids=<id>` card read carries price, was-price and availability, so no
+        route was added (the shared gateway's 300-route ceiling).
+  - [x] Page: cached `ProductContent` + live `<Suspense>` islands (price row, add-to-cart).
+  - [x] ~~Invalidate `product:<id>` on shop/back-office product edits.~~ TTL only.
+  - [x] With the product cached, give `generateMetadata` the real name and description (today every
         product is titled "Product · Effy").
-- **Depends on:** PERF-02.
+- **Depends on:** PERF-02 — and guarded rather than assumed (below).
+- **Done 2026-10-14.** Served locally against dev: the real name in `<title>`, prices and
+  availability present, a repeat view 0.39s against 1.8s for the first. Not deployed or walked.
+  - The kept content has `priceAmount`, `compareAtAmount`, `currency`, `available` and `badges`
+    stripped before it is returned, so no render can reach a cached price.
+  - ⚠ **Content still carrying a presigned picture link is kept as a listing (≤60s)**, not for
+    minutes: dev's `storefront` predates 086 and its links expire in 15 minutes. Once 086 is deployed
+    the `catalogue` lifetime applies by itself.
+  - An unknown product is kept as a listing too, so a product staff have just approved does not 404
+    for a quarter of an hour.
+  - Fixed on the way: `/search` and `/promotions/[id]` were titled "Search · Effy · Effy" /
+    "Offer · Effy · Effy" (the root layout already appends " · Effy").
+  - A product that no longer exists still answers 200 with the not-found page (it is decided inside
+    the streamed boundary) — unchanged by this work.
+
+### How P1 caching was built (PERF-05..07)
+
+- **Next's `"use cache"`**, not the fetch-level `cached()` option: `getCategories` (`lib/categories.ts`),
+  `getHome` (`app/(shop)/home-data.ts`), the product page's content. Each is still wrapped in React's
+  `cache()` for one lookup per render.
+- **Two lifetimes, in one file** — `lib/cache-life.ts`: `listing` (stale 30 / revalidate 15 / expire 30
+  → at most 60s, FR-015a's tier) and `catalogue` (300 / 300 / 900 → at most 20 minutes, words and
+  pictures only). Objects, not named profiles in `next.config.ts`: a named profile is typed only after
+  `next build`, so `tsc` refused it on a clean checkout.
+- ⚠ **No tag is revalidated by any writer — a decision, not a gap.** `use cache` keeps its entries in
+  each server instance's memory, so a revalidate call would clear one instance. The lifetimes are the
+  contract; the tags (`categories`, `home`, `promotions`, `product:<id>`) are there for a shared cache
+  handler if one is ever added.
+- **FR-015a amended** (`specs/054-product-inventory/spec.md`): listings, the aisle list, home rails and
+  offers ≤60s; a product's words and pictures ≤20 minutes; price, availability and anything read with
+  an account never kept.
+- **`lib/storefront-freshness.guard.test.ts` is now an allow-list**: each file allowed a `"use cache"`
+  with the lifetimes it may name, the one file allowed `cached()` (the order rules), no session read in
+  a cached file, `listing`'s stale + expire ≤ 60, `catalogue` expire ≤ 15 minutes, and the product
+  page's live read. Proven by breaking the 60s sum.
+- **Backend**: `categories` and `home` send the `listing` header (`storefront/src/lib/cache.ts`);
+  `cache.contract.test.ts` records it. Nothing in the browser calls them — it is for mobile and any
+  future CDN. `storefront` NOT deployed.
+- Bundle: unchanged in kind (server-only); every guest route within 174 KB on a fresh build.
 
 ### PERF-08 · HTTP cache headers on public storefront routes
 
 - **Found:** only `suggestions`, `localities` and `serviceability` send `Cache-Control`. Browser-direct
   reads (`/storefront/v1/products`, `/facets` from `SearchExperience` and `RecentlyViewedRail`) get none.
 - **Tasks**
-  - [ ] `products` and `facets`: `public, max-age=30, stale-while-revalidate=60` (inside FR-015a's 60s).
-  - [ ] One shared helper in `storefront/src/lib` so the values live in one place.
-  - [ ] Contract test asserting each public route's header.
+  - [x] `products` and `facets`: `public, max-age=30, stale-while-revalidate=60` (inside FR-015a's 60s).
+  - [x] One shared helper in `storefront/src/lib` so the values live in one place.
+  - [x] Contract test asserting each public route's header.
 - **Done when:** repeating the same search within 30s issues no network request.
 - **Done 2026-10-14; `storefront` NOT deployed.** `storefront/src/lib/cache.ts` holds every value
   (the three older ones moved in); `cache.contract.test.ts` lists every function with its policy or
@@ -233,11 +281,11 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 - **Fix:** the page reads `searchParams` inside `<Suspense>`, fetches page one + facets on the server and
   passes them as initial state; the client takes over for refinement and infinite scroll.
 - **Tasks**
-  - [ ] `search/page.tsx`: await `searchParams` inside the boundary; fetch first page and facets in parallel.
-  - [ ] `SearchExperience`: accept `initialResults` / `initialFacets`; skip the first fetch when they
+  - [x] `search/page.tsx`: await `searchParams` inside the boundary; fetch first page and facets in parallel.
+  - [x] `SearchExperience`: accept `initialResults` / `initialFacets`; skip the first fetch when they
         match the URL.
-  - [ ] Skeleton fallback shaped like the grid (today the fallback is empty).
-  - [ ] Check `robots.ts` — facet params are disallowed; decide whether `?category=` aisle pages should
+  - [x] Skeleton fallback shaped like the grid (today the fallback is empty).
+  - [x] Check `robots.ts` — facet params are disallowed; decide whether `?category=` aisle pages should
         be indexable now that they have content.
 - **Done when:** the raw HTML of an aisle URL contains product cards.
 - **Done 2026-10-14** — a production build served locally against dev returned `/search` with 24
@@ -257,10 +305,10 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 ### PERF-10 · Remove the debounce on first load; keep results across Back
 
 - **Tasks**
-  - [ ] Debounce only refinements, not the mount fetch (covered by PERF-09 if done first).
-  - [ ] Keep loaded pages and scroll position when returning from a product page (module-level store
+  - [x] Debounce only refinements, not the mount fetch (covered by PERF-09 if done first).
+  - [x] Keep loaded pages and scroll position when returning from a product page (module-level store
         keyed by the query string, or session storage) — today Back refetches from page one.
-  - [ ] `loadMore` failure currently sets `exhausted`, silently ending the list; show a retry instead.
+  - [x] `loadMore` failure currently sets `exhausted`, silently ending the list; show a retry instead.
 - **Done 2026-10-14**, all three, in `SearchExperience.tsx`. Not walked in a browser.
   - Only a refinement waits 250 ms.
   - The last listing is kept for the life of the tab and shown again on return — ⚠ **only while its
@@ -369,9 +417,10 @@ Tasks marked **spec** change an earlier feature's requirement or add infrastruct
 
 - **Tasks**
   - [ ] A test that no storefront DTO image URL contains a signature query string (after PERF-02).
-  - [ ] The freshness guard rewritten as an allow-list of cached reads with their maximum age
+  - [x] The freshness guard rewritten as an allow-list of cached reads with their maximum age
         (after PERF-05..07).
-  - [ ] A test that each cached tag has at least one invalidating writer, or a documented TTL-only decision.
+  - [x] A test that each cached tag has at least one invalidating writer, or a documented TTL-only decision.
+        (TTL-only, documented in `lib/cache-life.ts`; the guard holds the lifetimes.)
 
 ---
 

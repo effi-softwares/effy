@@ -55,11 +55,14 @@ export function edgeApiPublic() {
 export const perCustomer: RequestInit = { cache: "no-store" }
 
 /**
- * Next cache options for a PUBLIC read (the catalogue).
+ * Next cache options for a PUBLIC read that is not a storefront page's — today only the order rules
+ * (`app/api/cart/policy`).
  *
- * Use these on storefront reads only. Anything fetched with a shopper's session is per-customer
- * and takes `perCustomer` above — a tagged cache entry for one shopper's cart would be served to
- * the next.
+ * A storefront read that may be shared between requests is a `"use cache"` function instead, taking a
+ * lifetime from `lib/cache-life.ts` (`getCategories`, `getHome`, the product page's content). Either
+ * way the file must be on the allow-list in `lib/storefront-freshness.guard.test.ts`. Anything
+ * fetched with a shopper's session is per-customer and takes `perCustomer` above — a tagged cache
+ * entry for one shopper's cart would be served to the next.
  */
 export function cached(opts: { tags: string[]; revalidate?: number }): RequestInit {
   return {

@@ -1,30 +1,37 @@
+import { cacheLife, cacheTag } from "next/cache"
 import { cache } from "react"
 
 import type { StorefrontHomeDTO } from "@effy/shared-types"
 
-import { edgeApiPublic, uncached } from "@/lib/api/edge"
+import { edgeApiPublic } from "@/lib/api/edge"
+import { CACHE_LIFE } from "@/lib/cache-life"
 
 /**
- * The home payload, fetched at most ONCE per render however many components ask for it.
+ * The home payload — SHARED between requests for up to 60 seconds (PERF-06, 054 FR-015a as amended).
  *
- * ⚠ IT EXISTS BECAUSE TWO SUSPENSE BOUNDARIES NOW NEED THE SAME DATA. The promotions hero renders at
- * the top of the page in its own boundary, so it can arrive without waiting on the category read;
- * the merchandised sections render in another. Both are built from `/storefront/v1/home`.
+ * It is ~8 queries per read, and not only the home page asks: the header's offers menu (`AisleRow`)
+ * and `/offers` read its banners, so read live it cost a backend round trip on every page view.
  *
- * Next's request memoization would probably collapse those into one call — identical URL, identical
- * options, same render pass. **"Probably" is not a property to build a second backend request on.**
- * It depends on the two call sites keeping byte-identical `RequestInit`, which nothing enforces: add
- * a header at one of them and the storefront quietly starts making two round trips to Sydney per home
- * page view. 029 measured a single RDS round trip from a locally-run backend at 135 ms and found eight serial
- * queries eating 46% of a 3 s budget — this is the same class of cost, one layer up.
- *
- * React's `cache()` makes the dedupe explicit and greppable instead. One request, by construction.
- *
- * ⚠ `uncached()` is deliberate and unchanged: the payload carries advertised promotions, and "this
- * offer is still available" is a live claim another shopper can falsify (029). `cache()` dedupes
- * WITHIN a render; it does not cache across requests, so that property is untouched.
+ * ⚠ `listing`, NOT LONGER: the rails carry availability, and the banners say "this offer is still
+ * available" — a claim another shopper can falsify by redeeming it (029). Both are held to FR-015a's
+ * listing tier. The cart and the payment re-check a code when they apply it, so a banner at most a
+ * minute old sends nobody to pay for an offer that has ended. `/promotions/[id]` — the page a banner
+ * leads to, where the shopper copies the code — stays live.
+ * ⚠ No writer revalidates the tags (lib/cache-life.ts says why); the lifetime is the contract.
  */
-export const getHome = cache(
-  async (): Promise<StorefrontHomeDTO> =>
-    edgeApiPublic().get<StorefrontHomeDTO>("/storefront/v1/home", uncached()),
-)
+async function readHome(): Promise<StorefrontHomeDTO> {
+  "use cache"
+  cacheLife(CACHE_LIFE.listing)
+  cacheTag("home", "promotions")
+  return edgeApiPublic().get<StorefrontHomeDTO>("/storefront/v1/home")
+}
+
+/**
+ * The home payload, asked for at most ONCE per render however many components want it.
+ *
+ * ⚠ IT EXISTS BECAUSE TWO SUSPENSE BOUNDARIES NEED THE SAME DATA. The promotions hero renders at the
+ * top of the page in its own boundary, so it can arrive without waiting on the category read; the
+ * merchandised sections render in another. React's `cache()` makes the dedupe explicit — one lookup
+ * per render by construction, rather than by two call sites happening to match.
+ */
+export const getHome = cache(readHome)

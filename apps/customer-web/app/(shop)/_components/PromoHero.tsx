@@ -15,9 +15,9 @@ import { offerHref } from "./OffersPanels"
 /**
  * THE PROMOTIONS HERO — a carousel of every advertised promotion, with two promo cards beside it.
  *
- * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. It is built from `home.banners`, which comes from an
- * `uncached()` read — deliberately uncached, because "this offer is still available" is a live claim
- * another shopper can falsify (029). So the page's largest element arrives by stream.
+ * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. It is built from `home.banners`, which is kept for at most a
+ * minute (`getHome`, FR-015a's listing tier) — "this offer is still available" is a claim another
+ * shopper can falsify (029), so it is never prerendered. The page's largest element arrives by stream.
  *
  * ⚠ THE WORDS SIT ON A DRAWN BANNER, NOT ON ARTWORK (2026-10-12). The band is a flat promo colour with
  * a white decoration and icon bubbles (`PromoBanner`), so white type reads at one known contrast

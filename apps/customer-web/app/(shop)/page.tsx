@@ -76,8 +76,8 @@ export default function HomePage() {
 
       {/* ⚠ ITS OWN SUSPENSE BOUNDARY, at page level — not inside `HomeContent` (operator direction,
           2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
-          advertised promotions and that read is deliberately uncached. But it must not be BEHIND the
-          merchandising hole either: sharing that boundary made the page's largest element wait on the
+          advertised promotions, which are kept a minute at most and never prerendered. But it must
+          not be BEHIND the merchandising hole either: sharing that boundary made the page's largest element wait on the
           category read it has no use for, and put the whole first screen behind whichever of the two
           requests was slower. Its own boundary means it paints as soon as its own data lands.
 

@@ -11,7 +11,7 @@ import { ProductGridSkeleton, productGridNarrow } from "../_components/ProductCa
 import { SearchExperience } from "../_components/SearchExperience"
 
 export const metadata: Metadata = {
-  title: "Search · Effy",
+  title: "Search",
   description: "Search groceries and everyday essentials at Effy.",
   alternates: { canonical: "/search" },
 }

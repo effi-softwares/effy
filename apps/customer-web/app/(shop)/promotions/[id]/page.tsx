@@ -42,7 +42,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params
   return {
-    title: "Offer · Effy",
+    title: "Offer",
     alternates: { canonical: `/promotions/${id}` },
     // ⚠ NOINDEX. A promotion is temporary by nature: indexing it means a search result promising a
     // discount that has expired, which is worse than not being found at all. The store's evergreen

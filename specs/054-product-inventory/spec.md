@@ -343,6 +343,17 @@ the low-stock list on both shop surfaces; raise the count above the threshold an
   reflect a stock change up to 60 seconds late. The product detail page MUST reflect it as soon as it
   is made. The cart and the payment gate are authoritative and MUST re-check at the moment they act,
   never trusting a value carried from an earlier read.
+  *Amended 2026-10-14 (customer-web performance backlog, PERF-05..07)* — what a storefront MAY keep
+  between shoppers, and for how long, counting the oldest answer any shopper can be shown:
+  - The aisle list (its counts decide which aisles are shown), the home page's rails and its
+    advertised offers are listings: **60 seconds at most**. An advertised offer may therefore be up to
+    a minute out of date; the cart and the payment re-check it when they apply it, and the offer's own
+    page stays current.
+  - A product page's words, pictures, attributes and aisle — never its price, its was-price or whether
+    it can be bought — MAY be up to **20 minutes** out of date. Its price and availability are read
+    current on every view, as above.
+  - Nothing a shopper reads with their account is kept.
+  - The limits are the whole guarantee: an edit by staff or a shop is not pushed out sooner.
 
 **Buying**
 
