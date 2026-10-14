@@ -141,6 +141,6 @@ describe("CategoryStrip — imagery degrades, never breaks (FR-014)", () => {
   it("names each shortcut with its item count for assistive technology", () => {
     render(<CategoryStrip categories={[category({ name: "Pantry", productCount: 1 })]} />)
 
-    expect(screen.getByRole("link", { name: "Pantry, 1 item" })).toBeTruthy()
+    expect(screen.getByRole("link", { name: "Pantry (1 item)" })).toBeTruthy()
   })
 })

@@ -31,20 +31,23 @@ export function AccountMenu({
   email: string | null
   points: number | null
 }) {
-  const name = [givenName, familyName].filter(Boolean).join(" ") || "Your account"
   const pts = points === null ? null : points.toLocaleString("en-AU")
 
   return (
     <details className="group relative" data-testid="account-menu" data-menu="account">
       <AccountMenuAutoClose />
+      {/* ⚠ No aria-label: the name is the visible text (+ the family name, hidden), so what a voice
+          user reads off the button is in its name (WCAG 2.5.3). */}
       <summary
-        aria-label={name}
         data-testid="account-menu-trigger"
         className="flex h-11 list-none items-center gap-2 rounded-md py-1 pr-2.5 pl-1 hover:bg-accent group-open:bg-accent [&::-webkit-details-marker]:hidden"
       >
         <Avatar initials={initialsFor(givenName, familyName) ?? "·"} />
         <span className="flex flex-col text-left">
-          <span className="max-w-28 truncate text-sm leading-none font-medium">{givenName ?? "Account"}</span>
+          <span className="max-w-28 truncate text-sm leading-none font-medium">
+            {givenName ?? "Account"}
+            {givenName && familyName && <span className="sr-only"> {familyName}</span>}
+          </span>
           {pts !== null && <span className="mt-1 text-xs leading-none text-primary">{pts} pts</span>}
         </span>
         <ChevronDown aria-hidden="true" className="size-3.5 text-muted-foreground" />

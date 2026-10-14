@@ -27,7 +27,10 @@ export function StoreBadges({ tone = "outline" }: { tone?: "outline" | "dark" })
     <ul className="flex flex-wrap items-center gap-2">
       {["App Store", "Google Play"].map((store) => (
         <li key={store}>
+          {/* `role="img"`: a bare span may not carry an aria-label (axe aria-prohibited-attr), and
+              a badge IS a picture with a caption — announced once, as the label says. */}
           <span
+            role="img"
             aria-label={`${store} — coming soon`}
             className={
               tone === "dark"

@@ -59,9 +59,6 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
               <Link
                 href={`/search?category=${encodeURIComponent(category.key)}`}
                 className="group flex w-[5.5rem] flex-col items-center gap-3 rounded-lg py-2 text-center sm:w-28"
-                aria-label={`${category.name}, ${category.productCount} ${
-                  category.productCount === 1 ? "item" : "items"
-                }`}
               >
                 {/* ⚠ The whole tile is the target, not the label — a 96px circle plus its caption is
                     comfortably past the 44×44 CSS px minimum (plan § Numeric thresholds, SC-009). */}
@@ -75,7 +72,15 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
                   sizes="112px"
                   className="w-[4.5rem] ring-ring transition-shadow group-hover:ring-2 sm:w-24"
                 />
-                <span className="text-xs leading-tight font-medium sm:text-sm">{category.name}</span>
+                {/* The name is the caption + a hidden count, not an aria-label: a label that drops the
+                    fallback letter on screen fails WCAG 2.5.3 (label in name). */}
+                <span className="text-xs leading-tight font-medium sm:text-sm">
+                  {category.name}
+                  <span className="sr-only">
+                    {" "}
+                    ({category.productCount} {category.productCount === 1 ? "item" : "items"})
+                  </span>
+                </span>
               </Link>
             </li>
           ))}

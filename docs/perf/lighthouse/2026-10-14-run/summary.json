@@ -1,0 +1,66 @@
+{
+  "base": "https://dev.effyshopping.com",
+  "label": "run",
+  "date": "2026-10-14",
+  "lighthouse": "lighthouse@13.5.0",
+  "runs": 3,
+  "results": [
+    {
+      "name": "home",
+      "path": "/",
+      "url": "https://dev.effyshopping.com/",
+      "score": 81,
+      "lcp": 3895.4325,
+      "fcp": 1945.973,
+      "tbt": 32,
+      "cls": 0.1300121506682868,
+      "si": 3445.919395517786,
+      "ttfb": 907,
+      "bytes": 813129,
+      "requests": 83,
+      "lcpRuns": [
+        3657.024,
+        4074.8639999999996,
+        3895.4325
+      ]
+    },
+    {
+      "name": "aisle",
+      "path": "/search?category=dairy_eggs",
+      "url": "https://dev.effyshopping.com/search?category=dairy_eggs",
+      "score": 92,
+      "lcp": 3114.4610000000002,
+      "fcp": 1764.461,
+      "tbt": 17.5,
+      "cls": 0.0093813142437255,
+      "si": 2659.362265872725,
+      "ttfb": 698,
+      "bytes": 639768,
+      "requests": 74,
+      "lcpRuns": [
+        3862.767,
+        3114.4610000000002,
+        2961.362
+      ]
+    },
+    {
+      "name": "product",
+      "path": "/product/f96c5ef1-f9ee-4164-a2c3-2956a8954ba3",
+      "url": "https://dev.effyshopping.com/product/f96c5ef1-f9ee-4164-a2c3-2956a8954ba3",
+      "score": 93,
+      "lcp": 2919.466,
+      "fcp": 1869.466,
+      "tbt": 12,
+      "cls": 0,
+      "si": 2929.918687998333,
+      "ttfb": 791,
+      "bytes": 490996,
+      "requests": 42,
+      "lcpRuns": [
+        2925.244,
+        2919.466,
+        2904.6065
+      ]
+    }
+  ]
+}

@@ -101,17 +101,19 @@ export function MiniCart() {
         onPointerEnter={want}
         onFocus={want}
         className="ml-1 inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary pr-1 pl-3 text-sm font-medium whitespace-nowrap text-primary-foreground tabular-nums hover:bg-primary/90"
-        aria-label={
-          count > 0
-            ? `Cart, ${count} ${count === 1 ? "item" : "items"}, ${formatMoney(totals.itemSubtotal, currency)}`
-            : "Cart"
-        }
       >
+        {/* ⚠ The name is BUILT FROM what is shown, plus hidden words — not an aria-label. A label
+            that rewords the visible "$72.70 15" fails WCAG 2.5.3: a voice user saying what they
+            see would not match it. */}
         <ShoppingCart className="size-[18px]" aria-hidden="true" />
+        <span className="sr-only">Cart,</span>
         <span className="max-md:hidden">{formatMoney(totals.itemSubtotal, currency)}</span>
-        <span className="grid h-8 min-w-[30px] place-items-center rounded-sm bg-white/20 px-2 font-semibold">
+        {/* ⚠ An inverted chip, not `bg-white/20`: that tint lifted the blue to 4.44:1 under white
+            text, below AA. The inverse pair is the primary/foreground pair the token guard holds. */}
+        <span className="grid h-8 min-w-[30px] place-items-center rounded-sm bg-primary-foreground px-2 font-semibold text-primary">
           {count > 99 ? "99+" : count}
         </span>
+        <span className="sr-only">{count === 1 ? "item" : "items"}</span>
       </button>
 
       {/* `ml-auto` + `h-full` pins the panel to the right edge at full height; without them a
