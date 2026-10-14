@@ -177,6 +177,17 @@ function parseStorefront(source) {
 
 const storefrontCss = readFileSync(STOREFRONT_CSS, "utf8");
 const shop = parseStorefront(storefrontCss);
+// 087 / v3.4.0 — the mobile app's dark appearance (the website ignores it).
+const shopDark = (() => {
+  const body = storefrontCss.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.dark\s*\{([^}]*)\}/m);
+  if (!body) throw new Error("gen-stripe-appearance: no .dark block in storefront/tokens.css");
+  const out = {};
+  for (const line of body[1].split("\n")) {
+    const m = line.match(/^\s*--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/);
+    if (m) out[m[1]] = m[2].toLowerCase();
+  }
+  return out;
+})();
 const shopRadius = radiusPx(storefrontCss, "--radius-md");
 // The focus ring the storefront's own fields draw: the border in --ring and a 3px wash of it at 20%.
 const ringWash = (hex) => `0 0 0 3px ${hex}33`;
@@ -253,9 +264,8 @@ import com.stripe.android.paymentsheet.PaymentSheet
 /**
  * The payment provider's Appearance for the customer app's payment element (051, re-sourced by 087).
  *
- * ⚠ LIGHT ONLY. The storefront identity has one appearance, so the SAME palette is passed as
- * [colorsDark] too — omitting it would let the provider draw a dark form inside a light app when the
- * phone is in dark mode.
+ * ⚠ BOTH APPEARANCES (087 / v3.4.0): the app follows the shopper's Light / Dark / System choice and
+ * the provider picks [colorsLight] or [colorsDark] from the same night-mode the app's theme reads.
  *
  * ⚠ [typography] takes an ANDROID FONT RESOURCE id, not a Compose Resource. Geist lives in
  * shared/src/androidMain/res/font/ for exactly this reason — the composeResources copy has no R.font
@@ -264,13 +274,18 @@ import com.stripe.android.paymentsheet.PaymentSheet
 object EffyPaymentAppearance {
 ${ktColors("Light", shop)}
 
+${ktColors("Dark", shopDark)}
+
     /**
      * @param geistFontResId the Geist font-family resource. ⚠ REQUIRED, not nullable, on purpose: a
      *   null renders the payment form in the system font and nothing errors.
+     * @param dark the APP's appearance. ⚠ The provider would otherwise pick by the phone's night mode,
+     *   which differs from the app's whenever the shopper chose Light or Dark in Account → Appearance —
+     *   so both slots get the palette the app is showing.
      */
-    fun of(geistFontResId: Int): PaymentSheet.Appearance = PaymentSheet.Appearance(
-        colorsLight = Light,
-        colorsDark = Light,
+    fun of(geistFontResId: Int, dark: Boolean): PaymentSheet.Appearance = PaymentSheet.Appearance(
+        colorsLight = if (dark) Dark else Light,
+        colorsDark = if (dark) Dark else Light,
         shapes = PaymentSheet.Shapes(
             cornerRadiusDp = ${shopRadius}f,
             borderStrokeWidthDp = 1f,
@@ -291,33 +306,37 @@ ${ktColors("Light", shop)}
 `;
 
 const rgb = (hex) => [1, 3, 5].map((i) => (parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(4));
-const uiColor = (hex) => {
+const uiColorStatic = (hex) => {
   const [r, g, b] = rgb(hex);
   return `UIColor(red: ${r}, green: ${g}, blue: ${b}, alpha: 1)`;
 };
+// 087 — a DYNAMIC colour: the light value, or the dark one when the window is in dark mode (the app
+// sets the window's style to the shopper's appearance choice).
+const uiColor = (key) =>
+  `UIColor { $0.userInterfaceStyle == .dark ? ${uiColorStatic(shopDark[key])} : ${uiColorStatic(shop[key])} }`;
 const swiftBody = `${banner("gen-stripe-appearance.mjs").replace("src/tokens.css", "src/storefront/tokens.css")}
 import CoreText
 import StripePaymentSheet
 import UIKit
 
 /// The payment provider's Appearance for the customer app's iOS payment element (087) — the twin of
-/// the generated Android \`EffyPaymentAppearance\`. Storefront identity: light only, zinc, Effy blue,
+/// the generated Android \`EffyPaymentAppearance\`. Storefront identity, light and dark: zinc, Effy blue,
 /// black errors, ${shopRadius}pt corners, Geist.
 enum EffyPaymentAppearance {
     static func make() -> PaymentSheet.Appearance {
         EffyFonts.registerOnce()
         var a = PaymentSheet.Appearance()
-        a.colors.primary = ${uiColor(shop.primary)}
-        a.colors.background = ${uiColor(shop.background)}
-        a.colors.componentBackground = ${uiColor(shop.background)}
-        a.colors.componentBorder = ${uiColor(shop.input)}
-        a.colors.componentDivider = ${uiColor(shop.border)}
-        a.colors.text = ${uiColor(shop.foreground)}
-        a.colors.textSecondary = ${uiColor(shop["muted-foreground"])}
-        a.colors.componentText = ${uiColor(shop.foreground)}
-        a.colors.componentPlaceholderText = ${uiColor(shop["muted-foreground"])}
-        a.colors.icon = ${uiColor(shop["muted-foreground"])}
-        a.colors.danger = ${uiColor(shop.destructive)}
+        a.colors.primary = ${uiColor("primary")}
+        a.colors.background = ${uiColor("background")}
+        a.colors.componentBackground = ${uiColor("background")}
+        a.colors.componentBorder = ${uiColor("input")}
+        a.colors.componentDivider = ${uiColor("border")}
+        a.colors.text = ${uiColor("foreground")}
+        a.colors.textSecondary = ${uiColor("muted-foreground")}
+        a.colors.componentText = ${uiColor("foreground")}
+        a.colors.componentPlaceholderText = ${uiColor("muted-foreground")}
+        a.colors.icon = ${uiColor("muted-foreground")}
+        a.colors.danger = ${uiColor("destructive")}
         a.cornerRadius = ${shopRadius}
         a.borderWidth = 1
         a.shadow = .disabled

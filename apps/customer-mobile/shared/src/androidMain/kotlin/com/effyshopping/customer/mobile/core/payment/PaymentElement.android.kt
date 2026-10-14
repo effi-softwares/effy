@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.core.payment
 
+import com.effyshopping.customer.mobile.core.theme.LocalEffyDark
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +67,8 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
     // a device that had paid before would have masked the omission: it would have worked in testing on
     // a used device and thrown on a fresh install.
     val context = LocalContext.current
+    // 087 — the app's own appearance (Account → Appearance), not the phone's night mode.
+    val dark = LocalEffyDark.current
     remember(config.publishableKey) {
         PaymentConfiguration.init(context.applicationContext, config.publishableKey)
     }
@@ -109,7 +112,7 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
                         currency = config.currency.lowercase(),
                     ),
                 ),
-                configuration = paymentConfiguration(config),
+                configuration = paymentConfiguration(config, dark),
             )
         ) {
             is EmbeddedPaymentElement.ConfigureResult.Succeeded ->
@@ -141,7 +144,7 @@ actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementH
     return handle
 }
 
-private fun paymentConfiguration(config: PaymentElementConfig): EmbeddedPaymentElement.Configuration =
+private fun paymentConfiguration(config: PaymentElementConfig, dark: Boolean): EmbeddedPaymentElement.Configuration =
     EmbeddedPaymentElement.Configuration.Builder(config.merchantName)
         // ⚠ COLLECT NOTHING WE ALREADY HOLD (FR-014/FR-015). `attachDefaultsToPaymentMethod = true` is
         // what makes this lossless rather than merely shorter: the address still reaches the bank for
@@ -199,7 +202,7 @@ private fun paymentConfiguration(config: PaymentElementConfig): EmbeddedPaymentE
         // `shared/src/androidMain/res/font/` for exactly this reason — the Compose Resources copy has no
         // R.font id, and passing none renders the payment form in the system font beside Effy's own type
         // with nothing failing to compile (research R8).
-        .appearance(EffyPaymentAppearance.of(R.font.geist))
+        .appearance(EffyPaymentAppearance.of(R.font.geist, dark))
         .build()
 
 @Composable

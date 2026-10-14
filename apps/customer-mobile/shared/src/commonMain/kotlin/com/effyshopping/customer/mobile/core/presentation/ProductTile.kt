@@ -409,7 +409,8 @@ fun EffyHeroBanner(
             .height(232.dp)
             .then(if (onClick != null) Modifier.effyPress(interactions, 0.99f) else Modifier)
             .clip(EffyStorefrontShape.banner)
-            .background(EffyRoles.brand)
+            // A promo ground carries WHITE type, so it is the light palette's green in both appearances.
+            .background(EffyRoles.promoGround)
             .then(if (onClick != null) Modifier.clickable(interactionSource = interactions, indication = null, onClickLabel = title, onClick = onClick) else Modifier),
     ) {
         PromoArt(Modifier.matchParentSize())
@@ -429,7 +430,7 @@ fun EffyHeroBanner(
                     Box(
                         modifier = Modifier.height(48.dp).clip(EffyStorefrontShape.control).background(white).padding(horizontal = 20.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text("View offer", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurface) }
+                    ) { Text("View offer", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.splashGround) }
                 }
                 Spacer(Modifier.weight(1f))
                 dots?.invoke()
@@ -460,7 +461,7 @@ fun EffyOfferCard(
             .height(150.dp)
             .then(if (onClick != null) Modifier.effyPress(interactions, 0.98f) else Modifier)
             .clip(EffyStorefrontShape.banner)
-            .background(if (alternate) EffyRoles.brand else MaterialTheme.colorScheme.primary)
+            .background(if (alternate) EffyRoles.promoGround else EffyRoles.promoBlue)
             .then(if (onClick != null) Modifier.clickable(interactionSource = interactions, indication = null, onClickLabel = title, onClick = onClick) else Modifier),
     ) {
         PromoArt(Modifier.matchParentSize())

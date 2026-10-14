@@ -10,9 +10,8 @@ import com.stripe.android.paymentsheet.PaymentSheet
 /**
  * The payment provider's Appearance for the customer app's payment element (051, re-sourced by 087).
  *
- * ⚠ LIGHT ONLY. The storefront identity has one appearance, so the SAME palette is passed as
- * [colorsDark] too — omitting it would let the provider draw a dark form inside a light app when the
- * phone is in dark mode.
+ * ⚠ BOTH APPEARANCES (087 / v3.4.0): the app follows the shopper's Light / Dark / System choice and
+ * the provider picks [colorsLight] or [colorsDark] from the same night-mode the app's theme reads.
  *
  * ⚠ [typography] takes an ANDROID FONT RESOURCE id, not a Compose Resource. Geist lives in
  * shared/src/androidMain/res/font/ for exactly this reason — the composeResources copy has no R.font
@@ -33,13 +32,30 @@ object EffyPaymentAppearance {
         error = Color(0xFF09090B.toInt()),
     )
 
+    private val Dark = PaymentSheet.Colors(
+        primary = Color(0xFF60A5FA.toInt()),
+        surface = Color(0xFF09090B.toInt()),
+        component = Color(0xFF09090B.toInt()),
+        componentBorder = Color(0xFF3F3F46.toInt()),
+        componentDivider = Color(0xFF27272A.toInt()),
+        onComponent = Color(0xFFFAFAFA.toInt()),
+        onSurface = Color(0xFFFAFAFA.toInt()),
+        subtitle = Color(0xFFA1A1AA.toInt()),
+        placeholderText = Color(0xFFA1A1AA.toInt()),
+        appBarIcon = Color(0xFFA1A1AA.toInt()),
+        error = Color(0xFFFAFAFA.toInt()),
+    )
+
     /**
      * @param geistFontResId the Geist font-family resource. ⚠ REQUIRED, not nullable, on purpose: a
      *   null renders the payment form in the system font and nothing errors.
+     * @param dark the APP's appearance. ⚠ The provider would otherwise pick by the phone's night mode,
+     *   which differs from the app's whenever the shopper chose Light or Dark in Account → Appearance —
+     *   so both slots get the palette the app is showing.
      */
-    fun of(geistFontResId: Int): PaymentSheet.Appearance = PaymentSheet.Appearance(
-        colorsLight = Light,
-        colorsDark = Light,
+    fun of(geistFontResId: Int, dark: Boolean): PaymentSheet.Appearance = PaymentSheet.Appearance(
+        colorsLight = if (dark) Dark else Light,
+        colorsDark = if (dark) Dark else Light,
         shapes = PaymentSheet.Shapes(
             cornerRadiusDp = 6f,
             borderStrokeWidthDp = 1f,

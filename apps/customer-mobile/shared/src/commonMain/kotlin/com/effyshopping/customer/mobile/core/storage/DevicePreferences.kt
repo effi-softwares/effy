@@ -75,6 +75,12 @@ object PreferenceKeys {
     /** FR-033 — the first-launch introduction has been completed or skipped. */
     const val ONBOARDING_SEEN = "onboarding_seen"
 
+    /**
+     * 087 — the chosen appearance (`AppearanceMode.storageValue`): Match my phone / Light / Dark. A DEVICE
+     * setting: clearing shopping data and signing out leave it alone.
+     */
+    const val APPEARANCE_MODE = "appearance_mode"
+
     /** 087 — the shopper's recent searches on this device (JSON list). Cleared on sign-out. */
     const val RECENT_SEARCHES = "recent_searches"
 

@@ -1,6 +1,27 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.3.0 → 3.4.0
+Bump rationale: MINOR — guidance materially expanded; nothing removed, no plan invalidated.
+
+Trigger: feature 087-customer-mobile-redesign. On 2026-10-15 the operator directed that the customer
+MOBILE app support both light and dark appearances (it had become light-only by adopting the storefront
+identity in 087). The customer website stays light only.
+
+What changed in the text:
+  - Principle V, "The storefront identity": the storefront file now also carries a `.dark` block — the
+    MOBILE app's dark appearance (same five values: zinc on near-black, blue and green lifted, AA on
+    every pair, held by check-storefront-tokens.mjs). The website ignores it (no dark class, no `dark:`
+    variant, no colour-scheme query in the file).
+  - Principle V: "Dark mode is REQUIRED on every surface of the console identity" now reads: required on
+    the console identity AND on the customer mobile app (Match my phone / Light / Dark); the customer
+    website is light only.
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged.
+  ✅ CLAUDE.md (Design system section) — corrected by 087.
+
+--- previous report ---
 Version change: 3.2.0 → 3.3.0
 Bump rationale: MINOR — guidance materially expanded. No principle is removed, and no existing plan
                 is invalidated: the consoles and the mobile apps keep the identity and every rule
@@ -748,7 +769,10 @@ One design-system package drives every surface.
     here. Green is never an action. No third hue.
   - **No red.** `--destructive` is the foreground black; an error or destructive action is said with
     an icon and its wording, never with a hue.
-  - **Light only.** The storefront file has no dark block and storefront source has no `dark:` variant.
+  - **The website is light only; the mobile app has a dark appearance too (v3.4.0).** The storefront
+    file's `.dark` block is read only by the mobile theme generator; the website sets no dark class, has
+    no `dark:` variant, and the file carries no data-theme selector or colour-scheme query. The dark
+    block keeps the five values and AA on every pair (check-storefront-tokens.mjs).
   - **Cards are white, bordered, and carry the hairline `shadow-xs`**; card layouts ARE the pattern —
     a product, an address, a delivery section is a discrete choosable object. The no-card doctrine
     below continues to bind the consoles.
@@ -770,8 +794,8 @@ One design-system package drives every surface.
   `--warning` and the `--brand-*` family are **web-only by design** and are not surfaced to mobile.
   ⚠ Mobile takes **three** radius steps (sm 4 / md 6 / default 10), not the web scale's four — the
   generator emits no `lg 8`. Drift between the two is caught by `tokens:check`.
-- Dark mode is REQUIRED on every surface of the console identity, and MUST be user-selectable
-  (Light / Dark / Follow-System). The storefront identity is light only (above).
+- Dark mode is REQUIRED on every surface of the console identity AND on the customer mobile app, and
+  MUST be user-selectable (Light / Dark / Follow-System). The customer website is light only (above).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
   polish.
@@ -944,4 +968,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.3.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-12
+**Version**: 3.4.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-15

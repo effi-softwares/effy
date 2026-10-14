@@ -7,23 +7,23 @@ import StripePaymentSheet
 import UIKit
 
 /// The payment provider's Appearance for the customer app's iOS payment element (087) — the twin of
-/// the generated Android `EffyPaymentAppearance`. Storefront identity: light only, zinc, Effy blue,
+/// the generated Android `EffyPaymentAppearance`. Storefront identity, light and dark: zinc, Effy blue,
 /// black errors, 6pt corners, Geist.
 enum EffyPaymentAppearance {
     static func make() -> PaymentSheet.Appearance {
         EffyFonts.registerOnce()
         var a = PaymentSheet.Appearance()
-        a.colors.primary = UIColor(red: 0.1137, green: 0.3059, blue: 0.8471, alpha: 1)
-        a.colors.background = UIColor(red: 1.0000, green: 1.0000, blue: 1.0000, alpha: 1)
-        a.colors.componentBackground = UIColor(red: 1.0000, green: 1.0000, blue: 1.0000, alpha: 1)
-        a.colors.componentBorder = UIColor(red: 0.8941, green: 0.8941, blue: 0.9059, alpha: 1)
-        a.colors.componentDivider = UIColor(red: 0.8941, green: 0.8941, blue: 0.9059, alpha: 1)
-        a.colors.text = UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1)
-        a.colors.textSecondary = UIColor(red: 0.4078, green: 0.4078, blue: 0.4353, alpha: 1)
-        a.colors.componentText = UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1)
-        a.colors.componentPlaceholderText = UIColor(red: 0.4078, green: 0.4078, blue: 0.4353, alpha: 1)
-        a.colors.icon = UIColor(red: 0.4078, green: 0.4078, blue: 0.4353, alpha: 1)
-        a.colors.danger = UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1)
+        a.colors.primary = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.3765, green: 0.6471, blue: 0.9804, alpha: 1) : UIColor(red: 0.1137, green: 0.3059, blue: 0.8471, alpha: 1) }
+        a.colors.background = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) : UIColor(red: 1.0000, green: 1.0000, blue: 1.0000, alpha: 1) }
+        a.colors.componentBackground = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) : UIColor(red: 1.0000, green: 1.0000, blue: 1.0000, alpha: 1) }
+        a.colors.componentBorder = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.2471, green: 0.2471, blue: 0.2745, alpha: 1) : UIColor(red: 0.8941, green: 0.8941, blue: 0.9059, alpha: 1) }
+        a.colors.componentDivider = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.1529, green: 0.1529, blue: 0.1647, alpha: 1) : UIColor(red: 0.8941, green: 0.8941, blue: 0.9059, alpha: 1) }
+        a.colors.text = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.9804, green: 0.9804, blue: 0.9804, alpha: 1) : UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) }
+        a.colors.textSecondary = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.6314, green: 0.6314, blue: 0.6667, alpha: 1) : UIColor(red: 0.4078, green: 0.4078, blue: 0.4353, alpha: 1) }
+        a.colors.componentText = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.9804, green: 0.9804, blue: 0.9804, alpha: 1) : UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) }
+        a.colors.componentPlaceholderText = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.6314, green: 0.6314, blue: 0.6667, alpha: 1) : UIColor(red: 0.4078, green: 0.4078, blue: 0.4353, alpha: 1) }
+        a.colors.icon = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.6314, green: 0.6314, blue: 0.6667, alpha: 1) : UIColor(red: 0.4078, green: 0.4078, blue: 0.4353, alpha: 1) }
+        a.colors.danger = UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.9804, green: 0.9804, blue: 0.9804, alpha: 1) : UIColor(red: 0.0353, green: 0.0353, blue: 0.0431, alpha: 1) }
         a.cornerRadius = 6
         a.borderWidth = 1
         a.shadow = .disabled

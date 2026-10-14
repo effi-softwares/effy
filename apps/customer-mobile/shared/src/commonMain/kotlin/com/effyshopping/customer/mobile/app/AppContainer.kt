@@ -202,6 +202,20 @@ class AppContainer(
      */
     val preferences: DevicePreferences by lazy { devicePreferences() }
 
+    /** 087 — the shopper's appearance choice (Account → Appearance), remembered on this device. */
+    val appearance: kotlinx.coroutines.flow.MutableStateFlow<com.effyshopping.customer.mobile.core.theme.AppearanceMode> by lazy {
+        kotlinx.coroutines.flow.MutableStateFlow(
+            com.effyshopping.customer.mobile.core.theme.AppearanceMode.fromStorage(
+                preferences.getString(com.effyshopping.customer.mobile.core.storage.PreferenceKeys.APPEARANCE_MODE),
+            ),
+        )
+    }
+
+    fun setAppearance(mode: com.effyshopping.customer.mobile.core.theme.AppearanceMode) {
+        preferences.putString(com.effyshopping.customer.mobile.core.storage.PreferenceKeys.APPEARANCE_MODE, mode.storageValue)
+        appearance.value = mode
+    }
+
     val cart: CartStore by lazy { CartStore(CartLocalStore(preferences), appScope) }
 
     private val cartRepository: CartRepository by lazy { HttpCartRepository(edgeClient) }

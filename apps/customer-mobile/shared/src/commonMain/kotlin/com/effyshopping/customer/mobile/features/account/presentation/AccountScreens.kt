@@ -1,5 +1,9 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import androidx.compose.foundation.selection.selectableGroup
+import com.effyshopping.customer.mobile.resources.lucide_sun_moon
+import com.effyshopping.customer.mobile.core.theme.AppearanceMode
+import com.effyshopping.customer.mobile.core.presentation.EffyRadioRow
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
 import com.effyshopping.customer.mobile.features.points.presentation.formatPoints
 import com.effyshopping.customer.mobile.resources.lucide_trash_2
@@ -311,6 +315,22 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
     val state by vm.state.collectAsState()
     val nav = container.navigator
     val collapse = rememberEffyCollapse()
+    val appearance by container.appearance.collectAsState()
+    var choosingAppearance by remember { mutableStateOf(false) }
+    if (choosingAppearance) {
+        EffySheet(title = "Appearance", onDismiss = { choosingAppearance = false }, cancelLabel = "Done") {
+            Column(Modifier.selectableGroup()) {
+                AppearanceMode.entries.forEach { mode ->
+                    EffyRadioRow(
+                        label = mode.label,
+                        supporting = if (mode == AppearanceMode.System) "Light or dark, as your phone is set" else null,
+                        selected = mode == appearance,
+                        onClick = { container.setAppearance(mode) },
+                    )
+                }
+            }
+        }
+    }
     // 087 (Account board) — the points card at the top. A failed read shows the card without numbers
     // rather than an error: points are a shortcut here, the Points page owns the failure.
     val points by produceState<PointsBalance?>(null, customer.id) {
@@ -390,7 +410,15 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
             }
             EffyGroup(caption = "Account") {
                 AccountRow("Security", Res.drawable.lucide_shield) { nav.push(CustomerNavKey.Security) }
-                AccountRow("Privacy & data", Res.drawable.lucide_lock, last = true) { nav.push(CustomerNavKey.Privacy) }
+                AccountRow("Privacy & data", Res.drawable.lucide_lock) { nav.push(CustomerNavKey.Privacy) }
+                // 087 / v3.4.0 — Light, Dark, or Match my phone; a sheet, remembered on this device.
+                EffyNavRow(
+                    "Appearance",
+                    onClick = { choosingAppearance = true },
+                    leading = { EffyRowIcon(Res.drawable.lucide_sun_moon) },
+                    trailingText = appearance.label,
+                    divider = false,
+                )
             }
             EffyGroup(caption = "Help") {
                 AccountRow("FAQs", Res.drawable.lucide_circle_help) { nav.push(CustomerNavKey.Faqs) }

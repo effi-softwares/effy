@@ -439,11 +439,14 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   `--warning`) are **web-only** for those two apps. Mobile must still feel native (iOS HIG / Android
   Material); fat-finger targets + micro-animations are requirements. Design refs: Uber / Bolt /
   foodpanda / eBay.
-- ⚠ **THE CUSTOMER MOBILE APP WEARS THE STOREFRONT IDENTITY (087)** — like customer-web: light only,
-  Geist (bundled TTFs), Lucide icons, Effy blue for actions, Effy green for savings / "Delivered by
-  Effy", no red. `gen-compose-theme.mjs` has a **per-target source** (customer → `storefront/tokens.css`,
-  shop/driver → `tokens.css`) and `tokens:check` fails a dark scheme or an undeclared hex in the
-  customer theme. Its UI is the customer kit in `apps/customer-mobile/.../core/presentation/`
+- ⚠ **THE CUSTOMER MOBILE APP WEARS THE STOREFRONT IDENTITY (087)** — like customer-web: Geist (bundled
+  TTFs), Lucide icons, Effy blue for actions, Effy green for savings / "Delivered by Effy", no red. ⚠ **It
+  has LIGHT AND DARK (constitution v3.4.0)**: the dark palette is the `.dark` block of
+  `storefront/tokens.css`, read ONLY by the mobile generator — the website stays light only and sets no
+  dark class. The shopper picks Match my phone / Light / Dark in Account → Appearance (stored on the
+  device, `AppearanceMode`); colour roles without an M3 slot are read through `EffyRoles` (which follows
+  the appearance), and promo panels with white type use the fixed `promoGround` / `promoBlue`. `gen-compose-theme.mjs` has a **per-target source** (customer → `storefront/tokens.css`,
+  shop/driver → `tokens.css`) and `tokens:check` fails an undeclared hex in the customer theme. Its UI is the customer kit in `apps/customer-mobile/.../core/presentation/`
   (customer-local, never mobile-kit), drawn from the design canvas
   `docs/reference-screens/Effy Customer Mobile/`. ⚠ **No centred dialogs and no drop-down menus** —
   every overlay is `EffySheet` / `EffyConfirmSheet`; `scripts/mobile-guard.sh` enforces it, plus no

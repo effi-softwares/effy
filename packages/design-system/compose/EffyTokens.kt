@@ -4,13 +4,15 @@
 package com.effyshopping.customer.mobile.design
 
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * The raw Effy STOREFRONT tokens (087). LIGHT ONLY — the storefront identity has no dark appearance.
- * Colour is rationed: black, white, zinc, Effy blue (primary — every action) and Effy green (brand —
- * Sale, savings, "Delivered by Effy", paid; never an action). No red: destructive is black.
+ * The raw Effy STOREFRONT tokens (087), light and dark (the dark appearance is the mobile app's; the
+ * website is light only). Colour is rationed: black, white, zinc, Effy blue (primary — every action)
+ * and Effy green (brand — Sale, savings, "Delivered by Effy", paid; never an action). No red:
+ * destructive is the text colour.
  */
 object EffyColor {
     object Light {
@@ -42,6 +44,37 @@ object EffyColor {
         val brandForeground = Color(0xFFFFFFFF)
         val brandMuted = Color(0xFFEBF6EF)
         val scrim = Color(0x8009090B)
+    }
+
+    object Dark {
+        val background = Color(0xFF09090B)
+        val foreground = Color(0xFFFAFAFA)
+        val card = Color(0xFF18181B)
+        val cardForeground = Color(0xFFFAFAFA)
+        val popover = Color(0xFF18181B)
+        val popoverForeground = Color(0xFFFAFAFA)
+        val primary = Color(0xFF60A5FA)
+        val primaryForeground = Color(0xFF09090B)
+        val secondary = Color(0xFF27272A)
+        val secondaryForeground = Color(0xFFFAFAFA)
+        val muted = Color(0xFF27272A)
+        val mutedForeground = Color(0xFFA1A1AA)
+        val accent = Color(0xFF27272A)
+        val accentForeground = Color(0xFFFAFAFA)
+        val destructive = Color(0xFFFAFAFA)
+        val destructiveForeground = Color(0xFF09090B)
+        val success = Color(0xFF4CD97B)
+        val disabled = Color(0xFF27272A)
+        val disabledForeground = Color(0xFFA1A1AA)
+        val placeholder = Color(0xFFA1A1AA)
+        val border = Color(0xFF27272A)
+        val input = Color(0xFF3F3F46)
+        val ring = Color(0xFF60A5FA)
+        val primaryMuted = Color(0xFF172554)
+        val brand = Color(0xFF4CD97B)
+        val brandForeground = Color(0xFF09090B)
+        val brandMuted = Color(0xFF052E16)
+        val scrim = Color(0x99000000)
     }
 }
 
@@ -94,4 +127,55 @@ val EffyLightColorScheme: ColorScheme = lightColorScheme(
     tertiaryFixedDim = EffyColor.Light.muted,
     onTertiaryFixed = EffyColor.Light.accentForeground,
     onTertiaryFixedVariant = EffyColor.Light.accentForeground,
+)
+
+val EffyDarkColorScheme: ColorScheme = darkColorScheme(
+    primary = EffyColor.Dark.primary,
+    onPrimary = EffyColor.Dark.primaryForeground,
+    primaryContainer = EffyColor.Dark.primaryMuted,
+    onPrimaryContainer = EffyColor.Dark.primary,
+    inversePrimary = EffyColor.Dark.primary,
+    secondary = EffyColor.Dark.secondary,
+    onSecondary = EffyColor.Dark.secondaryForeground,
+    secondaryContainer = EffyColor.Dark.secondary,
+    onSecondaryContainer = EffyColor.Dark.secondaryForeground,
+    tertiary = EffyColor.Dark.accent,
+    onTertiary = EffyColor.Dark.accentForeground,
+    tertiaryContainer = EffyColor.Dark.accent,
+    onTertiaryContainer = EffyColor.Dark.accentForeground,
+    background = EffyColor.Dark.background,
+    onBackground = EffyColor.Dark.foreground,
+    surface = EffyColor.Dark.card,
+    onSurface = EffyColor.Dark.cardForeground,
+    surfaceVariant = EffyColor.Dark.muted,
+    onSurfaceVariant = EffyColor.Dark.mutedForeground,
+    surfaceTint = EffyColor.Dark.primary,
+    inverseSurface = EffyColor.Dark.foreground,
+    inverseOnSurface = EffyColor.Dark.background,
+    error = EffyColor.Dark.destructive,
+    onError = EffyColor.Dark.destructiveForeground,
+    errorContainer = EffyColor.Dark.destructive,
+    onErrorContainer = EffyColor.Dark.destructiveForeground,
+    outline = EffyColor.Dark.border,
+    outlineVariant = EffyColor.Dark.border,
+    scrim = EffyColor.Dark.scrim,
+    surfaceBright = EffyColor.Dark.card,
+    surfaceDim = EffyColor.Dark.background,
+    surfaceContainer = EffyColor.Dark.card,
+    surfaceContainerHigh = EffyColor.Dark.popover,
+    surfaceContainerHighest = EffyColor.Dark.popover,
+    surfaceContainerLow = EffyColor.Dark.background,
+    surfaceContainerLowest = EffyColor.Dark.background,
+    primaryFixed = EffyColor.Dark.primary,
+    primaryFixedDim = EffyColor.Dark.ring,
+    onPrimaryFixed = EffyColor.Dark.primaryForeground,
+    onPrimaryFixedVariant = EffyColor.Dark.primaryForeground,
+    secondaryFixed = EffyColor.Dark.secondary,
+    secondaryFixedDim = EffyColor.Dark.muted,
+    onSecondaryFixed = EffyColor.Dark.secondaryForeground,
+    onSecondaryFixedVariant = EffyColor.Dark.secondaryForeground,
+    tertiaryFixed = EffyColor.Dark.accent,
+    tertiaryFixedDim = EffyColor.Dark.muted,
+    onTertiaryFixed = EffyColor.Dark.accentForeground,
+    onTertiaryFixedVariant = EffyColor.Dark.accentForeground,
 )

@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.effyshopping.customer.mobile.design.EffyColor
 import com.effyshopping.customer.mobile.design.EffyStorefrontShape
 import com.effyshopping.mobile.design.EffySpacing
 
@@ -90,19 +89,19 @@ object EffySurface {
 
     /** An image well, a band, an aisle circle. */
     val tint: Color
-        @Composable @ReadOnlyComposable get() = EffyColor.Light.muted
+        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceVariant
 
     /** Loading placeholders. */
     val skeleton: Color
-        @Composable @ReadOnlyComposable get() = EffyColor.Light.border
+        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.outline
 }
 
 /** The disabled pair (Material 3 has no disabled slot). */
 object EffyDisabled {
     val fill: Color
-        @Composable @ReadOnlyComposable get() = EffyColor.Light.disabled
+        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceVariant
     val label: Color
-        @Composable @ReadOnlyComposable get() = EffyColor.Light.disabledForeground
+        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 /**

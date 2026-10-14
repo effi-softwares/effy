@@ -15,7 +15,10 @@
  *   --destructive  the foreground black. There is no red on the storefront: an error or a destructive
  *              action is said with an icon and its wording.
  *
- * ⚠ LIGHT ONLY. No dark block here and no `dark:` variant in storefront source.
+ * ⚠ THE WEBSITE IS LIGHT ONLY; THE MOBILE APP HAS A DARK APPEARANCE TOO (087, constitution v3.4.0).
+ * The `.dark` block below is read ONLY by the mobile theme generator (gen-compose-theme.mjs).
+ * customer-web never sets a `dark` class and its source has no `dark:` variant (check-no-storefront-red),
+ * so the block is inert on the web. It is here, not in a second file, because a palette lives once.
  *
  * ⚠ KEEP `:root` A PLAIN BLOCK OF HEX VALUES. The Compose theme generator parses that shape; the
  * customer mobile app is expected to take this file as its input in a later feature (084 research D14).
@@ -62,6 +65,35 @@
   --scrim: rgba(9, 9, 11, 0.5);
 
   --radius: 0.5rem;
+}
+/* The mobile app's DARK appearance (087). Zinc on near-black, the same five values: the blue and the
+   green LIFT so they read on the dark ground, and the ink on them turns dark. Every pair is held to AA
+   by scripts/check-storefront-tokens.mjs, exactly as the light block is. */
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #18181b;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #60a5fa;
+  --primary-foreground: #09090b;
+  --primary-muted: #172554;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #fafafa;
+  --destructive-foreground: #09090b;
+  --border: #27272a;
+  --input: #3f3f46;
+  --ring: #60a5fa;
+  --brand: #4cd97b;
+  --brand-foreground: #09090b;
+  --brand-muted: #052e16;
+  --scrim: rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {

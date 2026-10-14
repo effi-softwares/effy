@@ -56,15 +56,16 @@ if (drifted.length > 0) {
   process.exit(1);
 }
 
-// 087 — the customer app wears the STOREFRONT identity, which is light only and has five values.
-// Two failures the regenerate-and-diff above cannot see, because they would be faithfully generated:
-// a dark scheme sneaking back into the customer theme, and a colour the storefront file does not declare.
+// 087 — the customer app wears the STOREFRONT identity (five values, light + a mobile dark). One failure
+// the regenerate-and-diff above cannot see, because it would be faithfully generated: a colour the
+// storefront file does not declare.
 {
   const customer = readFileSync(resolve(here, "../compose/EffyTokens.kt"), "utf8");
   const storefront = readFileSync(resolve(here, "../src/storefront/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const declared = new Set([...storefront.matchAll(/#([0-9a-fA-F]{6})\b/g)].map((m) => m[1].toUpperCase()));
   const problems = [];
-  if (/darkColorScheme|object Dark\b/.test(customer)) problems.push("the customer theme has a DARK scheme — the storefront identity is light only");
+  // 087 / v3.4.0: the customer theme HAS a dark scheme now (the storefront's mobile dark appearance);
+  // what must still hold is that every colour in it is one the storefront file declares.
   for (const m of customer.matchAll(/Color\(0x([0-9A-F]{2})([0-9A-F]{6})\)/g)) {
     if (m[1] === "FF" && !declared.has(m[2])) problems.push(`#${m[2]} is not declared in storefront/tokens.css`);
   }

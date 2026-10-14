@@ -31,7 +31,7 @@ export const ICONS = [
   // Aisles (087 T057) — the 084 aisle keys mapped to food-first glyphs.
   "apple", "baby", "beef", "carrot", "coffee", "cookie", "croissant", "cup-soda", "egg", "fish",
   "milk", "paw-print", "pill", "sandwich", "snowflake", "soup", "spray-can", "wheat", "wine",
-  "shopping-basket", "scroll-text",
+  "shopping-basket", "scroll-text", "sun-moon",
 ];
 
 const num = (s) => Number.parseFloat(s);

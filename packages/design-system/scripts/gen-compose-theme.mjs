@@ -242,8 +242,8 @@ function generate(target) {
   const css = readFileSync(CONSOLE_CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const colorCss = readFileSync(sourcePath, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const light = parseBlock(colorCss, ":root");
-  // ⚠ LIGHT ONLY for the storefront (constitution v3.3.0): it has no dark block, and none is invented.
-  const dark = storefront ? null : parseBlock(colorCss, ".dark");
+  // 087 / constitution v3.4.0 — the storefront file carries the mobile app's dark appearance too.
+  const dark = parseBlock(colorCss, ".dark");
 
   // Radii: rem -> dp at the 16px root. --radius (base = md), --radius-sm, --radius-md — pinned EXPLICITLY
   // in tokens.css so web px == these dp (017 SC-004). Pill (scale xl = 100) is RoundedCornerShape(50%),
@@ -266,19 +266,25 @@ function generate(target) {
 package ${target.pkg}
 
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
 /**
- * The raw Effy STOREFRONT tokens (087). LIGHT ONLY — the storefront identity has no dark appearance.
- * Colour is rationed: black, white, zinc, Effy blue (primary — every action) and Effy green (brand —
- * Sale, savings, "Delivered by Effy", paid; never an action). No red: destructive is black.
+ * The raw Effy STOREFRONT tokens (087), light and dark (the dark appearance is the mobile app's; the
+ * website is light only). Colour is rationed: black, white, zinc, Effy blue (primary — every action)
+ * and Effy green (brand — Sale, savings, "Delivered by Effy", paid; never an action). No red:
+ * destructive is the text colour.
  */
 object EffyColor {
 ${colorObject("Light", light, "storefront")}
+
+${colorObject("Dark", dark, "storefront")}
 }
 
 ${colorScheme("lightColorScheme", "EffyLightColorScheme", "Light", "storefront")}
+
+${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark", "storefront")}
 `
     : `${banner}
 package ${target.pkg}

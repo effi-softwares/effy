@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.app
 
+import com.effyshopping.customer.mobile.core.platform.phoneInDarkMode
+import com.effyshopping.customer.mobile.core.platform.StatusBarIcons
 import androidx.compose.ui.unit.sp
 import com.effyshopping.customer.mobile.resources.lucide_lock
 import com.effyshopping.customer.mobile.resources.Res
@@ -64,8 +66,12 @@ fun App(container: AppContainer) {
     // 025 FR-037 / T073: read the device's reduced-motion preference ONCE and publish it to every
     // screen below. Provided outside EffyTheme so the value is in force for the theme's own
     // transitions too.
+    // 087 / v3.4.0 — Light, Dark or Match my phone (Account → Appearance).
+    val appearance by container.appearance.collectAsState()
+    val dark = appearance.resolveDark(phoneInDarkMode())
+
     CompositionLocalProvider(LocalMotionLevel provides platformMotionLevel()) {
-    EffyTheme {
+    EffyTheme(dark = dark) {
         val session by container.session.state.collectAsState()
         // 071 — hold the live channel exactly while in the foreground and signed in. A guest holds none.
         LiveLifecycle(container.live, signedIn = session is SessionState.Authenticated)
@@ -214,6 +220,18 @@ fun App(container: AppContainer) {
                         })
                     }
             }
+        }
+
+        // 087 — the launch intro, OVER everything, once per cold start: the native splash's "e." grows
+        // into "effy." and hands over to the app once the session is known. Not saved across
+        // configuration changes on purpose — `remember`, so a rotation does not replay it, but a new
+        // process does.
+        var introDone by remember { mutableStateOf(false) }
+        // The status-bar icons follow the appearance (light icons on the dark theme); the intro sets
+        // them itself while it is showing.
+        if (introDone) StatusBarIcons(lightIcons = dark)
+        if (!introDone) {
+            EffyIntro(ready = session !is SessionState.Restoring, darkTheme = dark, onFinished = { introDone = true })
         }
     }
     }

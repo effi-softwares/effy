@@ -31,7 +31,11 @@ class MainActivity : ComponentActivity() {
         // 024 FR-010/FR-011 — MUST be called before super.onCreate() and before setContent.
         // Called later, the window has already been created with the splash theme still attached and
         // the handover to the first Compose frame shows a flash of the wrong background.
-        installSplashScreen()
+        // 087 — the system splash is removed INSTANTLY (no system fade) once the first Compose frame is
+        // ready: that frame is the in-app intro, drawn identically to the splash (EffyIntro), so the
+        // hand-over is invisible. A fade here would cross-dissolve two identical images and read as a
+        // flicker.
+        installSplashScreen().setOnExitAnimationListener { it.remove() }
         // ⚠ NOT the no-arg `enableEdgeToEdge()`. Its DEFAULT `navigationBarStyle` is
         // `SystemBarStyle.auto(DefaultLightScrim, DefaultDarkScrim)` — a 90%-white / 50%-dark scrim the
         // framework paints over the navigation bar on API ≤ 28, and on API 29+ it sets
@@ -43,8 +47,10 @@ class MainActivity : ComponentActivity() {
         // icons must stay dark on the white ground even when the device is in dark mode. With `auto`
         // a dark-mode phone drew white status icons on a white page — invisible.
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            // Light icons to start: the splash and the launch intro are dark. From then on the app sets
+            // them to its appearance (StatusBarIcons) — light icons on the dark theme, dark on the light.
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isStatusBarContrastEnforced = false
