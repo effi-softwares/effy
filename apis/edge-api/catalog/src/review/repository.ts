@@ -250,14 +250,19 @@ export async function readChangeMedia(changeId: string, tx: Runner = null): Prom
 }
 
 /** Names for the ids a proposal carries, so a reviewer reads "Bakery → Dairy", not two uuids. */
-export async function namesFor(typeIds: string[], categoryIds: string[], attributeIds: string[]) {
+/**
+ * ⚠ Inside a decision, pass the transaction: the pool holds ONE connection, and a read through it
+ * while the transaction has that connection waits until the connect timeout (a 503 on every change
+ * approval, found 2026-10-14).
+ */
+export async function namesFor(typeIds: string[], categoryIds: string[], attributeIds: string[], tx: Runner = null) {
   const [types, categories, attributes] = await Promise.all([
-    query<{ id: string; name: string; status: string }>(
-      `SELECT id::text, name, status FROM public.product_type WHERE id = ANY($1::uuid[])`, [typeIds]),
-    query<{ id: string; name: string; status: string }>(
-      `SELECT id::text, name, status FROM public.category WHERE id = ANY($1::uuid[])`, [categoryIds]),
-    query<{ id: string; name: string; key: string }>(
-      `SELECT id::text, name, key FROM public.attribute_definition WHERE id = ANY($1::uuid[])`, [attributeIds]),
+    run<{ id: string; name: string; status: string }>(
+      tx, `SELECT id::text, name, status FROM public.product_type WHERE id = ANY($1::uuid[])`, [typeIds]),
+    run<{ id: string; name: string; status: string }>(
+      tx, `SELECT id::text, name, status FROM public.category WHERE id = ANY($1::uuid[])`, [categoryIds]),
+    run<{ id: string; name: string; key: string }>(
+      tx, `SELECT id::text, name, key FROM public.attribute_definition WHERE id = ANY($1::uuid[])`, [attributeIds]),
   ]);
   return {
     types: new Map(types.rows.map((r) => [r.id, r])),

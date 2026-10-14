@@ -400,6 +400,7 @@ export async function approve(
         str(proposed.productTypeId) ? [str(proposed.productTypeId)!] : [],
         str(proposed.primaryCategoryId) ? [str(proposed.primaryCategoryId)!] : [],
         [],
+        tx,
       );
       // A category or type Effy retired AFTER the shop proposed it cannot become live.
       if ("primaryCategoryId" in proposed && names.categories.get(String(proposed.primaryCategoryId))?.status !== "active") {
