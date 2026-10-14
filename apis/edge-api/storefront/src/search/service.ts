@@ -1,7 +1,7 @@
 // Service layer for search: paging, sort fallback, the cursor contract. No HTTP, no SQL.
 import type { ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } from "@effy/shared-types";
 
-import { toCards, type Presign } from "../lib/cards";
+import { toCards, type ImageAddress } from "../lib/cards";
 import { isUuid } from "../lib/request";
 import { decodeCursor, encodeCursor, SORT_NEWEST, type Cursor } from "./cursor";
 import type { SearchParams } from "./filters";
@@ -51,7 +51,7 @@ export function cursorKeyFor(sort: ProductSort, row: SearchRow): string {
   }
 }
 
-export function createSearchService(repo: SearchRepository, presign?: Presign) {
+export function createSearchService(repo: SearchRepository, imageAddress?: ImageAddress) {
   return {
     /**
      * One page plus the total across all pages. A malformed cursor restarts from the first page; a
@@ -89,7 +89,7 @@ export function createSearchService(repo: SearchRepository, presign?: Presign) {
         nextCursor = encodeCursor({ sort, key: cursorKeyFor(sort, last), id: last.id });
       }
 
-      return { items: await toCards(rows, presign), nextCursor, total, sort };
+      return { items: await toCards(rows, imageAddress), nextCursor, total, sort };
     },
 
     /**
@@ -100,7 +100,7 @@ export function createSearchService(repo: SearchRepository, presign?: Presign) {
     async cardsByIds(ids: readonly string[]): Promise<StorefrontProductCardDTO[]> {
       const valid = ids.filter(isUuid);
       if (valid.length === 0) return [];
-      const byId = new Map((await toCards(await repo.cardsByIds(valid), presign)).map((c) => [c.id, c]));
+      const byId = new Map((await toCards(await repo.cardsByIds(valid), imageAddress)).map((c) => [c.id, c]));
       return valid.flatMap((id) => byId.get(id.toLowerCase()) ?? byId.get(id) ?? []);
     },
   };

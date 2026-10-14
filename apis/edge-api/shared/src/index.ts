@@ -9,6 +9,8 @@ export * from "./lib/claims";
 export * from "./lib/rds-ca";
 export * from "./lib/password";
 export * from "./lib/media";
+// 086 — the ONE builder of a public picture address, and the public set it enforces.
+export * from "./lib/media-public";
 export * from "./lib/image-dimensions";
 // 050: device push-token registration, shared by every service that registers a mobile device.
 export * from "./lib/devices";

@@ -202,6 +202,13 @@
             "null"
           ]
         },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
         "key": {
           "description": "The promotion id. Stable across reads — clients use it as a list key.",
           "type": "string"
@@ -602,6 +609,13 @@
             "string",
             "null"
           ]
+        },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
         },
         "lineSubtotalAmount": {
           "type": "string"
@@ -1703,7 +1717,7 @@
     },
     "MediaDTO": {
       "additionalProperties": false,
-      "description": "A product image (presigned GET URL + alt text).",
+      "description": "A product image (its permanent public address + alt text).",
       "properties": {
         "alt": {
           "type": [
@@ -1713,6 +1727,13 @@
         },
         "imageUrl": {
           "type": "string"
+        },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -2097,6 +2118,13 @@
             "null"
           ]
         },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
         "lineSubtotalAmount": {
           "type": "string"
         },
@@ -2255,6 +2283,16 @@
         },
         "status": {
           "$ref": "#/definitions/OrderStatus"
+        },
+        "thumbnailWidths": {
+          "description": "086 — index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`).",
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
         },
         "thumbnails": {
           "description": "084 — the primary picture of the order's first few lines (at most four), for the order list. Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's; `null` where a line has no picture.\n\n⚠ OPTIONAL, and absent from a server not yet redeployed: the list then shows no pictures, which is what it showed before. ⚠ Pictures of the customer's own lines only — never a shop, a package, or how many suppliers fill the order.",
@@ -2476,6 +2514,13 @@
             "string",
             "null"
           ]
+        },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
         },
         "subtitle": {
           "type": [
@@ -2721,6 +2766,13 @@
             "string",
             "null"
           ]
+        },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
         },
         "name": {
           "type": "string"
@@ -3015,6 +3067,13 @@
             "null"
           ]
         },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
         "key": {
           "type": "string"
         },
@@ -3101,6 +3160,13 @@
             "null"
           ]
         },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
         "name": {
           "type": "string"
         },
@@ -3179,6 +3245,13 @@
             "string",
             "null"
           ]
+        },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
         },
         "longDescription": {
           "type": [

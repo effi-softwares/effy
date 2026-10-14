@@ -59,18 +59,15 @@ provider:
     # ⚠ The SHOPPER role and its own secret — never the master user (see the header).
     DB_USER: ${ssm:/effy/${sls:stage}/db/shopper_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
-    # Product images are private; reads are short-lived presigned URLs, signed locally.
-    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    # 086 — every picture is addressed on the media CDN (its permanent public address), built from
+    # its storage key. This service no longer reads the bucket at all.
+    MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
-        # READ ONLY. This service never uploads.
-        - Effect: Allow
-          Action: s3:GetObject
-          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as every other

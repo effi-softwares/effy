@@ -1,11 +1,11 @@
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
 import type { PromotionDTO } from "@effy/shared-types"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, Rule } from "@/components/storefront/kit"
 import { Breadcrumb } from "@/components/ui/misc"
 import { edgeApiPublic, uncached } from "@/lib/api/edge"
@@ -104,13 +104,13 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
         // is the picture that renders — nothing is cropped, at either end. No scrim: nothing is drawn
         // over it here, so there is nothing to protect the type from.
         <div className="relative mb-6 aspect-2/1 w-full overflow-hidden rounded-xl">
-          <Image
+          <CatalogImage
             src={promotion.imageUrl}
+            widths={promotion.imageWidths}
             // The heading below is this promotion's accessible name; labelling the artwork too would
             // announce the same offer twice. The picture carries nothing the text does not.
             alt=""
             fill
-            unoptimized
             sizes="(min-width: 768px) 48rem, 100vw"
             className="object-cover"
             priority

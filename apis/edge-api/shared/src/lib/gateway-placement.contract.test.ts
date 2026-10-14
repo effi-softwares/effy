@@ -43,6 +43,8 @@ const PLACEMENT: Record<string, Gateway | null> = {
   // no route at all
   auth: null,
   live: null,
+  // 086 — fed by the bucket's upload notifications through a queue
+  media: null,
 };
 
 const stacks = listStacks();

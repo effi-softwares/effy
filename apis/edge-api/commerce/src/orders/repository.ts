@@ -1,6 +1,6 @@
 // The customer's order history and receipt: SQL only. Every read is scoped to the order's owner
 // at the first statement; nothing here selects a shop.
-import { pooled, type Queryable } from "@effy/edge-shared";
+import { pooled, renditionWidthsSql, type Queryable } from "@effy/edge-shared";
 import type { DeliveryPromise } from "@effy/shared-types";
 
 export interface SummaryRow {
@@ -23,8 +23,11 @@ export interface SummaryRow {
    */
   /** Every package's status — the input to the one stage word. Never sent to a client. */
   portion_statuses?: string[] | null;
-  /** The primary picture key of the first four lines; null where a line has none. */
-  image_keys?: (string | null)[] | null;
+  /**
+   * The primary picture of the first four lines — its key (null where a line has none) and its ready
+   * copies (086). ⚠ ONE subquery for both, so a key and its widths can never be paired across lines.
+   */
+  image_refs?: { key: string | null; widths: number[] | null }[] | null;
   /** The promises the order was sold, in the receipt's own order. */
   arrivals?: ArrivalRow[] | null;
   /** When the last package arrived. Only meaningful once every package has. */
@@ -95,6 +98,8 @@ export interface ItemRow {
   quantity: number;
   line_subtotal_amount: string;
   image_key: string | null;
+  /** 086 — the line picture's ready copies; NULL for none. */
+  image_widths: number[] | null;
 }
 
 export interface FulfillmentRow {
@@ -162,12 +167,13 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        -- 084 — the order list's pictures, stage and status line. ⚠ Each is the SAME read the receipt
        -- makes (same tables, same order), gathered per order; nothing here selects a shop.
        ARRAY(SELECT sf.status FROM public.shop_fulfillment sf WHERE sf.order_id = o.id) AS portion_statuses,
-       ARRAY(SELECT pm.storage_key
-               FROM public.order_item oi
-               LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
-              WHERE oi.order_id = o.id
-              ORDER BY oi.created_at ASC
-              LIMIT 4) AS image_keys,
+       (SELECT json_agg(json_build_object('key', x.k, 'widths', x.w))
+          FROM (SELECT pm.storage_key AS k, ${renditionWidthsSql("pm.storage_key")} AS w
+                  FROM public.order_item oi
+                  LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
+                 WHERE oi.order_id = o.id
+                 ORDER BY oi.created_at ASC
+                 LIMIT 4) x) AS image_refs,
        (SELECT json_agg(json_build_object(
                    'method', d.method, 'promised_from', d.promised_from::text, 'promised_to', d.promised_to::text,
                    'window_start', d.window_start, 'window_end', d.window_end)
@@ -247,7 +253,8 @@ SELECT oi.id::text AS order_item_id,
        oi.product_id::text AS product_id, oi.product_name AS product_name,
        oi.unit_price_amount::text AS unit_price_amount, oi.quantity AS quantity,
        oi.line_subtotal_amount::text AS line_subtotal_amount,
-       pm.storage_key AS image_key
+       pm.storage_key AS image_key,
+       ${renditionWidthsSql("pm.storage_key")} AS image_widths
 FROM public.order_item oi
 LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
 WHERE oi.order_id = $1 ORDER BY oi.created_at ASC`,

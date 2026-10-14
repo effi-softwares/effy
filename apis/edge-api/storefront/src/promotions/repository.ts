@@ -1,5 +1,5 @@
 // Advertised promotions: the Home banner read and the single-promotion read behind a banner tap.
-import { pooled, type Queryable } from "@effy/edge-shared";
+import { pooled, renditionWidthsSql, type Queryable } from "@effy/edge-shared";
 
 /** One promotion cleared for public display (028). */
 export interface AdvertisedPromoRow {
@@ -8,6 +8,8 @@ export interface AdvertisedPromoRow {
   banner_title: string;
   banner_subtitle: string | null;
   banner_image_key: string | null;
+  /** 086 — the artwork's ready copies; NULL for none. */
+  banner_image_widths: number[] | null;
   banner_position: number;
   minimum_subtotal_amount: string;
   currency: string;
@@ -26,6 +28,7 @@ SELECT p.id::text AS id,
        p.banner_title,
        p.banner_subtitle,
        p.banner_image_key,
+       ${renditionWidthsSql("p.banner_image_key")} AS banner_image_widths,
        p.banner_position,
        p.minimum_subtotal_amount::text AS minimum_subtotal_amount,
        p.currency,

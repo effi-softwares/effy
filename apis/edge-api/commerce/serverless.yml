@@ -74,7 +74,8 @@ provider:
     # ⚠ The SHOPPER role and its own secret — never the master user (see the header).
     DB_USER: ${ssm:/effy/${sls:stage}/db/shopper_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
-    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    # 086 — cart, saved and order pictures are addressed on the media CDN; no bucket access.
+    MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
     # ⚠ ARNs, never the secrets. The values are fetched at runtime through the secrets extension and
     # held in module memory only.
     STRIPE_SECRET_KEY_ARN: ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
@@ -95,10 +96,6 @@ provider:
             - ${ssm:/effy/${sls:stage}/db/shopper_secret_arn}
             - ${ssm:/effy/${sls:stage}/stripe/secret_key_arn}
             - ${ssm:/effy/${sls:stage}/stripe/webhook_secret_arn}
-        # READ ONLY — cart, saved and order lines show product images.
-        - Effect: Allow
-          Action: s3:GetObject
-          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — functions run OUTSIDE the VPC (dev posture): no NAT means an in-VPC Lambda

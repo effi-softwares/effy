@@ -63,3 +63,5 @@ export * from "./dispatch"
 export * from "./live"
 // 074-customer-points — the balance, its history, staff credit/debit, settings, and the payment split
 export * from "./points"
+// 086-catalogue-image-delivery — a picture's smaller copies and the one rule naming them
+export * from "./media"

@@ -1,8 +1,8 @@
 // Promotion wording and the banner / detail projections. No HTTP, no SQL.
-import { CURRENCY, formatCents, parseCents } from "@effy/edge-shared";
+import { CURRENCY, formatCents, imageWidthsField, parseCents } from "@effy/edge-shared";
 import type { BannerDTO, PromotionDTO } from "@effy/shared-types";
 
-import { imageUrl, type Presign } from "../lib/cards";
+import { imageUrl, type ImageAddress } from "../lib/cards";
 import type { AdvertisedPromoRow, PromotionRepository } from "./repository";
 
 /**
@@ -52,12 +52,13 @@ export function promoValidity(endsAt: Date | null, now: Date): string | null {
  * or category scoping, so there is no set of qualifying products to filter to: the right
  * destination for a message is the message itself, with the store one tap further on.
  */
-export async function toBanner(p: AdvertisedPromoRow, presign: Presign = imageUrl): Promise<BannerDTO> {
+export async function toBanner(p: AdvertisedPromoRow, imageAddress: ImageAddress = imageUrl): Promise<BannerDTO> {
   return {
     key: p.id,
     title: p.banner_title,
     subtitle: p.banner_subtitle,
-    imageUrl: await presign(p.banner_image_key),
+    imageUrl: await imageAddress(p.banner_image_key),
+    ...imageWidthsField(p.banner_image_widths),
     // Web's entry point for the same destination; mobile reads `target`, never this.
     href: `/promotions/${p.id}`,
     code: p.code,
@@ -68,10 +69,10 @@ export async function toBanner(p: AdvertisedPromoRow, presign: Presign = imageUr
   };
 }
 
-export function createPromotionService(repo: PromotionRepository, presign: Presign = imageUrl) {
+export function createPromotionService(repo: PromotionRepository, imageAddress: ImageAddress = imageUrl) {
   return {
     async banners(): Promise<BannerDTO[]> {
-      return Promise.all((await repo.advertised()).map((p) => toBanner(p, presign)));
+      return Promise.all((await repo.advertised()).map((p) => toBanner(p, imageAddress)));
     },
 
     /** One advertised promotion in full; null → the handler answers 404. */
@@ -82,7 +83,8 @@ export function createPromotionService(repo: PromotionRepository, presign: Presi
         id: row.id,
         title: row.banner_title,
         subtitle: row.banner_subtitle,
-        imageUrl: await presign(row.banner_image_key),
+        imageUrl: await imageAddress(row.banner_image_key),
+        ...imageWidthsField(row.banner_image_widths),
         code: row.code,
         terms: promoTerms(row.minimum_subtotal_amount, row.currency),
         validity: promoValidity(row.ends_at, now),

@@ -67,6 +67,8 @@ export interface OrderSummaryDTO {
    * or how many suppliers fill the order.
    */
   thumbnails?: (string | null)[];
+  /** 086 — index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`). */
+  thumbnailWidths?: number[][];
   /**
    * 084 — what the order list says beside the totals. ⚠ ALL OPTIONAL, each absent (never empty or
    * false) when it does not apply or the server predates it; a client then says less, never something
@@ -113,6 +115,8 @@ export interface OrderItemDTO {
    * which is why a renamed or re-photographed product still shows what was actually bought (FR-011).
    */
   imageUrl?: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
 }
 
 /** The snapshotted delivery address on the receipt. */

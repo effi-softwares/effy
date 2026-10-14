@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { FacetSetDTO, ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } from "@effy/shared-types"
@@ -8,12 +8,13 @@ import type { FacetSetDTO, ProductSearchResultDTO, ProductSort, StorefrontProduc
 import { ChevronUp, CloudOff, SearchX, SlidersHorizontal, X } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
-import { ActionButton, btnClass, iconBtnClass } from "@/components/storefront/actions"
+import { btnClass } from "@/components/storefront/actions"
 import { useOnDemand } from "@/lib/use-on-demand"
 import { Breadcrumb, type Crumb } from "@/components/ui/misc"
 import { edgeApiBaseUrl } from "@/lib/config"
+import { facetsQuery, productsQuery, readRefinement, type SearchInitial } from "@/lib/search-query"
 
-import { ProductCard, productGridNarrow } from "./ProductCard"
+import { FIRST_ROW, ProductCard, ProductGridSkeleton, productGridNarrow } from "./ProductCard"
 import { SaveControl } from "./SaveControl"
 import type { SelectedFilters } from "./filters/FilterControls"
 
@@ -23,16 +24,29 @@ import type { SelectedFilters } from "./filters/FilterControls"
  * ── The URL IS the refinement state (FR-015/FR-017) ──────────────────────────────────────────────
  * Every facet lives in the URL so a refined search can be shared, bookmarked and restored: `q`,
  * `categoryKey`, `saleOnly`, `minPrice`/`maxPrice`, `sort`, plus (043) repeated `brand` and
- * `attr.<key>` params (OR within a facet, AND across). Reading params client-side keeps /search a
- * static shell.
+ * `attr.<key>` params (OR within a facet, AND across).
+ *
+ * ── Who reads the first page (PERF-09/10) ────────────────────────────────────────────────────────
+ * The SERVER does, and hands it over as `initial`; the page arrives with its products in it. From
+ * there the browser refines and pages on its own, straight to the backend.
+ *
+ * ⚠ A REFINEMENT REWRITES THE ADDRESS WITH `history.replaceState`, NOT THE ROUTER. The page reads
+ * its search params on the server, so a router navigation would render — and read the listing — on
+ * the server for every tick of a filter, beside the browser's own read of the same thing.
+ *
+ * ⚠ `initial` IS SHOWN ONLY WHEN IT ANSWERS THE QUERY THIS ADDRESS ASKS (`initial.query`), and only
+ * while it is fresh: Back replays a render from the router's memory, however old. A listing may be
+ * 60 seconds late and no more (054 FR-015a) — `FRESH_MS`.
  *
  * ── Bundle (043) ─────────────────────────────────────────────────────────────────────────────────
- * The filter controls are fetched on demand (`useOnDemand`) — /search sits ~2 KB under the 174 KB
- * guest budget, so the facet UI must NOT enter the first-load chunk. The mobile sheet chrome is a tiny inline overlay
- * (native, no vaul) for the same reason.
+ * The filter controls are fetched on demand (`useOnDemand`) — /search sits 0.2 KB under the 174 KB
+ * guest budget, so the facet UI must NOT enter the first-load chunk. The phone sheet's chrome (`FilterSheet`: a
+ * native overlay, no vaul) rides in the same on-demand chunk — it was inline until the first page
+ * moved to the server and the route had no room left for it.
  */
 
 const loadFilterControls = () => import("./filters/FilterControls").then((m) => m.default)
+const loadFilterSheet = () => import("./filters/FilterControls").then((m) => m.FilterSheet)
 
 const SORT_LABELS: Record<ProductSort, string> = {
   relevance: "Best match",
@@ -41,7 +55,52 @@ const SORT_LABELS: Record<ProductSort, string> = {
   price_desc: "Price: high to low",
 }
 
-const PAGE_SIZE = 24
+/** How late a listing may be shown (054 FR-015a). */
+const FRESH_MS = 60_000
+
+/** One listing as it stands on screen: the pages loaded so far and where the next one starts. */
+interface Shown {
+  query: string
+  /** When its first page was read, by this browser's clock. */
+  at: number
+  items: StorefrontProductCardDTO[]
+  total: number | null
+  sort: ProductSort
+  cursor: string | null
+  facets?: FacetSetDTO | null
+}
+
+/**
+ * The listing last on screen, kept for the life of the tab so Back from a product returns to the
+ * pages already loaded — and, because they are there on the first render, to the same scroll position.
+ */
+let kept: Shown | null = null
+
+/** Which server answer was taken for a query, and when — what tells a replayed render from a new one. */
+const taken = new Map<string, { stamp: number; at: number }>()
+
+/** The server's first page, when it answers `query` and is not a replay gone stale. */
+function fromServer(query: string, initial: SearchInitial | null | undefined): Shown | null {
+  if (initial?.query !== query) return null
+  const now = Date.now()
+  const before = taken.get(query)
+  const replay = before?.stamp === initial.at
+  if (replay && now - before.at > FRESH_MS) return null
+  const at = replay ? before.at : now
+  taken.set(query, { stamp: initial.at, at })
+  const { items, total, sort, nextCursor } = initial.result
+  return { query, at, items, total, sort, cursor: nextCursor, facets: initial.facets }
+}
+
+function startFrom(query: string, initial: SearchInitial | null | undefined): Shown | null {
+  if (kept?.query === query && Date.now() - kept.at <= FRESH_MS) return kept
+  return fromServer(query, initial)
+}
+
+const read = <T,>(path: string, signal?: AbortSignal): Promise<T> =>
+  fetch(`${edgeApiBaseUrl()}/storefront/v1/${path}`, { signal }).then((r) =>
+    r.ok ? (r.json() as Promise<T>) : Promise.reject(r.status),
+  )
 
 /** What the page needs to NAME a category: its own name and where it sits. */
 export interface CategoryName {
@@ -50,42 +109,51 @@ export interface CategoryName {
   parentKey: string | null
 }
 
-export function SearchExperience({ categories = [] }: { categories?: readonly CategoryName[] }) {
-  const router = useRouter()
+export function SearchExperience({
+  categories = [],
+  initial,
+}: {
+  categories?: readonly CategoryName[]
+  initial?: SearchInitial | null
+}) {
   const pathname = usePathname()
   const params = useSearchParams()
 
   // ── Refinement state, read from the URL ───────────────────────────────────────────────────────
-  const q = params.get("q") ?? ""
-  const category = params.get("category")
-  const saleOnly = params.get("saleOnly") === "true"
-  const minPrice = params.get("minPrice") ?? ""
-  const maxPrice = params.get("maxPrice") ?? ""
-  const sort = (params.get("sort") as ProductSort | null) ?? "newest"
-  const brands = useMemo(() => params.getAll("brand"), [params])
-  // Attribute facets: every `attr.<key>` param, collapsed to key → values[].
-  const attributes = useMemo(() => {
-    const out: Record<string, string[]> = {}
-    for (const [key, value] of params.entries()) {
-      if (key.startsWith("attr.") && value) {
-        const k = key.slice("attr.".length)
-        ;(out[k] ??= []).push(value)
-      }
-    }
-    return out
-  }, [params])
+  const refinement = useMemo(() => readRefinement(params), [params])
+  const { q, category, saleOnly, minPrice, maxPrice, sort, brands, attributes } = refinement
+  const query = useMemo(() => productsQuery(refinement), [refinement])
+  const facetsFor = useMemo(() => facetsQuery(refinement), [refinement])
 
-  const [items, setItems] = useState<StorefrontProductCardDTO[]>([])
-  const [total, setTotal] = useState<number | null>(null)
-  const [appliedSort, setAppliedSort] = useState<ProductSort>(sort)
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [start] = useState(() => startFrom(query, initial))
+  /** The query whose results are on screen; null while there are none to show. */
+  const shown = useRef(start ? query : null)
+  const firstPageAt = useRef(start?.at ?? 0)
+  /** The query the address asks for NOW — a page that comes back for an earlier one is dropped. */
+  const asked = useRef(query)
+  asked.current = query
+
+  const [items, setItems] = useState<StorefrontProductCardDTO[]>(start?.items ?? [])
+  const [total, setTotal] = useState<number | null>(start?.total ?? null)
+  const [appliedSort, setAppliedSort] = useState<ProductSort>(start?.sort ?? sort)
+  const [cursor, setCursor] = useState<string | null>(start?.cursor ?? null)
+  const [loading, setLoading] = useState(start === null)
   const [failed, setFailed] = useState(false)
-  const [exhausted, setExhausted] = useState(false)
+  const [moreFailed, setMoreFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
-  const [facetSet, setFacetSet] = useState<FacetSetDTO | null>(null)
+  const [facetSet, setFacetSet] = useState<FacetSetDTO | null>(start?.facets ?? null)
+  const facetsShown = useRef(start?.facets ? facetsFor : null)
   const [facetsLoading, setFacetsLoading] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  const go = useCallback(
+    (next: URLSearchParams) => {
+      const search = next.toString()
+      window.history.replaceState(null, "", search ? `${pathname}?${search}` : pathname)
+    },
+    [pathname],
+  )
 
   /** Rewrite the URL. Values may be a string, null (remove), or string[] (repeated param). */
   const setParam = useCallback(
@@ -97,10 +165,9 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
         else if (value !== null && value !== "") next.set(key, value)
       }
       // The cursor is NEVER URL state — a shared link opens at the first page (FR-015).
-      const query = next.toString()
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+      go(next)
     },
-    [params, pathname, router],
+    [params, go],
   )
 
   /** Toggle one value of a repeated facet param (OR within). */
@@ -125,9 +192,8 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
     const next = new URLSearchParams()
     if (q.trim()) next.set("q", q.trim())
     if (sort !== "newest") next.set("sort", sort)
-    const query = next.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }, [q, sort, pathname, router])
+    go(next)
+  }, [q, sort, go])
 
   const selected: SelectedFilters = useMemo(
     () => ({ category, brands, attributes, saleOnly }),
@@ -177,100 +243,122 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
     return out
   }, [category, categoryTrail, brands, attributes, saleOnly, minPrice, maxPrice, facetLabel, setParam, toggleParamValue])
 
-  // ── Request builders ──────────────────────────────────────────────────────────────────────────
-  const filterParams = useCallback(() => {
-    const p = new URLSearchParams()
-    if (q.trim()) p.set("q", q.trim())
-    if (category) p.set("categoryKey", category)
-    if (saleOnly) p.set("saleOnly", "true")
-    if (minPrice) p.set("minPrice", minPrice)
-    if (maxPrice) p.set("maxPrice", maxPrice)
-    for (const b of brands) p.append("brand", b)
-    for (const [key, vals] of Object.entries(attributes)) for (const v of vals) p.append(`attr.${key}`, v)
-    return p
-  }, [q, category, saleOnly, minPrice, maxPrice, brands, attributes])
-
-  const requestUrl = useCallback(
-    (next: string | null) => {
-      const p = filterParams()
-      p.set("sort", sort)
-      if (next) p.set("cursor", next)
-      p.set("limit", String(PAGE_SIZE))
-      return `${edgeApiBaseUrl()}/storefront/v1/products?${p.toString()}`
+  // ── Reading ───────────────────────────────────────────────────────────────────────────────────
+  const show = useCallback(
+    (next: Shown) => {
+      shown.current = next.query
+      firstPageAt.current = next.at
+      setItems(next.items)
+      setTotal(next.total)
+      setAppliedSort(next.sort)
+      setCursor(next.cursor)
+      setLoading(false)
+      if (next.facets) {
+        facetsShown.current = facetsFor
+        setFacetSet(next.facets)
+      }
     },
-    [filterParams, sort],
-  )
-
-  const facetsUrl = useMemo(
-    () => `${edgeApiBaseUrl()}/storefront/v1/facets?${filterParams().toString()}`,
-    [filterParams],
+    [facetsFor],
   )
 
   // Reload from the first page whenever ANY refinement changes (FR-016b: a cursor is sort/filter
   // specific, so restarting is required, not merely convenient). Debounced so a burst of ticks
-  // becomes ONE refresh (FR-025/SC-007).
+  // becomes ONE refresh (FR-025/SC-007) — ⚠ but only a refinement waits: arriving at a listing the
+  // server could not read asks at once.
+  const arrived = useRef(false)
   useEffect(() => {
+    const wait = arrived.current ? 250 : 0
+    arrived.current = true
+    // Back at what is already on screen (a filter ticked and unticked): nothing to read.
+    if (shown.current === query) return setLoading(false)
+    // A navigation that kept this component mounted brought its own first page.
+    const given = fromServer(query, initial)
+    if (given) return show(given)
+
     const controller = new AbortController()
     setLoading(true)
     setFailed(false)
-    setExhausted(false)
+    setMoreFailed(false)
     const timer = setTimeout(() => {
-      fetch(requestUrl(null), { signal: controller.signal })
-        .then((r) => (r.ok ? (r.json() as Promise<ProductSearchResultDTO>) : Promise.reject(r.status)))
-        .then((data) => {
-          setItems(data.items)
-          setTotal(data.total)
-          setAppliedSort(data.sort)
-          setCursor(data.nextCursor)
-          setExhausted(data.nextCursor === null)
-        })
+      read<ProductSearchResultDTO>(`products?${query}`, controller.signal)
+        .then((data) =>
+          show({ query, at: Date.now(), items: data.items, total: data.total, sort: data.sort, cursor: data.nextCursor }),
+        )
         .catch((err) => {
           if (err?.name === "AbortError") return
+          shown.current = null
           setFailed(true)
           setItems([])
           setTotal(null)
+          setCursor(null)
+          setLoading(false)
         })
-        .finally(() => setLoading(false))
-    }, 250)
+    }, wait)
     return () => {
       controller.abort()
       clearTimeout(timer)
     }
-  }, [requestUrl])
+    // `attempt` is "Try again": the same query, asked once more.
+  }, [query, initial, show, attempt])
 
   // Facets recompute on filter change (NOT on paginate — loadMore never touches this). Debounced with
   // the same rhythm so rapid ticking makes one facets refresh.
+  const facetsArrived = useRef(false)
   useEffect(() => {
+    const wait = facetsArrived.current ? 250 : 0
+    facetsArrived.current = true
+    if (facetsShown.current === facetsFor) return setFacetsLoading(false)
     const controller = new AbortController()
     setFacetsLoading(true)
     const timer = setTimeout(() => {
-      fetch(facetsUrl, { signal: controller.signal })
-        .then((r) => (r.ok ? (r.json() as Promise<FacetSetDTO>) : Promise.reject(r.status)))
-        .then((data) => setFacetSet(data))
-        .catch((err) => {
-          if (err?.name !== "AbortError") setFacetSet(null)
+      read<FacetSetDTO>(`facets?${facetsFor}`, controller.signal)
+        .then((data) => {
+          facetsShown.current = facetsFor
+          setFacetSet(data)
+          setFacetsLoading(false)
         })
-        .finally(() => setFacetsLoading(false))
-    }, 250)
+        .catch((err) => {
+          if (err?.name === "AbortError") return
+          setFacetSet(null)
+          setFacetsLoading(false)
+        })
+    }, wait)
     return () => {
       controller.abort()
       clearTimeout(timer)
     }
-  }, [facetsUrl])
+  }, [facetsFor])
 
-  const loadMore = useCallback(() => {
-    if (!cursor || loading) return
-    setLoading(true)
-    fetch(requestUrl(cursor))
-      .then((r) => (r.ok ? (r.json() as Promise<ProductSearchResultDTO>) : Promise.reject(r.status)))
-      .then((data) => {
-        setItems((prev) => [...prev, ...data.items])
-        setCursor(data.nextCursor)
-        setExhausted(data.nextCursor === null)
-      })
-      .catch(() => setExhausted(true))
-      .finally(() => setLoading(false))
-  }, [cursor, loading, requestUrl])
+  // Back from a product returns to what was loaded (see `kept`).
+  useEffect(() => {
+    if (shown.current) kept = { query: shown.current, at: firstPageAt.current, items, total, sort: appliedSort, cursor }
+  }, [items, total, appliedSort, cursor])
+
+  /**
+   * ⚠ A page that fails is NOT the end of the list. It says so and offers the page again; until the
+   * shopper asks, scrolling does not — the sentinel is still on screen, and would ask without pause.
+   */
+  const loadMore = useCallback(
+    (again = false) => {
+      if (!cursor || loading || (moreFailed && !again)) return
+      setLoading(true)
+      setMoreFailed(false)
+      read<ProductSearchResultDTO>(`products?${productsQuery(refinement, cursor)}`)
+        .then((data) => {
+          if (asked.current !== query) return
+          setItems((prev) => [...prev, ...data.items])
+          setCursor(data.nextCursor)
+          setLoading(false)
+        })
+        .catch(() => {
+          if (asked.current !== query) return
+          setMoreFailed(true)
+          setLoading(false)
+        })
+    },
+    [cursor, loading, moreFailed, refinement, query],
+  )
+  const exhausted = cursor === null && !loading
 
   const sentinelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -284,6 +372,7 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
   }, [loadMore])
 
   const FilterControls = useOnDemand(loadFilterControls)
+  const FilterSheet = useOnDemand(loadFilterSheet)
   const controls = FilterControls ? (
     <FilterControls
       facetSet={facetSet}
@@ -424,7 +513,7 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
               icon={CloudOff}
               title="We couldn’t load results just now"
               body="This is on us, not you. Please try again in a moment."
-              action={{ label: "Try again", onClick: () => setParam({}) }}
+              action={{ label: "Try again", onClick: () => setAttempt((n) => n + 1) }}
             />
           ) : items.length === 0 && !loading ? (
             <ResultState
@@ -438,19 +527,16 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
               }
             />
           ) : items.length === 0 && loading ? (
-            <div className={`mt-6 ${productGridNarrow}`} aria-hidden="true">
-              {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className="space-y-3">
-                  <div className="aspect-square w-full animate-pulse rounded-lg bg-muted" />
-                  <div className="h-4 w-3/4 animate-pulse rounded-md bg-muted" />
-                  <div className="h-5 w-1/3 animate-pulse rounded-md bg-muted" />
-                </div>
-              ))}
-            </div>
+            <ProductGridSkeleton className={`mt-6 ${productGridNarrow}`} />
           ) : (
             <div className={`mt-6 ${productGridNarrow}`}>
-              {items.map((p) => (
-                <ProductCard key={p.id} product={p} saveControl={<SaveControl productId={p.id} />} />
+              {items.map((p, i) => (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  saveControl={<SaveControl productId={p.id} />}
+                  priority={i < FIRST_ROW}
+                />
               ))}
             </div>
           )}
@@ -458,6 +544,14 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
           <div ref={sentinelRef} className="h-10" aria-hidden="true" />
           {loading && items.length > 0 && (
             <p className="border-t py-4 text-center text-sm text-muted-foreground">Loading more…</p>
+          )}
+          {moreFailed && (
+            <div className="flex flex-col items-center gap-3 border-t py-6">
+              <p role="status" className="text-sm text-muted-foreground">We couldn’t load more just now.</p>
+              <button type="button" onClick={() => loadMore(true)} className={btnClass("outline", "sm")}>
+                Try again
+              </button>
+            </div>
           )}
           {exhausted && items.length > 0 && (
             <div className="flex flex-col items-center gap-3 border-t py-6">
@@ -471,29 +565,10 @@ export function SearchExperience({ categories = [] }: { categories?: readonly Ca
         </div>
       </div>
 
-      {sheetOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
-          <button
-            type="button"
-            aria-label="Close filters"
-            onClick={() => setSheetOpen(false)}
-            className="absolute inset-0 bg-scrim"
-          />
-          <div className="absolute inset-x-0 bottom-0 flex max-h-[88vh] flex-col rounded-t-xl border-t bg-background shadow-lg">
-            <div className="flex items-center justify-between px-4 pt-4 pb-3">
-              <h2 className="text-base font-semibold">Filters</h2>
-              <button type="button" onClick={() => setSheetOpen(false)} aria-label="Close" className={iconBtnClass("ghost", "md")}>
-                <X aria-hidden="true" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4">{controls}</div>
-            <div className="border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <ActionButton type="button" onClick={() => setSheetOpen(false)} size="xl" className="w-full">
-                Show {total ?? ""} results
-              </ActionButton>
-            </div>
-          </div>
-        </div>
+      {sheetOpen && FilterSheet && (
+        <FilterSheet total={total} onClose={() => setSheetOpen(false)}>
+          {controls}
+        </FilterSheet>
       )}
     </div>
   )

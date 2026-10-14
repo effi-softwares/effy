@@ -10,7 +10,7 @@
 //   - every mutation is idempotent or carries a change id — see repository.ts;
 //   - the applied promotion is re-evaluated on every read and never stored as an amount.
 import {
-  CURRENCY, emitMetric, formatCents, imageUrlOrNull, metricNamespace, outOfStock, parseCents, purchasable,
+  CURRENCY, emitMetric, formatCents, imageWidthsField, metricNamespace, outOfStock, parseCents, publicImageAddress, purchasable,
 } from "@effy/edge-shared";
 import { hasMinimum, meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
 import type {
@@ -47,7 +47,7 @@ export interface LineInput {
   quantity: number;
 }
 
-export type Presign = (storageKey: string | null | undefined) => Promise<string | null>;
+export type ImageAddress = (storageKey: string | null | undefined) => Promise<string | null>;
 export type PolicyReader = () => Promise<CartPolicy>;
 
 const clampTo = (qty: number, max: number): number => (qty < 1 ? 1 : qty > max ? max : qty);
@@ -126,11 +126,11 @@ export function checkoutState(lineCount: number, payableLines: number, payable: 
 export function createCartService(deps: {
   repo: CartRepository;
   policy: PolicyReader;
-  presign?: Presign;
+  imageAddress?: ImageAddress;
   now?: () => Date;
 }) {
   const { repo, policy } = deps;
-  const presign = deps.presign ?? imageUrlOrNull;
+  const imageAddress = deps.imageAddress ?? publicImageAddress;
   const now = deps.now ?? (() => new Date());
 
   /** Rows → wire lines, the payable subtotal, and (optionally) the notices they raise. */
@@ -160,7 +160,8 @@ export function createCartService(deps: {
           id: row.id,
           productId: row.product_id,
           name: row.name,
-          imageUrl: await presign(row.storage_key),
+          imageUrl: await imageAddress(row.storage_key),
+          ...imageWidthsField(row.image_widths),
           unitPriceAmount: row.unit_price_amount,
           quantity: payableQty,
           lineSubtotalAmount: formatCents(lineCents),

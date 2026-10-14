@@ -491,7 +491,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   // ── The shopper's history and receipt ───────────────────────────────────────────────────────────
 
   it("the receipt reads back what was sold: every statement runs, nothing names a shop, and it is the owner's only", async () => {
-    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async (k) => (k ? `https://img/${k}` : null) });
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async (k) => (k ? `https://img/${k}` : null) });
     const s = await shopper({ Milk: 2 });
     const stranger = await shopper({});
     await pool.query(`INSERT INTO public.product_media (product_id, storage_key, is_primary) VALUES ($1, 'milk.jpg', true) ON CONFLICT DO NOTHING`, [product.Milk]);
@@ -886,7 +886,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   });
 
   it("077 — a placed order's fee never moves: a new plan, a corrected distance, a postcode removed (P14)", async () => {
-    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     const s = await shopper({ Milk: 2 });
     const r = await svc.createIntent(s.customerId, sameDay(s.addressId), new Date());
     await pay(r.orderId);
@@ -1181,7 +1181,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   });
 
   it("078 — the window a customer bought is the window they keep, whatever is changed afterwards (P13)", async () => {
-    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     await modelOn(async () => {
       const days = offered();
       const s = await shopper({ Milk: 2 });
@@ -1428,7 +1428,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   });
 
   it("079 P9 — the customer's order says who delivers it, and a courier order keeps the estimate it was sold", async () => {
-    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     await modelOn(() => courierArmed(async () => {
       const s = await shopper({ Milk: 2 });
       const far = await addressAt(s.customerId);
@@ -1469,7 +1469,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   });
 
   it("⚠ 080 P11 — a customer follows a courier order by ONE link, or is told tracking comes by email; never a count", async () => {
-    const orders = createOrdersService({ repo: createOrdersRepository(pool), presign: async () => null });
+    const orders = createOrdersService({ repo: createOrdersRepository(pool), imageAddress: async () => null });
     await modelOn(() => courierArmed(async () => {
       const staff = { kind: "staff" as const, sub: "sub-staff" };
       const sendOff = async (packageId: string, trackingUrl: string | null) => {

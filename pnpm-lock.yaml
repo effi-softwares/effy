@@ -475,6 +475,58 @@ importers:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@22.20.0)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)
 
+  apis/edge-api/media:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: 3.1088.0
+        version: 3.1088.0
+      '@aws-sdk/client-sqs':
+        specifier: 3.1088.0
+        version: 3.1088.0
+      '@effy/edge-shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@effy/shared-types':
+        specifier: workspace:*
+        version: link:../../../packages/shared-types
+      pg:
+        specifier: 8.22.0
+        version: 8.22.0
+      pino:
+        specifier: 10.3.1
+        version: 10.3.1
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
+    devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^12.0.4
+        version: 12.0.4
+      '@types/aws-lambda':
+        specifier: 8.10.162
+        version: 8.10.162
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.0
+      '@types/pg':
+        specifier: ^8.11.0
+        version: 8.20.0
+      esbuild:
+        specifier: 0.28.1
+        version: 0.28.1
+      serverless:
+        specifier: 3.40.0
+        version: 3.40.0(@types/node@22.20.0)
+      serverless-esbuild:
+        specifier: 1.57.2
+        version: 1.57.2(esbuild@0.28.1)
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(@types/node@22.20.0)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.0)
+
   apis/edge-api/notifications:
     dependencies:
       '@aws-sdk/client-sesv2':
@@ -903,7 +955,7 @@ importers:
         version: 14.1.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       next:
         specifier: 16.2.6
-        version: 16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.6(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       posthog-js:
         specifier: ^1.200.0
         version: 1.398.2
@@ -1423,6 +1475,10 @@ packages:
     resolution: {integrity: sha512-n7AZDhboioUpPDbp/YC2mVYviOJQOaBtCNI51iQVV09IiG0YRRBBx8w73RE7LM8mrrAXIwZjaNJErxL9v5IXow==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/client-sqs@3.1088.0':
+    resolution: {integrity: sha512-qt9k/SBPvcrgmthtlbuVTPZ++UOmViF+Qig3MoHKBXS9ls6JY467lYXFvpPJ7GPZgGOpTATx35/07BYGnETksg==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/client-sts@3.1079.0':
     resolution: {integrity: sha512-ycZDhMLf805leaBDQk0HnzvNJi293a0h++iG+hZtya5izd4Jyx022tV2owFc1u81c+Esdj6DchF5E9DAXxf8GQ==}
     engines: {node: '>=20.0.0'}
@@ -1532,6 +1588,10 @@ packages:
     resolution: {integrity: sha512-RBi43anhDBUv+HCfxCOXwGOE7GmT4n7ChV04Mwr22RhXTNcamW/iWnJlOotDPCZSrJ4dEvhZSiWWQMwLX+ZhFA==}
     engines: {node: '>=20.0.0'}
 
+  '@aws-sdk/middleware-sdk-sqs@3.972.44':
+    resolution: {integrity: sha512-T+wrtyEE1z9BKlo0PH+2NXpikhOJfvq8Zg1QJuAE/GXV5YPTHruYWjsrpG4VGZNfYon9sXHCsIQBwNkd7J3Few==}
+    engines: {node: '>=20.0.0'}
+
   '@aws-sdk/nested-clients@3.997.29':
     resolution: {integrity: sha512-ot6v8J5W8P0w6ryyuIkXP1bHZHTlvwtn83mVCYaBE0GJ6tJX4vPSBx7M98w9O4wmmDruFsDBUMjhEHA+OosUFQ==}
     engines: {node: '>=20.0.0'}
@@ -1562,6 +1622,10 @@ packages:
 
   '@aws-sdk/types@3.974.2':
     resolution: {integrity: sha512-3W6IUtSxFbH6X7Wb7DzGCV5QiFQsd0g8bOfntpmDxQlzBoKWUMBu/JPQR0DwkE+Hpnxd6db1tXbOwdeHddG6cA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/types@3.974.6':
+    resolution: {integrity: sha512-v/clNZzZnDxGyvpHMOGpJKVXFAExJzUNAAjaWGdcx8QAcXLGwTaOkw33p5SHAi0YAioK32xB3hWwOekRVfmfKg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/util-dynamodb@3.996.7':
@@ -4269,6 +4333,10 @@ packages:
     resolution: {integrity: sha512-CyogUINxvi7C7LDsh8Syo6hVJOT9ckz4rG8dRZfTJ8r91HkMY59PnNooaj7WcHyxEkxPfBAmbgztZU+xTo76lg==}
     engines: {node: '>=18.0.0'}
 
+  '@smithy/core@3.36.0':
+    resolution: {integrity: sha512-3hJiwG1F5t1SoXqp/yOCmYXziyx7ZVqF63S5W6YU201e/qwVaHPex+E/3vvyY9a3ORq/b+BydeNZpP2saQ9X2g==}
+    engines: {node: '>=18.0.0'}
+
   '@smithy/credential-provider-imds@4.4.6':
     resolution: {integrity: sha512-B2WQ/PV/H6Jeg3lrIq6bKUfa6Hy01mtK7CGs6lhjzHA6k4aagldH6T6eEjnzKl4HI0cJnAsxfJ19pgb5PV+CVQ==}
     engines: {node: '>=18.0.0'}
@@ -4334,6 +4402,10 @@ packages:
 
   '@smithy/types@4.16.1':
     resolution: {integrity: sha512-0JFs3V2y2M9tKW5na/qxe69Zv+uxLMO7QBbhxF/FHu/Gp2NFZAAL9tWl9PU02xxo07pb3G9FTyjNc6D5uZrJIg==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/types@4.19.0':
+    resolution: {integrity: sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q==}
     engines: {node: '>=18.0.0'}
 
   '@smithy/util-base64@3.0.0':
@@ -9532,6 +9604,18 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
+  '@aws-sdk/client-sqs@3.1088.0':
+    dependencies:
+      '@aws-sdk/core': 3.977.4
+      '@aws-sdk/credential-provider-node': 3.972.69
+      '@aws-sdk/middleware-sdk-sqs': 3.972.44
+      '@aws-sdk/types': 3.974.2
+      '@smithy/core': 3.31.1
+      '@smithy/fetch-http-handler': 5.6.6
+      '@smithy/node-http-handler': 4.9.6
+      '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
   '@aws-sdk/client-sts@3.1079.0':
     dependencies:
       '@aws-sdk/core': 3.977.4
@@ -9790,6 +9874,13 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
+  '@aws-sdk/middleware-sdk-sqs@3.972.44':
+    dependencies:
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.36.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
   '@aws-sdk/nested-clients@3.997.29':
     dependencies:
       '@aws-sdk/core': 3.977.4
@@ -9854,6 +9945,11 @@ snapshots:
   '@aws-sdk/types@3.974.2':
     dependencies:
       '@smithy/types': 4.16.1
+      tslib: 2.8.1
+
+  '@aws-sdk/types@3.974.6':
+    dependencies:
+      '@smithy/types': 4.19.0
       tslib: 2.8.1
 
   '@aws-sdk/util-dynamodb@3.996.7(@aws-sdk/client-dynamodb@3.1086.0)':
@@ -12721,6 +12817,11 @@ snapshots:
       '@smithy/types': 4.16.1
       tslib: 2.8.1
 
+  '@smithy/core@3.36.0':
+    dependencies:
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
   '@smithy/credential-provider-imds@4.4.6':
     dependencies:
       '@smithy/core': 3.31.1
@@ -12809,6 +12910,10 @@ snapshots:
       tslib: 2.8.1
 
   '@smithy/types@4.16.1':
+    dependencies:
+      tslib: 2.8.1
+
+  '@smithy/types@4.19.0':
     dependencies:
       tslib: 2.8.1
 
@@ -16414,7 +16519,7 @@ snapshots:
 
   next-tick@1.1.0: {}
 
-  next@16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  next@16.2.6(@opentelemetry/api@1.9.1)(@playwright/test@1.61.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       '@next/env': 16.2.6
       '@swc/helpers': 0.5.15
@@ -16423,7 +16528,7 @@ snapshots:
       postcss: 8.4.31
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
-      styled-jsx: 5.1.6(@babel/core@7.29.7)(react@19.2.4)
+      styled-jsx: 5.1.6(react@19.2.4)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.2.6
       '@next/swc-darwin-x64': 16.2.6
@@ -17456,7 +17561,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.5
       '@img/sharp-win32-ia32': 0.34.5
       '@img/sharp-win32-x64': 0.34.5
-    optional: true
 
   shebang-command@1.2.0:
     dependencies:
@@ -17735,12 +17839,10 @@ snapshots:
   stubs@3.0.0:
     optional: true
 
-  styled-jsx@5.1.6(@babel/core@7.29.7)(react@19.2.4):
+  styled-jsx@5.1.6(react@19.2.4):
     dependencies:
       client-only: 0.0.1
       react: 19.2.4
-    optionalDependencies:
-      '@babel/core': 7.29.7
 
   superagent@7.1.6(supports-color@8.1.1):
     dependencies:

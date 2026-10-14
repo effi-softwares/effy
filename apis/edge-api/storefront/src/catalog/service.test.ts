@@ -68,13 +68,14 @@ describe("groupAttributes", () => {
 describe("productDetail", () => {
   it("composes the page: card fields, gallery, attributes, path and the category key", async () => {
     const { svc } = repo({
-      productMedia: async () => [{ storage_key: "a.jpg", alt_text: "Front" }, { storage_key: "b.jpg", alt_text: null }],
+      productMedia: async () => [{ storage_key: "a.jpg", alt_text: "Front", image_widths: [640, 160, 320] }, { storage_key: "b.jpg", alt_text: null, image_widths: null }],
       productAttributes: async () => [attr({ label: "Size", data_type: "single_select", value_text: "1L" })],
     });
     expect(await svc.productDetail(ID)).toEqual({
-      id: ID, name: "Oat milk", brand: "Oatly", imageUrl: "signed:a.jpg", priceAmount: "4.50", currency: "AUD",
+      id: ID, name: "Oat milk", brand: "Oatly", imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], priceAmount: "4.50", currency: "AUD",
       compareAtAmount: null, badges: [], available: true, longDescription: "Short",
-      gallery: [{ imageUrl: "signed:a.jpg", alt: "Front" }, { imageUrl: "signed:b.jpg", alt: null }],
+      // 086 — copies listed ascending; a picture with none carries no field at all.
+      gallery: [{ imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], alt: "Front" }, { imageUrl: "signed:b.jpg", alt: null }],
       attributes: [{ groupLabel: "Details", items: [{ label: "Size", value: "1L" }] }],
       categoryPath: ["Food", "Dairy"], categoryKey: "dairy",
     });
@@ -115,15 +116,15 @@ describe("productDetail", () => {
 });
 
 describe("categories", () => {
-  it("maps the tree with counts and a presigned or null image", async () => {
+  it("maps the tree with counts and a public or null image", async () => {
     const { svc } = repo({
       categories: async () => [
-        { key: "dairy", name: "Dairy", parent_key: null, product_count: 3, image_key: "c.jpg" },
-        { key: "milk", name: "Milk", parent_key: "dairy", product_count: 0, image_key: null },
+        { key: "dairy", name: "Dairy", parent_key: null, product_count: 3, image_key: "c.jpg", image_widths: [160] },
+        { key: "milk", name: "Milk", parent_key: "dairy", product_count: 0, image_key: null, image_widths: null },
       ],
     });
     expect(await svc.categories()).toEqual([
-      { key: "dairy", name: "Dairy", parentKey: null, productCount: 3, imageUrl: "signed:c.jpg" },
+      { key: "dairy", name: "Dairy", parentKey: null, productCount: 3, imageUrl: "signed:c.jpg", imageWidths: [160] },
       { key: "milk", name: "Milk", parentKey: "dairy", productCount: 0, imageUrl: null },
     ]);
   });

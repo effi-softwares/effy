@@ -67,6 +67,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
                     comfortably past the 44×44 CSS px minimum (plan § Numeric thresholds, SC-009). */}
                 <MediaFrame
                   src={category.imageUrl}
+                  widths={category.imageWidths}
                   alt=""
                   ratio="square"
                   rounded="rounded-full"

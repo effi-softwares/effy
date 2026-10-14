@@ -167,6 +167,12 @@ data class BannerDTO (
     val imageURL: String? = null,
 
     /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
+
+    /**
      * The promotion id. Stable across reads — clients use it as a list key.
      */
     val key: String,
@@ -421,6 +427,12 @@ data class CartLineDTO (
     @SerialName("imageUrl")
     val imageURL: String? = null,
 
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
+
     val lineSubtotalAmount: String,
     val name: String,
 
@@ -525,6 +537,12 @@ data class StorefrontCategoryDTO (
      */
     @SerialName("imageUrl")
     val imageURL: String? = null,
+
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
 
     val key: String,
     val name: String,
@@ -1259,6 +1277,12 @@ data class StorefrontProductCardDTO (
     @SerialName("imageUrl")
     val imageURL: String? = null,
 
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
+
     val name: String,
     val priceAmount: String
 )
@@ -1375,14 +1399,20 @@ enum class AustralianState(val value: String) {
 }
 
 /**
- * A product image (presigned GET URL + alt text).
+ * A product image (its permanent public address + alt text).
  */
 @Serializable
 data class MediaDTO (
     val alt: String? = null,
 
     @SerialName("imageUrl")
-    val imageURL: String
+    val imageURL: String,
+
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null
 )
 
 /**
@@ -1810,6 +1840,12 @@ data class OrderItemDTO (
     @SerialName("imageUrl")
     val imageURL: String? = null,
 
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
+
     val lineSubtotalAmount: String,
 
     /**
@@ -1995,7 +2031,12 @@ data class OrderSummaryDTO (
      * which is what it showed before. ⚠ Pictures of the customer's own lines only — never a
      * shop, a package, or how many suppliers fill the order.
      */
-    val thumbnails: List<String?>? = null
+    val thumbnails: List<String?>? = null,
+
+    /**
+     * 086 — index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`).
+     */
+    val thumbnailWidths: List<List<Double>>? = null
 )
 
 /**
@@ -2022,6 +2063,12 @@ data class StorefrontProductDetailDTO (
 
     @SerialName("imageUrl")
     val imageURL: String? = null,
+
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
 
     val longDescription: String? = null,
     val name: String,
@@ -2071,6 +2118,12 @@ data class PromotionDTO (
 
     @SerialName("imageUrl")
     val imageURL: String? = null,
+
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
 
     val subtitle: String? = null,
 
@@ -2241,6 +2294,12 @@ data class SavedItemDTO (
 
     @SerialName("imageUrl")
     val imageURL: String? = null,
+
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
+     * `imageUrl`. Derive each copy's address with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
 
     val name: String,
     val priceAmount: String,

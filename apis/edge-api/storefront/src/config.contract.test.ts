@@ -50,7 +50,7 @@ describe("storefront service deployment contract", () => {
   it("declares every key the shared library reads on this service's behalf", () => {
     const required = [
       "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN", // db
-      "S3_MEDIA_BUCKET", // presigned image reads
+      "MEDIA_PUBLIC_BASE_URL", // 086 — publicImageUrl
       "METRIC_NAMESPACE", // emitMetric
       "EFFY_ENV", "LOG_LEVEL", // logger
     ];
@@ -77,10 +77,10 @@ describe("storefront service deployment contract", () => {
     expect(yaml).not.toMatch(/^\s+authorizer:/m);
   });
 
-  it("can read product images and cannot write them", () => {
-    expect(yaml).toContain("s3:GetObject");
-    expect(yaml).not.toContain("s3:PutObject");
-    expect(yaml).not.toContain("s3:DeleteObject");
+  // 086 — pictures are addressed on the media CDN; this service never touches the bucket.
+  it("has no access to the media bucket at all", () => {
+    expect(yaml).not.toMatch(/s3:(GetObject|PutObject|DeleteObject)/);
+    expect(yaml).not.toContain("S3_MEDIA_BUCKET");
   });
 
   it("holds no payment secret", () => {

@@ -15,6 +15,7 @@ interface AddToCartProduct {
   productId: string
   name: string
   imageUrl: string | null
+  imageWidths?: number[]
   unitPriceAmount: string
   currency: string
   available: boolean
@@ -45,6 +46,7 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
       productId: product.productId,
       name: product.name,
       imageUrl: product.imageUrl,
+      ...(product.imageWidths ? { imageWidths: product.imageWidths } : {}),
       unitPriceAmount: product.unitPriceAmount,
       currency: product.currency,
       quantity: qty,

@@ -4,6 +4,7 @@ import { Suspense } from "react"
 
 import { DELIVERY_TYPE_WORDS, type OrderSummaryDTO } from "@effy/shared-types"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
@@ -217,7 +218,12 @@ function OrderRow({ order: o, now }: { order: OrderSummaryDTO; now: Date }) {
           <div className="flex items-center gap-2">
             {pictures.map((src, i) => (
               <span key={i} aria-hidden="true" className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-muted-foreground">
-                {src ? <img src={src} alt="" className="size-full object-cover" /> : <Package className="size-6" />}
+                {/* 086 — a 56px tile: the smallest copy that covers it, lazily (closes backlog PERF-19). */}
+                {src ? (
+                  <CatalogImage src={src} widths={o.thumbnailWidths?.[i]} alt="" sizes="56px" className="size-full object-cover" />
+                ) : (
+                  <Package className="size-6" />
+                )}
               </span>
             ))}
             <span className="text-sm text-muted-foreground">

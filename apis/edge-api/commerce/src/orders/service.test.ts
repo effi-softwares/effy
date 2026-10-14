@@ -21,7 +21,7 @@ function repoWith(over: Partial<OrdersRepository> = {}): OrdersRepository {
       grand_total_amount: "26.00", currency: "AUD", payment_status: "succeeded",
     }),
     items: async () => [
-      { order_item_id: "i1", product_id: "p1", product_name: "Milk", unit_price_amount: "10.00", quantity: 2, line_subtotal_amount: "20.00", image_key: null },
+      { order_item_id: "i1", product_id: "p1", product_name: "Milk", unit_price_amount: "10.00", quantity: 2, line_subtotal_amount: "20.00", image_key: null, image_widths: null },
     ],
     fulfillments: async () => [{ id: "f1", status: "pending", item_count: 2, subtotal_amount: "20.00" }],
     shortfalls: async () => [],
@@ -31,8 +31,8 @@ function repoWith(over: Partial<OrdersRepository> = {}): OrdersRepository {
     ...over,
   };
 }
-const read = (over: Partial<OrdersRepository> = {}, presign = async (k: string | null) => (k ? `https://img/${k}` : null)) =>
-  createOrdersService({ repo: repoWith(over), presign }).get(scope, "cust", ORDER);
+const read = (over: Partial<OrdersRepository> = {}, imageAddress = async (k: string | null) => (k ? `https://img/${k}` : null)) =>
+  createOrdersService({ repo: repoWith(over), imageAddress }).get(scope, "cust", ORDER);
 
 describe("the receipt", () => {
   it("answers not-found for a malformed id and for an order that is not this shopper's", async () => {
@@ -86,7 +86,7 @@ describe("the receipt", () => {
       .toEqual({ handover: "leave_at_door", note: null });
   });
 
-  it("a line renders complete without an image, and a failing presign cannot fail the receipt", async () => {
+  it("a line renders complete without an image, and a failing imageAddress cannot fail the receipt", async () => {
     expect((await read()).items[0]).not.toHaveProperty("imageUrl");
     const withKey = { items: async () => [{ ...(await repoWith().items(ORDER))[0]!, image_key: "k.jpg" }] };
     expect((await read(withKey)).items[0]!.imageUrl).toBe("https://img/k.jpg");
@@ -160,9 +160,9 @@ describe("the receipt", () => {
 
 describe("what the order list says beside the totals (084)", () => {
   const base = { id: ORDER, order_number: "EFY-ABC123", placed_at: null, item_count: 3, grand_total_amount: "26.00", currency: "AUD" };
-  const presign = async (k: string | null) => (k ? `https://img/${k}` : null);
+  const imageAddress = async (k: string | null) => (k ? `https://img/${k}` : null);
   const list = async (row: object) =>
-    (await createOrdersService({ repo: repoWith({ list: async () => [{ ...base, ...row } as never] }), presign }).list("cust"))[0]!;
+    (await createOrdersService({ repo: repoWith({ list: async () => [{ ...base, ...row } as never] }), imageAddress }).list("cust"))[0]!;
 
   it("⚠ the stage is the least advanced package's — one word, never the packages", async () => {
     const o = await list({ status: "paid", delivery_type: "effy", portion_statuses: ["collected", "received"] });
@@ -204,11 +204,13 @@ describe("what the order list says beside the totals (084)", () => {
   });
 
   it("pictures follow the lines, and a failed picture is a missing picture, not a failed list", async () => {
-    const o = await list({ status: "paid", portion_statuses: [], image_keys: ["a.jpg", null] });
+    const o = await list({ status: "paid", portion_statuses: [], image_refs: [{ key: "a.jpg", widths: [320, 160] }, { key: null, widths: null }] });
     expect(o.thumbnails).toEqual(["https://img/a.jpg", null]);
+    // 086 — index-aligned with the thumbnails, ascending, [] where a line has no copies.
+    expect(o.thumbnailWidths).toEqual([[160, 320], []]);
     const failing = createOrdersService({
-      repo: repoWith({ list: async () => [{ ...base, status: "paid", image_keys: ["a.jpg"] } as never] }),
-      presign: async () => { throw new Error("s3"); },
+      repo: repoWith({ list: async () => [{ ...base, status: "paid", image_refs: [{ key: "a.jpg", widths: null }] } as never] }),
+      imageAddress: async () => { throw new Error("s3"); },
     });
     expect((await failing.list("cust"))[0]!.thumbnails).toEqual([null]);
   });

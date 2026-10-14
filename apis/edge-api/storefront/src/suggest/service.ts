@@ -2,7 +2,7 @@
 // characters. No HTTP, no SQL.
 import type { SearchPhraseDTO, SuggestionsDTO } from "@effy/shared-types";
 
-import { toCards, type Presign } from "../lib/cards";
+import { toCards, type ImageAddress } from "../lib/cards";
 import type { SuggestRepository } from "./repository";
 
 export const SUGGEST_MIN_CHARS = 2;
@@ -12,7 +12,7 @@ const MAX_PRODUCTS = 4;
 
 const EMPTY: SuggestionsDTO = { phrases: [], products: [] };
 
-export function createSuggestService(repo: SuggestRepository, presign?: Presign) {
+export function createSuggestService(repo: SuggestRepository, imageAddress?: ImageAddress) {
   return {
     /**
      * `q` is already trimmed and within the length limit (the handler refuses longer).
@@ -40,7 +40,7 @@ export function createSuggestService(repo: SuggestRepository, presign?: Presign)
 
       return {
         phrases: phrases.slice(0, MAX_PHRASES),
-        products: await toCards(products, presign),
+        products: await toCards(products, imageAddress),
       };
     },
   };

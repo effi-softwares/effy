@@ -37,7 +37,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
     return {
       id: `line-${pid}`, product_id: pid, shop_id: p.shop ?? "shop-1", quantity: e.qty, name: p.name,
       unit_price_amount: p.price, currency: "AUD", status: p.status ?? "active", stock_tracked: p.tracked ?? false,
-      stock_on_hand: p.tracked ? (p.onHand ?? 0) : null, storage_key: null, unit_price_at_add: e.atAdd,
+      stock_on_hand: p.tracked ? (p.onHand ?? 0) : null, storage_key: null, image_widths: null, unit_price_at_add: e.atAdd,
     };
   };
   const guard = (changeId: string, fn: () => void): boolean => {
@@ -95,7 +95,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
   };
 
   const p: CartPolicy = { ...defaultCartPolicy(), ...policy };
-  const svc = createCartService({ repo, policy: async () => p, presign: async () => null, now: () => NOW });
+  const svc = createCartService({ repo, policy: async () => p, imageAddress: async () => null, now: () => NOW });
   return { svc, cart, saved, promos, usage, orders, calls, products, setRevision: (n: number) => (revision = n), seedAtAdd: (pid: string, atAdd: string | null, qty = 1) => cart.set(pid, { qty, atAdd }) };
 }
 
@@ -503,7 +503,7 @@ describe("dedupe / payableCents", () => {
   it("payableCents counts only what can be bought, at the quantity that can be supplied", () => {
     const row = (over: Partial<CartLineRow>): CartLineRow => ({
       id: "l", product_id: A, shop_id: "s", quantity: 2, name: "n", unit_price_amount: "10.00", currency: "AUD",
-      status: "active", stock_tracked: false, stock_on_hand: null, storage_key: null, unit_price_at_add: null, ...over,
+      status: "active", stock_tracked: false, stock_on_hand: null, storage_key: null, image_widths: null, unit_price_at_add: null, ...over,
     });
     expect(payableCents([row({}), row({ status: "unavailable" }), row({ stock_tracked: true, stock_on_hand: 1, quantity: 5 })])).toBe(2000 + 1000);
   });

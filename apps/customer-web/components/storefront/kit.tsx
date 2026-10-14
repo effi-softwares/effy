@@ -1,4 +1,3 @@
-import Image from "next/image"
 import Link from "next/link"
 
 import { CircleAlert } from "lucide-react"
@@ -6,6 +5,7 @@ import type { LucideIcon } from "lucide-react"
 
 import { clsx } from "clsx"
 import { ActionLink } from "./actions"
+import { CatalogImage } from "./CatalogImage"
 
 /**
  * The storefront's shared visual vocabulary (025 UI refresh).
@@ -220,7 +220,7 @@ export function Rule({ className }: { className?: string }) {
 /**
  * The storefront button system lives in `./actions` (a `next/image`-free module) and is re-exported
  * here so existing `from ".../kit"` imports keep working. ⚠ GUEST ROUTES MUST IMPORT FROM `./actions`
- * DIRECTLY, not from here — importing a button through `kit` drags `MediaFrame`'s `next/image` into
+ * DIRECTLY, not from here — importing a button through `kit` drags `MediaFrame` and its picture code into
  * the chunk, which is exactly what pushed `/search` over the 174 KB gate. See the note in `actions.tsx`.
  */
 export { btnClass, iconBtnClass, ActionLink, ActionButton } from "./actions"
@@ -343,6 +343,7 @@ export function MediaFrame({
   /** Shown centred in the placeholder when there is no image — typically a category's initial. */
   fallbackLabel,
   sizes,
+  widths,
   priority = false,
   rounded = "rounded-lg",
   className,
@@ -354,6 +355,8 @@ export function MediaFrame({
   ratio?: "square" | "video" | "wide" | "portrait" | "banner"
   fallbackLabel?: string
   sizes?: string
+  /** 086 — the picture's smaller copies (`imageWidths` from its DTO). */
+  widths?: readonly number[]
   priority?: boolean
   rounded?: string
   className?: string
@@ -374,15 +377,7 @@ export function MediaFrame({
       )}
     >
       {src ? (
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          unoptimized
-          sizes={sizes}
-          priority={priority}
-          className="object-cover"
-        />
+        <CatalogImage src={src} widths={widths} alt={alt} fill sizes={sizes ?? "100vw"} priority={priority} className="object-cover" />
       ) : (
         <div
           aria-hidden="true"

@@ -6,6 +6,7 @@
 // `brand` and `attr.<key>` may repeat (OR within one, AND across).
 import { json, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 
+import { cacheable } from "../lib/cache";
 import { attributeFacets, badRequest, nonEmptyValues, queryOf, splitCsv, validPrice } from "../lib/request";
 import { parseSort, SORT_NEWEST } from "../search/cursor";
 import { CursorSortMismatchError } from "../search/service";
@@ -20,7 +21,7 @@ export const handler = shopperHandler(async (event, context) => {
     if (idsParam !== "") {
       const items = await searchService.cardsByIds(splitCsv(idsParam));
       // An id-hydration is a fixed set: nothing more to page, and the total is the set itself.
-      return json(200, { items, nextCursor: null, total: items.length, sort: SORT_NEWEST }, scope);
+      return cacheable(json(200, { items, nextCursor: null, total: items.length, sort: SORT_NEWEST }, scope), "listing");
     }
 
     const sort = parseSort(q.get("sort"));
@@ -45,7 +46,7 @@ export const handler = shopperHandler(async (event, context) => {
       cursor: q.get("cursor") ?? "",
       limit: Number.isNaN(limit) ? 0 : limit,
     });
-    return json(200, result, scope);
+    return cacheable(json(200, result, scope), "listing");
   } catch (err) {
     if (err instanceof ConnectionLimitError) throw err;
     if (err instanceof CursorSortMismatchError) return badRequest("cursor_sort_mismatch", scope.requestId);

@@ -1,14 +1,14 @@
 // Home composition: rails, their order, and the advertised promotions. No HTTP, no SQL.
 import type { StorefrontHomeDTO, StorefrontRailDTO } from "@effy/shared-types";
 
-import { toCards, type CardRow, type Presign } from "../lib/cards";
+import { toCards, type CardRow, type ImageAddress } from "../lib/cards";
 import type { PromotionService } from "../promotions/service";
 import type { HomeRepository } from "./repository";
 
 export const RAIL_PRODUCT_LIMIT = 12;
 export const CATEGORY_RAIL_MAX = 4;
 
-export function createHomeService(repo: HomeRepository, promotions: Pick<PromotionService, "banners">, presign?: Presign) {
+export function createHomeService(repo: HomeRepository, promotions: Pick<PromotionService, "banners">, imageAddress?: ImageAddress) {
   /**
    * ⚠ 025 FR-023: a RAIL never offers a product that cannot be bought. The rail queries already
    * filter on the shared rule, so this drops nothing in production — it is here because the rule
@@ -16,7 +16,7 @@ export function createHomeService(repo: HomeRepository, promotions: Pick<Promoti
    * added with the wrong query would otherwise put an unbuyable product in front of every shopper.
    */
   const rail = async (key: string, title: string, rows: readonly CardRow[]): Promise<StorefrontRailDTO | null> => {
-    const products = (await toCards(rows, presign)).filter((c) => c.available);
+    const products = (await toCards(rows, imageAddress)).filter((c) => c.available);
     return products.length > 0 ? { key, title, products } : null;
   };
 

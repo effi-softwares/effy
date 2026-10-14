@@ -1,9 +1,9 @@
 "use client"
 
 import { ShoppingCart } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { ActionLink, btnClass } from "@/components/storefront/actions"
 import { removeItem, setItemQuantity } from "@/lib/cart-actions"
 import { useCart } from "@/lib/cart-store"
@@ -57,11 +57,11 @@ export function MiniCartBody({
           <li key={line.productId} className="flex gap-3 py-4">
             <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-muted">
               {line.imageUrl && (
-                <Image
+                <CatalogImage
                   src={line.imageUrl}
+                  widths={line.imageWidths}
                   alt=""
                   fill
-                  unoptimized
                   sizes="4rem"
                   className="object-cover"
                 />

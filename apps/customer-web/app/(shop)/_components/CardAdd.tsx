@@ -23,6 +23,7 @@ export function CardAdd({
     productId: string
     name: string
     imageUrl: string | null
+    imageWidths?: number[]
     unitPriceAmount: string
     currency: string
   }

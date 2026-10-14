@@ -6,11 +6,11 @@
 import { json, pooled, preamble, shopperHandler, unavailable, ConnectionLimitError } from "@effy/edge-shared";
 import { searchLocalities } from "@effy/edge-shared/delivery";
 
+import { cacheable } from "../lib/cache";
 import { queryOf } from "../lib/request";
 
 /** One comfortable phone sheet-height (030 R5). */
 const LOCALITIES_LIMIT = 8;
-const CACHE = { "cache-control": "public, max-age=86400" };
 
 export const handler = shopperHandler(async (event, context) => {
   const scope = preamble(event, context);
@@ -18,14 +18,15 @@ export const handler = shopperHandler(async (event, context) => {
 
   // Counted in characters, not UTF-16 units.
   if ([...q].length < 2) {
-    const res = json(200, { items: [] }, scope);
-    return { ...res, headers: { ...res.headers, ...CACHE } };
+    return cacheable(json(200, { items: [] }, scope), "localities");
   }
 
   try {
     const rows = await searchLocalities(pooled, q, LOCALITIES_LIMIT);
-    const res = json(200, { items: rows.map((r) => ({ name: r.name, state: r.state, postcode: r.postcode })) }, scope);
-    return { ...res, headers: { ...res.headers, ...CACHE } };
+    return cacheable(
+      json(200, { items: rows.map((r) => ({ name: r.name, state: r.state, postcode: r.postcode })) }, scope),
+      "localities",
+    );
   } catch (err) {
     if (err instanceof ConnectionLimitError) throw err;
     scope.log.error({ err }, "storefront: locality search failed");

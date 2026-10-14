@@ -1,0 +1,41 @@
+/**
+ * How long a browser may keep each public storefront answer — every value, in one place.
+ *
+ * ⚠ A LISTING MAY BE 60 SECONDS LATE AND NO MORE (054 FR-015a). `max-age` + `stale-while-revalidate`
+ * is the oldest answer a browser will show, so the two must SUM to 60 or less: 30 + 30, not 30 + 60.
+ * The product page, the home payload and the aisle list are absent on purpose — the first must be
+ * current, the other two are a later decision; `cache.contract.test.ts` holds this list to the routes.
+ */
+import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
+
+export const CACHE_SECONDS = {
+  /** Search, aisle and rail listings; also the recently-viewed hydration. */
+  listing: { maxAge: 30, staleWhileRevalidate: 30 },
+  /** The same few characters are typed by many shoppers. */
+  suggestions: { maxAge: 60 },
+  /**
+   * ⚠ FIVE MINUTES, NOT A DAY (076). Staff add and remove postcodes from a screen; a day of public
+   * caching would keep telling people "yes" about a postcode that had left the list, while the
+   * checkout — which is never cached — refused them.
+   */
+  serviceability: { maxAge: 300 },
+  /** Suburb names and postcodes: reference data. */
+  localities: { maxAge: 86400 },
+} as const satisfies Record<string, { maxAge: number; staleWhileRevalidate?: number }>;
+
+export type CachePolicy = keyof typeof CACHE_SECONDS;
+
+export function cacheControl(policy: CachePolicy): string {
+  const { maxAge, staleWhileRevalidate } = CACHE_SECONDS[policy] as { maxAge: number; staleWhileRevalidate?: number };
+  return staleWhileRevalidate === undefined
+    ? `public, max-age=${maxAge}`
+    : `public, max-age=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`;
+}
+
+/** The answer, publicly cacheable under `policy`. Only for a success — a refusal is never kept. */
+export function cacheable(
+  res: APIGatewayProxyStructuredResultV2,
+  policy: CachePolicy,
+): APIGatewayProxyStructuredResultV2 {
+  return { ...res, headers: { ...res.headers, "cache-control": cacheControl(policy) } };
+}

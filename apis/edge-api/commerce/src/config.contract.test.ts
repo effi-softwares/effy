@@ -77,7 +77,7 @@ describe("commerce service deployment contract", () => {
   it("declares every key the shared library reads on this service's behalf", () => {
     const required = [
       "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_SECRET_ARN", // db
-      "S3_MEDIA_BUCKET", // presigned image reads
+      "MEDIA_PUBLIC_BASE_URL", // 086 — publicImageUrl
       "METRIC_NAMESPACE", // emitMetric
       "STRIPE_SECRET_KEY_ARN", "STRIPE_WEBHOOK_SECRET_ARN", // @effy/edge-shared/payments
       "EFFY_ENV", "LOG_LEVEL", // logger
@@ -128,9 +128,10 @@ describe("commerce service deployment contract", () => {
     for (const n of built) expect(blocks.get(n)).toContain("httpApi:");
   });
 
-  it("cannot write product images", () => {
-    expect(yaml).toContain("s3:GetObject");
-    expect(yaml).not.toContain("s3:PutObject");
+  // 086 — pictures are addressed on the media CDN; this service never touches the bucket.
+  it("has no access to the media bucket at all", () => {
+    expect(yaml).not.toMatch(/s3:(GetObject|PutObject|DeleteObject)/);
+    expect(yaml).not.toContain("S3_MEDIA_BUCKET");
   });
 
   it("attaches to the shared HTTP API rather than creating one", () => {

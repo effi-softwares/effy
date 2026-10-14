@@ -194,6 +194,12 @@ native web build).
     how to recover its code: [docs/archive/core-api.md](docs/archive/core-api.md).
   - ⚠ **Shopper-facing services connect as a connection-limited database role** (`effy_shopper`),
     so a shopper burst is refused at the database instead of starving staff, shop and driver traffic.
+  - ⚠ **A SHOPPER PICTURE HAS ONE PUBLIC ADDRESS (086)** — the media CDN (`media.<zone>`), built only by
+    `publicImageUrl` (`@effy/edge-shared`), for `PUBLIC_MEDIA_PREFIXES` only (= `local.public_media_prefixes`
+    in `media.tf`, guarded). The same bucket holds courier labels and delivery proof: those are NEVER public
+    and are read only through presigned links (`presignRead`, `imageUrlOrNull`). Smaller WebP copies are
+    made at upload by the route-less `media` worker and recorded in `media_rendition` (its one writer);
+    clients name a copy only via `renditionUrl` and only when `imageWidths` lists it.
   - ⚠ **Money logic lives once** — `@effy/edge-shared/payments`. Three services move money
     (`commerce`, `orders`, `shop`); none re-implements a refund.
   - ⚠ **Points logic lives once** (074) — `@effy/edge-shared/points` is the only writer of the
@@ -528,6 +534,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **086-catalogue-image-delivery** — Catalogue Pictures That Load Once (one permanent CDN address; WebP copies made at upload) — built; NOT applied, migrated, deployed or walked
 - **085-flexible-standard-delivery** — Flexible Standard Delivery (a day with no time, "as soon as possible", a time opt-in — all through one "Any time" window) — built; NOT migrated, deployed, walked or signed off
 - **084-customer-storefront-redesign** — Customer Storefront Redesign (its own identity; session re-implemented; aisles include their sub-aisles) — built, `storefront` + `commerce` deployed to dev; not walked or signed off
 - **083-delivery-model-cutover** — Delivery Model Cutover (the switch; the old same-day/standard arrangement removed) — both stages deployed to dev, marked complete; not walked
@@ -591,5 +598,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/085-flexible-standard-delivery/plan.md
+at specs/086-catalogue-image-delivery/plan.md
 <!-- SPECKIT END -->

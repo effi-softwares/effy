@@ -3,8 +3,8 @@
 // The receipt is ONE order itemised by product, with an ANONYMOUS per-package summary: a shop's
 // identity never appears, and neither does how many shops there were beyond the packages shown.
 import {
-  countsAsRefundedToCustomer, customerCancellable, customerRefundState, formatCents, imageUrlOrNull,
-  operatingStamp, parseCents, stageFor, type RequestScope,
+  countsAsRefundedToCustomer, customerCancellable, customerRefundState, formatCents, imageWidthsField,
+  operatingStamp, parseCents, publicImageAddress, stageFor, widthsOf, type RequestScope,
 } from "@effy/edge-shared";
 import { customerCompensationOf } from "@effy/edge-shared/delivery";
 import { distinctArrivals, type CustomerRefundDTO, type DeliveryPromise, type OrderDeliveryDTO, type OrderDTO, type OrderSummaryDTO } from "@effy/shared-types";
@@ -15,7 +15,7 @@ import type { OrderRow, OrdersRepository, RefundRow } from "./repository";
 /** Raised for a missing order AND for someone else's — the two are indistinguishable by design. */
 export class OrderNotFoundError extends Error {}
 
-type Presign = (key: string | null) => Promise<string | null>;
+type ImageAddress = (key: string | null) => Promise<string | null>;
 
 /**
  * What has happened to the shopper's money (055 FR-023), or nothing at all.
@@ -163,9 +163,9 @@ export function trackingOf(row: {
   return row.only_tracking_url ? { kind: "link", url: row.only_tracking_url, courierName: row.only_courier_name ?? "" } : undefined;
 }
 
-export function createOrdersService(deps: { repo: OrdersRepository; presign?: Presign }) {
+export function createOrdersService(deps: { repo: OrdersRepository; imageAddress?: ImageAddress }) {
   const { repo } = deps;
-  const presign = deps.presign ?? imageUrlOrNull;
+  const imageAddress = deps.imageAddress ?? publicImageAddress;
 
   /** A supporting read: its failure must never cost the shopper their receipt. */
   async function optional<T>(scope: Pick<RequestScope, "log">, what: string, read: () => Promise<T>, fallback: T): Promise<T> {
@@ -198,8 +198,11 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
           windowEnd: a.window_end ? operatingStamp(new Date(a.window_end)) : null,
         }))));
         const refunded = refundBlock(r.grand_total_amount, (r.refunds ?? []) as RefundRow[]);
-        // ⚠ A picture must not be able to fail the list: a presign failure is a missing picture.
-        const thumbnails = r.image_keys ? await Promise.all(r.image_keys.map((k) => presign(k).catch(() => null))) : undefined;
+        // ⚠ A picture must not be able to fail the list: a failed address is a missing picture.
+        const refs = r.image_refs ?? undefined;
+        const thumbnails = refs ? await Promise.all(refs.map((ref) => imageAddress(ref.key).catch(() => null))) : undefined;
+        // 086 — each thumbnail's copies, index-aligned; sent only when at least one has any.
+        const thumbnailWidths = refs?.map((ref) => widthsOf(ref.widths));
         return {
           id: r.id, orderNumber: r.order_number, status: r.status as OrderSummaryDTO["status"], placedAt: r.placed_at,
           itemCount: r.item_count, grandTotalAmount: r.grand_total_amount, currency: r.currency,
@@ -210,6 +213,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
           ...(refunded.refundedTotal && refunded.refundedTotal !== "0.00" ? { refundedTotal: refunded.refundedTotal } : {}),
           ...(refunded.fullyRefunded ? { fullyRefunded: true as const } : {}),
           ...(thumbnails ? { thumbnails } : {}),
+          ...(thumbnailWidths?.some((w) => w.length > 0) ? { thumbnailWidths } : {}),
         };
       }));
     },
@@ -241,13 +245,13 @@ export function createOrdersService(deps: { repo: OrdersRepository; presign?: Pr
         placedAt: row.placed_at,
         items: await Promise.all(
           items.map(async (it) => {
-            // ⚠ A presign failure is swallowed: a photograph must not be able to fail a receipt.
-            const imageUrl = await presign(it.image_key).catch(() => null);
+            // ⚠ A failed address is swallowed: a photograph must not be able to fail a receipt.
+            const imageUrl = await imageAddress(it.image_key).catch(() => null);
             return {
               orderItemId: it.order_item_id, productId: it.product_id, productName: it.product_name,
               unitPriceAmount: it.unit_price_amount, quantity: it.quantity, lineSubtotalAmount: it.line_subtotal_amount,
               // Absent, not null or "", when there is no image.
-              ...(imageUrl ? { imageUrl } : {}),
+              ...(imageUrl ? { imageUrl, ...imageWidthsField(it.image_widths) } : {}),
             };
           }),
         ),

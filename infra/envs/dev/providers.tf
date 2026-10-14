@@ -17,3 +17,19 @@ provider "aws" {
     tags = module.shared.base_tags
   }
 }
+
+# ── 086 — us-east-1, for the two things CloudFront allows nowhere else ─────────────────────────
+#
+# ⚠ THE ONE REGION LITERAL THIS ROOT PERMITS (CLAUDE.md, Decisions locked): a certificate behind
+# CloudFront MUST live in us-east-1, and CloudFront publishes its metrics ONLY there — so its alarms,
+# and the topic they notify, live there too (media.tf). Everything else stays on var.aws_region.
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+
+  allowed_account_ids = [var.aws_account_id]
+
+  default_tags {
+    tags = module.shared.base_tags
+  }
+}

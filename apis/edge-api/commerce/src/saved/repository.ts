@@ -9,7 +9,7 @@
 // saves at 199 can each count 199 under READ COMMITTED and both commit, landing the shopper at 201.
 // It is scoped to one customer, so it never contends across shoppers, and it is transaction-scoped,
 // so it is released by COMMIT or ROLLBACK with nothing to forget.
-import { pooled, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
+import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { DEFAULT_LIST_ID } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
@@ -42,6 +42,8 @@ export interface ListRow {
   currency: string;
   compare_at_amount: string | null;
   storage_key: string | null;
+  /** 086 — the picture's ready copies; NULL for none. */
+  image_widths: number[] | null;
   saved_at: Date;
   saved_price_amount: string;
   category_key: string | null;
@@ -87,6 +89,7 @@ SELECT s.product_id::text                        AS product_id,
        p.currency                                AS currency,
        p.compare_at_amount::text                 AS compare_at_amount,
        m.storage_key                             AS storage_key,
+       m.image_widths                            AS image_widths,
        e.added_at                                AS saved_at,
        s.saved_price_amount::text                AS saved_price_amount,
        c.key                                     AS category_key,
@@ -107,10 +110,10 @@ JOIN public.customer_saved_item s ON s.customer_id = e.customer_id AND s.product
 JOIN public.product p ON p.id = e.product_id
 LEFT JOIN public.category c ON c.id = p.primary_category_id
 LEFT JOIN LATERAL (
-    SELECT storage_key, alt_text
-    FROM public.product_media
-    WHERE product_id = p.id
-    ORDER BY is_primary DESC, display_order ASC, created_at ASC
+    SELECT pm.storage_key, pm.alt_text, ${renditionWidthsSql("pm.storage_key")} AS image_widths
+    FROM public.product_media pm
+    WHERE pm.product_id = p.id
+    ORDER BY pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
     LIMIT 1
 ) m ON true
 WHERE e.customer_id = $1 AND e.list_id = $2

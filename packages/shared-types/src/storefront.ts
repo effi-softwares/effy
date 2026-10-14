@@ -29,9 +29,11 @@ export function toProductBadges(values: readonly string[] | null | undefined): P
   return values.filter((v): v is ProductBadge => (PRODUCT_BADGES as readonly string[]).includes(v));
 }
 
-/** A product image (presigned GET URL + alt text). */
+/** A product image (its permanent public address + alt text). */
 export interface MediaDTO {
   imageUrl: string;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
   alt: string | null;
 }
 
@@ -41,6 +43,8 @@ export interface StorefrontProductCardDTO {
   name: string;
   brand: string | null;
   imageUrl: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
   priceAmount: string;
   currency: string;
   compareAtAmount: string | null;
@@ -109,6 +113,8 @@ export interface BannerDTO {
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
   /** Retained for `customer-web`. Mobile ignores it in favour of `target`. */
   href: string | null;
   /** The code a shopper types in the cart. Shown so the banner is actionable, not just decorative. */
@@ -158,6 +164,8 @@ export interface PromotionDTO {
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
   /** NON-nullable, unlike `BannerDTO.code` — a screen whose purpose is to hand over a code must have one. */
   code: string;
   /** The same sentence `BannerDTO.terms` carries, from the same server-side composer. */
@@ -191,6 +199,8 @@ export interface StorefrontCategoryDTO {
    * 025 FR-001 forbids adding a column for it. Null → the client renders a brand tile, never a broken
    * frame. The choice is deterministic so a category does not change its face between page loads. */
   imageUrl: string | null;
+  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
+  imageWidths?: number[];
 }
 
 /**

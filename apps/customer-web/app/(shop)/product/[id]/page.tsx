@@ -154,6 +154,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                 productId: product.id,
                 name: product.name,
                 imageUrl: product.imageUrl,
+                imageWidths: product.imageWidths,
                 unitPriceAmount: product.priceAmount,
                 currency: product.currency,
                 available: product.available,

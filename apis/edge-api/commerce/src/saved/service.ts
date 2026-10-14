@@ -2,7 +2,7 @@
 //
 // The service does NOT decide why an item is unavailable — the repository's query does, from the
 // product's status and stock, so the list and the bulk add-to-cart give the same explanation.
-import { imageUrlOrNull } from "@effy/edge-shared";
+import { imageWidthsField, publicImageAddress } from "@effy/edge-shared";
 import {
   LIST_LIMIT,
   type ProductBadge, type SavedAddToCartResultDTO, type SavedItemDTO, type SavedListDTO, type SavedMembershipDTO,
@@ -28,7 +28,7 @@ export const ACCOUNT_CAP = 200;
 
 /** What bulk add-to-cart needs from the cart: add one unit, idempotently, or throw the refusal. */
 export type CartAdder = (customerId: string, productId: string, changeId: string, quantity: number) => Promise<unknown>;
-export type Presign = (storageKey: string | null | undefined) => Promise<string | null>;
+export type ImageAddress = (storageKey: string | null | undefined) => Promise<string | null>;
 
 /** RFC 3339 at second precision — the form these timestamps have always had on the wire. */
 const rfc3339 = (d: Date) => d.toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -44,12 +44,13 @@ function badges(r: ListRow): ProductBadge[] {
  * ⚠ `priceDropped` and `categoryKey` are OMITTED, not null, when there is nothing to say. Absent
  * means "no drop"; there is deliberately no `priceRose` counterpart (033 FR-044).
  */
-async function toItem(r: ListRow, presign: Presign): Promise<SavedItemDTO> {
+async function toItem(r: ListRow, imageAddress: ImageAddress): Promise<SavedItemDTO> {
   return {
     id: r.product_id,
     name: r.name,
     brand: r.brand,
-    imageUrl: await presign(r.storage_key),
+    imageUrl: await imageAddress(r.storage_key),
+    ...imageWidthsField(r.image_widths),
     priceAmount: r.price_amount,
     currency: r.currency,
     compareAtAmount: r.compare_at_amount,
@@ -87,9 +88,9 @@ function cartReason(err: unknown): string {
   return "unavailable";
 }
 
-export function createSavedService(deps: { repo: SavedRepository; addToCart: CartAdder; presign?: Presign }) {
+export function createSavedService(deps: { repo: SavedRepository; addToCart: CartAdder; imageAddress?: ImageAddress }) {
   const { repo, addToCart } = deps;
-  const presign = deps.presign ?? imageUrlOrNull;
+  const imageAddress = deps.imageAddress ?? publicImageAddress;
 
   async function listByid(customerId: string, id: string): Promise<SavedListDTO> {
     const row = (await repo.lists(customerId, null)).find((r) => r.id === id);
@@ -99,7 +100,7 @@ export function createSavedService(deps: { repo: SavedRepository; addToCart: Car
   }
 
   const items = async (customerId: string, listRef: string) =>
-    Promise.all((await repo.list(customerId, listRef)).map((r) => toItem(r, presign)));
+    Promise.all((await repo.list(customerId, listRef)).map((r) => toItem(r, imageAddress)));
 
   return {
     /** What every heart on a screen is filled from: one read answers them all (033 FR-021). */

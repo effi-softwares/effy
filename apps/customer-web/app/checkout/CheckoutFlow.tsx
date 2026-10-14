@@ -2,7 +2,6 @@
 
 import { Elements } from "@stripe/react-stripe-js"
 import { ArrowLeft, CreditCard, Lock } from "lucide-react"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 
@@ -16,6 +15,7 @@ import {
   type DeliveryQuoteDTO,
 } from "@effy/shared-types"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { DeliveryFeeLines } from "@/components/delivery/DeliveryFeeLines"
 import { FreeDeliveryHint } from "@/components/delivery/FreeDeliveryHint"
 import { ActionButton } from "@/components/storefront/actions"
@@ -559,7 +559,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                 <li key={line.productId} className="flex items-center gap-4 py-3">
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
                     {line.imageUrl ? (
-                      <Image src={line.imageUrl} alt="" fill unoptimized sizes="3rem" className="object-cover" />
+                      <CatalogImage src={line.imageUrl} widths={line.imageWidths} alt="" fill sizes="3rem" className="object-cover" />
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">

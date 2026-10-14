@@ -1,9 +1,9 @@
-import Image from "next/image"
 import { Package } from "lucide-react"
 
 import { sellerIdentity } from "@effy/legal-content"
 import { DELIVERY_FEE_LINE_LABEL, type OrderDTO, type OrderItemDTO, type PaymentMethodSummaryDTO } from "@effy/shared-types"
 
+import { CatalogImage } from "@/components/storefront/CatalogImage"
 import { BuyLineAgain, PrintReceipt } from "@/components/receipt/ReceiptActions"
 import { Badge } from "@/components/ui/badge"
 import { formatMoney } from "@/lib/money"
@@ -134,7 +134,7 @@ function LineItem({
           */}
           <div className={cn("relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-muted-foreground", unavailable && "opacity-50")}>
             {item.imageUrl ? (
-              <Image src={item.imageUrl} alt="" fill sizes="40px" className="object-cover" unoptimized />
+              <CatalogImage src={item.imageUrl} widths={item.imageWidths} alt="" fill sizes="40px" className="object-cover" />
             ) : (
               <Package aria-hidden="true" className="size-[18px]" />
             )}

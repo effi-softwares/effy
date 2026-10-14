@@ -14,7 +14,7 @@ const CUST = "cust-1";
 
 const row = (n: number, over: Partial<ListRow> = {}): ListRow => ({
   product_id: id(n), name: `P${n}`, brand: null, price_amount: "4.50", currency: "AUD", compare_at_amount: null,
-  storage_key: null, saved_at: new Date("2026-10-01T02:03:04.567Z"), saved_price_amount: "4.50", category_key: null,
+  storage_key: null, image_widths: null, saved_at: new Date("2026-10-01T02:03:04.567Z"), saved_price_amount: "4.50", category_key: null,
   is_new: false, price_dropped: false, verdict: "purchasable", ...over,
 });
 
@@ -35,7 +35,7 @@ function build(over: Partial<SavedRepository> = {}, addToCart = vi.fn(async () =
     removeEntry: vi.fn(async () => undefined),
     ...over,
   };
-  return { svc: createSavedService({ repo, addToCart, presign: async (k) => (k ? `signed:${k}` : null) }), repo, addToCart };
+  return { svc: createSavedService({ repo, addToCart, imageAddress: async (k) => (k ? `signed:${k}` : null) }), repo, addToCart };
 }
 
 describe("membership", () => {

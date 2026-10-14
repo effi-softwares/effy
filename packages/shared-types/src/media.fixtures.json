@@ -1,0 +1,15 @@
+{
+  "base": "https://media.dev.effyshopping.com",
+  "cases": [
+    { "name": "jpg", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.jpg", "width": 320, "expect": "https://media.dev.effyshopping.com/renditions/products/o1/t1/w320.webp" },
+    { "name": "jpeg", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.jpeg", "width": 160, "expect": "https://media.dev.effyshopping.com/renditions/products/o1/t1/w160.webp" },
+    { "name": "png", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.png", "width": 640, "expect": "https://media.dev.effyshopping.com/renditions/products/o1/t1/w640.webp" },
+    { "name": "webp original", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.webp", "width": 1280, "expect": "https://media.dev.effyshopping.com/renditions/products/o1/t1/w1280.webp" },
+    { "name": "promotion", "imageUrl": "https://media.dev.effyshopping.com/promotions/p9/abc.png", "width": 320, "expect": "https://media.dev.effyshopping.com/renditions/promotions/p9/abc/w320.webp" },
+    { "name": "encoded character", "imageUrl": "https://media.dev.effyshopping.com/products/o%20w/t1.jpg", "width": 320, "expect": "https://media.dev.effyshopping.com/renditions/products/o%20w/t1/w320.webp" },
+    { "name": "own width", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.jpg", "width": 1000, "expect": "https://media.dev.effyshopping.com/renditions/products/o1/t1/w1000.webp" },
+    { "name": "zero", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.jpg", "width": 0, "throws": true },
+    { "name": "too wide", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.jpg", "width": 1281, "throws": true },
+    { "name": "fraction", "imageUrl": "https://media.dev.effyshopping.com/products/o1/t1.jpg", "width": 12.5, "throws": true }
+  ]
+}
