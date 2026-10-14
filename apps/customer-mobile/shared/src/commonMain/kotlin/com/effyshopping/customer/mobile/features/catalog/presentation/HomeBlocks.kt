@@ -137,12 +137,12 @@ fun composeHome(home: HomeContent, categories: List<Category>): List<HomeBlock> 
         .groupBy { it.position.coerceIn(0, sections.size) }
 
     return buildList {
-        if (shortcuts.isNotEmpty()) add(HomeBlock.Categories(shortcuts))
-
-        // The offers carousel sits after the category shortcuts and BEFORE the first merchandising
-        // section — the placement the reference platforms use, and the one that answers "what is on
-        // offer?" before a shopper has to go looking (SC-012). Absent entirely when empty (FR-024).
+        // 087 (Main board): the offers carousel is the HERO — the first thing on Home, above the aisles.
+        // It answers "what is on offer?" before a shopper has to go looking (SC-012). Absent entirely
+        // when empty (FR-024).
         if (carousel.isNotEmpty()) add(HomeBlock.Offers(carousel))
+
+        if (shortcuts.isNotEmpty()) add(HomeBlock.Categories(shortcuts))
 
         // Position 0 sits above the first section.
         promosAt[0]?.let { add(HomeBlock.Promo(it)) }

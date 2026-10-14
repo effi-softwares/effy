@@ -23,12 +23,17 @@ const targets = [
   resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
   resolve(here, "../compose/EffyTypography.kt"),
   resolve(here, "../compose-shop/EffyTypography.kt"),
+  // 087 — the driver typography was generated since 026 and never listed here (unguarded), and the
+  // customer app's storefront shapes are new.
+  resolve(here, "../compose-driver/EffyTypography.kt"),
+  resolve(here, "../compose/EffyStorefrontShape.kt"),
   // 051 — the payment provider's Appearance for both customer surfaces. The payment step is the one
   // screen where a third party draws pixels inside ours, so a hand edit here would put the card
   // fields on a second, unchecked copy of the brand. Listed so that cannot happen silently.
   resolve(here, "../stripe/appearance.ts"),
   resolve(here, "../stripe/storefront-appearance.ts"),
   resolve(here, "../compose-payment-android/EffyPaymentAppearance.kt"),
+  resolve(here, "../../../apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift"),
 ];
 const before = new Map(
   targets.map((target) => [target, existsSync(target) ? readFileSync(target, "utf8") : null]),
@@ -49,6 +54,25 @@ if (drifted.length > 0) {
   drifted.forEach((target) => console.error(`  - ${target}`));
   console.error("Regenerated the files; review and commit the resulting changes.");
   process.exit(1);
+}
+
+// 087 — the customer app wears the STOREFRONT identity, which is light only and has five values.
+// Two failures the regenerate-and-diff above cannot see, because they would be faithfully generated:
+// a dark scheme sneaking back into the customer theme, and a colour the storefront file does not declare.
+{
+  const customer = readFileSync(resolve(here, "../compose/EffyTokens.kt"), "utf8");
+  const storefront = readFileSync(resolve(here, "../src/storefront/tokens.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const declared = new Set([...storefront.matchAll(/#([0-9a-fA-F]{6})\b/g)].map((m) => m[1].toUpperCase()));
+  const problems = [];
+  if (/darkColorScheme|object Dark\b/.test(customer)) problems.push("the customer theme has a DARK scheme — the storefront identity is light only");
+  for (const m of customer.matchAll(/Color\(0x([0-9A-F]{2})([0-9A-F]{6})\)/g)) {
+    if (m[1] === "FF" && !declared.has(m[2])) problems.push(`#${m[2]} is not declared in storefront/tokens.css`);
+  }
+  if (problems.length > 0) {
+    console.error("tokens:check: the customer app's theme left the storefront identity:");
+    problems.forEach((p) => console.error(`  - ${p}`));
+    process.exit(1);
+  }
 }
 
 console.log(`tokens:check: all ${targets.length} generated files match tokens.css.`);

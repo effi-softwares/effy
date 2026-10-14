@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.saved.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarDuration
@@ -139,7 +140,7 @@ fun BoxScope.TileSaveControl(product: ProductCard, tiles: SavedTiles) {
  */
 @Composable
 fun SavedTileMessages(tiles: SavedTiles, modifier: Modifier = Modifier) {
-    SnackbarHost(hostState = tiles.messages, modifier = modifier)
+    EffySnackbarHost(tiles.messages, modifier = modifier)
     tiles.chooser.value?.let { productId ->
         ListChooserSheet(
             container = tiles.container,

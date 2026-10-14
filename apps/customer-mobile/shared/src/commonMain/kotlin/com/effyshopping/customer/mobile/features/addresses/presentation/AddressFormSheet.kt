@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.addresses.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,10 +82,9 @@ fun AddressFormSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LabelChipToggle(text: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(selected = selected, onClick = onClick, label = { Text(text) })
+    EffyChip(text, selected = selected, onClick = onClick)
 }
 
 @Composable

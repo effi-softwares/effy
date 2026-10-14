@@ -1,5 +1,11 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import androidx.compose.foundation.layout.Column
+import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffyRadioRow
+import com.effyshopping.customer.mobile.core.presentation.EffyCheckboxRow
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffySwitchRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,10 +62,16 @@ fun FilterSheet(
         onDismiss = onDismiss,
         primaryLabel = state.total?.let { "Show $it results" } ?: "Show results",
         onPrimary = onDismiss,
+        // 087 (Filters board): full height, the result count pinned at the bottom as filters change.
+        fullHeight = true,
+        cancelLabel = null,
     ) {
+        // 087 — one column with NO gap between rows: each row is already a 48dp target, and the sheet's
+        // 12dp gap between every child made a list of choices read as a stack of separate controls.
+        Column(modifier = Modifier.fillMaxWidth()) {
         // Offers — a fixed toggle (not a server facet in this slice).
         SectionTitle("Offers")
-        CheckRow(label = "On sale", checked = state.saleOnly, count = null, onToggle = onToggleSale)
+        EffySwitchRow(label = "On sale", checked = state.saleOnly, onCheckedChange = { onToggleSale() }, horizontalPadding = 0.dp)
 
         // Price band — corrects an inverted range before applying (FR-004).
         SectionTitle("Price")
@@ -105,9 +117,8 @@ fun FilterSheet(
         }
 
         if (state.activeFilterCount > 0) {
-            TextButton(onClick = onClearAll, modifier = Modifier.fillMaxWidth()) {
-                Text("Clear all filters")
-            }
+            EffyTextLink("Clear all filters", onClick = onClearAll)
+        }
         }
     }
 }
@@ -130,46 +141,18 @@ private fun SectionTitle(title: String) {
     Text(
         title,
         style = MaterialTheme.typography.titleSmall,
-        modifier = Modifier.fillMaxWidth().padding(EffySpacing.xs),
+        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.lg, bottom = EffySpacing.xs),
     )
 }
 
 @Composable
 private fun CheckRow(label: String, count: Int?, checked: Boolean, onToggle: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-    ) {
-        Checkbox(checked = checked, onCheckedChange = { onToggle() })
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        if (count != null) {
-            Text(
-                count.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    EffyCheckboxRow(label = label, checked = checked, onCheckedChange = { onToggle() }, trailing = count?.toString())
 }
 
 @Composable
 private fun RadioRow(label: String, count: Int? = null, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-    ) {
-        RadioButton(selected = selected, onClick = onSelect)
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        if (count != null) {
-            Text(
-                count.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    EffyRadioRow(label = label, selected = selected, onClick = onSelect, trailing = count?.toString())
 }
 
 @Composable
@@ -190,26 +173,28 @@ private fun PriceRangeRow(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
-        OutlinedTextField(
+        EffyField(
+            label = "Min",
             value = lo,
             onValueChange = { lo = it },
-            placeholder = { Text(hintMin ?: "Min") },
-            singleLine = true,
+            placeholder = hintMin ?: "Min",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),
         )
-        OutlinedTextField(
+        EffyField(
+            label = "Max",
             value = hi,
             onValueChange = { hi = it },
-            placeholder = { Text(hintMax ?: "Max") },
-            singleLine = true,
+            placeholder = hintMax ?: "Max",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),
         )
-        TextButton(
+        EffyTextLink(
+            "Go",
+            modifier = Modifier.padding(top = 26.dp),
             onClick = {
                 var a = lo.trim()
                 var b = hi.trim()
@@ -220,9 +205,6 @@ private fun PriceRangeRow(
                 }
                 onApply(a.ifBlank { null }, b.ifBlank { null })
             },
-            modifier = Modifier.width(64.dp),
-        ) {
-            Text("Go")
-        }
+        )
     }
 }

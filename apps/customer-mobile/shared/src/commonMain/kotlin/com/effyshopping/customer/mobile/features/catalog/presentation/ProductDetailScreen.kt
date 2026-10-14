@@ -1,5 +1,51 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import org.jetbrains.compose.resources.DrawableResource
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.runtime.produceState
+import com.effyshopping.customer.mobile.resources.lucide_shopping_cart
+import com.effyshopping.customer.mobile.resources.lucide_coins
+import com.effyshopping.customer.mobile.resources.lucide_truck
+import com.effyshopping.customer.mobile.resources.lucide_list_plus
+import com.effyshopping.customer.mobile.resources.ic_favorite_selected
+import com.effyshopping.customer.mobile.resources.lucide_heart
+import com.effyshopping.customer.mobile.resources.lucide_circle_check
+import com.effyshopping.customer.mobile.features.catalog.domain.ProductBadge
+import com.effyshopping.customer.mobile.features.checkout.presentation.addAmounts
+import com.effyshopping.customer.mobile.features.points.presentation.formatPoints
+import com.effyshopping.customer.mobile.features.points.domain.PointsBalance
+import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
+import com.effyshopping.customer.mobile.core.delivery.Coverage
+import com.effyshopping.customer.mobile.core.delivery.CoverageWords
+import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import com.effyshopping.customer.mobile.core.presentation.effyBump
+import com.effyshopping.customer.mobile.core.presentation.EffyGroupDivider
+import com.effyshopping.customer.mobile.core.presentation.EffyGroup
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffySaleBadge
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.AnimatedContent
+import com.effyshopping.customer.mobile.resources.lucide_check
+import com.effyshopping.customer.mobile.resources.lucide_info
+import com.effyshopping.customer.mobile.features.cart.presentation.rememberTileCart
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import com.effyshopping.customer.mobile.core.presentation.effyDuration
+import com.effyshopping.customer.mobile.core.presentation.EffyStorefrontMotion
+import com.effyshopping.customer.mobile.core.presentation.RailItemGap
+import com.effyshopping.customer.mobile.core.presentation.EffyRailTile
+import com.effyshopping.customer.mobile.core.presentation.EffyHaptics
+import com.effyshopping.customer.mobile.core.presentation.EffyPinnedBar
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyNotice
+import com.effyshopping.customer.mobile.core.presentation.effySharedElement
+import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleOutcome
 import com.effyshopping.customer.mobile.features.saved.presentation.ListChooserSheet
 import androidx.compose.foundation.clickable
@@ -17,7 +63,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.style.TextOverflow
-import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.mobile.design.EffyRadius
 import androidx.compose.foundation.background
@@ -125,19 +170,19 @@ fun ProductDetailScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         // 025 FR-030: a standard header, not a floating text link.
-        EffyAppBar(title = "Details", onBack = onBack, trailing = { CartAction(container, onCart) })
+        // 087 (Product board): the bar names the product once it is known.
+        EffyAppBar(title = (state as? ProductDetailUiState.Ready)?.product?.card?.name ?: "", onBack = onBack)
 
         when (val s = state) {
-            ProductDetailUiState.Loading ->
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            // 087 — a skeleton in the page's shape (it was a bare spinner), and the kit's error state.
+            ProductDetailUiState.Loading -> Column(Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                EffySkeletonBlock(Modifier.fillMaxWidth().aspectRatio(1f).effySharedElement("product-image-$productId"), radius = EffyStorefrontShape.lg)
+                EffySkeletonBlock(Modifier.fillMaxWidth(0.4f).height(14.dp), radius = EffyStorefrontShape.sm)
+                EffySkeletonBlock(Modifier.fillMaxWidth(0.8f).height(24.dp), radius = EffyStorefrontShape.sm)
+                EffySkeletonBlock(Modifier.width(96.dp).height(32.dp), radius = EffyStorefrontShape.sm)
+            }
 
-            ProductDetailUiState.Error ->
-                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                        Text("We couldn’t load this product", style = MaterialTheme.typography.titleMedium)
-                        Button(onClick = vm::load) { Text("Try again") }
-                    }
-                }
+            ProductDetailUiState.Error -> EffyErrorState(title = "We couldn’t load this product", onRetry = vm::load)
 
             is ProductDetailUiState.Ready -> ProductBody(
                 container = container,
@@ -177,6 +222,14 @@ fun ProductDetailScreen(
     }
 }
 
+/** What the delivery & points card says — signed-in only, both best-effort reads. */
+private data class ProductContext(val address: SavedAddress?, val points: PointsBalance?)
+
+/**
+ * THE PRODUCT PAGE (Product board): gallery, the path and brand, name, price with the saving in Effy
+ * green, availability, Save and Add to list side by side, a delivery & points card, the description,
+ * an item-specifics table, the allergen card, and "More like this". The add action is PINNED (FR-022).
+ */
 @Composable
 private fun ProductBody(
     container: AppContainer,
@@ -191,118 +244,187 @@ private fun ProductBody(
 ) {
     var qty by remember { mutableStateOf(1) }
     val card = product.card
+    val session by container.session.state.collectAsState()
+    val signedIn = session is SessionState.Authenticated
+    val context by produceState(ProductContext(null, null), signedIn) {
+        value = if (!signedIn) ProductContext(null, null) else ProductContext(
+            address = runCatching { container.listSavedAddresses().let { list -> list.firstOrNull { it.isDefault } ?: list.firstOrNull() } }.getOrNull(),
+            points = runCatching { container.getPoints().first }.getOrNull()?.takeIf { it.points > 0 },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
     EffyPullToRefresh(onRefresh = onRefresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
-        if (product.categoryPath.isNotEmpty()) {
-            Text(
-                product.categoryPath.joinToString(" › "),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
         ProductGallery(product, card.name)
 
-        card.brand?.let {
-            Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(EffySpacing.lg))
+        if (product.categoryPath.isNotEmpty()) {
+            Text(product.categoryPath.joinToString(" › "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        EffyDisplay(card.name, size = DisplaySize.Sub)
+        card.brand?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
+        Text(card.name, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = EffySpacing.xs))
 
-        // The price block matches the web product page: the charged price largest, the compare-at
-        // struck through and SMALLER, and the saving stated as a percentage chip rather than left
-        // for the shopper to compute.
+        // The price: what is charged largest, the old price struck, the saving as a green badge — and
+        // said in words, so nobody has to do the sum.
         val percentOff = discountPercent(card.priceAmount, card.compareAtAmount)
         Row(
+            modifier = Modifier.padding(top = EffySpacing.md),
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                money(card.priceAmount, card.currency),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
-            )
+            Text(money(card.priceAmount, card.currency), style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"))
             if (percentOff != null && card.compareAtAmount != null) {
                 Text(
                     money(card.compareAtAmount, card.currency),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textDecoration = TextDecoration.LineThrough,
                 )
-                DiscountChip(percentOff)
+                EffySaleBadge(text = "−$percentOff%")
+            }
+        }
+        Text(
+            buildAnnotatedString {
+                if (percentOff != null && card.compareAtAmount != null) {
+                    withStyle(SpanStyle(color = EffyRoles.brand, fontWeight = FontWeight.SemiBold)) {
+                        append("Save ${money(subtractAmounts(card.compareAtAmount, card.priceAmount), card.currency)} ($percentOff% off)")
+                    }
+                    append(" · ")
+                }
+                append("Price includes GST")
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = EffySpacing.xs),
+        )
+
+        // Availability, in words with an icon (never colour alone).
+        Spacer(Modifier.height(EffySpacing.md))
+        if (card.available) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(painterResource(Res.drawable.lucide_circle_check), contentDescription = null, tint = EffyRoles.brand, modifier = Modifier.size(16.dp))
+                Text("Available now", style = MaterialTheme.typography.bodyMedium, color = EffyRoles.brand)
+            }
+        } else {
+            EffyNotice("Currently unavailable. Browse the rest of the store while we restock.", icon = Res.drawable.lucide_info)
+        }
+
+        // Save and Add to list, side by side (Product board). The heart is filled and blue once saved.
+        Row(modifier = Modifier.padding(top = EffySpacing.lg), horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+            EffySecondaryButton(
+                if (saved) "Saved" else "Save",
+                onClick = { onToggleSaved(!saved) },
+                modifier = Modifier.weight(1f).effyBump(saved),
+                leading = {
+                    Icon(
+                        painterResource(if (saved) Res.drawable.ic_favorite_selected else Res.drawable.lucide_heart),
+                        contentDescription = null,
+                        tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+            )
+            // 068 FR-014: the labelled way into the list chooser.
+            EffySecondaryButton(
+                "Add to list",
+                onClick = onAddToList,
+                modifier = Modifier.weight(1f),
+                leading = { Icon(painterResource(Res.drawable.lucide_list_plus), contentDescription = null, modifier = Modifier.size(18.dp)) },
+            )
+        }
+
+        // Delivery & points (Product board) — only what is TRUE for this shopper: who delivers to their
+        // address in the pinned coverage words, and the points they hold. A guest sees neither.
+        val address = context.address
+        val coverageWords = address?.coverage?.let { CoverageWords.describe(it) }
+        if (coverageWords != null || context.points != null) {
+            EffyGroup(modifier = Modifier.padding(top = EffySpacing.lg)) {
+                if (address != null && coverageWords != null) {
+                    ProductInfoRow(
+                        icon = Res.drawable.lucide_truck,
+                        iconTint = if (address.coverage == Coverage.Effy) EffyRoles.brand else MaterialTheme.colorScheme.onSurfaceVariant,
+                        title = buildAnnotatedString {
+                            append(coverageWords)
+                            if (address.coverage != Coverage.None) append(" to ${address.label?.takeIf { it.isNotBlank() } ?: address.city} · ${address.city} ${address.postalCode}")
+                        },
+                        body = when (address.coverage) {
+                            Coverage.Effy -> "Choose a delivery window at checkout."
+                            Coverage.Courier -> "The estimate is shown at checkout."
+                            else -> null
+                        },
+                    )
+                }
+                context.points?.let { p ->
+                    if (address != null && coverageWords != null) EffyGroupDivider()
+                    ProductInfoRow(
+                        icon = Res.drawable.lucide_coins,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        title = buildAnnotatedString {
+                            append("You have ")
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("${formatPoints(p.points)} Effy points") }
+                            append(" (worth ${money(p.valueAmount, "AUD")})")
+                        },
+                        body = "Use them to pay at checkout.",
+                    )
+                }
             }
         }
 
-        // ⚠ There is exactly ONE add-to-cart affordance, and it is the sticky [BuyBar] below. An
-        // inline stepper + button used to sit here as well, so an available product rendered two
-        // quantity steppers and two add buttons a few dp apart — two controls over one piece of
-        // state, which is a bug however consistent they stay.
-        if (!card.available) {
-            // A tinted notice, matching the web's unavailable panel — not a bare grey sentence that
-            // reads as a caption rather than as the reason the buy button is missing.
-            Text(
-                "Currently unavailable. Browse the rest of the store while we restock.",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(EffyRadius.md))
-                    .background(EffySurface.tint)
-                    .padding(EffySpacing.lg),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        // 033: the heart. A real icon toggle, never the "♥"/"♡" text glyphs 025 removed and
-        // mobile-guard now fails the build on. Its accessible NAME is stable and the state travels
-        // separately, so a screen reader hears one control whose state changed (FR-058).
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            SaveControl(saved = saved, onToggle = onToggleSaved)
-            // 068 FR-014: the labelled way into the list chooser. The heart keeps its one tap.
-            TextButton(onClick = onAddToList) { Text("Add to list") }
-        }
-
         product.longDescription?.let {
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = EffySpacing.lg),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            EffyDisplay("Description", size = DisplaySize.Sub)
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Description", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.xxxl))
+            Text(it, style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 26.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.md))
         }
 
-        if (product.attributes.isNotEmpty()) {
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = EffySpacing.lg),
-                color = MaterialTheme.colorScheme.outlineVariant,
-            )
-            EffyDisplay("Details", size = DisplaySize.Sub)
-            product.attributes.forEach { group -> AttributeSection(group) }
+        // Item specifics — a bordered two-column table (Product board), the brand first.
+        val specifics = buildList {
+            card.brand?.let { add("Brand" to it) }
+            product.attributes.forEach { group -> group.items.forEach { add(it.label to it.value) } }
+        }
+        if (specifics.isNotEmpty()) {
+            Text("Item specifics", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.xxxl, bottom = EffySpacing.md))
+            EffyGroup {
+                specifics.forEachIndexed { index, (label, value) ->
+                    Row(modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(horizontal = EffySpacing.md, vertical = EffySpacing.s), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        Text(value, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    }
+                    if (index < specifics.lastIndex) EffyGroupDivider()
+                }
+            }
         }
 
-        // 045 — a QUIET allergen line (grocery). No divider/heading; the physical label is the
-        // authoritative source, and this just points there. Small, muted, easy to pass over.
-        LegalLinksText(
-            "Always check the product label for allergens and ingredients. See our " +
-                "[Food Safety & Allergen Notice](/legal/food-safety-allergens).",
-            onNavigateSlug = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
-            modifier = Modifier.padding(top = EffySpacing.lg),
-        )
+        // 045 — allergens: the physical label is the authority; this points there (Product board card).
+        Text("Allergens & safety", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.xxxl, bottom = EffySpacing.md))
+        EffyGroup {
+            Row(modifier = Modifier.padding(EffySpacing.md), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                Icon(painterResource(Res.drawable.lucide_info), contentDescription = null, modifier = Modifier.padding(top = 2.dp).size(18.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Always read the label", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
+                    LegalLinksText(
+                        "Always check the product label for allergens and ingredients. See our " +
+                            "[Food Safety & Allergen Notice](/legal/food-safety-allergens).",
+                        onNavigateSlug = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
 
-        // FR-026: more like this, from the product's own category. Omitted entirely when the category
-        // yields nothing else — an empty rail is worse than no rail.
+        // FR-026: more like this, from the product's own category; nothing at all when there is none.
+        Spacer(Modifier.height(EffySpacing.xl))
         RelatedProductsRail(container, product.categoryKey, card.id, onProductClick)
+        Spacer(Modifier.height(EffySpacing.lg))
     }
     }
 
-    // ⚠ FR-025: the price and the add action stay reachable however far the shopper scrolls. On a
-    // long product page the primary action used to scroll away entirely, so deciding to buy meant
-    // scrolling back up to act on the decision.
+    // ⚠ FR-025: the add action stays reachable however far the shopper scrolls.
     if (card.available) {
         BuyBar(
-            priceLabel = money(card.priceAmount, card.currency),
+            unitPrice = card.priceAmount,
+            currency = card.currency,
             qty = qty,
             onQtyChange = { qty = it },
             justAdded = justAdded,
@@ -312,47 +434,58 @@ private fun ProductBody(
     }
 }
 
-/** Swipeable gallery with position indication (FR-022). One image shows no dots. */
+/** One row of the delivery & points card: an icon, a line, and a muted second line. */
+@Composable
+private fun ProductInfoRow(icon: DrawableResource, iconTint: androidx.compose.ui.graphics.Color, title: androidx.compose.ui.text.AnnotatedString, body: String?) {
+    Row(modifier = Modifier.fillMaxWidth().padding(EffySpacing.md), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+        Icon(painterResource(icon), contentDescription = null, tint = iconTint, modifier = Modifier.padding(top = 2.dp).size(20.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+            body?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+}
+
+/** The gallery (Product board): a grey well, the Sale badge, "1 / 4" bottom-right, dots below. */
 @Composable
 private fun ProductGallery(product: ProductDetail, name: String) {
-    val urls = product.gallery.map { it.imageUrl }.ifEmpty { listOfNotNull(product.card.imageUrl) }
-    if (urls.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                .clip(RoundedCornerShape(EffyRadius.md))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) { Text("No image", style = MaterialTheme.typography.bodyMedium) }
-        return
-    }
-
+    val urls = product.gallery.map { it.imageUrl }.ifEmpty { listOfNotNull(product.card.imageUrl) }.ifEmpty { listOf(null) }
+    val onSale = discountPercent(product.card.priceAmount, product.card.compareAtAmount) != null || product.card.badges.contains(ProductBadge.ON_SALE)
     val pagerState = rememberPagerState(pageCount = { urls.size })
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-        HorizontalPager(state = pagerState, userScrollEnabled = urls.size > 1) { page ->
-            Box(
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                    .clip(RoundedCornerShape(EffyRadius.md))
-                    .background(EffySurface.tint),
-            ) {
-                ProductImage(urls[page], name, modifier = Modifier.fillMaxSize())
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+        Box {
+            HorizontalPager(state = pagerState, userScrollEnabled = urls.size > 1) { page ->
+                // 087 — the FIRST picture is the shared element the tile's picture grows into.
+                Box(
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+                        .then(if (page == 0) Modifier.effySharedElement("product-image-${product.card.id}") else Modifier)
+                        .clip(EffyStorefrontShape.card)
+                        .background(EffySurface.tint),
+                ) { ProductImage(urls[page], name, modifier = Modifier.fillMaxSize()) }
+            }
+            if (onSale) EffySaleBadge(modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.md))
+            if (urls.size > 1) {
+                Box(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EffySpacing.md)
+                        .clip(EffyStorefrontShape.small)
+                        .background(MaterialTheme.colorScheme.background)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.small)
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                ) { Text("${pagerState.currentPage + 1} / ${urls.size}", style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum")) }
             }
         }
         if (urls.size > 1) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 repeat(urls.size) { index ->
                     val selected = pagerState.currentPage == index
+                    val w by animateDpAsState(if (selected) 16.dp else 6.dp, tween(effyDuration(EffyStorefrontMotion.StandardMillis)), label = "galleryDot")
                     Box(
                         modifier = Modifier
-                            .padding(horizontal = EffySpacing.xs)
-                            .size(if (selected) 8.dp else 6.dp)
+                            .padding(horizontal = 3.dp)
+                            .height(6.dp)
+                            .width(w)
                             .clip(CircleShape)
-                            .background(
-                                if (selected) MaterialTheme.colorScheme.onSurface
-                                else MaterialTheme.colorScheme.outlineVariant,
-                            ),
+                            .background(if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline),
                     )
                 }
             }
@@ -360,65 +493,51 @@ private fun ProductGallery(product: ProductDetail, name: String) {
     }
 }
 
-
-/** The persistent buy affordance (FR-025). */
+/**
+ * The pinned buy bar (Product board): an outlined stepper, then "Add to cart · $total" for the chosen
+ * quantity. "Added to cart" with a tick for two seconds after, and a light haptic.
+ */
 @Composable
 private fun BuyBar(
-    priceLabel: String,
+    unitPrice: String,
+    currency: String,
     qty: Int,
     onQtyChange: (Int) -> Unit,
     justAdded: Boolean,
     onAdd: () -> Unit,
 ) {
-    // 026: the source's sticky buy bar — a hairline above, a labelled "Price" stack on the left, and
-    // the primary action on the right. The old bar crowded price + stepper + button onto one line, so
-    // on a narrow phone the button shrank to fit and stopped reading as the primary action.
-    Column {
-        EffyHairline(modifier = Modifier.padding(horizontal = 0.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(EffySurface.page)
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
-        ) {
-            Column {
-                Text(
-                    "Price",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(priceLabel, style = MaterialTheme.typography.titleLarge)
+    val tick = EffyHaptics.tick()
+    EffyPinnedBar {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+            Box(Modifier.border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.control)) {
+                EffyQuantityStepper(quantity = qty, onChange = onQtyChange, outlined = true)
             }
-            EffyQuantityStepper(quantity = qty, onChange = onQtyChange)
-            EffyPrimaryButton(
-                if (justAdded) "Added" else "Add to Cart",
-                onClick = onAdd,
-                modifier = Modifier.weight(1f),
-            )
+            AnimatedContent(targetState = justAdded, modifier = Modifier.weight(1f), label = "addedLabel") { added ->
+                EffyPrimaryButton(
+                    if (added) "Added to cart" else "Add to cart · ${money(multiplyAmount(unitPrice, qty), currency)}",
+                    onClick = { tick(); onAdd() },
+                    leading = {
+                        Icon(
+                            painterResource(if (added) Res.drawable.lucide_check else Res.drawable.lucide_shopping_cart),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun AttributeSection(group: AttributeGroup) {
-    Column(modifier = Modifier.padding(top = EffySpacing.s), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-        Text(group.groupLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        group.items.forEach { item ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.s),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(item.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(item.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-            }
-            // The web sets each label/value pair on its own ruled row; without the rule a long
-            // specifics table becomes two columns of text with no reading line between them.
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        }
-    }
+/** "4.00" − "3.00" → "1.00", in whole cents. */
+private fun subtractAmounts(a: String, b: String): String = addAmounts(a, "-$b")
+
+/** "3.00" × 2 → "6.00", in whole cents. */
+private fun multiplyAmount(unit: String, qty: Int): String {
+    var total = "0.00"
+    repeat(qty.coerceAtLeast(0)) { total = addAmounts(total, unit) }
+    return total
 }
 
 /**
@@ -451,32 +570,19 @@ private fun RelatedProductsRail(
 
     if (related.isEmpty()) return
 
-    HorizontalDivider(modifier = Modifier.padding(vertical = EffySpacing.xs))
-    Text("More like this", style = MaterialTheme.typography.titleMedium)
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+    // 087 — the one product tile (the ad-hoc 140dp tile is gone), with its "+" so a shopper can add
+    // a related product without leaving this page.
+    val tileCart = rememberTileCart(container)
+    Text("More like this", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = EffySpacing.lg))
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(RailItemGap)) {
         items(related, key = { it.id }) { product ->
-            Column(
-                modifier = Modifier.width(140.dp).clickable { onProductClick(product.id) },
-                verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    ProductImage(product.imageUrl, product.name, modifier = Modifier.fillMaxSize())
-                }
-                Text(
-                    product.name,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    money(product.priceAmount, product.currency),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+            EffyRailTile(
+                product,
+                onProductClick,
+                width = 160.dp,
+                cartQuantity = tileCart.quantityOf(product.id),
+                onCartQuantityChange = { tileCart.change(product, it) },
+            )
         }
     }
 }

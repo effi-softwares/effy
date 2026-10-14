@@ -245,6 +245,51 @@ if [ -n "$UNRENDERABLE" ]; then
   FAIL=1
 fi
 
+# ── 087 — the storefront frame: sheets not dialogs, one kit, theme colours only ────────────────────
+#
+# The operator's direction for the redesign, made mechanical (087 FR-013, FR-030, FR-031, SC-002,
+# SC-004):
+#   · no centred dialog or drop-down menu anywhere — every overlay is the kit's bottom sheet;
+#   · no raw Material control that the kit replaces (they draw the console/M3 look, not the storefront);
+#   · no colour literal in a screen — colours come from the generated storefront theme;
+#   · the only Effy address a customer sees is hello@effyshopping.com (⚠ the GENERATED legal documents
+#     are excluded: they are authored prose from 045's source, outside 087 — and they still name an
+#     unapproved address, recorded as an open item in 087's FEATURE-HISTORY entry);
+#   · the cart and checkout never say how many packages (suppliers) fill an order.
+# ⚠ ENFORCE_087 was 0 (report only) while 087's screens were converted, and was switched to 1 by
+#   087 T095. Comment lines are ignored, as in the 025 check above.
+ENFORCE_087=1
+CM_SRC="$CUSTOMER_APP/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile"
+strip_comments() { grep -vE '^[^:]+:[0-9]+: *(//|\*|/\*)' || true; }
+REPORT_087=""
+add_087() { if [ -n "$2" ]; then REPORT_087="$REPORT_087
+  $1
+$(echo "$2" | sed 's/^/    /')"; fi; }
+
+add_087 "a dialog or drop-down menu (use EffySheet / EffyConfirmSheet):" "$(grep -rnE '\bAlertDialog\b|\bDropdownMenu\b|\bBasicAlertDialog\b|(^|[^A-Za-z.])Dialog\(|\bModalBottomSheet\b' --include='*.kt' "$CM_SRC" 2>/dev/null | grep -v 'core/presentation/EffySheet.kt' | strip_comments)"
+add_087 "a raw Material control the kit replaces:" "$(grep -rnE '\bOutlinedTextField\(|\bFilterChip\(|\bScrollableTabRow\(|\bBadgedBox\(' --include='*.kt' "$CM_SRC" 2>/dev/null | strip_comments)"
+add_087 "a colour literal in a screen (read the theme / EffyRoles):" "$(grep -rnE 'Color\(0x' --include='*.kt' "$CM_SRC/features" "$CM_SRC/app" 2>/dev/null | strip_comments)"
+add_087 "an Effy address other than hello@effyshopping.com:" "$(grep -rnoE '[A-Za-z0-9._%+-]+@effyshopping\.com' --include='*.kt' "$CUSTOMER_APP/shared/src" 2>/dev/null | grep -v ':hello@effyshopping\.com$' | grep -v '/features/legal/generated/' | strip_comments)"
+add_087 "the cart or checkout says how many packages fill the order (hidden fulfilment):" "$(grep -rnE '"[^"]*\bpackages?\b[^"]*"' --include='*.kt' "$CM_SRC/features/cart/presentation" "$CM_SRC/features/checkout/presentation/CheckoutScreen.kt" 2>/dev/null | strip_comments)"
+
+# Enforced now (not report-only): the cart is a TAB (087 FR-007). Pushing it would put a second copy
+# of the cart on another tab's stack, with no tab bar under it.
+PUSHED_CART="$( (grep -rnE 'push\(CustomerNavKey\.Cart\)' --include='*.kt' "$CM_SRC" 2>/dev/null || true) | strip_comments)"
+if [ -n "$PUSHED_CART" ]; then
+  echo "✗ mobile-guard [apps/customer-mobile]: the cart is pushed instead of selected as a tab (087 FR-007):"
+  echo "$PUSHED_CART" | sed 's/^/    /'
+  FAIL=1
+fi
+
+if [ -n "$REPORT_087" ]; then
+  if [ "$ENFORCE_087" -eq 1 ]; then
+    echo "✗ mobile-guard [apps/customer-mobile]: the storefront frame was broken (087):$REPORT_087"
+    FAIL=1
+  else
+    echo "⚠ mobile-guard [apps/customer-mobile]: 087 conversion still owed (report only until T095):$REPORT_087"
+  fi
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances absent;"
   echo "  every customer destination reachable."

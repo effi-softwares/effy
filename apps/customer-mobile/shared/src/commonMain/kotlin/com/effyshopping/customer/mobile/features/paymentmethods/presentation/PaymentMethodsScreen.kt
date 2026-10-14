@@ -1,5 +1,28 @@
 package com.effyshopping.customer.mobile.features.paymentmethods.presentation
 
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_credit_card
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffySize
+import com.effyshopping.customer.mobile.core.presentation.EffyConfirmSheet
+import com.effyshopping.customer.mobile.core.presentation.EffyNotice
+import com.effyshopping.customer.mobile.core.presentation.EffyGroupDivider
+import com.effyshopping.customer.mobile.core.presentation.EffyGroup
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
+import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,118 +64,99 @@ fun PaymentMethodsScreen(container: AppContainer, onBack: () -> Unit) {
     }
     val state by vm.state.collectAsStateWithLifecycle()
 
-    Scaffold { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = EffySpacing.lg),
-            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        ) {
-            Text(
-                text = "Payment methods",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(top = EffySpacing.lg),
+    // 087 (PaymentMethods board): a pushed page with Back (it had none — FR-029). Removing a card
+    // asks first, in a sheet.
+    var confirming by remember { mutableStateOf<KeptCard?>(null) }
+    Column(Modifier.fillMaxSize()) {
+        EffyAppBar(title = "Payment methods")
+        when {
+            state.loading -> Column(Modifier.padding(EffySpacing.lg)) { repeat(3) { EffyRowSkeleton(image = false) } }
+
+            // ⚠ A FAILED READ IS NOT AN EMPTY LIST (FR-036).
+            state.loadFailed -> EffyErrorState(
+                title = "We couldn't load your saved cards",
+                body = "This doesn't affect them. Check your connection and try again.",
+                onRetry = vm::load,
             )
 
-            when {
-                state.loading -> Centered { CircularProgressIndicator() }
+            // ⚠ An honest empty state that EXPLAINS, with no dead controls (US6 scenario 4).
+            state.cards.isEmpty() -> EffyEmptyState(
+                title = "No saved cards",
+                body = "When you pay, you can choose to save your card for next time — it will appear here.",
+                icon = Res.drawable.lucide_credit_card,
+            )
 
-                // ⚠ A FAILED READ IS NOT AN EMPTY LIST. Rendering "you have no cards" here would tell a
-                // shopper with saved cards something false about their own account (FR-036).
-                state.loadFailed -> Centered {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
-                    ) {
-                        Text(
-                            text = "We couldn't load your saved cards just now. This doesn't affect them.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                        TextButton(onClick = vm::load) { Text("Try again") }
-                    }
-                }
-
-                // ⚠ An honest empty state that EXPLAINS, with no dead controls: a card is kept while
-                // paying and cannot be added from this screen (US6 scenario 4).
-                state.cards.isEmpty() -> Centered {
-                    Text(
-                        text = "You haven't saved any cards yet. When you pay, you can choose to save " +
-                            "your card for next time — it will appear here.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                else -> {
-                    state.error?.let { message ->
-                        Text(
-                            text = message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                        items(state.cards, key = { it.id }) { card ->
-                            CardRow(
-                                card = card,
-                                removing = state.removing == card.id,
-                                onRemove = { vm.remove(card.id) },
-                            )
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(EffySpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            ) {
+                state.error?.let { message -> item(key = "error") { EffyInlineError(message) } }
+                item(key = "cards") {
+                    EffyGroup {
+                        state.cards.forEachIndexed { index, card ->
+                            CardRow(card = card, removing = state.removing == card.id, onRemove = { confirming = card })
+                            if (index < state.cards.lastIndex) EffyGroupDivider()
                         }
                     }
-                    Text(
-                        text = "Effy never sees or stores your card number — only the last four digits, " +
-                            "so you can tell your cards apart.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                }
+                item(key = "note") {
+                    EffyNotice(
+                        "Effy never sees or stores your card number — only the last four digits, so you can tell your cards apart.",
+                        icon = Res.drawable.lucide_lock,
                     )
                 }
             }
         }
+    }
+
+    confirming?.let { card ->
+        EffyConfirmSheet(
+            title = "Remove this card?",
+            body = "${brandName(card.brand)} ending ${card.last4} won't be offered at checkout any more. You can save it again next time you pay.",
+            confirmLabel = "Remove card",
+            icon = Res.drawable.lucide_credit_card,
+            destructive = true,
+            onConfirm = {
+                confirming = null
+                vm.remove(card.id)
+            },
+            onDismiss = { confirming = null },
+        )
     }
 }
 
 @Composable
 private fun CardRow(card: KeptCard, removing: Boolean, onRemove: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = EffySpacing.s),
+        Modifier.fillMaxWidth().heightIn(min = EffySize.rowWithSubtitle).padding(start = EffySpacing.lg, end = EffySpacing.xs, top = EffySpacing.s, bottom = EffySpacing.s),
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(painterResource(Res.drawable.lucide_credit_card), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = "•••• ${card.last4}",
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                // ⚠ An unusable card states its reason; it is never left for the shopper to work out
-                // why a card they can see cannot be used (FR-023).
-                text = card.unusableReason
-                    ?: "Expires ${card.expMonth.toString().padStart(2, '0')} / ${card.expYear.toString().takeLast(2)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (card.usable) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-            )
+            Text("${brandName(card.brand)} •••• ${card.last4}", style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"))
+            if (card.unusableReason != null) {
+                // ⚠ An unusable card states its reason (FR-023) — with an icon, never red.
+                EffyInlineError(card.unusableReason)
+            } else {
+                Text(
+                    "Expires ${card.expMonth.toString().padStart(2, '0')} / ${card.expYear.toString().takeLast(2)}" +
+                        if (card.isDefault) " · Default" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         // ⚠ Disabled while a removal is in flight, so a second tap cannot start another (FR-041).
-        TextButton(onClick = onRemove, enabled = !removing) {
-            Text(if (removing) "Removing…" else "Remove")
-        }
+        EffyTextLink(if (removing) "Removing…" else "Remove", onClick = onRemove, enabled = !removing)
     }
 }
 
-@Composable
-private fun Centered(content: @Composable () -> Unit) {
-    Column(
-        Modifier.fillMaxSize().padding(EffySpacing.lg),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) { content() }
+/** "visa" → "Visa". The provider's brand words, title-cased; unknown brands read as "Card". */
+private fun brandName(brand: String?): String = when (brand?.lowercase()) {
+    null, "", "unknown" -> "Card"
+    "amex" -> "American Express"
+    "mastercard" -> "Mastercard"
+    else -> brand.replaceFirstChar { it.uppercase() }
 }

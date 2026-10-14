@@ -434,11 +434,21 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   containers ≥ buttons ≥ controls), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
   a colour utility names a token `@theme` does not declare, because **Tailwind emits no rule at all
   for an unknown utility** and the element renders as nothing with no error anywhere.
-- **Mobile**: the three Compose themes regenerate from `tokens.css` and take the cobalt accent and
-  the neutral-grey ground. ⚠ The new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`)
-  are **web-only** — `gen-compose-theme.mjs`'s token list is unchanged, deliberately. Mobile must
-  still feel native (iOS HIG / Android Material); fat-finger targets + micro-animations are
-  requirements. Design refs: Uber / Bolt / foodpanda / eBay.
+- **Mobile**: the shop and driver Compose themes regenerate from `tokens.css` and take the cobalt
+  accent and the neutral-grey ground. ⚠ The new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`,
+  `--warning`) are **web-only** for those two apps. Mobile must still feel native (iOS HIG / Android
+  Material); fat-finger targets + micro-animations are requirements. Design refs: Uber / Bolt /
+  foodpanda / eBay.
+- ⚠ **THE CUSTOMER MOBILE APP WEARS THE STOREFRONT IDENTITY (087)** — like customer-web: light only,
+  Geist (bundled TTFs), Lucide icons, Effy blue for actions, Effy green for savings / "Delivered by
+  Effy", no red. `gen-compose-theme.mjs` has a **per-target source** (customer → `storefront/tokens.css`,
+  shop/driver → `tokens.css`) and `tokens:check` fails a dark scheme or an undeclared hex in the
+  customer theme. Its UI is the customer kit in `apps/customer-mobile/.../core/presentation/`
+  (customer-local, never mobile-kit), drawn from the design canvas
+  `docs/reference-screens/Effy Customer Mobile/`. ⚠ **No centred dialogs and no drop-down menus** —
+  every overlay is `EffySheet` / `EffyConfirmSheet`; `scripts/mobile-guard.sh` enforces it, plus no
+  colour literal in a screen, no raw Material control the kit replaces, no Effy address but `hello@`,
+  and no package count in cart/checkout. Five tabs: Home · Search · Cart · Orders · Account.
 
 **Design reference & layout doctrine (constitution v1.9.0, Principle V):**
 - **Reference platforms** — Effy is **"Uber Eats + eBay, food-first."** For any feature's business
@@ -534,6 +544,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **087-customer-mobile-redesign** — Customer Mobile Redesign (storefront identity; five tabs with Cart; sheets not dialogs; iOS transitions) — built; NOT walked or signed off
 - **086-catalogue-image-delivery** — Catalogue Pictures That Load Once (one permanent CDN address; WebP copies made at upload) — built; NOT applied, migrated, deployed or walked
 - **085-flexible-standard-delivery** — Flexible Standard Delivery (a day with no time, "as soon as possible", a time opt-in — all through one "Any time" window) — built; NOT migrated, deployed, walked or signed off
 - **084-customer-storefront-redesign** — Customer Storefront Redesign (its own identity; session re-implemented; aisles include their sub-aisles) — built, `storefront` + `commerce` deployed to dev; not walked or signed off
@@ -598,5 +609,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/086-catalogue-image-delivery/plan.md
+at specs/087-customer-mobile-redesign/plan.md
 <!-- SPECKIT END -->

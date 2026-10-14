@@ -46,6 +46,8 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
 
             var configuration = EmbeddedPaymentElement.Configuration()
             configuration.merchantDisplayName = merchantName
+            // 087 — the storefront appearance, generated from storefront/tokens.css (light only, Geist).
+            configuration.appearance = EffyPaymentAppearance.make()
 
             // ⚠ COLLECT NOTHING WE ALREADY HOLD (FR-014/FR-015). `attachDefaultsToPaymentMethod = true`
             // is what makes this lossless rather than merely shorter: the address still reaches the

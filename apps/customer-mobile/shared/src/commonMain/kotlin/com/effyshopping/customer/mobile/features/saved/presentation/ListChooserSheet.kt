@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.saved.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +12,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -98,32 +99,20 @@ fun ListChooserSheet(
                     ListRow(list = list, enabled = idle, onToggle = { vm.toggle(list) })
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
-                s.error?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = EffySpacing.s),
-                    )
-                }
+                s.error?.let { EffyInlineError(it, modifier = Modifier.padding(top = EffySpacing.s)) }
 
                 val remaining = listNameRemaining(name)
-                OutlinedTextField(
+                EffyField(
+                    label = "New list",
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("New list") },
-                    placeholder = { Text("Weekly Items") },
-                    singleLine = true,
-                    isError = s.nameError != null || remaining < 0,
-                    supportingText = {
-                        Text(
-                            s.nameError
-                                ?: if (remaining < 0) "${-remaining} too many characters"
-                                else "$remaining characters left",
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
+                    placeholder = "Weekly shop",
+                    error = s.nameError ?: if (remaining < 0) "${-remaining} too many characters" else null,
+                    modifier = Modifier.padding(top = EffySpacing.md),
                 )
+                if (s.nameError == null && remaining >= 0) {
+                    Text("$remaining characters left", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 EffySecondaryButton(
                     label = "Create list",
                     onClick = { vm.create(name) { name = "" } },

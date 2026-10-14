@@ -42,10 +42,18 @@ const SOURCE = resolve(here, "../mobile-assets");
  * only while someone maintains it". The same stale claim sat in CLAUDE.md ("apps/driver-mobile
  * remains the base template") and is corrected by 060 T103.
  */
+// 087 — two identities, two asset sets. The customer app wears the STOREFRONT identity (Geist, Lucide);
+// shop and driver keep the CONSOLE one (General Sans, Material Symbols). `accept` narrows the shared
+// source per app so neither receives — and the drift check never demands — files it does not draw.
+const STOREFRONT_ONLY = (name) => /^(geist_|lucide_)/.test(name) || name === "GEIST-OFL.txt" || name === "LUCIDE-LICENSE.txt";
+const CONSOLE_FONT_ONLY = (name) => /^general_sans_/.test(name) || name === "LICENSE.md";
+const consoleApp = (_kind, name) => !STOREFRONT_ONLY(name);
+const customerApp = (kind, name) => !(kind === "font" && CONSOLE_FONT_ONLY(name));
+
 export const APPS = [
-  { name: "customer-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
-  { name: "shop-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
-  { name: "driver-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
+  { name: "customer-mobile", kinds: ["drawable", "font"], accept: customerApp, root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
+  { name: "shop-mobile", kinds: ["drawable", "font"], accept: consoleApp, root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
+  { name: "driver-mobile", kinds: ["drawable", "font"], accept: consoleApp, root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
 ];
 
 const KINDS = ["drawable", "font"];
@@ -62,6 +70,7 @@ export function sourceFiles(app) {
     const dir = join(SOURCE, kind);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir).sort()) {
+      if (app?.accept && !app.accept(kind, name)) continue;
       if (statSync(join(dir, name)).isFile()) out.push({ kind, name });
     }
   }

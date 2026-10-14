@@ -1,5 +1,12 @@
 package com.effyshopping.customer.mobile.features.saved.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
+import com.effyshopping.customer.mobile.resources.lucide_heart
+import com.effyshopping.customer.mobile.resources.lucide_trash_2
+import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import com.effyshopping.customer.mobile.core.presentation.EffyIconButton
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
 import com.effyshopping.customer.mobile.features.saved.domain.DEFAULT_LIST_ID
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,7 +67,6 @@ import com.effyshopping.customer.mobile.features.saved.domain.SavedItem
 import com.effyshopping.customer.mobile.features.saved.domain.SavedVerdict
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_delete_outlined
-import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.launch
@@ -230,14 +236,14 @@ fun SavedScreen(
     // a transient message.
     Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(
-            title = "Saved items",
-            onBack = onBack,
-            // Named lists need an account; `lists` is empty for a guest, so this is not offered.
-            trailing = if (lists.isEmpty()) null else {
-                { TextButton(onClick = { naming = Naming.New }) { Text("New list") } }
-            },
-        )
+        EffyAppBar(title = "Saved items", onBack = onBack)
+        // Named lists need an account; `lists` is empty for a guest, so this is not offered. 087: a
+        // header holds only title, Back and the bell, so "New list" moved into the page.
+        if (lists.isNotEmpty()) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.xs), horizontalArrangement = Arrangement.End) {
+                EffyTextLink("New list", onClick = { naming = Naming.New })
+            }
+        }
         if (lists.size > 1 || !isDefault) {
             SavedListsBar(
                 lists = lists,
@@ -277,7 +283,7 @@ fun SavedScreen(
                     EffyEmptyState(
                         title = "We couldn't load your saved items",
                         body = "Check your connection and try again.",
-                        icon = Res.drawable.ic_favorite_outlined,
+                        icon = Res.drawable.lucide_heart,
                         actionLabel = "Try again",
                         onAction = vm::retry,
                     )
@@ -311,7 +317,7 @@ fun SavedScreen(
                                 body = "Tap the heart on anything you want to keep an eye on. " +
                                     "We'll tell you when the price drops or it comes back in stock. " +
                                     "Saved before signing in? Those stay on this device until you sign in.",
-                                icon = Res.drawable.ic_favorite_outlined,
+                                icon = Res.drawable.lucide_heart,
                                 actionLabel = "Start shopping",
                                 onAction = onBrowse,
                             )
@@ -322,7 +328,7 @@ fun SavedScreen(
                             EffyEmptyState(
                                 title = "This list is empty",
                                 body = "Open any product and choose Add to list to put it here.",
-                                icon = Res.drawable.ic_favorite_outlined,
+                                icon = Res.drawable.lucide_heart,
                                 actionLabel = "Browse products",
                                 onAction = onBrowse,
                             )
@@ -415,10 +421,7 @@ fun SavedScreen(
         }
     }
 
-        SnackbarHost(
-            hostState = snackbarHost,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(EffySpacing.s),
-        )
+        EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
     }
 
     chooserFor?.let { productId ->
@@ -537,25 +540,13 @@ private fun SavedRow(
                     SavedVerdict.TEMPORARILY_UNAVAILABLE -> "Out of stock right now"
                     SavedVerdict.NO_LONGER_SOLD -> "No longer sold"
                 }
-                if (note != null) {
-                    Text(
-                        note,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+                if (note != null) EffyInlineError(note)
 
                 // ⚠ The bulk add's own refusal, which is NOT the same thing as the verdict above. An
                 // item can be perfectly purchasable and still be turned away by the cart — because the
                 // cart is full, say — and flattening the two would tell the shopper the product is
                 // unavailable when it is their cart that is.
-                if (skipNote != null) {
-                    Text(
-                        "Not added — $skipNote",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
+                if (skipNote != null) EffyInlineError("Not added — $skipNote")
             }
 
             Column(horizontalAlignment = Alignment.End) {
@@ -567,6 +558,8 @@ private fun SavedRow(
                 // is deliberately no equivalent for a rise (FR-044) — the current price is always
                 // shown, so nothing is concealed, but a rise is not something a shopper can act on.
                 if (item.priceDropped) {
+                    // 087 — a price drop is a saving: said in Effy green.
+                    Text("Price dropped", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.brand)
                     Text(
                         "was ${money(item.savedPriceAmount, item.currency)}",
                         style = MaterialTheme.typography.labelSmall.copy(
@@ -597,26 +590,17 @@ private fun SavedRow(
             // screen would make two places responsible for one number.
             when {
                 !item.verdict.isPurchasable -> Unit
-                cartQuantity > 0 -> TextButton(onClick = onGoToCart) {
-                    // The count is stated because "in your cart" is not the same fact as "two of these
-                    // are in your cart", and a shopper who tapped twice by accident can only find that
-                    // out here or at the till.
-                    Text(if (cartQuantity == 1) "In your cart · View" else "$cartQuantity in your cart · View")
-                }
-                else -> TextButton(onClick = onAddToCart) { Text("Add to cart") }
+                // The count is stated: "in your cart" is not the same fact as "two of these are".
+                cartQuantity > 0 -> EffyTextLink(if (cartQuantity == 1) "In your cart · View" else "$cartQuantity in your cart · View", onClick = onGoToCart)
+                else -> EffyTextLink("Add to cart", onClick = onAddToCart)
             }
             Spacer(Modifier.weight(1f))
             // 068 FR-014: the labelled way into the list chooser from a row.
-            if (onAddToList != null) TextButton(onClick = onAddToList) { Text("Add to list") }
+            if (onAddToList != null) EffyTextLink("Add to list", onClick = onAddToList)
             // The cart's destructive icon, in the cart's error tint — one visual language for "this
             // takes the thing away", both places it can happen. Removal is undoable (FR-017).
-            IconButton(onClick = onRemove) {
-                Icon(
-                    painterResource(Res.drawable.ic_delete_outlined),
-                    contentDescription = removeLabel,
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
+            // Black, not red (the storefront has no red); removal is undoable (FR-017).
+            EffyIconButton(Res.drawable.lucide_trash_2, contentDescription = removeLabel, onClick = onRemove)
         }
     }
 }

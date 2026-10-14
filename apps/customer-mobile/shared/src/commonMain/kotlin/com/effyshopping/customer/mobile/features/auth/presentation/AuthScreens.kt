@@ -1,5 +1,9 @@
 package com.effyshopping.customer.mobile.features.auth.presentation
 
+import androidx.compose.ui.unit.sp
+import com.effyshopping.customer.mobile.core.config.AppConfig
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyWordmark
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ColumnScope
@@ -592,7 +596,10 @@ private fun AuthScaffold(
 
             // ── GROUP 1: what this screen is ────────────────────────────────────────────────────
             // Title and subtitle are ONE thought, so they sit at the tightest gap on the scale.
-            EffyDisplay(title, size = DisplaySize.Page)
+            // 087 (Auth boards): the wordmark above a 32sp title.
+            EffyWordmark(size = 28.sp)
+            Spacer(Modifier.height(EffySpacing.xl))
+            Text(title, style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(EffySpacing.s))
             Text(
                 subtitle,
@@ -615,7 +622,8 @@ private fun AuthScaffold(
             // ── GROUP 2: what you do here ───────────────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
                 content()
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                // An error is black with an icon — the storefront has no red.
+                state.error?.let { EffyInlineError(it) }
                 state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 // ⚠ NO PAGE-LEVEL SPINNER. It used to sit here, loose in the column: it could not say
                 // WHICH of two actions was running, and it appeared and disappeared in the layout
@@ -665,7 +673,10 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
         // ⚠ The source design offers Google AND Facebook. Facebook stays DROPPED (FR-030a) — it is not
         // an Effy credential route. Google is offered because the operator asked for the control now
         // and the capability later; tapping it says so plainly rather than failing generically.
-        GoogleSignInButton(enabled = !state.loading, onUnavailable = { vm.showGoogleUnavailable() })
+        // 087 FR-033 — shown only when Google sign-in actually works (it is parked; see AppConfig).
+        if (AppConfig.googleSignInEnabled) {
+            GoogleSignInButton(enabled = !state.loading, onUnavailable = { vm.showGoogleUnavailable() })
+        }
         EffySecondaryButton(
             "Use a password instead",
             onClick = {
@@ -761,7 +772,10 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
             loading = state.busyWith(AuthSubmission.SendingCode),
         )
         EffyOrDivider()
-        GoogleSignInButton(enabled = !state.loading, onUnavailable = { vm.showGoogleUnavailable() })
+        // 087 FR-033 — shown only when Google sign-in actually works (it is parked; see AppConfig).
+        if (AppConfig.googleSignInEnabled) {
+            GoogleSignInButton(enabled = !state.loading, onUnavailable = { vm.showGoogleUnavailable() })
+        }
         EffySecondaryButton(
             "Set a password instead",
             onClick = {
@@ -932,11 +946,7 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
         )
         if (code.length > OTP_LENGTH) {
             // ⚠ FR-004 — a longer paste is KEPT and shown, never reshaped into six submittable digits.
-            Text(
-                "That’s ${code.length} digits. An Effy code is always $OTP_LENGTH.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
+            EffyInlineError("That’s ${code.length} digits. An Effy code is always $OTP_LENGTH.")
         }
 
         ResendControl(state = state, onResend = { vm.resendCode(route.purpose) })

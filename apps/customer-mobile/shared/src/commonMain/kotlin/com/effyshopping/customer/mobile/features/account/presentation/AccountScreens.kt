@@ -1,5 +1,47 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
+import com.effyshopping.customer.mobile.features.points.presentation.formatPoints
+import com.effyshopping.customer.mobile.resources.lucide_trash_2
+import com.effyshopping.customer.mobile.resources.lucide_smartphone
+import com.effyshopping.customer.mobile.resources.lucide_log_out
+import com.effyshopping.customer.mobile.resources.lucide_key_round
+import com.effyshopping.customer.mobile.core.presentation.EffySwitchRow
+import com.effyshopping.customer.mobile.core.presentation.EffyConfirmSheet
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.runtime.produceState
+import com.effyshopping.customer.mobile.resources.lucide_file_text
+import com.effyshopping.customer.mobile.resources.lucide_message_square
+import com.effyshopping.customer.mobile.resources.lucide_mail
+import com.effyshopping.customer.mobile.resources.lucide_info
+import com.effyshopping.customer.mobile.resources.lucide_circle_help
+import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_shield
+import com.effyshopping.customer.mobile.resources.lucide_credit_card
+import com.effyshopping.customer.mobile.resources.lucide_map_pin
+import com.effyshopping.customer.mobile.resources.lucide_bell
+import com.effyshopping.customer.mobile.resources.lucide_package
+import com.effyshopping.customer.mobile.resources.lucide_heart
+import com.effyshopping.customer.mobile.resources.lucide_coins
+import com.effyshopping.customer.mobile.features.points.domain.PointsBalance
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import com.effyshopping.customer.mobile.core.presentation.money
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyRowIcon
+import com.effyshopping.customer.mobile.core.presentation.EffyGroupDivider
+import com.effyshopping.customer.mobile.core.presentation.EffyGroup
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffyChevron
+import com.effyshopping.customer.mobile.core.presentation.effyPress
+import com.effyshopping.customer.mobile.core.presentation.EffySize
+import com.effyshopping.customer.mobile.core.presentation.rememberEffyCollapse
+import com.effyshopping.customer.mobile.core.presentation.EffyLargeTitleBar
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -79,7 +121,6 @@ import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import com.effyshopping.customer.mobile.core.presentation.EffySheet
 import com.effyshopping.customer.mobile.core.presentation.EffyValueRow
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.rotate
 import com.effyshopping.customer.mobile.resources.Res
@@ -269,186 +310,141 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
 private fun AccountScreen(container: AppContainer, vm: AccountViewModel, customer: Customer) {
     val state by vm.state.collectAsState()
     val nav = container.navigator
-    // ⚠ 026 (T060): this WAS a centred column of full-width FILLED buttons — five of them, each
-    // shouting as loudly as the next, which is the loudest thing in the old app. The source design
-    // (and the constitution's "prefer lists and detail rows") uses quiet chevron rows with hairlines,
-    // reserving a filled treatment for actions that commit something. Identity moves to the top as a
-    // left-aligned header rather than a centred badge, so the screen reads as a settings list.
-    Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
-    ) {
-        // ⚠ 034 FR-002 — THE HEADER IS THE TAP TARGET, and there is no "My details" row any more
-        // (FR-003). A shopper looking for "where do I change my name" gets no signal from a header
-        // that is pure decoration sitting above a row that duplicates it. One target, the obvious one.
-        Row(
+    val collapse = rememberEffyCollapse()
+    // 087 (Account board) — the points card at the top. A failed read shows the card without numbers
+    // rather than an error: points are a shortcut here, the Points page owns the failure.
+    val points by produceState<PointsBalance?>(null, customer.id) {
+        value = runCatching { container.getPoints().first }.getOrNull()
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyLargeTitleBar(title = "Account", collapse = collapse)
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = EffyMinTouchTarget)
-                .clickable { nav.push(CustomerNavKey.MyDetails) }
-                .padding(EffySpacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
+                .nestedScroll(collapse.connection)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
         ) {
-            // 034 FR-061 — the avatar stays GENERATED FROM INITIALS. No upload is introduced, so
-            // feature 012's FR-001…FR-005 stand unamended; the header merely becomes activatable.
-            InitialsAvatar(customer.name.initials)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    customer.name.display.ifBlank { "Your account" },
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    customer.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            // ⚠ 034 FR-002 — THE HEADER IS THE TAP TARGET for personal info; there is no separate row.
+            val interactions = remember { MutableInteractionSource() }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = EffySize.rowWithSubtitle)
+                    .effyPress(interactions, 0.98f)
+                    .clickable(interactionSource = interactions, indication = null, role = Role.Button) { nav.push(CustomerNavKey.MyDetails) },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            ) {
+                InitialsAvatar(customer.name.initials)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        customer.name.display.takeIf { it.isNotBlank() }?.let { "Hi ${customer.name.given ?: it}" } ?: "Your account",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(customer.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                EffyChevron()
             }
-            Icon(
-                painter = painterResource(Res.drawable.ic_arrow_back),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp).rotate(180f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
 
-        // ⚠ FR-004/FR-005 — Saved items and Notifications as ICON SHORTCUTS.
-        //
-        // Built CONTAINER-FREE (icon + label, no filled tile), deliberately departing from the
-        // reference screenshot. Principle V permits a card only when it is demonstrably the right
-        // pattern and NO BETTER LAYOUT EXISTS — and one plainly does here, which is the same quiet
-        // treatment the rest of this screen already uses. Recorded in plan.md § Complexity Tracking.
-        //
-        // Each carries a VISIBLE TEXT LABEL: an icon alone fails FR-005 and is unusable at the
-        // largest text sizes and with a screen reader.
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        ) {
-            AccountShortcut(
-                label = "Saved items",
-                icon = Res.drawable.ic_favorite_outlined,
-                onClick = { nav.push(CustomerNavKey.Saved) },
-                modifier = Modifier.weight(1f),
-            )
-            AccountShortcut(
-                label = "Notifications",
-                icon = Res.drawable.ic_notifications_outlined,
-                onClick = { nav.push(CustomerNavKey.Notifications) },
-                modifier = Modifier.weight(1f),
-            )
-            AccountShortcut(
-                label = "Orders",
-                icon = Res.drawable.ic_orders_outlined,
-                onClick = { nav.push(CustomerNavKey.Orders) },
-                modifier = Modifier.weight(1f),
-            )
-        }
+            // Effy points — a way of paying, said in blue (the storefront's points colour).
+            EffyCard(onClick = { nav.push(CustomerNavKey.Points) }, selected = false) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("EFFY POINTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val p = points
+                        Text(
+                            if (p != null) formatPoints(p.points) else "Your points",
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        if (p != null) {
+                            Text(
+                                buildString {
+                                    append("worth ${money(p.valueAmount, "AUD")}")
+                                    p.nextExpiry?.let { append(" · ${formatPoints(it.points)} can be used until ${DeliveryWindowText.formatDay(it.date)}") }
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Icon(painterResource(Res.drawable.lucide_coins), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                }
+            }
 
-        Spacer(Modifier.height(EffySpacing.md))
+            // Three shortcuts (FR-004/FR-005 — each with a VISIBLE label).
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                AccountShortcut("Saved", Res.drawable.lucide_heart, { nav.push(CustomerNavKey.Saved) }, Modifier.weight(1f))
+                AccountShortcut("Orders", Res.drawable.lucide_package, { nav.push(CustomerNavKey.Orders) }, Modifier.weight(1f))
+                AccountShortcut("Notifications", Res.drawable.lucide_bell, { nav.push(CustomerNavKey.Notifications) }, Modifier.weight(1f))
+            }
 
-        // ⚠ FR-006 — LABELLED SECTIONS, not one undifferentiated list of eleven rows with a blank
-        // gap doing the grouping. SC-004 bounds this at ≤4 groups of ≤6 items.
-        AccountSectionHeader("Shopping")
-        EffyNavRow("Address book", onClick = { nav.push(CustomerNavKey.AddressBook) })
-        // 051 US6 — beside the address book, because that is where a shopper looks for it and because
-        // the two are the same kind of thing: saved details Effy uses on their behalf. Keeps the
-        // "Shopping" group within SC-004's ≤6 items.
-        EffyNavRow("Payment methods", onClick = { nav.push(CustomerNavKey.PaymentMethods) })
-        // 074 — the customer's Effy points.
-        EffyNavRow("Effy points", onClick = { nav.push(CustomerNavKey.Points) })
+            // ⚠ FR-006 — LABELLED GROUPS, ≤4 groups of ≤6 rows (SC-004).
+            EffyGroup(caption = "Shopping") {
+                AccountRow("Address book", Res.drawable.lucide_map_pin) { nav.push(CustomerNavKey.AddressBook) }
+                AccountRow("Payment methods", Res.drawable.lucide_credit_card) { nav.push(CustomerNavKey.PaymentMethods) }
+                AccountRow("Effy points", Res.drawable.lucide_coins, last = true) { nav.push(CustomerNavKey.Points) }
+            }
+            EffyGroup(caption = "Account") {
+                AccountRow("Security", Res.drawable.lucide_shield) { nav.push(CustomerNavKey.Security) }
+                AccountRow("Privacy & data", Res.drawable.lucide_lock, last = true) { nav.push(CustomerNavKey.Privacy) }
+            }
+            EffyGroup(caption = "Help") {
+                AccountRow("FAQs", Res.drawable.lucide_circle_help) { nav.push(CustomerNavKey.Faqs) }
+                AccountRow("Help centre", Res.drawable.lucide_info) { nav.push(CustomerNavKey.HelpCenter) }
+                AccountRow("Contact us", Res.drawable.lucide_mail) { nav.push(CustomerNavKey.CustomerService) }
+                // 046 — give feedback (guest or signed-in).
+                AccountRow("Give feedback", Res.drawable.lucide_message_square, last = true) { nav.push(CustomerNavKey.Feedback) }
+            }
+            // 045 — the ONE entry to the full legal list (About is inside it).
+            EffyGroup(caption = "Legal") {
+                AccountRow("Legal & policies", Res.drawable.lucide_file_text, last = true) { nav.push(CustomerNavKey.LegalIndex) }
+            }
 
-        AccountSectionHeader("Account")
-        EffyNavRow("Security", onClick = { nav.push(CustomerNavKey.Security) })
-        EffyNavRow("Privacy & data", onClick = { nav.push(CustomerNavKey.Privacy) })
+            // ⚠ FR-007 — NO SIGN-OUT CONTROL ON THIS SCREEN; it lives on Security (SC-005).
 
-        AccountSectionHeader("Help")
-        EffyNavRow("FAQs", onClick = { nav.push(CustomerNavKey.Faqs) })
-        EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
-        EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
-        // 046 — give feedback (guest or signed-in). The screen picks the authed vs public route.
-        EffyNavRow("Give feedback", onClick = { nav.push(CustomerNavKey.Feedback) })
-
-        // 045 — the ONE entry to the full legal list (About is inside it). The Privacy & data screen
-        // additionally carries a Privacy Policy shortcut, which stores expect there.
-        AccountSectionHeader("Legal")
-        EffyNavRow("Legal & policies", onClick = { nav.push(CustomerNavKey.LegalIndex) }, divider = false)
-
-        // ⚠ FR-007 — NO SIGN-OUT CONTROL ON THIS SCREEN.
-        //
-        // Both sign-out rows used to sit here, styled destructive, immediately below ordinary
-        // navigation rows — a stray tap while browsing ended the session. They now live on Security,
-        // with the other credential actions. See SC-005.
-
-        Spacer(Modifier.height(EffySpacing.xl))
-
-        state.error?.let {
+            state.error?.let { EffyInlineError(it) }
             Text(
-                it,
-                modifier = Modifier.padding(horizontal = EffySpacing.lg),
-                color = MaterialTheme.colorScheme.error,
+                "Effy for iPhone and Android",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = EffySpacing.lg),
             )
-        }
-        if (state.loading) {
-            CircularProgressIndicator(modifier = Modifier.padding(horizontal = EffySpacing.lg))
         }
     }
 }
 
-/**
- * An account-root shortcut — icon over a VISIBLE label (034 FR-004/FR-005).
- *
- * ⚠ No filled container, deliberately. See the note at the call site: Principle V's card rule is not
- * satisfied by "a tile looks nice", and a container-free treatment is both compliant and consistent
- * with the rows below it.
- */
+/** An account shortcut — a bordered square with an icon over a VISIBLE label (Account board). */
 @Composable
-private fun AccountShortcut(
-    label: String,
-    icon: DrawableResource,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun AccountShortcut(label: String, icon: DrawableResource, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val interactions = remember { MutableInteractionSource() }
     Column(
         modifier = modifier
-            // FR-055 — the whole shortcut is the target, not just the glyph.
-            .heightIn(min = 72.dp)
-            .clickable(onClick = onClick)
+            .heightIn(min = 80.dp)
+            .effyPress(interactions, 0.96f)
+            .clip(EffyStorefrontShape.card)
+            .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.card)
+            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick)
             .padding(vertical = EffySpacing.md),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.s, Alignment.CenterVertically),
     ) {
-        Icon(
-            painter = painterResource(icon),
-            // The label below is the accessible name; a duplicate description would have a screen
-            // reader announce the same words twice.
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurface)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
-/** A section heading on the account root (FR-006). */
+/** One row in an account group. */
 @Composable
-private fun AccountSectionHeader(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(
-            start = EffySpacing.lg,
-            end = EffySpacing.lg,
-            top = EffySpacing.lg,
-            bottom = EffySpacing.xs,
-        ),
-    )
+private fun AccountRow(label: String, icon: DrawableResource, last: Boolean = false, onClick: () -> Unit) {
+    EffyNavRow(label, onClick = onClick, leading = { EffyRowIcon(icon) }, divider = false)
+    if (!last) EffyGroupDivider()
 }
+
 
 /**
  * Security — composed from the credentials the account ACTUALLY holds (034 FR-025).
@@ -467,70 +463,67 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
     var confirmingSignOutAll by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "Security", onBack = { container.navigator.pop() })
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-
-            AccountSectionHeader("Signing in")
-
+        EffyAppBar(title = "Security")
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+        ) {
             // FR-026 — a password row OR an invitation to set one. NEVER both.
-            if (customer.hasPassword) {
-                EffyValueRow(
-                    label = "Password",
-                    value = customer.passwordSetAtIso?.let { "Last changed ${it.take(10)}" }
-                        ?: "Set",
-                    onClick = { nav.push(CustomerNavKey.Password(setFirst = false)) },
-                )
-            } else {
-                EffyValueRow(
-                    label = "Password",
-                    value = "Not set — add one for another way to sign in",
-                    onClick = { nav.push(CustomerNavKey.Password(setFirst = true)) },
-                )
-            }
-            EffyHairline()
-
-            AccountSectionHeader("Sessions")
-
-            // ⚠ FR-030 — NOT styled destructive, settling the disagreement between the two customer
-            // surfaces in favour of the web's position. Signing out is trivially reversible: you sign
-            // back in. Destructive styling is now reserved for account deletion, which is the first
-            // genuinely irreversible action this area has ever had — and if sign-out is already
-            // wearing red, deletion has no stronger signal left to reach for.
-            EffyNavRow("Sign out", onClick = { vm.signOut() }, showChevron = false)
-            EffyNavRow(
-                "Sign out on all devices",
-                supporting = "Ends every session, including this one",
-                onClick = { confirmingSignOutAll = true },
-                showChevron = false,
-                divider = false,
-            )
-
-            state.error?.let {
-                Text(
-                    it,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+            EffyGroup(caption = "Signing in") {
+                EffyNavRow(
+                    "Password",
+                    leading = { EffyRowIcon(Res.drawable.lucide_key_round) },
+                    supporting = if (customer.hasPassword) {
+                        customer.passwordSetAtIso?.let { "Last changed ${it.take(10)}" } ?: "Set"
+                    } else {
+                        "Not set — add one for another way to sign in"
+                    },
+                    trailingText = if (customer.hasPassword) "Change" else "Add",
+                    onClick = { nav.push(CustomerNavKey.Password(setFirst = !customer.hasPassword)) },
+                    showChevron = false,
+                    divider = false,
                 )
             }
+
+            // ⚠ FR-030 — sign-out is not destructive (you sign back in).
+            EffyGroup(caption = "Sessions") {
+                EffyNavRow(
+                    "Sign out",
+                    leading = { EffyRowIcon(Res.drawable.lucide_log_out) },
+                    onClick = { vm.signOut() },
+                    showChevron = false,
+                    divider = false,
+                )
+                EffyGroupDivider()
+                EffyNavRow(
+                    "Sign out on all devices",
+                    leading = { EffyRowIcon(Res.drawable.lucide_smartphone) },
+                    supporting = "Ends every session, including this one",
+                    onClick = { confirmingSignOutAll = true },
+                    showChevron = false,
+                    divider = false,
+                )
+            }
+
+            state.error?.let { EffyInlineError(it) }
         }
     }
 
-    // FR-029 — confirmation for ALL devices only. It affects sessions the shopper cannot see, which
-    // is exactly the case where a confirmation earns its interruption; ordinary sign-out does not.
+    // FR-029 — confirmation for ALL devices only. 087: a bottom sheet with its actions pinned
+    // (Security board), never a dialog.
     if (confirmingSignOutAll) {
-        AlertDialog(
-            onDismissRequest = { confirmingSignOutAll = false },
-            title = { Text("Sign out everywhere?") },
-            text = { Text("This ends every session, including the one on this device.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmingSignOutAll = false
-                    vm.signOutEverywhere()
-                }) { Text("Sign out everywhere") }
+        EffyConfirmSheet(
+            title = "Sign out everywhere?",
+            body = "This ends every session, including this one. You'll need to sign in again on each device.",
+            confirmLabel = "Sign out everywhere",
+            cancelLabel = "Stay signed in",
+            icon = Res.drawable.lucide_log_out,
+            destructive = true,
+            onConfirm = {
+                confirmingSignOutAll = false
+                vm.signOutEverywhere()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmingSignOutAll = false }) { Text("Cancel") }
-            },
+            onDismiss = { confirmingSignOutAll = false },
         )
     }
 }
@@ -547,44 +540,33 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
 @Composable
 private fun PrivacyScreen(container: AppContainer) {
     val nav = container.navigator
+    var analyticsOn by remember { mutableStateOf(container.analyticsConsent() == ConsentState.GRANTED) }
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "Privacy & data", onBack = { nav.pop() })
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-
-            AccountSectionHeader("Privacy")
+        EffyAppBar(title = "Privacy & data")
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+        ) {
             Text(
                 "We keep your orders and payment records after you leave, because tax and " +
                     "accounting rules require it. Everything else goes with your account.",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
             )
 
-            // ⚠ An in-app privacy policy link is required by BOTH stores (Apple 5.1.1(i), Google User
-            // Data policy) and belongs HERE, in the privacy area, where a reviewer looks for it. The
-            // full legal list lives in ONE place — Account → Legal & policies — not duplicated here.
-            EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.LegalDocument("privacy-policy")) })
-
-            // 050 FR-023 — the standing analytics opt-in/out control. Toggling persists the choice and
-            // starts/stops PostHog immediately; crash reporting is unaffected (Q1).
-            var analyticsOn by remember {
-                mutableStateOf(container.analyticsConsent() == ConsentState.GRANTED)
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Share usage analytics", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        analyticsConsentSubtitle(if (analyticsOn) ConsentState.GRANTED else ConsentState.DENIED),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
+            EffyGroup(caption = "Privacy") {
+                // ⚠ An in-app privacy policy link is required by BOTH stores and belongs HERE.
+                EffyNavRow(
+                    "Privacy policy",
+                    leading = { EffyRowIcon(Res.drawable.lucide_file_text) },
+                    onClick = { nav.push(CustomerNavKey.LegalDocument("privacy-policy")) },
+                    divider = false,
+                )
+                EffyGroupDivider()
+                // 050 FR-023 — the standing analytics opt-in/out control (crash reporting unaffected).
+                EffySwitchRow(
+                    label = "Share usage analytics",
+                    supporting = analyticsConsentSubtitle(if (analyticsOn) ConsentState.GRANTED else ConsentState.DENIED),
                     checked = analyticsOn,
                     onCheckedChange = { on ->
                         analyticsOn = on
@@ -593,48 +575,34 @@ private fun PrivacyScreen(container: AppContainer) {
                 )
             }
 
-            // 050 T015 — DEBUG-ONLY observability test panel (shown only when DEBUG_TOOLS=true, never in
-            // prod). Verifies Crashlytics (fatal + non-fatal) and PostHog end to end.
+            // 050 T015 — DEBUG-ONLY observability test panel (DEBUG_TOOLS=true only, never in prod).
             if (AppConfig.debugTools) {
-                AccountSectionHeader("Developer — observability test")
-                Button(
-                    onClick = { container.analyticsDriver.capture(AnalyticsEvent.ScreenViewed("debug_test")) },
-                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xs),
-                ) { Text("Fire test analytics event") }
-                Button(
-                    onClick = {
-                        container.crashReporter.logNonFatal(RuntimeException("Effy test non-fatal (050)"))
-                    },
-                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xs),
-                ) { Text("Log non-fatal error") }
-                Button(
-                    onClick = { throw RuntimeException("Effy test crash (050)") },
-                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xs),
-                ) { Text("Force crash") }
+                EffyGroup(caption = "Developer — observability test") {
+                    EffyNavRow("Fire test analytics event", onClick = { container.analyticsDriver.capture(AnalyticsEvent.ScreenViewed("debug_test")) }, showChevron = false)
+                    EffyNavRow("Log non-fatal error", onClick = { container.crashReporter.logNonFatal(RuntimeException("Effy test non-fatal (050)")) }, showChevron = false)
+                    EffyNavRow("Force crash", onClick = { throw RuntimeException("Effy test crash (050)") }, showChevron = false, divider = false)
+                }
             }
 
-            // A modest gap — enough to set the destructive Delete apart from the nav row above so a
-            // stray tap can't hit it, without the large void the earlier (longer) list left behind.
-            Spacer(Modifier.height(EffySpacing.xl))
-
-            // The LAST item on the screen (FR-039).
-            EffyNavRow(
-                "Delete account",
-                supporting = "Permanently remove your account and personal data",
-                onClick = { nav.push(CustomerNavKey.DeleteAccount) },
-                destructive = true,
-                divider = false,
-            )
-            Spacer(Modifier.height(EffySpacing.xl))
+            // The LAST item on the screen (FR-039). Black, with its own icon and words — no red.
+            EffyGroup {
+                EffyNavRow(
+                    "Delete account",
+                    leading = { EffyRowIcon(Res.drawable.lucide_trash_2) },
+                    supporting = "Permanently remove your account and personal data",
+                    onClick = { nav.push(CustomerNavKey.DeleteAccount) },
+                    destructive = true,
+                    divider = false,
+                )
+            }
         }
     }
 }
 
 
-
 @Composable
 private fun InitialsAvatar(initials: String) {
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(72.dp)) {
+    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(56.dp)) {
         Box(contentAlignment = Alignment.Center) {
             Text(initials, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onPrimary)
         }

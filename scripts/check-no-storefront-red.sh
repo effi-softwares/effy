@@ -24,4 +24,21 @@ if [ -n "$hits" ]; then
   echo "$hits" >&2
   exit 1
 fi
-echo "check-no-storefront-red: OK — no red-family utility, dark: variant or arbitrary hex colour in apps/customer-web."
+# 087 — the customer MOBILE app wears the storefront identity too. Its colours come only from the
+# generated storefront theme (packages/design-system/compose/EffyTokens.kt, which tokens:check holds to
+# storefront/tokens.css); a red-dominant colour literal anywhere in its Kotlin is a defect.
+mobile_red="$(grep -rnoE 'Color\(0x[0-9A-Fa-f]{8}\)' apps/customer-mobile/shared/src packages/design-system/compose \
+  --include='*.kt' 2>/dev/null | python3 -c '
+import sys
+for line in sys.stdin:
+    h = line.rsplit("0x", 1)[1][2:8]
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    if r > g + 40 and r > b + 40:
+        print(line.rstrip())
+' || true)"
+if [ -n "$mobile_red" ]; then
+  echo "check-no-storefront-red: FAILED — a red-dominant colour literal in the customer mobile app:" >&2
+  echo "$mobile_red" >&2
+  exit 1
+fi
+echo "check-no-storefront-red: OK — no red-family utility, dark: variant or arbitrary hex colour in apps/customer-web; no red in the customer mobile app."

@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.deliveryinstructions.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyChip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -51,12 +52,11 @@ fun DeliveryInstructionsField(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
             Handover.entries.forEach { choice ->
                 val selected = draft.handover == choice
-                FilterChip(
+                // 48 dp target: a shopper does this one-handed, standing in a kitchen.
+                EffyChip(
+                    choice.label,
                     selected = selected,
                     onClick = { onChange(draft.copy(handover = if (selected) null else choice)) },
-                    label = { Text(choice.label) },
-                    // 48 dp: a shopper does this one-handed, standing in a kitchen.
-                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
         }

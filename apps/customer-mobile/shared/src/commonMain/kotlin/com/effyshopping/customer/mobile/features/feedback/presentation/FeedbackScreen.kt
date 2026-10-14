@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.feedback.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -126,7 +128,7 @@ private fun FeedbackForm(state: FeedbackUiState, viewModel: FeedbackViewModel) {
             is SubmitFeedbackResult.Ok, null -> null
         }
         if (errorMessage != null) {
-            Text(errorMessage, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            EffyInlineError(errorMessage)
         }
 
         EffyPrimaryButton(

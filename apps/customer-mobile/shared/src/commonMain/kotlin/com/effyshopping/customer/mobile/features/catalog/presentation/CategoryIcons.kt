@@ -1,68 +1,53 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
 import com.effyshopping.customer.mobile.resources.Res
-import com.effyshopping.customer.mobile.resources.ic_cat_bakery
-import com.effyshopping.customer.mobile.resources.ic_cat_beverages
-import com.effyshopping.customer.mobile.resources.ic_cat_chilled
-import com.effyshopping.customer.mobile.resources.ic_cat_cleaning
-import com.effyshopping.customer.mobile.resources.ic_cat_fallback
-import com.effyshopping.customer.mobile.resources.ic_cat_food
-import com.effyshopping.customer.mobile.resources.ic_cat_frozen
-import com.effyshopping.customer.mobile.resources.ic_cat_grocery
-import com.effyshopping.customer.mobile.resources.ic_cat_household
-import com.effyshopping.customer.mobile.resources.ic_cat_meals
-import com.effyshopping.customer.mobile.resources.ic_cat_pantry
-import com.effyshopping.customer.mobile.resources.ic_cat_paper_goods
-import com.effyshopping.customer.mobile.resources.ic_cat_snacks
+import com.effyshopping.customer.mobile.resources.lucide_apple
+import com.effyshopping.customer.mobile.resources.lucide_baby
+import com.effyshopping.customer.mobile.resources.lucide_beef
+import com.effyshopping.customer.mobile.resources.lucide_cookie
+import com.effyshopping.customer.mobile.resources.lucide_croissant
+import com.effyshopping.customer.mobile.resources.lucide_cup_soda
+import com.effyshopping.customer.mobile.resources.lucide_fish
+import com.effyshopping.customer.mobile.resources.lucide_milk
+import com.effyshopping.customer.mobile.resources.lucide_package
+import com.effyshopping.customer.mobile.resources.lucide_paw_print
+import com.effyshopping.customer.mobile.resources.lucide_scroll_text
+import com.effyshopping.customer.mobile.resources.lucide_snowflake
+import com.effyshopping.customer.mobile.resources.lucide_soup
+import com.effyshopping.customer.mobile.resources.lucide_spray_can
+import com.effyshopping.customer.mobile.resources.lucide_wheat
 import org.jetbrains.compose.resources.DrawableResource
 
 /**
- * Category key → shortcut icon (028 US3, research R5).
+ * An aisle's glyph (087 T057) — THE SAME RULES as the website's `aisleIcon`
+ * (`apps/customer-web/components/chrome/aisle-icon.tsx`), in the same order, over the same Lucide set,
+ * so an aisle looks the same on both customer surfaces.
  *
- * ── ⚠ THE FALLBACK IS THE POINT, NOT AN AFTERTHOUGHT ────────────────────────────────────────────
- *
- * Categories are **operator data**. Someone can create "Pet supplies" in the back-office this
- * afternoon, and no app release will have shipped an icon for it. That is not an error case to be
- * defended against — it is the normal life of a catalogue, and it MUST render as a designed state
- * rather than a blank tile or a broken frame (FR-026).
- *
- * So this function is total: every key resolves, and an unknown one gets a deliberately generic tag
- * glyph. Generic is doing work here — a *wrong* icon (a bread loaf on "Pet supplies") is worse than a
- * neutral one, because it actively misleads.
- *
- * ── Why the map lives in the app, not the database ──────────────────────────────────────────────
- *
- * An `icon_key` column on `public.category`, chosen by the operator from a fixed vocabulary, is
- * strictly better and is the natural follow-up. It needs a migration, an admin route, a back-office
- * control and a storefront read change — to solve a problem that does not exist yet at Effy's category
- * count. Recorded in research R5 rather than half-built here.
- *
- * Pure by design, so the fallback path is unit-testable without a device — which matters, because it
- * is the branch a device will almost never show you.
+ * ⚠ RULES, NOT A KEY TABLE. The table this replaced knew twelve keys from the 2026-07 taxonomy; 084
+ * re-seeded the catalogue with keys like `dairy_eggs` and `fruit_veg`, and every one of them fell
+ * through to the fallback glyph. A word rule ("milk", "fruit", "clean") survives a re-seed; a key
+ * table does not. First matching rule wins; nothing matching is the neutral package glyph.
  */
-fun categoryIcon(key: String): DrawableResource = when (key.lowercase()) {
-    // Top level.
-    "food" -> Res.drawable.ic_cat_food
-    "grocery" -> Res.drawable.ic_cat_grocery
-    "household" -> Res.drawable.ic_cat_household
-
-    // Children — mapped too, because a child can be promoted to top level without an app release.
-    "meals" -> Res.drawable.ic_cat_meals
-    "bakery" -> Res.drawable.ic_cat_bakery
-    "snacks" -> Res.drawable.ic_cat_snacks
-    "pantry" -> Res.drawable.ic_cat_pantry
-    "chilled" -> Res.drawable.ic_cat_chilled
-    "frozen" -> Res.drawable.ic_cat_frozen
-    "beverages" -> Res.drawable.ic_cat_beverages
-    "cleaning" -> Res.drawable.ic_cat_cleaning
-    "paper_goods" -> Res.drawable.ic_cat_paper_goods
-
-    else -> Res.drawable.ic_cat_fallback
-}
-
-/** Every key [categoryIcon] answers with real artwork. Exposed so the test cannot drift from the map. */
-val MAPPED_CATEGORY_KEYS: List<String> = listOf(
-    "food", "grocery", "household",
-    "meals", "bakery", "snacks", "pantry", "chilled", "frozen", "beverages",
-    "cleaning", "paper_goods",
+private val RULES: List<Pair<Regex, DrawableResource>> = listOf(
+    Regex("fruit|veg|produce|fresh", RegexOption.IGNORE_CASE) to Res.drawable.lucide_apple,
+    Regex("dairy|milk|egg|chilled|cheese", RegexOption.IGNORE_CASE) to Res.drawable.lucide_milk,
+    Regex("bak|bread", RegexOption.IGNORE_CASE) to Res.drawable.lucide_croissant,
+    Regex("seafood|fish", RegexOption.IGNORE_CASE) to Res.drawable.lucide_fish,
+    Regex("meat|poultry|butcher", RegexOption.IGNORE_CASE) to Res.drawable.lucide_beef,
+    Regex("pantry|grain|rice|pasta", RegexOption.IGNORE_CASE) to Res.drawable.lucide_wheat,
+    Regex("snack|confection|chocolate|biscuit", RegexOption.IGNORE_CASE) to Res.drawable.lucide_cookie,
+    Regex("drink|beverage|juice|water|coffee|tea", RegexOption.IGNORE_CASE) to Res.drawable.lucide_cup_soda,
+    Regex("clean|household|laundry", RegexOption.IGNORE_CASE) to Res.drawable.lucide_spray_can,
+    Regex("paper|tissue", RegexOption.IGNORE_CASE) to Res.drawable.lucide_scroll_text,
+    Regex("baby|kid", RegexOption.IGNORE_CASE) to Res.drawable.lucide_baby,
+    Regex("frozen|ice", RegexOption.IGNORE_CASE) to Res.drawable.lucide_snowflake,
+    Regex("meal|ready|deli|soup", RegexOption.IGNORE_CASE) to Res.drawable.lucide_soup,
+    Regex("pet", RegexOption.IGNORE_CASE) to Res.drawable.lucide_paw_print,
 )
+
+/** The neutral glyph for an aisle no rule describes. */
+val CATEGORY_FALLBACK_ICON: DrawableResource get() = Res.drawable.lucide_package
+
+/** The glyph for an aisle, by its key or name. */
+fun categoryIcon(key: String): DrawableResource =
+    RULES.firstOrNull { (re, _) -> re.containsMatchIn(key) }?.second ?: CATEGORY_FALLBACK_ICON

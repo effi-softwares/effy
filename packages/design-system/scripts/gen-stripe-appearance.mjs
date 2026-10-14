@@ -29,6 +29,10 @@ const WEB_OUT = resolve(here, "../stripe/appearance.ts");
 // Amplify, Firebase and PostHog, i.e. the platform-only SDKs the shared module's Android half needs.
 const KT_OUT = resolve(here, "../compose-payment-android/EffyPaymentAppearance.kt");
 const KT_PKG = "com.effyshopping.customer.mobile.design.payment";
+// 087 — the iOS half of the customer app's payment element, generated beside the Android one so the
+// two cannot drift (the bridge previously set no appearance at all: the provider's default blue and
+// system font sat inside an Effy screen).
+const SWIFT_OUT = resolve(here, "../../../apps/customer-mobile/iosApp/iosApp/EffyPaymentAppearance.swift");
 
 // The tokens the provider's Appearance API actually consumes. Anything not listed here has no slot to
 // go in — adding a token to tokens.css does NOT silently change the payment form.
@@ -144,75 +148,6 @@ export function paymentAppearance(mode: "light" | "dark"): StripeAppearance {
 }
 `;
 
-// ── Mobile ────────────────────────────────────────────────────────────────────────────────────────
-const argb = (hex) => `0xFF${hex.slice(1).toUpperCase()}`;
-const ktColors = (name, t) => `    private val ${name} = PaymentSheet.Colors(
-        primary = Color(${argb(t.primary)}.toInt()),
-        surface = Color(${argb(t.card)}.toInt()),
-        component = Color(${argb(t.card)}.toInt()),
-        componentBorder = Color(${argb(t.input)}.toInt()),
-        componentDivider = Color(${argb(t.border)}.toInt()),
-        onComponent = Color(${argb(t.foreground)}.toInt()),
-        onSurface = Color(${argb(t.foreground)}.toInt()),
-        subtitle = Color(${argb(t["muted-foreground"])}.toInt()),
-        placeholderText = Color(${argb(t.placeholder)}.toInt()),
-        appBarIcon = Color(${argb(t["muted-foreground"])}.toInt()),
-        error = Color(${argb(t.destructive)}.toInt()),
-    )`;
-
-const ktBody = `${banner("gen-stripe-appearance.mjs")}
-package ${KT_PKG}
-
-import androidx.compose.ui.graphics.Color
-import com.stripe.android.paymentsheet.PaymentSheet
-
-/**
- * The payment provider's Appearance for the mobile payment element (051 FR-029/FR-030).
- *
- * ⚠ BOTH appearances are supplied. The platform's accent INVERTS between them, so a single palette
- * would be invisible in one mode (constitution Principle V). Omitting [colorsDark] would leave the
- * payment form light inside a dark app.
- *
- * ⚠ [typography] takes an ANDROID FONT RESOURCE id, not a Compose Resource. General Sans lives in
- * androidApp/src/main/res/font/ for exactly this reason — the composeResources copy has no R.font id,
- * and passing nothing here renders the payment form in the SYSTEM font beside Effy's own type, with
- * nothing failing to compile (research R8).
- */
-object EffyPaymentAppearance {
-${ktColors("Light", light)}
-
-${ktColors("Dark", dark)}
-
-    /**
-     * @param generalSansFontResId the General Sans font resource. ⚠ REQUIRED, not nullable, on
-     *   purpose: a null renders the payment form in the system font beside Effy's own type and nothing
-     *   errors, so the type system refuses the mistake instead.
-     */
-    fun of(generalSansFontResId: Int): PaymentSheet.Appearance = PaymentSheet.Appearance(
-        colorsLight = Light,
-        colorsDark = Dark,
-        shapes = PaymentSheet.Shapes(
-            cornerRadiusDp = ${radiusMd}f,
-            borderStrokeWidthDp = 1f,
-        ),
-        // ⚠ Typography is NOT a data class in this SDK — there is no .default.copy(...). Verified
-        // against the 23.17.0 bytecode: the constructor is (sizeScaleFactor, fontResId). A .copy()
-        // here does not compile, which is the good failure; the bad one would be silently accepting a
-        // null fontResId, so the parameter is required rather than defaulted.
-        typography = PaymentSheet.Typography(
-            sizeScaleFactor = 1.0f,
-            fontResId = generalSansFontResId,
-        ),
-        primaryButton = PaymentSheet.PrimaryButton(
-            shape = PaymentSheet.PrimaryButtonShape(
-                // Effy's buttons are pills everywhere on the platform.
-                cornerRadiusDp = 28f,
-            ),
-        ),
-    )
-}
-`;
-
 // ── Storefront (084) ──────────────────────────────────────────────────────────────────────────────
 //
 // The customer storefront carries its OWN identity (src/storefront/tokens.css): zinc greys, a blue
@@ -288,9 +223,134 @@ export const storefrontPaymentAppearance: StripeAppearance = {
 };
 `;
 
+// ── Mobile (087: the STOREFRONT identity) ─────────────────────────────────────────────────────────
+//
+// The mobile element is the customer app's, and since 087 the customer app wears the storefront
+// identity (light only, zinc, Effy blue, black destructive, 6px controls, Geist). Built from the same
+// `shop` values as the storefront web appearance above, so the two customer surfaces' payment forms
+// cannot drift apart.
+const argb = (hex) => `0xFF${hex.slice(1).toUpperCase()}`;
+const ktColors = (name, t) => `    private val ${name} = PaymentSheet.Colors(
+        primary = Color(${argb(t.primary)}.toInt()),
+        surface = Color(${argb(t.background)}.toInt()),
+        component = Color(${argb(t.background)}.toInt()),
+        componentBorder = Color(${argb(t.input)}.toInt()),
+        componentDivider = Color(${argb(t.border)}.toInt()),
+        onComponent = Color(${argb(t.foreground)}.toInt()),
+        onSurface = Color(${argb(t.foreground)}.toInt()),
+        subtitle = Color(${argb(t["muted-foreground"])}.toInt()),
+        placeholderText = Color(${argb(t["muted-foreground"])}.toInt()),
+        appBarIcon = Color(${argb(t["muted-foreground"])}.toInt()),
+        error = Color(${argb(t.destructive)}.toInt()),
+    )`;
+
+const ktBody = `${banner("gen-stripe-appearance.mjs").replace("src/tokens.css", "src/storefront/tokens.css")}
+package ${KT_PKG}
+
+import androidx.compose.ui.graphics.Color
+import com.stripe.android.paymentsheet.PaymentSheet
+
+/**
+ * The payment provider's Appearance for the customer app's payment element (051, re-sourced by 087).
+ *
+ * ⚠ LIGHT ONLY. The storefront identity has one appearance, so the SAME palette is passed as
+ * [colorsDark] too — omitting it would let the provider draw a dark form inside a light app when the
+ * phone is in dark mode.
+ *
+ * ⚠ [typography] takes an ANDROID FONT RESOURCE id, not a Compose Resource. Geist lives in
+ * shared/src/androidMain/res/font/ for exactly this reason — the composeResources copy has no R.font
+ * id, and passing nothing renders the payment form in the SYSTEM font (research R8).
+ */
+object EffyPaymentAppearance {
+${ktColors("Light", shop)}
+
+    /**
+     * @param geistFontResId the Geist font-family resource. ⚠ REQUIRED, not nullable, on purpose: a
+     *   null renders the payment form in the system font and nothing errors.
+     */
+    fun of(geistFontResId: Int): PaymentSheet.Appearance = PaymentSheet.Appearance(
+        colorsLight = Light,
+        colorsDark = Light,
+        shapes = PaymentSheet.Shapes(
+            cornerRadiusDp = ${shopRadius}f,
+            borderStrokeWidthDp = 1f,
+        ),
+        // ⚠ Typography is NOT a data class in this SDK (23.17.0): the constructor is (sizeScaleFactor, fontResId).
+        typography = PaymentSheet.Typography(
+            sizeScaleFactor = 1.0f,
+            fontResId = geistFontResId,
+        ),
+        primaryButton = PaymentSheet.PrimaryButton(
+            shape = PaymentSheet.PrimaryButtonShape(
+                // The storefront's buttons are 6px, like its fields — not pills (087).
+                cornerRadiusDp = ${shopRadius}f,
+            ),
+        ),
+    )
+}
+`;
+
+const rgb = (hex) => [1, 3, 5].map((i) => (parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(4));
+const uiColor = (hex) => {
+  const [r, g, b] = rgb(hex);
+  return `UIColor(red: ${r}, green: ${g}, blue: ${b}, alpha: 1)`;
+};
+const swiftBody = `${banner("gen-stripe-appearance.mjs").replace("src/tokens.css", "src/storefront/tokens.css")}
+import CoreText
+import StripePaymentSheet
+import UIKit
+
+/// The payment provider's Appearance for the customer app's iOS payment element (087) — the twin of
+/// the generated Android \`EffyPaymentAppearance\`. Storefront identity: light only, zinc, Effy blue,
+/// black errors, ${shopRadius}pt corners, Geist.
+enum EffyPaymentAppearance {
+    static func make() -> PaymentSheet.Appearance {
+        EffyFonts.registerOnce()
+        var a = PaymentSheet.Appearance()
+        a.colors.primary = ${uiColor(shop.primary)}
+        a.colors.background = ${uiColor(shop.background)}
+        a.colors.componentBackground = ${uiColor(shop.background)}
+        a.colors.componentBorder = ${uiColor(shop.input)}
+        a.colors.componentDivider = ${uiColor(shop.border)}
+        a.colors.text = ${uiColor(shop.foreground)}
+        a.colors.textSecondary = ${uiColor(shop["muted-foreground"])}
+        a.colors.componentText = ${uiColor(shop.foreground)}
+        a.colors.componentPlaceholderText = ${uiColor(shop["muted-foreground"])}
+        a.colors.icon = ${uiColor(shop["muted-foreground"])}
+        a.colors.danger = ${uiColor(shop.destructive)}
+        a.cornerRadius = ${shopRadius}
+        a.borderWidth = 1
+        a.shadow = .disabled
+        if let regular = UIFont(name: "Geist-Regular", size: 16) { a.font.base = regular }
+        a.font.sizeScaleFactor = 1.0
+        a.primaryButton.cornerRadius = ${shopRadius}
+        if let semibold = UIFont(name: "Geist-SemiBold", size: 16) { a.primaryButton.font = semibold }
+        return a
+    }
+}
+
+/// Registers the Geist faces Compose bundles for itself, so UIKit (the payment element) can name them.
+/// ⚠ Found by NAME anywhere in the app bundle rather than by a fixed path: Compose's resource folder
+/// layout is a library detail. If they cannot be found the element falls back to the system font —
+/// nothing breaks, and the guards above make that visible as "Geist-Regular" returning nil.
+enum EffyFonts {
+    private static var done = false
+    static func registerOnce() {
+        guard !done else { return }
+        done = true
+        guard let root = Bundle.main.resourceURL,
+              let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else { return }
+        for case let url as URL in walker where url.lastPathComponent.hasPrefix("geist_") && url.pathExtension == "ttf" {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+    }
+}
+`;
+
 mkdirSync(dirname(WEB_OUT), { recursive: true });
 mkdirSync(dirname(KT_OUT), { recursive: true });
 writeFileSync(WEB_OUT, webBody);
 writeFileSync(KT_OUT, ktBody);
+writeFileSync(SWIFT_OUT, swiftBody);
 writeFileSync(STOREFRONT_OUT, storefrontBody);
 console.log("stripe-appearance:gen: wrote stripe/appearance.ts + stripe/storefront-appearance.ts + compose-payment-android/EffyPaymentAppearance.kt");

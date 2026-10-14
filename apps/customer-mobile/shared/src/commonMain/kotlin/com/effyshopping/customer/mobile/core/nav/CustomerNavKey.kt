@@ -206,6 +206,10 @@ enum class OtpPurpose { SIGN_IN, SIGN_UP, RECOVERY }
 val CUSTOMER_TAB_ROOTS: List<CustomerNavKey> = listOf(
     CustomerNavKey.Home,
     CustomerNavKey.Search,
+    // 087 FR-006/FR-007 — the cart is a TAB (operator direction: "cart button should be in bottom
+    // nav"). Its key is unchanged, so saved stacks and the serializer are unaffected; it is simply a
+    // tab root now instead of a pushed route, and every way into it selects this tab.
+    CustomerNavKey.Cart,
     CustomerNavKey.Orders,
     CustomerNavKey.Account,
 )

@@ -13,6 +13,11 @@
 	     ⚠ This key CONFLICTS with INFOPLIST_KEY_UILaunchScreen_Generation. That build setting is
 	     set to NO in project.pbxproj in the same change; if it is ever flipped back to YES, the
 	     launch screen behaves differently between clean and incremental builds. -->
+	<!-- 087 — the customer app wears the storefront identity, which is LIGHT ONLY. Forcing the light
+	     interface style keeps system chrome (status-bar text, keyboards, the payment sheet) light on a
+	     phone set to dark mode; the app's own theme ignores the device setting already. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIImageName</key>

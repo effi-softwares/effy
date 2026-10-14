@@ -1,5 +1,18 @@
 package com.effyshopping.customer.mobile.features.payment.presentation
 
+import androidx.compose.ui.backhandler.BackHandler
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffyPinnedBar
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +50,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
  * (FR-028). That is the whole reason this screen embeds an element instead of presenting the provider's
  * modal sheet, which owns all of those.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun PaymentScreen(
     viewModel: PaymentViewModel,
@@ -50,6 +64,11 @@ fun PaymentScreen(
     LaunchedEffect(state.paidOrderId) {
         state.paidOrderId?.let(onPaid)
     }
+
+    // 087 T046 — while a payment is being confirmed, Back (the button, Android's gesture and the iOS
+    // edge swipe, which all route through the back handler) is swallowed: leaving mid-confirmation would
+    // strand the shopper not knowing whether they paid.
+    BackHandler(enabled = state.paying) { }
 
     Column(modifier = modifier.fillMaxSize()) {
         // ⚠ The back arrow is NOT passed: `EffyAppBar` reads it from the stack position (026), so this
@@ -79,110 +98,72 @@ private fun PaymentContent(
 ) {
     val elementState by element.state.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        // ── The amount ───────────────────────────────────────────────────────────────────────────
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = "Total due",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
+    // 087 (Payment board): the total in a card, the provider's element, the mandate — and Effy's own
+    // pay control PINNED at the bottom above the home indicator.
+    Column(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+        ) {
+            EffyCard {
+                Text("Total due", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // 087 — `displaySmall` is now a defined storefront slot (30 Bold); it fell back to the
+                // platform font before.
+                Text(formatAmount(state.amount, state.currency), style = MaterialTheme.typography.displaySmall.copy(fontFeatureSettings = "tnum"))
                 Text(
-                    text = formatAmount(state.amount, state.currency),
-                    style = MaterialTheme.typography.displaySmall,
-                )
-                Text(
-                    text = state.currency,
-                    style = MaterialTheme.typography.labelLarge,
+                    "Includes GST and delivery. This is the exact amount we will charge.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = EffySpacing.xs),
                 )
             }
-            Text(
-                text = "Includes GST and delivery. This is the exact amount we will charge.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+            // ── The provider's method list — the only pixels it owns on this screen ───────────────
+            PaymentElementContent(element, Modifier.fillMaxWidth())
+
+            // ⚠ A shopper who cannot pay must be TOLD why (FR-036) — with an icon, never red.
+            elementState.error?.let { EffyInlineError(it) }
+            state.error?.let { EffyInlineError(it) }
+
+            // ⚠ MANDATE TEXT IS A COMPLIANCE REQUIREMENT, near the pay control; the element draws none.
+            elementState.mandateText?.let { mandate ->
+                Text(mandate, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-
-        // ── The provider's method list — the only pixels it owns on this screen ───────────────────
-        PaymentElementContent(element, Modifier.fillMaxWidth())
-
-        // ⚠ A shopper who cannot pay must be TOLD why. An inert screen with no message is
-        // indistinguishable from a broken app (FR-036).
-        elementState.error?.let { message ->
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
+        EffyPinnedBar {
+            EffyPrimaryButton(
+                // Naming the method is what stops "Pay" being a leap of faith.
+                label = elementState.selectedLabel
+                    ?.let { "Pay ${formatAmount(state.amount, state.currency)} with $it" }
+                    ?: "Pay ${formatAmount(state.amount, state.currency)}",
+                onClick = { viewModel.pay(element) },
+                // ⚠ FR-041: a double press must not start a second payment.
+                enabled = elementState.canConfirm && !state.paying,
+                loading = state.paying,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Icon(painterResource(Res.drawable.lucide_lock), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                Text("Encrypted end to end. Effy never sees or stores your card number.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+            }
         }
-
-        state.error?.let { message ->
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-
-        // ⚠ MANDATE TEXT IS A COMPLIANCE REQUIREMENT, and it must sit near the pay control. The element
-        // is configured NOT to draw its own (`embeddedViewDisplaysMandateText(false)`), so this is the
-        // only place it appears — removing it would be a compliance failure, not a style change.
-        elementState.mandateText?.let { mandate ->
-            Text(
-                text = mandate,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        // ── Effy's own pay control ───────────────────────────────────────────────────────────────
-        EffyPrimaryButton(
-            // Naming the method is what stops "Pay" being a leap of faith — the shopper can see WHAT
-            // they are about to pay with, not just how much.
-            label = elementState.selectedLabel
-                ?.let { "Pay ${formatAmount(state.amount, state.currency)} with $it" }
-                ?: "Pay ${formatAmount(state.amount, state.currency)}",
-            onClick = { viewModel.pay(element) },
-            modifier = Modifier.fillMaxWidth(),
-            // ⚠ Disabled until a method is chosen AND no payment is already in flight. The second half
-            // is FR-041: a double press must not start a second payment.
-            enabled = elementState.canConfirm && !state.paying,
-            loading = state.paying,
-        )
-
-        Text(
-            text = "Encrypted end to end. Effy never sees or stores your card number.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
 @Composable
 private fun PreparingPayment(modifier: Modifier) {
     Column(
-        modifier = modifier.fillMaxSize().padding(20.dp),
-        verticalArrangement = Arrangement.Center,
+        modifier = modifier.fillMaxSize().padding(EffySpacing.lg),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = "Preparing payment…",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        // 087 — the shape of what is coming, not a sentence on its own.
+        EffySkeletonBlock(Modifier.fillMaxWidth().height(120.dp), radius = EffyStorefrontShape.lg)
+        EffySkeletonBlock(Modifier.padding(top = EffySpacing.lg).fillMaxWidth().height(180.dp), radius = EffyStorefrontShape.lg)
+        Text("Preparing payment…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.md))
     }
 }
 

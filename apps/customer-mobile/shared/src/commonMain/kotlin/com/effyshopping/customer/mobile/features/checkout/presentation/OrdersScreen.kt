@@ -1,5 +1,27 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import com.effyshopping.customer.mobile.resources.lucide_package
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryWindowText
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderStage
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.core.presentation.EffyStatusKind
+import com.effyshopping.customer.mobile.core.presentation.EffyStatusPill
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
+import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
+import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.rememberEffyCollapse
+import com.effyshopping.customer.mobile.core.presentation.EffyScreenHeader
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -141,10 +163,10 @@ fun OrdersScreen(
     // status, so no new server capability is needed (FR-002).
     var tab by remember { mutableStateOf(OrdersTab.Ongoing) }
 
+    val collapse = rememberEffyCollapse()
+    Box(Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "My Orders")
-        // The reorder outcome is announced here — an addition the shopper cannot otherwise verify.
-        SnackbarHost(hostState = snackbarHost)
+        EffyScreenHeader(title = "Orders", collapse = collapse)
         EffySegmentedToggle(
             options = OrdersTab.entries,
             selected = tab,
@@ -154,16 +176,12 @@ fun OrdersScreen(
         )
 
         when (val s = state) {
-            OrdersUiState.Loading ->
-                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(Modifier.padding(32.dp))
-                }
+            OrdersUiState.Loading -> Column(Modifier.padding(top = EffySpacing.md)) { repeat(5) { EffyRowSkeleton() } }
 
-            OrdersUiState.Error -> EffyEmptyState(
+            OrdersUiState.Error -> EffyErrorState(
                 title = "We couldn’t load your orders",
                 body = "Please try again in a moment.",
-                actionLabel = "Try again",
-                onAction = vm::load,
+                onRetry = vm::load,
             )
 
             is OrdersUiState.Ready -> {
@@ -171,7 +189,8 @@ fun OrdersScreen(
                 if (shown.isEmpty()) {
                     // FR-044: an empty order list offers a route back into the catalogue.
                     EffyEmptyState(
-                        title = if (tab == OrdersTab.Ongoing) "No Ongoing Orders!" else "No Completed Orders!",
+                        title = if (tab == OrdersTab.Ongoing) "No orders in progress" else "No completed orders",
+                        icon = Res.drawable.lucide_package,
                         body = if (tab == OrdersTab.Ongoing) {
                             "You don’t have any orders in progress right now."
                         } else {
@@ -182,16 +201,22 @@ fun OrdersScreen(
                     )
                 } else {
                     EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.fillMaxSize()) {
-                        LazyColumn(Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            Modifier.fillMaxSize().nestedScroll(collapse.connection),
+                            contentPadding = PaddingValues(EffySpacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                        ) {
                             items(shown, key = { it.id }) { order ->
-                                OrderRow(order, onOpen, ::reorder)
-                                HorizontalDivider()
+                                OrderRow(order, onOpen, ::reorder, Modifier.animateItem())
                             }
                         }
                     }
                 }
             }
         }
+    }
+    // The reorder outcome is announced here — at the bottom, above the tab bar (Patterns board).
+    EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -206,31 +231,85 @@ private enum class OrdersTab(val label: String) { Ongoing("Ongoing"), Completed(
  */
 private fun isOngoing(status: String): Boolean = status !in setOf("delivered", "cancelled", "refunded")
 
+/**
+ * One order (Orders board, 087 FR-034): number and stage pill, the arrival it was sold, up to four
+ * pictures with "+N", items and total, and "Buy again".
+ *
+ * ⚠ The arrival is said ONLY through the receipt's wording ([arrivalLabel] over `DeliveryWindowText`,
+ * `DeliveryTypeWords.courierLines` for a courier) — the pinned twins (FR-025). A courier order states
+ * its estimate as an estimate; an order with no promise shows no arrival line rather than a guess.
+ */
 @Composable
-private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (String) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { onOpen(order.id) }.padding(EffySpacing.lg),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column {
-            Text(order.orderNumber, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                // 079 — who delivers it, in the same two names as everywhere else; nothing for an order
-                // placed before orders had a delivery type.
-                listOfNotNull(
-                    "${order.itemCount} item${if (order.itemCount == 1) "" else "s"}",
-                    statusLabel(order.status),
-                    order.delivery?.let { if (it.type == DeliveryType.COURIER) DeliveryTypeWords.COURIER else DeliveryTypeWords.EFFY },
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (String) -> Unit, modifier: Modifier = Modifier) {
+    EffyCard(modifier = modifier, onClick = { onOpen(order.id) }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(order.orderNumber, style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"), modifier = Modifier.weight(1f))
+            val (word, kind) = orderStageWord(order)
+            EffyStatusPill(word, kind)
         }
-        Text(orderMoney(order.grandTotalAmount, order.currency), style = MaterialTheme.typography.bodyMedium)
-        // FR-034: "buy again". Effy's shoppers buy the same groceries repeatedly, and re-finding fifteen
-        // items is work nobody does — they just do not reorder.
-        TextButton(onClick = { onReorder(order.id) }) { Text("Buy again") }
+        orderArrivalLine(order)?.let {
+            Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = EffySpacing.xs))
+        }
+        Text(
+            listOfNotNull(
+                order.placedAt?.let { placed -> DeliveryWindowText.epochMillisOrNull(placed)?.let { "Placed ${DeliveryWindowText.formatDay(DeliveryWindowText.melbourneDay(it))}" } },
+                // 079 — who delivers it, in the same two names as everywhere else.
+                order.delivery?.let { if (it.type == DeliveryType.COURIER) DeliveryTypeWords.COURIER else DeliveryTypeWords.EFFY },
+            ).joinToString(" · "),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (order.thumbnails.isNotEmpty()) {
+            Row(modifier = Modifier.padding(top = EffySpacing.md), horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                order.thumbnails.take(4).forEach { url ->
+                    Box(Modifier.size(44.dp).clip(EffyStorefrontShape.card).background(EffySurface.tint)) {
+                        ProductImage(url, "", modifier = Modifier.fillMaxSize())
+                    }
+                }
+                val more = order.itemCount - order.thumbnails.take(4).size
+                if (more > 0) {
+                    Box(Modifier.size(44.dp).clip(EffyStorefrontShape.card).background(EffySurface.tint), contentAlignment = Alignment.Center) {
+                        Text("+$more", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+        HorizontalDivider(Modifier.padding(vertical = EffySpacing.md), color = MaterialTheme.colorScheme.outlineVariant)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "${order.itemCount} item${if (order.itemCount == 1) "" else "s"} · ${orderMoney(order.grandTotalAmount, order.currency)}",
+                style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                modifier = Modifier.weight(1f),
+            )
+            // FR-034: "buy again" — re-finding fifteen items is work nobody does.
+            EffyTextLink("Buy again", onClick = { onReorder(order.id) })
+        }
     }
+}
+
+/** The stage pill: the server's stage when the list carries it, else the payment status. */
+internal fun orderStageWord(order: OrderSummary): Pair<String, EffyStatusKind> = when {
+    order.fullyRefunded -> "Refunded" to EffyStatusKind.Inert
+    order.status == "cancelled" -> "Cancelled" to EffyStatusKind.Inert
+    order.status == "failed" -> "Payment failed" to EffyStatusKind.Problem
+    order.status == "pending_payment" -> "Awaiting payment" to EffyStatusKind.Problem
+    order.stage == OrderStage.Delivered -> "Delivered" to EffyStatusKind.Done
+    order.stage == OrderStage.OnTheWay -> "On the way" to EffyStatusKind.InProgress
+    order.stage == OrderStage.Packing -> "Being packed" to EffyStatusKind.InProgress
+    order.stage == OrderStage.Confirmed -> "Confirmed" to EffyStatusKind.InProgress
+    else -> statusLabel(order.status) to EffyStatusKind.InProgress
+}
+
+/** The arrival line — only ever as sold, only through the pinned wording. */
+internal fun orderArrivalLine(order: OrderSummary): String? {
+    order.deliveredAt?.let { at -> DeliveryWindowText.epochMillisOrNull(at)?.let { return "Delivered ${DeliveryWindowText.formatDay(DeliveryWindowText.melbourneDay(it))}" } }
+    if (order.status in setOf("cancelled", "refunded") || order.fullyRefunded) return null
+    val delivery = order.delivery
+    if (delivery?.type == DeliveryType.COURIER) {
+        return delivery.courierEstimate?.let { DeliveryTypeWords.courierEstimateSentence(it) }
+    }
+    val arrival = order.arrivals.firstOrNull() ?: return null
+    return arrivalLabel(arrival)
 }
 
 private fun statusLabel(status: String) = when (status) {

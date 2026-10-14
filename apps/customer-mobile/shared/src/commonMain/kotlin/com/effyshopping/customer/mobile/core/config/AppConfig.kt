@@ -37,6 +37,17 @@ object AppConfig {
     val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
     /** 050 T015 — show the in-app observability test panel (Privacy screen). Debug builds only. */
     val debugTools: Boolean get() = BuildKonfig.DEBUG_TOOLS == "true"
+
+    /**
+     * 087 FR-033 — "Continue with Google" is shown ONLY when this is true.
+     *
+     * ⚠ FALSE, and on purpose: Google federation is BUILT BUT PARKED platform-wide
+     * (`infra/envs/dev/auth-customer.tf`, `customer_google_enabled = false`, operator decision
+     * 2026-07-14). Until 087 the app drew the button anyway and answered a tap with "isn't available
+     * yet" — a control that does nothing. When the operator un-parks federation, wiring native
+     * sign-in (hosted UI + the app's callback scheme on the app client) and flipping this is one feature.
+     */
+    const val googleSignInEnabled: Boolean = false
 }
 
 /**

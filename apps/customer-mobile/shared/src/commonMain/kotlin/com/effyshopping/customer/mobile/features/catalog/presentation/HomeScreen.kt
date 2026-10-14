@@ -1,5 +1,41 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.produceState
+import com.effyshopping.customer.mobile.resources.lucide_coins
+import com.effyshopping.customer.mobile.resources.lucide_truck
+import com.effyshopping.customer.mobile.resources.lucide_gift
+import com.effyshopping.customer.mobile.features.checkout.presentation.orderArrivalLine
+import com.effyshopping.customer.mobile.features.checkout.presentation.orderStageWord
+import com.effyshopping.customer.mobile.features.points.presentation.formatPoints
+import com.effyshopping.customer.mobile.features.points.domain.PointsBalance
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderSummary
+import com.effyshopping.customer.mobile.core.session.SessionState
+import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import com.effyshopping.customer.mobile.core.presentation.money
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffyOfferCard
+import com.effyshopping.customer.mobile.core.presentation.EffyHeroBanner
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import com.effyshopping.customer.mobile.resources.lucide_shopping_basket
+import com.effyshopping.customer.mobile.features.cart.presentation.rememberTileCart
+import com.effyshopping.customer.mobile.features.cart.presentation.TileCart
+import com.effyshopping.customer.mobile.core.presentation.effyDuration
+import com.effyshopping.customer.mobile.core.presentation.EffyStorefrontMotion
+import com.effyshopping.customer.mobile.core.presentation.EffyCollapseState
+import com.effyshopping.customer.mobile.core.presentation.rememberEffyCollapse
+import com.effyshopping.customer.mobile.core.presentation.EffyErrorState
+import com.effyshopping.customer.mobile.core.presentation.EffySearchField
+import com.effyshopping.customer.mobile.core.presentation.EffyLargeTitleBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -53,7 +89,6 @@ import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.HomeSectionGap
 import com.effyshopping.customer.mobile.core.presentation.RailItemGap
 import com.effyshopping.customer.mobile.core.presentation.railTileWidthFraction
-import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
 import com.effyshopping.customer.mobile.features.saved.presentation.SavedTileMessages
@@ -61,10 +96,6 @@ import com.effyshopping.customer.mobile.features.saved.presentation.SavedTiles
 import com.effyshopping.customer.mobile.features.saved.presentation.TileSaveControl
 import com.effyshopping.customer.mobile.features.saved.presentation.rememberSavedTiles
 import com.effyshopping.customer.mobile.resources.Res
-import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
-import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
-import com.effyshopping.customer.mobile.resources.ic_notifications_outlined
-import com.effyshopping.customer.mobile.resources.ic_search_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.WindowWidth
@@ -113,37 +144,55 @@ fun HomeScreen(
     onBannerClick: (Banner) -> Unit = {},
     /** 068: where the list chooser sends a guest who wants a named list. */
     onRequireSignIn: (() -> Unit)? = null,
+    /** 087 (Main board): "All products" beside "Shop by aisle". */
+    onAllProducts: () -> Unit = {},
+    /** 087: the "Your Effy" shortcuts — the order in progress and the points balance. */
+    onOpenOrder: (String) -> Unit = {},
+    onPoints: () -> Unit = {},
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: ONE membership read for the whole screen, however many rails it renders, and
     // one mirror every heart on it reads — so two rails carrying the same product cannot disagree.
     val savedTiles = rememberSavedTiles(container, onRequireSignIn)
+    val tileCart = rememberTileCart(container)
+    // 087 — the large title collapses as the page scrolls (App bar board, back=false).
+    val collapse = rememberEffyCollapse()
+    // 087 (Main board, "Your Effy") — signed-in only: the latest order still in progress, and points.
+    // Both are best-effort reads; a failure simply leaves the card out (Home must never fail on them).
+    val session by container.session.state.collectAsState()
+    val signedIn = session is SessionState.Authenticated
+    val yourEffy by produceState<YourEffy?>(null, signedIn) {
+        value = if (!signedIn) null else YourEffy(
+            order = runCatching { container.listOrders().firstOrNull { it.status !in setOf("delivered", "cancelled", "refunded", "failed", "pending_payment") } }.getOrNull(),
+            points = runCatching { container.getPoints().first }.getOrNull(),
+        ).takeIf { it.order != null || it.points != null }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(EffySurface.page)) {
-        DiscoverHeader(
-            container = container,
-            onNotifications = onNotifications,
-            onSaved = onSaved,
-            onCart = onCart,
+        // 087 (Main board): the wordmark and the bell, the light-blue search entry under them, no
+        // border. The cart is a tab now and Saved is on Account, so the header carries nothing else.
+        EffyLargeTitleBar(
+            title = "Home",
+            wordmark = true,
+            collapse = collapse,
+            search = {
+                // An AFFORDANCE, not an input: one tap opens the Search tab with the keyboard up (028
+                // FR-008). A second live field here would be the one without filters, sort or paging.
+                EffySearchField(value = "", placeholder = "Search the store…", onEntryClick = onSearch)
+            },
         )
         // Without this a refusal — the guest cap most of all — is silent, and a heart that flips
         // itself back looks like a bug rather than a limit.
         SavedTileMessages(savedTiles)
-        // 025 US1/FR-012: "do we deliver to you?", asked BEFORE a cart is built rather than at
-        // checkout. It is not decoration — without it the first honest answer arrives after the
-        // shopper has already invested in an order.
-        SearchEntry(onSearch = onSearch)
 
         when (val s = state) {
             HomeUiState.Loading -> EffyHomeSkeleton(Modifier.padding(top = EffySpacing.md))
 
-            HomeUiState.Error -> EffyEmptyState(
+            HomeUiState.Error -> EffyErrorState(
                 title = "We couldn’t load the store",
                 body = "Please try again in a moment.",
-                icon = Res.drawable.ic_catalog_outlined,
-                actionLabel = "Try again",
-                onAction = vm::load,
+                onRetry = vm::load,
             )
 
             is HomeUiState.Ready -> {
@@ -154,7 +203,7 @@ fun HomeScreen(
                     EffyEmptyState(
                         title = "Nothing here yet",
                         body = "Our catalogue is on its way. Check back soon.",
-                        icon = Res.drawable.ic_catalog_outlined,
+                        icon = Res.drawable.lucide_shopping_basket,
                     )
                 } else {
                     // 025 FR-033: pull-to-refresh — a store whose stock and prices move needs a way
@@ -170,7 +219,10 @@ fun HomeScreen(
                         onRefresh = vm::refresh,
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        HomeBlockList(blocks, savedTiles, onProductClick, onSeeAll, onCategoryClick, onBannerClick)
+                        HomeBlockList(
+                            blocks, savedTiles, tileCart, collapse, onProductClick, onSeeAll, onCategoryClick, onBannerClick,
+                            yourEffy = yourEffy, onAllProducts = onAllProducts, onOpenOrder = onOpenOrder, onPoints = onPoints,
+                        )
                     }
                 }
             }
@@ -189,10 +241,16 @@ fun HomeScreen(
 private fun HomeBlockList(
     blocks: List<HomeBlock>,
     savedTiles: SavedTiles,
+    tileCart: TileCart,
+    collapse: EffyCollapseState,
     onProductClick: (String) -> Unit,
     onSeeAll: (Rail) -> Unit,
     onCategoryClick: (CategoryShortcut) -> Unit,
     onBannerClick: (Banner) -> Unit,
+    yourEffy: YourEffy?,
+    onAllProducts: () -> Unit,
+    onOpenOrder: (String) -> Unit,
+    onPoints: () -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val widthClass = widthClassFor(maxWidth)
@@ -203,19 +261,26 @@ private fun HomeBlockList(
 
         LazyColumn(
             state = rememberLazyListState(),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().nestedScroll(collapse.connection),
             verticalArrangement = Arrangement.spacedBy(HomeSectionGap),
-            contentPadding = PaddingValues(top = EffySpacing.md, bottom = EffySpacing.xxxl),
+            contentPadding = PaddingValues(top = EffySpacing.s, bottom = EffySpacing.xxxl),
         ) {
+            // 087 (Main board): "Your Effy" sits under the hero — or first, when there is no hero.
+            val heroFirst = blocks.firstOrNull() is HomeBlock.Offers
+            if (yourEffy != null && !heroFirst) item(key = "your-effy") { YourEffyRow(yourEffy, onOpenOrder, onPoints) }
             items(blocks, key = { it.blockKey() }) { block ->
                 when (block) {
-                    is HomeBlock.Categories -> CategoryRow(block.items, onCategoryClick)
+                    is HomeBlock.Categories -> CategoryRow(block.items, onCategoryClick, onAllProducts)
                     is HomeBlock.Promo -> PromoBlock(block.banners, onBannerClick)
-                    is HomeBlock.Offers -> OffersSection(block.banners, onBannerClick)
+                    is HomeBlock.Offers -> Column(verticalArrangement = Arrangement.spacedBy(HomeSectionGap)) {
+                        OffersSection(block.banners, onBannerClick)
+                        if (yourEffy != null) YourEffyRow(yourEffy, onOpenOrder, onPoints)
+                    }
                     is HomeBlock.Section -> SectionBlock(
                         rail = block.rail,
                         tileWidth = tileWidth,
                         savedTiles = savedTiles,
+                        tileCart = tileCart,
                         onProductClick = onProductClick,
                         onSeeAll = { onSeeAll(block.rail) },
                     )
@@ -226,111 +291,131 @@ private fun HomeBlockList(
 }
 
 /**
- * The dedicated offers section (029 US3) — the store's current deals, in one place.
- *
- * ⚠ Titled, unlike 028's inline banners. The heading is what makes it findable: SC-012 asks that a
- * first-time shopper can say what the current offer is without being prompted to look for it, and an
- * untitled band of artwork between two product rails does not achieve that.
- *
- * One banner renders plain with **no position indicator** — a single-item carousel is a control that
- * lies about having somewhere to go. Several render in a pager that **never auto-advances** (FR-022).
+ * THE HERO (Main board) — the store's current offers as a flat green panel at the top of Home, one per
+ * page, swiped by hand (it never auto-advances: a shopper cannot pause a rotating carousel, Baymard).
+ * One offer shows no dots. A bounded, NAMED group for a screen reader (FR-025).
  */
 @Composable
 private fun OffersSection(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
     if (banners.isEmpty()) return
-
-    Column(
-        // FR-025: a bounded, NAMED group, so a screen-reader user can step past the offers rather
-        // than being walked through each one. `isTraversalGroup` is the half that does the bounding —
-        // 028 learned that a contentDescription alone names without bounding.
+    val pagerState = rememberPagerState(pageCount = { banners.size })
+    HorizontalPager(
+        state = pagerState,
+        contentPadding = PaddingValues(horizontal = EffySpacing.lg),
+        pageSpacing = EffySpacing.md,
         modifier = Modifier.semantics {
             isTraversalGroup = true
             contentDescription = "Offers, ${banners.size} available"
         },
+    ) { page ->
+        val banner = banners[page]
+        EffyHeroBanner(
+            eyebrow = if (page == 0) "This week's offer" else "Offer",
+            title = banner.title,
+            body = listOfNotNull(banner.subtitle, banner.code?.let { "Use code $it." }).joinToString(" ").ifBlank { null },
+            icon = bannerIcon(banner),
+            onClick = if (banner.target != null) ({ onBannerClick(banner) }) else null,
+            dots = if (banners.size > 1) ({ HeroDots(banners.size, pagerState.currentPage) }) else null,
+        )
+    }
+}
+
+/** The hero's position dots, white on the green: the current one widens into a bar. */
+@Composable
+private fun HeroDots(count: Int, current: Int) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.semantics { contentDescription = "Offer ${current + 1} of $count" },
     ) {
-        EffySectionHeader("Offers")
-        Box(modifier = Modifier.padding(top = EffySpacing.md)) {
-            PromoBlock(banners, onBannerClick)
+        repeat(count) { index ->
+            val selected = index == current
+            val width by animateDpAsState(if (selected) 16.dp else 6.dp, tween(effyDuration(EffyStorefrontMotion.StandardMillis)), label = "heroDot")
+            Box(
+                Modifier
+                    .height(6.dp)
+                    .width(width)
+                    .clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color.White.copy(alpha = if (selected) 1f else 0.5f)),
+            )
         }
     }
 }
 
 /**
- * Promotional banners at one point in the sequence (028 US4).
- *
- * One renders as a panel. Several render as a **pager with a position indicator** (FR-031) that
- * **never auto-advances** (FR-032) — mobile has no hover, so a shopper cannot pause a rotating
- * carousel and can be navigated somewhere they never chose. Baymard's carousel research is explicit
- * about this, and it is why the platform's only carousel is a manual one.
+ * Promotions placed BETWEEN sections (028 US4) — on the Main board an "Offers" row of coloured cards
+ * that scrolls sideways, alternating Effy blue and Effy green.
  */
 @Composable
 private fun PromoBlock(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
     if (banners.isEmpty()) return
-
-    if (banners.size == 1) {
-        val banner = banners.single()
-        BannerPanel(banner, onBannerClick, Modifier.padding(horizontal = EffySpacing.lg))
-        return
-    }
-
-    val pagerState = rememberPagerState(pageCount = { banners.size })
-    Column {
-        HorizontalPager(
-            state = pagerState,
+    Column(modifier = Modifier.semantics { isTraversalGroup = true; contentDescription = "Offers, ${banners.size} available" }) {
+        EffySectionHeader("Offers")
+        LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
             contentPadding = PaddingValues(horizontal = EffySpacing.lg),
-            pageSpacing = EffySpacing.md,
-        ) { page ->
-            BannerPanel(banners[page], onBannerClick)
-        }
-
-        // The position indicator. Monochrome, so presence is carried by FILL rather than by hue —
-        // the current page is solid, the rest are the same colour at low alpha.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = EffySpacing.s)
-                .semantics {
-                    isTraversalGroup = true
-                    contentDescription = "Promotion ${pagerState.currentPage + 1} of ${banners.size}"
-                },
-            horizontalArrangement = Arrangement.Center,
         ) {
-            repeat(banners.size) { index ->
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 3.dp)
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(
-                            MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = if (index == pagerState.currentPage) 1f else 0.25f,
-                            ),
-                        ),
+            itemsIndexed(banners, key = { _, b -> b.key }) { index, banner ->
+                EffyOfferCard(
+                    title = banner.title,
+                    code = banner.code,
+                    icon = bannerIcon(banner),
+                    onClick = if (banner.target != null) ({ onBannerClick(banner) }) else null,
+                    alternate = index % 2 == 1,
                 )
             }
         }
     }
 }
 
-/**
- * One banner.
- *
- * ⚠ `onClick` is null when the banner has no target the app understands. That is the designed
- * response to an unrecognised wire value (research R7) — the copy still reads, the tap simply does
- * not pretend. A tap that does nothing is worse than no tap.
- */
+/** An offer's glyph: the aisle rule over its words (fruit → apple, dairy → milk), else a gift. */
+private fun bannerIcon(banner: Banner) =
+    categoryIcon("${banner.title} ${banner.subtitle.orEmpty()}").takeIf { it != CATEGORY_FALLBACK_ICON } ?: Res.drawable.lucide_gift
+
+/** What "Your Effy" shows: the order in progress and the points balance, either or both. */
+internal data class YourEffy(val order: OrderSummary?, val points: PointsBalance?)
+
+/** "Your Effy" (Main board) — two small cards: the order on its way, and the points to spend. */
 @Composable
-private fun BannerPanel(banner: Banner, onBannerClick: (Banner) -> Unit, modifier: Modifier = Modifier) {
-    EffyPromoBanner(
-        title = banner.title,
-        subtitle = banner.subtitle,
-        terms = banner.terms,
-        code = banner.code,
-        imageUrl = banner.imageUrl,
-        onClick = if (banner.target != null) ({ onBannerClick(banner) }) else null,
-        modifier = modifier,
-    )
+private fun YourEffyRow(data: YourEffy, onOpenOrder: (String) -> Unit, onPoints: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(horizontal = EffySpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+    ) {
+        data.order?.let { order ->
+            EffyCard(modifier = Modifier.weight(1f).fillMaxHeight(), onClick = { onOpenOrder(order.id) }, padding = EffySpacing.md) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                    Icon(painterResource(Res.drawable.lucide_truck), contentDescription = null, tint = EffyRoles.brand, modifier = Modifier.size(14.dp))
+                    Text("Order ${order.orderNumber}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                }
+                Text(
+                    listOfNotNull(orderStageWord(order).first, orderArrivalLine(order)).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    modifier = Modifier.padding(top = EffySpacing.xs),
+                    maxLines = 3,
+                )
+            }
+        }
+        data.points?.let { points ->
+            EffyCard(modifier = Modifier.weight(1f).fillMaxHeight(), onClick = onPoints, padding = EffySpacing.md) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                    Icon(painterResource(Res.drawable.lucide_coins), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                    Text("Effy points", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) { append("${formatPoints(points.points)} pts") }
+                        append(" · worth ${money(points.valueAmount, "AUD")}")
+                    },
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    modifier = Modifier.padding(top = EffySpacing.xs),
+                )
+            }
+        }
+    }
 }
+
 
 /**
  * The category shortcut row (028 US3).
@@ -345,7 +430,10 @@ private fun BannerPanel(banner: Banner, onBannerClick: (Banner) -> Unit, modifie
  * the front, the fix is merchandising in the store, not a client-side reshuffle.
  */
 @Composable
-private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (CategoryShortcut) -> Unit) {
+private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (CategoryShortcut) -> Unit, onAllProducts: () -> Unit) {
+    // 087 (Main board): headed "Shop by aisle", with "All products" on the right.
+    Column {
+    EffySectionHeader("Shop by aisle", onSeeAll = onAllProducts, seeAllLabel = "All products")
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -355,16 +443,17 @@ private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (Categor
                 isTraversalGroup = true
                 contentDescription = "Categories, ${items.size} available"
             },
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-        contentPadding = PaddingValues(horizontal = EffySpacing.md),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        contentPadding = PaddingValues(horizontal = EffySpacing.lg),
     ) {
         items(items, key = { it.key }) { shortcut ->
             EffyCategoryShortcut(
                 label = shortcut.label,
-                icon = categoryIcon(shortcut.key),
+                icon = categoryIcon("${shortcut.key} ${shortcut.label}"),
                 onClick = { onCategoryClick(shortcut) },
             )
         }
+    }
     }
 }
 
@@ -392,6 +481,7 @@ private fun SectionBlock(
     rail: Rail,
     tileWidth: Dp,
     savedTiles: SavedTiles,
+    tileCart: TileCart,
     onProductClick: (String) -> Unit,
     onSeeAll: () -> Unit,
 ) {
@@ -423,93 +513,11 @@ private fun SectionBlock(
                     onProductClick,
                     width = tileWidth,
                     imageOverlay = { TileSaveControl(product, savedTiles) },
+                    cartQuantity = tileCart.quantityOf(product.id),
+                    onCartQuantityChange = { tileCart.change(product, it) },
                 )
             }
         }
     }
 }
 
-/**
- * The header: the screen name, and the affordances Effy's four-tab bar has nowhere else to put.
- *
- * ⚠ Saved and Cart live HERE because the tabs are Home · Search · Orders · Account. They must go
- * somewhere — for a while after the Nav3 migration they went nowhere at all, and the cart could be
- * filled and never opened.
- */
-@Composable
-private fun DiscoverHeader(
-    container: AppContainer,
-    onNotifications: () -> Unit,
-    onSaved: () -> Unit,
-    onCart: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        EffyDisplay("Discover", size = DisplaySize.Page, modifier = Modifier.weight(1f))
-        CartAction(container, onCart)
-        HeaderAction(Res.drawable.ic_favorite_outlined, "Saved items", onSaved)
-        HeaderAction(Res.drawable.ic_notifications_outlined, "Notifications", onNotifications)
-    }
-}
-
-/** One header affordance. */
-@Composable
-private fun HeaderAction(icon: DrawableResource, label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(EffyMinTouchTarget)
-            .clip(RoundedCornerShape(EffyRadius.sm))
-            .clickable(onClickLabel = label, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painterResource(icon),
-            contentDescription = label,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
-/**
- * The search entry (028 US1).
- *
- * ⚠ An AFFORDANCE, not an input. Tapping it opens Search with the field already focused and the
- * keyboard already up — one tap, no second (FR-008). Home deliberately does NOT accept text: a
- * second live search field here would be the one WITHOUT filters, sort or paging, and it would be
- * the one a shopper meets first (FR-009).
- *
- * ⚠ The dark square button that used to sit beside this is GONE. It was labelled "Filters", opened
- * Search, and applied no filter — an affordance that lied about what it did.
- */
-@Composable
-private fun SearchEntry(onSearch: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = EffySpacing.lg)
-            .padding(bottom = EffySpacing.lg)
-            .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(EffyRadius.sm))
-            .background(EffySurface.tint)
-            .clickable(onClickLabel = "Search products", onClick = onSearch)
-            .padding(horizontal = EffySpacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-    ) {
-        Icon(
-            painterResource(Res.drawable.ic_search_outlined),
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            "Search the store…",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}

@@ -237,6 +237,12 @@ class AppContainer(
     // Catalog (019 US1/US2) — the customer storefront reads.
     val getHome by lazy { GetHome(catalog) }
     val getCategories by lazy { GetCategories(catalog) }
+
+    // 087 FR-036 — recent searches, device-only.
+    val recentSearches by lazy { com.effyshopping.customer.mobile.features.catalog.data.DeviceRecentSearchRepository(preferences) }
+    val recordSearch by lazy { com.effyshopping.customer.mobile.features.catalog.domain.RecordSearch(recentSearches) }
+    val removeRecentSearch by lazy { com.effyshopping.customer.mobile.features.catalog.domain.RemoveRecentSearch(recentSearches) }
+    val clearRecentSearches by lazy { com.effyshopping.customer.mobile.features.catalog.domain.ClearRecentSearches(recentSearches) }
     val getProductDetail by lazy { GetProductDetail(catalog) }
     val getPromotion by lazy { GetPromotion(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
@@ -431,6 +437,8 @@ class AppContainer(
                 cart.reset()
                 savedStore.reset()
                 preferences.clearGuestData()
+                // 087 — the in-memory copy of recent searches follows the store it mirrors.
+                recentSearches.reload()
                 // 050 — clear telemetry identity and this device's push token so a shared device does
                 // not deliver the previous user's notifications (FR-020). Best-effort.
                 runCatching { analyticsDriver.reset() }

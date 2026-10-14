@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
 import com.effyshopping.mobile.kit.ui.OTP_LENGTH
 import com.effyshopping.mobile.kit.ui.OtpInput
 import com.effyshopping.mobile.kit.ui.OtpVariant
@@ -290,7 +292,7 @@ private fun PasswordStepScaffold(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 content()
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                error?.let { EffyInlineError(it) }
                 if (loading) CircularProgressIndicator()
             }
         }

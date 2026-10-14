@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
 import com.effyshopping.mobile.kit.ui.OtpInput
 import com.effyshopping.mobile.kit.ui.OtpVariant
 import com.effyshopping.mobile.kit.ui.isCompleteOtp
@@ -170,7 +172,7 @@ fun DeleteAccountScreen(container: AppContainer) {
             }
 
             if (preview == null) {
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                state.error?.let { EffyInlineError(it) }
                 return@Column
             }
 
@@ -278,7 +280,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                 )
             }
 
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            state.error?.let { EffyInlineError(it) }
             if (state.loading) CircularProgressIndicator()
         }
     }

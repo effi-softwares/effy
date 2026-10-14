@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.core.nav
 
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import com.effyshopping.customer.mobile.core.presentation.LocalEffyNavAnimatedScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -61,6 +63,9 @@ fun rememberBackAffordanceDecorator(navState: CustomerNavState): NavEntryDecorat
             val back: (() -> Unit)? = if (isStackRoot) null else ({ navState.pop() })
             CompositionLocalProvider(
                 LocalNavBack provides back,
+                // 087 — the navigator's animated scope for THIS entry, so a picture marked with
+                // `effySharedElement` can travel between pages (tile → product).
+                LocalEffyNavAnimatedScope provides LocalNavAnimatedContentScope.current,
             ) {
                 entry.Content()
             }

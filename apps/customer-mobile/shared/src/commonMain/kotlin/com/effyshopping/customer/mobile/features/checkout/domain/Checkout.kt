@@ -571,6 +571,19 @@ data class OrderSummary(
     val currency: String,
     /** 079 — who delivers it; null for an order placed before orders had a delivery type. */
     val delivery: OrderDelivery? = null,
+    // ── 087 (Orders board) — read from fields the orders list has carried since 084/086. Every one is
+    // optional: an order from before them degrades to the row it always had, never to an invented value.
+    /** When it was placed (ISO). */
+    val placedAt: String? = null,
+    /** Where it is, server-derived (never recomputed here); null when the list did not say. */
+    val stage: OrderStage? = null,
+    /** The arrival it was SOLD, said through the same wording twins as the receipt. */
+    val arrivals: List<ArrivalEstimate> = emptyList(),
+    /** When the whole order had arrived (ISO); only once delivered. */
+    val deliveredAt: String? = null,
+    /** Up to a handful of item pictures; a null entry is an item with no picture. */
+    val thumbnails: List<String?> = emptyList(),
+    val fullyRefunded: Boolean = false,
 )
 
 interface OrdersRepository {

@@ -1,5 +1,12 @@
 package com.effyshopping.customer.mobile.features.addresses.presentation
 
+import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import com.effyshopping.customer.mobile.core.presentation.EffyGhostButton
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyChevron
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.resources.lucide_trash_2
+import com.effyshopping.customer.mobile.core.presentation.EffyConfirmSheet
 import com.effyshopping.customer.mobile.core.delivery.Coverage
 import com.effyshopping.customer.mobile.core.delivery.CoverageWords
 import androidx.compose.foundation.clickable
@@ -12,14 +19,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -114,7 +119,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
                     LazyColumn(Modifier.fillMaxSize()) {
                         state.error?.let { err ->
                             item {
-                                Text(err, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(EffySpacing.lg))
+                                EffyInlineError(err, modifier = Modifier.padding(EffySpacing.lg))
                             }
                         }
                         items(state.addresses, key = { it.id }) { address ->
@@ -143,6 +148,9 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
             primaryLabel = if (sheet.editingId != null) "Save" else "Add",
             onPrimary = { vm.submit() },
             primaryEnabled = !sheet.saving,
+            primaryLoading = sheet.saving,
+            // 087 (AddressForm board): full height, Save pinned above the keyboard.
+            fullHeight = true,
         ) {
             AddressFormSheet(
                 form = sheet.form,
@@ -152,25 +160,34 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         }
     }
 
-    // Confirm delete.
+    // Confirm delete — a sheet with its actions pinned (087: no dialogs).
     state.pendingDeleteId?.let {
-        AlertDialog(
-            onDismissRequest = { vm.cancelDelete() },
-            title = { Text("Delete this address?") },
-            text = { Text("This won’t affect any past orders.") },
-            confirmButton = { TextButton(onClick = { vm.confirmDelete() }) { Text("Delete") } },
-            dismissButton = { TextButton(onClick = { vm.cancelDelete() }) { Text("Cancel") } },
+        EffyConfirmSheet(
+            title = "Delete this address?",
+            body = "This won’t affect any past orders.",
+            confirmLabel = "Delete address",
+            icon = Res.drawable.lucide_trash_2,
+            destructive = true,
+            onConfirm = { vm.confirmDelete() },
+            onDismiss = { vm.cancelDelete() },
         )
     }
 
     // Delete-default blocked (server 409): prompt to reassign first (FR-016a).
     if (state.reassignPrompt) {
-        AlertDialog(
-            onDismissRequest = { vm.dismissReassignPrompt() },
-            title = { Text("Set another default first") },
-            text = { Text("This is your default delivery address. Make another address the default, then delete this one.") },
-            confirmButton = { TextButton(onClick = { vm.dismissReassignPrompt() }) { Text("Got it") } },
-        )
+        EffySheet(
+            title = "Set another default first",
+            onDismiss = { vm.dismissReassignPrompt() },
+            primaryLabel = "Got it",
+            onPrimary = { vm.dismissReassignPrompt() },
+            cancelLabel = null,
+        ) {
+            Text(
+                "This is your default delivery address. Make another address the default, then delete this one.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -225,25 +242,17 @@ private fun AddressRow(
                 }
                 // 076 — who delivers here, or the one refusal sentence: the same words checkout
                 // uses, so the shopper learns it here rather than after building an order.
+                // 087 (Addresses board): "Delivered by Effy" in Effy green, the refusal with an icon.
                 CoverageWords.describe(address.coverage)?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (address.coverage == Coverage.None) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
+                    when (address.coverage) {
+                        Coverage.None -> EffyInlineError(it)
+                        Coverage.Effy -> Text(it, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.brand)
+                        else -> Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             Spacer(Modifier.width(EffySpacing.md))
-            Icon(
-                painter = painterResource(Res.drawable.ic_arrow_back),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp).rotate(180f),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            EffyChevron()
         }
 
         // The per-row controls — deliberately NOT part of the edit target (022 FR-017a).
@@ -259,19 +268,9 @@ private fun AddressRow(
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!address.isDefault) {
-                TextButton(onClick = onSetDefault) {
-                    Text("Set as default", style = MaterialTheme.typography.labelLarge)
-                }
-            }
+            if (!address.isDefault) EffyTextLink("Set as default", onClick = onSetDefault)
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onDelete) {
-                Text(
-                    "Delete",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            EffyGhostButton("Delete", onClick = onDelete, color = MaterialTheme.colorScheme.onSurfaceVariant, leading = Res.drawable.lucide_trash_2)
         }
     }
 }

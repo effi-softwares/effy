@@ -247,6 +247,20 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.OrderSummaryDTO.
         grandTotalAmount = grandTotalAmount,
         currency = currency,
         delivery = delivery?.toDomain(),
+        placedAt = placedAt,
+        stage = stage?.toDomainStage(),
+        arrivals = arrivalEstimates.orEmpty().map {
+            com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate(
+                method = it.method.value,
+                promisedFrom = it.promisedFrom,
+                promisedTo = it.promisedTo,
+                windowStart = it.windowStart,
+                windowEnd = it.windowEnd,
+            )
+        },
+        deliveredAt = deliveredAt,
+        thumbnails = thumbnails.orEmpty(),
+        fullyRefunded = fullyRefunded == true,
     )
 
 /** Format a snapshotted order address into one display line (shared by shipping + billing, 023 US5). */

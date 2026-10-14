@@ -199,7 +199,7 @@ private fun paymentConfiguration(config: PaymentElementConfig): EmbeddedPaymentE
         // `shared/src/androidMain/res/font/` for exactly this reason — the Compose Resources copy has no
         // R.font id, and passing none renders the payment form in the system font beside Effy's own type
         // with nothing failing to compile (research R8).
-        .appearance(EffyPaymentAppearance.of(R.font.general_sans))
+        .appearance(EffyPaymentAppearance.of(R.font.geist))
         .build()
 
 @Composable

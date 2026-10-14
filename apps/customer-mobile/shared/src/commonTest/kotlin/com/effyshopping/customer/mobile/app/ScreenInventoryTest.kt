@@ -23,15 +23,20 @@ import kotlin.test.assertTrue
  * sent looking for chips that no longer exist.
  *
  * The set is still pinned: changing it is a navigation change, not a restyle.
+ *
+ * ⚠ CHANGED BY 087, DELIBERATELY: the operator directed "cart button should be in bottom nav", so
+ * Cart became the fifth tab (087 spec FR-006/FR-007). That is exactly the navigation change this test
+ * exists to make visible — it was made on purpose, through a spec, and the assertion moved with it.
  */
 class ScreenInventoryTest {
 
     @Test
-    fun `the four primary destinations are stable`() {
+    fun `the five primary destinations are stable`() {
         assertEquals(
             listOf(
                 CustomerNavKey.Home,
                 CustomerNavKey.Search,
+                CustomerNavKey.Cart,
                 CustomerNavKey.Orders,
                 CustomerNavKey.Account,
             ),

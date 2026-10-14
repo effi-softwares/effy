@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Geist as an ANDROID FONT RESOURCE (051 T008, re-faced by 087).
+
+  ⚠ Why this exists when the same faces already live in `shared/src/commonMain/composeResources/font/`:
+  Compose Resources have NO `R.font` id, and Stripe's payment element takes its typeface as
+  `PaymentSheet.Typography.fontResId` — without this file the element silently renders in the SYSTEM
+  font next to Effy's own type (research R8). Copies of packages/design-system/mobile-assets/font/.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android">
+    <font android:font="@font/geist_regular" android:fontStyle="normal" android:fontWeight="400" />
+    <font android:font="@font/geist_medium" android:fontStyle="normal" android:fontWeight="500" />
+    <font android:font="@font/geist_semibold" android:fontStyle="normal" android:fontWeight="600" />
+    <font android:font="@font/geist_bold" android:fontStyle="normal" android:fontWeight="700" />
+</font-family>

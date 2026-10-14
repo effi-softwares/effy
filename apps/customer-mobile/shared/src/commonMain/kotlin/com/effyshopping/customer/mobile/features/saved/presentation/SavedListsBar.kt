@@ -1,9 +1,20 @@
 package com.effyshopping.customer.mobile.features.saved.presentation
 
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyChip
+import com.effyshopping.customer.mobile.resources.lucide_trash_2
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffySheet
+import com.effyshopping.customer.mobile.core.presentation.EffyConfirmSheet
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
@@ -24,8 +35,8 @@ import com.effyshopping.mobile.design.EffySpacing
 /**
  * The shopper's lists, in one place (068 FR-027): "Saved" first, each with its count.
  *
- * ⚠ TABS OVER ONE LIST OF ROWS, not a grid of list cards (Principle V). The row SCROLLS rather than
- * squeezing, so twenty lists stay one line and each tab keeps a full-height touch target.
+ * A row of chips over one list of rows (087, Saved board). The row SCROLLS rather than squeezing, so
+ * twenty lists stay one line and each chip keeps a full 48dp target.
  *
  * Rename and delete sit under the row and only for a list the shopper made: "Saved" cannot be
  * renamed or deleted, so neither is offered for it (FR-003).
@@ -39,22 +50,21 @@ fun SavedListsBar(
     onDelete: () -> Unit,
 ) {
     val index = lists.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
-    ScrollableTabRow(selectedTabIndex = index, edgePadding = EffySpacing.lg) {
-        lists.forEach { list ->
-            Tab(
-                selected = list.id == selectedId,
-                onClick = { onSelect(list.id) },
-                text = {
-                    // Plain text. A list name is the shopper's own and is never interpreted.
-                    Text("${list.label} (${list.count})", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
-            )
+    // 087 (Saved board) — a scrolling row of list chips, the selected one in the light-blue tint.
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+        contentPadding = PaddingValues(horizontal = EffySpacing.lg),
+    ) {
+        items(lists, key = { it.id }) { list ->
+            // Plain text. A list name is the shopper's own and is never interpreted.
+            EffyChip("${list.label} (${list.count})", selected = list.id == selectedId, onClick = { onSelect(list.id) })
         }
     }
     if (lists.getOrNull(index)?.isDefault == false) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.s)) {
-            TextButton(onClick = onRename) { Text("Rename list") }
-            TextButton(onClick = onDelete) { Text("Delete list") }
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.xs)) {
+            EffyTextLink("Rename list", onClick = onRename)
+            EffyTextLink("Delete list", onClick = onDelete)
         }
     }
 }
@@ -79,43 +89,37 @@ fun ListNameDialog(
     var busy by remember { mutableStateOf(false) }
     val remaining = listNameRemaining(name)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = {
-                    name = it
-                    error = null
-                },
-                label = { Text("Name") },
-                singleLine = true,
-                isError = error != null || remaining < 0,
-                supportingText = {
-                    Text(
-                        error
-                            ?: if (remaining < 0) "${-remaining} too many characters"
-                            else "$remaining characters left",
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
+    // 087 — a sheet, not a dialog: the field above, the action pinned below it and above the keyboard.
+    EffySheet(
+        title = title,
+        onDismiss = onDismiss,
+        dirty = name != initial && name.isNotBlank(),
+        busy = busy,
+        primaryLabel = confirmLabel,
+        primaryEnabled = !busy && name.isNotBlank() && remaining >= 0,
+        primaryLoading = busy,
+        onPrimary = {
+            busy = true
+            onSubmit(name) { refusal ->
+                busy = false
+                if (refusal == null) onDismiss() else error = refusal
+            }
         },
-        confirmButton = {
-            TextButton(
-                enabled = !busy && name.isNotBlank() && remaining >= 0,
-                onClick = {
-                    busy = true
-                    onSubmit(name) { refusal ->
-                        busy = false
-                        if (refusal == null) onDismiss() else error = refusal
-                    }
-                },
-            ) { Text(confirmLabel) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    ) {
+        EffyField(
+            label = "Name",
+            value = name,
+            onValueChange = {
+                name = it
+                error = null
+            },
+            placeholder = "Weekly shop",
+            error = error ?: if (remaining < 0) "${-remaining} too many characters" else null,
+        )
+        if (error == null && remaining >= 0) {
+            Text("$remaining characters left", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 /**
@@ -127,28 +131,22 @@ fun DeleteListDialog(list: SavedList, onConfirm: (onResult: (String?) -> Unit) -
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete \"${list.label}\"?") },
-        text = {
-            Text(
-                error ?: deleteSummary(list.count, list.onlyHereCount),
-                color = if (error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-            )
+    EffyConfirmSheet(
+        title = "Delete \"${list.label}\"?",
+        body = deleteSummary(list.count, list.onlyHereCount),
+        confirmLabel = "Delete list",
+        icon = Res.drawable.lucide_trash_2,
+        destructive = true,
+        busy = busy,
+        error = error,
+        onConfirm = {
+            busy = true
+            onConfirm { refusal ->
+                busy = false
+                if (refusal == null) onDismiss() else error = refusal
+            }
         },
-        confirmButton = {
-            TextButton(
-                enabled = !busy,
-                onClick = {
-                    busy = true
-                    onConfirm { refusal ->
-                        busy = false
-                        if (refusal == null) onDismiss() else error = refusal
-                    }
-                },
-            ) { Text("Delete list", color = MaterialTheme.colorScheme.error) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        onDismiss = onDismiss,
     )
 }
 

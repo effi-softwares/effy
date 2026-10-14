@@ -1,5 +1,12 @@
 package com.effyshopping.customer.mobile.app
 
+import androidx.compose.ui.unit.sp
+import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyGhostButton
+import com.effyshopping.customer.mobile.core.presentation.EffyIconChip
+import com.effyshopping.customer.mobile.core.presentation.EffyWordmark
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,21 +113,19 @@ fun App(container: AppContainer) {
             color = EffySurface.page,
         ) {
             when (val s = session) {
-                SessionState.Restoring -> Inset { CenteredMessage { CircularProgressIndicator() } }
+                SessionState.Restoring -> Inset { CenteredMessage { EffyWordmark(size = 40.sp) } }
 
                 SessionState.Barred -> Inset { CenteredMessage {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("This account can't be used", style = MaterialTheme.typography.titleLarge)
+                        EffyIconChip(Res.drawable.lucide_lock)
+                        Text("This account can't be used", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 16.dp))
                         Text(
                             "Please contact support if you think this is a mistake.",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp),
                         )
-                        TextButton(
-                            onClick = { scope.launch { container.session.signOutLocally() } },
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) { Text("Sign out") }
+                        EffyGhostButton("Sign out", onClick = { scope.launch { container.session.signOutLocally() } }, modifier = Modifier.padding(top = 16.dp))
                     }
                 } }
 
@@ -148,15 +153,7 @@ fun App(container: AppContainer) {
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(top = 8.dp),
                         )
-                        if (failed) {
-                            Text(
-                                "We couldn't restore it just now. Please try again.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
+                        if (failed) EffyInlineError("We couldn't restore it just now. Please try again.", modifier = Modifier.padding(top = 8.dp))
                         EffyPrimaryButton(
                             label = "Restore my account",
                             enabled = !working,
@@ -177,10 +174,7 @@ fun App(container: AppContainer) {
                             },
                             modifier = Modifier.padding(top = 16.dp),
                         )
-                        TextButton(
-                            onClick = { scope.launch { container.session.signOutLocally() } },
-                            modifier = Modifier.padding(top = 8.dp),
-                        ) { Text("Sign out") }
+                        EffyGhostButton("Sign out", onClick = { scope.launch { container.session.signOutLocally() } }, modifier = Modifier.padding(top = 8.dp))
                     }
                 } }
 

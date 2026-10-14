@@ -1,5 +1,22 @@
 package com.effyshopping.customer.mobile.app
 
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.LocalEffySharedTransition
+import com.effyshopping.customer.mobile.core.presentation.EffyStorefrontMotion
+import com.effyshopping.mobile.kit.ui.MotionLevel
+import com.effyshopping.mobile.kit.ui.LocalMotionLevel
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.scene.Scene
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.SharedTransitionLayout
+import com.effyshopping.customer.mobile.core.platform.platformTag
+import com.effyshopping.customer.mobile.core.presentation.LocalIsIos
+import com.effyshopping.customer.mobile.core.presentation.LocalOpenNotifications
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,14 +72,6 @@ import com.effyshopping.customer.mobile.features.legal.presentation.LegalDocumen
 import com.effyshopping.customer.mobile.features.legal.presentation.LegalIndexScreen
 import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
 import com.effyshopping.customer.mobile.resources.Res
-import com.effyshopping.customer.mobile.resources.ic_account_outlined
-import com.effyshopping.customer.mobile.resources.ic_account_selected
-import com.effyshopping.customer.mobile.resources.ic_home_outlined
-import com.effyshopping.customer.mobile.resources.ic_home_selected
-import com.effyshopping.customer.mobile.resources.ic_orders_outlined
-import com.effyshopping.customer.mobile.resources.ic_orders_selected
-import com.effyshopping.customer.mobile.resources.ic_search_outlined
-import com.effyshopping.customer.mobile.resources.ic_search_selected
 import com.effyshopping.mobile.kit.shell.ResponsiveDestination
 import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
 import com.effyshopping.mobile.kit.ui.AdaptiveContent
@@ -76,6 +85,7 @@ import org.jetbrains.compose.resources.painterResource
 private fun CustomerNavKey.telemetryScreenName(): String = when (this) {
     CustomerNavKey.Home -> "home"
     CustomerNavKey.Search -> "search"
+    CustomerNavKey.Cart -> "cart"
     CustomerNavKey.Orders -> "orders"
     CustomerNavKey.Account -> "account"
     else -> "other"
@@ -84,6 +94,7 @@ private fun CustomerNavKey.telemetryScreenName(): String = when (this) {
 private fun tabLabel(key: CustomerNavKey): String = when (key) {
     CustomerNavKey.Home -> "Home"
     CustomerNavKey.Search -> "Search"
+    CustomerNavKey.Cart -> "Cart"
     CustomerNavKey.Orders -> "Orders"
     CustomerNavKey.Account -> "Account"
     else -> error("$key is not a tab root")
@@ -179,13 +190,21 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
      */
     fun selectTabOrAskToSignIn(tab: CustomerNavKey) {
         val gated = tab == CustomerNavKey.Orders || tab == CustomerNavKey.Account
-        if (gated && !signedIn) requireSignIn(returnTo = tab) else navState.selectTab(tab)
+        if (gated && !signedIn) requireSignIn(returnTo = tab) else navState.tapTab(tab)
     }
 
     BackHandler(enabled = navState.canGoBack || navState.activeTab != CustomerNavKey.Home) {
         if (!navState.pop()) navState.selectTab(CustomerNavKey.Home)
     }
 
+    val cart by container.cart.state.collectAsState()
+
+    // 087 — the bell in every header opens Notifications on the CURRENT tab, so Back returns where the
+    // shopper was. Provided once here; screens never wire it.
+    CompositionLocalProvider(
+        LocalOpenNotifications provides { navState.push(CustomerNavKey.Notifications) },
+        LocalIsIos provides (platformTag() == "ios"),
+    ) {
     ResponsiveNavigation(
         destinations = CUSTOMER_TAB_ROOTS.map { root ->
             ResponsiveDestination(
@@ -197,6 +216,16 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         selectedTab = navState.activeTab,
         onSelectTab = ::selectTabOrAskToSignIn,
         showNavigation = navState.showBottomBar,
+        // 087 — the storefront tab bar: five generous tabs, the cart's count on Cart.
+        bottomBar = {
+            EffyTabBar(
+                tabs = CUSTOMER_TAB_ROOTS,
+                selected = navState.activeTab,
+                cartCount = cart.itemCount,
+                label = ::tabLabel,
+                onSelect = ::selectTabOrAskToSignIn,
+            )
+        },
     ) {
         // ── iOS-style push/pop, via NavDisplay's OWN transition parameters ──────────────────────
         //
@@ -210,13 +239,26 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         //
         // Duration comes from the shared motion spec, so a device with reduced-motion enabled gets
         // 0ms — the navigation still happens, only the movement goes (025 FR-037).
-        val nav = rememberMotionSpec(MotionRole.Forward)
-        val slide = tween<IntOffset>(nav.durationMillis)
-        val fade = tween<Float>(nav.durationMillis)
+        // 087 (Page transitions board) — the iOS push: the new page slides in from the trailing edge
+        // over 350ms on the iOS curve while the page below drifts 30% the other way and dims; pop and
+        // the edge swipe mirror it. Compose Multiplatform drives the iOS edge-swipe through the
+        // predictive-back path, so `predictivePopTransitionSpec` IS the interactive swipe (finger-driven,
+        // hence linear). Switching TABS is not a push: it cross-fades (150ms). Reduced motion → a short
+        // fade; none → instant. Every transition keeps the navigation, only the movement changes.
+        val level = LocalMotionLevel.current
+        val ease = EffyStorefrontMotion.IosEase
+        val pushMs = EffyStorefrontMotion.PushMillis
+        fun isTabSwitch(from: Scene<NavKey>, to: Scene<NavKey>) =
+            from.entries.firstOrNull()?.contentKey != to.entries.firstOrNull()?.contentKey
+        fun fade(ms: Int) = fadeIn(tween(ms)) togetherWith fadeOut(tween(ms))
+        val none = EnterTransition.None togetherWith ExitTransition.None
 
+        SharedTransitionLayout {
+        CompositionLocalProvider(LocalEffySharedTransition provides this) {
         NavDisplay(
             backStack = navState.currentStack,
             onBack = { navState.pop() },
+            sharedTransitionScope = this,
             // ⚠ Adding a decorator REPLACES the default list, so the saveable-state one must be
             // re-declared here or every screen loses its per-entry remembered state.
             entryDecorators = listOf(
@@ -224,16 +266,33 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 rememberBackAffordanceDecorator(navState),
             ),
             transitionSpec = {
-                (slideInHorizontally(slide) { it } + fadeIn(fade)) togetherWith
-                    (slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade))
+                when {
+                    level == MotionLevel.None -> none
+                    isTabSwitch(initialState, targetState) -> fade(EffyStorefrontMotion.TabFadeMillis)
+                    level == MotionLevel.Reduced -> fade(EffyStorefrontMotion.ReducedFadeMillis)
+                    else -> slideInHorizontally(tween(pushMs, easing = ease)) { it } togetherWith
+                        (slideOutHorizontally(tween(pushMs, easing = ease)) { -(it * 0.3f).toInt() } +
+                            fadeOut(tween(pushMs, easing = ease), targetAlpha = 0.85f))
+                }
             },
             popTransitionSpec = {
-                (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade)) togetherWith
-                    (slideOutHorizontally(slide) { it } + fadeOut(fade))
+                when {
+                    level == MotionLevel.None -> none
+                    isTabSwitch(initialState, targetState) -> fade(EffyStorefrontMotion.TabFadeMillis)
+                    level == MotionLevel.Reduced -> fade(EffyStorefrontMotion.ReducedFadeMillis)
+                    else -> (slideInHorizontally(tween(pushMs, easing = ease)) { -(it * 0.3f).toInt() } +
+                        fadeIn(tween(pushMs, easing = ease), initialAlpha = 0.85f)) togetherWith
+                        slideOutHorizontally(tween(pushMs, easing = ease)) { it }
+                }
             },
             predictivePopTransitionSpec = {
-                (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade)) togetherWith
-                    (slideOutHorizontally(slide) { it } + fadeOut(fade))
+                when (level) {
+                    MotionLevel.None -> none
+                    MotionLevel.Reduced -> fade(EffyStorefrontMotion.ReducedFadeMillis)
+                    else -> (slideInHorizontally(tween(pushMs, easing = LinearEasing)) { -(it * 0.3f).toInt() } +
+                        fadeIn(tween(pushMs, easing = LinearEasing), initialAlpha = 0.85f)) togetherWith
+                        slideOutHorizontally(tween(pushMs, easing = LinearEasing)) { it }
+                }
             },
             entryProvider = entryProvider {
                 // ── Tab roots ──────────────────────────────────────────────────────────────────
@@ -255,10 +314,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // Notifications is also an Account list row — which meant opening it from
                         // Discover and pressing Back landed on the account page.
                         onNotifications = { navState.push(CustomerNavKey.Notifications) },
-                        // ⚠ This is the ONLY way into the cart on this surface — Effy's bottom bar
-                        // has no Cart tab. Removing it makes the cart fillable and unopenable; that
-                        // regression shipped once already.
-                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        // 087 — the cart is a tab; every way into it selects the tab.
+                        onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         // ⚠ Reachable by a GUEST too. The predecessor gated this behind sign-in, and
                         // usability research is one-sided that the sign-in wall is the single biggest
                         // reason saved-item features go unused. Guest saving itself lands in US3; the
@@ -269,6 +326,10 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // root. The rail's own key decides the refinement — the on-sale rail carries
                         // the sale filter, a category rail carries its category, and Featured is
                         // simply everything.
+                        // 087 (Main board): "All products", and the "Your Effy" cards.
+                        onAllProducts = { navState.push(CustomerNavKey.Results(title = "All products")) },
+                        onOpenOrder = { navState.push(CustomerNavKey.OrderDetail(it)) },
+                        onPoints = { navState.push(CustomerNavKey.Points) },
                         onSeeAll = { rail ->
                             navState.push(
                                 CustomerNavKey.Results(
@@ -339,7 +400,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         container,
                         onRequireSignIn = { requireSignIn() },
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
-                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         entryCategoryKey = key.categoryKey,
                         entrySaleOnly = key.saleOnly,
                         title = key.title,
@@ -355,7 +416,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         promotionId = key.promotionId,
                         onBack = { navState.pop() },
                         onBrowse = { navState.push(CustomerNavKey.Results(title = "All products")) },
-                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onCart = { navState.selectTab(CustomerNavKey.Cart) },
                     )
                 }
 
@@ -368,8 +429,13 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         container,
                         onRequireSignIn = { requireSignIn() },
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
-                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onCart = { navState.selectTab(CustomerNavKey.Cart) },
                         autoFocus = autoFocus,
+                        // 087 (Search board): the start page's aisles, "All products" and "On sale"
+                        // open Results ON the Search tab, so Back returns to the start page.
+                        onAisle = { navState.push(CustomerNavKey.Results(title = it.name, categoryKey = it.key)) },
+                        onAllProducts = { navState.push(CustomerNavKey.Results(title = "All products")) },
+                        onSale = { navState.push(CustomerNavKey.Results(title = "On sale", saleOnly = true)) },
                     )
                 }
 
@@ -422,7 +488,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // Related products push onto the SAME stack, so Back walks the chain the
                         // shopper actually followed.
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
-                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onCart = { navState.selectTab(CustomerNavKey.Cart) },
                     )
                 }
 
@@ -524,7 +590,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         },
                         // 033: a saved row that is already in the cart offers the way there rather than
                         // a second "Add to cart" (eBay's watchlist pattern).
-                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onCart = { navState.selectTab(CustomerNavKey.Cart) },
                     )
                 }
                 entry<CustomerNavKey.AddressBook> {
@@ -538,7 +604,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 }
                 entry<CustomerNavKey.Notifications> { NotificationsScreen() }
                 entry<CustomerNavKey.Faqs> { FaqsScreen() }
-                entry<CustomerNavKey.HelpCenter> { HelpCenterScreen() }
+                entry<CustomerNavKey.HelpCenter> { HelpCenterScreen(onTopic = { navState.push(CustomerNavKey.Faqs) }) }
                 entry<CustomerNavKey.CustomerService> { CustomerServiceScreen() }
                 entry<CustomerNavKey.Feedback> {
                     val vm = remember { container.feedbackViewModel() }
@@ -580,6 +646,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.LegalDocument> { key -> LegalDocumentScreen(container, key.slug) }
             },
         )
+        }
+        }
+    }
     }
 }
 
@@ -597,14 +666,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
  */
 @Composable
 private fun CustomerDestinationIcon(tab: CustomerNavKey, selected: Boolean) {
-    val resource: DrawableResource = when (tab) {
-        CustomerNavKey.Home -> if (selected) Res.drawable.ic_home_selected else Res.drawable.ic_home_outlined
-        CustomerNavKey.Search -> if (selected) Res.drawable.ic_search_selected else Res.drawable.ic_search_outlined
-        CustomerNavKey.Orders -> if (selected) Res.drawable.ic_orders_selected else Res.drawable.ic_orders_outlined
-        CustomerNavKey.Account -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined
-        else -> error("$tab is not a tab root")
-    }
-    Icon(painterResource(resource), contentDescription = null)
+    // The side rail (≥600dp) — same Lucide glyphs as the tab bar; selection is the rail's indicator.
+    Icon(painterResource(tabIcon(tab)), contentDescription = null)
 }
 
 /** A gated tab a guest can see but not use — the tap raises deferred sign-in. */
@@ -616,19 +679,7 @@ private fun GatedTab(title: String, message: String, onSignIn: () -> Unit) {
     ) {
         Text(title, style = MaterialTheme.typography.headlineSmall)
         Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
+        EffyPrimaryButton("Sign in", onClick = onSignIn, modifier = Modifier.fillMaxWidth())
     }
 }
 
-/** A navigable "coming soon" placeholder for a tab whose feature slice hasn't landed (FR-025). */
-@Composable
-private fun ComingSoonTab(title: String, subtitle: String) {
-    AdaptiveContent(
-        modifier = Modifier.padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
-        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("Coming soon", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-    }
-}

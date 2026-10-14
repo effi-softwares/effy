@@ -1,5 +1,19 @@
 package com.effyshopping.customer.mobile.core.observability
 
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.AnimatedVisibility
+import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.customer.mobile.core.presentation.effyDuration
+import com.effyshopping.customer.mobile.core.presentation.EffyStorefrontMotion
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,32 +43,33 @@ fun AnalyticsConsentBanner(
     onDecline: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    // 087 (Patterns board): a floating card at the bottom with two EQUAL buttons — declining must be
+    // as easy as accepting (the old layout made "Allow" full-width and "No thanks" a small text link).
+    // It slides up on arrival (fades under reduced motion).
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    AnimatedVisibility(
+        visible = shown,
+        enter = slideInVertically(tween(effyDuration(EffyStorefrontMotion.EmphasisedMillis))) { it } + fadeIn(),
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 3.dp,
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Help improve Effy",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
-                "We use privacy-friendly analytics to make the app better. No personal data is " +
-                    "collected — you can change this any time in Account.",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(onClick = onDecline) { Text("No thanks") }
-                EffyPrimaryButton(
-                    label = "Allow",
-                    onClick = onAccept,
-                    modifier = Modifier.padding(start = 8.dp),
+        Column(modifier = Modifier.padding(EffySpacing.lg)) {
+            EffyCard {
+                Text("Help improve Effy", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "We use privacy-friendly analytics to make the app better. No personal data is " +
+                        "collected — you can change this any time in Account.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+                ) {
+                    EffySecondaryButton("No thanks", onClick = onDecline, modifier = Modifier.weight(1f))
+                    EffyPrimaryButton(label = "Allow", onClick = onAccept, modifier = Modifier.weight(1f))
+                }
             }
         }
     }

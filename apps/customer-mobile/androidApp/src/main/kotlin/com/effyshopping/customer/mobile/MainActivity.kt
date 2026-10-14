@@ -39,11 +39,12 @@ class MainActivity : ComponentActivity() {
         // 3-button mode. Either way the bar area ends up a different shade from the app, which is
         // exactly the seam this is here to remove. Transparent on both sides, contrast enforcement off.
         //
-        // Dark-mode DETECTION is left at `auto`'s default, so the system-bar ICONS still flip with the
-        // device appearance — which is correct here because the app's theme follows the device too.
+        // 087 — `light`, not `auto`: the app is LIGHT ONLY (storefront identity), so the system-bar
+        // icons must stay dark on the white ground even when the device is in dark mode. With `auto`
+        // a dark-mode phone drew white status icons on a white page — invisible.
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isStatusBarContrastEnforced = false

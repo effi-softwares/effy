@@ -32,6 +32,8 @@ Templates and documents:
   ✅ specs 004–083 — history, not edited.
 
 Follow-up TODOs: customer-mobile adopts the storefront identity in a later feature (084 research D14).
+  ✅ CLOSED by 087-customer-mobile-redesign (2026-10-14): the customer mobile app's theme is generated
+  from storefront/tokens.css (light only). A history note only — no principle text changed, no bump.
 
 --- previous report ---
 Version change: 3.1.0 → 3.2.0

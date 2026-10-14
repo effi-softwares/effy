@@ -1,5 +1,15 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.animation.AnimatedContent
+import com.effyshopping.customer.mobile.resources.lucide_copy
+import com.effyshopping.customer.mobile.resources.lucide_check
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -185,17 +195,23 @@ private fun PromotionBody(
                             .border(
                                 width = 1.dp,
                                 color = MaterialTheme.colorScheme.outline,
-                                shape = RoundedCornerShape(EffyRadius.sm),
+                                shape = EffyStorefrontShape.control,
                             )
                             .padding(horizontal = EffySpacing.md, vertical = EffySpacing.s),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     )
                 }
-                Button(onClick = {
-                    clipboard.setText(AnnotatedString(promotion.code))
-                    onCopied()
-                }) {
-                    Text(if (justCopied) "Copied" else "Copy")
+                // 087 (Offer board): Copy → "Copied" with a tick, the label change animated.
+                AnimatedContent(targetState = justCopied, label = "copied") { copied ->
+                    EffySecondaryButton(
+                        if (copied) "Copied" else "Copy",
+                        onClick = {
+                            clipboard.setText(AnnotatedString(promotion.code))
+                            onCopied()
+                        },
+                        modifier = Modifier.width(120.dp),
+                        leading = { Icon(painterResource(if (copied) Res.drawable.lucide_check else Res.drawable.lucide_copy), contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    )
                 }
             }
 
@@ -224,7 +240,7 @@ private fun PromotionBody(
                 verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
             ) {
                 EffyPrimaryButton(label = "Browse products", onClick = onBrowse, modifier = Modifier.fillMaxWidth())
-                TextButton(onClick = onCart, modifier = Modifier.fillMaxWidth()) { Text("Go to cart") }
+                EffyTextLink("Go to cart", onClick = onCart, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -294,7 +310,7 @@ private fun PromotionMessage(title: String, body: String, action: String, onActi
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
-            Button(onClick = onAction) { Text(action) }
+            EffyPrimaryButton(action, onClick = onAction)
         }
     }
 }

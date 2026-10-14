@@ -111,6 +111,14 @@ fun <T> ResponsiveNavigation(
      * is why this stays a per-destination decision the CALLER makes rather than a rule baked in here.
      */
     showNavigation: Boolean = true,
+    /**
+     * 087 — a caller-drawn bottom bar for the compact presentation, replacing the default one.
+     *
+     * ⚠ Defaults to `null` (the shared bar), so shop-mobile and driver-mobile are unaffected. The
+     * customer app passes its storefront tab bar (five tabs, a cart badge, Lucide icons); the side rail
+     * on a wide window is still drawn here from [destinations].
+     */
+    bottomBar: (@Composable () -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val state = rememberNavigationSuiteScaffoldState()
@@ -150,7 +158,7 @@ fun <T> ResponsiveNavigation(
             navigationSuite = {
                 when (presentation) {
                     NavigationPresentation.BottomBar ->
-                        BottomBar(destinations, selectedTab, onSelectTab)
+                        if (bottomBar != null) bottomBar() else BottomBar(destinations, selectedTab, onSelectTab)
 
                     NavigationPresentation.SideRail ->
                         SideRail(destinations, selectedTab, onSelectTab, railHeader, railFooter)

@@ -75,8 +75,8 @@ object PreferenceKeys {
     /** FR-033 — the first-launch introduction has been completed or skipped. */
     const val ONBOARDING_SEEN = "onboarding_seen"
 
-    /** 017 — the chosen appearance (`AppearanceMode.storageValue`). */
-    const val APPEARANCE_MODE = "appearance_mode"
+    /** 087 — the shopper's recent searches on this device (JSON list). Cleared on sign-out. */
+    const val RECENT_SEARCHES = "recent_searches"
 
     /**
      * 027 — the cart mirror: a NON-AUTHORITATIVE snapshot of the cart, reconciled against the
@@ -154,6 +154,8 @@ class InMemoryDevicePreferences : DevicePreferences {
  * resetting someone's theme when they asked to clear their shopping data would be a surprise.
  */
 fun DevicePreferences.clearGuestData() {
+    // 087 — what someone searched for is personal; a shared phone must not show it to the next person.
+    remove(PreferenceKeys.RECENT_SEARCHES)
     remove(PreferenceKeys.SAVED_GUEST)
     remove(PreferenceKeys.CART_MIRROR)
     remove(PreferenceKeys.CART_QUEUE)
@@ -168,6 +170,7 @@ fun DevicePreferences.clearGuestData() {
  * tidy up after me", the opposite of what actually happened.
  */
 fun DevicePreferences.hasDeviceShoppingData(): Boolean =
-    !getString(PreferenceKeys.SAVED_GUEST).isNullOrBlank() ||
+    !getString(PreferenceKeys.RECENT_SEARCHES).isNullOrBlank() ||
+        !getString(PreferenceKeys.SAVED_GUEST).isNullOrBlank() ||
         !getString(PreferenceKeys.CART_MIRROR).isNullOrBlank() ||
         !getString(PreferenceKeys.CART_QUEUE).isNullOrBlank()

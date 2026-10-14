@@ -1,5 +1,30 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.resources.lucide_mail
+import com.effyshopping.customer.mobile.resources.lucide_message_square
+import com.effyshopping.customer.mobile.resources.lucide_x
+import com.effyshopping.customer.mobile.resources.lucide_circle_check
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.core.presentation.EffyCheckboxRow
+import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffySheet
+import com.effyshopping.customer.mobile.core.presentation.EffyConfirmSheet
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffyRowIcon
+import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
+import com.effyshopping.customer.mobile.core.presentation.EffyNotice
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.draw.clip
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyRowSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffySuccessTick
+import com.effyshopping.customer.mobile.core.presentation.EffyStatusKind
+import com.effyshopping.customer.mobile.core.presentation.EffyStatusPill
 import androidx.compose.foundation.layout.heightIn
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderTracking
@@ -61,7 +86,6 @@ import com.effyshopping.customer.mobile.features.checkout.domain.PaymentMethodSu
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ReceiptItem
 import com.effyshopping.mobile.design.EffySpacing
-import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +93,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateMapOf
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
 
@@ -162,7 +185,10 @@ fun ReceiptScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             when (val s = state) {
-                ReceiptUiState.Loading -> CircularProgressIndicator(Modifier.padding(32.dp))
+                ReceiptUiState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                    EffySkeletonBlock(Modifier.fillMaxWidth().height(120.dp), radius = EffyStorefrontShape.lg)
+                    repeat(4) { EffyRowSkeleton() }
+                }
                 ReceiptUiState.Pending -> {
                     Text("We’re confirming your payment", style = MaterialTheme.typography.titleMedium)
                     Text(
@@ -170,7 +196,7 @@ fun ReceiptScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (onDone != null) EffyPrimaryAction(doneLabel ?: "Done", onClick = onDone)
+                    if (onDone != null) EffyPrimaryButton(doneLabel ?: "Done", onClick = onDone)
                 }
                 is ReceiptUiState.Ready -> ReceiptBody(container, s.receipt, doneLabel, onDone)
             }
@@ -194,19 +220,19 @@ private fun ReceiptBody(
         ListChooserSheet(container = container, productId = productId, onDismiss = { chooserFor = null })
     }
 
-    // ── Confirmation ────────────────────────────────────────────────────────────────────────────
-    StatusDot(
-        tint = ReceiptStatusPalette.paidTint(),
-        dot = ReceiptStatusPalette.paidDot(),
-        label = if (receipt.paid) "Payment received" else "Order received",
+    // ── Confirmation (Confirmation board) vs details (Order board) ──────────────────────────────
+    // ⚠ 087: "Thank you" and the drawn tick belong to the END OF CHECKOUT only (onDone set). Order
+    // details said "Thank you" every time a past order was opened.
+    if (onDone != null) {
+        EffySuccessTick(modifier = Modifier.padding(top = EffySpacing.md))
+        Text("Thank you", style = MaterialTheme.typography.displayLarge, modifier = Modifier.padding(top = EffySpacing.s))
+    }
+    EffyStatusPill(
+        if (receipt.paid) "Payment received" else "Order received",
+        kind = EffyStatusKind.Done,
     )
     Text(
-        "Thank you",
-        style = MaterialTheme.typography.headlineSmall,
-        modifier = Modifier.padding(top = EffySpacing.s),
-    )
-    Text(
-        "Order ${'$'}{receipt.orderNumber}",
+        ReceiptText.orderTitle(receipt.orderNumber),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -250,7 +276,7 @@ private fun ReceiptBody(
     // receipt explains itself even after the code has since changed or been disabled.
     if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {
         SummaryRow(
-            receipt.promoCode?.let { "Discount (${'$'}it)" } ?: "Discount",
+            ReceiptText.discountLabel(receipt.promoCode),
             "−" + money(receipt.discountAmount, receipt.currency),
         )
     }
@@ -380,7 +406,7 @@ private fun ReceiptBody(
     // `summarizeFulfillment` mistake 052 deleted, and the cost here is a shopper offered a button
     // that refuses, or denied one that would have worked.
     if (receipt.cancellable) {
-        CancelOrderRow(container, receipt.id)
+        CancelOrderRow(container, currency = receipt.currency, orderId = receipt.id)
     }
 
     ResendReceiptRow(container, receipt.id)
@@ -396,7 +422,7 @@ private fun ReceiptBody(
     }
 
     if (onDone != null) {
-        EffyPrimaryAction(
+        EffyPrimaryButton(
             doneLabel ?: "Keep shopping",
             onClick = onDone,
             modifier = Modifier.padding(top = EffySpacing.lg),
@@ -420,19 +446,6 @@ private fun SectionLabel(text: String, topPadding: androidx.compose.ui.unit.Dp =
  * ⚠ The DOT carries the colour and the LABEL stays on the ramp (FR-015). Remove the hue and this
  * still reads correctly, which is what keeps the bounded palette inside Principle V.
  */
-@Composable
-private fun StatusDot(tint: Color, dot: Color, label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-        modifier = Modifier
-            .background(tint, RoundedCornerShape(percent = 50))
-            .padding(horizontal = EffySpacing.s, vertical = 6.dp),
-    ) {
-        Box(Modifier.size(6.dp).background(dot, CircleShape))
-        Text(label, style = MaterialTheme.typography.labelMedium)
-    }
-}
 
 /**
  * When the order arrives, and how far along it is.
@@ -461,9 +474,7 @@ private fun ArrivalSection(receipt: Receipt) {
             when (val t = delivery.tracking) {
                 is OrderTracking.Link -> {
                     val uriHandler = LocalUriHandler.current
-                    TextButton(onClick = { uriHandler.openUri(t.url) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text(trackingLinkLabel(t))
-                    }
+                    EffyTextLink(trackingLinkLabel(t), onClick = { uriHandler.openUri(t.url) })
                 }
                 OrderTracking.ByEmail -> Text(DeliveryTypeWords.TRACKING_BY_EMAIL, style = MaterialTheme.typography.bodyMedium)
                 null -> Unit
@@ -495,11 +506,7 @@ private fun ArrivalSection(receipt: Receipt) {
             MovedNote(delivery)
         }
         if (arrival != null && arrival.method == "same_day") {
-            StatusDot(
-                tint = ReceiptStatusPalette.sameDayTint(),
-                dot = ReceiptStatusPalette.sameDayDot(),
-                label = "Same-day",
-            )
+            EffyStatusPill("Same-day", kind = EffyStatusKind.InProgress)
         }
     }
     Text(
@@ -534,12 +541,11 @@ private fun ReceiptLine(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
+        // 087 — the item's picture (it was a grey box though `imageUrl` was on the line since 052).
         // ⚠ Decoration only: a line with no picture is still a whole line (FR-003).
-        Box(
-            Modifier
-                .size(48.dp)
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
-        )
+        Box(Modifier.size(56.dp).clip(EffyStorefrontShape.card).background(EffySurface.tint)) {
+            ProductImage(item.imageUrl, item.productName, modifier = Modifier.fillMaxSize())
+        }
         Column(Modifier.weight(1f)) {
             Text(item.productName, style = MaterialTheme.typography.bodyMedium)
             // ⚠ The unit price. It has been on the wire since 019 and this screen never showed it —
@@ -562,7 +568,7 @@ private fun paymentLabel(m: PaymentMethodSummary): String {
     val base = m.brand?.replace('_', ' ')
         ?: if (m.type == "pay_over_time") "pay over time" else m.type
     val nice = base.replaceFirstChar { it.uppercase() }
-    return m.last4?.let { "${'$'}nice ending ${'$'}it" } ?: nice
+    return ReceiptText.cardLabel(nice, m.last4)
 }
 
 /**
@@ -575,7 +581,7 @@ private fun paymentLabel(m: PaymentMethodSummary): String {
  * financial record; every order placed before 069 reads that line.
  */
 @OptIn(kotlin.time.ExperimentalTime::class)
-private fun arrivalLabel(a: ArrivalEstimate?): String {
+internal fun arrivalLabel(a: ArrivalEstimate?): String {
     if (a == null) return DeliveryWindowText.UNCONFIRMED
     return DeliveryWindowText.formatArrival(
         promisedFrom = a.promisedFrom,
@@ -620,7 +626,16 @@ private fun ResendReceiptRow(container: AppContainer, orderId: String) {
         modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
     ) {
-        TextButton(
+        // 087 — a row in the actions group (Order board), not a loose text button.
+        EffyNavRow(
+            when (state) {
+                is ResendUiState.Sending -> "Sending…"
+                is ResendUiState.Sent -> "Sent — check your inbox"
+                else -> "Send the receipt again"
+            },
+            leading = { EffyRowIcon(Res.drawable.lucide_mail) },
+            showChevron = false,
+            divider = false,
             onClick = {
                 state = ResendUiState.Sending
                 scope.launch {
@@ -642,15 +657,7 @@ private fun ResendReceiptRow(container: AppContainer, orderId: String) {
             // ⚠ 48 dp is the constitution's minimum touch target, and 033 shipped a 32 dp control
             // under a comment claiming it cleared the minimum. Stated in the modifier, not in prose.
             modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-        ) {
-            Text(
-                when (state) {
-                    is ResendUiState.Sending -> "Sending…"
-                    is ResendUiState.Sent -> "Sent — check your inbox"
-                    else -> "Send the receipt again"
-                },
-            )
-        }
+        )
         (state as? ResendUiState.Message)?.let {
             Text(
                 it.text,
@@ -685,70 +692,49 @@ private sealed interface ResendUiState {
  * never be cancelled, or a shopper who would have rung up simply gives up.
  */
 @Composable
-private fun CancelOrderRow(container: AppContainer, orderId: String) {
+private fun CancelOrderRow(container: AppContainer, orderId: String, currency: String) {
     var state by remember(orderId) { mutableStateOf<CancelUiState>(CancelUiState.Idle) }
     val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-    ) {
-        when (val current = state) {
-            is CancelUiState.Confirming -> {
-                Text(
-                    "Cancel this order? We'll refund everything you paid, including delivery, to your original payment method.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                    TextButton(
-                        onClick = {
-                            state = CancelUiState.Cancelling
-                            scope.launch {
-                                state = when (val result = container.cancelOrder(orderId)) {
-                                    is CancelOrderResult.Cancelled ->
-                                        // ⚠ "on its way", never "refunded" — the bank has not moved it.
-                                        CancelUiState.Done(
-                                            "Your order is cancelled. ${'$'}{result.amount} is on its way back to you.",
-                                        )
-                                    CancelOrderResult.AlreadyBeingPrepared -> CancelUiState.Message(
-                                        "Someone has already started preparing this order. Contact us and we'll see what we can do.",
-                                    )
-                                    CancelOrderResult.NotAllowed -> CancelUiState.Message(
-                                        "We can't cancel this order. Contact us and we'll help.",
-                                    )
-                                    CancelOrderResult.Failed -> CancelUiState.Message(
-                                        "We couldn't cancel it just now. Please try again, or contact us.",
-                                    )
-                                }
-                            }
-                        },
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                    ) { Text("Yes, cancel it") }
-                    TextButton(
-                        onClick = { state = CancelUiState.Idle },
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                    ) { Text("Keep my order") }
+    // 087 (Order board): a row that opens a confirm SHEET with its actions pinned — no inline buttons,
+    // no dialog. The sheet names what happens (refund of everything) rather than asking "are you sure?".
+    when (val current = state) {
+        is CancelUiState.Done -> EffyNotice(current.text, icon = Res.drawable.lucide_circle_check, positive = true)
+        else -> EffyNavRow(
+            if (state is CancelUiState.Cancelling) "Cancelling…" else "Cancel this order",
+            leading = { EffyRowIcon(Res.drawable.lucide_x) },
+            onClick = { if (state !is CancelUiState.Cancelling) state = CancelUiState.Confirming },
+            showChevron = false,
+            divider = false,
+        )
+    }
+    (state as? CancelUiState.Message)?.let { EffyInlineError(it.text) }
+
+    if (state is CancelUiState.Confirming || state is CancelUiState.Cancelling) {
+        EffyConfirmSheet(
+            title = "Cancel this order?",
+            body = "We'll refund everything you paid, including delivery, to your original payment method.",
+            confirmLabel = "Yes, cancel it",
+            cancelLabel = "Keep my order",
+            icon = Res.drawable.lucide_x,
+            destructive = true,
+            busy = state is CancelUiState.Cancelling,
+            onDismiss = { if (state !is CancelUiState.Cancelling) state = CancelUiState.Idle },
+            onConfirm = {
+                state = CancelUiState.Cancelling
+                scope.launch {
+                    state = when (val result = container.cancelOrder(orderId)) {
+                        // ⚠ "on its way", never "refunded" — the bank has not moved it.
+                        is CancelOrderResult.Cancelled -> CancelUiState.Done(ReceiptText.cancelled(result.amount, currency))
+                        CancelOrderResult.AlreadyBeingPrepared -> CancelUiState.Message(
+                            "Someone has already started preparing this order. Contact us and we'll see what we can do.",
+                        )
+                        CancelOrderResult.NotAllowed -> CancelUiState.Message("We can't cancel this order. Contact us and we'll help.")
+                        CancelOrderResult.Failed -> CancelUiState.Message("We couldn't cancel it just now. Please try again, or contact us.")
+                    }
                 }
-            }
-            is CancelUiState.Done -> Text(
-                current.text,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            else -> TextButton(
-                onClick = { state = CancelUiState.Confirming },
-                enabled = state !is CancelUiState.Cancelling,
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-            ) {
-                Text(if (state is CancelUiState.Cancelling) "Cancelling…" else "Cancel this order")
-            }
-        }
-        (state as? CancelUiState.Message)?.let {
-            Text(
-                it.text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+            },
+        )
     }
 }
 
@@ -793,7 +779,7 @@ private fun RefundSection(receipt: Receipt) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(refund.amount, style = MaterialTheme.typography.bodyMedium)
+                Text(money(refund.amount, receipt.currency), style = MaterialTheme.typography.bodyMedium)
             }
         }
 
@@ -808,14 +794,14 @@ private fun RefundSection(receipt: Receipt) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(receipt.refundedTotal, style = MaterialTheme.typography.bodyMedium)
+            Text(money(receipt.refundedTotal, receipt.currency), style = MaterialTheme.typography.bodyMedium)
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text("You paid", style = MaterialTheme.typography.titleSmall)
-            Text(receipt.amountPaidAfterRefunds, style = MaterialTheme.typography.titleSmall)
+            Text(money(receipt.amountPaidAfterRefunds, receipt.currency), style = MaterialTheme.typography.titleSmall)
         }
 
         // ⚠ THE PUBLISHED POLICY'S OWN SENTENCE, and the SAME one customer-web renders (FR-026).
@@ -866,109 +852,67 @@ private fun RequestRefundRow(container: AppContainer, receipt: Receipt) {
     val selected = remember(receipt.id) { mutableStateMapOf<String, Int>() }
     val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-    ) {
-        when (val current = state) {
-            is RequestUiState.Done -> Text(current.text, style = MaterialTheme.typography.bodyMedium)
+    // 087 (Order board): the row opens a full-height SHEET — message, optional items, pinned Send.
+    when (val current = state) {
+        is RequestUiState.Done -> EffyNotice(current.text, icon = Res.drawable.lucide_circle_check, positive = true)
+        else -> EffyNavRow(
+            "Something wrong with this order?",
+            leading = { EffyRowIcon(Res.drawable.lucide_message_square) },
+            onClick = { state = RequestUiState.Composing },
+            divider = false,
+        )
+    }
 
-            is RequestUiState.Composing, is RequestUiState.Sending, is RequestUiState.Error -> {
-                OutlinedTextField(
-                    value = message,
-                    onValueChange = { message = it },
-                    label = { Text("What went wrong?") },
-                    placeholder = { Text("e.g. two cartons of milk were missing") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                )
-                if (receipt.items.isNotEmpty()) {
-                    Text(
-                        "Which items, if it helps?",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = EffySpacing.xs),
+    val composing = state is RequestUiState.Composing || state is RequestUiState.Sending || state is RequestUiState.Error
+    if (composing) {
+        val sending = state is RequestUiState.Sending
+        EffySheet(
+            title = "What went wrong?",
+            onDismiss = { state = RequestUiState.Idle },
+            fullHeight = true,
+            dirty = message.isNotBlank() && !sending,
+            busy = sending,
+            primaryLabel = if (sending) "Sending…" else "Send",
+            primaryEnabled = message.isNotBlank() && !sending,
+            primaryLoading = sending,
+            onPrimary = {
+                state = RequestUiState.Sending
+                scope.launch {
+                    val input = RefundRequestInput(
+                        message = message.trim(),
+                        items = selected.map { (id, qty) -> RefundRequestItem(id, qty) },
                     )
-                    receipt.items.forEach { item ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                // ⚠ 48 dp, the constitution's minimum touch target. 033 shipped a
-                                // 32 dp control under a comment claiming it cleared the minimum.
-                                .defaultMinSize(minHeight = 48.dp)
-                                .toggleable(
-                                    value = selected.containsKey(item.orderItemId),
-                                    onValueChange = { on ->
-                                        // ⚠ Keyed on the LINE id, never the product id — see the note
-                                        // on ReceiptItem.orderItemId.
-                                        if (on) selected[item.orderItemId] = item.quantity
-                                        else selected.remove(item.orderItemId)
-                                    },
-                                ),
-                        ) {
-                            Checkbox(
-                                checked = selected.containsKey(item.orderItemId),
-                                onCheckedChange = null,
-                            )
-                            Text(
-                                item.productName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = EffySpacing.s),
-                            )
-                        }
+                    state = when (container.requestRefund(receipt.id, input)) {
+                        RefundRequestResult.Received -> RequestUiState.Done(
+                            "Thanks — we've got it and we'll look into this order. We'll be in touch about what happens next.",
+                        )
+                        RefundRequestResult.AlreadyOpen -> RequestUiState.Done("You've already told us about this order — we're looking into it.")
+                        RefundRequestResult.NotAllowed -> RequestUiState.Error("We can't take a request for this order. Contact us and we'll help.")
+                        RefundRequestResult.Failed -> RequestUiState.Error("We couldn't send that just now. Please try again.")
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                    TextButton(
-                        enabled = message.isNotBlank() && state !is RequestUiState.Sending,
-                        onClick = {
-                            state = RequestUiState.Sending
-                            scope.launch {
-                                val input = RefundRequestInput(
-                                    message = message.trim(),
-                                    items = selected.map { (id, qty) -> RefundRequestItem(id, qty) },
-                                )
-                                state = when (container.requestRefund(receipt.id, input)) {
-                                    RefundRequestResult.Received -> RequestUiState.Done(
-                                        "Thanks — we've got it and we'll look into this order. " +
-                                            "We'll be in touch about what happens next.",
-                                    )
-                                    RefundRequestResult.AlreadyOpen -> RequestUiState.Done(
-                                        "You've already told us about this order — we're looking into it.",
-                                    )
-                                    RefundRequestResult.NotAllowed -> RequestUiState.Error(
-                                        "We can't take a request for this order. Contact us and we'll help.",
-                                    )
-                                    RefundRequestResult.Failed -> RequestUiState.Error(
-                                        "We couldn't send that just now. Please try again.",
-                                    )
-                                }
-                            }
-                        },
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                    ) {
-                        Text(if (state is RequestUiState.Sending) "Sending…" else "Send")
-                    }
-                    TextButton(
-                        enabled = state !is RequestUiState.Sending,
-                        onClick = { state = RequestUiState.Idle },
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-                    ) { Text("Cancel") }
-                }
-                (state as? RequestUiState.Error)?.let {
-                    Text(
-                        it.text,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            },
+        ) {
+            EffyField(
+                label = "Tell us what happened",
+                value = message,
+                onValueChange = { message = it },
+                placeholder = "e.g. two cartons of milk were missing",
+                singleLine = false,
+            )
+            if (receipt.items.isNotEmpty()) {
+                // ⚠ NAMING ITEMS IS OPTIONAL — "the whole thing arrived warm" must still be askable.
+                Text("Which items, if it helps?", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                receipt.items.forEach { item ->
+                    // ⚠ Keyed on the LINE id, never the product id — see ReceiptItem.orderItemId.
+                    EffyCheckboxRow(
+                        label = item.productName,
+                        checked = selected.containsKey(item.orderItemId),
+                        onCheckedChange = { on -> if (on) selected[item.orderItemId] = item.quantity else selected.remove(item.orderItemId) },
                     )
                 }
             }
-
-            RequestUiState.Idle -> TextButton(
-                onClick = { state = RequestUiState.Composing },
-                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-            ) { Text("Something wrong with this order?") }
+            (state as? RequestUiState.Error)?.let { EffyInlineError(it.text) }
         }
     }
 }
@@ -984,3 +928,24 @@ private sealed interface RequestUiState {
 /** "Track your parcel with Test Courier" — the website's words, with the courier's name when given. */
 internal fun trackingLinkLabel(t: OrderTracking.Link): String =
     if (t.courierName.isBlank()) DeliveryTypeWords.TRACK_PARCEL else "${DeliveryTypeWords.TRACK_PARCEL} with ${t.courierName}"
+
+
+/**
+ * The receipt's own sentences, as pure functions (087 T085).
+ *
+ * ⚠ WHY THESE EXIST: four of them were written `"Order ${'$'}{receipt.orderNumber}"` — an ESCAPED
+ * dollar, which Kotlin prints literally. Every receipt said "Order ${receipt.orderNumber}" instead of the
+ * number, and the cancel confirmation printed the template instead of the amount. Pulled out here so
+ * `ReceiptTextTest` can render each one and fail on any `$`-template left in the output.
+ */
+internal object ReceiptText {
+    fun orderTitle(orderNumber: String): String = "Order $orderNumber"
+
+    fun discountLabel(promoCode: String?): String = promoCode?.let { "Discount ($it)" } ?: "Discount"
+
+    fun cardLabel(brand: String, last4: String?): String = last4?.let { "$brand ending $it" } ?: brand
+
+    /** ⚠ "on its way", never "refunded" — the bank has not moved it yet. */
+    fun cancelled(amount: String, currency: String): String =
+        "Your order is cancelled. ${money(amount, currency)} is on its way back to you."
+}

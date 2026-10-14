@@ -91,6 +91,9 @@ class SearchViewModel(
         reload()
     }
 
+    /** 087 — the retry on the failed state (it had none): run the same search again. */
+    fun retry() = reload()
+
     fun toggleSale() {
         _state.value = _state.value.copy(saleOnly = !_state.value.saleOnly)
         reload()

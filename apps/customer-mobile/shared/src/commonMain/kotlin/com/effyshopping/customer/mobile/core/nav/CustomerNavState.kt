@@ -61,6 +61,15 @@ class CustomerNavState internal constructor(
         activeTab = tab
     }
 
+    /**
+     * A tap on a tab in the bar (087). Another tab: switch to it, where the shopper left it. The tab
+     * they are ALREADY in: return it to its root — the iOS convention, and the only way back to the
+     * top of a tab after going several pages deep without pressing Back repeatedly.
+     */
+    fun tapTab(tab: CustomerNavKey) {
+        if (tab == activeTab) resetToRoot() else selectTab(tab)
+    }
+
     // ── The search-focus one-shot (028 US1, research R1) ────────────────────────────────────────
 
     private var searchFocusRequested = false

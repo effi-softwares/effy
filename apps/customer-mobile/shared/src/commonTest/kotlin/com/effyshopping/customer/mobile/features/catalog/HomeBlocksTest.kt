@@ -293,15 +293,16 @@ class HomeBlocksTest {
     }
 
     @Test
-    fun `the offers section sits after the categories and before the first rail`() {
+    fun `the offers hero opens Home, above the aisles and the first rail`() {
         val blocks = composeHome(
             HomeContent(banners = listOf(offer("o1")), rails = listOf(rail("featured"))),
             listOf(category("pantry")),
         )
 
         // SC-012: a shopper should be able to say what the current offer is without going looking.
-        assertTrue(blocks[0] is HomeBlock.Categories)
-        assertTrue(blocks[1] is HomeBlock.Offers)
+        // ⚠ CHANGED BY 087 (Main board): the carousel is the hero, ABOVE the aisle row.
+        assertTrue(blocks[0] is HomeBlock.Offers)
+        assertTrue(blocks[1] is HomeBlock.Categories)
         assertTrue(blocks[2] is HomeBlock.Section)
     }
 

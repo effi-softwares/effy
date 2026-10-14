@@ -1,5 +1,22 @@
 package com.effyshopping.customer.mobile.features.help.presentation
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import com.effyshopping.customer.mobile.resources.lucide_mail
+import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_user_round
+import com.effyshopping.customer.mobile.resources.lucide_credit_card
+import com.effyshopping.customer.mobile.resources.lucide_truck
+import com.effyshopping.customer.mobile.resources.lucide_chevron_down
+import com.effyshopping.customer.mobile.core.presentation.effyDuration
+import com.effyshopping.customer.mobile.core.presentation.EffyStorefrontMotion
+import com.effyshopping.customer.mobile.core.presentation.EffySize
+import com.effyshopping.customer.mobile.core.presentation.EffyRowIcon
+import com.effyshopping.customer.mobile.core.presentation.EffyGroupDivider
+import com.effyshopping.customer.mobile.core.presentation.EffyGroup
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,15 +71,19 @@ private val FAQS = listOf(
         "No. You can browse the whole store and build a cart as a guest. We only ask who you are " +
             "when you place an order, so we know where to deliver it.",
     ),
+    // 087 — rewritten to the delivery model as built (083/085). The old answers told shoppers to set a
+    // location "from the storefront" (there is no such control in the app) and that an order could be
+    // split into packages shown before paying — which revealed how many suppliers fill an order, the
+    // one thing the hidden-fulfilment rule forbids.
     Faq(
         "How do I know if you deliver to me?",
-        "Set your delivery location from the storefront and we'll tell you straight away — before " +
-            "you add anything to your cart.",
+        "Add your address at checkout and we'll tell you straight away who delivers it: Effy's own " +
+            "drivers in a window you choose, or a courier with an estimated arrival.",
     ),
     Faq(
-        "Why did my order arrive in more than one delivery?",
-        "Larger orders are sometimes prepared in more than one package. You'll see the split before " +
-            "you pay, and each package is tracked separately.",
+        "When will my order arrive?",
+        "If Effy delivers to you, you choose a day — today or one of the next few — and, if you like, " +
+            "a time window. Courier orders show an estimate before you pay.",
     ),
     Faq(
         "How do I change or cancel an order?",
@@ -94,87 +115,98 @@ private fun HelpScaffold(title: String, content: @Composable ColumnScope.() -> U
     }
 }
 
-/** FAQs — an accordion list, the source's pattern. */
+/** FAQs — an accordion list in a group (Help board). */
 @Composable
 fun FaqsScreen() = HelpScaffold("FAQs") {
-    FAQS.forEach { faq ->
-        FaqRow(faq)
-        EffyHairline()
+    EffyGroup(modifier = Modifier.padding(EffySpacing.lg)) {
+        FAQS.forEachIndexed { i, faq ->
+            FaqRow(faq)
+            if (i < FAQS.lastIndex) EffyGroupDivider()
+        }
     }
 }
 
 @Composable
 private fun FaqRow(faq: Faq) {
     var open by remember { mutableStateOf(false) }
+    // 087 — the chevron ROTATES (it snapped) — state by orientation and by the answer's presence.
+    val rotation by animateFloatAsState(if (open) 180f else 0f, tween(effyDuration(EffyStorefrontMotion.StandardMillis)), label = "faqChevron")
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { open = !open }
-            .padding(EffySpacing.lg),
+            .clickable(role = Role.Button, onClickLabel = if (open) "Hide answer" else "Show answer") { open = !open }
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = EffyMinTouchTarget),
+            modifier = Modifier.fillMaxWidth().heightIn(min = EffySize.target),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
         ) {
-            Text(faq.question, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-            // The chevron ROTATES to show state — so "expanded" is conveyed by orientation and by the
-            // answer's presence, never by colour (FR-040).
-            //
-            // ⚠ The arrow asset points LEFT at 0°, and rotation is clockwise, so DOWN is 270° and UP
-            // is 90°. It used to be 180°/270° — collapsed pointed RIGHT, which is the "opens another
-            // screen" arrow this very file uses for the Help Centre rows, and expanded pointed DOWN,
-            // which is the universal "tap to expand". Both states said the opposite of the truth.
+            Text(faq.question, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f))
             Icon(
-                painterResource(Res.drawable.ic_arrow_back),
+                painterResource(Res.drawable.lucide_chevron_down),
                 contentDescription = null,
-                modifier = Modifier.size(20.dp).rotate(if (open) 90f else 270f),
+                modifier = Modifier.size(20.dp).rotate(rotation),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         AnimatedVisibility(open) {
             Text(
                 faq.answer,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = EffySpacing.s),
+                modifier = Modifier.padding(bottom = EffySpacing.md),
             )
         }
     }
 }
 
-/** Help Center — topic rows, the source's pattern. */
+/**
+ * Help centre — topic rows (Help board). 087: each topic opens the answers; they did nothing.
+ */
 @Composable
-fun HelpCenterScreen(onTopic: (String) -> Unit = {}) = HelpScaffold("Help Center") {
+fun HelpCenterScreen(onTopic: (String) -> Unit = {}) = HelpScaffold("Help centre") {
     val topics = listOf(
-        "Orders and delivery",
-        "Payments and refunds",
-        "Your account",
-        "Privacy and data",
+        "Orders and delivery" to Res.drawable.lucide_truck,
+        "Payments and refunds" to Res.drawable.lucide_credit_card,
+        "Your account" to Res.drawable.lucide_user_round,
+        "Privacy and data" to Res.drawable.lucide_lock,
     )
-    topics.forEachIndexed { i, topic ->
-        EffyNavRow(topic, onClick = { onTopic(topic) }, divider = i < topics.lastIndex)
+    EffyGroup(modifier = Modifier.padding(EffySpacing.lg)) {
+        topics.forEachIndexed { i, (topic, icon) ->
+            EffyNavRow(topic, leading = { EffyRowIcon(icon) }, onClick = { onTopic(topic) }, divider = false)
+            if (i < topics.lastIndex) EffyGroupDivider()
+        }
     }
 }
 
 /**
- * Customer Service — how to reach a person.
+ * Contact us — how to reach a person. Only what Effy can answer is offered: email.
  *
- * ⚠ The source offers live chat, WhatsApp and a phone line. Only what Effy can actually answer is
- * offered here: email. Listing a channel nobody is on is worse than listing none.
+ * ⚠ 087 FR-030: the ONE customer-facing address is hello@effyshopping.com (CLAUDE.md, approved
+ * mailboxes). This screen showed a "support" address Effy does not have, and its
+ * "Email us" row did nothing. It now opens the mail app.
  */
 @Composable
-fun CustomerServiceScreen(onEmail: () -> Unit = {}) = HelpScaffold("Customer Service") {
-    Text(
-        "We'll get back to you as quickly as we can.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
-    )
-    EffyNavRow(
-        "Email us",
-        supporting = "support@effyshopping.com",
-        onClick = onEmail,
-        divider = false,
-    )
+fun CustomerServiceScreen() = HelpScaffold("Contact us") {
+    val uri = LocalUriHandler.current
+    Column(modifier = Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
+        Text(
+            "We'll get back to you as quickly as we can.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        EffyGroup {
+            EffyNavRow(
+                "Email us",
+                leading = { EffyRowIcon(Res.drawable.lucide_mail) },
+                supporting = SUPPORT_EMAIL,
+                onClick = { uri.openUri("mailto:$SUPPORT_EMAIL") },
+                divider = false,
+            )
+        }
+    }
 }
+
+/** The customer-facing Effy address — the only one a shopper may see (CLAUDE.md). */
+internal const val SUPPORT_EMAIL = "hello@effyshopping.com"

@@ -1,5 +1,33 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import androidx.compose.material3.Icon
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.animation.AnimatedVisibility
+import com.effyshopping.customer.mobile.resources.lucide_circle_check
+import com.effyshopping.customer.mobile.resources.lucide_truck
+import com.effyshopping.customer.mobile.resources.lucide_info
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import com.effyshopping.customer.mobile.core.presentation.money
+import com.effyshopping.customer.mobile.core.presentation.EffySize
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffyNotice
+import com.effyshopping.customer.mobile.core.presentation.EffyTextLink
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyNumberRoll
+import com.effyshopping.customer.mobile.core.presentation.EffyPinnedBar
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineError
+import com.effyshopping.customer.mobile.core.presentation.EffySwitchRow
+import com.effyshopping.customer.mobile.core.presentation.EffyGroup
+import com.effyshopping.customer.mobile.core.presentation.EffyCheckboxRow
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.core.delivery.CoverageWords
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -36,7 +64,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,7 +87,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
-import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
@@ -123,108 +149,119 @@ fun CheckoutScreen(
         EffyAppBar(title = "Checkout", onBack = onBack)
 
         when (val s = state) {
-            CheckoutUiState.Loading ->
-                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(Modifier.padding(32.dp)) }
+            CheckoutUiState.Loading -> Column(Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                repeat(3) { EffySkeletonBlock(Modifier.fillMaxWidth().height(110.dp), radius = EffyStorefrontShape.lg) }
+            }
 
-            is CheckoutUiState.Ready -> AddressAndPay(
-                s,
-                vm,
-                onNavigateLegal = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
-            )
+            is CheckoutUiState.Ready -> {
+                val cart by container.cart.state.collectAsState()
+                AddressAndPay(
+                    s,
+                    vm,
+                    itemsTotal = cart.grandTotalAmount,
+                    currency = cart.currency,
+                    onNavigateLegal = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
+                )
+            }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 087 (Checkout / Checkout-Courier boards): sectioned CARDS — address, delivery, points, billing — with
+ * the order total and "Pay now" PINNED at the bottom (FR-022). Card layouts are the storefront pattern
+ * (constitution v3.3.0): an address and a delivery window are discrete choosable objects.
+ */
 @Composable
-private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNavigateLegal: (String) -> Unit) {
+private fun AddressAndPay(
+    s: CheckoutUiState.Ready,
+    vm: CheckoutViewModel,
+    itemsTotal: String,
+    currency: String,
+    onNavigateLegal: (String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
     ) {
-        Text("Delivery address", style = MaterialTheme.typography.titleMedium)
-        if (s.addresses.isEmpty()) {
-            // No saved address → a prompt that blocks pay (023 US1 scenario 3, FR-007).
-            Text(
-                "Add a delivery address to continue.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            // Picker: the saved addresses as selectable rows (no cards — FR-022); the selected one shown.
-            s.addresses.forEach { addr ->
-                AddressPickRow(addr, selected = addr.id == s.selectedId, onSelect = { vm.select(addr.id) })
+        CheckoutSection("Delivery address") {
+            if (s.addresses.isEmpty()) {
+                // No saved address → a prompt that blocks pay (023 US1 scenario 3, FR-007).
+                Text("Add a delivery address to continue.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                s.addresses.forEach { addr ->
+                    AddressPickRow(addr, selected = addr.id == s.selectedId, onSelect = { vm.select(addr.id) })
+                }
             }
+            EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
         }
-        EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
 
         // 066 — what the shopper tells the driver. Shown once there is an address for it to be about.
         if (s.selectedId != null) {
-            DeliveryInstructionsField(draft = s.instructions, onChange = vm::setInstructions)
-            // Offered only when there is something new to save — an always-present switch is a chore.
-            if (s.instructionsDiffer) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .toggleable(
-                            value = s.saveInstructions,
-                            role = Role.Checkbox,
-                            onValueChange = vm::setSaveInstructions,
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(checked = s.saveInstructions, onCheckedChange = null)
-                    Spacer(Modifier.width(EffySpacing.s))
-                    Text("Save to this address for next time", style = MaterialTheme.typography.bodyMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                DeliveryInstructionsField(draft = s.instructions, onChange = vm::setInstructions)
+                // Offered only when there is something new to save — an always-present switch is a chore.
+                if (s.instructionsDiffer) {
+                    EffyCheckboxRow(
+                        label = "Save to this address for next time",
+                        checked = s.saveInstructions,
+                        onCheckedChange = vm::setSaveInstructions,
+                    )
                 }
             }
         }
 
-        // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip), and the
-        // standard/same-day choice when the whole order qualifies. The server owns every fee (SC-004).
+        // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip). The
+        // server owns every fee (SC-004).
         DeliverySection(s, vm)
 
         // 074 — Effy points, only when the shopper has some.
         s.points?.let { points ->
-            HorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .toggleable(value = s.usePoints, role = Role.Switch, onValueChange = vm::setUsePoints),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Use my Effy points", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        "${formatPointsCount(points.usable)} points, worth \$${points.valueAmount}. Any rest is paid by card.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(checked = s.usePoints, onCheckedChange = null)
+            EffyGroup(caption = "Effy points") {
+                EffySwitchRow(
+                    label = "Use my Effy points",
+                    supporting = "${formatPointsCount(points.usable)} points, worth \$${points.valueAmount}. Any rest is paid by card.",
+                    checked = s.usePoints,
+                    onCheckedChange = vm::setUsePoints,
+                )
             }
         }
 
         BillingSection(s, vm)
 
-        s.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        s.error?.let { EffyInlineError(it) }
 
-        val billingReady = s.billingSameAsShipping || s.billingSelectedId != null
-        // 047 FR-002: pay is blocked until delivery is confirmed for the address.
-        val payEnabled = !s.paying && s.selectedId != null && billingReady && s.serviced
-        EffyPrimaryAction(
-            if (s.paying) "Processing…" else "Pay now",
-            onClick = vm::payNow,
-            enabled = payEnabled,
-        )
         // Point-of-sale consent (045) — the purchase terms, at the moment of paying.
         LegalLinksText(
             "By placing your order you agree to our [Terms of Service](/legal/terms-of-service), " +
                 "[Delivery Policy](/legal/delivery-policy) and [Refund & Returns Policy](/legal/refunds-returns).",
             onNavigateSlug = onNavigateLegal,
         )
+    }
+
+    val billingReady = s.billingSameAsShipping || s.billingSelectedId != null
+    // 047 FR-002: pay is blocked until delivery is confirmed for the address.
+    val payEnabled = !s.paying && s.selectedId != null && billingReady && s.serviced
+    EffyPinnedBar {
+        // The total the shopper is about to commit to: the cart's, plus the delivery fee once chosen.
+        // ⚠ What is CHARGED is decided at the intent (and shown, exactly, on Payment); this line adds
+        // two figures the platform already gave, and says "+ delivery" until there is a fee to add.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Order total", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            val fee = s.deliveryFee
+            EffyNumberRoll(
+                if (fee != null) money(addAmounts(itemsTotal, fee.totalAmount), currency) else money(itemsTotal, currency) + " + delivery",
+                style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+            )
+        }
+        EffyPrimaryButton(
+            if (s.paying) "Processing…" else "Pay now",
+            onClick = vm::payNow,
+            enabled = payEnabled,
+            loading = s.paying,
+        )
+    }
     }
 
     // The shared add-address form (022) — raised for shipping OR billing (023 US3).
@@ -264,32 +301,23 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
 @Composable
 private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     if (s.selectedId == null) return
-    HorizontalDivider()
     val quote = s.quote
     // 079 — the section is headed by WHO DELIVERS, once the quote says: "Courier delivery", or
     // "Delivered by Effy" under the new delivery model. Plain "Delivery" while it is loading, when
     // nobody delivers, and under the checkout that predates delivery types.
-    Text(
-        when (quote?.takeUnless { s.quoting }?.deliveryType) {
-            DeliveryType.COURIER -> DeliveryTypeWords.COURIER
-            DeliveryType.EFFY -> DeliveryTypeWords.EFFY
-            null -> "Delivery"
-        },
-        style = MaterialTheme.typography.titleSmall,
-    )
-
+    val heading = when (quote?.takeUnless { s.quoting }?.deliveryType) {
+        DeliveryType.COURIER -> DeliveryTypeWords.COURIER
+        DeliveryType.EFFY -> DeliveryTypeWords.EFFY
+        null -> "Delivery"
+    }
+    CheckoutSection(heading, headingColor = if (quote?.deliveryType == DeliveryType.EFFY && !s.quoting) EffyRoles.brand else null) {
     when {
-        s.quoting || quote == null -> Text(
-            "Checking delivery…",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        // 076 — the ONE refusal sentence (CoverageWords), the same the address book shows.
-        !quote.serviced -> Text(
-            CoverageWords.REFUSAL,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
-        )
+        s.quoting || quote == null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+            Text("Checking delivery…", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        // 076 — the ONE refusal sentence (CoverageWords), the same the address book shows. No red.
+        !quote.serviced -> EffyInlineError(CoverageWords.REFUSAL)
         // 079 — a courier delivers: NOTHING TO CHOOSE. Before the pickers — a courier quote carries no
         // windows, slots or days, and the branches below would draw an empty section for it.
         quote.courier != null -> {
@@ -314,6 +342,35 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         // A serviced quote with neither block is a server fault: nothing is drawn, and nothing can be paid for.
         else -> Unit
     }
+    }
+}
+
+/** One checkout section — a heading above its content (Checkout board). */
+@Composable
+private fun CheckoutSection(
+    title: String,
+    headingColor: androidx.compose.ui.graphics.Color? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, color = headingColor ?: MaterialTheme.colorScheme.onSurface)
+        content()
+    }
+}
+
+/** Adds two decimal-string amounts in whole cents (no float touches money). */
+internal fun addAmounts(a: String, b: String): String {
+    fun cents(x: String): Long {
+        val neg = x.startsWith("-")
+        val parts = x.removePrefix("-").split(".")
+        val whole = parts[0].toLongOrNull() ?: 0L
+        val frac = (parts.getOrNull(1) ?: "0").padEnd(2, '0').take(2).toLongOrNull() ?: 0L
+        return (whole * 100 + frac) * if (neg) -1 else 1
+    }
+    val total = cents(a) + cents(b)
+    val sign = if (total < 0) "-" else ""
+    val abs = kotlin.math.abs(total)
+    return "$sign${abs / 100}.${(abs % 100).toString().padStart(2, '0')}"
 }
 
 /**
@@ -343,7 +400,7 @@ private fun EffyWindowsSection(
     onAsap: () -> Unit,
 ) {
     view.unavailable?.let { sentence ->
-        Text(sentence, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        EffyInlineError(sentence)
         return
     }
 
@@ -360,7 +417,7 @@ private fun EffyWindowsSection(
 
     Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
         view.today?.let { today ->
-            Text(view.sameDayTitle, style = MaterialTheme.typography.labelLarge)
+            Text(view.sameDayTitle, style = MaterialTheme.typography.titleSmall)
             EffyDayWindows(today, chosen, enabled) { slotId, date ->
                 pendingDay = null
                 timeOpen = false
@@ -369,7 +426,7 @@ private fun EffyWindowsSection(
         }
 
         if (view.later.isNotEmpty() || view.asap != null) {
-            Text(view.standardTitle, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = EffySpacing.s))
+            Text(view.standardTitle, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = EffySpacing.md))
         }
         view.later.forEach { day ->
             val selected = activeDay?.date == day.date
@@ -393,8 +450,9 @@ private fun EffyWindowsSection(
                     }
                 },
             )
-            if (selected) {
-                Column(modifier = Modifier.padding(start = EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+            // The day's details OPEN under it (animated — Motion board), rather than appearing.
+            AnimatedVisibility(selected) {
+                Column(modifier = Modifier.padding(start = EffySpacing.md, top = EffySpacing.xs), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
                     val anyTime = day.anyTime
                     if (anyTime == null) {
                         Text(DeliveryWindowWords.TIME_REQUIRED, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -403,9 +461,9 @@ private fun EffyWindowsSection(
                             Text(DeliveryWindowWords.ANY_TIME_DAY, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (day.windows.isNotEmpty()) {
-                            TextButton(
+                            EffyTextLink(
+                                DeliveryWindowWords.TIME_OPTION_OPEN,
                                 enabled = enabled,
-                                modifier = Modifier.heightIn(min = 48.dp),
                                 onClick = {
                                     if (timesShown) {
                                         timeOpen = false
@@ -415,7 +473,7 @@ private fun EffyWindowsSection(
                                         timeOpen = true
                                     }
                                 },
-                            ) { Text(DeliveryWindowWords.TIME_OPTION_OPEN) }
+                            )
                         }
                     }
                     if (timesShown && day.windows.isNotEmpty()) {
@@ -445,22 +503,39 @@ private fun EffyWindowsSection(
     }
 }
 
-/** One choice as a whole-row radio: a day, or "Standard". */
+/** One choice as a selectable tile: a day, or "Standard" (Checkout board — 56dp, blue when chosen). */
 @Composable
 private fun ChoiceRow(selected: Boolean, enabled: Boolean, title: String, detail: String?, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
-        Column(modifier = Modifier.padding(start = EffySpacing.s)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium)
-            detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
+    ChoiceTile(selected = selected, enabled = enabled, onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+        detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
+}
+
+/**
+ * A delivery choice: white with a hairline, or — chosen — the light-blue tint with a 2dp blue edge.
+ * The WHOLE tile is the target, announced as one radio button.
+ */
+@Composable
+private fun ChoiceTile(
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .heightIn(min = EffySize.tile)
+            .clip(EffyStorefrontShape.card)
+            .background(if (selected) EffyRoles.primaryMuted else MaterialTheme.colorScheme.background)
+            .border(if (selected) 2.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline, EffyStorefrontShape.card)
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = EffySpacing.md, vertical = EffySpacing.s)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.5f },
+        verticalArrangement = Arrangement.Center,
+        content = content,
+    )
 }
 
 @Composable
@@ -469,26 +544,26 @@ private fun EffyDayWindows(day: EffyDayView, chosen: ChosenWindow?, enabled: Boo
         Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         return
     }
-    day.windows.forEach { w ->
-        val selected = chosen?.slotId == w.slotId && chosen.date == w.date
-        Row(
-            // The WHOLE row is the target, announced as one radio button with its time and what it adds.
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .selectable(selected = selected, enabled = enabled && !w.closed, role = Role.RadioButton, onClick = { onChoose(w.slotId, w.date) }),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = selected, onClick = null, enabled = enabled && !w.closed)
-                Column(modifier = Modifier.padding(start = EffySpacing.s)) {
-                    Text(w.label, style = MaterialTheme.typography.bodyMedium)
+    // Two tiles per row (Checkout board).
+    day.windows.chunked(2).forEach { pair ->
+        Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), modifier = Modifier.fillMaxWidth()) {
+            pair.forEach { w ->
+                val selected = chosen?.slotId == w.slotId && chosen.date == w.date
+                ChoiceTile(
+                    selected = selected,
+                    enabled = enabled && !w.closed,
+                    onClick = { onChoose(w.slotId, w.date) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(w.label, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f, fill = false))
+                        // 077 FR-030 — what this window adds, BEFORE it is chosen. Nothing when it adds nothing.
+                        w.surchargeAmount?.let { Text("  +$$it", style = MaterialTheme.typography.bodySmall) }
+                    }
                     w.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
-            // 077 FR-030 — what this window adds, BEFORE it is chosen. Nothing when it adds nothing.
-            w.surchargeAmount?.let { Text("+$$it", style = MaterialTheme.typography.bodyMedium) }
+            if (pair.size == 1) Spacer(Modifier.weight(1f))
         }
     }
 }
@@ -512,14 +587,17 @@ private fun CourierSection(courier: CourierDelivery) {
     val (partner, estimate) = DeliveryTypeWords.courierLines(courier.estimate)
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
         if (courier.noWindowLeft) {
-            Text(
-                "${DeliveryTypeWords.NO_WINDOWS_LEFT} ${DeliveryTypeWords.COURIER_INSTEAD_OF_WINDOWS}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-            )
+            EffyNotice("${DeliveryTypeWords.NO_WINDOWS_LEFT} ${DeliveryTypeWords.COURIER_INSTEAD_OF_WINDOWS}", icon = Res.drawable.lucide_info)
         }
-        Text(partner, style = MaterialTheme.typography.bodyMedium)
-        Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        EffyCard {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                Icon(painterResource(Res.drawable.lucide_truck), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Column {
+                    Text(partner, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                    Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
@@ -529,16 +607,15 @@ private fun DeliveryFeeSummary(fee: DeliveryFee, freeRemaining: String?) {
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
         fee.lines.forEach { line ->
             val saving = line.amount.startsWith("-")
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(DeliveryFeeWords.label(line.kind), style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    if (saving) "−$${line.amount.removePrefix("-")}" else "$${line.amount}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+            EffyDetailRow(
+                DeliveryFeeWords.label(line.kind),
+                if (saving) "−$${line.amount.removePrefix("-")}" else "$${line.amount}",
+                // A saving (free delivery) in Effy green — the storefront's savings colour.
+                valueColor = if (saving) EffyRoles.brand else androidx.compose.ui.graphics.Color.Unspecified,
+            )
         }
         when {
-            fee.free -> Text(DeliveryFeeWords.FREE_REACHED, style = MaterialTheme.typography.bodySmall)
+            fee.free -> EffyNotice(DeliveryFeeWords.FREE_REACHED, icon = Res.drawable.lucide_circle_check, positive = true)
             freeRemaining != null -> Text(
                 DeliveryFeeWords.spendMore("$$freeRemaining"),
                 style = MaterialTheme.typography.bodySmall,
@@ -551,14 +628,12 @@ private fun DeliveryFeeSummary(fee: DeliveryFee, freeRemaining: String?) {
 /** Billing address (023 US4): "same as shipping" toggle ON by default; OFF reveals the same picker. */
 @Composable
 private fun BillingSection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
-    HorizontalDivider()
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("Billing address same as shipping", style = MaterialTheme.typography.titleSmall)
-        Switch(checked = s.billingSameAsShipping, onCheckedChange = vm::setBillingSameAsShipping)
+    EffyGroup(caption = "Billing") {
+        EffySwitchRow(
+            label = "Billing address same as shipping",
+            checked = s.billingSameAsShipping,
+            onCheckedChange = vm::setBillingSameAsShipping,
+        )
     }
     if (!s.billingSameAsShipping) {
         if (s.addresses.isEmpty()) {
@@ -576,28 +651,18 @@ private fun BillingSection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     }
 }
 
-/** One selectable saved-address row (023) — a list, never a card (FR-022). Reused for shipping + billing. */
+/** One selectable saved address — a card, blue-edged when chosen (Checkout board). Shipping + billing. */
 @Composable
 private fun AddressPickRow(addr: SavedAddress, selected: Boolean, onSelect: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().selectable(selected = selected, onClick = onSelect).padding(vertical = 6.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        RadioButton(selected = selected, onClick = onSelect)
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(addr.recipientName, style = MaterialTheme.typography.bodyMedium)
-                addr.label?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                }
-                if (addr.isDefault) Text("Default", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    ChoiceTile(selected = selected, enabled = true, onClick = onSelect, modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+            Text(addr.recipientName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+            addr.label?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
-            Text(
-                addr.formatSummary(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (addr.isDefault) Text("Default", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Text(addr.formatSummary(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

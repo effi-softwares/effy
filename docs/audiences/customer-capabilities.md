@@ -75,7 +75,7 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 | 16 | The customer **maintains their own details** (display name) | 🔒 | ⬜ | `edge-api/customer` |
 | 17 | A customer credential is **structurally refused** by every employee-facing service | 🔒 | ⬜ | gateway JWT authorizers |
 | 18 | Commerce traffic is served by the **`storefront` and `commerce` services** *(070; was a second backend)* | ✅ | ✅ | `edge-api/storefront`, `edge-api/commerce` |
-| 19 | Dark mode, and the platform's design tokens only | ✅ | ⬜ | `@effy/design-system` |
+| 19 | The storefront identity's design tokens only — **light only on both customer surfaces** (087 retired the mobile app's dark mode) | ✅ | ✅ | `@effy/design-system` (`storefront/tokens.css`) |
 | 20 | Consent-gated analytics; **no PII beyond the auth subject id** | ✅ | ⬜ | PostHog |
 
 **🔒 rows are code-complete and blocked on the operator run** (Google OAuth client, `make apply`, the

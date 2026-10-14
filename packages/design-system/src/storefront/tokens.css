@@ -69,6 +69,9 @@
   --radius-md: 0.375rem; /* 6px — buttons, inputs */
   --radius-lg: 0.5rem; /* 8px — cards, dialogs, image wells */
   --radius-xl: 0.75rem; /* 12px — hero banners */
+  /* 16px — the top corners of a bottom sheet. The customer mobile app's only (087, canvas Foundations
+     board); the web draws no bottom sheet. Here so every shape the app uses has one source. */
+  --radius-sheet: 1rem;
 
   /* ⚠ --font-mono must stay MONOSPACE: one-time codes are read out and compared digit by digit. */
   --font-sans: var(--font-geist, ui-sans-serif), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

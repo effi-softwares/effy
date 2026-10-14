@@ -163,18 +163,19 @@ class AccountCentreTest {
     }
 
     /**
-     * The appearance preference is a DEVICE SETTING, not personal data. Resetting someone's theme
-     * because they cleared their shopping data would be a surprise, not a courtesy.
+     * A device setting (having seen the introduction) is not personal data. Showing someone the
+     * introduction again because they cleared their shopping data would be a surprise, not a courtesy.
+     * (Was the appearance preference until 087 made the app light only.)
      */
     @Test
-    fun `clearing guest data leaves the appearance preference alone`() {
+    fun `clearing guest data leaves device settings alone`() {
         val prefs = InMemoryDevicePreferences()
-        prefs.putString(PreferenceKeys.APPEARANCE_MODE, "dark")
+        prefs.putString(PreferenceKeys.ONBOARDING_SEEN, "true")
         prefs.putString(PreferenceKeys.SAVED_GUEST, "{...}")
 
         prefs.clearGuestData()
 
-        assertEquals("dark", prefs.getString(PreferenceKeys.APPEARANCE_MODE))
+        assertEquals("true", prefs.getString(PreferenceKeys.ONBOARDING_SEEN))
         assertNull(prefs.getString(PreferenceKeys.SAVED_GUEST))
     }
 
@@ -211,10 +212,10 @@ class AccountCentreTest {
         val prefs = InMemoryDevicePreferences()
         assertFalse(prefs.hasDeviceShoppingData())
 
-        prefs.putString(PreferenceKeys.APPEARANCE_MODE, "dark")
+        prefs.putString(PreferenceKeys.ONBOARDING_SEEN, "true")
         assertFalse(
             prefs.hasDeviceShoppingData(),
-            "an appearance preference is a device setting, not shopping data",
+            "a device setting is not shopping data",
         )
     }
 
