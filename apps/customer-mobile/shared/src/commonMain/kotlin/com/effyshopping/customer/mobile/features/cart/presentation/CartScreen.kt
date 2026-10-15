@@ -72,6 +72,15 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import kotlinx.coroutines.launch
+import com.effyshopping.customer.mobile.core.presentation.EffyRailTile
+import com.effyshopping.customer.mobile.features.points.presentation.formatPoints
+import com.effyshopping.customer.mobile.features.points.domain.PointsBalance
+import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
+import com.effyshopping.customer.mobile.resources.lucide_coins
+import androidx.compose.runtime.produceState
+import androidx.compose.foundation.lazy.LazyRow
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
+import androidx.compose.foundation.layout.heightIn
 
 /**
  * THE CART TAB (Cart board; 087 — the cart is a tab, not a pushed page).
@@ -84,7 +93,14 @@ import kotlinx.coroutines.launch
  * `packageKey` stays on the line for the server and is never shown (`mobile-guard.sh` fails the words).
  */
 @Composable
-fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> Unit = {}) {
+fun CartScreen(
+    container: AppContainer,
+    onCheckout: () -> Unit,
+    onBrowse: () -> Unit = {},
+    /** 087 (Cart board) — the "On sale now" rail. */
+    onProductClick: (String) -> Unit = {},
+    onSeeAllSale: () -> Unit = {},
+) {
     val cart by container.cart.state.collectAsState()
     val lines = cart.lines
     val session by container.session.state.collectAsState()
@@ -125,6 +141,16 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     }
 
     val currency = cart.currency.ifBlank { lines.first().currency }
+
+    // 087 (Cart board) — the shopper's points and what is on sale. Each read failing draws nothing:
+    // neither may break the cart.
+    val tileCart = rememberTileCart(container)
+    val points by produceState<PointsBalance?>(null, signedIn) {
+        value = if (signedIn) runCatching { container.getPoints().first }.getOrNull()?.takeIf { it.points > 0 } else null
+    }
+    val onSale by produceState(emptyList<ProductCard>()) {
+        value = runCatching { container.searchProducts(query = "", saleOnly = true).items.take(10) }.getOrDefault(emptyList())
+    }
 
     // FR-032: emptying the cart is not recoverable, so it is confirmed — in a sheet (087: no dialogs).
     var confirmingClear by remember { mutableStateOf(false) }
@@ -200,6 +226,37 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
                             // 087 FR-032 — said only to a GUEST. A signed-in shopper was told this too.
                             if (!signedIn) {
                                 EffyNotice("You’ll sign in at checkout. Your cart is kept.", icon = Res.drawable.lucide_info)
+                            }
+                            // 087 (Cart board) — the points the shopper holds, said before checkout.
+                            // ⚠ Only when they have some; a guest has none to read.
+                            points?.let { p ->
+                                EffyNotice(
+                                    "You have ${formatPoints(p.points)} points (worth ${money(p.valueAmount, currency)}). Use them to pay at checkout.",
+                                    icon = Res.drawable.lucide_coins,
+                                )
+                            }
+                        }
+                    }
+                    // 087 (Cart board) — "On sale now": a rail of what is on sale, each with its "+".
+                    if (onSale.isNotEmpty()) {
+                        item(key = "sale") {
+                            Column(Modifier.padding(bottom = EffySpacing.xl), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                                // The list already has its gutter — so not EffySectionHeader, which adds one.
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("On sale now", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                                    EffyTextLink("See all", onClick = onSeeAllSale, modifier = Modifier.heightIn(min = EffyMinTouchTarget))
+                                }
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                                    items(onSale, key = { it.id }) { product ->
+                                        EffyRailTile(
+                                            product,
+                                            onProductClick,
+                                            width = 150.dp,
+                                            cartQuantity = tileCart.quantityOf(product.id),
+                                            onCartQuantityChange = { tileCart.change(product, it) },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

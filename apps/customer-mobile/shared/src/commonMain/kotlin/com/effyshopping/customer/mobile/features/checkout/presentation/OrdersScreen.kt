@@ -129,6 +129,8 @@ fun OrdersScreen(
     onOpen: (String) -> Unit,
     /** FR-044: an empty order list offers a route back into the catalogue. */
     onBrowse: () -> Unit = {},
+    /** 087 (Orders board) — the reorder snackbar's "View cart". */
+    onViewCart: () -> Unit = {},
 ) {
     val vm = viewModel { OrdersViewModel(container.listOrders, container.live.changes(LiveKind.ORDERS)) }
     val state by vm.state.collectAsState()
@@ -154,7 +156,9 @@ fun OrdersScreen(
                     "Added to your cart. $n item${if (n == 1) "" else "s"} couldn’t be added."
                 }
             }
-            snackbarHost.showSnackbar(message)
+            val added = outcome != null && outcome.cart.lines.isNotEmpty()
+            val result = snackbarHost.showSnackbar(message, actionLabel = if (added) "View cart" else null)
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) onViewCart()
         }
     }
 
@@ -283,6 +287,13 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
             )
             // FR-034: "buy again" — re-finding fifteen items is work nobody does.
             EffyTextLink("Buy again", onClick = { onReorder(order.id) })
+            // 087 (Orders board) — "Track order" while it is on its way, else "View order". The card
+            // opens it too; this names what the tap is for. ⚠ The stage is the server's.
+            EffyTextLink(
+                if (order.stage == OrderStage.OnTheWay) "Track order" else "View order",
+                onClick = { onOpen(order.id) },
+                modifier = Modifier.padding(start = EffySpacing.md),
+            )
         }
     }
 }

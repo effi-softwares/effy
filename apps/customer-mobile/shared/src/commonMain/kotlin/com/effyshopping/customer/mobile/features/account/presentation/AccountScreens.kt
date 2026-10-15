@@ -107,9 +107,7 @@ import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
 import com.effyshopping.customer.mobile.core.observability.ConsentState
 import com.effyshopping.customer.mobile.core.observability.analyticsConsentSubtitle
 import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
-import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
-import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
-import com.effyshopping.customer.mobile.features.help.presentation.HelpCenterScreen
+import com.effyshopping.customer.mobile.features.help.presentation.HelpScreen
 import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
@@ -303,9 +301,8 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
         // 026 US4 — the new screens. Each is presentational and carries no session requirement of its
         // own; reaching them via Account is what already gates them.
         CustomerNavKey.Notifications -> NotificationsScreen()
-        CustomerNavKey.Faqs -> FaqsScreen()
-        CustomerNavKey.HelpCenter -> HelpCenterScreen()
-        CustomerNavKey.CustomerService -> CustomerServiceScreen()
+        CustomerNavKey.Faqs, CustomerNavKey.HelpCenter, CustomerNavKey.CustomerService ->
+            HelpScreen(onOpenOrders = { container.navigator.selectTab(CustomerNavKey.Orders) })
         else -> {}
     }
 }
@@ -421,9 +418,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                 )
             }
             EffyGroup(caption = "Help") {
-                AccountRow("FAQs", Res.drawable.lucide_circle_help) { nav.push(CustomerNavKey.Faqs) }
-                AccountRow("Help centre", Res.drawable.lucide_info) { nav.push(CustomerNavKey.HelpCenter) }
-                AccountRow("Contact us", Res.drawable.lucide_mail) { nav.push(CustomerNavKey.CustomerService) }
+                // 087 — ONE help page (Help board): answers, contact, and a way to report an order.
+                AccountRow("Help", Res.drawable.lucide_circle_help) { nav.push(CustomerNavKey.HelpCenter) }
                 // 046 — give feedback (guest or signed-in).
                 AccountRow("Give feedback", Res.drawable.lucide_message_square, last = true) { nav.push(CustomerNavKey.Feedback) }
             }

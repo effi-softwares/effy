@@ -41,6 +41,8 @@ import com.effyshopping.customer.mobile.resources.lucide_triangle_alert
 import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.fillMaxHeight
 
 /** An icon in a 48dp target (fields, headers, rows). */
 @Composable
@@ -319,5 +321,17 @@ fun EffySuccessTick(modifier: Modifier = Modifier, size: Dp = 72.dp) {
                 join = androidx.compose.ui.graphics.StrokeJoin.Round,
             ),
         )
+    }
+}
+
+/**
+ * A thin progress bar — Effy green on the zinc well. How close a basket is to free delivery (Cart and
+ * Checkout boards). Moves to a new value rather than jumping.
+ */
+@Composable
+fun EffyProgressBar(fraction: Float, modifier: Modifier = Modifier) {
+    val shown by androidx.compose.animation.core.animateFloatAsState(fraction.coerceIn(0f, 1f), label = "progress")
+    Box(modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(EffySurface.tint)) {
+        Box(Modifier.fillMaxWidth(shown).fillMaxHeight().clip(CircleShape).background(EffyRoles.brand))
     }
 }

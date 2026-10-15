@@ -50,6 +50,18 @@ the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards com
   routed). New: `KitSizingTest`, `TabNavigationTest`, `ReceiptTextTest`, `OrderSummaryRowTest`,
   `RecentSearchesTest`, `SubAislesTest`, `GoogleSignInGateTest`. 420 unit tests pass; iOS and Android
   compile; shop and driver compile unchanged.
+- **Board-gap pass (2026-10-15, operator-directed)**: Checkout as numbered cards (address with
+  "Change" → sheet; "Today" badge; Standard tile = title + the business's estimate only; days two to a
+  row; two-part Leave/Meet control; points note; Order summary with thumbnails, free-delivery bar and
+  "To pay by card"; lock "Pay now"). ⚠ **No step indicator** (Delivery · Payment · Done) — the operator
+  declined it. Order details / Confirmed: stage pill, progress tracker (server stage only), Receipt card
+  with Paid + "Send again", "Report a problem" card, pinned "Buy again" (with "View cart") and "Track
+  this order". Help is ONE page (the three old routes all open it). Saved summary + sort chips; Delete
+  account cards, retention table, pinned "Keep my account"; sign-in from checkout says the cart is
+  saved; Cart points notice + "On sale now" rail; Orders "Track order"/"View order"; address-book
+  intro; "Mobile number"; "Copy code"; legal "Updated" dates. ⚠ Checkout's points/card split is an
+  ESTIMATE (cents, whole points) — Payment still shows the intent's exact figures. Not done: the
+  board's out-of-stock line notice (no per-item status on the wire).
 - ⚠ **OPEN — found, not fixed (outside 087)**: the GENERATED legal documents (`features/legal/generated/
   LegalContent.kt`, from 045's source) name `support@effyshopping.com` ~40 times — an address that is
   not one of the approved mailboxes. Excluded from the guard; needs a legal-content change.

@@ -50,6 +50,9 @@ import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
 import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.painterResource
+import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.resources.lucide_package
 
 /**
  * The help area (026 US4 / T070) — the source design's FAQs, Help Center and Customer Service screens.
@@ -65,37 +68,80 @@ import org.jetbrains.compose.resources.painterResource
  */
 private data class Faq(val question: String, val answer: String)
 
+// 087 (Help board) — the board's five questions, answered TRUE OF EFFY AS BUILT (083/085 delivery,
+// 074 points, 055 refunds and cancellation). ⚠ Nothing here may say how many suppliers fill an order.
 private val FAQS = listOf(
     Faq(
-        "Do I need an account to browse?",
-        "No. You can browse the whole store and build a cart as a guest. We only ask who you are " +
-            "when you place an order, so we know where to deliver it.",
-    ),
-    // 087 — rewritten to the delivery model as built (083/085). The old answers told shoppers to set a
-    // location "from the storefront" (there is no such control in the app) and that an order could be
-    // split into packages shown before paying — which revealed how many suppliers fill an order, the
-    // one thing the hidden-fulfilment rule forbids.
-    Faq(
-        "How do I know if you deliver to me?",
-        "Add your address at checkout and we'll tell you straight away who delivers it: Effy's own " +
-            "drivers in a window you choose, or a courier with an estimated arrival.",
+        "Who delivers my order?",
+        "It depends on your address. Where Effy delivers, you choose a delivery window. Elsewhere, a " +
+            "courier partner delivers and you see an estimate before you pay.",
     ),
     Faq(
-        "When will my order arrive?",
-        "If Effy delivers to you, you choose a day — today or one of the next few — and, if you like, " +
-            "a time window. Courier orders show an estimate before you pay.",
+        "How do delivery windows work?",
+        "Choose today or one of the next few delivery days. A day on its own is fine — we'll deliver any " +
+            "time that day — or pick a window if you need a specific time. Each window shows the time to " +
+            "order by.",
     ),
     Faq(
-        "How do I change or cancel an order?",
-        "Contact us as soon as you can. Once an order has been picked and packed we may not be able " +
-            "to change it.",
+        "What are Effy points?",
+        "Points are store credit. Use them at checkout as a way of paying — your order total stays the " +
+            "same, points pay what they cover and any rest goes on your card. Your balance is in " +
+            "Account, under Effy points.",
     ),
     Faq(
-        "How are refunds handled?",
-        "Refunds go back to the card you paid with. Card payments are handled by our payment " +
-            "provider — we never see or store your card details.",
+        "How do refunds work?",
+        "Refunds go back to the card or payment method you paid with, usually within a few business " +
+            "days — when it appears depends on your bank. We never see or store your card details.",
+    ),
+    Faq(
+        "Can I change or cancel an order?",
+        "Until we start preparing it, you can cancel an order yourself from its details and we refund " +
+            "everything, delivery included. After that, contact us and we'll see what we can do.",
     ),
 )
+
+/**
+ * Help (087, Help board) — ONE page: "How can we help?", the answers, how to reach a person, and where
+ * to go when something is wrong with an order. It replaces three screens (FAQs, Help centre, Contact
+ * us) that each held a fragment of this; their routes all open it.
+ */
+@Composable
+fun HelpScreen(onOpenOrders: () -> Unit) = HelpScaffold("Help") {
+    val uri = LocalUriHandler.current
+    Column(modifier = Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.xl)) {
+        EffyDisplay("How can we help?", size = DisplaySize.Section)
+        EffyGroup {
+            FAQS.forEachIndexed { i, faq ->
+                FaqRow(faq)
+                if (i < FAQS.lastIndex) EffyGroupDivider()
+            }
+        }
+        EffyGroup(caption = "Send us a message") {
+            Text(
+                "We'll get back to you as quickly as we can.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
+            )
+            EffyNavRow(
+                "Email us",
+                leading = { EffyRowIcon(Res.drawable.lucide_mail) },
+                supporting = SUPPORT_EMAIL,
+                onClick = { uri.openUri("mailto:$SUPPORT_EMAIL") },
+                divider = false,
+            )
+        }
+        EffyGroup(caption = "Something wrong with an order?") {
+            EffyNavRow(
+                "Your orders",
+                leading = { EffyRowIcon(Res.drawable.lucide_package) },
+                supporting = "Open the order and choose Report a problem.",
+                onClick = onOpenOrders,
+                divider = false,
+            )
+        }
+    }
+}
 
 /**
  * A pushed help screen: fixed app bar, scrolling body.
@@ -112,17 +158,6 @@ private fun HelpScaffold(title: String, content: @Composable ColumnScope.() -> U
             modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
             content = content,
         )
-    }
-}
-
-/** FAQs — an accordion list in a group (Help board). */
-@Composable
-fun FaqsScreen() = HelpScaffold("FAQs") {
-    EffyGroup(modifier = Modifier.padding(EffySpacing.lg)) {
-        FAQS.forEachIndexed { i, faq ->
-            FaqRow(faq)
-            if (i < FAQS.lastIndex) EffyGroupDivider()
-        }
     }
 }
 
@@ -156,53 +191,6 @@ private fun FaqRow(faq: Faq) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = EffySpacing.md),
-            )
-        }
-    }
-}
-
-/**
- * Help centre — topic rows (Help board). 087: each topic opens the answers; they did nothing.
- */
-@Composable
-fun HelpCenterScreen(onTopic: (String) -> Unit = {}) = HelpScaffold("Help centre") {
-    val topics = listOf(
-        "Orders and delivery" to Res.drawable.lucide_truck,
-        "Payments and refunds" to Res.drawable.lucide_credit_card,
-        "Your account" to Res.drawable.lucide_user_round,
-        "Privacy and data" to Res.drawable.lucide_lock,
-    )
-    EffyGroup(modifier = Modifier.padding(EffySpacing.lg)) {
-        topics.forEachIndexed { i, (topic, icon) ->
-            EffyNavRow(topic, leading = { EffyRowIcon(icon) }, onClick = { onTopic(topic) }, divider = false)
-            if (i < topics.lastIndex) EffyGroupDivider()
-        }
-    }
-}
-
-/**
- * Contact us — how to reach a person. Only what Effy can answer is offered: email.
- *
- * ⚠ 087 FR-030: the ONE customer-facing address is hello@effyshopping.com (CLAUDE.md, approved
- * mailboxes). This screen showed a "support" address Effy does not have, and its
- * "Email us" row did nothing. It now opens the mail app.
- */
-@Composable
-fun CustomerServiceScreen() = HelpScaffold("Contact us") {
-    val uri = LocalUriHandler.current
-    Column(modifier = Modifier.padding(EffySpacing.lg), verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
-        Text(
-            "We'll get back to you as quickly as we can.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        EffyGroup {
-            EffyNavRow(
-                "Email us",
-                leading = { EffyRowIcon(Res.drawable.lucide_mail) },
-                supporting = SUPPORT_EMAIL,
-                onClick = { uri.openUri("mailto:$SUPPORT_EMAIL") },
-                divider = false,
             )
         }
     }

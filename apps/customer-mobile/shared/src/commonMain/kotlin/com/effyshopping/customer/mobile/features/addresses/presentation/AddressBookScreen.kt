@@ -117,6 +117,15 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
 
                 else ->
                     LazyColumn(Modifier.fillMaxSize()) {
+                        // 087 (Address book board) — what this list is for, once, above it.
+                        item(key = "intro") {
+                            Text(
+                                "Where we deliver. Each address shows who can deliver there.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+                            )
+                        }
                         state.error?.let { err ->
                             item {
                                 EffyInlineError(err, modifier = Modifier.padding(EffySpacing.lg))
@@ -145,7 +154,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         EffySheet(
             title = if (sheet.editingId != null) "Edit address" else "Add an address",
             onDismiss = { vm.dismissSheet() },
-            primaryLabel = if (sheet.editingId != null) "Save" else "Add",
+            primaryLabel = if (sheet.editingId != null) "Save" else "Save address",
             onPrimary = { vm.submit() },
             primaryEnabled = !sheet.saving,
             primaryLoading = sheet.saving,

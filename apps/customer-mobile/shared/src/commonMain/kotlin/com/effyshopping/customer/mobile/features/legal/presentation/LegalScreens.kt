@@ -37,7 +37,12 @@ fun LegalIndexScreen(container: AppContainer) {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             LegalSectionHeader("Policies & agreements")
             documents.filter { it.category == "legal" }.forEach { doc ->
-                EffyNavRow(doc.title, onClick = { nav.push(CustomerNavKey.LegalDocument(doc.slug)) })
+                // 087 (Legal board) — each policy says when it last changed.
+                EffyNavRow(
+                    doc.title,
+                    supporting = "Updated ${legalDate(doc.effectiveDate)}",
+                    onClick = { nav.push(CustomerNavKey.LegalDocument(doc.slug)) },
+                )
             }
             LegalSectionHeader("About")
             val info = documents.filter { it.category == "info" }
@@ -97,4 +102,14 @@ private fun LegalSectionHeader(title: String) {
         style = MaterialTheme.typography.titleSmall,
         modifier = Modifier.padding(start = EffySpacing.lg, end = EffySpacing.lg, top = EffySpacing.lg, bottom = EffySpacing.s),
     )
+}
+
+/** "2026-08-13" → "13 Aug 2026". Anything not in that shape is shown as given. */
+internal fun legalDate(iso: String): String {
+    val parts = iso.split("-")
+    val month = parts.getOrNull(1)?.toIntOrNull()
+    val day = parts.getOrNull(2)?.toIntOrNull()
+    if (parts.size != 3 || month == null || day == null || month !in 1..12) return iso
+    val names = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return "$day ${names[month - 1]} ${parts[0]}"
 }

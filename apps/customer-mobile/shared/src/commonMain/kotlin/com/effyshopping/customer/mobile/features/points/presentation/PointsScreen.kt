@@ -93,7 +93,8 @@ fun PointsScreen(container: AppContainer, onBack: () -> Unit) {
                             Text("Worth ${money(balance.valueAmount, "AUD")}", style = MaterialTheme.typography.bodyLarge)
                             balance.nextExpiry?.let {
                                 Text(
-                                    "${formatPoints(it.points)} can be used until ${DeliveryWindowText.formatDay(it.date)}",
+                                    "${formatPoints(it.points)} can be used until ${DeliveryWindowText.formatDay(it.date)}. " +
+                                        "Use them at checkout before then.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = EffySpacing.xs),

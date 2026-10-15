@@ -94,6 +94,21 @@ import com.effyshopping.customer.mobile.features.addresses.presentation.AddressF
 import com.effyshopping.customer.mobile.features.cart.domain.formatCents
 import com.effyshopping.customer.mobile.features.cart.domain.parseCents
 import com.effyshopping.customer.mobile.core.presentation.EffySheet
+import com.effyshopping.customer.mobile.core.presentation.EffyProgressBar
+import com.effyshopping.customer.mobile.core.presentation.EffyStatusPill
+import com.effyshopping.customer.mobile.core.presentation.EffyStatusKind
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.resources.lucide_lock
+import com.effyshopping.customer.mobile.resources.lucide_map_pin
+import com.effyshopping.customer.mobile.features.cart.domain.CartSnapshot
+import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutPoints
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.text.style.TextAlign
 
 /**
  * Checkout (019 US3, extended 021 delivery + 023 shipping/billing). Reached only when signed in.
@@ -158,8 +173,9 @@ fun CheckoutScreen(
                 AddressAndPay(
                     s,
                     vm,
-                    itemsTotal = cart.grandTotalAmount,
-                    currency = cart.currency,
+                    cart = cart,
+                    // Checkout is pushed from the cart: back is the cart.
+                    onEditCart = onBack,
                     onNavigateLegal = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
                 )
             }
@@ -168,39 +184,54 @@ fun CheckoutScreen(
 }
 
 /**
- * 087 (Checkout / Checkout-Courier boards): sectioned CARDS — address, delivery, points, billing — with
- * the order total and "Pay now" PINNED at the bottom (FR-022). Card layouts are the storefront pattern
- * (constitution v3.3.0): an address and a delivery window are discrete choosable objects.
+ * 087 (Checkout / Checkout-Courier boards): NUMBERED CARDS — 1 address, 2 who delivers and when,
+ * 3 instructions — then points, billing and the order summary, with what is paid by card and
+ * "Pay now" PINNED at the bottom (FR-022). Card layouts are the storefront pattern (constitution
+ * v3.3.0): an address and a delivery window are discrete choosable objects.
+ *
+ * ⚠ No step indicator (Delivery · Payment · Done) — the operator declined it (2026-10-15).
  */
 @Composable
 private fun AddressAndPay(
     s: CheckoutUiState.Ready,
     vm: CheckoutViewModel,
-    itemsTotal: String,
-    currency: String,
+    cart: CartSnapshot,
+    onEditCart: () -> Unit,
     onNavigateLegal: (String) -> Unit,
 ) {
+    var pickingAddress by remember { mutableStateOf(false) }
+    val selected = s.addresses.firstOrNull { it.id == s.selectedId }
+    val pay = checkoutAmounts(cart.grandTotalAmount, s.deliveryFee?.totalAmount, s.points?.takeIf { s.usePoints })
+
     Column(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
-        CheckoutSection("Delivery address") {
-            if (s.addresses.isEmpty()) {
+        NumberedCard(
+            number = 1,
+            title = "Delivery address",
+            subtitle = "Where should we bring your order?",
+            action = if (s.addresses.isEmpty()) null else "Change",
+            onAction = { pickingAddress = true },
+        ) {
+            if (selected == null) {
                 // No saved address → a prompt that blocks pay (023 US1 scenario 3, FR-007).
                 Text("Add a delivery address to continue.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
             } else {
-                s.addresses.forEach { addr ->
-                    AddressPickRow(addr, selected = addr.id == s.selectedId, onSelect = { vm.select(addr.id) })
-                }
+                AddressSummary(selected, deliveredBy = s.quote?.takeIf { !s.quoting && it.serviced }?.deliveryType)
             }
-            EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
         }
+
+        // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip). The
+        // server owns every fee (SC-004).
+        DeliverySection(s, vm)
 
         // 066 — what the shopper tells the driver. Shown once there is an address for it to be about.
         if (s.selectedId != null) {
-            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                DeliveryInstructionsField(draft = s.instructions, onChange = vm::setInstructions)
+            NumberedCard(3, "Delivery instructions", "Optional. Your driver sees this when they deliver.") {
+                DeliveryInstructionsField(draft = s.instructions, onChange = vm::setInstructions, title = null, hint = null)
                 // Offered only when there is something new to save — an always-present switch is a chore.
                 if (s.instructionsDiffer) {
                     EffyCheckboxRow(
@@ -212,23 +243,27 @@ private fun AddressAndPay(
             }
         }
 
-        // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip). The
-        // server owns every fee (SC-004).
-        DeliverySection(s, vm)
-
         // 074 — Effy points, only when the shopper has some.
         s.points?.let { points ->
-            EffyGroup(caption = "Effy points") {
+            EffyCard(padding = EffySpacing.md) {
                 EffySwitchRow(
                     label = "Use my Effy points",
                     supporting = "${formatPointsCount(points.usable)} points, worth \$${points.valueAmount}. Any rest is paid by card.",
                     checked = s.usePoints,
                     onCheckedChange = vm::setUsePoints,
                 )
+                Text(
+                    "Points are a way of paying — your order total stays the same.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = EffySpacing.xs),
+                )
             }
         }
 
         BillingSection(s, vm)
+
+        OrderSummaryCard(cart, s, pay, onEditCart)
 
         s.error?.let { EffyInlineError(it) }
 
@@ -244,14 +279,19 @@ private fun AddressAndPay(
     // 047 FR-002: pay is blocked until delivery is confirmed for the address.
     val payEnabled = !s.paying && s.selectedId != null && billingReady && s.serviced
     EffyPinnedBar {
-        // The total the shopper is about to commit to: the cart's, plus the delivery fee once chosen.
-        // ⚠ What is CHARGED is decided at the intent (and shown, exactly, on Payment); this line adds
-        // two figures the platform already gave, and says "+ delivery" until there is a fee to add.
+        // What the shopper is about to commit to on their card: the cart's total, plus the delivery fee
+        // once chosen, less the points they spend. ⚠ What is CHARGED is decided at the intent (and shown,
+        // exactly, on Payment); this adds figures the platform already gave, and says "+ delivery" until
+        // there is a fee to add.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Order total", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            val fee = s.deliveryFee
+            Text(
+                if (pay.pointsAmount != null) "To pay by card" else "Total",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
             EffyNumberRoll(
-                if (fee != null) money(addAmounts(itemsTotal, fee.totalAmount), currency) else money(itemsTotal, currency) + " + delivery",
+                if (pay.deliveryKnown) money(pay.cardAmount, cart.currency) else money(pay.cardAmount, cart.currency) + " + delivery",
                 style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
             )
         }
@@ -260,19 +300,36 @@ private fun AddressAndPay(
             onClick = vm::payNow,
             enabled = payEnabled,
             loading = s.paying,
+            leading = { Icon(painterResource(Res.drawable.lucide_lock), contentDescription = null, modifier = Modifier.size(18.dp)) },
         )
     }
     }
 
+    // 087 — the address is ONE card with "Change"; the saved list opens in a sheet (Checkout board).
+    if (pickingAddress) {
+        EffySheet(title = "Delivery address", onDismiss = { pickingAddress = false }, cancelLabel = null) {
+            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                s.addresses.forEach { addr ->
+                    AddressPickRow(addr, selected = addr.id == s.selectedId, onSelect = {
+                        vm.select(addr.id)
+                        pickingAddress = false
+                    })
+                }
+                EffySecondaryButton("Add a new address", onClick = {
+                    pickingAddress = false
+                    vm.openAddAddress(AddressTarget.SHIPPING)
+                })
+            }
+        }
+    }
+
     // The shared add-address form (022) — raised for shipping OR billing (023 US3).
-    // ⚠ 034 — on the SHARED EffySheet now, which owns the title and the Save/Cancel pair. This was
-    // the last hand-rolled ModalBottomSheet in the app; leaving it would have meant checkout's form
-    // looking like a different component from the identical one in the address book.
+    // ⚠ 034 — on the SHARED EffySheet now, which owns the title and the Save/Cancel pair.
     s.sheet?.let { sheet ->
         EffySheet(
             title = "Add an address",
             onDismiss = vm::dismissSheet,
-            primaryLabel = "Add",
+            primaryLabel = "Save address",
             onPrimary = vm::submitAddress,
             primaryEnabled = !sheet.saving,
         ) {
@@ -285,32 +342,178 @@ private fun AddressAndPay(
     }
 }
 
+/** The selected address, as the board writes it: "Home · Default", then "Name · line, city postcode". */
+@Composable
+private fun AddressSummary(addr: SavedAddress, deliveredBy: DeliveryType?) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+            Icon(painterResource(Res.drawable.lucide_map_pin), contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(addr.label?.takeIf { it.isNotBlank() } ?: addr.recipientName, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+            if (addr.isDefault) EffyStatusPill("Default", EffyStatusKind.Inert)
+        }
+        Text("${addr.recipientName} · ${addr.shortSummary()}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // 079 — who delivers to this address, in the shared words, once the quote has said.
+        deliveredBy?.let {
+            Text(
+                if (it == DeliveryType.EFFY) DeliveryTypeWords.EFFY else DeliveryTypeWords.COURIER,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = if (it == DeliveryType.EFFY) EffyRoles.brand else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 /**
- * Delivery (047; 069): serviceability, the standard/same-day choice, a time slot for same-day and a day
- * for standard. ⚠ No distance, ring, or shop is ever shown (FR-018/033).
+ * The money lines checkout shows, ADDED from figures the platform gave (no float; cents only).
+ * [pointsAmount] is what the points would cover — never more than the total. ⚠ An estimate of the
+ * split until Payment, which shows the exact one the intent decided.
+ */
+internal data class CheckoutAmounts(
+    val totalAmount: String,
+    val deliveryKnown: Boolean,
+    val pointsUsed: Long?,
+    val pointsAmount: String?,
+    val cardAmount: String,
+)
+
+internal fun checkoutAmounts(itemsTotal: String, deliveryTotal: String?, points: CheckoutPoints?): CheckoutAmounts {
+    val total = if (deliveryTotal != null) addAmounts(itemsTotal, deliveryTotal) else itemsTotal
+    val totalCents = toCents(total)
+    if (points == null || points.usable <= 0 || points.centsPerPoint <= 0 || totalCents <= 0) {
+        return CheckoutAmounts(total, deliveryTotal != null, null, null, total)
+    }
+    val coverCents = minOf(points.usable * points.centsPerPoint, totalCents)
+    // Whole points only: the points spent round UP to cover what they pay for, never past what is held.
+    val used = minOf(points.usable, (coverCents + points.centsPerPoint - 1) / points.centsPerPoint)
+    return CheckoutAmounts(total, deliveryTotal != null, used, fromCents(coverCents), fromCents(totalCents - coverCents))
+}
+
+private fun toCents(x: String): Long {
+    val neg = x.startsWith("-")
+    val parts = x.removePrefix("-").split(".")
+    val whole = parts[0].toLongOrNull() ?: 0L
+    val frac = (parts.getOrNull(1) ?: "0").padEnd(2, '0').take(2).toLongOrNull() ?: 0L
+    return (whole * 100 + frac) * if (neg) -1 else 1
+}
+
+private fun fromCents(c: Long): String {
+    val sign = if (c < 0) "-" else ""
+    val abs = kotlin.math.abs(c)
+    return "$sign${abs / 100}.${(abs % 100).toString().padStart(2, '0')}"
+}
+
+/**
+ * Order summary (Checkout board): thumbnails ("+N more"), Items (n), the promotion in green, the
+ * delivery lines the server priced, how close the basket is to free delivery, Total, points, and what
+ * is paid by card. "Edit cart" goes back to the cart.
+ */
+@Composable
+private fun OrderSummaryCard(cart: CartSnapshot, s: CheckoutUiState.Ready, pay: CheckoutAmounts, onEditCart: () -> Unit) {
+    val lines = cart.lines.filter { it.available }
+    EffyCard(padding = EffySpacing.lg) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Order summary", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            EffyTextLink("Edit cart", onClick = onEditCart, modifier = Modifier.heightIn(min = EffyMinTouchTarget))
+        }
+        if (lines.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = EffySpacing.s)) {
+                lines.take(4).forEach { line ->
+                    ProductImage(line.imageUrl, line.name, Modifier.size(48.dp).clip(EffyStorefrontShape.card))
+                }
+                if (lines.size > 4) {
+                    Box(Modifier.size(48.dp).clip(EffyStorefrontShape.card).background(EffySurface.tint), contentAlignment = Alignment.Center) {
+                        Text("+${lines.size - 4} more", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+        }
+        EffyDetailRow("Items (${cart.itemCount})", money(cart.itemSubtotalAmount, cart.currency))
+        cart.discount?.let { d ->
+            EffyDetailRow("${d.label} (${d.code})", "−" + money(d.amount.removePrefix("-"), cart.currency), valueColor = EffyRoles.brand)
+        }
+        val fee = s.deliveryFee
+        when {
+            fee != null -> fee.lines.forEach { line ->
+                val saving = line.amount.startsWith("-")
+                EffyDetailRow(
+                    DeliveryFeeWords.label(line.kind),
+                    if (saving) "−$${line.amount.removePrefix("-")}" else "$${line.amount}",
+                    // A saving (free delivery) in Effy green — the storefront's savings colour.
+                    valueColor = if (saving) EffyRoles.brand else androidx.compose.ui.graphics.Color.Unspecified,
+                )
+            }
+            s.serviced -> EffyDetailRow("Delivery", "Choose a delivery option")
+        }
+        val freeRemaining = s.quote?.freeDeliveryRemainingAmount?.takeIf { s.serviced }
+        when {
+            fee?.free == true -> EffyNotice(DeliveryFeeWords.FREE_REACHED, icon = Res.drawable.lucide_circle_check, positive = true)
+            freeRemaining != null -> Column(Modifier.padding(vertical = EffySpacing.xs), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(DeliveryFeeWords.spendMore("$$freeRemaining"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // How far along the basket is: what it is, over what it is plus what is still needed.
+                val have = toCents(cart.grandTotalAmount).coerceAtLeast(0)
+                val need = toCents(freeRemaining).coerceAtLeast(0)
+                EffyProgressBar(if (have + need == 0L) 0f else have.toFloat() / (have + need))
+            }
+        }
+        EffyHairline(inset = false, modifier = Modifier.padding(vertical = EffySpacing.xs))
+        EffyDetailRow("Total", if (pay.deliveryKnown) money(pay.totalAmount, cart.currency) else money(pay.totalAmount, cart.currency) + " + delivery", emphasised = true)
+        if (pay.pointsAmount != null && pay.pointsUsed != null) {
+            EffyDetailRow("Points (${formatPointsCount(pay.pointsUsed)})", "−" + money(pay.pointsAmount, cart.currency), valueColor = EffyRoles.brand)
+            EffyDetailRow("To pay by card", money(pay.cardAmount, cart.currency), emphasised = true)
+        }
+    }
+}
+
+/**
+ * One numbered checkout section — "1. Delivery address" with its one-line purpose and an optional
+ * blue action ("Change") on the right (Checkout board).
+ */
+@Composable
+private fun NumberedCard(
+    number: Int,
+    title: String,
+    subtitle: String?,
+    titleColor: androidx.compose.ui.graphics.Color? = null,
+    action: String? = null,
+    onAction: () -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    EffyCard(padding = EffySpacing.lg) {
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("$number. $title", style = MaterialTheme.typography.titleMedium, color = titleColor ?: MaterialTheme.colorScheme.onSurface)
+                subtitle?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            if (action != null) EffyTextLink(action, onClick = onAction, modifier = Modifier.heightIn(min = EffyMinTouchTarget))
+        }
+        Spacer(Modifier.height(EffySpacing.md))
+        Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s), content = content)
+    }
+}
+
+/**
+ * Delivery (047; 069; 078; 079): serviceability, then WHO delivers and — for Effy — WHEN.
+ * ⚠ No distance, ring, or shop is ever shown (FR-018/033).
  *
  * ⚠ NO SLOT IS SELECTED FOR THE SHOPPER (069 FR-006): a window is a promise about when someone will be
- * home. The standard day IS preselected — the earliest (FR-015).
- *
- * ⚠ EVERY OPTION SHOWS ITS FEE, AND THEY ARE ALL THE SAME FEE. A slot and a day have no price of their
- * own (FR-021); it is repeated so a shopper comparing slots can see the later one costs no more.
- *
- * A list and chips inside the section — no cards (Principle V).
+ * home.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     if (s.selectedId == null) return
     val quote = s.quote
-    // 079 — the section is headed by WHO DELIVERS, once the quote says: "Courier delivery", or
-    // "Delivered by Effy" under the new delivery model. Plain "Delivery" while it is loading, when
-    // nobody delivers, and under the checkout that predates delivery types.
-    val heading = when (quote?.takeUnless { s.quoting }?.deliveryType) {
+    // 079 — the section is headed by WHO DELIVERS, once the quote says.
+    val type = quote?.takeUnless { s.quoting }?.takeIf { it.serviced }?.deliveryType
+    val heading = when (type) {
         DeliveryType.COURIER -> DeliveryTypeWords.COURIER
         DeliveryType.EFFY -> DeliveryTypeWords.EFFY
         null -> "Delivery"
     }
-    CheckoutSection(heading, headingColor = if (quote?.deliveryType == DeliveryType.EFFY && !s.quoting) EffyRoles.brand else null) {
+    val subtitle = when {
+        type == DeliveryType.EFFY && quote?.effyWindows != null -> "Choose one delivery option for the whole order."
+        else -> null
+    }
+    NumberedCard(2, heading, subtitle) {
     when {
         s.quoting || quote == null -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
             CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
@@ -318,43 +521,21 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         }
         // 076 — the ONE refusal sentence (CoverageWords), the same the address book shows. No red.
         !quote.serviced -> EffyInlineError(CoverageWords.REFUSAL)
-        // 079 — a courier delivers: NOTHING TO CHOOSE. Before the pickers — a courier quote carries no
-        // windows, slots or days, and the branches below would draw an empty section for it.
-        quote.courier != null -> {
-            CourierSection(quote.courier)
-            DeliveryFeeSummary(quote.courier.fee, quote.freeDeliveryRemainingAmount)
-        }
+        // 079 — a courier delivers: NOTHING TO CHOOSE.
+        quote.courier != null -> CourierSection(quote.courier)
         // Effy delivers: the shopper picks ONE window for the order (078).
-        quote.effyWindows != null -> {
-            EffyWindowsSection(
-                view = effyWindowsView(quote.effyWindows, nowEpochMillis()),
-                chosen = s.window,
-                asapChosen = s.asap,
-                enabled = !s.paying,
-                onChoose = vm::setWindow,
-                onClear = vm::clearWindow,
-                onAsap = vm::setAsap,
-            )
-            // What is charged for delivery, line by line, before Pay (077 FR-028), and how close the
-            // basket is to free delivery (FR-029). Nothing to show until a window is chosen.
-            s.deliveryFee?.let { fee -> DeliveryFeeSummary(fee, quote.freeDeliveryRemainingAmount) }
-        }
+        quote.effyWindows != null -> EffyWindowsSection(
+            view = effyWindowsView(quote.effyWindows, nowEpochMillis()),
+            chosen = s.window,
+            asapChosen = s.asap,
+            enabled = !s.paying,
+            onChoose = vm::setWindow,
+            onClear = vm::clearWindow,
+            onAsap = vm::setAsap,
+        )
         // A serviced quote with neither block is a server fault: nothing is drawn, and nothing can be paid for.
         else -> Unit
     }
-    }
-}
-
-/** One checkout section — a heading above its content (Checkout board). */
-@Composable
-private fun CheckoutSection(
-    title: String,
-    headingColor: androidx.compose.ui.graphics.Color? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-        Text(title, style = MaterialTheme.typography.titleLarge, color = headingColor ?: MaterialTheme.colorScheme.onSurface)
-        content()
     }
 }
 
@@ -376,10 +557,11 @@ internal fun addAmounts(a: String, b: String): String {
 /**
  * When the order arrives, when Effy delivers it (078, 085): ONE choice for the whole order.
  *
- *   Same-day delivery   today's open windows, each with the time to order by;
- *   Standard delivery   the next delivery days — a DAY IS A COMPLETE CHOICE (085) — then
- *                       "Standard" (as soon as possible), and under the chosen day an optional
- *                       "Need a specific time?" that shows that day's windows.
+ *   Same-day delivery   (a black "Today" badge) today's open windows, each with the time to order by;
+ *   Standard delivery   "Standard" (as soon as possible — its title and the business's estimate,
+ *                       nothing else) then the next delivery days, two tiles a row — A DAY IS A
+ *                       COMPLETE CHOICE (085) — and, under the grid, the chosen day's optional
+ *                       "Need a specific time?" with that day's windows.
  *
  * ⚠ EVERY WORD IS `effyWindowsView`'S AND [DeliveryWindowWords]' — twins of what the website renders,
  * pinned to the same fixture. This composable only lays the words out.
@@ -387,7 +569,7 @@ internal fun addAmounts(a: String, b: String): String {
  * ⚠ WHAT IS SELECTED IS DERIVED FROM THE CHOICE. The only local state is the day tapped when it
  * cannot be bought without a time (nothing is then chosen, and its windows open by themselves), and
  * whether the optional time list is open.
- * ⚠ Rows — no cards. Every target is at least 48dp.
+ * ⚠ Every target is at least 48dp.
  */
 @Composable
 private fun EffyWindowsSection(
@@ -417,7 +599,10 @@ private fun EffyWindowsSection(
 
     Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
         view.today?.let { today ->
-            Text(view.sameDayTitle, style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                TodayBadge()
+                Text(view.sameDayTitle, style = MaterialTheme.typography.titleSmall)
+            }
             EffyDayWindows(today, chosen, enabled) { slotId, date ->
                 pendingDay = null
                 timeOpen = false
@@ -428,87 +613,110 @@ private fun EffyWindowsSection(
         if (view.later.isNotEmpty() || view.asap != null) {
             Text(view.standardTitle, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = EffySpacing.md))
         }
-        view.later.forEach { day ->
-            val selected = activeDay?.date == day.date
-            val unavailable = day.anyTime == null && day.windows.isEmpty()
-            ChoiceRow(
-                selected = selected,
-                enabled = enabled && !unavailable,
-                title = day.label,
-                // A day with neither untimed room nor a window says why.
-                detail = if (unavailable) day.sentence else null,
-                onClick = {
-                    timeOpen = false
-                    val anyTime = day.anyTime
-                    if (anyTime != null) {
-                        pendingDay = null
-                        onChoose(anyTime.slotId, anyTime.date)
-                    } else {
-                        // No way to buy this day without a time: nothing is chosen until one is.
-                        pendingDay = day.date
-                        onClear()
+
+        // "Standard" first, then the days — one grid, two to a row (Checkout board).
+        val tiles: List<@Composable RowScope.() -> Unit> = buildList {
+            view.asap?.let { asap ->
+                add {
+                    ChoiceTile(
+                        selected = asapChosen,
+                        enabled = enabled,
+                        onClick = {
+                            pendingDay = null
+                            timeOpen = false
+                            onAsap()
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(asap.title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        // ⚠ Always the business's estimate, as an estimate — never a day.
+                        Text(asap.estimate, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                },
-            )
-            // The day's details OPEN under it (animated — Motion board), rather than appearing.
-            AnimatedVisibility(selected) {
-                Column(modifier = Modifier.padding(start = EffySpacing.md, top = EffySpacing.xs), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-                    val anyTime = day.anyTime
-                    if (anyTime == null) {
-                        Text(DeliveryWindowWords.TIME_REQUIRED, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
-                        if (!timedOnActive) {
-                            Text(DeliveryWindowWords.ANY_TIME_DAY, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (day.windows.isNotEmpty()) {
-                            EffyTextLink(
-                                DeliveryWindowWords.TIME_OPTION_OPEN,
-                                enabled = enabled,
-                                onClick = {
-                                    if (timesShown) {
-                                        timeOpen = false
-                                        // Closing it lets go of a time: the day alone is the choice again.
-                                        if (timedOnActive) onChoose(anyTime.slotId, anyTime.date)
-                                    } else {
-                                        timeOpen = true
-                                    }
-                                },
-                            )
-                        }
-                    }
-                    if (timesShown && day.windows.isNotEmpty()) {
-                        if (anyTime != null) {
-                            Text(DeliveryWindowWords.TIME_OPTION_HINT, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        EffyDayWindows(day.copy(sentence = null), chosen, enabled, onChoose)
+                }
+            }
+            view.later.forEach { day ->
+                add {
+                    val unavailable = day.anyTime == null && day.windows.isEmpty()
+                    ChoiceTile(
+                        selected = activeDay?.date == day.date,
+                        enabled = enabled && !unavailable,
+                        onClick = {
+                            timeOpen = false
+                            val anyTime = day.anyTime
+                            if (anyTime != null) {
+                                pendingDay = null
+                                onChoose(anyTime.slotId, anyTime.date)
+                            } else {
+                                // No way to buy this day without a time: nothing is chosen until one is.
+                                pendingDay = day.date
+                                onClear()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(day.label, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                        Text(
+                            when {
+                                // A day with neither untimed room nor a window says why.
+                                unavailable -> day.sentence.orEmpty()
+                                day.anyTime != null -> DeliveryWindowWords.ANY_TIME_DAY
+                                else -> DeliveryWindowWords.TIME_REQUIRED
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
         }
+        tiles.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                pair.forEach { it() }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
 
-        view.asap?.let { asap ->
-            ChoiceRow(
-                selected = asapChosen,
-                enabled = enabled,
-                title = asap.title,
-                // ⚠ Always said as an estimate, in the words the order screen and the receipt use.
-                detail = "${asap.hint} ${asapSentence(asap.estimate)}",
-                onClick = {
-                    pendingDay = null
-                    timeOpen = false
-                    onAsap()
-                },
-            )
+        // The chosen day's details OPEN under the grid (animated — Motion board), rather than appearing.
+        AnimatedVisibility(activeDay != null) {
+            val day = activeDay ?: return@AnimatedVisibility
+            Column(modifier = Modifier.padding(top = EffySpacing.xs), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+                val anyTime = day.anyTime
+                if (anyTime != null && day.windows.isNotEmpty()) {
+                    EffyTextLink(
+                        DeliveryWindowWords.TIME_OPTION_OPEN,
+                        enabled = enabled,
+                        onClick = {
+                            if (timesShown) {
+                                timeOpen = false
+                                // Closing it lets go of a time: the day alone is the choice again.
+                                if (timedOnActive) onChoose(anyTime.slotId, anyTime.date)
+                            } else {
+                                timeOpen = true
+                            }
+                        },
+                    )
+                }
+                if (timesShown && day.windows.isNotEmpty()) {
+                    if (anyTime != null) {
+                        Text(DeliveryWindowWords.TIME_OPTION_HINT, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    EffyDayWindows(day.copy(sentence = null), chosen, enabled, onChoose)
+                }
+            }
         }
     }
 }
 
-/** One choice as a selectable tile: a day, or "Standard" (Checkout board — 56dp, blue when chosen). */
+/** "Today" — the black badge beside Same-day delivery (Checkout board). */
 @Composable
-private fun ChoiceRow(selected: Boolean, enabled: Boolean, title: String, detail: String?, onClick: () -> Unit) {
-    ChoiceTile(selected = selected, enabled = enabled, onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-        detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+private fun TodayBadge() {
+    Box(
+        Modifier
+            .clip(EffyStorefrontShape.small)
+            .background(MaterialTheme.colorScheme.onSurface)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text("Today", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.background)
     }
 }
 
@@ -526,6 +734,7 @@ private fun ChoiceTile(
 ) {
     Column(
         modifier = modifier
+            .fillMaxHeight()
             .heightIn(min = EffySize.tile)
             .clip(EffyStorefrontShape.card)
             .background(if (selected) EffyRoles.primaryMuted else MaterialTheme.colorScheme.background)
@@ -546,7 +755,7 @@ private fun EffyDayWindows(day: EffyDayView, chosen: ChosenWindow?, enabled: Boo
     }
     // Two tiles per row (Checkout board).
     day.windows.chunked(2).forEach { pair ->
-        Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
             pair.forEach { w ->
                 val selected = chosen?.slotId == w.slotId && chosen.date == w.date
                 ChoiceTile(
@@ -577,77 +786,50 @@ private fun nowEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilli
  * ⚠ THERE IS NOTHING TO CHOOSE, AND SO NOTHING TO TAP. No window, no day, no method — a disabled
  * picker would only suggest one was meant to be there.
  * ⚠ EVERY WORD IS [DeliveryTypeWords]' — the twin of what the website prints. The estimate is always
- * said AS an estimate.
+ * said AS an estimate. Its fee is in the order summary, line by line.
  * ⚠ When the address IS one Effy delivers to and no window is left, the shopper is told that FIRST:
  * they were expecting a time to pick.
- * ⚠ Text in a column — no card (Principle V).
  */
 @Composable
 private fun CourierSection(courier: CourierDelivery) {
     val (partner, estimate) = DeliveryTypeWords.courierLines(courier.estimate)
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-        if (courier.noWindowLeft) {
-            EffyNotice("${DeliveryTypeWords.NO_WINDOWS_LEFT} ${DeliveryTypeWords.COURIER_INSTEAD_OF_WINDOWS}", icon = Res.drawable.lucide_info)
-        }
-        EffyCard {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                Icon(painterResource(Res.drawable.lucide_truck), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                Column {
-                    Text(partner, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-                    Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+    if (courier.noWindowLeft) {
+        EffyNotice("${DeliveryTypeWords.NO_WINDOWS_LEFT} ${DeliveryTypeWords.COURIER_INSTEAD_OF_WINDOWS}", icon = Res.drawable.lucide_info)
+    }
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+        Icon(painterResource(Res.drawable.lucide_truck), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+        Column {
+            Text(partner, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+            Text(estimate, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
-/** 077 — the delivery lines, in the shared words, and the free-delivery hint. A list, not a card. */
-@Composable
-private fun DeliveryFeeSummary(fee: DeliveryFee, freeRemaining: String?) {
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-        fee.lines.forEach { line ->
-            val saving = line.amount.startsWith("-")
-            EffyDetailRow(
-                DeliveryFeeWords.label(line.kind),
-                if (saving) "−$${line.amount.removePrefix("-")}" else "$${line.amount}",
-                // A saving (free delivery) in Effy green — the storefront's savings colour.
-                valueColor = if (saving) EffyRoles.brand else androidx.compose.ui.graphics.Color.Unspecified,
-            )
-        }
-        when {
-            fee.free -> EffyNotice(DeliveryFeeWords.FREE_REACHED, icon = Res.drawable.lucide_circle_check, positive = true)
-            freeRemaining != null -> Text(
-                DeliveryFeeWords.spendMore("$$freeRemaining"),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/** Billing address (023 US4): "same as shipping" toggle ON by default; OFF reveals the same picker. */
+/** Billing address (023 US4): "same as shipping" ON by default; OFF reveals the same picker. A card. */
 @Composable
 private fun BillingSection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
-    EffyGroup(caption = "Billing") {
+    EffyCard(padding = EffySpacing.md) {
         EffySwitchRow(
             label = "Billing address same as shipping",
             checked = s.billingSameAsShipping,
             onCheckedChange = vm::setBillingSameAsShipping,
         )
-    }
-    if (!s.billingSameAsShipping) {
-        if (s.addresses.isEmpty()) {
-            Text(
-                "Add a billing address to continue.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            s.addresses.forEach { addr ->
-                AddressPickRow(addr, selected = addr.id == s.billingSelectedId, onSelect = { vm.selectBilling(addr.id) })
+        AnimatedVisibility(!s.billingSameAsShipping) {
+            Column(Modifier.padding(top = EffySpacing.s), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                if (s.addresses.isEmpty()) {
+                    Text(
+                        "Add a billing address to continue.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    s.addresses.forEach { addr ->
+                        AddressPickRow(addr, selected = addr.id == s.billingSelectedId, onSelect = { vm.selectBilling(addr.id) })
+                    }
+                }
+                EffySecondaryButton("Add a billing address", onClick = { vm.openAddAddress(AddressTarget.BILLING) })
             }
         }
-        EffySecondaryButton("Add a billing address", onClick = { vm.openAddAddress(AddressTarget.BILLING) })
     }
 }
 
@@ -664,6 +846,13 @@ private fun AddressPickRow(addr: SavedAddress, selected: Boolean, onSelect: () -
         }
         Text(addr.formatSummary(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/** "12 Lygon St, Carlton VIC 3053" — the board's one-line address. */
+private fun SavedAddress.shortSummary(): String = buildString {
+    append(line1)
+    line2?.takeIf { it.isNotBlank() }?.let { append(", ").append(it) }
+    append(", ").append(city).append(" ").append(postalCode)
 }
 
 private fun SavedAddress.formatSummary(): String = buildString {

@@ -51,6 +51,14 @@ import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffyIconChip
+import com.effyshopping.customer.mobile.core.presentation.EffyPinnedBar
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.lucide_coins
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 
 /**
  * Account deletion (034 US3) — the mobile half.
@@ -160,6 +168,7 @@ fun DeleteAccountScreen(container: AppContainer) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
@@ -199,89 +208,107 @@ fun DeleteAccountScreen(container: AppContainer) {
                 return@Column
             }
 
-            // ── What deletion does (FR-040) ───────────────────────────────────────────────────
-            Text("What happens when you delete", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Your account, your saved items, your addresses and your personal details are " +
-                    "removed. This can't be undone after " +
-                    preview.eraseAfterIfRequestedNowIso.take(10) + ".",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            // 074 FR-024 — said BEFORE they confirm. Absent when there is nothing to lose.
-            preview.pointsHeld?.let { held ->
+            // ── What deletion does (FR-040) — 087 (Delete account board): cards, a table, pinned actions.
+            EffyCard {
+                Text("What happens when you delete", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "You'll also lose your ${held.toString().reversed().chunked(3).joinToString(",").reversed()} Effy points" +
-                        (preview.pointsValueAmount?.let { " (worth \$$it)" } ?: "") +
-                        ". Points have no cash value and can't be paid out.",
+                    "Your account, your saved items, your addresses and your personal details are " +
+                        "removed. This can't be undone after " +
+                        preview.eraseAfterIfRequestedNowIso.take(10) + ".",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = EffySpacing.s),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = EffySpacing.xs),
                 )
             }
-
-            Spacer(Modifier.height(EffySpacing.s))
-            Text("What we need to keep, and why", style = MaterialTheme.typography.titleSmall)
-            // ⚠ The category is its own line rather than a bulleted lead-in joined by a dash, matching
-            // the web surface. A label and a sentence do different jobs; run together they read as one
-            // long clause, and on a phone that clause wraps to four ragged lines per entry.
-            preview.retained.forEach {
-                Column(Modifier.padding(top = EffySpacing.s)) {
-                    Text(
-                        it.category,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Text(
-                        it.reason,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            // 074 FR-024 — said BEFORE they confirm. Absent when there is nothing to lose.
+            preview.pointsHeld?.let { held ->
+                EffyCard {
+                    Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md), verticalAlignment = Alignment.Top) {
+                        EffyIconChip(Res.drawable.lucide_coins, size = 40.dp)
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "You'll lose ${held.toString().reversed().chunked(3).joinToString(",").reversed()} Effy points" +
+                                    (preview.pointsValueAmount?.let { " (worth \$$it)" } ?: ""),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                "Points can't be moved or paid out. They have no cash value.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(Modifier.height(EffySpacing.md))
-            EffyHairline()
+            // ⚠ The category is its own column rather than a lead-in joined by a dash, matching the web
+            // surface: a label and a sentence do different jobs. A two-column table (board).
+            if (preview.retained.isNotEmpty()) {
+                EffyCard(padding = EffySpacing.lg) {
+                    Text("What we need to keep, and why", style = MaterialTheme.typography.titleMedium)
+                    preview.retained.forEachIndexed { i, it ->
+                        if (i > 0) EffyHairline(inset = false)
+                        Row(Modifier.fillMaxWidth().padding(vertical = EffySpacing.s), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                            Text(it.category, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(0.4f))
+                            Text(it.reason, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(0.6f))
+                        }
+                    }
+                }
+            }
 
             // ── Proof of control (FR-043) ─────────────────────────────────────────────────────
             //
             // ⚠ A valid session is NOT sufficient. The code goes to the account's verified email —
             // which is precisely why this works for a customer whose only credential is Google. A
             // password prompt here would be an unresolvable dead end for that entire cohort.
-            if (state.maskedDestination == null) {
-                Text(
-                    "To continue, we'll email a code to make sure it's really you.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                EffyPrimaryButton(
-                    label = "Email me a code",
-                    onClick = { vm.sendCode() },
-                    enabled = !state.loading,
-                )
-            } else {
-                Text(
-                    "Enter the code we sent to ${state.maskedDestination}.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                // ⚠ 036 FR-001 — the SHARED code field. It was a generic `EffyField` with no digit
-                // filter and no autofill, on the single most consequential confirmation the platform
-                // has: this code deletes an account.
-                OtpInput(
-                    value = code,
-                    onValueChange = { code = it },
-                    onSubmit = { if (isCompleteOtp(code)) vm.confirm(code) },
-                    enabled = !state.loading,
-                    variant = OtpVariant.Cells,
-                )
-                EffyPrimaryButton(
-                    label = "Delete my account",
-                    onClick = { vm.confirm(code) },
-                    // ⚠ Exactly six digits — a wrong-length value is refused, not reshaped.
-                    enabled = !state.loading && isCompleteOtp(code),
-                )
+            EffyCard(padding = EffySpacing.lg) {
+                Text("Confirm it's you", style = MaterialTheme.typography.titleMedium)
+                if (state.maskedDestination == null) {
+                    Text(
+                        "To continue, we'll email a code to make sure it's really you.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        "We sent a code to ${state.maskedDestination}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = EffySpacing.md),
+                    )
+                    // ⚠ 036 FR-001 — the SHARED code field: digits only, autofill, six cells.
+                    OtpInput(
+                        value = code,
+                        onValueChange = { code = it },
+                        onSubmit = { if (isCompleteOtp(code)) vm.confirm(code) },
+                        enabled = !state.loading,
+                        variant = OtpVariant.Cells,
+                    )
+                }
             }
 
             state.error?.let { EffyInlineError(it) }
-            if (state.loading) CircularProgressIndicator()
+        }
+
+        // 087 — the decision is PINNED: the one irreversible action, and "Keep my account" beneath it
+        // (board). Nothing is offered while a blocker stands — the page itself says what to do.
+        val preview = state.preview
+        if (preview != null && preview.blockers.isEmpty()) {
+            EffyPinnedBar {
+                if (state.maskedDestination == null) {
+                    EffyPrimaryButton(label = "Email me a code", onClick = { vm.sendCode() }, enabled = !state.loading, loading = state.loading)
+                } else {
+                    EffyPrimaryButton(
+                        label = "Delete my account",
+                        onClick = { vm.confirm(code) },
+                        // ⚠ Exactly six digits — a wrong-length value is refused, not reshaped.
+                        enabled = !state.loading && isCompleteOtp(code),
+                        loading = state.loading,
+                        destructive = true,
+                    )
+                }
+                EffySecondaryButton(label = "Keep my account", onClick = { container.navigator.pop() })
+            }
         }
     }
 }

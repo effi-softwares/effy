@@ -46,6 +46,10 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.LocalMotionLevel
 import com.effyshopping.mobile.kit.ui.MotionLevel
 import kotlinx.coroutines.launch
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.heightIn
+import com.effyshopping.customer.mobile.core.presentation.EffySize
 
 /**
  * The first-launch introduction (026 FR-033; restyled by 087 to the Onboarding board).
@@ -82,7 +86,9 @@ fun OnboardingScreen(onDone: () -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f).fillMaxWidth()) { index ->
-            Box(modifier = Modifier.fillMaxSize().background(EffyRoles.brandMuted)) {
+            // ⚠ CLIPPED: the art is drawn on a Canvas, which does not clip, and its arcs ran out of the
+            // page over the panel below (operator, 2026-10-15). The panel sits ON TOP of the art.
+            Box(modifier = Modifier.fillMaxSize().clipToBounds().background(EffyRoles.brandMuted)) {
                 OnboardingArt(variant = index, modifier = Modifier.fillMaxSize())
                 EffyWordmark(size = 32.sp, modifier = Modifier.padding(start = 24.dp, top = 40.dp))
                 Text(
@@ -97,11 +103,22 @@ fun OnboardingScreen(onDone: () -> Unit) {
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        // ⚠ ONE SIZE ON EVERY PAGE (operator, 2026-10-15): the panel's height followed the body's line
+        // count and whether "Skip" was there, so the green area jumped between pages. The body always
+        // takes three lines and "Skip" keeps its space on the last page (hidden, not removed).
         Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
-            Text(pages[pagerState.currentPage].body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                pages[pagerState.currentPage].body,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                minLines = 3,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = EffySize.target)) {
                 PageIndicator(count = pages.size, current = pagerState.currentPage, modifier = Modifier.weight(1f))
-                if (!onLastPage) EffyGhostButton("Skip", onClick = onDone)
+                // Hidden on the last page — invisible AND silent to a screen reader.
+                Box(Modifier.alpha(if (onLastPage) 0f else 1f).then(if (onLastPage) Modifier.clearAndSetSemantics {} else Modifier)) {
+                    EffyGhostButton("Skip", onClick = { if (!onLastPage) onDone() })
+                }
             }
             EffyPrimaryButton(
                 if (onLastPage) "Get started" else "Next",
@@ -155,20 +172,20 @@ private fun OnboardingArt(variant: Int, modifier: Modifier = Modifier) {
         val h = size.height
         val flip = variant % 2 == 1
         fun x(f: Float) = if (flip) w * (1 - f) else w * f
-        arc(green.copy(alpha = 0.5f), Offset(x(-0.03f), h * 0.29f), w * 0.4f, 30.dp.toPx(), 180f)
-        drawCircle(blue.copy(alpha = 0.85f), radius = 26.dp.toPx(), center = Offset(x(0.8f), h * 0.135f))
-        drawCircle(blue.copy(alpha = 0.45f), radius = 7.dp.toPx(), center = Offset(x(0.54f), h * 0.23f))
-        rotate(12f + variant * 20f, pivot = Offset(x(0.75f), h * 0.35f)) {
+        // Every shape sits in the band between the wordmark (top-left) and the headline (bottom
+        // ~40%) so none is drawn over words; the blue disc stays on the RIGHT on every page.
+        arc(green.copy(alpha = 0.5f), Offset(x(1.02f), h * 0.12f), w * 0.32f, 26.dp.toPx(), if (flip) 0f else 90f)
+        drawCircle(blue.copy(alpha = 0.85f), radius = 26.dp.toPx(), center = Offset(w * 0.8f, h * 0.16f))
+        drawCircle(blue.copy(alpha = 0.45f), radius = 7.dp.toPx(), center = Offset(x(0.5f), h * 0.24f))
+        rotate(12f + variant * 20f, pivot = Offset(x(0.68f), h * 0.36f)) {
             drawRoundRect(
                 green.copy(alpha = 0.25f),
-                topLeft = Offset(x(0.75f) - 55.dp.toPx(), h * 0.35f - 14.dp.toPx()),
+                topLeft = Offset(x(0.68f) - 55.dp.toPx(), h * 0.36f - 14.dp.toPx()),
                 size = Size(110.dp.toPx(), 28.dp.toPx()),
                 cornerRadius = CornerRadius(14.dp.toPx()),
             )
         }
-        drawCircle(green.copy(alpha = 0.45f), radius = 36.dp.toPx(), center = Offset(x(0.2f), h * 0.5f), style = Stroke(8.dp.toPx()))
-        arc(green.copy(alpha = 0.35f), Offset(x(0.64f), h * 0.98f), w * 0.38f, 30.dp.toPx(), 0f)
-        drawCircle(blue.copy(alpha = 0.6f), radius = 7.dp.toPx(), center = Offset(x(0.38f), h * 0.83f))
+        drawCircle(green.copy(alpha = 0.45f), radius = 36.dp.toPx(), center = Offset(x(0.22f), h * 0.46f), style = Stroke(8.dp.toPx()))
     }
 }
 

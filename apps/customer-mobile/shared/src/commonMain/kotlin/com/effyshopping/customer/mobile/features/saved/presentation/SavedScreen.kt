@@ -71,6 +71,11 @@ import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
+import com.effyshopping.customer.mobile.core.presentation.EffyChip
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.foundation.horizontalScroll
 
 /**
  * Saved items (033) — the watchlist.
@@ -353,18 +358,38 @@ fun SavedScreen(
                         LazyColumn(
                             modifier = Modifier.fillMaxSize().padding(horizontal = EffySpacing.lg),
                         ) {
+                            // 087 (Saved board) — "12 items · 3 dropped in price": what is here, and the
+                            // one thing worth coming back for, in green.
+                            item(key = "summary") {
+                                val dropped = s.items.count { it.priceDropped }
+                                Text(
+                                    buildAnnotatedString {
+                                        append("${s.items.size} item${if (s.items.size == 1) "" else "s"}")
+                                        if (dropped > 0) {
+                                            append(" · ")
+                                            withStyle(SpanStyle(color = EffyRoles.brand, fontWeight = FontWeight.SemiBold)) {
+                                                append("$dropped dropped in price")
+                                            }
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = EffySpacing.s),
+                                )
+                            }
                             // ⚠ Only shown when there is enough to sort. A control over three items is
                             // noise. It scrolls with the list — unlike the bulk action below, it is not
-                            // worth permanent space.
+                            // worth permanent space. Chips, as the board draws them.
                             if (s.items.size > 3) {
                                 item(key = "sort") {
-                                    EffySegmentedToggle(
-                                        options = SavedOrder.entries,
-                                        selected = order,
-                                        label = { it.label },
-                                        onSelect = { order = it },
-                                        modifier = Modifier.padding(vertical = EffySpacing.s),
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(vertical = EffySpacing.s).horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+                                    ) {
+                                        SavedOrder.entries.forEach { o ->
+                                            EffyChip(o.label, selected = order == o, onClick = { order = o })
+                                        }
+                                    }
                                 }
                             }
 
@@ -667,9 +692,9 @@ private fun SavedRowSkeleton() {
 
 /** How the saved list is ordered (FR-056). */
 enum class SavedOrder(val label: String) {
-    RECENT("Recent"),
-    AVAILABLE("Available"),
-    AISLE("Aisle"),
+    RECENT("Recently saved"),
+    AVAILABLE("Available first"),
+    AISLE("By aisle"),
 }
 
 /**

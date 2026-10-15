@@ -22,6 +22,27 @@ import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.Han
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.clampToNoteMax
 import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.customer.mobile.core.presentation.EffySize
+import com.effyshopping.customer.mobile.design.EffyStorefrontShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.lucide_house
+import com.effyshopping.customer.mobile.resources.lucide_user_round
 
 /**
  * The delivery-instructions control (066): two handover choices and a note for the driver. Used by
@@ -42,22 +63,45 @@ fun DeliveryInstructionsField(
     draft: InstructionsDraft,
     onChange: (InstructionsDraft) -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Delivery instructions",
-    hint: String = "Optional. Your driver sees this when they deliver.",
+    /** Null when the caller already headed the section (checkout's numbered card). */
+    title: String? = "Delivery instructions",
+    hint: String? = "Optional. Your driver sees this when they deliver.",
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (title != null) Text(title, style = MaterialTheme.typography.titleMedium)
+        if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-            Handover.entries.forEach { choice ->
+        // 087 (Checkout board): the two handover choices as ONE two-part control, each half with its
+        // icon; the chosen half is tinted. It still toggles OFF — "no preference" is a real answer.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(EffyStorefrontShape.card)
+                .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.card)
+                .selectableGroup(),
+        ) {
+            Handover.entries.forEachIndexed { index, choice ->
                 val selected = draft.handover == choice
-                // 48 dp target: a shopper does this one-handed, standing in a kitchen.
-                EffyChip(
-                    choice.label,
-                    selected = selected,
-                    onClick = { onChange(draft.copy(handover = if (selected) null else choice)) },
-                )
+                if (index > 0) Box(Modifier.width(1.dp).height(EffySize.target + 4.dp).background(MaterialTheme.colorScheme.outline))
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = EffySize.target + 4.dp)
+                        .background(if (selected) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.background)
+                        .selectable(selected = selected, role = Role.RadioButton) {
+                            onChange(draft.copy(handover = if (selected) null else choice))
+                        }
+                        .padding(horizontal = EffySpacing.s),
+                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.s, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painterResource(if (index == 0) Res.drawable.lucide_house else Res.drawable.lucide_user_round),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(choice.label, style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium))
+                }
             }
         }
 

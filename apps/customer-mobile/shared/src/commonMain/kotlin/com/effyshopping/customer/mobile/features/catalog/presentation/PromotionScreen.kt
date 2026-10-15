@@ -204,12 +204,12 @@ private fun PromotionBody(
                 // 087 (Offer board): Copy → "Copied" with a tick, the label change animated.
                 AnimatedContent(targetState = justCopied, label = "copied") { copied ->
                     EffySecondaryButton(
-                        if (copied) "Copied" else "Copy",
+                        if (copied) "Copied" else "Copy code",
                         onClick = {
                             clipboard.setText(AnnotatedString(promotion.code))
                             onCopied()
                         },
-                        modifier = Modifier.width(120.dp),
+                        modifier = Modifier.width(150.dp),
                         leading = { Icon(painterResource(if (copied) Res.drawable.lucide_check else Res.drawable.lucide_copy), contentDescription = null, modifier = Modifier.size(16.dp)) },
                     )
                 }
@@ -217,8 +217,18 @@ private fun PromotionBody(
 
             EffyHairline()
 
-            DetailRow(label = "Conditions", value = promotion.terms ?: "No minimum spend")
-            DetailRow(label = "Availability", value = promotion.validity ?: "No end date")
+            // 087 (Offer board) — the terms as a bordered two-row table.
+            Column(
+                Modifier
+                    .padding(EffySpacing.lg)
+                    .fillMaxWidth()
+                    .clip(EffyStorefrontShape.card)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.card),
+            ) {
+                DetailRow(label = "Conditions", value = promotion.terms ?: "No minimum spend")
+                EffyHairline(inset = false)
+                DetailRow(label = "Availability", value = promotion.validity ?: "No end date")
+            }
 
             EffyHairline()
 

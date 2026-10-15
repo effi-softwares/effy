@@ -95,6 +95,25 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.mutableStateMapOf
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
+import com.effyshopping.customer.mobile.core.presentation.EffyCard
+import com.effyshopping.customer.mobile.core.presentation.EffyPinnedBar
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
+import com.effyshopping.customer.mobile.resources.lucide_refresh_cw
+import com.effyshopping.customer.mobile.resources.lucide_check
+import com.effyshopping.customer.mobile.core.theme.EffyRoles
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Icon
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.border
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.semantics
 
 private sealed interface ReceiptUiState {
     data object Loading : ReceiptUiState
@@ -168,10 +187,39 @@ fun ReceiptScreen(
     title: String,
     doneLabel: String? = null,
     onDone: (() -> Unit)? = null,
+    /** 087 (Confirmation board) — "Track this order": this order's details, in the Orders tab. */
+    onTrack: (() -> Unit)? = null,
+    /** 087 (Order board) — after "Buy again", the snackbar's "View cart". */
+    onViewCart: (() -> Unit)? = null,
 ) {
     val vm = viewModel(key = orderId) { ReceiptViewModel(orderId, container.getReceipt, container.live.changes(LiveKind.ORDERS)) }
     val state by vm.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHost = remember { SnackbarHostState() }
 
+    /**
+     * Put this order back in the cart, and TELL the shopper what could not come (FR-035) — the same
+     * report the Orders list gives. ⚠ Silently adding a subset is the one outcome they cannot detect.
+     */
+    fun buyAgain() {
+        scope.launch {
+            val outcome = container.reorderPastOrder(orderId)
+            val message = when {
+                outcome == null -> "We couldn’t reorder that just now."
+                outcome.cart.lines.isEmpty() && outcome.skipped.isNotEmpty() -> "Nothing from that order is available right now."
+                outcome.skipped.isEmpty() -> "Added to your cart."
+                else -> {
+                    val n = outcome.skipped.size
+                    "Added to your cart. $n item${if (n == 1) "" else "s"} couldn’t be added."
+                }
+            }
+            val added = outcome != null && outcome.cart.lines.isNotEmpty()
+            val result = snackbarHost.showSnackbar(message, actionLabel = if (added && onViewCart != null) "View cart" else null)
+            if (result == SnackbarResult.ActionPerformed) onViewCart?.invoke()
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = title)
         EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -182,26 +230,45 @@ fun ReceiptScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             when (val s = state) {
                 ReceiptUiState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
                     EffySkeletonBlock(Modifier.fillMaxWidth().height(120.dp), radius = EffyStorefrontShape.lg)
                     repeat(4) { EffyRowSkeleton() }
                 }
-                ReceiptUiState.Pending -> {
+                ReceiptUiState.Pending -> Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
                     Text("We’re confirming your payment", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Your order will appear in your order history shortly.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (onDone != null) EffyPrimaryButton(doneLabel ?: "Done", onClick = onDone)
                 }
-                is ReceiptUiState.Ready -> ReceiptBody(container, s.receipt, doneLabel, onDone)
+                is ReceiptUiState.Ready -> ReceiptBody(container, s.receipt, confirmation = onDone != null)
             }
         }
         }
+
+        // 087 — the way on is PINNED (Confirmation / Order boards): "Track this order" + "Keep
+        // shopping" at the end of checkout; "Buy again" on a past order.
+        val ready = state is ReceiptUiState.Ready
+        if (onDone != null) {
+            EffyPinnedBar {
+                if (onTrack != null && ready) EffyPrimaryButton("Track this order", onClick = onTrack)
+                if (onTrack != null && ready) EffySecondaryButton(doneLabel ?: "Keep shopping", onClick = onDone)
+                else EffyPrimaryButton(doneLabel ?: "Keep shopping", onClick = onDone)
+            }
+        } else if (ready) {
+            EffyPinnedBar {
+                EffyPrimaryButton(
+                    "Buy again",
+                    onClick = ::buyAgain,
+                    leading = { Icon(painterResource(Res.drawable.lucide_refresh_cw), contentDescription = null, modifier = Modifier.size(18.dp)) },
+                )
+            }
+        }
+    }
+    EffySnackbarHost(snackbarHost, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp))
     }
 }
 
@@ -209,8 +276,8 @@ fun ReceiptScreen(
 private fun ReceiptBody(
     container: AppContainer,
     receipt: Receipt,
-    doneLabel: String?,
-    onDone: (() -> Unit)?,
+    /** The end of checkout (Confirmation board), not a past order opened from history (Order board). */
+    confirmation: Boolean,
 ) {
     val savedIds by container.savedStore.saved.collectAsState()
     val scope = rememberCoroutineScope()
@@ -221,212 +288,259 @@ private fun ReceiptBody(
     }
 
     // ── Confirmation (Confirmation board) vs details (Order board) ──────────────────────────────
-    // ⚠ 087: "Thank you" and the drawn tick belong to the END OF CHECKOUT only (onDone set). Order
-    // details said "Thank you" every time a past order was opened.
-    if (onDone != null) {
-        EffySuccessTick(modifier = Modifier.padding(top = EffySpacing.md))
-        Text("Thank you", style = MaterialTheme.typography.displayLarge, modifier = Modifier.padding(top = EffySpacing.s))
+    // ⚠ 087: "Thank you" and the drawn tick belong to the END OF CHECKOUT only. Order details said
+    // "Thank you" every time a past order was opened.
+    if (confirmation) {
+        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+            EffySuccessTick(modifier = Modifier.padding(top = EffySpacing.md))
+            EffyStatusPill(if (receipt.paid) "Payment received" else "Order received", kind = EffyStatusKind.Done)
+            Text("Thank you", style = MaterialTheme.typography.displayLarge)
+            Text(
+                ReceiptText.orderTitle(receipt.orderNumber) + if (receipt.paid) " · A receipt is on its way to your email" else "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(ReceiptText.orderTitle(receipt.orderNumber), style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    ReceiptText.placedLine(receipt.placedAt, receipt.items.sumOf { it.quantity }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            stagePill(receipt.stage)?.let { (word, kind) -> EffyStatusPill(word, kind) }
+        }
     }
-    EffyStatusPill(
-        if (receipt.paid) "Payment received" else "Order received",
-        kind = EffyStatusKind.Done,
-    )
-    Text(
-        ReceiptText.orderTitle(receipt.orderNumber),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 
     // ── When it arrives + how far along (FR-007 / FR-008) ───────────────────────────────────────
-    ArrivalSection(receipt)
-
-    HorizontalDivider(Modifier.padding(vertical = EffySpacing.md))
-
-    // ── The document ────────────────────────────────────────────────────────────────────────────
-    SectionLabel("Receipt")
-    if (receipt.placedAt.isNotBlank()) {
-        Text(
-            receipt.placedAt,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-
-    receipt.items.forEach { item ->
-        ReceiptLine(
-            item = item,
-            currency = receipt.currency,
-            saved = item.productId in savedIds,
-            onToggleSaved = { wanted ->
-                scope.launch {
-                    val outcome = runCatching { container.toggleSaved(item.productId, wanted) }.getOrNull()
-                    // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
-                    if (outcome == ToggleOutcome.OPEN_CHOOSER) chooserFor = item.productId
-                }
-            },
-        )
-    }
-
-    HorizontalDivider(Modifier.padding(vertical = EffySpacing.s))
-
-    // ⚠ EVERY LINE MUST ADD UP (FR-004): items − discount + delivery = total = what was charged.
-    SummaryRow("Items subtotal", money(receipt.itemSubtotalAmount, receipt.currency))
-    // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order — so the
-    // receipt explains itself even after the code has since changed or been disabled.
-    if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {
-        SummaryRow(
-            ReceiptText.discountLabel(receipt.promoCode),
-            "−" + money(receipt.discountAmount, receipt.currency),
-        )
-    }
-    // ⚠ 052 — PREVIOUSLY MISSING ENTIRELY, so the arithmetic did not close whenever delivery was
-    // charged. A zero fee stays omitted: on a financial record "nothing" and "unknown" differ.
-    // 077 — an order placed since the fee engine shows the lines it was SOLD with, in the shared
-    // words; a free delivery is shown as what was waived. Before 077, the single row.
-    val feeLines = receipt.deliveryFee?.lines.orEmpty()
-    if (feeLines.isNotEmpty()) {
-        feeLines.forEach { line ->
-            SummaryRow(
-                DeliveryFeeWords.label(line.kind),
-                if (line.amount.startsWith("-")) "−" + money(line.amount.removePrefix("-"), receipt.currency) else money(line.amount, receipt.currency),
-            )
-        }
-    } else if (receipt.deliveryFeeAmount != null && receipt.deliveryFeeAmount != "0.00") {
-        SummaryRow("Delivery", money(receipt.deliveryFeeAmount, receipt.currency))
-    }
-    SummaryRow("Total paid", money(receipt.grandTotalAmount, receipt.currency), bold = true)
-
-    // 074 — points are a way of PAYING: a line beside the card's, never a discount above the total.
-    receipt.paymentSplit?.let { split ->
-        Text(
-            "Paid with ${split.pointsUsed.toString().reversed().chunked(3).joinToString(",").reversed()} Effy points " +
-                "(${money(split.pointsAmount, receipt.currency)})" +
-                (if (split.cardAmount != "0.00") " and ${money(split.cardAmount, receipt.currency)} by card" else ""),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
-        )
-    }
-
-    // How it was paid (FR-006). Absent when never captured — omitted, never blanked.
-    receipt.paymentMethod?.let { m ->
-        Text(
-            "Paid with " + paymentLabel(m),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
-        )
-    }
-
-    HorizontalDivider(Modifier.padding(vertical = EffySpacing.md))
-
-    // ── Addresses ───────────────────────────────────────────────────────────────────────────────
-    SectionLabel("Delivering to")
-    Text(receipt.recipientName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth())
-    Text(
-        receipt.addressLine,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth(),
-    )
-
-    // 066 — ONLY when the shopper said something. No heading and no "none given" otherwise: a receipt
-    // for an order placed before this existed must look exactly as it did (SC-003).
-    receipt.deliveryInstructions?.takeUnless { it.isEmpty }?.let { said ->
-        SectionLabel("Delivery instructions", topPadding = EffySpacing.md)
-        DeliveryInstructionsText(handover = said.handover, note = said.note)
-    }
-
-    SectionLabel("Billing", topPadding = EffySpacing.md)
-    if (receipt.billingSameAsShipping) {
-        Text(
-            "Same as delivery",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    } else {
-        receipt.billingRecipientName?.let {
-            Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth())
-        }
-        receipt.billingAddressLine?.let {
+    EffyCard(padding = EffySpacing.lg) {
+        ArrivalSection(receipt)
+        if (!confirmation) {
             Text(
-                it,
+                "Updates here as your order moves — no need to refresh.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(top = EffySpacing.xs),
             )
+        }
+        Spacer(Modifier.height(EffySpacing.md))
+        OrderTracker(receipt.stage)
+    }
+
+    // ── The document ────────────────────────────────────────────────────────────────────────────
+    EffyCard(padding = EffySpacing.lg) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+            Text("Receipt", style = MaterialTheme.typography.titleMedium)
+            if (receipt.paid) EffyStatusPill("Paid", EffyStatusKind.Done)
+            Spacer(Modifier.weight(1f))
+        }
+        // ── Who sold this (FR-030) ──────────────────────────────────────────────────────────────
+        // ⚠ THE TRADING NAME AND THE CUSTOMER-FACING MAILBOX, AND NOTHING ELSE. No ABN, no legal
+        // entity name, no registered address — those are operator-supplied and still unset, and FR-031
+        // requires their ABSENCE rather than a placeholder. Mobile has no access to
+        // `@effy/legal-content`, so this is the ONE place this app states them.
+        // ── Send the receipt again (052 US4, FR-027) — beside it, as the board draws it.
+        ResendReceiptLine(container, receipt.id, sellerLine = "Sold by Effy · hello@effyshopping.com")
+        if (confirmation && receipt.placedAt.isNotBlank()) {
+            Text(receipt.placedAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        receipt.items.forEach { item ->
+            ReceiptLine(
+                item = item,
+                currency = receipt.currency,
+                saved = item.productId in savedIds,
+                onToggleSaved = { wanted ->
+                    scope.launch {
+                        val outcome = runCatching { container.toggleSaved(item.productId, wanted) }.getOrNull()
+                        // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
+                        if (outcome == ToggleOutcome.OPEN_CHOOSER) chooserFor = item.productId
+                    }
+                },
+            )
+        }
+
+        HorizontalDivider(Modifier.padding(vertical = EffySpacing.s), color = MaterialTheme.colorScheme.outlineVariant)
+
+        // ⚠ EVERY LINE MUST ADD UP (FR-004): items − discount + delivery = total = what was charged.
+        SummaryRow("Items subtotal", money(receipt.itemSubtotalAmount, receipt.currency))
+        // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order.
+        if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {
+            SummaryRow(
+                ReceiptText.discountLabel(receipt.promoCode),
+                "−" + money(receipt.discountAmount, receipt.currency),
+                valueColor = EffyRoles.brand,
+            )
+        }
+        // ⚠ 052 — a zero fee stays omitted: on a financial record "nothing" and "unknown" differ.
+        // 077 — an order placed since the fee engine shows the lines it was SOLD with, in the shared
+        // words; a free delivery is shown as what was waived. Before 077, the single row.
+        val feeLines = receipt.deliveryFee?.lines.orEmpty()
+        if (feeLines.isNotEmpty()) {
+            feeLines.forEach { line ->
+                val saving = line.amount.startsWith("-")
+                SummaryRow(
+                    DeliveryFeeWords.label(line.kind),
+                    if (saving) "−" + money(line.amount.removePrefix("-"), receipt.currency) else money(line.amount, receipt.currency),
+                    valueColor = if (saving) EffyRoles.brand else Color.Unspecified,
+                )
+            }
+        } else if (receipt.deliveryFeeAmount != null && receipt.deliveryFeeAmount != "0.00") {
+            SummaryRow("Delivery", money(receipt.deliveryFeeAmount, receipt.currency))
+        }
+        SummaryRow("Total paid", money(receipt.grandTotalAmount, receipt.currency), bold = true)
+
+        // 074 — points are a way of PAYING: a line beside the card's, never a discount above the total.
+        // One sentence, as the Confirmation board writes it: points, then the card.
+        val split = receipt.paymentSplit
+        val method = receipt.paymentMethod?.let { paymentLabel(it) }
+        val paidWith = when {
+            split != null -> "Paid with ${split.pointsUsed.toString().reversed().chunked(3).joinToString(",").reversed()} Effy points " +
+                "(${money(split.pointsAmount, receipt.currency)})" +
+                (if (split.cardAmount != "0.00") " and ${money(split.cardAmount, receipt.currency)} by card" else "") +
+                (if (method != null && split.cardAmount != "0.00") " · $method" else "")
+            // How it was paid (FR-006). Absent when never captured — omitted, never blanked.
+            method != null -> "Paid with $method"
+            else -> null
+        }
+        paidWith?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = EffySpacing.s))
+        }
+
+        // ── What this document is (FR-032) ──────────────────────────────────────────────────────
+        // ⚠ NO ABN, no GST amount, and it does not call itself a tax invoice (research R13). The
+        // reserved tax-invoice block (052 FR-033/FR-034) is deliberately NOT RENDERED: the ABN is an
+        // unsupplied operator identifier and per-item GST treatment is unmodelled.
+        Text(
+            "This is a record of payment. Prices include GST where it applies. " +
+                "Need a tax invoice? Ask us from Help.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = EffySpacing.s),
+        )
+    }
+
+    // ── Addresses ───────────────────────────────────────────────────────────────────────────────
+    EffyCard(padding = EffySpacing.lg) {
+        SectionLabel("Delivering to")
+        Text("${receipt.recipientName} · ${receipt.addressLine}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        // 066 — ONLY when the shopper said something. No heading and no "none given" otherwise (SC-003).
+        receipt.deliveryInstructions?.takeUnless { it.isEmpty }?.let { said ->
+            SectionLabel("Delivery instructions", topPadding = EffySpacing.md)
+            DeliveryInstructionsText(handover = said.handover, note = said.note)
+        }
+
+        if (!confirmation) {
+            SectionLabel("Billing", topPadding = EffySpacing.md)
+            if (receipt.billingSameAsShipping) {
+                Text("Same as delivery", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Text(
+                    listOfNotNull(receipt.billingRecipientName, receipt.billingAddressLine).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 
-    // ── What this document is (FR-032) ──────────────────────────────────────────────────────────
-    //
-    // ⚠ NO ABN, no GST amount, and it does not call itself a tax invoice. Those are absent — not
-    // blank, not placeholder — because the operator's identifiers are unsupplied and per-item GST
-    // treatment is unmodelled (research R13). Saying what the document IS costs nothing and stops it
-    // from looking like something it is not.
-    Text(
-        "This is a record of payment. Prices include GST where it applies. " +
-            "Need a tax invoice? Ask us from Help.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
-    )
-
-    // ⚠ THE RESERVED TAX-INVOICE BLOCK (052 FR-033/FR-034) — deliberately NOT RENDERED. It would sit
-    // between the totals above and the addresses, showing the legal entity, the ABN, and the taxable /
-    // GST-free / GST-included split. TWO prerequisites block it, NEITHER engineering work in this
-    // slice (research R13): (1) the ABN is an unsupplied operator identifier, and (2) per-item GST
-    // treatment is unmodelled — basic food is GST-free, so a grocery basket is a MIXED SUPPLY and the
-    // "includes GST" shorthand is false for most orders. Supplying the ABN alone is not enough.
-
-    // ── Who sold this (FR-030) ──────────────────────────────────────────────────────────────────
-    //
-    // ⚠ THE TRADING NAME AND THE CUSTOMER-FACING MAILBOX, AND NOTHING ELSE. No ABN, no legal entity
-    // name, no registered address — those are operator-supplied and still unset, and FR-031 requires
-    // their ABSENCE rather than a placeholder or a plausible-looking guess. The web surface reads the
-    // same two values from `@effy/legal-content`; mobile has no access to that TypeScript package, so
-    // the two constants below are the ONE place this app states them.
-    Text(
-        "Sold by Effy · hello@effyshopping.com",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
-    )
-
-    // ── Send the receipt again (052 US4, FR-027) ────────────────────────────────────────────────
-    // ⚠ NOTHING AT ALL when there are no refunds (FR-028) — not an empty section. The server omits
-    // the fields entirely, so an unrefunded order renders exactly as it did before 055 (SC-011).
+    // ⚠ NOTHING AT ALL when there are no refunds (FR-028) — not an empty section.
     if (receipt.refunds.isNotEmpty()) {
-        RefundSection(receipt)
+        EffyCard(padding = EffySpacing.lg) { RefundSection(receipt) }
     }
 
-    // ⚠ ONLY WHEN THE SERVER SAYS SO (FR-012). Never worked out here from `stage` — that is the
-    // `summarizeFulfillment` mistake 052 deleted, and the cost here is a shopper offered a button
-    // that refuses, or denied one that would have worked.
-    if (receipt.cancellable) {
-        CancelOrderRow(container, currency = receipt.currency, orderId = receipt.id)
-    }
-
-    ResendReceiptRow(container, receipt.id)
-
-    // ⚠ 055 US3 — REPLACES "Get help" pointing at the generic 046 feedback form WITH NO ORDER
-    // ATTACHED. A shopper describing a missing item landed in an inbox where nobody could see which
-    // order they meant; the ask now arrives attached to it.
-    //
-    // ⚠ Only on a PAID order — there is nothing to refund on one that never went through, and the
-    // request would sit in the queue with no possible outcome.
-    if (receipt.paid) {
+    // ⚠ 055 US3 — the ask arrives attached to THIS order. Only on a PAID order.
+    if (receipt.paid && !confirmation) {
         RequestRefundRow(container, receipt)
     }
 
-    if (onDone != null) {
-        EffyPrimaryButton(
-            doneLabel ?: "Keep shopping",
-            onClick = onDone,
-            modifier = Modifier.padding(top = EffySpacing.lg),
-        )
+    // ⚠ ONLY WHEN THE SERVER SAYS SO (FR-012). Never worked out here from `stage`.
+    if (receipt.cancellable) {
+        CancelOrderRow(container, currency = receipt.currency, orderId = receipt.id)
+    }
+}
+
+/** The order's stage as a pill (Order board header). Nothing for a stage this build does not know. */
+private fun stagePill(stage: OrderStage): Pair<String, EffyStatusKind>? = when (stage) {
+    OrderStage.Confirmed -> "Confirmed" to EffyStatusKind.InProgress
+    OrderStage.Packing -> "Being packed" to EffyStatusKind.InProgress
+    OrderStage.OnTheWay -> "On the way" to EffyStatusKind.InProgress
+    OrderStage.Delivered -> "Delivered" to EffyStatusKind.Done
+    OrderStage.Unknown -> null
+}
+
+/**
+ * The progress tracker (Order / Confirmation boards): Confirmed → Being packed → On the way →
+ * Delivered, each with its line. Reached steps are Effy green with a tick, the current one is ringed in
+ * blue. ⚠ The stage is the SERVER's (FR-008) — rendered, never recomputed. An unknown stage draws every
+ * step as not yet reached rather than asserting progress it cannot justify.
+ */
+@Composable
+private fun OrderTracker(stage: OrderStage) {
+    val steps = listOf(
+        "Confirmed" to "We've received your payment",
+        "Being packed" to "Your order is being picked",
+        "On the way" to "Out for delivery",
+        "Delivered" to "Your order has arrived",
+    )
+    val current = when (stage) {
+        OrderStage.Confirmed -> 0
+        OrderStage.Packing -> 1
+        OrderStage.OnTheWay -> 2
+        OrderStage.Delivered -> 3
+        OrderStage.Unknown -> -1
+    }
+    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
+        steps.forEachIndexed { i, (title, line) ->
+            val done = i < current || (i == current && i == steps.lastIndex)
+            val isCurrent = i == current && !done
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                Column(Modifier.width(24.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(if (done) EffyRoles.brand else MaterialTheme.colorScheme.background)
+                            .border(
+                                2.dp,
+                                when {
+                                    done -> EffyRoles.brand
+                                    isCurrent -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline
+                                },
+                                CircleShape,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        when {
+                            done -> Icon(painterResource(Res.drawable.lucide_check), contentDescription = null, tint = EffyRoles.brandForeground, modifier = Modifier.size(13.dp))
+                            isCurrent -> Box(Modifier.size(8.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                        }
+                    }
+                    if (i < steps.lastIndex) {
+                        Box(
+                            Modifier
+                                .width(2.dp)
+                                .weight(1f)
+                                .background(if (i < current) EffyRoles.brand else MaterialTheme.colorScheme.outline),
+                        )
+                    }
+                }
+                Column(Modifier.padding(start = EffySpacing.md, bottom = if (i < steps.lastIndex) EffySpacing.md else 0.dp)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (i <= current) FontWeight.SemiBold else FontWeight.Normal),
+                        color = if (i <= current) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
@@ -461,7 +575,7 @@ private fun ArrivalSection(receipt: Receipt) {
     val delivery = receipt.delivery
     if (delivery?.type == DeliveryType.COURIER && delivery.courierEstimate != null) {
         val (partner, estimate) = DeliveryTypeWords.courierLines(delivery.courierEstimate)
-        Column(modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 DeliveryTypeWords.COURIER,
                 style = MaterialTheme.typography.bodySmall,
@@ -481,21 +595,15 @@ private fun ArrivalSection(receipt: Receipt) {
             }
             MovedNote(delivery)
         }
-        Text(
-            stageLabel(receipt.stage),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xs),
-        )
         return
     }
     val arrival = receipt.arrivalEstimates.firstOrNull()
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(Modifier.weight(1f, fill = false)) {
             Text(
                 // An order Effy delivers says so; one placed before delivery types says "Arriving".
                 if (delivery?.type == DeliveryType.EFFY) DeliveryTypeWords.EFFY else "Arriving",
@@ -509,12 +617,6 @@ private fun ArrivalSection(receipt: Receipt) {
             EffyStatusPill("Same-day", kind = EffyStatusKind.InProgress)
         }
     }
-    Text(
-        stageLabel(receipt.stage),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xs),
-    )
 }
 
 /**
@@ -592,21 +694,11 @@ internal fun arrivalLabel(a: ArrivalEstimate?): String {
     )
 }
 
-/** The customer-facing stage, in words. ⚠ Rendered, never recomputed (FR-008). */
-private fun stageLabel(stage: OrderStage): String = when (stage) {
-    OrderStage.Confirmed -> "Confirmed — we'll start preparing your order shortly."
-    OrderStage.Packing -> "Being packed — we're gathering your items now."
-    OrderStage.OnTheWay -> "On the way — your order is out for delivery."
-    OrderStage.Delivered -> "Delivered — your order has arrived."
-    // ⚠ A stage this build does not recognise must not assert progress it cannot justify.
-    OrderStage.Unknown -> "We'll keep you posted on your order."
-}
-
 @Composable
-private fun SummaryRow(label: String, value: String, bold: Boolean = false) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium)
+private fun SummaryRow(label: String, value: String, bold: Boolean = false, valueColor: Color = Color.Unspecified) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium, color = if (bold) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium, color = valueColor)
     }
 }
 
@@ -618,52 +710,43 @@ private fun SummaryRow(label: String, value: String, bold: Boolean = false) {
  * without telling anyone. The row reports success, the limit, and failure in the shopper's own terms.
  */
 @Composable
-private fun ResendReceiptRow(container: AppContainer, orderId: String) {
+private fun ResendReceiptLine(container: AppContainer, orderId: String, sellerLine: String) {
     var state by remember(orderId) { mutableStateOf<ResendUiState>(ResendUiState.Idle) }
     val scope = rememberCoroutineScope()
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-    ) {
-        // 087 — a row in the actions group (Order board), not a loose text button.
-        EffyNavRow(
-            when (state) {
-                is ResendUiState.Sending -> "Sending…"
-                is ResendUiState.Sent -> "Sent — check your inbox"
-                else -> "Send the receipt again"
-            },
-            leading = { EffyRowIcon(Res.drawable.lucide_mail) },
-            showChevron = false,
-            divider = false,
-            onClick = {
-                state = ResendUiState.Sending
-                scope.launch {
-                    state = when (container.resendReceipt(orderId)) {
-                        ResendReceiptResult.Queued -> ResendUiState.Sent
-                        ResendReceiptResult.RateLimited -> ResendUiState.Message(
-                            "We've already sent this a few times recently. Check your inbox and spam folder, then try again later.",
-                        )
-                        ResendReceiptResult.Unavailable -> ResendUiState.Message(
-                            "We can't send a receipt for this order.",
-                        )
-                        ResendReceiptResult.Failed -> ResendUiState.Message(
-                            "We couldn't send it just now. Please try again.",
-                        )
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(sellerLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            // 087 (Order board): "Send again" beside the seller line. ⚠ 48dp tall — the minimum target,
+            // stated in the modifier (033 once shipped a 32dp control under a comment claiming otherwise).
+            EffyTextLink(
+                when (state) {
+                    is ResendUiState.Sending -> "Sending…"
+                    is ResendUiState.Sent -> "Sent"
+                    else -> "Send again"
+                },
+                enabled = state !is ResendUiState.Sending && state !is ResendUiState.Sent,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                onClick = {
+                    state = ResendUiState.Sending
+                    scope.launch {
+                        state = when (container.resendReceipt(orderId)) {
+                            ResendReceiptResult.Queued -> ResendUiState.Sent
+                            ResendReceiptResult.RateLimited -> ResendUiState.Message(
+                                "We've already sent this a few times recently. Check your inbox and spam folder, then try again later.",
+                            )
+                            ResendReceiptResult.Unavailable -> ResendUiState.Message("We can't send a receipt for this order.")
+                            ResendReceiptResult.Failed -> ResendUiState.Message("We couldn't send it just now. Please try again.")
+                        }
                     }
-                }
-            },
-            enabled = state !is ResendUiState.Sending && state !is ResendUiState.Sent,
-            // ⚠ 48 dp is the constitution's minimum touch target, and 033 shipped a 32 dp control
-            // under a comment claiming it cleared the minimum. Stated in the modifier, not in prose.
-            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
-        )
-        (state as? ResendUiState.Message)?.let {
-            Text(
-                it.text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                },
             )
+        }
+        // ⚠ EVERY OUTCOME IS SAID OUT LOUD, refusals included — a silent rate-limited tap reads as broken.
+        when (val st = state) {
+            is ResendUiState.Sent -> Text("Sent — check your inbox", style = MaterialTheme.typography.bodySmall, color = EffyRoles.brand)
+            is ResendUiState.Message -> Text(st.text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else -> Unit
         }
     }
 }
@@ -855,12 +938,21 @@ private fun RequestRefundRow(container: AppContainer, receipt: Receipt) {
     // 087 (Order board): the row opens a full-height SHEET — message, optional items, pinned Send.
     when (val current = state) {
         is RequestUiState.Done -> EffyNotice(current.text, icon = Res.drawable.lucide_circle_check, positive = true)
-        else -> EffyNavRow(
-            "Something wrong with this order?",
-            leading = { EffyRowIcon(Res.drawable.lucide_message_square) },
-            onClick = { state = RequestUiState.Composing },
-            divider = false,
-        )
+        // 087 (Order board): a card that says what it is for, with its one action.
+        else -> EffyCard(padding = EffySpacing.lg) {
+            Text("Something wrong with this order?", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Tell us what happened and we'll sort it out.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = EffySpacing.md),
+            )
+            EffySecondaryButton(
+                "Report a problem",
+                onClick = { state = RequestUiState.Composing },
+                leading = { Icon(painterResource(Res.drawable.lucide_message_square), contentDescription = null, modifier = Modifier.size(18.dp)) },
+            )
+        }
     }
 
     val composing = state is RequestUiState.Composing || state is RequestUiState.Sending || state is RequestUiState.Error
@@ -940,6 +1032,12 @@ internal fun trackingLinkLabel(t: OrderTracking.Link): String =
  */
 internal object ReceiptText {
     fun orderTitle(orderNumber: String): String = "Order $orderNumber"
+
+    /** "Placed 12 October 2026 at 9:14 am · 11 items" — the date is left out when unknown. */
+    fun placedLine(placedAt: String, itemCount: Int): String {
+        val items = "$itemCount item${if (itemCount == 1) "" else "s"}"
+        return if (placedAt.isBlank()) items else "Placed $placedAt · $items"
+    }
 
     fun discountLabel(promoCode: String?): String = promoCode?.let { "Discount ($it)" } ?: "Discount"
 

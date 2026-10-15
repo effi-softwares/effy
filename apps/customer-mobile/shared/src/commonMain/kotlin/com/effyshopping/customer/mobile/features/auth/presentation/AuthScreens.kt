@@ -92,6 +92,8 @@ import com.effyshopping.mobile.kit.ui.OtpVariant
 import com.effyshopping.mobile.kit.ui.OTP_LENGTH
 import com.effyshopping.mobile.kit.ui.isCompleteOtp
 import kotlinx.coroutines.delay
+import com.effyshopping.customer.mobile.core.presentation.EffyNotice
+import com.effyshopping.customer.mobile.resources.lucide_shopping_cart
 
 const val PASSWORD_MIN_LENGTH = 12 // mirrors the platform policy (shared-types PASSWORD_MIN_LENGTH)
 
@@ -656,6 +658,15 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
             })
         },
     ) {
+        // 087 (Auth board, from checkout) — a shopper sent here by Checkout is told their cart waits
+        // and where they will land. ⚠ True only because sign-in really does return to checkout
+        // (`returnTo`) and the guest cart is merged into the account on sign-in (027).
+        if (returnTo == CustomerNavKey.Checkout) {
+            EffyNotice(
+                "Your cart is saved — sign in and we'll take you straight back to checkout.",
+                icon = Res.drawable.lucide_shopping_cart,
+            )
+        }
         EffyField(
             "Email",
             email,

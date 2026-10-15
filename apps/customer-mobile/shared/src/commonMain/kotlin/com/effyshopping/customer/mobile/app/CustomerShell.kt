@@ -65,9 +65,7 @@ import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutS
 import com.effyshopping.customer.mobile.features.payment.presentation.PaymentRoute
 import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptScreen
-import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
-import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
-import com.effyshopping.customer.mobile.features.help.presentation.HelpCenterScreen
+import com.effyshopping.customer.mobile.features.help.presentation.HelpScreen
 import com.effyshopping.customer.mobile.features.legal.presentation.LegalDocumentScreen
 import com.effyshopping.customer.mobile.features.legal.presentation.LegalIndexScreen
 import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
@@ -444,6 +442,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         OrdersScreen(
                             container,
                             onOpen = { navState.push(CustomerNavKey.OrderDetail(it)) },
+                            onViewCart = { navState.selectTab(CustomerNavKey.Cart) },
                             onBrowse = {
                                 // Browse was this escape's target; Discover is now the shop window.
                                 // resetToRoot() FIRST — the cart/favorites screen sits inside some
@@ -495,6 +494,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Cart> {
                     CartScreen(
                         container = container,
+                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onSeeAllSale = { navState.push(CustomerNavKey.Results(title = "On sale", saleOnly = true)) },
                         onCheckout = {
                             // ⚠ Return them to CHECKOUT, not to a tab root (SC-013).
                             if (signedIn) navState.push(CustomerNavKey.Checkout)
@@ -556,13 +557,24 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                             navState.resetToRoot()
                             navState.selectTab(CustomerNavKey.Home)
                         },
+                        // 087 — this order's details, on the Orders tab, where it will be found again.
+                        onTrack = {
+                            navState.resetToRoot()
+                            navState.selectTab(CustomerNavKey.Orders)
+                            navState.push(CustomerNavKey.OrderDetail(key.orderId))
+                        },
                     )
                 }
 
                 // The same screen opened from order history — pushed, so the back arrow is the way
                 // out and no bottom action is needed.
                 entry<CustomerNavKey.OrderDetail> { key ->
-                    ReceiptScreen(container, key.orderId, title = "Order details")
+                    ReceiptScreen(
+                        container,
+                        key.orderId,
+                        title = "Order details",
+                        onViewCart = { navState.selectTab(CustomerNavKey.Cart) },
+                    )
                 }
 
 
@@ -603,9 +615,11 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     PaymentMethodsScreen(container, onBack = { navState.pop() })
                 }
                 entry<CustomerNavKey.Notifications> { NotificationsScreen() }
-                entry<CustomerNavKey.Faqs> { FaqsScreen() }
-                entry<CustomerNavKey.HelpCenter> { HelpCenterScreen(onTopic = { navState.push(CustomerNavKey.Faqs) }) }
-                entry<CustomerNavKey.CustomerService> { CustomerServiceScreen() }
+                // 087 — three routes, ONE help page (Help board). The old keys stay so a restored back
+                // stack still resolves.
+                entry<CustomerNavKey.Faqs> { HelpScreen(onOpenOrders = { navState.selectTab(CustomerNavKey.Orders) }) }
+                entry<CustomerNavKey.HelpCenter> { HelpScreen(onOpenOrders = { navState.selectTab(CustomerNavKey.Orders) }) }
+                entry<CustomerNavKey.CustomerService> { HelpScreen(onOpenOrders = { navState.selectTab(CustomerNavKey.Orders) }) }
                 entry<CustomerNavKey.Feedback> {
                     val vm = remember { container.feedbackViewModel() }
                     FeedbackScreen(viewModel = vm, onBack = { navState.pop() })

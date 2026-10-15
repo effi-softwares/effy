@@ -171,6 +171,13 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
                 editable = false,
                 trailingNote = "Can't be changed",
             )
+            // 087 (Personal info board) — the reason is said up front, under the row, not only on a tap.
+            Text(
+                "Your email is how you sign in. To change it, contact us.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = EffySpacing.lg).padding(bottom = EffySpacing.s),
+            )
             EffyHairline()
 
             if (emailNoted) {
@@ -192,6 +199,9 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
             EditableDetail.PHONE -> customer.phone.orEmpty()
         }
         DetailEditSheet(
+            // 087 (board) — the phone sheet names the field "Mobile number" and says what it is for.
+            label = if (field == EditableDetail.PHONE) "Mobile number" else null,
+            helper = if (field == EditableDetail.PHONE) "We'll only call or text about a delivery." else null,
             title = when (field) {
                 EditableDetail.GIVEN -> "First name"
                 EditableDetail.FAMILY -> "Last name"
@@ -221,6 +231,8 @@ fun PersonalDetailsScreen(container: AppContainer, customer: Customer) {
  */
 @Composable
 private fun DetailEditSheet(
+    label: String?,
+    helper: String?,
     title: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -244,15 +256,18 @@ private fun DetailEditSheet(
         onPrimary = onSave,
         primaryEnabled = !saving,
     ) {
-        // ⚠ NO LABEL — the sheet's title already says "First name". Passing one here printed it
-        // twice, heading and label, which is what the first build shipped.
+        // ⚠ NO LABEL that repeats the title — the sheet already says "First name"; printing it twice
+        // is what the first build shipped. The phone's label differs ("Mobile number"), so it stays.
         EffyField(
-            label = null,
+            label = label,
             value = value,
             onValueChange = onValueChange,
             error = error,
             keyboardOptions = KeyboardOptions(keyboardType = keyboard),
             modifier = Modifier.focusRequester(focus),
         )
+        helper?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }

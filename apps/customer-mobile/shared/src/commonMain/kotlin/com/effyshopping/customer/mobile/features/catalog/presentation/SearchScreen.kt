@@ -114,6 +114,11 @@ import com.effyshopping.customer.mobile.resources.ic_search_outlined
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPlaceholder
 import com.effyshopping.mobile.kit.ui.EffyTopBar
+import org.jetbrains.compose.resources.DrawableResource
+import androidx.compose.foundation.selection.toggleable
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
 
 /**
  * Search (019 US4, extended by 025 US1).
@@ -283,63 +288,87 @@ fun SearchScreen(
         SavedTileMessages(savedTiles)
 
         if (!browsing) {
-            // Sub-aisles (Results board): "All" plus each sub-aisle with its count; the chosen one is
-            // solid black. Choosing one narrows the results.
+            // 087 (operator, 2026-10-15) — the results header was three stacked rows of 52dp boxes.
+            // It is now two light rows with clear jobs:
+            //   1. sub-aisles as TABS (navigation — where am I in this aisle), underlined, on a hairline;
+            //   2. ONE scrolling row of 36dp pill chips (refinement — Filters, Sort, On sale, and each
+            //      applied filter with its ×),
+            // then a slim count line with "Clear all". Every chip keeps a 48dp touch target.
             if (aisleKey != null && subAisles.isNotEmpty()) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-                    contentPadding = PaddingValues(horizontal = EffySpacing.lg),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    item(key = "all") { SubAisleChip("All", null, selected = state.categoryKey == aisleKey) { vm.applyCategory(aisleKey) } }
-                    items(subAisles, key = { it.key }) { sub ->
-                        SubAisleChip(sub.name, sub.productCount, selected = state.categoryKey == sub.key) { vm.applyCategory(sub.key) }
-                    }
-                }
-            }
-
-            // Filters + sort (Results board): an outlined Filters button with its count, and the sort
-            // as a full-width selector that opens a sheet.
-            Row(
-                // 087 — tight under the search field (operator: "reduce these spaces").
-                modifier = Modifier.fillMaxWidth().padding(start = EffySpacing.lg, end = EffySpacing.lg, top = EffySpacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FiltersButton(count = pills.size, onClick = { showFilters = true })
-                SortControl(
-                    // The ordering the SERVER applied — the requested one could misdescribe the list.
-                    current = state.sort,
-                    queryPresent = state.query.isNotBlank(),
-                    onSelect = vm::applySort,
-                    modifier = Modifier.weight(1f),
+                SubAisleTabs(
+                    tabs = listOf(SubAisleTab(aisleKey, "All", null)) + subAisles.map { SubAisleTab(it.key, it.name, it.productCount) },
+                    selectedKey = state.categoryKey,
+                    onSelect = vm::applyCategory,
                 )
             }
 
-            // Applied filters as pills, "Clear all", and the count on the right.
+            var sorting by remember { mutableStateOf(false) }
+            // The sale toggle is its own chip, so it is not repeated as a pill.
+            val refinementPills = pills.filter { it.key != "sale" }
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+                contentPadding = PaddingValues(horizontal = EffySpacing.lg),
+                modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xs),
+            ) {
+                item(key = "filters") {
+                    ToolbarChip(
+                        "Filters",
+                        selected = pills.isNotEmpty(),
+                        leading = Res.drawable.lucide_sliders_horizontal,
+                        badge = pills.size,
+                        onClick = { showFilters = true },
+                    )
+                }
+                item(key = "sort") {
+                    // The ordering the SERVER applied — the requested one could misdescribe the list.
+                    ToolbarChip(
+                        "Sort: ${state.sort.label}",
+                        trailing = Res.drawable.lucide_chevron_down,
+                        onClickLabel = "Change sort, now ${state.sort.label}",
+                        onClick = { sorting = true },
+                    )
+                }
+                if (!entrySaleOnly) {
+                    item(key = "sale") {
+                        ToolbarChip("On sale", selected = state.saleOnly, toggle = true, onClick = vm::toggleSale)
+                    }
+                }
+                items(refinementPills, key = { it.key }) { pill ->
+                    ToolbarChip(
+                        pill.label,
+                        selected = true,
+                        trailing = Res.drawable.lucide_x,
+                        onClickLabel = "Remove ${pill.label}",
+                        onClick = { pill.remove(vm) },
+                    )
+                }
+            }
+            if (sorting) {
+                SortSheet(
+                    current = state.sort,
+                    queryPresent = state.query.isNotBlank(),
+                    onSelect = { sorting = false; vm.applySort(it) },
+                    onDismiss = { sorting = false },
+                )
+            }
+
+            // The count, and "Clear all" once something is applied — one slim line, not a 48dp row.
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = EffySpacing.lg)
-                    // A 48dp row only when there are pills to tap; the count alone is a line of text.
-                    .heightIn(min = if (pills.isNotEmpty()) EffySize.target else 32.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg).heightIn(min = 32.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                LazyRow(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                    items(pills, key = { it.key }) { pill -> FilterPill(pill.label, onRemove = { pill.remove(vm) }) }
-                    if (pills.isNotEmpty()) item(key = "clear") { EffyTextLink("Clear all", onClick = vm::clearRefinements) }
-                }
                 Text(
                     when {
                         state.total != null -> "${state.total} ${if (state.total == 1) "result" else "results"}"
                         state.loading -> "Searching…"
                         else -> ""
                     },
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     // Announced, so a screen-reader user learns the set changed size (FR-045).
-                    modifier = Modifier.padding(start = EffySpacing.s).semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
                 )
+                if (pills.isNotEmpty()) EffyTextLink("Clear all", onClick = vm::clearRefinements)
             }
         }
 
@@ -545,64 +574,112 @@ private fun SearchStart(
     }
 }
 
-/** A sub-aisle chip (Results board): outlined with its count; the chosen one is solid black. */
+private data class SubAisleTab(val key: String, val label: String, val count: Int?)
+
+/**
+ * Sub-aisles as scrolling TABS (087): the label, its count in grey, and a 2dp underline under the
+ * chosen one, on a hairline. Tabs, not chips — this row says WHERE you are; the chips below refine.
+ */
 @Composable
-private fun SubAisleChip(label: String, count: Int?, selected: Boolean, onClick: () -> Unit) {
+private fun SubAisleTabs(tabs: List<SubAisleTab>, selectedKey: String?, onSelect: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth()) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = EffySpacing.s),
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+        ) {
+            items(tabs, key = { it.key }) { tab ->
+                val selected = tab.key == selectedKey
+                Column(
+                    modifier = Modifier
+                        .heightIn(min = EffySize.target)
+                        .selectable(selected = selected, role = Role.Tab) { onSelect(tab.key) }
+                        .padding(horizontal = EffySpacing.md)
+                        // The underline spans the label: the column is as wide as its widest child.
+                        .width(IntrinsicSize.Max),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Bottom,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(top = EffySpacing.md, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            tab.label,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
+                            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        tab.count?.let {
+                            Text("$it", style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Box(
+                        Modifier
+                            .height(2.dp)
+                            .fillMaxWidth()
+                            .clip(CircleShape)
+                            .background(if (selected) MaterialTheme.colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent),
+                    )
+                }
+            }
+        }
+        EffyHairline(inset = false)
+    }
+}
+
+/**
+ * One refinement chip (087): a 36dp pill inside a 48dp touch target. Outlined at rest; solid black
+ * when it is ON (a filter applied, sale on). An optional leading glyph, a count badge, and a trailing
+ * chevron (opens a sheet) or × (removes it).
+ */
+@Composable
+private fun ToolbarChip(
+    label: String,
+    selected: Boolean = false,
+    leading: DrawableResource? = null,
+    trailing: DrawableResource? = null,
+    badge: Int = 0,
+    toggle: Boolean = false,
+    onClickLabel: String? = null,
+    onClick: () -> Unit,
+) {
     val interactions = remember { MutableInteractionSource() }
-    Row(
+    val ink = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface
+    Box(
         modifier = Modifier
             .heightIn(min = EffySize.target)
             .effyPress(interactions, 0.95f)
-            .clip(EffyStorefrontShape.control)
-            .background(if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.background)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, EffyStorefrontShape.control)
-            .selectable(selected = selected, interactionSource = interactions, indication = null, role = Role.Tab, onClick = onClick)
-            .padding(horizontal = EffySpacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurface)
-        if (count != null) Text("$count", style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"), color = if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-/** "Filters" (Results board): an outlined button with the sliders glyph and a blue count badge. */
-@Composable
-private fun FiltersButton(count: Int, onClick: () -> Unit) {
-    val interactions = remember { MutableInteractionSource() }
-    Row(
-        modifier = Modifier
-            .heightIn(min = EffySize.target + 4.dp)
-            .effyPress(interactions, 0.97f)
-            .clip(EffyStorefrontShape.control)
-            .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.control)
-            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClickLabel = "Filters", onClick = onClick)
-            .padding(horizontal = EffySpacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-    ) {
-        Icon(painterResource(Res.drawable.lucide_sliders_horizontal), contentDescription = null, modifier = Modifier.size(20.dp))
-        Text("Filters", style = MaterialTheme.typography.labelLarge)
-        if (count > 0) EffyBadge(count)
-    }
-}
-
-/** An applied filter as a removable grey pill (Results board). */
-@Composable
-private fun FilterPill(label: String, onRemove: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .heightIn(min = EffySize.target)
-            .clickable(role = Role.Button, onClickLabel = "Remove $label", onClick = onRemove),
-        verticalAlignment = Alignment.CenterVertically,
+            .then(
+                if (toggle) Modifier.toggleable(value = selected, interactionSource = interactions, indication = null, role = Role.Switch) { onClick() }
+                else Modifier.clickable(interactionSource = interactions, indication = null, role = Role.Button, onClickLabel = onClickLabel, onClick = onClick),
+            ),
+        contentAlignment = Alignment.Center,
     ) {
         Row(
-            modifier = Modifier.clip(EffyStorefrontShape.control).background(EffySurface.tint).padding(horizontal = EffySpacing.md, vertical = EffySpacing.s),
+            modifier = Modifier
+                .height(36.dp)
+                .clip(CircleShape)
+                .background(if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.background)
+                .border(1.dp, if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline, CircleShape)
+                .padding(start = if (leading != null) 12.dp else 14.dp, end = if (trailing != null || badge > 0) 10.dp else 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            Icon(painterResource(Res.drawable.lucide_x), contentDescription = null, modifier = Modifier.size(14.dp))
+            leading?.let { Icon(painterResource(it), contentDescription = null, tint = ink, modifier = Modifier.size(16.dp)) }
+            Text(label, style = MaterialTheme.typography.labelLarge, color = ink, maxLines = 1)
+            if (badge > 0) {
+                Box(
+                    Modifier.size(20.dp).clip(CircleShape).background(if (selected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "$badge",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum"),
+                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
+            }
+            trailing?.let { Icon(painterResource(it), contentDescription = null, tint = ink, modifier = Modifier.size(16.dp)) }
         }
     }
 }
@@ -625,44 +702,19 @@ private fun appliedFilterPills(state: SearchUiState, aisleScoped: Boolean): List
     state.attributes.forEach { (k, vs) -> vs.forEach { v -> add(AppliedFilter("attr:$k:$v", labelOf(k, v)) { it.toggleAttribute(k, v) }) } }
 }
 
-/** The ordering control (Results board): a full-width selector showing the order, opening a sheet. */
+/** "Sort by" (087 — every choice is a bottom sheet; no drop-down menus). */
 @Composable
-private fun SortControl(
+private fun SortSheet(
     current: ProductSortOption,
     queryPresent: Boolean,
     onSelect: (ProductSortOption) -> Unit,
-    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
     val options = ProductSortOption.entries.filter { it != ProductSortOption.RELEVANCE || queryPresent }
-    val interactions = remember { MutableInteractionSource() }
-    Row(
-        modifier = modifier
-            .heightIn(min = EffySize.target + 4.dp)
-            .effyPress(interactions, 0.98f)
-            .clip(EffyStorefrontShape.control)
-            .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.control)
-            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClickLabel = "Sort: ${current.label}") { open = true }
-            .padding(horizontal = EffySpacing.lg),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(current.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), maxLines = 1)
-        Icon(painterResource(Res.drawable.lucide_chevron_down), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-    }
-    // 087 — every choice is a bottom sheet (no drop-down menus).
-    if (open) {
-        EffySheet(title = "Sort by", onDismiss = { open = false }, cancelLabel = "Cancel") {
-            Column(Modifier.selectableGroup()) {
-                options.forEach { option ->
-                    EffyRadioRow(
-                        label = option.label,
-                        selected = option == current,
-                        onClick = {
-                            open = false
-                            onSelect(option)
-                        },
-                    )
-                }
+    EffySheet(title = "Sort by", onDismiss = onDismiss, cancelLabel = "Cancel") {
+        Column(Modifier.selectableGroup()) {
+            options.forEach { option ->
+                EffyRadioRow(label = option.label, selected = option == current, onClick = { onSelect(option) })
             }
         }
     }
