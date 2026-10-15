@@ -1,5 +1,7 @@
 # Effy Driver App — Design Brief for Claude Design
 
+> ⚠ **SUPERSEDED (2026-10-15)** by [driver-app-redesign-brief.md](driver-app-redesign-brief.md) — use that one for Claude Design.
+
 > ⚠ **PARTLY OUT OF DATE (2026-10-10, feature 083).** There is now ONE delivery model: an order is
 > **Delivered by Effy** in a window (today, or one of the next delivery days) or sent by **Courier
 > delivery**. Anything below about a same-day/standard method choice, a standard day handed to a carrier,
