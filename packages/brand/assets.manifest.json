@@ -237,6 +237,160 @@
       "bytes": 3903
     },
     {
+      "surface": "driver-mobile",
+      "slot": "android-adaptive-background",
+      "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_background.xml",
+      "sha256": "bcff988e52009e00c0d18a9480c3cf1fa1e37892bec75cd8d300666f13b4d147",
+      "bytes": 393
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-adaptive-foreground",
+      "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_foreground.xml",
+      "sha256": "fa1ca3839530380dc811f3663afc911c0992e92b7d9f63f683fbbf8e01aebd61",
+      "bytes": 1117
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-adaptive-monochrome",
+      "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_monochrome.xml",
+      "sha256": "a1b7c0fcc87b720a9b21f1b2b7a7e015ffa4175bedc02c805d3187b340883a50",
+      "bytes": 1117
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-splash-logo",
+      "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_splash_logo.xml",
+      "sha256": "32b40557507a6d4a2f23b3e0d7db9e9fe97a41401d40c084b8c4f4f738e13bcb",
+      "bytes": 1115
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-hdpi-ic_launcher",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "sha256": "e8eb6db54da841b002f3e8c4a1a5974f49a7cc0739d5383afba6d658cd62e5d6",
+      "bytes": 847
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-hdpi-ic_launcher_round",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-hdpi/ic_launcher_round.png",
+      "sha256": "e8eb6db54da841b002f3e8c4a1a5974f49a7cc0739d5383afba6d658cd62e5d6",
+      "bytes": 847
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-mdpi-ic_launcher",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "sha256": "913a8a8aa6c25d6bcbad6ac7aaf3358788217e36e7ec39fbfc10775c9562ccde",
+      "bytes": 604
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-mdpi-ic_launcher_round",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-mdpi/ic_launcher_round.png",
+      "sha256": "913a8a8aa6c25d6bcbad6ac7aaf3358788217e36e7ec39fbfc10775c9562ccde",
+      "bytes": 604
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-xhdpi-ic_launcher",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "sha256": "6c1c31b42bb522073e80d06a9b6e999a559696d03333c86af69e9476620a5002",
+      "bytes": 1033
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-xhdpi-ic_launcher_round",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
+      "sha256": "6c1c31b42bb522073e80d06a9b6e999a559696d03333c86af69e9476620a5002",
+      "bytes": 1033
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-xxhdpi-ic_launcher",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "sha256": "da33ffd1d994fc3f29392384140734de5e7259d06eba658c3e132afd6dc4321a",
+      "bytes": 1563
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-xxhdpi-ic_launcher_round",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
+      "sha256": "da33ffd1d994fc3f29392384140734de5e7259d06eba658c3e132afd6dc4321a",
+      "bytes": 1563
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-xxxhdpi-ic_launcher",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "sha256": "829a370656e1d6ded644c974b58f548e23b5a69ab94959c376a3f9dcf267fb17",
+      "bytes": 2036
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "android-legacy-xxxhdpi-ic_launcher_round",
+      "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
+      "sha256": "829a370656e1d6ded644c974b58f548e23b5a69ab94959c376a3f9dcf267fb17",
+      "bytes": 2036
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "ios-app-icon-dark",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024-dark.png",
+      "sha256": "422c45c032651cadebb67eb0dd3699c473ac7e9233959c8238c253817999d8f9",
+      "bytes": 9362
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "ios-app-icon-tinted",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024-tinted.png",
+      "sha256": "d95ba0cd7df8fb2c65f7123a0fe8599fab26c2b8c998a2feeae153836b0888d5",
+      "bytes": 7586
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "ios-app-icon",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png",
+      "sha256": "422c45c032651cadebb67eb0dd3699c473ac7e9233959c8238c253817999d8f9",
+      "bytes": 9362
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "asset-catalog-sidecar",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchBackground.colorset/Contents.json",
+      "sha256": "24efe9a03c916e471886663231864c068aa1105324c2a59fabaa16e39da62f1e",
+      "bytes": 671
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "asset-catalog-sidecar",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/Contents.json",
+      "sha256": "d3ef3a41187f8c1325eac7f8941780b9b4208d57eb2273fa3e98c10223e9f271",
+      "bytes": 383
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "ios-launch-logo",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo.png",
+      "sha256": "3481b88aee2fc647c6e033d768f4909ccea5487080e14e8164c7bf4d56bea243",
+      "bytes": 988
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "ios-launch-logo@2x",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo@2x.png",
+      "sha256": "41cbca8b3ed83f1a52929a7db5f359b68a906931a1fc5fc940fb82aed55fd1e4",
+      "bytes": 2080
+    },
+    {
+      "surface": "driver-mobile",
+      "slot": "ios-launch-logo@3x",
+      "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo@3x.png",
+      "sha256": "fdc2f0e7e57b94aa928db1a88e3f3f5b1275aa1dea835415b155ff4973b3ac21",
+      "bytes": 3468
+    },
+    {
       "surface": "shop-mobile",
       "slot": "android-adaptive-background",
       "path": "apps/shop-mobile/androidApp/src/main/res/drawable/ic_launcher_background.xml",

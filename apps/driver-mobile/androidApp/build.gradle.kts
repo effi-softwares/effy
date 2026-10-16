@@ -17,6 +17,8 @@ dependencies {
     implementation(projects.shared)
 
     implementation(libs.androidx.activity.compose)
+    // 092 — the branded splash, as the customer app (backports the Android 12+ API to API 21).
+    implementation(libs.androidx.core.splashscreen)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)

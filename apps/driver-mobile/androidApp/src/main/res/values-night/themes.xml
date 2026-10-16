@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark variant: only the underlying app theme changes; the splash style and ground are shared. -->
+<resources>
+    <style name="Theme.Effy" parent="@android:style/Theme.Material.NoActionBar" />
+</resources>

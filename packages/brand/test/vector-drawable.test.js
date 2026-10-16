@@ -84,6 +84,7 @@ describe("every committed VectorDrawable is renderable", () => {
   const dirs = [
     "apps/customer-mobile/androidApp/src/main/res/drawable",
     "apps/shop-mobile/androidApp/src/main/res/drawable",
+    "apps/driver-mobile/androidApp/src/main/res/drawable",
   ]
   for (const dir of dirs) {
     for (const f of readdirSync(resolve(REPO, dir)).filter((n) => n.endsWith(".xml"))) {

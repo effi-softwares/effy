@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 092 — the branded launch, as the customer app's (024/087): AndroidX core-splashscreen attributes (no
+     `android:` prefix), so ONE declaration covers minSdk 24 … 36. postSplashScreenTheme prevents a flash
+     of the wrong ground between the splash and the first Compose frame — which is the launch intro,
+     drawn identically to the splash. -->
+<resources>
+    <style name="Theme.Effy" parent="@android:style/Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.Effy.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.Effy</item>
+    </style>
+</resources>

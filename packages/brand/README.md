@@ -61,9 +61,9 @@ this repo is **Terraform-only** and does not run it.
 
 ## One identity on every surface
 
-Customer, shop and back-office carry the **same** icon. (Until this mark the brand was a shopping bag
+Customer, shop, driver and back-office carry the **same** icon. (Until this mark the brand was a shopping bag
 drawn in three colourways so the three could be told apart; that mark and its colourways are gone.)
-The driver app's launcher icon is not produced here.
+Since 092 the driver app carries it too — the same icon and splash as the customer app.
 
 **These colours are not design tokens.** They are restated in `src/colourways.mjs` and must never be
 imported from, or exported into, `@effy/design-system` — this package does not depend on it.

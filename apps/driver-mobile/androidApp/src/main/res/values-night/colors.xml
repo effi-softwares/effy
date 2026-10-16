@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 092 — the splash ground: the brand mark's tile colour, as the customer app's, so the icon opens into
+     the splash without a change of colour. MUST equal SPLASH_GROUND["driver-mobile"] in
+     packages/brand/src/compositions.mjs (the iOS launch colour is generated from it). values-night/
+     carries the SAME value: the tile has no appearance variant. -->
+<resources>
+    <color name="splash_background">#09090B</color>
+</resources>

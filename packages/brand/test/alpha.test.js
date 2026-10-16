@@ -40,9 +40,9 @@ describe("every iOS app icon is submission-safe", () => {
   const iosIcons = TARGETS.filter((t) => t.slot.startsWith("ios-app-icon"))
 
   test("all three appearances exist for both mobile apps", () => {
-    // Six: {customer, shop} × {light, dark, tinted}. The dark and tinted slots were declared but
-    // EMPTY in the template Contents.json — FR-007a fills them.
-    assert.equal(iosIcons.length, 6)
+    // Nine: {customer, shop, driver} × {light, dark, tinted}. The dark and tinted slots were declared
+    // but EMPTY in the template Contents.json — FR-007a fills them.
+    assert.equal(iosIcons.length, 9)
   })
 
   for (const t of iosIcons) {
@@ -52,10 +52,10 @@ describe("every iOS app icon is submission-safe", () => {
   }
 })
 
-describe("driver-mobile is untouched (FR-020)", () => {
-  test("no target writes into apps/driver-mobile", () => {
-    // The driver app's launcher icon is not produced here; nothing in this package may write to it.
-    const driver = TARGETS.filter((t) => t.path.includes("driver-mobile"))
-    assert.equal(driver.length, 0, `driver-mobile must be out of scope, found: ${driver.map((t) => t.path)}`)
+describe("driver-mobile wears the customer app's mark (092)", () => {
+  test("the driver app gets the same icon and splash targets as the customer app", () => {
+    // ⚠ Until 092 this asserted the OPPOSITE (024 FR-020 kept the driver app out of scope).
+    const slots = (app) => TARGETS.filter((t) => t.path.includes(`apps/${app}/`)).map((t) => `${t.slot}|${t.colourway}`).sort()
+    assert.deepEqual(slots("driver-mobile"), slots("customer-mobile"))
   })
 })

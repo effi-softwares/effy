@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.effyshopping.driver.mobile.app.App
 import com.effyshopping.driver.mobile.core.platform.AndroidMapLauncher
 import com.effyshopping.driver.mobile.core.platform.AndroidPlatformUiController
@@ -17,9 +18,15 @@ class MainActivity : ComponentActivity() {
     private lateinit var platformUiController: AndroidPlatformUiController
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 092 — as the customer app: installed BEFORE super.onCreate, and removed INSTANTLY once the first
+        // Compose frame is ready — that frame is the launch intro, drawn identically to the splash, so a
+        // system fade would only cross-dissolve two identical images.
+        installSplashScreen().setOnExitAnimationListener { it.remove() }
+        // Light icons to start: the splash and the intro are dark. After the intro the app sets them to
+        // its appearance (applyAppearance).
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isStatusBarContrastEnforced = false

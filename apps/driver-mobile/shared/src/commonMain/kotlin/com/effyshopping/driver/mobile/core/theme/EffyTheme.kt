@@ -62,6 +62,10 @@ object EffyRoles {
     val primaryMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.primaryMuted, EffyColor.Dark.primaryMuted)
     val scrim: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.scrim, EffyColor.Dark.scrim)
 
+    /** 092 — the launch splash's fixed ground (#09090B, packages/brand SPLASH_GROUND) and its ink. No appearance. */
+    val splashGround: Color get() = EffyColor.Light.foreground
+    val splashInk: Color get() = EffyColor.Light.background
+
     @Composable
     @ReadOnlyComposable
     private fun pick(light: Color, dark: Color) = if (LocalEffyDark.current) dark else light

@@ -320,6 +320,8 @@ export const TARGETS = [
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────
   ...mobileTargets("customer-mobile", "customer-mobile", "tile"),
   ...mobileTargets("shop-mobile", "shop-mobile", "tile"),
+  // 092 — the driver app wears the same mark and splash as the customer app (it was out of scope until then).
+  ...mobileTargets("driver-mobile", "driver-mobile", "tile"),
 ]
 
 // ⚠ RULE T4 — collisions mean silent overwrite ordering. Fail at import time, not at write time.
@@ -354,9 +356,11 @@ export const MANAGED_DIRS = [
   "apps/back-office/public",
   "apps/customer-mobile/androidApp/src/main/res/drawable",
   "apps/shop-mobile/androidApp/src/main/res/drawable",
+  "apps/driver-mobile/androidApp/src/main/res/drawable",
   "apps/customer-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
   "apps/shop-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
-  ...["customer-mobile", "shop-mobile"].flatMap((app) => [
+  "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
+  ...["customer-mobile", "shop-mobile", "driver-mobile"].flatMap((app) => [
     ...ANDROID_MIPMAP.map(([density]) => `apps/${app}/androidApp/src/main/res/mipmap-${density}`),
     `apps/${app}/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`,
   ]),

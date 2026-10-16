@@ -28,6 +28,7 @@ import com.effyshopping.driver.mobile.core.platform.PlatformUiController
 import com.effyshopping.mobile.kit.live.LiveLifecycle
 import com.effyshopping.driver.mobile.core.session.SessionState
 import com.effyshopping.driver.mobile.core.theme.EffyTheme
+import com.effyshopping.driver.mobile.core.theme.LocalEffyDark
 import com.effyshopping.driver.mobile.features.auth.presentation.SignInFlow
 import com.effyshopping.driver.mobile.features.onboarding.PermissionPrimingScreen
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +49,11 @@ fun App(
 ) {
     val platformState by platformUiController.state.collectAsState()
     val appearanceMode by container.appearance.mode.collectAsState()
-    EffyTheme(mode = appearanceMode, onResolvedAppearance = platformUiController::applyAppearance) {
+    // 092 — the launch intro, over everything, once per cold start (as the customer app). While it shows
+    // it owns the status bar (light on the dark splash); after, the theme does. `remember`, not saved:
+    // a rotation does not replay it, a new process does.
+    var introDone by remember { mutableStateOf(false) }
+    EffyTheme(mode = appearanceMode, onResolvedAppearance = { if (introDone) platformUiController.applyAppearance(it) }) {
         val session by container.session.state.collectAsState()
         val scope = rememberCoroutineScope()
         // 071 — hold the live channel exactly while in the foreground and signed in.
@@ -71,10 +76,8 @@ fun App(
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = session) {
-                // ⚠ Design screen `splash`. Was a centred word and a spinner on the app's normal
-                // background — indistinguishable from a screen that failed to load. Now a
-                // full-bleed brand ground with the mark, as the design has it.
-                SessionState.Restoring -> SplashScreen()
+                // The launch intro covers this; it hands over only once the session is known.
+                SessionState.Restoring -> Unit
 
                 SessionState.SignedOut -> SignInFlow(container, reducedMotion = platformState.reducedMotion)
 
@@ -95,6 +98,15 @@ fun App(
                     }
                 }
             }
+        }
+        if (!introDone) {
+            DriverIntro(
+                ready = session !is SessionState.Restoring,
+                darkTheme = LocalEffyDark.current,
+                reducedMotion = platformState.reducedMotion,
+                onDarkGround = platformUiController::applyAppearance,
+                onFinished = { introDone = true },
+            )
         }
     }
 }

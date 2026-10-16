@@ -92,7 +92,7 @@ function xcodeComponents(hex) {
  */
 function sidecars() {
   const out = []
-  for (const app of ["customer-mobile", "shop-mobile"]) {
+  for (const app of ["customer-mobile", "shop-mobile", "driver-mobile"]) {
     const base = `apps/${app}/iosApp/iosApp/Assets.xcassets`
     out.push({
       path: `${base}/LaunchLogo.imageset/Contents.json`,

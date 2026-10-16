@@ -44,6 +44,15 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   nothing moves under reduced motion; buttons give to 97% on press; the hub scan lists load-now first.
   Tidy: mobile-kit's `SwipeToConfirm` and `ClassSummaryRow` deleted; E7 `Phase.SAME_DAY_DELIVERY` →
   `Phase.DELIVERY` (the wire keeps `same_day_delivery`).
+- **Launch, as the customer app (same day)**: the driver app now takes its icon and splash from
+  `@effy/brand` (`mobileTargets("driver-mobile", …, "tile")`, `SPLASH_GROUND` #09090B) — ⚠ the brand test
+  that asserted the driver app was OUT of scope (024 FR-020) now asserts it gets exactly the customer app's
+  targets. Android: adaptive icon with the monochrome layer, `Theme.Effy.Splash` (core-splashscreen),
+  `installSplashScreen` removed instantly; iOS: `UILaunchScreen` (LaunchLogo on LaunchBackground),
+  `INFOPLIST_KEY_UILaunchScreen_Generation = NO`, light/dark/tinted app icons. Then `DriverIntro` — the
+  customer app's "e. → effy." intro, copied — hands over once the session is known; the old `SplashScreen`
+  is deleted. ⚠ The launcher name was the developer string "driver-mobile" on BOTH platforms; it is
+  "Effy Driver" now (`app_name`, `CFBundleDisplayName`).
 - **Not drawn, no data**: "Navigate to the hub" — the platform holds no hub address (`HUB_LABEL` is a
   constant in `driver/service.ts`); it needs a hub record first.
 - **Verified**: driver container tests (phone open/settled/blank, courier pickup label, code-named hand-over),
