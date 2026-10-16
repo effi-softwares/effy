@@ -65,6 +65,8 @@ object EffyRoles {
     /** 092 — the launch splash's fixed ground (#09090B, packages/brand SPLASH_GROUND) and its ink. No appearance. */
     val splashGround: Color get() = EffyColor.Light.foreground
     val splashInk: Color get() = EffyColor.Light.background
+    /** The driver mark's full stop on the splash: Effy blue (packages/brand COLOURWAYS.driver.dot). */
+    val splashDot: Color get() = EffyColor.Light.primary
 
     @Composable
     @ReadOnlyComposable

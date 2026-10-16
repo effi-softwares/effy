@@ -3,14 +3,14 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="1107.3529"
-    android:viewportHeight="1107.3529">
-    <group android:translateX="303.6265" android:translateY="303.6765">
+    android:viewportWidth="1139.1176"
+    android:viewportHeight="1139.1176">
+    <group android:translateX="314.1088" android:translateY="319.5588">
         <path
             android:pathData="M61.75 250Q61.75 208 78.25 176.25Q94.75 144.5 125.25 127.25Q155.75 110 196.25 110Q235.75 110 265.5 127.5Q295.25 145 311.25 177.75Q327.25 210.5 327.25 255V270H139.25Q140.25 301 155.75 317Q171.25 333 198.25 333Q217.25 333 230 325Q242.75 317 248.25 300.5L323.75 305Q312.75 345 279 367.5Q245.25 390 196.75 390Q156.25 390 125.5 372.75Q94.75 355.5 78.25 323.75Q61.75 292 61.75 250ZM196.25 165.5Q172.25 165.5 157.25 181Q142.25 196.5 139.25 224H250.75Q249.25 195.5 234.75 180.5Q220.25 165.5 196.25 165.5Z"
             android:fillColor="#09090b" />
         <path
-            android:pathData="M357.25 307.5H438.25V384H357.25Z"
+            android:pathData="M357 338A46 46 0 1 1 449 338A46 46 0 1 1 357 338ZM372 338A31 31 0 1 0 434 338A31 31 0 1 0 372 338ZM390 338A13 13 0 1 1 416 338A13 13 0 1 1 390 338ZM371 331H391V345H371ZM415 331H435V345H415ZM396 349H410V370H396Z"
             android:fillColor="#09090b" />
     </group>
 </vector>

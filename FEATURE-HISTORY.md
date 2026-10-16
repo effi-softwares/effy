@@ -45,12 +45,14 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   Tidy: mobile-kit's `SwipeToConfirm` and `ClassSummaryRow` deleted; E7 `Phase.SAME_DAY_DELIVERY` →
   `Phase.DELIVERY` (the wire keeps `same_day_delivery`).
 - **Launch, as the customer app (same day)**: the driver app now takes its icon and splash from
-  `@effy/brand` (`mobileTargets("driver-mobile", …, "tile")`, `SPLASH_GROUND` #09090B) — ⚠ the brand test
-  that asserted the driver app was OUT of scope (024 FR-020) now asserts it gets exactly the customer app's
-  targets. Android: adaptive icon with the monochrome layer, `Theme.Effy.Splash` (core-splashscreen),
+  `@effy/brand`, with ITS OWN MARK — `src/logo-driver.svg`: the same "e.", its full stop a small Effy-blue
+  STEERING WHEEL (colourway `driver`: dot #1d4ed8; targets carry `mark: "driver"`). ⚠ The brand tests that
+  asserted the driver app was OUT of scope (024 FR-020) and that there is ONE colourway now assert the
+  driver app gets the customer app's slots from the driver mark, and nothing else uses it. Android: adaptive icon with the monochrome layer, `Theme.Effy.Splash` (core-splashscreen),
   `installSplashScreen` removed instantly; iOS: `UILaunchScreen` (LaunchLogo on LaunchBackground),
   `INFOPLIST_KEY_UILaunchScreen_Generation = NO`, light/dark/tinted app icons. Then `DriverIntro` — the
-  customer app's "e. → effy." intro, copied — hands over once the session is known; the old `SplashScreen`
+  customer app's "e. → effy." intro, copied, with the wheel leading as the full stop (blue → the app's
+  blue) and "DRIVER" fading in beneath the finished word — hands over once the session is known; the old `SplashScreen`
   is deleted. ⚠ The launcher name was the developer string "driver-mobile" on BOTH platforms; it is
   "Effy Driver" now (`app_name`, `CFBundleDisplayName`).
 - **Not drawn, no data**: "Navigate to the hub" — the platform holds no hub address (`HUB_LABEL` is a

@@ -52,10 +52,19 @@ describe("every iOS app icon is submission-safe", () => {
   }
 })
 
-describe("driver-mobile wears the customer app's mark (092)", () => {
-  test("the driver app gets the same icon and splash targets as the customer app", () => {
+describe("driver-mobile has its own mark (092)", () => {
+  const of = (app) => TARGETS.filter((t) => t.path.includes(`apps/${app}/`))
+  test("the driver app gets the same set of icon and splash slots as the customer app", () => {
     // ⚠ Until 092 this asserted the OPPOSITE (024 FR-020 kept the driver app out of scope).
-    const slots = (app) => TARGETS.filter((t) => t.path.includes(`apps/${app}/`)).map((t) => `${t.slot}|${t.colourway}`).sort()
-    assert.deepEqual(slots("driver-mobile"), slots("customer-mobile"))
+    assert.deepEqual(of("driver-mobile").map((t) => t.slot).sort(), of("customer-mobile").map((t) => t.slot).sort())
+  })
+  test("…drawn from the driver mark, with the blue full stop", () => {
+    for (const t of of("driver-mobile")) {
+      assert.equal(t.mark, "driver", t.path)
+      if (!t.mono) assert.equal(t.colourway, "driver", t.path)
+    }
+  })
+  test("no other surface uses the driver mark", () => {
+    assert.deepEqual(TARGETS.filter((t) => t.mark === "driver" && !t.path.includes("apps/driver-mobile/")), [])
   })
 })

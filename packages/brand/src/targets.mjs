@@ -320,8 +320,9 @@ export const TARGETS = [
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────
   ...mobileTargets("customer-mobile", "customer-mobile", "tile"),
   ...mobileTargets("shop-mobile", "shop-mobile", "tile"),
-  // 092 — the driver app wears the same mark and splash as the customer app (it was out of scope until then).
-  ...mobileTargets("driver-mobile", "driver-mobile", "tile"),
+  // 092 — the driver app gets the same set of icons and splash as the customer app (out of scope before).
+  // 092 — its own mark: the "e." whose full stop is a blue steering wheel (src/logo-driver.svg).
+  ...mobileTargets("driver-mobile", "driver-mobile", "driver").map((t) => ({ ...t, mark: "driver" })),
 ]
 
 // ⚠ RULE T4 — collisions mean silent overwrite ordering. Fail at import time, not at write time.

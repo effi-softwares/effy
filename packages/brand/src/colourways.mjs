@@ -27,6 +27,14 @@ export const COLOURWAYS = {
     letter: "#ffffff",
     dot: "#0d7a40",
   },
+  // 092 — the driver app: the same tile and letter, the full stop in Effy blue (the storefront's
+  // --primary, #1d4ed8). Drawn from src/logo-driver.svg, where the full stop is a small steering wheel.
+  driver: {
+    name: "Driver",
+    ground: "#09090b",
+    letter: "#ffffff",
+    dot: "#1d4ed8",
+  },
 }
 
 /** The wordmark's two appearances. The full stop is green in both; only the word changes. */

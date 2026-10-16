@@ -27,6 +27,8 @@ const here = dirname(fileURLToPath(import.meta.url))
 const PKG = resolve(here, "..")
 const REPO = resolve(PKG, "../..")
 const MARK = resolve(PKG, "src/logo.svg")
+// 092 — the driver app's mark: the same "e.", its full stop a steering wheel.
+const DRIVER_MARK = resolve(PKG, "src/logo-driver.svg")
 const WORDMARK_SRC = resolve(PKG, "src/wordmark.svg")
 const MANIFEST = resolve(PKG, "assets.manifest.json")
 
@@ -164,9 +166,13 @@ export async function buildAll() {
   // ⚠ RULE V2 — measured, never hard-coded. A stale bbox mis-centres every asset silently.
   const bbox = await measureBBox(mark)
 
+  const driverMark = readFileSync(DRIVER_MARK, "utf8")
+  const driverBbox = await measureBBox(driverMark)
+
   const files = []
   for (const target of TARGETS) {
-    for (const f of await buildTarget(target, mark, bbox)) {
+    const [m, b] = target.mark === "driver" ? [driverMark, driverBbox] : [mark, bbox]
+    for (const f of await buildTarget(target, m, b)) {
       files.push({ ...f, surface: target.surface, slot: target.slot, target })
     }
   }
@@ -194,6 +200,8 @@ export function buildManifest(mark, files) {
         generatedFrom: {
           mark: "src/logo.svg",
           markSha256: sha256(Buffer.from(mark, "utf8")),
+          driverMark: "src/logo-driver.svg",
+          driverMarkSha256: sha256(readFileSync(DRIVER_MARK)),
           wordmark: "src/wordmark.svg",
           wordmarkSha256: sha256(readFileSync(WORDMARK_SRC)),
           generator: "scripts/gen-brand-assets.mjs",

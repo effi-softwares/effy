@@ -63,7 +63,8 @@ this repo is **Terraform-only** and does not run it.
 
 Customer, shop, driver and back-office carry the **same** icon. (Until this mark the brand was a shopping bag
 drawn in three colourways so the three could be told apart; that mark and its colourways are gone.)
-Since 092 the driver app carries it too — the same icon and splash as the customer app.
+Since 092 the driver app has a variant — the same "e.", its full stop a blue steering wheel
+(`src/logo-driver.svg`, colourway `driver`) — so drivers can tell their app from the shop.
 
 **These colours are not design tokens.** They are restated in `src/colourways.mjs` and must never be
 imported from, or exported into, `@effy/design-system` — this package does not depend on it.

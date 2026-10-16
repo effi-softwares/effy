@@ -29,6 +29,10 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import com.effyshopping.driver.mobile.core.platform.platformTag
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.animation.core.CubicBezierEasing
@@ -37,6 +41,11 @@ import kotlinx.coroutines.flow.first
 
 /**
  * THE LAUNCH INTRO — the customer app's (087), copied for the driver app (092) so both open the same way.
+ * ⚠ THE DRIVER'S SPLASH IS ITS OWN MARK (packages/brand `logo-driver.svg`): the "e." whose full stop is
+ * a small BLUE STEERING WHEEL. The first frame draws exactly that (the wheel is wider than the square
+ * dot, so the letters are a little smaller — [SPLASH_CANVAS_UNITS]); the wheel then leads "e. → effy."
+ * as the dot does in the customer app, and turns to the app's own blue as the ground does. Once the word
+ * is complete, "DRIVER" fades in beneath it (operator direction), and leaves with the rest.
  * Differences: the status bar is set through [onDarkGround] (the driver app's PlatformUiController), and
  * motion is the driver app's reduced-motion flag (reduced: the letters fade in place).
  *
@@ -66,6 +75,7 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
     val readyState = rememberUpdatedState(ready)
     val finished = rememberUpdatedState(onFinished)
     val letters = remember { IntroLetters() }
+    val measurer = rememberTextMeasurer()
 
     LaunchedEffect(Unit) {
         clock.animateTo(REVEALED_MS, tween(REVEALED_MS.toInt(), easing = LinearEasing))
@@ -89,7 +99,8 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
     val light = MaterialTheme.colorScheme.background
     val splashInk = EffyRoles.splashInk
     val appInk = MaterialTheme.colorScheme.onSurface
-    val green = EffyRoles.brand
+    val splashDot = EffyRoles.splashDot
+    val appDot = MaterialTheme.colorScheme.primary
 
     Box(Modifier.fillMaxSize().clearAndSetSemantics {}) {
         Canvas(Modifier.fillMaxSize()) {
@@ -106,28 +117,65 @@ internal fun DriverIntro(ready: Boolean, darkTheme: Boolean, reducedMotion: Bool
             val unitDp = 5f * canvasDp / SPLASH_CANVAS_UNITS
             // A phone too narrow for the full word at splash size eases down to fit as the word grows.
             val fitDp = ((maxWidth.value - 48f) / WORD_WIDTH).coerceAtMost(unitDp)
+            val labelStyle = MaterialTheme.typography.labelLarge
+            val density = LocalDensity.current
+            val label = remember(fitDp, labelStyle, density) {
+                val size = with(density) { (LABEL_SIZE_UNITS * fitDp).dp.toSp() }
+                measurer.measure(
+                    "DRIVER",
+                    labelStyle.copy(fontSize = size, fontWeight = FontWeight.SemiBold, letterSpacing = size * 0.42f),
+                )
+            }
             Canvas(Modifier.fillMaxSize()) {
                 val t = clock.value
                 val reduced = reducedMotion
                 val p = FloatArray(3) { i -> phase(t, LETTER_START_MS + i * STEP_MS, STEP_MS) }
-                val grow = ease(phase(t, LETTER_START_MS, REVEALED_MS - LETTER_START_MS))
+                val grow = ease(phase(t, LETTER_START_MS, LETTERS_END_MS - LETTER_START_MS))
                 val unit = (unitDp + (fitDp - unitDp) * grow).dp.toPx()
                 val handover = ease(phase(t, HOLD_END_MS, COLOUR_MS))
                 val fade = phase(t, HOLD_END_MS + COLOUR_MS, FADE_MS)
                 val ink = lerp(splashInk, appInk, handover).copy(alpha = 1f - fade)
-                val dot = green.copy(alpha = 1f - fade)
+                val dot = lerp(splashDot, appDot, handover).copy(alpha = 1f - fade)
                 letters.draw(this, p, reduced, unit, ink, dot)
+
+                // "DRIVER", centred under the word — below the y's descender — fading in once the word
+                // is whole. Laid out once at the word's final size, so nothing re-measures per frame.
+                val shown = ease(phase(t, LABEL_START_MS, LABEL_MS)) * (1f - fade)
+                if (shown > 0f) {
+                    val spacing = label.layoutInput.style.letterSpacing.toPx()
+                    drawText(
+                        label,
+                        color = ink.copy(alpha = 1f),
+                        topLeft = Offset(
+                            (size.width - label.size.width + spacing) / 2f,
+                            size.height / 2f + LABEL_TOP_UNITS * fitDp.dp.toPx(),
+                        ),
+                        alpha = shown,
+                    )
+                }
             }
         }
     }
 }
 
-private const val SPLASH_CANVAS_UNITS = 836.6667f
+/**
+ * The splash canvas in the driver mark's units: the mark's width (61.75 … 449 — the e to the wheel's
+ * rim) over the splash occupancy (0.45). The customer app's is 836.67 (its square dot ends at 438.25).
+ */
+private const val SPLASH_CANVAS_UNITS = (449f - 61.75f) / 0.45f
 private const val WORD_WIDTH = 198.2f
 private const val LETTER_START_MS = 150f
 /** One step of the dot: e. → ef. → eff. → effy. — three steps, one after another. */
 private const val STEP_MS = 230f
-private const val REVEALED_MS = LETTER_START_MS + 3 * STEP_MS + 250f // + a short hold
+/** The word is whole (and has finished growing) — the customer app's reveal, hold included. */
+private const val LETTERS_END_MS = LETTER_START_MS + 3 * STEP_MS + 250f
+/** "DRIVER" fades in as the word settles, then is held long enough to read. */
+private const val LABEL_START_MS = LETTERS_END_MS - 120f
+private const val LABEL_MS = 380f
+private const val REVEALED_MS = LABEL_START_MS + LABEL_MS + 350f
+/** The label's size and its top edge below the word's centre, in wordmark units (the y descends to +41.8). */
+private const val LABEL_SIZE_UNITS = 11f
+private const val LABEL_TOP_UNITS = 50f
 private const val HOLD_END_MS = REVEALED_MS
 private const val COLOUR_MS = 260f
 private const val FADE_MS = 220f
@@ -195,13 +243,14 @@ private class IntroLetters {
                     }
                 }
                 translate(dotLeft - DOT_FINAL_LEFT, 0f) { drawPath(dot, dotColour) }
+
             }
         }
     }
 
     private companion object {
         const val DOT_GAP = 6f // the splash's gap between the e and the full stop
-        const val DOT_WIDTH = 16.2f
+        const val DOT_WIDTH = 18.4f // the wheel's diameter (the customer app's square dot is 16.2)
         const val DOT_FINAL_LEFT = 182f
         /** The dot's resting left edge after e, f, f, y (the last is its place in the wordmark). */
         val DOT_REST = floatArrayOf(53.1f + DOT_GAP, 91.5f + DOT_GAP, 131.3f + DOT_GAP, DOT_FINAL_LEFT)
@@ -215,4 +264,15 @@ private const val PATH_E = "M0 44.2Q0 35.8 3.3 29.45Q6.6 23.1 12.7 19.65Q18.8 16
 private const val PATH_F1 = "M80.1 0H91.5V11.2H83.3Q80.2 11.2 78.8 12.7Q77.4 14.2 77.4 17.4V71H62.4V16.7Q62.4 8.6 66.8 4.3Q71.2 0 80.1 0ZM54.6 19.4H90.7V30.6H54.6Z"
 private const val PATH_F2 = "M119.9 0H131.3V11.2H123.1Q120 11.2 118.6 12.7Q117.2 14.2 117.2 17.4V71H102.2V16.7Q102.2 8.6 106.6 4.3Q111 0 119.9 0ZM94.4 19.4H130.5V30.6H94.4Z"
 private const val PATH_Y = "M140.7 74.8H147.8Q150.3 74.8 151.55 74.05Q152.8 73.3 153.5 71.4L154.7 68.3H150.6L131.7 17.4H147.1L159.3 54.3L170.9 17.4H186.2L165.6 76.1Q163.7 81.4 160.35 83.7Q157 86 150.9 86H140.7Z"
-private const val PATH_DOT = "M182 55.7H198.2V71H182Z"
+/**
+ * ⚠ 092 — THE DRIVER'S FULL STOP IS A STEERING WHEEL (packages/brand `logo-driver.svg`, scaled ÷5 into
+ * wordmark units): a ring, a hub and three spokes, its left edge where the square dot's was (182) and its
+ * foot on the baseline (71). The inner circle runs the other way, so it is a hole under non-zero filling.
+ */
+private const val PATH_DOT =
+    "M182 61.8A9.2 9.2 0 1 1 200.4 61.8A9.2 9.2 0 1 1 182 61.8Z" +
+        "M185 61.8A6.2 6.2 0 1 0 197.4 61.8A6.2 6.2 0 1 0 185 61.8Z" +
+        "M188.6 61.8A2.6 2.6 0 1 1 193.8 61.8A2.6 2.6 0 1 1 188.6 61.8Z" +
+        "M184.8 60.4H188.8V63.2H184.8Z" +
+        "M193.6 60.4H197.6V63.2H193.6Z" +
+        "M189.8 64H192.6V68.2H189.8Z"

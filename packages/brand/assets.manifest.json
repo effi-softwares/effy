@@ -3,6 +3,8 @@
   "generatedFrom": {
     "mark": "src/logo.svg",
     "markSha256": "36296b2355e17eb70e7d3bbf53e86b3db5c50cc26ddb4fe741d6d43cf0030750",
+    "driverMark": "src/logo-driver.svg",
+    "driverMarkSha256": "d059951653f8db4c44b3ebd4036c24db26fe31d36dddf2c5af06f49cfe43b87a",
     "wordmark": "src/wordmark.svg",
     "wordmarkSha256": "887cd3e27f075804300de9689e5b8bfb3df1e2b808c97528eeeec1b4d9e8b5cc",
     "generator": "scripts/gen-brand-assets.mjs",
@@ -247,113 +249,113 @@
       "surface": "driver-mobile",
       "slot": "android-adaptive-foreground",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_foreground.xml",
-      "sha256": "fa1ca3839530380dc811f3663afc911c0992e92b7d9f63f683fbbf8e01aebd61",
-      "bytes": 1117
+      "sha256": "f3bf8b16f0af5cb9823be54c3b61d1568b2e98ae225dfc472fff73c83ae2ef04",
+      "bytes": 1295
     },
     {
       "surface": "driver-mobile",
       "slot": "android-adaptive-monochrome",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_launcher_monochrome.xml",
-      "sha256": "a1b7c0fcc87b720a9b21f1b2b7a7e015ffa4175bedc02c805d3187b340883a50",
-      "bytes": 1117
+      "sha256": "56131a7694d7c0b7b4c5ffadbf9e0fe10b163718fbd053d5915d39ca4d0a35fb",
+      "bytes": 1295
     },
     {
       "surface": "driver-mobile",
       "slot": "android-splash-logo",
       "path": "apps/driver-mobile/androidApp/src/main/res/drawable/ic_splash_logo.xml",
-      "sha256": "32b40557507a6d4a2f23b3e0d7db9e9fe97a41401d40c084b8c4f4f738e13bcb",
-      "bytes": 1115
+      "sha256": "12546c9de59a73363cdc459c6898a1a5e5137175a1ce679f183f63452c82aeb4",
+      "bytes": 1293
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-hdpi-ic_launcher",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-hdpi/ic_launcher.png",
-      "sha256": "e8eb6db54da841b002f3e8c4a1a5974f49a7cc0739d5383afba6d658cd62e5d6",
-      "bytes": 847
+      "sha256": "1e56e472149478423507038d26341e03ba125d308df83d8864ec5da4df8d0abc",
+      "bytes": 960
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-hdpi-ic_launcher_round",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-hdpi/ic_launcher_round.png",
-      "sha256": "e8eb6db54da841b002f3e8c4a1a5974f49a7cc0739d5383afba6d658cd62e5d6",
-      "bytes": 847
+      "sha256": "1e56e472149478423507038d26341e03ba125d308df83d8864ec5da4df8d0abc",
+      "bytes": 960
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-mdpi-ic_launcher",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-mdpi/ic_launcher.png",
-      "sha256": "913a8a8aa6c25d6bcbad6ac7aaf3358788217e36e7ec39fbfc10775c9562ccde",
-      "bytes": 604
+      "sha256": "ec0e2302da4a41b62a835c47b2b7506b50b46b5c057ca54c2f72b2bb27dd99ef",
+      "bytes": 675
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-mdpi-ic_launcher_round",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-mdpi/ic_launcher_round.png",
-      "sha256": "913a8a8aa6c25d6bcbad6ac7aaf3358788217e36e7ec39fbfc10775c9562ccde",
-      "bytes": 604
+      "sha256": "ec0e2302da4a41b62a835c47b2b7506b50b46b5c057ca54c2f72b2bb27dd99ef",
+      "bytes": 675
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-xhdpi-ic_launcher",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xhdpi/ic_launcher.png",
-      "sha256": "6c1c31b42bb522073e80d06a9b6e999a559696d03333c86af69e9476620a5002",
-      "bytes": 1033
+      "sha256": "75a119db5879f8618723cbf3928301f987452826badf7769c39cc0122280349a",
+      "bytes": 1221
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-xhdpi-ic_launcher_round",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xhdpi/ic_launcher_round.png",
-      "sha256": "6c1c31b42bb522073e80d06a9b6e999a559696d03333c86af69e9476620a5002",
-      "bytes": 1033
+      "sha256": "75a119db5879f8618723cbf3928301f987452826badf7769c39cc0122280349a",
+      "bytes": 1221
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-xxhdpi-ic_launcher",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxhdpi/ic_launcher.png",
-      "sha256": "da33ffd1d994fc3f29392384140734de5e7259d06eba658c3e132afd6dc4321a",
-      "bytes": 1563
+      "sha256": "5a677bae2411c78e04e37938b5f7039f6614deb4feb683affa585f548c70e054",
+      "bytes": 1820
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-xxhdpi-ic_launcher_round",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxhdpi/ic_launcher_round.png",
-      "sha256": "da33ffd1d994fc3f29392384140734de5e7259d06eba658c3e132afd6dc4321a",
-      "bytes": 1563
+      "sha256": "5a677bae2411c78e04e37938b5f7039f6614deb4feb683affa585f548c70e054",
+      "bytes": 1820
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-xxxhdpi-ic_launcher",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
-      "sha256": "829a370656e1d6ded644c974b58f548e23b5a69ab94959c376a3f9dcf267fb17",
-      "bytes": 2036
+      "sha256": "6ac8ea481fe9e467e25ad9b6c848b56bae53e3bc85fd429bc8b0cdc79c022e4a",
+      "bytes": 2382
     },
     {
       "surface": "driver-mobile",
       "slot": "android-legacy-xxxhdpi-ic_launcher_round",
       "path": "apps/driver-mobile/androidApp/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png",
-      "sha256": "829a370656e1d6ded644c974b58f548e23b5a69ab94959c376a3f9dcf267fb17",
-      "bytes": 2036
+      "sha256": "6ac8ea481fe9e467e25ad9b6c848b56bae53e3bc85fd429bc8b0cdc79c022e4a",
+      "bytes": 2382
     },
     {
       "surface": "driver-mobile",
       "slot": "ios-app-icon-dark",
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024-dark.png",
-      "sha256": "422c45c032651cadebb67eb0dd3699c473ac7e9233959c8238c253817999d8f9",
-      "bytes": 9362
+      "sha256": "badd8184fce01b73482be968ce7c10e4722b0d274fd27c9291ae61966c7a0505",
+      "bytes": 11004
     },
     {
       "surface": "driver-mobile",
       "slot": "ios-app-icon-tinted",
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024-tinted.png",
-      "sha256": "d95ba0cd7df8fb2c65f7123a0fe8599fab26c2b8c998a2feeae153836b0888d5",
-      "bytes": 7586
+      "sha256": "94f359b38d1b4eaa0df00f63d387cc160c3f0292d0e45c129915918a20930691",
+      "bytes": 8751
     },
     {
       "surface": "driver-mobile",
       "slot": "ios-app-icon",
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-1024.png",
-      "sha256": "422c45c032651cadebb67eb0dd3699c473ac7e9233959c8238c253817999d8f9",
-      "bytes": 9362
+      "sha256": "badd8184fce01b73482be968ce7c10e4722b0d274fd27c9291ae61966c7a0505",
+      "bytes": 11004
     },
     {
       "surface": "driver-mobile",
@@ -373,22 +375,22 @@
       "surface": "driver-mobile",
       "slot": "ios-launch-logo",
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo.png",
-      "sha256": "3481b88aee2fc647c6e033d768f4909ccea5487080e14e8164c7bf4d56bea243",
-      "bytes": 988
+      "sha256": "969f3cb584b88860ca0a3218df65392a428bae4524da010df267f10bf021d49c",
+      "bytes": 1293
     },
     {
       "surface": "driver-mobile",
       "slot": "ios-launch-logo@2x",
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo@2x.png",
-      "sha256": "41cbca8b3ed83f1a52929a7db5f359b68a906931a1fc5fc940fb82aed55fd1e4",
-      "bytes": 2080
+      "sha256": "3b34bc6ea6f7a1447deb5513bf78b72b54d48014ad0e682fa44d17682ca700b5",
+      "bytes": 2678
     },
     {
       "surface": "driver-mobile",
       "slot": "ios-launch-logo@3x",
       "path": "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset/launch-logo@3x.png",
-      "sha256": "fdc2f0e7e57b94aa928db1a88e3f3f5b1275aa1dea835415b155ff4973b3ac21",
-      "bytes": 3468
+      "sha256": "9d37e28eb2e8c63588aed47a81d669a63190639d5e6e5b04bd4b3a5d285b8ca6",
+      "bytes": 4338
     },
     {
       "surface": "shop-mobile",

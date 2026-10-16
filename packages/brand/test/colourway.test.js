@@ -33,9 +33,12 @@ const contrast = (a, b) => {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-describe("one identity — every surface carries the same icon", () => {
-  test("there is exactly one colourway", () => {
-    assert.deepEqual(Object.keys(COLOURWAYS), ["tile"])
+describe("one identity — every surface carries the same icon (the driver app's variant aside, 092)", () => {
+  test("there are exactly two colourways: the tile, and the driver app's blue full stop", () => {
+    assert.deepEqual(Object.keys(COLOURWAYS), ["tile", "driver"])
+    // The driver variant changes the full stop ONLY: same ground, same letter.
+    assert.equal(COLOURWAYS.driver.ground, COLOURWAYS.tile.ground)
+    assert.equal(COLOURWAYS.driver.letter, COLOURWAYS.tile.letter)
   })
 
   test("it declares both slots plus a ground", () => {
@@ -44,8 +47,11 @@ describe("one identity — every surface carries the same icon", () => {
     }
   })
 
-  test("every target uses it", () => {
-    for (const t of TARGETS) assert.equal(t.colourway, "tile", `${t.path} names another colourway`)
+  test("every target but the driver app's uses the tile", () => {
+    for (const t of TARGETS) {
+      const expected = t.path.includes("apps/driver-mobile/") ? "driver" : "tile"
+      assert.equal(t.colourway, expected, `${t.path} names another colourway`)
+    }
   })
 
   test("recolouring never changes the drawing", () => {
