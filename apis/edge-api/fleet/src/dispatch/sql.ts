@@ -6,6 +6,7 @@
 // The engine earns its place by making the common case automatic and the EXCEPTIONAL case visible.
 
 import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
+import { TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
 /** Who takes a parcel to the customer — 079's one definition, over these queries' aliases. */
 const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
@@ -229,4 +230,21 @@ export const ROUND_WORK = `
              AND rs.status NOT IN ('done', 'skipped'))::int        AS stops
     FROM pkg
    GROUP BY pkg.zone_id
+`;
+
+/**
+ * 088 — parcels from failed deliveries (FR-009): still in a driver's van, and back at the hub waiting
+ * for a person to choose their next step (returned, with the failure still open). Counted, never stored.
+ */
+export const FAILED_PARCEL_COUNTS = `
+  SELECT
+    (SELECT count(*) FROM public.round_package rp
+       JOIN public.round_stop   rs ON rs.id = rp.stop_id
+       JOIN public.driver_round dr ON dr.id = rs.round_id
+      WHERE ${TO_RETURN_SQL})::int AS with_drivers,
+    (SELECT count(*) FROM public.round_package rp
+       JOIN public.round_stop rs ON rs.id = rp.stop_id
+      WHERE rp.state = 'returned'
+        AND EXISTS (SELECT 1 FROM public.delivery_attempt_failure f
+                     WHERE f.stop_id = rs.id AND f.resolved_at IS NULL))::int AS returned_awaiting_decision
 `;

@@ -59,6 +59,7 @@ export const MOVE_REFUSAL_WORDS: Record<DeliveryMoveRefusal, string> = {
   handed_over: "A parcel of this order is already with the courier.",
   delivered: "A parcel of this order has already been delivered.",
   out_for_delivery: "A parcel of this order is out for delivery. Wait until the driver's round settles it.",
+  with_driver_after_failure: "A parcel of this order is still with the driver after a failed delivery. Record its return first.",
   courier_not_ready: "Courier delivery is not set up: it needs an active courier fee table and a default courier service.",
   not_in_area: "Effy does not deliver to this address.",
   window_unavailable: "That window is no longer open or has no room. Choose another.",
@@ -147,6 +148,26 @@ interface Assignment {
   kind: "collection" | "delivery";
   state: "assigned" | "picked_up";
   driver_id: string;
+  /** 088 — `skipped` on a delivery stop means the drop failed and the parcel is still in the van. */
+  stop_status: string;
+}
+
+/** 088 — a parcel of this order failed delivery and has not been returned to the hub yet. */
+const hasParcelToReturn = (f: MoveFacts): boolean =>
+  f.assignments.some((a) => a.kind === "delivery" && a.state === "assigned" && a.stop_status === "skipped");
+
+/**
+ * 088 — staff have chosen a returned parcel's next step: its failure is dealt with, which is what
+ * releases it to the planner (the delivery gather holds a returned parcel with an open failure).
+ */
+async function resolveOpenFailures(tx: Queryable, orderId: string): Promise<void> {
+  await tx.query(
+    `UPDATE public.delivery_attempt_failure f
+        SET resolved_at = now()
+       FROM public.round_stop rs
+      WHERE rs.id = f.stop_id AND rs.order_id = $1 AND f.resolved_at IS NULL`,
+    [orderId],
+  );
 }
 
 export interface MoveFacts {
@@ -220,7 +241,7 @@ export async function loadMoveFacts(q: Queryable, orderId: string, opts: { lock?
   const assignments = (
     await q.query<Assignment>(
       `SELECT rp.id::text AS id, rp.stop_id::text AS stop_id, dr.id::text AS round_id, dr.status AS round_status,
-              dr.kind, rp.state, dr.driver_id::text AS driver_id
+              dr.kind, rp.state, dr.driver_id::text AS driver_id, rs.status AS stop_status
          FROM public.round_package rp
          JOIN public.round_stop rs ON rs.id = rp.stop_id
          JOIN public.driver_round dr ON dr.id = rs.round_id
@@ -318,6 +339,8 @@ export function guardMove(f: MoveFacts, to: DeliveryType): DeliveryMoveRefusal |
   if (to === "effy" && f.type === "effy") return "already_effy";
   if (f.packages.some((p) => p.delivered)) return "delivered";
   if (f.packages.some((p) => p.handed)) return "handed_over";
+  // 088 — still in a van after a failed drop: it has to come back to the hub before anything else.
+  if (hasParcelToReturn(f)) return "with_driver_after_failure";
   if (to === "courier") {
     // ⚠ A delivery round under way is never touched (fleet's own rule): the parcel is in a van.
     if (f.assignments.some((a) => a.kind === "delivery" && a.state === "assigned" && a.round_status === "in_progress")) return "out_for_delivery";
@@ -484,6 +507,8 @@ export async function moveToCourier(tx: Queryable, input: MoveToCourierInput): P
   const refusal = guardMove(f, "courier");
   if (refusal) throw new DeliveryMoveError(refusal);
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
+  // 088 — this is the next step for any parcel returned after a failed delivery: release it.
+  await resolveOpenFailures(tx, input.orderId);
 
   const amounts = amountsOf(f, "courier");
   const chosen = amounts.choices[input.compensation];
@@ -587,6 +612,8 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
   const refusal = await guardBackToEffy(tx, f, now);
   if (refusal) throw new DeliveryMoveError(refusal);
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
+  // 088 — this is the next step for any parcel returned after a failed delivery: release it.
+  await resolveOpenFailures(tx, input.orderId);
 
   const w = await bindEffyWindow(tx, input.orderId, input.window, now);
 
@@ -700,10 +727,13 @@ export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInp
   if (f.type !== "effy") throw new DeliveryMoveError(f.type === null ? "no_delivery_type" : "already_courier");
   if (f.packages.some((p) => p.delivered)) throw new DeliveryMoveError("delivered");
   if (f.packages.some((p) => p.handed)) throw new DeliveryMoveError("handed_over");
+  if (hasParcelToReturn(f)) throw new DeliveryMoveError("with_driver_after_failure");
   if (f.assignments.some((a) => a.kind === "delivery" && a.state === "assigned" && a.round_status === "in_progress")) {
     throw new DeliveryMoveError("out_for_delivery");
   }
   if (f.updatedAt !== new Date(input.expectedUpdatedAt).toISOString()) throw new DeliveryMoveError("changed");
+  // 088 — this is the next step for any parcel returned after a failed delivery: release it.
+  await resolveOpenFailures(tx, input.orderId);
 
   // Work planned for the old window goes back to the planner. What a driver already holds stays held.
   const driverIds = new Set<string>();

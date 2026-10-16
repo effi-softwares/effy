@@ -172,6 +172,11 @@ export interface DispatchRoundSummaryDTO {
 export interface DispatchDayDTO {
   rounds: DispatchRoundSummaryDTO[];
   unassigned: UnassignedWorkDTO[];
+  /**
+   * 088 — parcels from failed deliveries: still in a driver's van, and back at the hub waiting for a
+   * person to choose their next step (FR-009).
+   */
+  failedParcels?: { withDrivers: WireInt; returnedAwaitingDecision: WireInt };
 }
 
 /** Moving a round to a different driver (FR-029). */
@@ -245,8 +250,24 @@ export interface DeliveryExceptionDTO {
   destinationSuburb: string | null;
   failedAt: string; // ISO 8601
   resolvedAt: string | null;
-  /** Derived, never stored (research R7). */
+  /**
+   * Derived, never stored (research R7). ⚠ 088 — this read `picked_up`, a state no delivery package
+   * is ever in, so every failed parcel said "at_hub" while it was in a van.
+   */
   packageLocation: "with_driver" | "at_hub";
+  /** 088 — the delivery round the drop was on: where a return is recorded on the driver's behalf. */
+  roundId: string;
+  /** 088 — when the parcel was checked back in at the hub; null while it is still with the driver. */
+  returnedAt: string | null;
+}
+
+/** POST /fleet/v1/dispatch/rounds/{roundId}/return — 088, a staff member returns on a driver's behalf. */
+export interface StaffParcelReturnRequest {
+  changeId: string;
+}
+export interface StaffParcelReturnResponse {
+  returned: WireInt;
+  roundComplete: boolean;
 }
 
 /** GET /fleet/v1/exceptions */
@@ -283,6 +304,8 @@ export interface CustodyPackageDTO {
   /** Since when this driver has held it. */
   heldSince: string; // ISO 8601
   roundKind: RoundKind;
+  /** 088 — from a failed delivery, to be returned to the hub (as opposed to on its way to a door). */
+  toReturn?: boolean;
 }
 
 /** GET /fleet/v1/custody — and the shape the duty-end warning renders. */

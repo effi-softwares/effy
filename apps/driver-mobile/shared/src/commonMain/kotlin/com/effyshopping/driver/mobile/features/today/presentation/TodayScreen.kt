@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.today.presentation
 
+import com.effyshopping.driver.mobile.features.delivery.presentation.ReturnToHubBlock
 import com.effyshopping.driver.mobile.core.presentation.NotificationsOffRow
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -76,6 +77,7 @@ fun TodayScreen(
     onOpenRun: (runId: String, phase: Phase) -> Unit = { _, _ -> },
     onOpenActivity: () -> Unit = {},
     reducedMotion: Boolean = false,
+    onReturnParcels: () -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
@@ -103,7 +105,7 @@ fun TodayScreen(
                     state.isLoading && state.today == null -> TodaySkeleton(reducedMotion)
                     state.loadFailed -> LoadFailedBody(onRefresh)
                     state.today == null || state.today.phase == Phase.IDLE -> IdleBody(reducedMotion)
-                    else -> OnDutyBody(state, driver, onOpenRun)
+                    else -> OnDutyBody(state, driver, onOpenRun, onReturnParcels)
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -324,10 +326,18 @@ private fun OnDutyBody(
     state: TodayUiState,
     driver: Driver,
     onOpenRun: (String, Phase) -> Unit,
+    onReturnParcels: () -> Unit,
 ) {
     val today = state.today ?: return
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         PhaseBar(today.phase)
+
+        // 088 — only the return is left on this round: it is the current work.
+        if (today.active == null) {
+            today.toReturn?.let {
+                ReturnToHubBlock(it, working = state.isReturning, message = state.message, onReturn = onReturnParcels)
+            }
+        }
 
         today.active?.let { item ->
             CurrentWorkCard(

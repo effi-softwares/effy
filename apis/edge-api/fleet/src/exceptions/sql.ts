@@ -7,6 +7,8 @@
 // the tables from under it, leaving NEITHER a writer nor a reader. This is the third attempt and the
 // first with both ends.
 
+import { TO_RETURN_SQL } from "@effy/edge-shared/delivery";
+
 /**
  * Open and recently-resolved delivery exceptions.
  *
@@ -29,6 +31,8 @@ export const LIST_EXCEPTIONS = `
          d.name                  AS driver_name,
          o.order_number          AS order_number,
          o.delivery_address ->> 'city' AS destination_suburb,
+         -- ⚠ 088 — FROM THE ONE CUSTODY DEFINITION. This read rp.state = 'picked_up', a state no
+         -- delivery package is ever in, so every failed parcel said "at hub" while it was in a van.
          CASE
            WHEN EXISTS (
              SELECT 1
@@ -36,14 +40,15 @@ export const LIST_EXCEPTIONS = `
                JOIN public.round_stop    rs ON rs.id = rp.stop_id
                JOIN public.driver_round  dr ON dr.id = rs.round_id
               WHERE rs.id = f.stop_id
-                AND rp.state = 'picked_up'
-                AND NOT EXISTS (
-                      SELECT 1 FROM public.package_arrival pa
-                       WHERE pa.shop_fulfillment_id = rp.shop_fulfillment_id
-                    )
+                AND ${TO_RETURN_SQL}
            ) THEN 'with_driver'
            ELSE 'at_hub'
-         END                     AS package_location
+         END                     AS package_location,
+         rs.round_id             AS round_id,
+         (SELECT max(pr.returned_at)
+            FROM public.round_package rp
+            JOIN public.parcel_return pr ON pr.id = rp.return_id
+           WHERE rp.stop_id = f.stop_id) AS returned_at
     FROM public.delivery_attempt_failure f
     JOIN public.driver     d ON d.id = f.driver_id
     JOIN public.round_stop rs ON rs.id = f.stop_id

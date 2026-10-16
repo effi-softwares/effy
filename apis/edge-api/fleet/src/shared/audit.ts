@@ -51,7 +51,9 @@ export type DispatchAuditAction =
   // ⚠ 064 — closing a delivery exception. It is an assertion about the physical world (the package
   // came back, or was re-delivered, or was written off) that no query can verify, so who said it and
   // when is the only record there will ever be.
-  | "dispatch.exception_resolve";
+  | "dispatch.exception_resolve"
+  // 088 — a staff member recorded that a driver's failed parcels were handed in at the hub.
+  | "dispatch.parcels_returned";
 
 /**
  * 069 — delivery capacity and calendar. Each of these changes what a CUSTOMER is offered at checkout

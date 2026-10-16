@@ -9,6 +9,7 @@ import com.effyshopping.driver.mobile.contract.DeliveryDropStatus
 import com.effyshopping.driver.mobile.contract.DeliveryFailureReason
 import com.effyshopping.driver.mobile.contract.DeliveryRunDTO
 import com.effyshopping.driver.mobile.contract.DropFailRequest
+import com.effyshopping.driver.mobile.contract.ParcelReturnRequest
 import com.effyshopping.driver.mobile.contract.DropStatusRequest
 import com.effyshopping.driver.mobile.contract.ProofMethod as DtoProofMethod
 import com.effyshopping.driver.mobile.contract.ProofRequest
@@ -21,6 +22,7 @@ import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.platform.uploadBytes
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.delivery.domain.Handover
+import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
@@ -185,6 +187,18 @@ class HttpDeliveryRepository(
         }
     }
 
+    /** 088 — saved and sent later with no signal, like every other driver write. */
+    override suspend fun returnToHub(runId: String, changeId: String): WriteOutcome {
+        val path = "driver/v1/delivery/runs/$runId/return"
+        val body = ParcelReturnRequest(changeID = changeId)
+        return request {
+            offline.withReplay(path, json.encodeToString(ParcelReturnRequest.serializer(), body), changeId, "Return parcels to the hub", queued = { WriteOutcome.QUEUED }) {
+                api.post(path) { setBody(body) }.ensureSuccess()
+                WriteOutcome.SENT
+            }
+        }
+    }
+
     private suspend inline fun <T> request(block: () -> T): T =
         try {
             block()
@@ -235,6 +249,7 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
+    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders) },
 )
 
 private fun DeliveryDropDTO.toDomain() = Drop(

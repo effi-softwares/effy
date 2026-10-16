@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrationSql } from "../lib/load-migrations";
 import { slotLoad } from "./slots";
 import { changeEffyWindow, DeliveryMoveError, deliveryMovesFor, latestMoveForCustomer, moveToCourier, moveToEffy, previewMove } from "./override";
+import { recordParcelReturn } from "./parcel-return";
 
 /**
  * 081 — moving an order between Effy and courier delivery, against the REAL schema: one transaction,
@@ -441,6 +442,36 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(await refusal(tx((c) => changeEffyWindow(c, {
       orderId: stale.order, actorSub: STAFF, reason: "x", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: "2020-01-01T00:00:00Z", now: NOW,
     })))).toBe("changed");
+  });
+
+  /** 088 P7 — a parcel still in the van after a failed drop must be returned before staff act on it. */
+  it("088 — refused while a failed parcel is still with the driver; after the return, re-timing releases it", async () => {
+    const o = await effyOrder({ deliveryRound: "in_progress" });
+    const drop = (await one<{ id: string; round_id: string }>(
+      `UPDATE public.round_stop SET status = 'skipped' WHERE order_id = $1 AND kind = 'customer_drop' RETURNING id::text AS id, round_id::text AS round_id`,
+      [o.order],
+    ));
+    await pool.query(
+      `INSERT INTO public.delivery_attempt_failure (stop_id, reason, driver_id, failed_at, change_id)
+       SELECT $1, 'nobody_home', dr.driver_id, now(), gen_random_uuid() FROM public.driver_round dr WHERE dr.id = $2`,
+      [drop.id, drop.round_id],
+    );
+
+    expect(await refusal(toCourier(o.order, "points_difference", 250, await updatedAt(o.order)))).toBe("with_driver_after_failure");
+    expect(await refusal(tx((c) => changeEffyWindow(c, {
+      orderId: o.order, actorSub: STAFF, reason: "x", window: { slotId: anyTimeSlot, date: TOMORROW }, expectedUpdatedAt: new Date().toISOString(), now: NOW,
+    })))).toBe("with_driver_after_failure");
+
+    await tx((c) => recordParcelReturn(c, { roundId: drop.round_id, recordedBy: "staff", recordedBySub: "x", changeId: crypto.randomUUID() }));
+    const at = await updatedAt(o.order);
+    await tx((c) => changeEffyWindow(c, {
+      orderId: o.order, actorSub: STAFF, reason: "Customer asked for tomorrow", window: { slotId: anyTimeSlot, date: TOMORROW },
+      expectedUpdatedAt: at, now: NOW,
+    }));
+    const open = await one<{ n: number }>(
+      `SELECT count(*)::int AS n FROM public.delivery_attempt_failure WHERE stop_id = $1 AND resolved_at IS NULL`, [drop.id],
+    );
+    expect(open.n).toBe(0);
   });
 
   it("the record is append-only for the shopper role", async () => {

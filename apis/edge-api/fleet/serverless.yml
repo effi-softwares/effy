@@ -462,6 +462,18 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  dispatchReturnV1:
+    handler: src/functions/dispatch-return-v1-post.handler
+    description: >-
+      088 — record that a round's failed parcels are back at the hub, on the driver's behalf. Mutate. Audited.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/rounds/{roundId}/return
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   dispatchCustodyV1:
     handler: src/functions/dispatch-custody-v1-get.handler
     description: >-

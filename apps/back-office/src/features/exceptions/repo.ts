@@ -1,4 +1,4 @@
-import type { DeliveryExceptionListDTO, ResolveExceptionResponse } from "@effy/shared-types";
+import type { DeliveryExceptionListDTO, ResolveExceptionResponse, StaffParcelReturnResponse } from "@effy/shared-types";
 
 import { api } from "@/lib/api";
 
@@ -15,4 +15,9 @@ export async function resolveException(id: string, note: string | null): Promise
     note: note ?? undefined,
     changeId: crypto.randomUUID(),
   });
+}
+
+/** 088 — the parcels from a round's failed drops were handed in at the hub. One action per round. */
+export async function recordReturn(roundId: string, changeId: string): Promise<StaffParcelReturnResponse> {
+  return api.post<StaffParcelReturnResponse>(`/fleet/v1/dispatch/rounds/${roundId}/return`, { changeId });
 }

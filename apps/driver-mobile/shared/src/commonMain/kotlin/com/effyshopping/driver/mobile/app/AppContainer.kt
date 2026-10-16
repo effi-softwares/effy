@@ -49,6 +49,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
+import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
 import com.effyshopping.driver.mobile.features.history.data.HttpHistoryRepository
@@ -185,6 +186,7 @@ class AppContainer(
     val advanceDrop by lazy { AdvanceDrop(delivery) }
     val completeWithMedia by lazy { CompleteWithMedia(delivery) }
     val failDrop by lazy { FailDrop(delivery) }
+    val returnToHub by lazy { ReturnToHub(delivery) }
 
     // history (US5)
     val getHistory by lazy { GetHistory(historyRepo) }

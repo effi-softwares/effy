@@ -11,6 +11,7 @@ import { canResolveExceptions } from "./access";
 import { exceptionMutationError } from "./errorText";
 import { locationLabel, reasonLabel, sortForTriage } from "./model";
 import { exceptionsQuery, useResolveException } from "./queries";
+import { RecordReturnButton } from "./RecordReturnDialog";
 
 /**
  * Deliveries that could not be completed (064, US3).
@@ -120,6 +121,9 @@ export function ExceptionsScreen() {
                   <td className="px-3 py-2 text-right">
                     {e.resolvedAt ? (
                       <span className="text-muted-foreground">Dealt with</span>
+                    ) : canResolve && e.packageLocation === "with_driver" ? (
+                      /* 088 — still in the van: it has to come back before anything else. */
+                      <RecordReturnButton exception={e} />
                     ) : canResolve ? (
                       <Button
                         variant="outline"

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-
+import { Link } from "@tanstack/react-router";
 import { canDispatch } from "./access";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { AssignmentActions } from "@/features/assign/AssignmentActions";
@@ -52,6 +52,19 @@ export function DispatchDayScreen() {
         </p>
       </header>
       <OrdersTabs />
+
+      {/* 088 — FR-009: parcels from failed deliveries, in a van or waiting at the hub for a decision. */}
+      {data.failedParcels && (data.failedParcels.withDrivers > 0 || data.failedParcels.returnedAwaitingDecision > 0) ? (
+        <p className="text-sm">
+          <span className="font-medium">Failed deliveries:</span>{" "}
+          <span className="tabular-nums">{data.failedParcels.withDrivers}</span> still with drivers ·{" "}
+          <span className="tabular-nums">{data.failedParcels.returnedAwaitingDecision}</span> back at the hub,
+          waiting for a decision.{" "}
+          <Link to="/exceptions" className="underline">
+            See exceptions
+          </Link>
+        </p>
+      ) : null}
 
       <UnassignedPanel
         items={data.unassigned}

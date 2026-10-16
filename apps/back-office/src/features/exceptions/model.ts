@@ -22,7 +22,9 @@ export function reasonLabel(reason: DeliveryFailureReason): string {
  * without it, which is why it is derived server-side rather than guessed here.
  */
 export function locationLabel(e: DeliveryExceptionDTO): string {
-  return e.packageLocation === "with_driver" ? "With driver" : "At hub";
+  if (e.packageLocation === "with_driver") return `With ${e.driverName} — to return`;
+  // 088 — back at the hub; when, if a return recorded it.
+  return e.returnedAt ? `Returned ${new Date(e.returnedAt).toLocaleString()}` : "At hub";
 }
 
 /** Open first, then most recent — what someone triaging wants at the top. */

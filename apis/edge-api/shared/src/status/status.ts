@@ -62,6 +62,11 @@ export function packageStatus(f: PackageFacts): PackageStatusView {
   if (f.shopStatus === "unfulfillable") return view("problem", "Shop can't supply");
 
   if (f.shopStatus === "delivered" || f.arrived) return view("delivered");
+  // 088 — back at the hub after a failed drop, waiting for a person to choose its next step. Its
+  // failure is still open (that is what holds it), but it is no longer in anybody's van.
+  if (f.failedReason !== null && f.deliveryState === "returned") {
+    return view("at_hub", "Returned after a failed delivery — needs a next step");
+  }
   if (f.failedReason !== null) {
     return view("problem", `Delivery attempt failed — ${FAILURE_WORDS[f.failedReason] ?? f.failedReason}`, f.deliveryDriver);
   }

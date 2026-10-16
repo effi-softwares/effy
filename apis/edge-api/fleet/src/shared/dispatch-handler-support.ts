@@ -34,6 +34,8 @@ export function mapDispatchError(
         return problem(409, "conflict", "Changed by someone else", err.detail, scope);
       case "invalid":
         return problem(400, "invalid_request", "Invalid", err.detail, scope);
+      case "parcels_to_return":
+        return problem(409, "parcels_to_return", "Parcels to return first", err.detail, scope);
       case "ineligible": {
         const named = err.reasons.map((r) => REASON_TEXT[r] ?? r).join(", and ");
         return problem(

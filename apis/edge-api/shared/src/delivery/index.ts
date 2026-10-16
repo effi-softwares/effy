@@ -14,6 +14,7 @@ export * from "./delivery-type";
 export * from "./consignment";
 export * from "./courier-pickup";
 export * from "./driver-work";
+export * from "./parcel-return";
 export * from "./override";
 export * from "./legacy";
 export * from "./readiness";

@@ -69,6 +69,22 @@ describe("packageStatus — the nine words (073, S1)", () => {
     expect(v.detail).toBe("Delivery attempt failed — nobody home");
   });
 
+  // 088 — still in the van after a failed drop: Problem, naming who has it (quickstart P5).
+  it("088 — failed and not yet returned → Problem, with the driver named", () => {
+    const v = at({ shopStatus: "collected", checkedInAtHub: true, deliveryState: "assigned", deliveryStopStatus: "skipped", deliveryDriver: "Ada", failedReason: "nobody_home" });
+    expect(v).toMatchObject({ status: "problem", driverName: "Ada" });
+  });
+
+  it("088 — returned with its failure open → At hub, needing a next step", () => {
+    const v = at({ shopStatus: "collected", checkedInAtHub: true, deliveryState: "returned", deliveryStopStatus: "skipped", deliveryDriver: "Ada", failedReason: "nobody_home" });
+    expect(v).toMatchObject({ status: "at_hub", detail: "Returned after a failed delivery — needs a next step", driverName: null });
+  });
+
+  it("088 — returned and its failure resolved → plain At hub", () => {
+    const v = at({ shopStatus: "collected", checkedInAtHub: true, deliveryState: "returned", deliveryStopStatus: "skipped" });
+    expect(v).toMatchObject({ status: "at_hub", detail: null });
+  });
+
   it("not collected at the shop → Problem, not plain Ready", () => {
     expect(at({ collectionState: "not_available" })).toMatchObject({ status: "problem", detail: "Not collected at the shop" });
   });

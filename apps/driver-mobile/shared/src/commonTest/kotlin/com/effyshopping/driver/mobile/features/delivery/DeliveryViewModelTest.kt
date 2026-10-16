@@ -24,12 +24,22 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import com.effyshopping.driver.mobile.core.offline.WriteOutcome
+import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
+import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
 
 private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = null) : DeliveryRepository {
     var mediaMethod: ProofMethod? = null
     var mediaBytes: ByteArray? = null
     var mediaNote: String? = null
-    override suspend fun getRun(runId: String): DeliveryRun = DeliveryRun(runId, "active", emptyList())
+    var run: DeliveryRun? = null
+    override suspend fun getRun(runId: String): DeliveryRun = run ?: DeliveryRun(runId, "active", emptyList())
+    val returned = mutableListOf<String>()
+    override suspend fun returnToHub(runId: String, changeId: String): WriteOutcome {
+        fail?.let { throw AppException(it) }
+        returned += changeId
+        if (!offline) run = run?.copy(toReturn = null)
+        return outcome
+    }
     override suspend fun getDrop(dropId: String): Drop = fail?.let { throw AppException(it) } ?: drop!!
     var offline = false
     private val outcome get() = if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
@@ -48,11 +58,17 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
 class DeliveryViewModelTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 
-    private fun vm(repo: FakeDeliveryRepo) = DeliveryViewModel(
-        runId = "r1",
-        getRun = GetDeliveryRun(repo), getDrop = GetDrop(repo), advanceDrop = AdvanceDrop(repo),
-        completeWithMedia = CompleteWithMedia(repo), failDrop = FailDrop(repo), newChangeId = { "cid" },
-    )
+    private fun vm(repo: FakeDeliveryRepo): DeliveryViewModel {
+        var n = 0
+        return DeliveryViewModel(
+            runId = "r1",
+            getRun = GetDeliveryRun(repo), getDrop = GetDrop(repo), advanceDrop = AdvanceDrop(repo),
+            completeWithMedia = CompleteWithMedia(repo), failDrop = FailDrop(repo), newChangeId = { "cid-${n++}" },
+            returnToHub = ReturnToHub(repo),
+        )
+    }
+
+    private val toReturn = ParcelsToReturn("r1", 2, listOf("EFY-1", "EFY-2"))
 
     private fun drop() = Drop("d1", "EFY-1", "Ada", "1 St", null, emptyList(), DropStatus.ARRIVED)
 
@@ -126,6 +142,31 @@ class DeliveryViewModelTest {
         v.advance("d1", "arrived")
         assertEquals(DropStatus.ARRIVED, v.state.value.drop?.status)
         assertNull(v.state.value.message)
+    }
+
+    /** 088 — one action returns the run's failed parcels; the step goes once it is sent. */
+    @Test fun return_to_hub_clears_the_step() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop()).apply { run = DeliveryRun("r1", "active", emptyList(), toReturn = toReturn) }
+        val v = vm(repo)
+        v.loadRun()
+        assertEquals(2, v.state.value.run?.toReturn?.count)
+        v.returnParcels()
+        assertNull(v.state.value.run?.toReturn)
+        assertEquals(1, repo.returned.size)
+    }
+
+    /** 088 — with no signal the return is saved and the step goes at once; a retry is the same write. */
+    @Test fun return_to_hub_offline_moves_on_and_keeps_one_change_id() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop(), fail = AppError.Unavailable)
+            .apply { run = DeliveryRun("r1", "active", emptyList(), toReturn = toReturn) }
+        val v = vm(repo)
+        v.loadRun()
+        v.returnParcels()                 // refused for now — not final
+        assertNotNull(v.state.value.message)
+        repo.fail = null; repo.offline = true
+        v.returnParcels()                 // saved to send
+        assertNull(v.state.value.run?.toReturn)
+        assertEquals(listOf("cid-0"), repo.returned)
     }
 
     @Test fun fail_marks_the_failed_state() = runTest {

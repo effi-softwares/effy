@@ -30,6 +30,8 @@ interface ExceptionRow {
   order_number: string;
   destination_suburb: string | null;
   package_location: "with_driver" | "at_hub";
+  round_id: string;
+  returned_at: Date | string | null;
 }
 
 const iso = (v: Date | string) => (v instanceof Date ? v.toISOString() : new Date(v).toISOString());
@@ -55,6 +57,8 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
     failedAt: iso(r.failed_at),
     resolvedAt: r.resolved_at ? iso(r.resolved_at) : null,
     packageLocation: r.package_location,
+    roundId: r.round_id,
+    returnedAt: r.returned_at ? iso(r.returned_at) : null,
   }));
 
   return {

@@ -1,5 +1,8 @@
 package com.effyshopping.driver.mobile.features.today.presentation
 
+import com.effyshopping.driver.mobile.core.error.isFinal
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
+import com.effyshopping.driver.mobile.core.offline.ActionIds
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.driver.mobile.core.error.AppError
@@ -46,6 +49,8 @@ data class TodayUiState(
     val dayStats: DayStats? = null,
     /** How long the last shift on this phone ran; null when not known. */
     val lastShiftMillis: Long? = null,
+    /** 088 — a "Return to hub" is being sent. */
+    val isReturning: Boolean = false,
 )
 
 /**
@@ -68,7 +73,10 @@ class TodayViewModel(
     private val loadDayStats: suspend () -> DayStats? = { null },
     private val shiftClock: ShiftClock? = null,
     private val now: () -> Long = ::nowEpochMillis,
+    /** 088 — check the current run's failed parcels back in at the hub. Null in tests that do not care. */
+    private val returnToHub: (suspend (runId: String, changeId: String) -> WriteOutcome)? = null,
 ) : ViewModel() {
+    private val ids = ActionIds(newChangeId)
     private val _state = MutableStateFlow(
         TodayUiState(dutyStatus = initialDuty, lastShiftMillis = shiftClock?.lastShiftMillis()),
     )
@@ -142,6 +150,29 @@ class TodayViewModel(
                         offline = offline,
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * 088 — the driver is at the hub with the parcels from failed drops: return them all in one action.
+     * Saved with no signal, it is done as far as the driver is concerned and the step goes at once.
+     */
+    fun returnParcels() {
+        val toReturn = _state.value.today?.toReturn ?: return
+        val send = returnToHub ?: return
+        if (_state.value.isReturning) return
+        _state.update { it.copy(isReturning = true, message = null) }
+        val action = "return:${toReturn.runId}"
+        viewModelScope.launch {
+            try {
+                val outcome = send(toReturn.runId, ids.of(action))
+                ids.settled(action)
+                _state.update { it.copy(isReturning = false, today = it.today?.copy(toReturn = null)) }
+                if (outcome == WriteOutcome.SENT) refresh()
+            } catch (e: AppException) {
+                if (e.error.isFinal()) ids.settled(action)
+                _state.update { it.copy(isReturning = false, message = e.error.userMessage()) }
             }
         }
     }

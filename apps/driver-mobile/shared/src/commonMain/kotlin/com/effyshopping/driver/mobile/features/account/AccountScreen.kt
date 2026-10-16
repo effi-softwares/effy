@@ -62,6 +62,8 @@ fun AccountScreen(
     onOpenHelp: () -> Unit,
     onSignOut: () -> Unit,
     outstandingWork: Int? = null,
+    /** 088 — parcels from failed drops still with the driver, to go back to the hub (FR-007). */
+    parcelsToReturn: Int? = null,
     appVersion: String = "0.1.0 (dev)",
     /** Backlog F3 — whether usage analytics are on, and how to switch them; null hides the row. */
     analyticsOn: Boolean? = null,
@@ -161,6 +163,13 @@ fun AccountScreen(
                                 ". You still have $outstandingWork " +
                                     "stop${if (outstandingWork == 1) "" else "s"} on your run — tell " +
                                     "dispatch if you can't finish ${if (outstandingWork == 1) "it" else "them"}",
+                            )
+                        }
+                        if (parcelsToReturn != null && parcelsToReturn > 0) {
+                            append(
+                                ". ${if (parcelsToReturn == 1) "1 parcel" else "$parcelsToReturn parcels"} " +
+                                    "from deliveries that couldn't be made ${if (parcelsToReturn == 1) "is" else "are"} " +
+                                    "still with you — return ${if (parcelsToReturn == 1) "it" else "them"} to the hub first",
                             )
                         }
                         append(". You'll need your work email and a new code to sign back in.")

@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.today.domain
 
+import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.core.opening.Opening
 
 /** The driver's current phase (049 FR-021). */
@@ -48,6 +49,11 @@ data class Today(
     val upcoming: List<UpcomingRound> = emptyList(),
     /** The last copy kept on the phone, shown with no signal (backlog C3) — not a fresh read. */
     val stale: Boolean = false,
+    /**
+     * 088 — the current round's parcels still to return to the hub. When they are all that is left,
+     * [active] is null and Today shows the "Return to hub" step.
+     */
+    val toReturn: ParcelsToReturn? = null,
 )
 
 /** A round the driver holds besides the current one (072). Opens its own run screen when tapped. */

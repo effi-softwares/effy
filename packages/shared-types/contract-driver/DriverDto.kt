@@ -518,7 +518,34 @@ data class DeliveryRunDTO (
     @SerialName("runId")
     val runID: String,
 
-    val status: String
+    val status: String,
+
+    /**
+     * 088 — parcels from failed drops on this run, still with the driver, to be checked back in
+     * at the hub. `null` (or absent, from an older server) when there are none.
+     */
+    val toReturn: ParcelsToReturn? = null
+)
+
+/**
+ * 088 — what a driver still has to bring back to the hub from a delivery run's failed
+ * drops.
+ *
+ * ⚠ A FIELD, NEVER A NEW `TodayItemRef.kind`. Installed driver builds decode that kind as a
+ * closed enum; a new value would fail the WHOLE Today response on every one of them, and
+ * there is no app-update mechanism. An unknown field is ignored by every build.
+ */
+@Serializable
+data class ParcelsToReturn (
+    val count: Long,
+
+    /**
+     * Order numbers only — no address, no customer (049 FR-013).
+     */
+    val orders: List<String>,
+
+    @SerialName("runId")
+    val runID: String
 )
 
 /**
@@ -852,6 +879,28 @@ data class DriverVehicle (
     val type: String? = null
 )
 
+/**
+ * POST /driver/v1/delivery/runs/{runId}/return — 088.
+ */
+@Serializable
+data class ParcelReturnRequest (
+    @SerialName("changeId")
+    val changeID: String
+)
+
+@Serializable
+data class ParcelReturnResponse (
+    /**
+     * How many parcels this call returned; 0 when nothing was left to return.
+     */
+    val returned: Long,
+
+    /**
+     * True when the run is now finished.
+     */
+    val roundComplete: Boolean
+)
+
 @Serializable
 data class ProblemJSON (
     /**
@@ -986,6 +1035,12 @@ data class TodayDTO (
 
     val phase: DriverPhase,
     val remainingCount: Long,
+
+    /**
+     * 088 — the current round's parcels still to return to the hub. When that is the only work
+     * left on it, `active` is `null` and this is what the driver is shown.
+     */
+    val toReturn: ParcelsToReturn? = null,
 
     /**
      * 072 — the driver's OTHER unfinished rounds, soonest first. Until 072 a driver was told

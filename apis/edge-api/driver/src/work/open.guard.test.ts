@@ -30,6 +30,7 @@ const GATED: Record<string, { file: string; fn: string }> = {
   "POST /driver/v1/delivery/drops/{dropId}/proof/presign": { file: "src/proof/service.ts", fn: "presignProof" },
   "POST /driver/v1/delivery/drops/{dropId}/proof": { file: "src/proof/repository.ts", fn: "recordProof" },
   "POST /driver/v1/delivery/drops/{dropId}/fail": { file: "src/proof/repository.ts", fn: "recordFailure" },
+  "POST /driver/v1/delivery/runs/{runId}/return": { file: "src/work/return.ts", fn: "returnParcels" },
 };
 
 /** State-changing routes that do not progress a round — each with the reason it is exempt. */

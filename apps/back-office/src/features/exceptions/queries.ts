@@ -1,5 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { dispatchKeys } from "@/features/dispatch/queries";
+
 import * as repo from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations INVALIDATE.
@@ -25,5 +27,17 @@ export function useResolveException() {
   return useMutation({
     mutationFn: ({ id, note }: { id: string; note: string | null }) => repo.resolveException(id, note),
     onSuccess: () => void qc.invalidateQueries({ queryKey: exceptionKeys.all }),
+  });
+}
+
+/** 088 — record a return on a driver's behalf; the list, and dispatch's counts, change. */
+export function useRecordReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ roundId, changeId }: { roundId: string; changeId: string }) => repo.recordReturn(roundId, changeId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: exceptionKeys.all });
+      void qc.invalidateQueries({ queryKey: dispatchKeys.all });
+    },
   });
 }

@@ -48,6 +48,8 @@ import { readWindows } from "../dispatch/windows";
 import * as manual from "../assignments/service";
 import { planWave } from "./assign";
 import { enqueueRoundsOpeningSoon } from "../shared/driver-push";
+import { recordParcelReturn, toReturnOnRound } from "@effy/edge-shared/delivery";
+import { staffReturnParcels } from "../dispatch/return";
 import { runPass } from "./service";
 import type { PlannablePackage, PlannerCandidate } from "./types";
 
@@ -990,6 +992,75 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
 
     // A day that is not on sale is refused, not answered empty.
     await expect(readWindows("2026-11-30", THU_NOON, holder.pool!)).rejects.toMatchObject({ kind: "invalid" });
+  });
+
+  /** 088 — a parcel on a failed drop, still in the van: a delivery round with that drop `skipped`. */
+  async function failedDrop(driverId: string, sfId: string) {
+    const wave = await q(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('delivery', now(), 'schedule') RETURNING id`);
+    const round = await q(
+      `INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at, status)
+       VALUES ($1, $2, 'delivery', now() + interval '2 hours', 'in_progress') RETURNING id`,
+      [wave.rows[0].id, driverId],
+    );
+    const order = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
+    const stop = await q(
+      `INSERT INTO public.round_stop (round_id, kind, order_id, status) VALUES ($1, 'customer_drop', $2, 'skipped') RETURNING id`,
+      [round.rows[0].id, order.rows[0].order_id],
+    );
+    await q(`INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state) VALUES ($1, $2, 'assigned')`, [stop.rows[0].id, sfId]);
+    await q(
+      `INSERT INTO public.delivery_attempt_failure (stop_id, reason, driver_id, failed_at, change_id)
+       VALUES ($1, 'nobody_home', $2, now(), gen_random_uuid())`,
+      [stop.rows[0].id, driverId],
+    );
+    return { roundId: round.rows[0].id as string, stopId: stop.rows[0].id as string };
+  }
+
+  it("088 P6 — a returned parcel is held for a person; resolving its failure releases it to the planner", async () => {
+    const { shopId, driverId } = await world();
+    const sfId = await atHub(driverId, shopId, null);
+    const { roundId, stopId } = await failedDrop(driverId, sfId);
+    const gathered = async () =>
+      (await repo.gatherDeliveryWork(holder.pool!, null, new Date("2026-10-08T12:59:59Z"))).some((p) => p.packageId === sfId);
+
+    expect(await gathered()).toBe(false); // in the van
+    const c = await holder.pool!.connect();
+    try {
+      await c.query("BEGIN");
+      await recordParcelReturn(c, { roundId, recordedBy: "staff", recordedBySub: "sub-staff", changeId: crypto.randomUUID() });
+      await c.query("COMMIT");
+    } finally {
+      c.release();
+    }
+    expect(await gathered()).toBe(false); // at the hub, held: nobody has chosen its next step
+    await q(`UPDATE public.delivery_attempt_failure SET resolved_at = now() WHERE stop_id = $1`, [stopId]);
+    expect(await gathered()).toBe(true);  // a next step was chosen
+  });
+
+  it("088 P8 — dispatch cannot move or end a round while its failed parcels are still in the van", async () => {
+    const { shopId, driverId } = await world();
+    const other = await makeDriver("eli");
+    const sfId = await atHub(driverId, shopId, null);
+    const { roundId } = await failedDrop(driverId, sfId);
+    const token = async () => (await svc.readRound(roundId)).updatedAt as string;
+
+    await expect(svc.unassign(roundId, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
+    await expect(svc.reassign(roundId, other, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
+  });
+
+  it("088 US4 — staff record a return for the driver: attributed, audited, and the driver's step is gone", async () => {
+    const { shopId, driverId } = await world();
+    const sfId = await atHub(driverId, shopId, null);
+    const { roundId } = await failedDrop(driverId, sfId);
+
+    const r = await staffReturnParcels(roundId, "sub-staff-1", crypto.randomUUID());
+    expect(r).toMatchObject({ returned: 1, roundComplete: true, driverId });
+
+    const row = await q(`SELECT recorded_by, recorded_by_sub FROM public.parcel_return WHERE round_id = $1`, [roundId]);
+    expect(row.rows[0]).toMatchObject({ recorded_by: "staff", recorded_by_sub: "sub-staff-1" });
+    const audit = await q(`SELECT count(*)::int AS n FROM admin.audit_log WHERE action = 'dispatch.parcels_returned'`);
+    expect(audit.rows[0].n).toBe(1);
+    expect(await toReturnOnRound(holder.pool!, roundId)).toBeNull();
   });
 
   it("the gather reads each package's window as stored instants", async () => {

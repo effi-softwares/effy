@@ -2,6 +2,8 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { recordParcelReturn } from "@effy/edge-shared/delivery";
+
 /**
  * Delivery exceptions against real PostgreSQL (064, US3).
  *
@@ -64,7 +66,7 @@ d("064 — delivery exceptions", () => {
 
   beforeEach(async () => {
     for (const t of [
-      "delivery_attempt_failure", "package_arrival", "hub_checkin", "round_package",
+      "delivery_attempt_failure", "package_arrival", "hub_checkin", "round_package", "parcel_return",
       "round_stop", "driver_round", "dispatch_wave", "shop_fulfillment",
     ]) {
       await pool.query(`DELETE FROM public.${t}`);
@@ -105,12 +107,13 @@ d("064 — delivery exceptions", () => {
        VALUES ($1, $2, 'delivery', now() + interval '6 hours') RETURNING id`, [waveId, driverId],
     )).rows[0]!.id;
     dropId = (await pool.query<{ id: string }>(
-      `INSERT INTO public.round_stop (round_id, kind, order_id) VALUES ($1, 'customer_drop', $2) RETURNING id`,
+      // A failed drop is `skipped`, its parcel still `assigned` (what the planner writes, 088).
+      `INSERT INTO public.round_stop (round_id, kind, order_id, status) VALUES ($1, 'customer_drop', $2, 'skipped') RETURNING id`,
       [roundId, orderId],
     )).rows[0]!.id;
     await pool.query(
-      `INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state, settled_at)
-       VALUES ($1, $2, 'picked_up', now())`, [dropId, sfId],
+      `INSERT INTO public.round_package (stop_id, shop_fulfillment_id, state)
+       VALUES ($1, $2, 'assigned')`, [dropId, sfId],
     );
   });
 
@@ -136,10 +139,27 @@ d("064 — delivery exceptions", () => {
   });
 
   describe("⚠ FR-020 — where the package is", () => {
-    it("reports `with_driver` while the package is still picked up and unarrived", async () => {
+    it("reports `with_driver` while the parcel is still in the van (⚠ 088 — this said at_hub)", async () => {
       await addFailure();
       const { exceptions } = await listExceptions();
       expect(exceptions[0]!.packageLocation).toBe("with_driver");
+    });
+
+    it("088 — reports `at_hub`, with when, once the parcel is returned", async () => {
+      await addFailure();
+      const roundId = (await pool.query(`SELECT round_id FROM public.round_stop WHERE id = $1`, [dropId])).rows[0].round_id;
+      const c = await pool.connect();
+      try {
+        await c.query("BEGIN");
+        await recordParcelReturn(c, { roundId, recordedBy: "staff", recordedBySub: "sub-staff", changeId: crypto.randomUUID() });
+        await c.query("COMMIT");
+      } finally {
+        c.release();
+      }
+      const e = (await listExceptions()).exceptions[0]!;
+      expect(e.packageLocation).toBe("at_hub");
+      expect(e.roundId).toBe(roundId);
+      expect(e.returnedAt).not.toBeNull();
     });
 
     it("reports `at_hub` once the package has an arrival", async () => {

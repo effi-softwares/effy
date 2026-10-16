@@ -53,6 +53,8 @@ import { migrationSql } from "@effy/edge-shared";
 
 import { history, historyDetail } from "../work/delivery";
 import { NotFoundError } from "../work/service";
+import { recordParcelReturn, toReturnOnRound } from "@effy/edge-shared/delivery";
+
 import { DropNotFoundError, recordFailure, recordProof } from "./repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -159,6 +161,7 @@ d("064 — proof IS the delivery completion", () => {
       "package_arrival",
       "notification_request",
       "round_package",
+      "parcel_return",
       "round_stop",
       "driver_round",
       "dispatch_wave",
@@ -393,6 +396,22 @@ d("064 — proof IS the delivery completion", () => {
         [dropId],
       )).rows[0].status as string;
 
+    const roundOf = async () =>
+      (await pool.query("SELECT round_id FROM public.round_stop WHERE id = $1", [dropId])).rows[0].round_id as string;
+
+    /** The driver returns the round's failed parcels (088), in its own transaction. */
+    async function returnParcels(roundId: string) {
+      const c = await pool.connect();
+      try {
+        await c.query("BEGIN");
+        const r = await recordParcelReturn(c, { roundId, driverId, recordedBy: "driver", recordedBySub: driverSub, changeId: crypto.randomUUID() });
+        await c.query("COMMIT");
+        return r;
+      } finally {
+        c.release();
+      }
+    }
+
     /** A second drop on the same round, still open. */
     async function addOpenDrop(): Promise<string> {
       const r = await pool.query<{ id: string }>(
@@ -409,9 +428,17 @@ d("064 — proof IS the delivery completion", () => {
       expect(await roundStatus()).toBe("completed");
     });
 
-    it("a failure on the last drop completes the round", async () => {
+    /** 088 — the parcel is still in the van: the round waits for its return to the hub (quickstart P1). */
+    it("a failure on the last drop leaves the round open with one parcel to return; the return completes it", async () => {
       await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
+      expect(await roundStatus()).toBe("in_progress");
+      const roundId = await roundOf();
+      expect((await toReturnOnRound(pool, roundId))?.count).toBe(1);
+
+      const r = await returnParcels(roundId);
+      expect(r).toMatchObject({ returned: 1, roundComplete: true });
       expect(await roundStatus()).toBe("completed");
+      expect((await history(driverId)).days.flatMap((d) => d.runs)).toHaveLength(1);
     });
 
     it("a round with a drop still open stays in progress", async () => {
@@ -419,8 +446,16 @@ d("064 — proof IS the delivery completion", () => {
       await recordProof(proofArgs());
       expect(await roundStatus()).toBe("in_progress");
 
+      // The last drop fails; it carries no parcel here, so nothing is to return and the round is done.
       await recordFailure({ dropId: other, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
       expect(await roundStatus()).toBe("completed");
+    });
+
+    it("088 — a failed drop WITH a parcel keeps the round open after the rest is delivered", async () => {
+      const other = await addOpenDrop();
+      await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
+      await recordProof({ ...proofArgs(), dropId: other });
+      expect(await roundStatus()).toBe("in_progress");
     });
 
     it("the finished run appears in History", async () => {

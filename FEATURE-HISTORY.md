@@ -4,6 +4,45 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**088-failed-parcel-return — Return Failed Parcels to the Hub.** 🚧 **BUILT (2026-10-16). NOT MIGRATED,
+DEPLOYED OR WALKED.** Driver backlog A4. A parcel on a failed drop stays in the driver's custody until it is
+checked back in at the hub; the round finishes only then; a returned parcel waits for staff to choose its
+next step. Spec, plan, tasks: [specs/088-failed-parcel-return/](specs/088-failed-parcel-return/tasks.md).
+Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D2, D4–D5, F2–F3 — see
+[docs/driver-app-backlog.md](docs/driver-app-backlog.md)), deployed by the operator on 2026-10-16.
+
+- **One writer**: `recordParcelReturn` in `@effy/edge-shared/delivery` (`parcel-return.ts`), called by the
+  driver (`POST /driver/v1/delivery/runs/{runId}/return`, shared gateway) and by staff on a driver's
+  behalf (`POST /fleet/v1/dispatch/rounds/{roundId}/return`, staff gateway, mutate, audited
+  `dispatch.parcels_returned`). Idempotent on `changeId`; nothing to return answers `returned: 0`.
+- **"To return" is derived** (`TO_RETURN_SQL`): a delivery `round_package` still `assigned` on a `skipped`
+  stop. The return writes `state = 'returned'` + a `parcel_return` row (migration
+  `20261016140000_parcel_return.sql`). The delivery completion rule (A1's) moved beside it:
+  `completeDeliveryRoundIfFinished` — no stop open AND nothing to return.
+- ⚠ **Two live defects fixed, the EFY-GNYQ58 shape again**: `CUSTODY_BY_DRIVER` and the exceptions list's
+  `package_location` both read `picked_up`, a state no delivery package is ever in — so a failed parcel in
+  a van was in nobody's custody (the go-off-duty check never fired) and back-office said "at hub".
+- **Held for staff** (spec FR-010, operator default): the delivery gather skips a `returned` parcel whose
+  failure is unresolved. `moveToCourier` / `moveToEffy` / `changeEffyWindow` resolve the order's open
+  failures as they act, and refuse while a parcel is still in the van (`with_driver_after_failure`).
+  Dispatch `reassign` / `unassign` refuse such a round (409 `parcels_to_return`).
+- **Status**: returned + unresolved → **At hub**, "Returned after a failed delivery — needs a next step";
+  not yet returned → **Problem** naming the driver (as before). The customer's words are unchanged.
+- **Driver wire is additive** — `toReturn` on `TodayDTO` and `DeliveryRunDTO`, NEVER a new
+  `TodayItemRef.kind` (installed builds decode it as a closed enum and would fail the whole Today). The
+  app shows a "Return to hub" block (one swipe, queued offline) on Today when it is the only work left
+  and at the foot of the run; the sign-out warning names the parcels.
+- **Back-office**: Exceptions shows "With {driver} — to return" / "Returned {time}" and a "Record return"
+  action; Dispatch shows failed parcels with drivers / awaiting a decision.
+- **Verified**: shared 939, driver 187, fleet (all but the pre-existing 069 slots-defaults test),
+  back-office 384, driver-mobile host tests + `assembleDebug` + iOS compile; guards (live change map,
+  gateway capacity, SQL literals, delivery words, refresh timers). ⚠ Pre-existing and unrelated:
+  `orders/src/orders/repository.container.test.ts` builds a hand-written schema without 085's
+  `delivery_promise` and fails 9 tests.
+- **Operator steps**: `make db-up ENV=dev` (the 088 migration) → `make edge-deploy SERVICE=fleet ENV=dev`
+  and `SERVICE=driver` → back-office → the driver app. The previous app build keeps working (it ignores
+  `toReturn`; staff can record its returns). Walk: [quickstart.md](specs/088-failed-parcel-return/quickstart.md).
+
 **087-customer-mobile-redesign — Customer Mobile Redesign.** 🚧 **BUILT (2026-10-14). NOT WALKED, NOT SIGNED
 OFF.** The customer mobile app takes the storefront identity the website adopted in 084, iOS-first, from
 the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards committed to

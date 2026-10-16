@@ -106,6 +106,33 @@ export async function announceStop(stopId: string): Promise<void> {
   ]);
 }
 
+/**
+ * 088 — parcels from failed drops were returned to the hub: each one's status moves from "Problem
+ * (with the driver)" to "At hub". Back-office's order and dispatch screens, and the shops whose
+ * parcels came back, are told.
+ */
+export async function announceReturned(roundId: string): Promise<void> {
+  let shopIds: string[] = [];
+  try {
+    const { rows } = await query<{ shop_id: string }>(
+      `SELECT DISTINCT sf.shop_id::text AS shop_id
+         FROM public.round_package rp
+         JOIN public.round_stop rs ON rs.id = rp.stop_id
+         JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
+        WHERE rs.round_id = $1 AND rp.state = 'returned'`,
+      [roundId],
+    );
+    shopIds = rows.map((r) => r.shop_id);
+  } catch {
+    // back-office still hears; a shop's console catches up on its next read
+  }
+  await announce([
+    DISPATCH,
+    { scope: "ops", kind: "orders" },
+    ...shopIds.map((shopId) => ({ scope: "shop" as const, shopId, kind: "orders" as const })),
+  ]);
+}
+
 /** A driver went on or off duty — the dispatcher's roster. */
 export async function announceDuty(): Promise<void> {
   await announce([DISPATCH]);

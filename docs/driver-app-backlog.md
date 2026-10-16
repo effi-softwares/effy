@@ -28,7 +28,11 @@ D2, D4, D5, F2, F3, and the M4 half of E5 (the shift timer stops on sign-out).
 **Deploy order:** run both migrations → deploy `notifications` → `driver` → `fleet` → ship the app.
 The Android app adds `ACCESS_NETWORK_STATE` and a FileProvider (`<applicationId>.proofphoto`).
 
-**Still open:** A4 (needs a short spec), B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
+**A4 — built as feature 088** ([specs/088-failed-parcel-return](../specs/088-failed-parcel-return/tasks.md)),
+2026-10-16: not yet migrated or deployed. Needs `20261016140000_parcel_return.sql`, then `fleet` + `driver`,
+back-office, and the app.
+
+**Still open:** B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
 stats, E6, E7 (decide before the redesign), F1 + G1–G3 + H4–H14 (design), H1–H3 (labels — best done as
 their own spec'd feature).
 

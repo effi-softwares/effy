@@ -547,6 +547,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **088-failed-parcel-return** — Return Failed Parcels to the Hub (driver backlog A4; custody now sees delivery parcels) — built; NOT migrated, deployed or walked
 - **087-customer-mobile-redesign** — Customer Mobile Redesign (storefront identity; five tabs with Cart; sheets not dialogs; iOS transitions) — built; NOT walked or signed off
 - **086-catalogue-image-delivery** — Catalogue Pictures That Load Once (one permanent CDN address; WebP copies made at upload) — built; NOT applied, migrated, deployed or walked
 - **085-flexible-standard-delivery** — Flexible Standard Delivery (a day with no time, "as soon as possible", a time opt-in — all through one "Any time" window) — built; NOT migrated, deployed, walked or signed off
@@ -612,5 +613,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/087-customer-mobile-redesign/plan.md
+at specs/088-failed-parcel-return/plan.md
 <!-- SPECKIT END -->

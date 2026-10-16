@@ -78,6 +78,7 @@ fun DeliveryRunScreen(
     onBack: () -> Unit,
     onOpenDrop: (String) -> Unit,
     onRefresh: () -> Unit = {},
+    onReturnParcels: () -> Unit = {},
 ) {
     val run = state.run
     val delivered = run?.drops?.count { it.status == DropStatus.DELIVERED } ?: 0
@@ -121,6 +122,11 @@ fun DeliveryRunScreen(
                         run.drops.forEach { drop ->
                             DropRow(drop = drop, onClick = { onOpenDrop(drop.dropId) })
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        // 088 — failed drops' parcels are still in the van: the run ends at the hub.
+                        run.toReturn?.let {
+                            Spacer(Modifier.height(24.dp))
+                            ReturnToHubBlock(it, working = state.isWorking, message = state.message, onReturn = onReturnParcels)
                         }
                         Spacer(Modifier.height(24.dp))
                     }

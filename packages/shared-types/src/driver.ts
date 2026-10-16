@@ -157,6 +157,11 @@ export interface TodayDTO {
    * round at a time because rounds only existed for the last 45 minutes before they were due.
    */
   upcoming: UpcomingRound[];
+  /**
+   * 088 — the current round's parcels still to return to the hub. When that is the only work left
+   * on it, `active` is `null` and this is what the driver is shown.
+   */
+  toReturn?: ParcelsToReturn | null;
 }
 
 /**
@@ -417,6 +422,36 @@ export interface DeliveryRunDTO {
   /** 072 — the end of the delivery window, or the end of the day where there is none. */
   deadlineAt: string;
   dueLabel: string;
+  /**
+   * 088 — parcels from failed drops on this run, still with the driver, to be checked back in at the
+   * hub. `null` (or absent, from an older server) when there are none.
+   */
+  toReturn?: ParcelsToReturn | null;
+}
+
+/**
+ * 088 — what a driver still has to bring back to the hub from a delivery run's failed drops.
+ *
+ * ⚠ A FIELD, NEVER A NEW `TodayItemRef.kind`. Installed driver builds decode that kind as a closed
+ * enum; a new value would fail the WHOLE Today response on every one of them, and there is no
+ * app-update mechanism. An unknown field is ignored by every build.
+ */
+export interface ParcelsToReturn {
+  runId: string;
+  count: WireInt;
+  /** Order numbers only — no address, no customer (049 FR-013). */
+  orders: string[];
+}
+
+/** POST /driver/v1/delivery/runs/{runId}/return — 088. */
+export interface ParcelReturnRequest {
+  changeId: string;
+}
+export interface ParcelReturnResponse {
+  /** How many parcels this call returned; 0 when nothing was left to return. */
+  returned: WireInt;
+  /** True when the run is now finished. */
+  roundComplete: boolean;
 }
 
 /**

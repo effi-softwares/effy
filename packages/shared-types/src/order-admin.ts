@@ -554,7 +554,7 @@ export type DeliveryCompensationKind = (typeof DELIVERY_COMPENSATION_KINDS)[numb
 /** Why a move is refused. Each is said to staff in one line (back-office `errorText.ts`). */
 export type DeliveryMoveRefusal =
   | "not_found" | "not_paid" | "no_delivery_type" | "already_courier" | "already_effy"
-  | "handed_over" | "delivered" | "out_for_delivery" | "courier_not_ready"
+  | "handed_over" | "delivered" | "out_for_delivery" | "with_driver_after_failure" | "courier_not_ready"
   | "not_in_area" | "window_unavailable" | "changed" | "compensation_changed";
 
 /** One move by back-office, as the order page lists it. */

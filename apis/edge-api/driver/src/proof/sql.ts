@@ -114,31 +114,6 @@ export const MARK_ROUND_IN_PROGRESS = `
      AND status = 'planned'
 `;
 
-/**
- * Lock the round before asking whether it is finished. Two drops on one round settled at the same
- * moment would otherwise each see the other still open, and neither would close the round.
- */
-export const LOCK_ROUND = `
-  SELECT id FROM public.driver_round WHERE id = $1 FOR UPDATE
-`;
-
-/**
- * A delivery round is finished when none of its drops is still open — every one delivered or failed.
- * Until this, the only writer of `completed` was hub check-in, which is collection only, so a
- * delivery round stayed `in_progress` for ever: first on Today with nothing in it, never in History.
- */
-export const COMPLETE_ROUND_IF_FINISHED = `
-  UPDATE public.driver_round dr
-     SET status = 'completed', updated_at = now()
-   WHERE dr.id = $1
-     AND dr.kind = 'delivery'
-     AND dr.status IN ('planned', 'in_progress')
-     AND NOT EXISTS (
-           SELECT 1 FROM public.round_stop rs
-            WHERE rs.round_id = dr.id AND rs.status NOT IN ('done', 'skipped'))
-  RETURNING id
-`;
-
 // ── Failed attempts (US2) ───────────────────────────────────────────────────────────────────────
 
 export const FAILURE_BY_CHANGE = `
@@ -150,7 +125,8 @@ export const FAILURE_BY_CHANGE = `
 /**
  * ⚠ RECORDS THE ATTEMPT AND NOTHING ELSE. The package is NOT released, NOT marked delivered and NOT
  * taken off the driver — they still physically have it (FR-011). The only writes a failure makes are
- * this row, the stop's own status, and closing the round if this was its last open drop.
+ * this row and the stop's own status. The parcel is now "to return" (088) — and the round stays open
+ * until it is back at the hub.
  */
 export const INSERT_FAILURE = `
   INSERT INTO public.delivery_attempt_failure

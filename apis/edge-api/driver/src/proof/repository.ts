@@ -2,6 +2,7 @@
 // commit together or not at all.
 
 import { enqueueOrderDeliveredIfComplete, withTransaction } from "@effy/edge-shared";
+import { completeDeliveryRoundIfFinished } from "@effy/edge-shared/delivery";
 
 import { assertRoundOpen } from "../work/open";
 import * as SQL from "./sql";
@@ -186,9 +187,10 @@ export async function recordFailure(input: RecordFailureInput): Promise<RecordFa
   });
 }
 
-/** Close a delivery round whose last open drop was just settled (delivered or failed). */
+/**
+ * Close a delivery round whose last open drop was just settled — unless parcels from a failed drop
+ * are still to be returned to the hub (088). The one rule lives in `@effy/edge-shared/delivery`.
+ */
 async function completeRoundIfFinished(tx: any, roundId: string): Promise<boolean> {
-  await tx.query(SQL.LOCK_ROUND, [roundId]);
-  const done = await tx.query(SQL.COMPLETE_ROUND_IF_FINISHED, [roundId]);
-  return done.rowCount > 0;
+  return completeDeliveryRoundIfFinished(tx, roundId);
 }

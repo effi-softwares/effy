@@ -200,6 +200,7 @@ fun DriverShell(
                                 vm.toggleDuty()
                             },
                             onRefresh = vm::refresh,
+                            onReturnParcels = vm::returnParcels,
                             onOpenRun = { runId, phase ->
                                 container.analyticsDriver.capture(
                                     if (phase == Phase.COLLECTION) AnalyticsEvent.CollectionRunOpened(runId)
@@ -308,6 +309,7 @@ fun DriverShell(
                         onBack = { tabs.pop() },
                         onOpenDrop = { dropId -> tabs.push(DropRoute(route.runId, dropId)) },
                         onRefresh = { vm.loadRun() },
+                        onReturnParcels = vm::returnParcels,
                     )
                 }
                 is DropRoute -> {
@@ -421,6 +423,7 @@ fun DriverShell(
                         onOpenAppearance = { tabs.push(AppearanceRoute) },
                         onOpenHelp = { tabs.push(HelpRoute) },
                         outstandingWork = todaySt.today?.remainingCount,
+                        parcelsToReturn = todaySt.today?.toReturn?.count,
                         analyticsOn = analyticsOn,
                         onToggleAnalytics = { container.setAnalyticsConsent(!analyticsOn) },
                         onSignOut = {
@@ -520,6 +523,7 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
     countNewActivity = { container.countNewActivity() },
     loadDayStats = { container.dayStats() },
     shiftClock = container.shiftClock,
+    returnToHub = { runId, changeId -> container.returnToHub(runId, changeId) },
 )
 
 private fun newHistoryVm(container: AppContainer) = HistoryViewModel(
@@ -597,6 +601,7 @@ private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryView
     failDrop = container.failDrop,
     newChangeId = container::newChangeId,
     liveChanges = container.live.changes(LiveKind.WORK),
+    returnToHub = container.returnToHub,
 )
 
 private fun com.effyshopping.driver.mobile.features.driver.domain.Driver.railInitials(): String {

@@ -4,7 +4,8 @@
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
 import { ANY_TIME_LABEL, anyTimeDayLabel, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
-import { orderRoundStops } from "@effy/edge-shared";
+import { orderRoundStops, query, type Queryable } from "@effy/edge-shared";
+import { toReturnOnRound } from "@effy/edge-shared/delivery";
 
 import { dropStatusOf } from "./drop-status";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
@@ -174,6 +175,11 @@ export async function today(driverId: string): Promise<TodayDTO> {
     };
   };
 
+  // 088 — parcels from failed drops still in the van. When they are all that is left on the round,
+  // `active` is null and the app shows the "Return to hub" step from this field. ⚠ NOT a new item
+  // kind: installed builds decode `kind` as a closed enum and would fail the whole response.
+  const toReturn = round.kind === "delivery" ? await toReturnOnRound(db, round.id) : null;
+
   return {
     phase,
     activeRunId: round.id,
@@ -186,8 +192,12 @@ export async function today(driverId: string): Promise<TodayDTO> {
     deadlineAt: round.deadline_at.toISOString(),
     dueLabel: formatMoment(round.deadline_at, now),
     upcoming,
+    toReturn,
   };
 }
+
+/** The read-only database handle the shared reads take. */
+const db: Queryable = { query: (text, values) => query(text, values) };
 
 /** GET /driver/v1/collection/runs/{runId} */
 export async function collectionRun(runId: string, driverId: string): Promise<DriverCollectionRunDTO> {
@@ -297,6 +307,8 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
   return {
     runId,
     status: "assigned",
+    // 088 — parcels from this run's failed drops, still to be returned to the hub.
+    toReturn: await toReturnOnRound(db, runId),
     opening: times.opening,
     deadlineAt: times.deadlineAt,
     dueLabel: times.dueLabel,

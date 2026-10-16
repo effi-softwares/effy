@@ -17,6 +17,8 @@ interface CustodyRow {
   shop_name: string;
   round_kind: "collection" | "delivery";
   held_since: Date | string | null;
+  /** 088 — from a failed drop, to go back to the hub. */
+  to_return: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export async function readCustody(driverId: string | null = null): Promise<Custo
       // rather than claiming 1970.
       heldSince: r.held_since ? new Date(r.held_since).toISOString() : "",
       roundKind: r.round_kind,
+      toReturn: r.to_return === true,
     };
     entry.packages.push(pkg);
     entry.packageCount = entry.packages.length;

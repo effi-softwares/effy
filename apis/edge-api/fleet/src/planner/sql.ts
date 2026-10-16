@@ -181,6 +181,16 @@ export const GATHER_DELIVERY = `
              FROM public.round_package open_rp
             WHERE open_rp.shop_fulfillment_id = sf.id AND open_rp.state = 'assigned'
          ))
+     -- ⚠ 088 — HELD FOR A PERSON. A parcel returned to the hub after a failed delivery waits until a
+     -- staff member chooses its next step (a new window, courier, or cancel and refund); choosing one
+     -- resolves the failure and releases it here. Never re-offered by itself (spec FR-010): the reason
+     -- it failed — a wrong address, a refusal — usually needs a person to look at it.
+     AND NOT EXISTS (
+           SELECT 1
+             FROM public.round_package held
+             JOIN public.delivery_attempt_failure f ON f.stop_id = held.stop_id AND f.resolved_at IS NULL
+            WHERE held.shop_fulfillment_id = sf.id AND held.state = 'returned'
+         )
    GROUP BY sf.id, o.order_number, sf.shop_id, s.name, o.id, o.delivery_address,
             z.id, z.name, hc.checked_in_at, opd.window_start, opd.window_end
    ORDER BY hc.checked_in_at ASC

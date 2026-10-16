@@ -15,7 +15,7 @@ import {
   orderRoundStops,
 } from "@effy/edge-shared";
 
-import { nonDeliveryDates } from "@effy/edge-shared/delivery";
+import { TO_RETURN_SQL, nonDeliveryDates } from "@effy/edge-shared/delivery";
 
 import { loadCandidates, loadSchedule } from "../planner/repository";
 import { dueRun, isoDateOf } from "../planner/service";
@@ -23,6 +23,7 @@ import { recordAudit, type DispatchAuditAction } from "../shared/audit";
 import { enqueueRoundChanged, enqueueRunAssigned } from "../shared/driver-push";
 import {
   DAY_ROUNDS,
+  FAILED_PARCEL_COUNTS,
   ROUND_DETAIL_STOPS,
   ROUND_FOR_UPDATE,
   ROUND_WORK,
@@ -31,7 +32,7 @@ import {
 
 export class DispatchError extends Error {
   constructor(
-    readonly kind: "not_found" | "stale" | "ineligible" | "invalid",
+    readonly kind: "not_found" | "stale" | "ineligible" | "invalid" | "parcels_to_return",
     readonly detail: string,
     readonly reasons: ExclusionReason[] = [],
   ) {
@@ -40,12 +41,34 @@ export class DispatchError extends Error {
   }
 }
 
+/**
+ * 088 (research R10) — a round whose failed parcels are still in its driver's van cannot be moved or
+ * ended: "who has it" would stop being the round's driver, and the parcel would be stranded on paper.
+ */
+async function refuseWhileParcelsToReturn(tx: any, roundId: string): Promise<void> {
+  const held = await tx.query(
+    `SELECT 1 FROM public.round_package rp
+       JOIN public.round_stop   rs ON rs.id = rp.stop_id
+       JOIN public.driver_round dr ON dr.id = rs.round_id
+      WHERE dr.id = $1 AND ${TO_RETURN_SQL}
+      LIMIT 1`,
+    [roundId],
+  );
+  if ((held.rowCount ?? 0) > 0) {
+    throw new DispatchError(
+      "parcels_to_return",
+      "Parcels from a failed delivery are still with this driver. Record their return first.",
+    );
+  }
+}
+
 export async function readDay() {
-  const [rounds, unassigned, schedule] = await Promise.all([
+  const [rounds, unassigned, schedule, failed] = await Promise.all([
     query<any>(DAY_ROUNDS),
     // 082 — $1: the end of the local day. A hub parcel for a later day is waiting, not unassigned.
     query<any>(UNASSIGNED_WORK, [endOfLocalDay(new Date())]),
     loadSchedule(),
+    query<{ with_drivers: number; returned_awaiting_decision: number }>(FAILED_PARCEL_COUNTS),
   ]);
 
   const now = Date.now();
@@ -108,6 +131,11 @@ export async function readDay() {
       stage: u.stage,
       targetAt: targetOf(u),
     })),
+    // 088 — FR-009.
+    failedParcels: {
+      withDrivers: Number(failed.rows[0]?.with_drivers ?? 0),
+      returnedAwaitingDecision: Number(failed.rows[0]?.returned_awaiting_decision ?? 0),
+    },
   };
 }
 
@@ -182,6 +210,7 @@ export async function reassign(
     const r = cur.rows[0];
     if (!r) throw new DispatchError("not_found", "That round does not exist.");
     assertFresh(r.updated_at, expectedUpdatedAt);
+    await refuseWhileParcelsToReturn(tx, roundId);
 
     // ⚠ THE SAME RULE THE PLANNER USES, imported not retyped (063 R5) — AND, SINCE 072, ASKED ABOUT
     // THE ROUND AS IT REALLY IS (research R11). Until 072 this call hard-coded "no refrigeration",
@@ -269,6 +298,7 @@ export async function unassign(roundId: string, expectedUpdatedAt: string, actor
     const r = cur.rows[0];
     if (!r) throw new DispatchError("not_found", "That round does not exist.");
     assertFresh(r.updated_at, expectedUpdatedAt);
+    await refuseWhileParcelsToReturn(tx, roundId);
 
     // ⚠ ONLY WORK STILL IN THE ROUND, NOT WORK ALREADY COLLECTED (FR-035). A `picked_up` package is
     // physically in a van and no query can know otherwise — 056's stranded-work finding. Releasing it

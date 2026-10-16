@@ -17,6 +17,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
+import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,6 +72,8 @@ class DeliveryViewModel(
     private val newChangeId: () -> String,
     /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
+    /** 088 — return the run's failed parcels to the hub. Null in tests that do not care. */
+    private val returnToHub: ReturnToHub? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DeliveryUiState())
     val state = _state.asStateFlow()
@@ -194,6 +197,25 @@ class DeliveryViewModel(
                 // corrected here so the count of drops left is right.
                 if (outcome == WriteOutcome.QUEUED) markInRun(dropId, DropStatus.DELIVERED) else refreshRunAfterClose()
                 _state.update { it.copy(isWorking = false, delivered = true, proofSending = outcome == WriteOutcome.QUEUED) }
+            } catch (e: AppException) {
+                if (e.error.isFinal()) ids.settled(action)
+                _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }
+            }
+        }
+    }
+
+    /** 088 — the parcels from this run's failed drops are back at the hub: return them all at once. */
+    fun returnParcels() {
+        val send = returnToHub ?: return
+        if (_state.value.isWorking || _state.value.run?.toReturn == null) return
+        _state.update { it.copy(isWorking = true, message = null) }
+        val action = "return:$runId"
+        viewModelScope.launch {
+            try {
+                val outcome = send(runId, ids.of(action))
+                ids.settled(action)
+                _state.update { it.copy(isWorking = false, run = it.run?.copy(toReturn = null)) }
+                if (outcome == WriteOutcome.SENT) refreshRunAfterClose()
             } catch (e: AppException) {
                 if (e.error.isFinal()) ids.settled(action)
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }

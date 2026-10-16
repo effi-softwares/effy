@@ -255,6 +255,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
+  driverDeliveryReturnV1:
+    handler: src/functions/driver-delivery-return-v1-post.handler
+    description: 088 - return the parcels from a run's failed drops to the hub, all together.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/runs/{runId}/return
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
   driverHistoryV1:
     handler: src/functions/driver-history-v1-get.handler
     description: 063 — finished rounds by local day. ⚠ Thin until Slice D captures proof.

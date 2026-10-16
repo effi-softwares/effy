@@ -11,6 +11,7 @@ import com.effyshopping.driver.mobile.core.http.effyJson
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.offline.LastCopies
 import com.effyshopping.driver.mobile.core.opening.toOpening
+import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.domain.Today
 import com.effyshopping.driver.mobile.features.today.domain.TodayItem
@@ -85,6 +86,7 @@ private fun TodayDTO.toDomain(): Today = Today(
             packageCount = it.packageCount.toInt(),
         )
     },
+    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders) },
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(

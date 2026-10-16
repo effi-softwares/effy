@@ -17,6 +17,8 @@ const row = (over: Partial<DeliveryExceptionDTO> = {}): DeliveryExceptionDTO => 
   failedAt: "2026-09-21T10:00:00.000Z",
   resolvedAt: null,
   packageLocation: "with_driver",
+  roundId: "r1",
+  returnedAt: null,
   ...over,
 });
 
@@ -35,8 +37,10 @@ describe("reason labels", () => {
 
 describe("⚠ FR-020 — where the package actually is", () => {
   it("distinguishes a van from the hub", () => {
-    expect(locationLabel(row({ packageLocation: "with_driver" }))).toBe("With driver");
+    expect(locationLabel(row({ packageLocation: "with_driver" }))).toBe(`With ${row().driverName} — to return`);
     expect(locationLabel(row({ packageLocation: "at_hub" }))).toBe("At hub");
+    // 088 — a recorded return says so.
+    expect(locationLabel(row({ packageLocation: "at_hub", returnedAt: "2026-10-16T05:00:00.000Z" }))).toMatch(/^Returned /);
   });
 });
 

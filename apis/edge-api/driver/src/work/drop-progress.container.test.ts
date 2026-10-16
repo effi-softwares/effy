@@ -38,7 +38,7 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { migrationSql } from "@effy/edge-shared";
 
-import { recordProof } from "../proof/repository";
+import { recordFailure, recordProof } from "../proof/repository";
 import { deliveryDrop, setDropStatus } from "./delivery";
 import { deliveryRun, today } from "./service";
 
@@ -70,7 +70,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
 
   beforeEach(async () => {
     for (const t of [
-      "delivery_proof", "package_arrival", "notification_request", "round_package", "round_stop",
+      "delivery_proof", "delivery_attempt_failure", "package_arrival", "notification_request", "round_package", "round_stop",
       "driver_round", "dispatch_wave", "shop_fulfillment",
     ]) {
       await pool.query(`DELETE FROM public.${t}`);
@@ -197,6 +197,26 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("arrived");
     await step("en_route");
     expect(await dropScreen()).toBe("arrived");
+  });
+
+  /** 088 — a failed drop's parcel is shown as "to return", and is the only work left (quickstart P10). */
+  it("088 — after the only drop fails, Today and the run carry the parcel to return; active is empty", async () => {
+    await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
+    await step("arrived");
+    await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
+
+    const t = await today(driverId);
+    expect(t.activeRunId).toBe(roundId);
+    expect(t.active).toBeNull();
+    expect(t.toReturn).toEqual({ runId: roundId, count: 1, orders: ["EFY-WALK01"] });
+
+    const run = await deliveryRun(roundId, driverId);
+    expect(run.toReturn?.count).toBe(1);
+  });
+
+  it("088 — a run with nothing failed carries no return", async () => {
+    expect((await today(driverId)).toReturn).toBeNull();
+    expect((await deliveryRun(roundId, driverId)).toReturn).toBeNull();
   });
 
   it("refuses a status the drop cannot be moved to by this route", async () => {

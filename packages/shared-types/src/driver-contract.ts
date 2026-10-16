@@ -39,6 +39,8 @@ import type {
   ProofResponse,
   DropFailRequest,
   DropFailResponse,
+  ParcelReturnRequest,
+  ParcelReturnResponse,
   RunMapDTO,
   MapPoint,
   MapStop,
@@ -86,6 +88,8 @@ export interface DriverContract {
   proofResponse: ProofResponse;
   dropFailRequest: DropFailRequest;
   dropFailResponse: DropFailResponse;
+  parcelReturnRequest: ParcelReturnRequest;
+  parcelReturnResponse: ParcelReturnResponse;
   runMap: RunMapDTO;
   mapPoint: MapPoint;
   mapStop: MapStop;
