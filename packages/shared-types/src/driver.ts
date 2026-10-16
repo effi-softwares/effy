@@ -338,7 +338,12 @@ export type HandoverMethod = "scan" | "typed" | "manual";
 /** 090 — which hand-over: shop → driver, driver → hub, hub → van, van → door, failed parcel → hub. */
 export type HandoverStep = "collect" | "checkin" | "load" | "deliver" | "return";
 export interface PackageHandover {
-  packageId: string;
+  /**
+   * The package's own id. ⚠ 092 — OR `packageCode` (the label's code): the delivery steps hold only
+   * codes on the phone, and a scan reads a code. One of the two names the package; both may be sent.
+   */
+  packageId?: string;
+  packageCode?: string;
   method: HandoverMethod;
 }
 
@@ -404,6 +409,11 @@ export interface HubCheckinResponse {
    */
   effyCount?: WireInt;
   effyGroups?: HubCheckinEffyGroup[];
+  /**
+   * 092 — when the courier next collects from the hub, in the server's words ("4 pm", "tomorrow
+   * 10 am"); null when no courier parcel was checked in or no courier service is set up.
+   */
+  nextCourierPickupLabel?: string | null;
 }
 
 /** 082 — the Effy parcels of one check-in that wait for one day and window. */
@@ -561,6 +571,12 @@ export interface DeliveryDropDTO {
   summary: ClassSummary;
   /** 072 — when this drop's round opens; `null` = open. Every action on it is refused before then. */
   opening: RoundOpening | null;
+  /**
+   * 092 — the phone number the customer gave at checkout, for the driver to call from the door.
+   * ⚠ Sent ONLY while the drop is open (not delivered, not failed) and only to the round's own driver;
+   * null otherwise, or when the customer gave none. Never in history or run lists.
+   */
+  customerPhone?: string | null;
 }
 
 /** POST /driver/v1/delivery/drops/{dropId}/status */

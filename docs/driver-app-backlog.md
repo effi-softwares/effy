@@ -48,9 +48,14 @@ hand-overs on the order, counts per stop on a round, labels that didn't scan per
 shrinking and uprighting the photo exactly as the system-camera path does. Ships with the next app build; check
 on a device.
 
-**Still open:** B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
-stats, E6, E7 (decide before the redesign), F1 + G1–G3 + H4–H14 (design), H1–H3 (labels — best done as
-their own spec'd feature).
+**G1–G3, E1–E5, F1 and H6–H11 — built as feature 092**
+([specs/092-driver-mobile-redesign](../specs/092-driver-mobile-redesign/tasks.md)), 2026-10-16: the app on the
+storefront identity, three tabs, two-tap drops (arrival recorded silently), Call the customer, the scanning
+screens at all five steps with Type a code and Undo. E6 done screen by screen. Not yet deployed or walked.
+E4's change note on Today is NOT drawn — the driver wire has no `changedNote` yet.
+
+**Still open:** B4/F4/H15 (decisions), D3 (Apple account), E4's change note (needs a driver-wire field), E7,
+H14 (ring scanners).
 
 ---
 

@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.collection.data
 
+import com.effyshopping.driver.mobile.core.scan.toWire
 import com.effyshopping.driver.mobile.contract.CollectRequest
 import com.effyshopping.driver.mobile.contract.Outcome
 import com.effyshopping.driver.mobile.contract.Package as CollectPackage
@@ -69,6 +70,7 @@ class HttpCollectionRepository(
             changeID = changeId,
             packages = outcomes.takeIf { it.isNotEmpty() }?.map {
                 CollectPackage(
+                    method = it.method?.toWire(),
                     note = it.note,
                     outcome = if (it.collected) Outcome.PickedUp else Outcome.NotAvailable,
                     packageID = it.packageId,
@@ -83,9 +85,9 @@ class HttpCollectionRepository(
         }
     }
 
-    override suspend fun checkIn(runId: String, changeId: String): HubSplit? {
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): HubSplit? {
         val path = "driver/v1/hub/checkin"
-        val body = HubCheckinRequest(changeID = changeId, runID = runId)
+        val body = HubCheckinRequest(changeID = changeId, runID = runId, packages = handed.toWire())
         return request {
             offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in", queued = { null }) {
                 val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
@@ -93,6 +95,7 @@ class HttpCollectionRepository(
                     r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt(), r.courierCount?.toInt(),
                     // 082 — null from a server that predates it; the domain falls back to the counts above.
                     r.effyGroups?.map { g -> EffyGroup(g.label, g.count.toInt(), g.dueToday) },
+                    nextCourierPickupLabel = r.nextCourierPickupLabel?.takeIf { it.isNotBlank() },
                 )
             }
         }

@@ -24,7 +24,8 @@ import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Two identities, each declared once in this package (constitution v3.3.0, Principle V). The CONSOLE
-// file drives the shop and driver apps; the STOREFRONT file drives the customer app since 087 (084
+// file drives the shop app; the STOREFRONT file drives the customer app since 087 and the driver app
+// since 092 (084
 // research D14 named it as the expected input — which is why its `:root` is kept a plain hex block).
 const CONSOLE_CSS = resolve(here, "../src/tokens.css");
 const STOREFRONT_CSS = resolve(here, "../src/storefront/tokens.css");
@@ -58,12 +59,12 @@ const TARGETS = [
   {
     out: resolve(here, "../compose-driver/EffyTokens.kt"),
     pkg: "com.effyshopping.driver.mobile.design",
-    identity: "console",
+    // 092 / constitution v3.5.0 — the driver app wears the STOREFRONT identity too (its redesign canvas):
+    // Effy blue for the next action, Effy green for done, no red; light and dark; Geist.
+    identity: "storefront",
     sharedOut: resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
-    // 026 T025a: driver-mobile now gets typography too. It was skipped while it had no
-    // composeResources/font, but FR-012 requires the typeface on ALL SIX surfaces — leaving it out
-    // would have meant syncing font files into a directory nothing consumed.
     typographyOut: resolve(here, "../compose-driver/EffyTypography.kt"),
+    shapeOut: resolve(here, "../compose-driver/EffyStorefrontShape.kt"),
     resPkg: "com.effyshopping.driver.mobile.resources",
   },
 ];

@@ -1,128 +1,72 @@
 package com.effyshopping.driver.mobile.features.onboarding
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.core.platform.rememberCorePermissionRequester
+import com.effyshopping.driver.mobile.core.presentation.DriverButton
+import com.effyshopping.driver.mobile.core.presentation.DriverButtonStyle
+import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.theme.EffyRoles
+import com.effyshopping.driver.mobile.design.EffyStorefrontShape
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.lucide_bell
+import com.effyshopping.driver.mobile.resources.lucide_camera
+import org.jetbrains.compose.resources.DrawableResource
 
 /**
- * Permission priming (049 US1, FR-004). Explains — in plain words, BEFORE the OS prompts — why the app
- * needs notifications and the camera. "Allow access" triggers the system dialogs; "Not now" skips
- * (a driver can grant later from settings, and the permission-denied recovery path guides them). Shown
- * once after first sign-in.
+ * The two permissions, explained before the phone asks (canvas `Permissions`). Asked once; "Not now"
+ * goes straight in — the app never blocks on a grant.
  */
 @Composable
-fun PermissionPrimingScreen(onContinue: () -> Unit) {
+fun PermissionPrimingScreen(firstName: String?, onContinue: () -> Unit) {
     val request = rememberCorePermissionRequester(onDone = onContinue)
-
-    Column(
-        modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(24.dp),
-    ) {
-        // \u26a0 The design's three-step progress indicator. It is not decoration: it tells a driver
-        // the OS is about to ask them three times, which is the difference between "one more tap"
-        // and "why does this app keep interrupting me" \u2014 and a driver who feels interrogated
-        // declines.
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            repeat(2) { index ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(
-                            if (index == 0) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            },
-                        ),
-                )
-            }
+    Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(firstName?.let { "Welcome, $it" } ?: "Welcome", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Two things the app needs", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+            Text("Your phone will ask next. Here's what each one is for.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Reason(Res.drawable.lucide_bell, "Notifications", "So you hear the moment a run is assigned or changes — even with the app closed.")
+            Reason(Res.drawable.lucide_camera, "Camera", "To photograph proof of delivery at the door. Photos are only taken when you press the shutter.")
         }
-        Spacer(Modifier.height(30.dp))
-        Text(
-            "Two things Effy needs",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Your phone will ask next. Here's what each one is for.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(24.dp))
-
-        Column {
-            Rationale("Notifications", "To let you know the moment new work is assigned.")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Rationale("Camera", "To capture proof of delivery when you drop off an order.")
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Column(Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DriverButton("Continue", onClick = request, modifier = Modifier.fillMaxWidth())
+            DriverButton("Not now", onClick = onContinue, style = DriverButtonStyle.Ghost, tall = false, modifier = Modifier.fillMaxWidth())
         }
-
-        Spacer(Modifier.weight(1f))
-
-        Button(
-            onClick = { request() },
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) { Text("Allow access", style = MaterialTheme.typography.titleMedium) }
-        Spacer(Modifier.height(6.dp))
-        TextButton(onClick = onContinue, modifier = Modifier.fillMaxWidth()) { Text("Not now") }
     }
 }
 
 @Composable
-private fun Rationale(title: String, body: String) {
-    Row(Modifier.padding(vertical = 19.dp), verticalAlignment = Alignment.Top) {
-        // The design's bordered glyph tile. The letter is a stand-in until the in-screen icon set
-        // lands with the phases that consume it (060 T018, resequenced).
-        Surface(
-            shape = RoundedCornerShape(11.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurface),
-            modifier = Modifier.size(40.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    title.take(1),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+private fun Reason(icon: DrawableResource, title: String, body: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(44.dp).clip(EffyStorefrontShape.card).background(EffyRoles.primaryMuted), contentAlignment = Alignment.Center) {
+            DriverIcon(icon, size = 22.dp, tint = MaterialTheme.colorScheme.primary)
         }
-        Spacer(Modifier.size(15.dp))
-        Column {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Start)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

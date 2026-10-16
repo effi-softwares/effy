@@ -159,6 +159,8 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     // 080 P14 — the driver is told "Courier" for the parcel a courier takes from the hub: an order
     // from before delivery types, sold standard with no window, is a carrier's (package_delivered_by).
     expect(res.courierCount).toBe(1);
+    // 092 — no courier service is set up here, so there is no pickup to tell.
+    expect(res.nextCourierPickupLabel).toBeNull();
 
     // The REAL delivery gather is the thing under test: a standard package must be STRUCTURALLY
     // absent from it, not filtered out somewhere later.
@@ -169,6 +171,20 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     // 082 P7 — and the driver is shown the two groups: one Effy parcel (sold no window), one courier's.
     expect(res.effyCount).toBe(1);
     expect(res.effyGroups).toEqual([{ date: null, windowStart: null, windowEnd: null, label: "Effy delivery", count: 1, dueToday: true }]);
+  });
+
+  it("092 — check-in says when the default courier service next collects, when a courier parcel came in", async () => {
+    await q(`DELETE FROM public.courier_service`);
+    await q(`INSERT INTO public.courier_service (courier_name, service_name, estimate_text, max_business_days,
+                                                 pickup_weekdays, pickup_cutoff, is_default, updated_by)
+             VALUES ('Test Couriers', 'Standard', '2–4 business days', 4, ARRAY[1,2,3,4,5,6,7], '23:59', true, 'test')`);
+    const { runId, stopId, driverId } = await aCollectedRound();
+    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+
+    const res = await hubCheckin(runId, driverId);
+    expect(res.courierCount).toBe(1);
+    expect(res.nextCourierPickupLabel).toMatch(/11:59 pm/);
+    await q(`DELETE FROM public.courier_service`);
   });
 
   /**

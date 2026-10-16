@@ -109,6 +109,8 @@ data class Drop(
     /** 072 — when this drop's round opens; null = open. Every action on the drop waits for it. */
     val opening: Opening? = null,
     val stale: Boolean = false,
+    /** 092 — the customer's phone, sent only while the drop is open; null when there is none to call. */
+    val customerPhone: String? = null,
 )
 
 /**
@@ -128,10 +130,12 @@ interface DeliveryRepository {
     suspend fun getDrop(dropId: String): Drop
     suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome
     /** Presign → upload the image bytes → complete. QUEUED when there was no signal (backlog B3). */
-    suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String): WriteOutcome
+    suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
     suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String): WriteOutcome
     /** 088 — check every parcel from a run's failed drops back in at the hub. */
-    suspend fun returnToHub(runId: String, changeId: String): WriteOutcome
+    suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
+    /** 090 — the van is loaded: every staged drop on the run goes out for delivery together. */
+    suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
 }
 
 class GetDeliveryRun(private val repo: DeliveryRepository) {
@@ -144,11 +148,14 @@ class AdvanceDrop(private val repo: DeliveryRepository) {
     suspend operator fun invoke(dropId: String, to: String, changeId: String) = repo.advance(dropId, to, changeId)
 }
 class CompleteWithMedia(private val repo: DeliveryRepository) {
-    suspend operator fun invoke(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) =
-        repo.completeWithMedia(dropId, method, bytes, note, changeId)
+    suspend operator fun invoke(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) =
+        repo.completeWithMedia(dropId, method, bytes, note, changeId, handed)
+}
+class LoadVan(private val repo: DeliveryRepository) {
+    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) = repo.load(runId, changeId, handed)
 }
 class ReturnToHub(private val repo: DeliveryRepository) {
-    suspend operator fun invoke(runId: String, changeId: String) = repo.returnToHub(runId, changeId)
+    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) = repo.returnToHub(runId, changeId, handed)
 }
 class FailDrop(private val repo: DeliveryRepository) {
     suspend operator fun invoke(dropId: String, reason: FailureReason, note: String?, changeId: String) =

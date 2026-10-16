@@ -4,9 +4,9 @@
 // that arrives without its response reaching them is ordinary, and the retry must not apply twice
 // (027's changeId-per-action rule). "Simplify the request shape" was never licence to drop that.
 
-import { deliveredBySql } from "@effy/edge-shared/delivery";
+import { deliveredBySql, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
-import { anyTimeDayLabel, formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse, type PackageHandover } from "@effy/shared-types";
+import { anyTimeDayLabel, formatArrival, formatMoment, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse, type PackageHandover } from "@effy/shared-types";
 
 import { recordHandovers } from "./handover";
 import { assertRoundOpen } from "./open";
@@ -268,8 +268,30 @@ export async function hubCheckin(
       });
     }
 
-    return { scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier, effyCount, effyGroups };
+    // 092 — when the courier next collects from the hub, so the driver knows how long the courier bay
+    // waits. The default service's next pickup (`nextCourierPickup`, 080's one calendar rule), in words.
+    const nextCourierPickupLabel = courier > 0 ? await courierPickupLabel(tx, at) : null;
+
+    return {
+      scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier, effyCount, effyGroups,
+      nextCourierPickupLabel,
+    };
   });
+}
+
+/** The default courier service's next pickup after [at], in Melbourne words; null when there is none. */
+async function courierPickupLabel(tx: any, at: Date): Promise<string | null> {
+  const svc = await tx.query(
+    `SELECT pickup_weekdays::int[] AS weekdays, to_char(pickup_cutoff, 'HH24:MI') AS cutoff
+       FROM public.courier_service WHERE is_default AND status = 'active' LIMIT 1`,
+  );
+  const row = svc.rows[0] as { weekdays: number[]; cutoff: string } | undefined;
+  if (!row || row.weekdays.length === 0) return null;
+  try {
+    return formatMoment(nextCourierPickup(at, row.weekdays, parseClock(row.cutoff)), at);
+  } catch {
+    return null;
+  }
 }
 
 /** Report a package that could not be collected, outside the collect call (the 049 route). */

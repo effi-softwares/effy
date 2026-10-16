@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.delivery.data
 
+import com.effyshopping.driver.mobile.core.scan.toWire
 import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.core.platform.imageContentType
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow
@@ -10,6 +11,7 @@ import com.effyshopping.driver.mobile.contract.DeliveryFailureReason
 import com.effyshopping.driver.mobile.contract.DeliveryRunDTO
 import com.effyshopping.driver.mobile.contract.DropFailRequest
 import com.effyshopping.driver.mobile.contract.ParcelReturnRequest
+import com.effyshopping.driver.mobile.contract.LoadRequest
 import com.effyshopping.driver.mobile.contract.DropStatusRequest
 import com.effyshopping.driver.mobile.contract.ProofMethod as DtoProofMethod
 import com.effyshopping.driver.mobile.contract.ProofRequest
@@ -95,13 +97,13 @@ class HttpDeliveryRepository(
      * image is saved on the phone and sent by [flushProofs] under the same changeId, and the drop
      * reads as delivered here meanwhile. It used to be a dead end at a doorstep with no signal.
      */
-    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String): WriteOutcome =
+    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome =
         try {
-            sendProof(dropId, method, bytes, note, changeId)
+            sendProof(dropId, method, bytes, note, changeId, handed)
             WriteOutcome.SENT
         } catch (e: AppException) {
             if (e.error != AppError.Network) throw e
-            proofs.add(PendingProof(changeId, dropId, method.name.lowercase(), note), bytes)
+            proofs.add(PendingProof(changeId, dropId, method.name.lowercase(), note, handed = handed), bytes)
             WriteOutcome.QUEUED
         }
 
@@ -119,7 +121,7 @@ class HttpDeliveryRepository(
                 continue
             }
             try {
-                sendProof(p.dropId, method, bytes, p.note, p.changeId)
+                sendProof(p.dropId, method, bytes, p.note, p.changeId, p.handed)
                 proofs.remove(p.changeId)
             } catch (e: AppException) {
                 when (e.error) {
@@ -140,7 +142,7 @@ class HttpDeliveryRepository(
         }
     }
 
-    private suspend fun sendProof(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) {
+    private suspend fun sendProof(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>) {
         // A photo is JPEG; a drawn signature is PNG. The bytes say which.
         val contentType = imageContentType(bytes)
         val presign = request {
@@ -171,7 +173,7 @@ class HttpDeliveryRepository(
         }
         request {
             api.post("driver/v1/delivery/drops/$dropId/proof") {
-                setBody(ProofRequest(changeID = changeId, method = dtoMethod, mediaKey = presign.mediaKey, note = note))
+                setBody(ProofRequest(changeID = changeId, method = dtoMethod, mediaKey = presign.mediaKey, note = note, packages = handed.toWire()))
             }.ensureSuccess()
         }
     }
@@ -188,11 +190,23 @@ class HttpDeliveryRepository(
     }
 
     /** 088 — saved and sent later with no signal, like every other driver write. */
-    override suspend fun returnToHub(runId: String, changeId: String): WriteOutcome {
+    override suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
         val path = "driver/v1/delivery/runs/$runId/return"
-        val body = ParcelReturnRequest(changeID = changeId)
+        val body = ParcelReturnRequest(changeID = changeId, packages = handed.toWire())
         return request {
             offline.withReplay(path, json.encodeToString(ParcelReturnRequest.serializer(), body), changeId, "Return parcels to the hub", queued = { WriteOutcome.QUEUED }) {
+                api.post(path) { setBody(body) }.ensureSuccess()
+                WriteOutcome.SENT
+            }
+        }
+    }
+
+    /** 090 — saved and sent later with no signal, like every other driver write. */
+    override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
+        val path = "driver/v1/delivery/runs/$runId/load"
+        val body = LoadRequest(changeID = changeId, packages = handed.toWire())
+        return request {
+            offline.withReplay(path, json.encodeToString(LoadRequest.serializer(), body), changeId, "Load the van", queued = { WriteOutcome.QUEUED }) {
                 api.post(path) { setBody(body) }.ensureSuccess()
                 WriteOutcome.SENT
             }
@@ -270,4 +284,5 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     },
     window = DeliveryWindow.of(window, deliveryWindow?.startAt, deliveryWindow?.endAt),
     opening = opening.toOpening(),
+    customerPhone = customerPhone?.takeIf { it.isNotBlank() },
 )

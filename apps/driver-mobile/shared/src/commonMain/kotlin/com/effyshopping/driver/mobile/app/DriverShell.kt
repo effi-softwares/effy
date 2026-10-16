@@ -31,9 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.mobile.kit.live.LiveKind
-import com.effyshopping.mobile.kit.live.LiveStatusLine
 import com.effyshopping.driver.mobile.core.nav.AccountRoot
-import com.effyshopping.driver.mobile.core.nav.ActivityRoute
 import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
 import com.effyshopping.driver.mobile.core.nav.DeliveryRunRoute
 import com.effyshopping.driver.mobile.core.nav.DriverTab
@@ -41,41 +39,25 @@ import com.effyshopping.driver.mobile.core.nav.DropRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryDetailRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryRoot
 import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
-import com.effyshopping.driver.mobile.core.nav.MapRoot
-import com.effyshopping.driver.mobile.core.nav.ShopProblemRoute
 import com.effyshopping.driver.mobile.core.nav.ShopStopRoute
 import com.effyshopping.driver.mobile.core.nav.TodayRoot
 import com.effyshopping.driver.mobile.core.nav.driverNavJson
 import com.effyshopping.driver.mobile.core.nav.driverStartRoute
-import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 import com.effyshopping.driver.mobile.core.session.SessionState
-import com.effyshopping.driver.mobile.features.map.presentation.MapUiState
-import com.effyshopping.driver.mobile.features.map.presentation.MapStop
-import com.effyshopping.driver.mobile.features.map.presentation.MapScreen
-import com.effyshopping.driver.mobile.features.map.presentation.MapMode
-import androidx.compose.runtime.saveable.rememberSaveable
 import com.effyshopping.driver.mobile.features.account.AccountScreen
 import com.effyshopping.driver.mobile.features.onboarding.PermissionDeniedScreen
 import com.effyshopping.driver.mobile.features.account.HelpScreen
-import com.effyshopping.driver.mobile.features.account.AppearanceScreen
 import com.effyshopping.driver.mobile.core.nav.PermissionDeniedRoute
 import com.effyshopping.driver.mobile.core.observability.AnalyticsEvent
 import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
-import com.effyshopping.driver.mobile.features.today.domain.TodayItem
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import com.effyshopping.driver.mobile.core.nav.HelpRoute
-import com.effyshopping.driver.mobile.core.nav.AppearanceRoute
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionRunScreen
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionViewModel
 import com.effyshopping.driver.mobile.features.collection.presentation.HubCheckinScreen
-import com.effyshopping.driver.mobile.features.collection.presentation.ShopProblemScreen
 import com.effyshopping.driver.mobile.features.collection.presentation.ShopStopScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryRunScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryViewModel
-import com.effyshopping.driver.mobile.features.delivery.presentation.DropDetailScreen
-import com.effyshopping.driver.mobile.features.activity.presentation.ActivityScreen
-import com.effyshopping.driver.mobile.features.activity.presentation.ActivityViewModel
+import com.effyshopping.driver.mobile.features.delivery.presentation.DropScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryDetailScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryViewModel
@@ -83,25 +65,24 @@ import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.presentation.TodayScreen
 import com.effyshopping.driver.mobile.features.today.presentation.TodayViewModel
 import com.effyshopping.driver.mobile.resources.Res
-import com.effyshopping.driver.mobile.resources.ic_account_outlined
-import com.effyshopping.driver.mobile.resources.ic_account_selected
-import com.effyshopping.driver.mobile.resources.ic_history_outlined
-import com.effyshopping.driver.mobile.resources.ic_history_selected
-import com.effyshopping.driver.mobile.resources.ic_map_outlined
-import com.effyshopping.driver.mobile.resources.ic_map_selected
-import com.effyshopping.driver.mobile.resources.ic_today_outlined
-import com.effyshopping.driver.mobile.resources.ic_today_selected
-import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.mobile.kit.nav.rememberTabBackStacks
 import com.effyshopping.mobile.kit.shell.ResponsiveDestination
 import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
 import kotlinx.coroutines.launch
+import com.effyshopping.mobile.kit.live.LiveState
+import com.effyshopping.driver.mobile.core.presentation.DriverBannerState
+import com.effyshopping.driver.mobile.core.presentation.DriverBanners
+import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.rememberLivePaused
+import com.effyshopping.driver.mobile.features.today.domain.TodayItem
+import com.effyshopping.driver.mobile.resources.lucide_history
+import com.effyshopping.driver.mobile.resources.lucide_truck
+import com.effyshopping.driver.mobile.resources.lucide_user_round
 import kotlinx.coroutines.flow.map
 
 /**
- * The signed-in driver shell (049 §4 IA): an adaptive bottom bar / navigation rail (mobile-kit) with four
- * tabs — Today (the phase-aware home), Map, History, Account. Login-first: the whole shell is gated, so
- * every tab is authenticated. Map/History are placeholders in this foundation (their slices are US4/US5).
+ * The signed-in driver shell: an adaptive bottom bar / navigation rail (mobile-kit) with three tabs —
+ * Today, History, Account (092). Login-first: the whole shell is gated, so every tab is authenticated.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -177,60 +158,37 @@ fun DriverShell(
         ) { route ->
             when (route) {
                 TodayRoot -> {
-                    // One ViewModel for Today, the Map and the sign-out question — keyed, so the three
-                    // read one copy of the driver's work instead of fetching it three times.
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
-                    // Coming back to Today (from the feed, from a finished stop): the count of new
-                    // activity and today's figures are re-read. The round itself is the channel's job.
-                    LaunchedEffect(Unit) { vm.refreshSideInfo() }
-                    androidx.compose.foundation.layout.Column {
-                        // 071 FR-015 — if the live channel cannot be held, say so: a work list that
-                        // has stopped updating must not look current. Nothing is shown while live.
-                        LiveStatusLine(container.live, onRefresh = vm::refresh)
-                        PendingWritesLine(container)
-                        RefusedWritesLine(container)
-                        TodayScreen(
-                            driver = session.driver,
-                            state = state,
-                            onToggleDuty = {
-                                container.analyticsDriver.capture(
-                                    AnalyticsEvent.DutyToggled(on = state.dutyStatus == DutyStatus.OFF_DUTY),
-                                )
-                                vm.toggleDuty()
-                            },
-                            onRefresh = vm::refresh,
-                            onReturnParcels = vm::returnParcels,
-                            onOpenRun = { runId, phase ->
-                                container.analyticsDriver.capture(
-                                    if (phase == Phase.COLLECTION) AnalyticsEvent.CollectionRunOpened(runId)
-                                    else AnalyticsEvent.DeliveryRunOpened(runId),
-                                )
-                                tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
-                            },
-                            onOpenActivity = { tabs.push(ActivityRoute) },
-                            reducedMotion = reducedMotion,
-                        )
-                    }
-                }
-                ActivityRoute -> {
-                    val vm = viewModel(key = "activity") {
-                        ActivityViewModel(
-                            container.getActivity, container.markActivityRead, container.activitySeen,
-                            container.live.changes(LiveKind.WORK),
-                        )
-                    }
-                    val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(Unit) { vm.load() }
-                    ActivityScreen(
-                        state = st,
-                        onBack = { tabs.pop() },
-                        onRefresh = vm::load,
-                        onOpen = { item ->
-                            when {
-                                item.dropId != null && item.runId != null -> tabs.push(DropRoute(item.runId, item.dropId))
-                                item.runId != null -> tabs.push(CollectionRunRoute(item.runId))
-                            }
+                    TodayScreen(
+                        driver = session.driver,
+                        state = state,
+                        onToggleDuty = {
+                            container.analyticsDriver.capture(
+                                AnalyticsEvent.DutyToggled(on = state.dutyStatus == DutyStatus.OFF_DUTY),
+                            )
+                            vm.toggleDuty()
+                        },
+                        onRefresh = vm::refresh,
+                        onReturnParcels = vm::returnParcels,
+                        onOpenRun = { runId, phase ->
+                            container.analyticsDriver.capture(
+                                if (phase == Phase.COLLECTION) AnalyticsEvent.CollectionRunOpened(runId)
+                                else AnalyticsEvent.DeliveryRunOpened(runId),
+                            )
+                            tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
+                        },
+                        onOpenItem = { item ->
+                            tabs.push(
+                                when (item.kind) {
+                                    TodayItem.Kind.COLLECTION_STOP -> ShopStopRoute(item.runId, item.id)
+                                    TodayItem.Kind.HUB_CHECKIN -> HubCheckinRoute(item.runId)
+                                    TodayItem.Kind.DELIVERY_DROP -> DropRoute(item.runId, item.id)
+                                },
+                            )
+                        },
+                        banners = {
+                            ConnectionBanners(container, offline = state.offline, syncedAt = state.syncedAtEpochMillis, onRefresh = vm::refresh, onDial = mapLauncher::dial)
                         },
                     )
                 }
@@ -241,11 +199,11 @@ fun DriverShell(
                     androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
                     CollectionRunScreen(
                         state = st,
+                        hubName = session.driver.hub,
                         onBack = { tabs.pop() },
                         onOpenStop = { stopId -> tabs.push(ShopStopRoute(route.runId, stopId)) },
                         onCheckIn = { tabs.push(HubCheckinRoute(route.runId)) },
                         onRefresh = { vm.loadRun() },
-                        hubName = session.driver.hub,
                     )
                 }
                 is ShopStopRoute -> {
@@ -253,36 +211,36 @@ fun DriverShell(
                     val st by vm.state.collectAsState()
                     // The ViewModel is keyed per RUN, so `loadStop` is what drops one stop's ticks when
                     // a different stop opens — and keeps them when this one is come back to.
-                    androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
-                    CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "pickup")) {
-                    ShopStopScreen(
-                        state = st,
-                        onBack = { tabs.pop() },
-                        onCollect = {
-                            vm.collect(route.stopId) {
-                                container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
-                                tabs.pop()
-                            }
-                        },
-                        onTogglePackage = vm::togglePackage,
-                        onOpenProblem = { tabs.push(ShopProblemRoute(route.runId, route.stopId)) },
-                        onRetry = { vm.loadStop(route.stopId) },
-                        onNavigate = { address -> mapLauncher.navigateTo(address) },
-                    )
+                    androidx.compose.runtime.LaunchedEffect(route.stopId) {
+                        vm.ensureRunLoaded()
+                        vm.loadStop(route.stopId)
                     }
-                }
-                is ShopProblemRoute -> {
-                    val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
-                    val st by vm.state.collectAsState()
-                    // No load of its own: it reports on the stop the driver came from, already held.
-                    ShopProblemScreen(
-                        state = st,
-                        onBack = { tabs.pop() },
-                        onSubmit = { key, kind, note ->
-                            vm.reportPackage(key, kind, note)
-                            tabs.pop()
-                        },
-                    )
+                    CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "pickup")) {
+                        ShopStopScreen(
+                            state = st,
+                            position = st.run?.stops?.firstOrNull { it.stopId == route.stopId }?.sequence,
+                            stopCount = st.run?.stops?.size ?: 0,
+                            onBack = { tabs.pop() },
+                            onCollect = {
+                                vm.collect(route.stopId) {
+                                    container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
+                                    tabs.pop()
+                                }
+                            },
+                            onScanCollect = { methods ->
+                                vm.collect(route.stopId, methods) {
+                                    container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
+                                    tabs.pop()
+                                }
+                            },
+                            onTogglePackage = vm::togglePackage,
+                            onReport = vm::reportPackage,
+                            onWithdrawReport = vm::withdrawReport,
+                            onRetry = { vm.loadStop(route.stopId) },
+                            onNavigate = { address -> mapLauncher.navigateTo(address) },
+                            onCallDispatch = AppConfig.dispatchPhone?.let { number -> { mapLauncher.dial(number) } },
+                        )
+                    }
                 }
                 is HubCheckinRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
@@ -292,10 +250,11 @@ fun DriverShell(
                     androidx.compose.runtime.LaunchedEffect(route.runId) { vm.ensureRunLoaded() }
                     HubCheckinScreen(
                         state = st,
+                        hubName = session.driver.hub,
                         onBack = { tabs.pop() },
-                        onCheckIn = {
+                        onCheckIn = { handed ->
                             container.analyticsDriver.capture(AnalyticsEvent.HubCheckedIn(route.runId))
-                            vm.checkIn()
+                            vm.checkIn(handed)
                         },
                         onDone = { while (tabs.canGoBack) tabs.pop() },
                     )
@@ -306,95 +265,47 @@ fun DriverShell(
                     androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
                     DeliveryRunScreen(
                         state = st,
+                        hubName = session.driver.hub,
                         onBack = { tabs.pop() },
                         onOpenDrop = { dropId -> tabs.push(DropRoute(route.runId, dropId)) },
                         onRefresh = { vm.loadRun() },
-                        onReturnParcels = vm::returnParcels,
+                        onLoadVan = { handed -> vm.loadVan(handed) },
+                        onReturnParcels = { handed -> vm.returnParcels(handed) },
                     )
                 }
                 is DropRoute -> {
                     val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.dropId) { vm.loadDrop(route.dropId) }
+                    androidx.compose.runtime.LaunchedEffect(route.dropId) {
+                        if (st.run == null) vm.loadRun()
+                        vm.loadDrop(route.dropId)
+                    }
                     CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "drop")) {
-                    DropDetailScreen(
-                        state = st,
-                        onBack = { tabs.pop() },
-                        onNavigate = { address -> mapLauncher.navigateTo(address) },
-                        onAdvance = { to -> vm.advance(route.dropId, to) },
-                        onDeliverContactless = { bytes, note ->
-                            container.analyticsDriver.capture(AnalyticsEvent.DropCompleted("contactless"))
-                            vm.deliverContactless(route.dropId, bytes, note)
-                        },
-                        onDeliverPhoto = { bytes, note ->
-                            container.analyticsDriver.capture(AnalyticsEvent.DropCompleted("photo"))
-                            vm.deliverWithPhoto(route.dropId, bytes, note)
-                        },
-                        onDeliverSignature = { bytes, note ->
-                            container.analyticsDriver.capture(AnalyticsEvent.DropCompleted("signature"))
-                            vm.deliverWithSignature(route.dropId, bytes, note)
-                        },
-                        // The camera was refused: say what is lost and how to turn it back on.
-                        onCameraDenied = { tabs.push(PermissionDeniedRoute) },
-                        onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
-                        // ⚠ "Next drop" used to do exactly what "Back to run" does.
-                        onNext = {
-                            val next = vm.nextOpenDrop(route.dropId)
-                            tabs.pop()
-                            if (next != null) tabs.push(DropRoute(route.runId, next))
-                        },
-                        onBackToRun = { tabs.pop() },
-                        reducedMotion = reducedMotion,
-                        onRetry = { vm.loadDrop(route.dropId) },
-                        onCallDispatch = AppConfig.dispatchPhone?.let { number -> { mapLauncher.dial(number) } },
-                    )
+                        DropScreen(
+                            state = st,
+                            hubName = session.driver.hub,
+                            onBack = { tabs.pop() },
+                            onNavigate = { address -> mapLauncher.navigateTo(address) },
+                            onCall = { phone -> mapLauncher.dial(phone) },
+                            onDeliver = { method, bytes, note, handed ->
+                                container.analyticsDriver.capture(AnalyticsEvent.DropCompleted(method.name.lowercase()))
+                                vm.deliver(route.dropId, method, bytes, note, handed)
+                            },
+                            onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
+                            onNext = {
+                                val next = vm.nextOpenDrop(route.dropId)
+                                tabs.pop()
+                                if (next != null) tabs.push(DropRoute(route.runId, next))
+                            },
+                            onBackToRun = { tabs.pop() },
+                            onRetry = { vm.loadDrop(route.dropId) },
+                            // The camera was refused: say what is lost and how to turn it back on.
+                            onCameraDenied = { tabs.push(PermissionDeniedRoute) },
+                            onCallDispatch = AppConfig.dispatchPhone?.let { number -> { mapLauncher.dial(number) } },
+                        )
                     }
                 }
 
-                MapRoot -> {
-                    // ⚠ The map draws the round the driver ALREADY has, from the same ViewModel Today
-                    // uses — it carries no read of its own and cannot disagree with Today.
-                    // Null = follow the phase the driver is in; a tap on a mode pins it.
-                    var pickedMode by rememberSaveable { mutableStateOf<MapMode?>(null) }
-                    val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
-                    val todaySt by todayVm.state.collectAsState()
-                    val today = todaySt.today
-                    val mapMode = pickedMode
-                        ?: if (today?.phase == Phase.SAME_DAY_DELIVERY) MapMode.SAME_DAY else MapMode.COLLECTION
-                    // ⚠ A mode shows ITS round only. Both modes used to list whatever Today held, so
-                    // "Delivery" showed the shops of a collection round.
-                    val modeIsCurrent = when (mapMode) {
-                        MapMode.COLLECTION -> today?.phase == Phase.COLLECTION
-                        MapMode.SAME_DAY -> today?.phase == Phase.SAME_DAY_DELIVERY
-                    }
-                    val items = if (modeIsCurrent) listOfNotNull(today?.active) + today?.upNext.orEmpty() else emptyList()
-                    val stops = items.mapIndexed { i, item ->
-                        val isHub = item.kind == TodayItem.Kind.HUB_CHECKIN
-                        MapStop(
-                            id = item.id,
-                            sequence = i + 1,
-                            title = if (isHub) session.driver.hub?.takeIf { it.isNotBlank() } ?: item.title else item.title,
-                            subtitle = if (isHub) "Check in every package · ends the run" else item.subtitle.orEmpty(),
-                            isHub = isHub,
-                        )
-                    }
-                    MapScreen(
-                        state = MapUiState(mode = mapMode, stops = stops),
-                        onModeChange = { pickedMode = it },
-                        // ⚠ Opens the stop that was tapped. Every row used to open the whole run.
-                        onOpenStop = { stop ->
-                            items.firstOrNull { it.id == stop.id }?.let { item ->
-                                tabs.push(
-                                    when (item.kind) {
-                                        TodayItem.Kind.COLLECTION_STOP -> ShopStopRoute(item.runId, item.id)
-                                        TodayItem.Kind.HUB_CHECKIN -> CollectionRunRoute(item.runId)
-                                        TodayItem.Kind.DELIVERY_DROP -> DropRoute(item.runId, item.id)
-                                    },
-                                )
-                            }
-                        },
-                    )
-                }
                 HistoryRoot -> {
                     val vm = viewModel(key = "history") { newHistoryVm(container) }
                     val st by vm.state.collectAsState()
@@ -402,7 +313,7 @@ fun DriverShell(
                     HistoryScreen(
                         state = st,
                         onOpenDrop = { dropId -> tabs.push(HistoryDetailRoute("drop", dropId, "Delivery")) },
-                        onOpenRun = { runId -> tabs.push(HistoryDetailRoute("run", runId, "Run")) },
+                        onOpenRun = { runId, title -> tabs.push(HistoryDetailRoute("run", runId, title)) },
                         onRefresh = vm::load,
                     )
                 }
@@ -415,15 +326,24 @@ fun DriverShell(
                 AccountRoot -> {
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
                     val todaySt by todayVm.state.collectAsState()
+                    val pending by container.offlineQueue.pending.collectAsState()
+                    val proofs by container.proofOutbox.pending.collectAsState()
                     AccountScreen(
                         // The duty row follows the toggle, not the value the session started with.
                         driver = session.driver.copy(dutyStatus = todaySt.dutyStatus),
                         appearanceMode = appearanceMode,
+                        onAppearanceChange = container.appearance::setMode,
                         signingOut = signingOut,
-                        onOpenAppearance = { tabs.push(AppearanceRoute) },
                         onOpenHelp = { tabs.push(HelpRoute) },
+                        appVersion = container.appVersion,
+                        dispatchPhone = AppConfig.dispatchPhone,
+                        hubDeskPhone = AppConfig.hubDeskPhone,
+                        handbookUrl = AppConfig.handbookUrl,
+                        onDial = mapLauncher::dial,
+                        onOpenLink = mapLauncher::openLink,
                         outstandingWork = todaySt.today?.remainingCount,
                         parcelsToReturn = todaySt.today?.toReturn?.count,
+                        pendingUpdates = pending.size + proofs.size,
                         analyticsOn = analyticsOn,
                         onToggleAnalytics = { container.setAnalyticsConsent(!analyticsOn) },
                         onSignOut = {
@@ -431,13 +351,10 @@ fun DriverShell(
                                 signingOut = true
                                 tabs.resetForSignOut(DriverTab.TODAY)
                                 scope.launch {
-                                    // ⚠ The dialog says signing out sets the driver off duty, and
-                                    // nothing did: a signed-out driver stayed on duty and kept being
-                                    // given work. Best-effort — signing out never waits on it.
+                                    // Signing out sets the driver off duty, so they stop being given work.
+                                    // Best-effort — signing out never waits on it.
                                     if (todaySt.dutyStatus == DutyStatus.ON_DUTY) {
                                         runCatching { container.setDuty(false, container.newChangeId()) }
-                                        // Review M4 — the shift ends with the duty, or the timer ran on.
-                                        container.shiftClock.ended(nowEpochMillis())
                                     }
                                     container.session.signOutLocally()
                                 }
@@ -445,15 +362,9 @@ fun DriverShell(
                         },
                     )
                 }
-                AppearanceRoute -> AppearanceScreen(
-                    mode = appearanceMode,
-                    onModeChange = container.appearance::setMode,
-                    onBack = { tabs.pop() },
-                )
                 HelpRoute -> HelpScreen(
                     driver = session.driver,
                     onBack = { tabs.pop() },
-                    appVersion = container.appVersion,
                     dispatchPhone = AppConfig.dispatchPhone,
                     hubDeskPhone = AppConfig.hubDeskPhone,
                     handbookUrl = AppConfig.handbookUrl,
@@ -472,35 +383,16 @@ fun DriverShell(
     }
 }
 
-/**
- * A tab's icon (060 FR-008).
- *
- * ⚠ This replaced `TabGlyph`, which rendered **the first letter of the tab's label** — "T", "M",
- * "H", "A". That was a placeholder that shipped, and it survived four features because the driver app
- * was never wired into the shared `mobile-assets` SSOT: `sync-mobile-assets.mjs` gave it fonts only,
- * on a comment saying it would "gain `drawable` when it gets its shell". It got a shell in 049.
- * `mobile-assets:check` stayed green the whole time — it verifies an app matches the SSOT for the
- * kinds it is configured to take, and an app taking nothing is trivially in sync.
- *
- * The filled variant marks the selected tab in addition to the colour change, so selection does not
- * rely on colour alone.
- */
+/** A tab's Lucide icon (the canvas's TabBar: truck, history, user-round). */
 @Composable
 private fun TabIcon(tab: DriverTab, selected: Boolean) {
     val icon = when (tab) {
-        DriverTab.TODAY -> if (selected) Res.drawable.ic_today_selected else Res.drawable.ic_today_outlined
-        DriverTab.MAP -> if (selected) Res.drawable.ic_map_selected else Res.drawable.ic_map_outlined
-        DriverTab.HISTORY -> if (selected) Res.drawable.ic_history_selected else Res.drawable.ic_history_outlined
-        DriverTab.ACCOUNT -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined
+        DriverTab.TODAY -> Res.drawable.lucide_truck
+        DriverTab.HISTORY -> Res.drawable.lucide_history
+        DriverTab.ACCOUNT -> Res.drawable.lucide_user_round
     }
-    Icon(
-        painter = painterResource(icon),
-        // null: the destination's own label is already announced by the navigation item, so a
-        // description here would make a screen reader say the tab's name twice.
-        contentDescription = null,
-        modifier = Modifier.size(24.dp),
-        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    // No description: the destination's own label is announced by the navigation item.
+    DriverIcon(icon, size = 26.dp, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
@@ -520,9 +412,6 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
     newChangeId = container::newChangeId,
     syncFlush = { container.syncCoordinator.flush() },
     liveChanges = container.live.changes(LiveKind.WORK),
-    countNewActivity = { container.countNewActivity() },
-    loadDayStats = { container.dayStats() },
-    shiftClock = container.shiftClock,
     returnToHub = { runId, changeId -> container.returnToHub(runId, changeId) },
 )
 
@@ -534,50 +423,27 @@ private fun newHistoryVm(container: AppContainer) = HistoryViewModel(
 private fun manifestOpened(container: AppContainer, surface: String): (Boolean, Int) -> Unit =
     { hasCold, lineCount -> container.analyticsDriver.capture(AnalyticsEvent.ManifestOpened(surface, hasCold, lineCount)) }
 
-/**
- * Says when something the driver did has not reached the platform yet. ⚠ The offline queue has held
- * such writes since 049 and showed them nowhere, so a driver could not tell a queued collect from a
- * lost one.
- */
+/** The connection banners over Today: offline, waiting to send, refused, live updates paused. */
 @Composable
-private fun PendingWritesLine(container: AppContainer) {
+private fun ConnectionBanners(container: AppContainer, offline: Boolean, syncedAt: Long?, onRefresh: () -> Unit, onDial: (String) -> Unit) {
     val pending by container.offlineQueue.pending.collectAsState()
-    // Backlog B3 — a proof saved with no signal is an update waiting too, and the one that matters most.
     val proofs by container.proofOutbox.pending.collectAsState()
-    val count = pending.size + proofs.size
-    if (count == 0) return
-    Text(
-        if (count == 1) "1 update saved on this phone — it sends when you reconnect."
-        else "$count updates saved on this phone — they send when you reconnect.",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
-    )
-}
-
-/**
- * Says when the platform REFUSED something the driver did while offline. ⚠ Such writes were dropped
- * without a word, so a stop collected in a loading dock could be refused later — reassigned, ended —
- * and the driver never learned it was not recorded.
- */
-@Composable
-private fun RefusedWritesLine(container: AppContainer) {
     val refused by container.offlineQueue.refused.collectAsState()
-    if (refused.isEmpty()) return
-    androidx.compose.foundation.layout.Row(
-        Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.errorContainer).padding(start = 20.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "Not recorded: ${refused.map { it.label }.distinct().joinToString(", ")}. " +
-                "It was saved while you were offline and the platform has since refused it — " +
-                "check that work and tell dispatch.",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-            modifier = Modifier.weight(1f).padding(vertical = 10.dp),
-        )
-        androidx.compose.material3.TextButton(onClick = container.offlineQueue::clearRefused) { Text("OK") }
-    }
+    val live by container.live.state.collectAsState()
+    val paused = rememberLivePaused(live == LiveState.LIVE)
+    DriverBanners(
+        state = DriverBannerState(
+            offline = offline,
+            syncedAtEpochMillis = syncedAt,
+            waitingLabels = pending.map { it.label },
+            waitingProofs = proofs.size,
+            refusedLabels = refused.map { it.label },
+            livePaused = paused,
+        ),
+        onRefresh = onRefresh,
+        onClearRefused = container.offlineQueue::clearRefused,
+        onCallDispatch = AppConfig.dispatchPhone?.let { number -> { onDial(number) } },
+    )
 }
 
 private fun newCollectionVm(container: AppContainer, runId: String) = CollectionViewModel(
@@ -602,6 +468,7 @@ private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryView
     newChangeId = container::newChangeId,
     liveChanges = container.live.changes(LiveKind.WORK),
     returnToHub = container.returnToHub,
+    loadVan = container.loadVan,
 )
 
 private fun com.effyshopping.driver.mobile.features.driver.domain.Driver.railInitials(): String {

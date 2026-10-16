@@ -434,9 +434,12 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   containers ≥ buttons ≥ controls), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
   a colour utility names a token `@theme` does not declare, because **Tailwind emits no rule at all
   for an unknown utility** and the element renders as nothing with no error anywhere.
-- **Mobile**: the shop and driver Compose themes regenerate from `tokens.css` and take the cobalt
-  accent and the neutral-grey ground. ⚠ The new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`,
-  `--warning`) are **web-only** for those two apps. Mobile must still feel native (iOS HIG / Android
+- **Mobile**: the shop Compose theme regenerates from `tokens.css` and takes the cobalt accent and the
+  neutral-grey ground; ⚠ the new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`) are
+  **web-only** for it. ⚠ **THE DRIVER APP WEARS THE STOREFRONT IDENTITY (092, constitution v3.5.0)** — like
+  the customer app below: generated from `storefront/tokens.css`, Geist, Lucide, blue actions, green only for
+  done, problems black with an icon (no red), light and dark; its kit is `apps/driver-mobile/.../core/presentation/`
+  and `scripts/driver-guard.sh` holds it. Mobile must still feel native (iOS HIG / Android
   Material); fat-finger targets + micro-animations are requirements. Design refs: Uber / Bolt /
   foodpanda / eBay.
 - ⚠ **THE CUSTOMER MOBILE APP WEARS THE STOREFRONT IDENTITY (087)** — like customer-web: Geist (bundled
@@ -547,6 +550,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — built; NOT deployed or walked
 - **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — built; NOT deployed
 - **090-scanning-foundation** — Package Scanning: Foundations (one scan rule, the camera reader, hand-over records, hub sort, load the van; no screens) — built; NOT migrated, deployed or walked
 - **089-package-labels** — Package Labels (a permanent code per package; shops print QR + Code 128 labels; EFFY/COURIER only) — built; NOT migrated, deployed or walked
@@ -616,5 +620,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/091-handover-visibility/plan.md
+at specs/092-driver-mobile-redesign/plan.md
 <!-- SPECKIT END -->

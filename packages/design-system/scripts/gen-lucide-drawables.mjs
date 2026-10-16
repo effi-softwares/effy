@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 export const LUCIDE_VERSION = "0.469.0";
 
-/** Every Lucide glyph the customer app draws. Add a name here, re-run, sync. */
+/** Every Lucide glyph the customer (087) and driver (092) apps draw. Add a name here, re-run, sync. */
 export const ICONS = [
   "arrow-right", "arrow-up-down", "bell", "bell-off", "check", "chevron-down", "chevron-left", "chevron-right",
   "chevron-up", "circle-alert", "circle-check", "circle-help", "clock", "coins", "copy", "credit-card",
@@ -32,6 +32,10 @@ export const ICONS = [
   "apple", "baby", "beef", "carrot", "coffee", "cookie", "croissant", "cup-soda", "egg", "fish",
   "milk", "paw-print", "pill", "sandwich", "snowflake", "soup", "spray-can", "wheat", "wine",
   "shopping-basket", "scroll-text", "sun-moon",
+  // 092 — the driver app's redesign canvas (Navigate, Call, the hub, scanning, proof, offline).
+  "arrow-left", "camera", "circle-x", "cloud-off", "door-open", "ellipsis", "external-link", "flashlight",
+  "flashlight-off", "hand", "inbox", "keyboard", "list-checks", "navigation", "pause", "pen-line", "phone",
+  "refresh-ccw", "rotate-ccw", "scan-line", "signature", "undo-2", "warehouse", "power",
 ];
 
 const num = (s) => Number.parseFloat(s);

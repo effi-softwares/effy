@@ -4,28 +4,24 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
+import com.effyshopping.driver.mobile.design.EffyColor
 import com.effyshopping.driver.mobile.design.EffyDarkColorScheme
-import com.effyshopping.driver.mobile.design.effyTypography
 import com.effyshopping.driver.mobile.design.EffyLightColorScheme
-import com.effyshopping.mobile.design.EffyRadius
+import com.effyshopping.driver.mobile.design.EffyStorefrontShape
+import com.effyshopping.driver.mobile.design.effyTypography
+
+/** True while the driver app is drawn dark — what [EffyRoles] follows. */
+val LocalEffyDark = staticCompositionLocalOf { false }
 
 /**
- * The app's theme (constitution Principle V; 013 FR-004/FR-005).
- *
- * Colours come ONLY from the GENERATED [EffyLightColorScheme] / [EffyDarkColorScheme] — derived from
- * `packages/design-system/src/tokens.css`, the brand's single source of truth, and diff-guarded so
- * they cannot drift (research D16). Never hardcode a colour here.
- *
- * Appearance (017 US2): the caller supplies an [AppearanceMode] (persisted per user). `System`
- * follows the device via [isSystemInDarkTheme]; `Light`/`Dark` force it. The default is `System`, so
- * `EffyTheme { … }` with no mode behaves exactly as before (device-driven).
- *
- * NOTE (Principle V deviation, recorded in plan Complexity Tracking): this is Material 3 on BOTH
- * platforms. iOS gets native behaviour (scroll, back-swipe, text, accessibility) but Material chrome,
- * not Apple HIG. The HIG-conformant SwiftUI shell is a later slice; because presentation is isolated
- * here, adopting it later touches only this layer.
+ * The driver app's theme (092, constitution v3.5.0): the STOREFRONT identity, generated from
+ * `packages/design-system/src/storefront/tokens.css` — Effy blue for the next action, Effy green for
+ * done, a problem is black with an icon (no red, no orange), Geist, light and dark.
  */
 @Composable
 fun EffyTheme(
@@ -33,18 +29,40 @@ fun EffyTheme(
     onResolvedAppearance: (isDark: Boolean) -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    val darkTheme = mode.resolveDark(isSystemInDarkTheme())
-    SideEffect { onResolvedAppearance(darkTheme) }
-    MaterialTheme(
-        colorScheme = if (darkTheme) EffyDarkColorScheme else EffyLightColorScheme,
-        typography = effyTypography(),
-        shapes = Shapes(
-            extraSmall = RoundedCornerShape(EffyRadius.sm),
-            small = RoundedCornerShape(EffyRadius.sm),
-            medium = RoundedCornerShape(EffyRadius.md),
-            large = RoundedCornerShape(EffyRadius.md),
-            extraLarge = RoundedCornerShape(EffyRadius.md),
-        ),
-        content = content,
-    )
+    val dark = mode.resolveDark(isSystemInDarkTheme())
+    SideEffect { onResolvedAppearance(dark) }
+    CompositionLocalProvider(LocalEffyDark provides dark) {
+        MaterialTheme(
+            colorScheme = if (dark) EffyDarkColorScheme else EffyLightColorScheme,
+            typography = effyTypography(),
+            shapes = Shapes(
+                extraSmall = EffyStorefrontShape.small,
+                small = EffyStorefrontShape.control,
+                medium = EffyStorefrontShape.card,
+                large = EffyStorefrontShape.banner,
+                extraLarge = EffyStorefrontShape.sheetTop,
+            ),
+            content = content,
+        )
+    }
+}
+
+/**
+ * The roles Material 3 has no slot for — read them here, never as literals. Each follows the appearance.
+ *
+ * - [brand] Effy green: collected, delivered, on duty, done. ⚠ NEVER an action.
+ * - [brandMuted] the green tint a done word sits on.
+ * - [primaryMuted] the blue tint: the next stop's badge, info notes, the swipe track.
+ * - [scrim] the backdrop behind a sheet.
+ */
+object EffyRoles {
+    val brand: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brand, EffyColor.Dark.brand)
+    val brandForeground: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandForeground, EffyColor.Dark.brandForeground)
+    val brandMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.brandMuted, EffyColor.Dark.brandMuted)
+    val primaryMuted: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.primaryMuted, EffyColor.Dark.primaryMuted)
+    val scrim: Color @Composable @ReadOnlyComposable get() = pick(EffyColor.Light.scrim, EffyColor.Dark.scrim)
+
+    @Composable
+    @ReadOnlyComposable
+    private fun pick(light: Color, dark: Color) = if (LocalEffyDark.current) dark else light
 }

@@ -1,4 +1,4 @@
-// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
+// GENERATED FROM packages/design-system/src/storefront/tokens.css — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
 // The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).
 package com.effyshopping.driver.mobile.design
@@ -8,66 +8,81 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-/** The raw Effy brand tokens, light and dark. The accent is the neutral ramp and INVERTS by appearance. */
+/**
+ * The raw Effy STOREFRONT tokens (087), light and dark (the dark appearance is the mobile app's; the
+ * website is light only). Colour is rationed: black, white, zinc, Effy blue (primary — every action)
+ * and Effy green (brand — Sale, savings, "Delivered by Effy", paid; never an action). No red:
+ * destructive is the text colour.
+ */
 object EffyColor {
     object Light {
         val background = Color(0xFFFFFFFF)
-        val foreground = Color(0xFF0B1220)
+        val foreground = Color(0xFF09090B)
         val card = Color(0xFFFFFFFF)
-        val cardForeground = Color(0xFF0B1220)
+        val cardForeground = Color(0xFF09090B)
         val popover = Color(0xFFFFFFFF)
-        val popoverForeground = Color(0xFF0B1220)
+        val popoverForeground = Color(0xFF09090B)
         val primary = Color(0xFF1D4ED8)
         val primaryForeground = Color(0xFFFFFFFF)
-        val secondary = Color(0xFFF1F5FB)
-        val secondaryForeground = Color(0xFF12224A)
-        val muted = Color(0xFFF1F5FB)
-        val mutedForeground = Color(0xFF5C6B86)
-        val accent = Color(0xFFEDF2FD)
-        val accentForeground = Color(0xFF12224A)
-        val destructive = Color(0xFFCF2B1F)
+        val secondary = Color(0xFFF4F4F5)
+        val secondaryForeground = Color(0xFF18181B)
+        val muted = Color(0xFFF4F4F5)
+        val mutedForeground = Color(0xFF68686F)
+        val accent = Color(0xFFF4F4F5)
+        val accentForeground = Color(0xFF18181B)
+        val destructive = Color(0xFF09090B)
         val destructiveForeground = Color(0xFFFFFFFF)
-        val success = Color(0xFF0D8043)
-        val disabled = Color(0xFFF1F5FB)
-        val disabledForeground = Color(0xFF5C6B86)
-        val placeholder = Color(0xFF5C6B86)
-        val border = Color(0xFFE1E8F3)
-        val input = Color(0xFFD7E0EE)
-        val ring = Color(0xFF7993CA)
+        val success = Color(0xFF0D7A40)
+        val disabled = Color(0xFFF4F4F5)
+        val disabledForeground = Color(0xFF68686F)
+        val placeholder = Color(0xFF68686F)
+        val border = Color(0xFFE4E4E7)
+        val input = Color(0xFFE4E4E7)
+        val ring = Color(0xFF1D4ED8)
+        val primaryMuted = Color(0xFFEFF4FF)
+        val brand = Color(0xFF0D7A40)
+        val brandForeground = Color(0xFFFFFFFF)
+        val brandMuted = Color(0xFFEBF6EF)
+        val scrim = Color(0x8009090B)
     }
 
     object Dark {
-        val background = Color(0xFF151515)
+        val background = Color(0xFF09090B)
         val foreground = Color(0xFFFAFAFA)
-        val card = Color(0xFF151515)
+        val card = Color(0xFF18181B)
         val cardForeground = Color(0xFFFAFAFA)
-        val popover = Color(0xFF151515)
+        val popover = Color(0xFF18181B)
         val popoverForeground = Color(0xFFFAFAFA)
         val primary = Color(0xFF60A5FA)
-        val primaryForeground = Color(0xFF111111)
-        val secondary = Color(0xFF212121)
+        val primaryForeground = Color(0xFF09090B)
+        val secondary = Color(0xFF27272A)
         val secondaryForeground = Color(0xFFFAFAFA)
-        val muted = Color(0xFF212121)
-        val mutedForeground = Color(0xFFA3A3A3)
-        val accent = Color(0xFF232323)
+        val muted = Color(0xFF27272A)
+        val mutedForeground = Color(0xFFA1A1AA)
+        val accent = Color(0xFF27272A)
         val accentForeground = Color(0xFFFAFAFA)
-        val destructive = Color(0xFFF87171)
-        val destructiveForeground = Color(0xFF111111)
+        val destructive = Color(0xFFFAFAFA)
+        val destructiveForeground = Color(0xFF09090B)
         val success = Color(0xFF4CD97B)
-        val disabled = Color(0xFF212121)
-        val disabledForeground = Color(0xFFA3A3A3)
-        val placeholder = Color(0xFFA3A3A3)
-        val border = Color(0xFF2A2A2A)
-        val input = Color(0xFF383838)
-        val ring = Color(0xFF636363)
+        val disabled = Color(0xFF27272A)
+        val disabledForeground = Color(0xFFA1A1AA)
+        val placeholder = Color(0xFFA1A1AA)
+        val border = Color(0xFF27272A)
+        val input = Color(0xFF3F3F46)
+        val ring = Color(0xFF60A5FA)
+        val primaryMuted = Color(0xFF172554)
+        val brand = Color(0xFF4CD97B)
+        val brandForeground = Color(0xFF09090B)
+        val brandMuted = Color(0xFF052E16)
+        val scrim = Color(0x99000000)
     }
 }
 
 val EffyLightColorScheme: ColorScheme = lightColorScheme(
     primary = EffyColor.Light.primary,
     onPrimary = EffyColor.Light.primaryForeground,
-    primaryContainer = EffyColor.Light.accent,
-    onPrimaryContainer = EffyColor.Light.accentForeground,
+    primaryContainer = EffyColor.Light.primaryMuted,
+    onPrimaryContainer = EffyColor.Light.primary,
     inversePrimary = EffyColor.Light.primary,
     secondary = EffyColor.Light.secondary,
     onSecondary = EffyColor.Light.secondaryForeground,
@@ -92,7 +107,7 @@ val EffyLightColorScheme: ColorScheme = lightColorScheme(
     onErrorContainer = EffyColor.Light.destructiveForeground,
     outline = EffyColor.Light.border,
     outlineVariant = EffyColor.Light.border,
-    scrim = EffyColor.Light.foreground,
+    scrim = EffyColor.Light.scrim,
     surfaceBright = EffyColor.Light.card,
     surfaceDim = EffyColor.Light.background,
     surfaceContainer = EffyColor.Light.card,
@@ -117,8 +132,8 @@ val EffyLightColorScheme: ColorScheme = lightColorScheme(
 val EffyDarkColorScheme: ColorScheme = darkColorScheme(
     primary = EffyColor.Dark.primary,
     onPrimary = EffyColor.Dark.primaryForeground,
-    primaryContainer = EffyColor.Dark.accent,
-    onPrimaryContainer = EffyColor.Dark.accentForeground,
+    primaryContainer = EffyColor.Dark.primaryMuted,
+    onPrimaryContainer = EffyColor.Dark.primary,
     inversePrimary = EffyColor.Dark.primary,
     secondary = EffyColor.Dark.secondary,
     onSecondary = EffyColor.Dark.secondaryForeground,
@@ -143,7 +158,7 @@ val EffyDarkColorScheme: ColorScheme = darkColorScheme(
     onErrorContainer = EffyColor.Dark.destructiveForeground,
     outline = EffyColor.Dark.border,
     outlineVariant = EffyColor.Dark.border,
-    scrim = EffyColor.Dark.foreground,
+    scrim = EffyColor.Dark.scrim,
     surfaceBright = EffyColor.Dark.card,
     surfaceDim = EffyColor.Dark.background,
     surfaceContainer = EffyColor.Dark.card,

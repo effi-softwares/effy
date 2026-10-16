@@ -15,9 +15,6 @@ import kotlinx.serialization.modules.subclass
 data object TodayRoot : AppNavKey
 
 @Serializable
-data object MapRoot : AppNavKey
-
-@Serializable
 data object HistoryRoot : AppNavKey
 
 @Serializable
@@ -43,24 +40,7 @@ data class DropRoute(val runId: String, val dropId: String) : AppNavKey
 @Serializable
 data class HistoryDetailRoute(val kind: String, val id: String, val title: String) : AppNavKey
 
-// The in-app activity feed, pushed within the Today tab (049 US6).
-@Serializable
-data object ActivityRoute : AppNavKey
-
 // ── 060: four destinations the design has and the app did not ──────────────────────────────────
-
-/**
- * Report a missing or short package at a shop stop (design screen `shop-problem`, FR-021).
- *
- * ⚠ Before 060 this was a bare `TextButton` that fired `onReport("missing")` on tap — the driver
- * could not say WHICH package or WHAT was wrong, and the report went with no note.
- */
-@Serializable
-data class ShopProblemRoute(val runId: String, val stopId: String) : AppNavKey
-
-/** Light / dark / follow-system as its own screen (design screen `appearance`). */
-@Serializable
-data object AppearanceRoute : AppNavKey
 
 /**
  * Help & support (design screen `help`).
@@ -76,12 +56,12 @@ data object HelpRoute : AppNavKey
 data object PermissionDeniedRoute : AppNavKey
 
 /**
- * The driver app's primary tabs (spec §4 IA). Today is the phase-aware home (collection run / same-day
- * run). Map/History are their own feature slices (US4/US5) — placeholders in this foundation.
+ * The driver app's three tabs (092): Today (the phase-aware home and every run, stop and drop pushed
+ * from it), History, Account. ⚠ Map and Activity were removed — the map was a schematic with no
+ * cartography, and the round's changes are said on Today.
  */
 enum class DriverTab(val label: String, val start: AppNavKey) {
     TODAY("Today", TodayRoot),
-    MAP("Map", MapRoot),
     HISTORY("History", HistoryRoot),
     ACCOUNT("Account", AccountRoot),
 }
@@ -93,7 +73,6 @@ val driverNavJson: Json = Json {
     ignoreUnknownKeys = true
     serializersModule = navKeySerializersModule {
         subclass(TodayRoot::class, TodayRoot.serializer())
-        subclass(MapRoot::class, MapRoot.serializer())
         subclass(HistoryRoot::class, HistoryRoot.serializer())
         subclass(AccountRoot::class, AccountRoot.serializer())
         subclass(CollectionRunRoute::class, CollectionRunRoute.serializer())
@@ -102,11 +81,8 @@ val driverNavJson: Json = Json {
         subclass(DeliveryRunRoute::class, DeliveryRunRoute.serializer())
         subclass(DropRoute::class, DropRoute.serializer())
         subclass(HistoryDetailRoute::class, HistoryDetailRoute.serializer())
-        subclass(ActivityRoute::class, ActivityRoute.serializer())
         // ⚠ 060 — a route absent from here is NOT a compile error. It fails at runtime, only after
         // process death, only on that tab. RouteSerializerGuardTest makes the omission a test failure.
-        subclass(ShopProblemRoute::class, ShopProblemRoute.serializer())
-        subclass(AppearanceRoute::class, AppearanceRoute.serializer())
         subclass(HelpRoute::class, HelpRoute.serializer())
         subclass(PermissionDeniedRoute::class, PermissionDeniedRoute.serializer())
     }

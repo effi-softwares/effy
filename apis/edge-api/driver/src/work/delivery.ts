@@ -41,6 +41,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     window_start: Date | null;
     window_end: Date | null;
     any_time: boolean;
+    phone: string | null;
   }>(
     `SELECT rs.id                                   AS stop_id,
             rs.status                               AS status,
@@ -51,6 +52,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
             o.delivery_address ->> 'city'           AS city,
             o.delivery_address ->> 'postalCode'     AS postal_code,
             o.delivery_address ->> 'region'         AS region,
+            o.delivery_address ->> 'phone'          AS phone,
             count(rp.id)::text                      AS package_count,
             count(DISTINCT sf.shop_id)::text        AS shop_count,
             o.delivery_note                         AS delivery_note,
@@ -125,11 +127,16 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     summary: addSummaries(packageIds.map((id) => manifests.get(id)?.summary ?? EMPTY_SUMMARY)),
     // 072 — the drop is readable before its round opens; every action on it is refused until then.
     opening: (await stopRoundTimes(dropId, driverId))?.opening ?? null,
+    // 092 — the number the customer gave at checkout, so the driver can call from the door. ⚠ ONLY
+    // WHILE THE DROP IS OPEN: once it is delivered or not delivered the driver has no reason to call,
+    // and history never carries it.
+    customerPhone: OPEN_DROP.has(r.status) ? (r.phone?.trim() || null) : null,
   };
 }
 
 /** An open drop's states, in the only order it may move through them. */
 const PROGRESS = ["pending", "out_for_delivery", "en_route", "arrived"];
+const OPEN_DROP = new Set(PROGRESS);
 
 /** POST /driver/v1/delivery/drops/{dropId}/status — progress a drop. */
 export async function setDropStatus(

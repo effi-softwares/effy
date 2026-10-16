@@ -54,8 +54,10 @@ private class FakeCollectionRepo(
         changeIds += changeId
         return if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
     }
-    override suspend fun checkIn(runId: String, changeId: String): HubSplit? {
+    var handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): HubSplit? {
         fail?.let { throw AppException(it) }
+        this.handed = handed
         changeIds += changeId
         return if (offline) null else split!!
     }
@@ -185,9 +187,43 @@ class CollectionViewModelTest {
         v.reportPackage("b", "Damaged", "box crushed")
         v.collect("s1") {}
         assertEquals(
-            listOf(PackageOutcome("a", true, null), PackageOutcome("b", false, "Damaged — box crushed")),
+            listOf(PackageOutcome("a", true, null, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL), PackageOutcome("b", false, "Damaged — box crushed")),
             repo.outcomes,
         )
+    }
+
+    /** 092 T026 — a scanned stop says how each package came: scanned, typed, or (unscanned) by hand. */
+    @Test fun a_scanned_collect_sends_each_packages_method() = runTest {
+        val repo = FakeCollectionRepo().apply {
+            packages = listOf(pkg("a").copy(packageCode = "AAAAAA"), pkg("b").copy(packageCode = "BBBBBB"), pkg("c"))
+        }
+        val v = vm(repo); v.loadStop("s1")
+        v.collect("s1", mapOf("AAAAAA" to com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN, "BBBBBB" to com.effyshopping.driver.mobile.core.scan.HandMethod.TYPED)) {}
+        assertEquals(
+            listOf(com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN, com.effyshopping.driver.mobile.core.scan.HandMethod.TYPED, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL),
+            repo.outcomes?.map { it.method },
+        )
+    }
+
+    @Test fun a_scanned_check_in_carries_the_methods() = runTest {
+        val repo = FakeCollectionRepo(split = HubSplit(1, 1, 0))
+        val v = vm(repo)
+        val handed = listOf(com.effyshopping.driver.mobile.core.scan.HandedOver("AAAAAA", com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN))
+        v.checkIn(handed)
+        assertEquals(handed, repo.handed)
+    }
+
+    /** 092 — Undo on a report: the package is neither reported nor ticked, and goes as collected if ticked later. */
+    @Test fun undoing_a_report_leaves_the_package_unticked() = runTest {
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a"), pkg("b")) }
+        val v = vm(repo); v.loadStop("s1")
+        v.reportPackage("b", "Missing", null)
+        v.withdrawReport("b")
+        assertEquals(emptyMap(), v.state.value.reportedPackages)
+        assertEquals(emptySet(), v.state.value.confirmedPackageIds)
+        v.togglePackage("a"); v.togglePackage("b")
+        v.collect("s1") {}
+        assertEquals(listOf(PackageOutcome("a", true, null, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL), PackageOutcome("b", true, null, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL)), repo.outcomes)
     }
 
     /** Coming back from the problem screen opens the same stop again; the ticks must still be there. */

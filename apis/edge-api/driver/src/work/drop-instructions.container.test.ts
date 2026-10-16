@@ -132,6 +132,27 @@ d("066 — delivery instructions on the driver's drop", () => {
   });
 
   /** FR-022 / SC-008 — a note may hold a gate code. */
+  it("092 — the customer's phone is sent while the drop is open, and never once it is settled", async () => {
+    const driverId = await makeDriver();
+    const dropId = await makeDrop(driverId, null, null);
+    await pool.query(
+      `UPDATE public."order" SET delivery_address = delivery_address || '{"phone":" 0400 000 000 "}'::jsonb
+        WHERE id = (SELECT order_id FROM public.round_stop WHERE id = $1)`,
+      [dropId],
+    );
+    expect((await deliveryDrop(dropId, driverId)).customerPhone).toBe("0400 000 000");
+
+    for (const settled of ["done", "skipped"]) {
+      await pool.query(`UPDATE public.round_stop SET status = $2 WHERE id = $1`, [dropId, settled]);
+      expect((await deliveryDrop(dropId, driverId)).customerPhone).toBeNull();
+    }
+  });
+
+  it("092 — a customer who gave no phone is null, not an empty string", async () => {
+    const driverId = await makeDriver();
+    expect((await deliveryDrop(await makeDrop(driverId, null, null), driverId)).customerPhone).toBeNull();
+  });
+
   it("⚠ another driver cannot read the instructions, and is refused like a missing drop", async () => {
     const driverId = await makeDriver();
     const dropId = await makeDrop(driverId, "leave_at_door", "Gate code 4411");

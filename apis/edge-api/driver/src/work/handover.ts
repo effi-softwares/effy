@@ -25,15 +25,32 @@ export interface RecordHandoversInput {
   allowed: ReadonlySet<string>;
 }
 
-/** Record one row per package; a retried hand-over (same changeId) records nothing new. */
+/**
+ * Record one row per package; a retried hand-over (same changeId) records nothing new.
+ *
+ * ⚠ 092 — A PACKAGE MAY BE NAMED BY ITS LABEL CODE instead of its id (the delivery steps hold only
+ * codes). Codes are resolved to ids here, against [allowed] — a code for a package outside this
+ * hand-over names nothing, exactly as a stray id does.
+ */
 export async function recordHandovers(tx: any, input: RecordHandoversInput): Promise<number> {
-  const rows = (input.packages ?? []).filter(
-    (p): p is PackageHandover =>
-      typeof p?.packageId === "string" && input.allowed.has(p.packageId) && typeof p.method === "string" && METHODS.has(p.method),
+  const wellFormed = (input.packages ?? []).filter(
+    (p): p is Partial<PackageHandover> & { method: HandoverMethod } => typeof p?.method === "string" && METHODS.has(p.method),
   );
+  const codes = [...new Set(wellFormed.filter((p) => typeof p.packageCode === "string" && !p.packageId).map((p) => p.packageCode as string))];
+  const idOfCode = new Map<string, string>();
+  if (codes.length > 0 && input.allowed.size > 0) {
+    const res = await tx.query(
+      `SELECT id, package_code FROM public.shop_fulfillment WHERE package_code = ANY($1::text[]) AND id = ANY($2::uuid[])`,
+      [codes, [...input.allowed]],
+    );
+    for (const r of res.rows as Array<{ id: string; package_code: string }>) idOfCode.set(r.package_code, r.id);
+  }
   // One method per package per hand-over: a package listed twice keeps its first.
   const byPackage = new Map<string, HandoverMethod>();
-  for (const r of rows) if (!byPackage.has(r.packageId)) byPackage.set(r.packageId, r.method);
+  for (const p of wellFormed) {
+    const id = typeof p.packageId === "string" ? p.packageId : p.packageCode ? idOfCode.get(p.packageCode) : undefined;
+    if (id && input.allowed.has(id) && !byPackage.has(id)) byPackage.set(id, p.method);
+  }
   if (byPackage.size === 0) return 0;
   const res = await tx.query(
     `INSERT INTO public.package_handover (shop_fulfillment_id, round_id, driver_id, step, handover_method, change_id)

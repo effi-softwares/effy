@@ -1,6 +1,30 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.4.0 → 3.5.0
+Bump rationale: MINOR — a surface moves between the platform's two existing identities; no principle
+added or removed, no plan invalidated.
+
+Trigger: feature 092-driver-mobile-redesign. On 2026-10-16 the operator chose the redesign canvas
+("Effy Driver Mobile Redesign", committed in docs/reference-screens/Effy Driver Mobile v2/) over the
+redesign brief's colours: the DRIVER mobile app now wears the storefront identity, as the customer
+mobile app did in 087 — Effy blue for actions, Effy green for done, a problem is black with an icon
+(no red, no orange), Geist, Lucide, light and dark.
+
+What changed in the text:
+  - Principle V, "The storefront identity": it covers the customer website, the customer mobile app AND
+    the driver mobile app. The driver app reads the storefront file (both blocks) through the mobile
+    theme generator. The console identity now covers the shop console, back-office and the shop mobile app.
+  - Principle V: "Dark mode is REQUIRED" now names the driver mobile app beside the customer mobile app.
+  - Principle V: "Mobile takes the accent and the ground, not the hues" now names the shop app only.
+  - The storefront's card rule ("cards ARE the pattern") is for the customer surfaces; the driver app
+    follows its canvas: lists, sections and detail rows, one hero card on Today.
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged.
+  ⚠ CLAUDE.md (Design system section) — updated by 092 when the driver theme moves.
+
+--- previous report ---
 Version change: 3.3.0 → 3.4.0
 Bump rationale: MINOR — guidance materially expanded; nothing removed, no plan invalidated.
 
@@ -757,11 +781,13 @@ One design-system package drives every surface.
   repository has shipped repeated defects through. The platform has **two identities** (below), each
   declared exactly once, **both inside the design-system package**; a token file under `apps/` is
   still a defect.
-- **THE STOREFRONT IDENTITY (v3.3.0, feature 084).** The customer-facing surface — the customer
-  website now; the customer mobile app when a later feature moves it — carries its own identity,
-  declared in `packages/design-system/src/storefront/tokens.css`. Everything above this bullet
-  describes the **console identity** (shop console, back-office, and the mobile apps until moved),
-  which is unchanged. The storefront differs, deliberately:
+- **THE STOREFRONT IDENTITY (v3.3.0, feature 084; v3.5.0, feature 092).** The customer website, the
+  customer mobile app (087) and **the driver mobile app (092)** carry this identity, declared in
+  `packages/design-system/src/storefront/tokens.css`. Everything above this bullet describes the
+  **console identity** (shop console, back-office and the shop mobile app), which is unchanged. ⚠ The
+  driver app takes the storefront's colours, type, icons and dark palette for a WORK tool: it follows its
+  own canvas for layout (lists, sections, detail rows, one hero on Today), not the storefront's card
+  rule below. The storefront differs, deliberately:
   - **Five values, rationed**: black (`--foreground`), white (`--background`), zinc greys, **Effy
     blue `#1d4ed8`** (`--primary` — the ONLY action colour: buttons, links, selection, focus, points,
     courier) and **Effy green `#0d7a40`** (`--brand` — the wordmark's full stop, Sale, savings,
@@ -789,13 +815,14 @@ One design-system package drives every surface.
   ramp with its inverting accent and its two-semantic-colour bound** (v1.11.0–v1.13.0, features 026 and
   041). The first two are swept by `scripts/check-no-emerald.sh` and `scripts/check-no-jade.sh`; ⚠ a
   retired hex named **in a comment** is still a hit, because the sweeps do not strip comments.
-- **Mobile takes the accent and the ground, not the hues.** The Compose themes regenerate from
-  `tokens.css` and take cobalt and the neutral-grey ground. `--accent2`, `--violet`, `--teal`,
+- **The shop app takes the accent and the ground, not the hues.** Its Compose theme regenerates from
+  `tokens.css` and takes cobalt and the neutral-grey ground (the customer and driver apps read the
+  storefront file). `--accent2`, `--violet`, `--teal`,
   `--warning` and the `--brand-*` family are **web-only by design** and are not surfaced to mobile.
   ⚠ Mobile takes **three** radius steps (sm 4 / md 6 / default 10), not the web scale's four — the
   generator emits no `lg 8`. Drift between the two is caught by `tokens:check`.
-- Dark mode is REQUIRED on every surface of the console identity AND on the customer mobile app, and
-  MUST be user-selectable (Light / Dark / Follow-System). The customer website is light only (above).
+- Dark mode is REQUIRED on every surface of the console identity AND on the customer and driver mobile
+  apps, and MUST be user-selectable (Light / Dark / Follow-System). The customer website is light only (above).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
   polish.
@@ -968,4 +995,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.4.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-15
+**Version**: 3.5.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-16

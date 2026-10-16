@@ -252,6 +252,19 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(rows.rows).toEqual([{ shop_fulfillment_id: sf, step: "deliver", method: "scan" }]);
   });
 
+  /** 092 — the delivery steps hold label codes, not ids: a package may be named by its code. */
+  it("092 — a package named by its label code is recorded; a code from elsewhere names nothing", async () => {
+    const { id: sf, package_code: code } = (await pool.query(`SELECT id, package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0];
+    await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
+    await step("arrived");
+    await recordProof({
+      dropId, driverId, driverSub, method: "photo", mediaKey: "proof/h/3.jpg", note: null, changeId: crypto.randomUUID(),
+      packages: [{ packageCode: code, method: "typed" }, { packageCode: "ZZZZZZ", method: "scan" }],
+    });
+    const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover`);
+    expect(rows.rows).toEqual([{ shop_fulfillment_id: sf, step: "deliver", method: "typed" }]);
+  });
+
   it("090 — a hand-over without methods records nothing (today's app)", async () => {
     await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
     await step("arrived");

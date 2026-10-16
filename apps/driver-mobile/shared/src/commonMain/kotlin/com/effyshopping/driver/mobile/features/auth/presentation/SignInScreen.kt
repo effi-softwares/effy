@@ -1,48 +1,58 @@
 package com.effyshopping.driver.mobile.features.auth.presentation
 
-import com.effyshopping.mobile.kit.ui.OtpInput
-import androidx.compose.ui.backhandler.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.effyshopping.mobile.kit.ui.EffyMotion
-import com.effyshopping.mobile.kit.ui.MotionLevel
-import com.effyshopping.mobile.kit.ui.MotionRole
-import com.effyshopping.mobile.kit.ui.EffyInlineError
-import com.effyshopping.mobile.kit.ui.EffyPage
-import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
-import com.effyshopping.mobile.kit.ui.EffyTextAction
-import com.effyshopping.mobile.kit.ui.EffyTextField
-import com.effyshopping.mobile.design.EffySpacing
+import androidx.compose.ui.unit.sp
+import com.effyshopping.driver.mobile.core.presentation.DriverAlert
+import com.effyshopping.driver.mobile.core.presentation.DriverAlertKind
+import com.effyshopping.driver.mobile.core.presentation.DriverButton
+import com.effyshopping.driver.mobile.core.presentation.DriverButtonStyle
+import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.DriverSize
+import com.effyshopping.driver.mobile.core.presentation.DriverTextField
+import com.effyshopping.driver.mobile.core.presentation.DriverWordmark
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.lucide_chevron_left
+import com.effyshopping.driver.mobile.resources.lucide_circle_alert
+import com.effyshopping.driver.mobile.resources.lucide_lock
+import com.effyshopping.mobile.kit.ui.OtpInput
 
+/**
+ * Sign in (canvas `Auth`, `Auth-Code`, `Auth-Error`): work email, then a six-digit code. No password,
+ * no self sign-up — driver accounts are set up by a manager.
+ */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SignInScreen(
@@ -53,112 +63,80 @@ fun SignInScreen(
     onResend: () -> Unit,
     onDifferentEmail: () -> Unit,
     onBack: () -> Boolean,
-    reducedMotion: Boolean = false,
+    @Suppress("UNUSED_PARAMETER") reducedMotion: Boolean = false,
     otpInputOverride: (@Composable () -> Unit)? = null,
 ) {
     BackHandler(enabled = state.stage == AuthStage.Code && !state.isBusy) { onBack() }
-    val focus = LocalFocusManager.current
-    val motionLevel = if (reducedMotion) MotionLevel.Reduced else MotionLevel.Full
-    val motion = EffyMotion.spec(MotionRole.Forward, motionLevel)
-
-    EffyPage {
+    val code = state.stage == AuthStage.Code
+    Column(Modifier.fillMaxSize().statusBarsPadding().imePadding()) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 4.dp)) {
+            if (code) {
+                Box(
+                    Modifier.size(DriverSize.target).clip(CircleShape).clickable(enabled = !state.isBusy, role = Role.Button) { onDifferentEmail() }
+                        .semantics { contentDescription = "Back to email" },
+                    contentAlignment = Alignment.Center,
+                ) { DriverIcon(Res.drawable.lucide_chevron_left, size = 26.dp, tint = MaterialTheme.colorScheme.primary) }
+            }
+        }
         Column(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).align(Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).widthIn(max = 480.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(top = EffySpacing.xxxl),
-                verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-            ) {
+            DriverWordmark(Modifier.padding(top = 8.dp, bottom = 12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "EFFY",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    if (code) "Enter your code" else "Sign in to Effy Driver",
+                    fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.semantics { heading() },
                 )
                 Text(
-                    // ⚠ WAS "Shop workspace". This screen told DRIVERS they were signing in to a
-                    // shop — copy carried over wholesale from shop-mobile in 049 and never
-                    // corrected. Four features shipped over it. FR-010 / SC-008 / NoShopCopyGuard.
-                    "Driver",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (code) "We sent a 6-digit code to ${state.maskedDestination ?: "your work email"}. It works for a few minutes."
+                    else "Use your work email. We'll email you a 6-digit code — there's no password.",
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-
-            AnimatedContent(
-                targetState = state.stage,
-                transitionSpec = {
-                    if (motionLevel == MotionLevel.Reduced) {
-                        fadeIn(tween(EffyMotion.FastMillis)) togetherWith fadeOut(tween(EffyMotion.FastMillis))
-                    } else {
-                        val forward = targetState == AuthStage.Code
-                        (fadeIn(tween(motion.durationMillis)) + slideInHorizontally(tween(motion.durationMillis)) {
-                            if (forward) it / 8 else -it / 8
-                        }) togetherWith
-                            (fadeOut(tween(motion.durationMillis)) + slideOutHorizontally(tween(motion.durationMillis)) {
-                                if (forward) -it / 12 else it / 12
-                            })
-                    }
-                },
-                contentKey = { it },
-            ) { stage ->
-                when (stage) {
-                    AuthStage.Email -> EmailStage(
-                        state = state,
-                        onEmailChange = onEmailChange,
-                        onSubmit = onPrimaryAction,
-                        onNextFocus = { focus.moveFocus(FocusDirection.Down) },
-                    )
-                    AuthStage.Code -> CodeStage(
-                        state = state,
-                        onCodeChange = onCodeChange,
-                        onSubmit = onPrimaryAction,
-                        onResend = onResend,
-                        onDifferentEmail = onDifferentEmail,
-                        otpInputOverride = otpInputOverride,
-                    )
+            if (code) CodeStage(state, onCodeChange, onPrimaryAction, onResend, onDifferentEmail, otpInputOverride)
+            else EmailStage(state, onEmailChange, onPrimaryAction)
+        }
+        Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (!code) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DriverIcon(Res.drawable.lucide_lock, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No account? Driver accounts are set up by your manager.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            // ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a): shown to everyone, always — never conditional on
+            // whether the address exists, which would make this line an account-enumeration oracle.
+            Text(
+                "Code not arriving? Email hello@effyshopping.com",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("auth_stuck_note"),
+            )
         }
     }
 }
 
 @Composable
-private fun EmailStage(
-    state: AuthUiState,
-    onEmailChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onNextFocus: () -> Unit,
-) {
-    AuthStageLayout(
-        title = "Sign in",
-        description = "Use your Effy work email. We'll send a 6-digit code — no password needed.",
-        error = state.fieldError.takeIf { it == AuthFieldError.InvalidEmail }?.let { "Enter a valid work email." }
-            ?: state.message,
-    ) {
-        EffyTextField(
-            value = state.emailInput,
-            onValueChange = onEmailChange,
-            label = "Work email",
-            enabled = !state.isBusy,
-            isError = state.fieldError == AuthFieldError.InvalidEmail,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-            keyboardActions = KeyboardActions(onNext = { onNextFocus() }),
-        )
-        EffyPrimaryAction(
-            label = "Send code",
-            onClick = onSubmit,
-            enabled = state.canSubmit,
-            loading = state.submission == AuthSubmission.SendingCode,
-            modifier = Modifier.testTag("auth_primary_action"),
-        )
-        Text(
-            // ⚠ WAS "Passwordless access for provisioned shop operators."
-            "Accounts are provisioned by Effy operations.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+private fun EmailStage(state: AuthUiState, onEmailChange: (String) -> Unit, onSubmit: () -> Unit) {
+    val problem = state.fieldError.takeIf { it == AuthFieldError.InvalidEmail }?.let { "Enter a valid work email." }
+    state.message?.takeIf { problem == null }?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
+    DriverTextField(
+        value = state.emailInput,
+        onValueChange = onEmailChange,
+        label = "Work email",
+        placeholder = "you@effyshopping.com",
+        enabled = !state.isBusy,
+        problem = problem,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Go),
+    )
+    DriverButton(
+        "Email me a code",
+        onClick = onSubmit,
+        enabled = state.canSubmit,
+        loading = state.submission == AuthSubmission.SendingCode,
+        modifier = Modifier.fillMaxWidth().testTag("auth_primary_action"),
+    )
 }
 
 @Composable
@@ -173,19 +151,13 @@ private fun CodeStage(
     val codeError = when (state.fieldError) {
         AuthFieldError.MissingCode -> "Enter the complete 6-digit code."
         AuthFieldError.InvalidCode -> "That code isn't right. Check it and try again."
-        AuthFieldError.ExpiredCode -> "That code has expired. Request a new one."
-        // ⚠ NEW. Until 060 a locked-out driver saw InvalidCode's "check it and try again" —
-        // advice for something that cannot now succeed, sending them round the same loop.
-        AuthFieldError.LockedOut ->
-            "Too many attempts. For your security this code is locked — request a new one, or " +
-                "contact dispatch if it keeps happening."
+        AuthFieldError.ExpiredCode -> "That code has expired. Send another code."
+        // A locked-out driver is told what can still work, not to "try again".
+        AuthFieldError.LockedOut -> "Too many attempts. For your security this code is locked — send another, or call dispatch if it keeps happening."
         else -> null
     }
-    AuthStageLayout(
-        title = "Check your email",
-        description = "Enter the code sent to ${state.maskedDestination ?: "your work email"}.",
-        error = codeError ?: state.message,
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Your code", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
         if (otpInputOverride != null) {
             otpInputOverride()
         } else {
@@ -194,86 +166,60 @@ private fun CodeStage(
                 onValueChange = onCodeChange,
                 onSubmit = onSubmit,
                 enabled = !state.isBusy,
-                isError = state.fieldError in setOf(
-                    AuthFieldError.MissingCode,
-                    AuthFieldError.InvalidCode,
-                    AuthFieldError.ExpiredCode,
-                    AuthFieldError.LockedOut,
-                ),
+                isError = codeError != null,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             )
         }
-        EffyPrimaryAction(
-            label = "Sign in",
-            onClick = onSubmit,
-            enabled = state.canSubmit,
-            loading = state.submission == AuthSubmission.ConfirmingCode,
-            modifier = Modifier.testTag("auth_primary_action"),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            EffyTextAction(
-                label = if (state.resendRemainingSeconds > 0) {
-                    "Resend in ${state.resendRemainingSeconds}s"
-                } else {
-                    "Resend code"
-                },
-                onClick = onResend,
-                enabled = state.canResend,
-            )
-            EffyTextAction(
-                "Different email",
-                onDifferentEmail,
-                enabled = !state.isBusy,
-                modifier = Modifier.testTag("auth_different_email"),
-            )
+        val shown = codeError ?: state.message
+        if (shown != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                DriverIcon(Res.drawable.lucide_circle_alert, size = 14.dp)
+                Text(shown, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium))
+            }
+        } else {
+            Text("That's ${state.codeInput.count { it.isDigit() }} of 6 digits.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-
-        // ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always.
-        //
-        // It matters most on this surface. The shop audience is strictly passwordless — an emailed
-        // code is the ONLY credential — so an address that has silently stopped accepting mail is a
-        // total lockout with no self-service way back. This line is the way back.
-        //
-        // ⚠ NEVER MAKE IT CONDITIONAL on whether the platform can reach the address. Delivery state
-        // is only knowable for an address we have emailed, so varying this copy would answer "does
-        // this address have an Effy account?" to anyone who types one — the enumeration oracle 035
-        // was built to close. The specific statement lives on authenticated surfaces (FR-030).
+    }
+    DriverButton(
+        "Sign in",
+        onClick = onSubmit,
+        enabled = state.canSubmit,
+        loading = state.submission == AuthSubmission.ConfirmingCode,
+        modifier = Modifier.fillMaxWidth().testTag("auth_primary_action"),
+    )
+    DriverButton(
+        if (state.resendRemainingSeconds > 0) "Didn't get it? Send another code in ${state.resendRemainingSeconds}s" else "Didn't get it? Send another code",
+        onClick = onResend,
+        enabled = state.canResend,
+        style = DriverButtonStyle.Ghost,
+        tall = false,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        Text("Wrong email? ", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            "Still not arriving? Email hello@effyshopping.com",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.testTag("auth_stuck_note"),
+            "Change it",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clickable(enabled = !state.isBusy, role = Role.Button, onClick = onDifferentEmail)
+                .padding(vertical = 12.dp)
+                .testTag("auth_different_email"),
         )
     }
 }
 
+/** A driver account that is switched off or not set up (canvas `Auth-Refused`). */
 @Composable
-private fun AuthStageLayout(
-    title: String,
-    description: String,
-    error: String?,
-    content: @Composable () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
-        Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-            Text(title, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.semantics { heading() })
-            Text(
-                description,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        AnimatedVisibility(
-            visible = error != null,
-            enter = fadeIn(tween(EffyMotion.FastMillis)),
-            exit = fadeOut(tween(EffyMotion.FastMillis)),
-        ) {
-            error?.let { EffyInlineError(it) }
-        }
-        content()
+fun RefusedScreen(onSignOut: () -> Unit) {
+    Column(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        DriverWordmark(Modifier.padding(top = 16.dp, bottom = 12.dp))
+        DriverAlert(
+            DriverAlertKind.Problem, Res.drawable.lucide_circle_alert,
+            title = "This account can't be used",
+            description = "Your driver account is switched off or not set up yet. If you think this is a mistake, talk to your manager.",
+        )
+        Box(Modifier.weight(1f))
+        DriverButton("Sign out", onClick = onSignOut, style = DriverButtonStyle.Outline, modifier = Modifier.fillMaxWidth())
     }
 }

@@ -1,72 +1,84 @@
 package com.effyshopping.driver.mobile.features.today.presentation
 
-import com.effyshopping.driver.mobile.features.delivery.presentation.ReturnToHubBlock
-import com.effyshopping.driver.mobile.core.presentation.NotificationsOffRow
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.core.platform.localDateIso
-import com.effyshopping.driver.mobile.core.platform.localHour
-import com.effyshopping.driver.mobile.core.platform.localTimeText
+import com.effyshopping.driver.mobile.core.platform.rememberTurnOnNotifications
+import com.effyshopping.driver.mobile.core.presentation.DriverAlert
+import com.effyshopping.driver.mobile.core.presentation.DriverAlertKind
+import com.effyshopping.driver.mobile.core.presentation.DriverButton
+import com.effyshopping.driver.mobile.core.presentation.DriverButtonStyle
+import com.effyshopping.driver.mobile.core.presentation.DriverGroup
+import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.DriverLargeTitleBar
+import com.effyshopping.driver.mobile.core.presentation.DriverNumberCircle
+import com.effyshopping.driver.mobile.core.presentation.DriverRow
+import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
+import com.effyshopping.driver.mobile.core.presentation.DriverSheet
+import com.effyshopping.driver.mobile.core.presentation.DriverSize
+import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverState
+import com.effyshopping.driver.mobile.core.presentation.DriverStatus
+import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
 import com.effyshopping.driver.mobile.core.presentation.dayText
-import com.effyshopping.driver.mobile.core.presentation.durationText
 import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
+import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
+import com.effyshopping.driver.mobile.core.theme.EffyRoles
+import com.effyshopping.driver.mobile.design.EffyStorefrontShape
+import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
 import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
 import com.effyshopping.driver.mobile.features.today.domain.Phase
-import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
-import com.effyshopping.mobile.kit.ui.SkeletonBlock
-import com.effyshopping.mobile.kit.ui.SkeletonLine
-import com.effyshopping.mobile.kit.ui.SkeletonSquare
+import com.effyshopping.driver.mobile.features.today.domain.Today
+import com.effyshopping.driver.mobile.features.today.domain.TodayItem
+import com.effyshopping.driver.mobile.features.today.domain.UpcomingRound
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.lucide_bell
+import com.effyshopping.driver.mobile.resources.lucide_chevron_right
+import com.effyshopping.driver.mobile.resources.lucide_circle_alert
+import com.effyshopping.driver.mobile.resources.lucide_clock
+import com.effyshopping.driver.mobile.resources.lucide_inbox
+import com.effyshopping.driver.mobile.resources.lucide_package
+import com.effyshopping.driver.mobile.resources.lucide_power
+import com.effyshopping.driver.mobile.resources.lucide_store
+import com.effyshopping.driver.mobile.resources.lucide_truck
+import com.effyshopping.driver.mobile.resources.lucide_warehouse
 
 /**
- * The phase-aware home (060 US1 — design screens `offduty`, `home`, `home-delivery`, `home-empty`).
+ * Today — the phase-aware home (canvas `Main` and its states). The header says the day and where the
+ * driver works, with the duty toggle; below it the connection banners (passed in as [banners]), then
+ * the current run: what is next, what follows, and the rounds later today.
  *
- * Rebuilt from 049's functional scaffolding. What changed: off duty is now the design's full
- * greeting screen rather than a small panel; the phase bar carries each phase's own detail instead
- * of two bare labels; and on duty the driver gets a current-stop hero plus the rest of the round,
- * neither of which existed.
- *
- * ⚠ No currency, ever (FR-011). Every number here is a count.
+ * ⚠ No currency, ever. Every number here is a count.
  */
 @Composable
 fun TodayScreen(
@@ -74,507 +86,358 @@ fun TodayScreen(
     state: TodayUiState,
     onToggleDuty: () -> Unit,
     onRefresh: () -> Unit,
-    onOpenRun: (runId: String, phase: Phase) -> Unit = { _, _ -> },
-    onOpenActivity: () -> Unit = {},
-    reducedMotion: Boolean = false,
-    onReturnParcels: () -> Unit = {},
+    onOpenRun: (runId: String, phase: Phase) -> Unit,
+    onOpenItem: (TodayItem) -> Unit,
+    onReturnParcels: () -> Unit,
+    banners: @Composable () -> Unit = {},
 ) {
-    Column(
-        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
-    ) {
-        Header(
-            driver = driver,
-            state = state,
-            onToggleDuty = onToggleDuty,
-            onOpenActivity = onOpenActivity,
-        )
-
-        EffyPullToRefresh(
-            onRefresh = { onRefresh() },
-            modifier = Modifier.weight(1f),
-        ) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp),
-            ) {
-                NotificationsOffRow()
-                when {
-                    state.dutyStatus == DutyStatus.OFF_DUTY -> OffDutyBody(driver, state)
-                    state.isLoading && state.today == null -> TodaySkeleton(reducedMotion)
-                    state.loadFailed -> LoadFailedBody(onRefresh)
-                    state.today == null || state.today.phase == Phase.IDLE -> IdleBody(reducedMotion)
-                    else -> OnDutyBody(state, driver, onOpenRun, onReturnParcels)
-                }
-                Spacer(Modifier.height(24.dp))
-            }
-        }
-
-        Footer(state = state, onToggleDuty = onToggleDuty)
-    }
-}
-
-// ── Header ──────────────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun Header(
-    driver: Driver,
-    state: TodayUiState,
-    onToggleDuty: () -> Unit,
-    onOpenActivity: () -> Unit,
-) {
+    var confirmOffDuty by remember { mutableStateOf(false) }
     val onDuty = state.dutyStatus == DutyStatus.ON_DUTY
-    Column {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    if (onDuty) "Today" else "Effy Driver",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (onDuty) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        stopsLabel(state),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            // ⚠ The count is what is NEW to this driver — the feed gave no sign of anything unread.
-            TextButton(onClick = onOpenActivity) {
-                Text(if (state.newActivity > 0) "Activity · ${state.newActivity} new" else "Activity")
-            }
-            DutyPill(onDuty = onDuty)
+    Column(Modifier.fillMaxSize()) {
+        DriverLargeTitleBar("Today") {
+            DutyToggle(onDuty = onDuty, busy = state.isTogglingDuty, onClick = { if (onDuty) confirmOffDuty = true else onToggleDuty() })
         }
-
-        // ⚠ The offline state the app has never had an interface for. The write queue has existed
-        // since 049 (FR-040); a driver in a loading dock could not tell whether the app was broken
-        // or the signal was.
-        if (state.offline) OfflineBanner(state.syncedAtEpochMillis)
-    }
-}
-
-/** A count, never a currency (FR-011). */
-private fun stopsLabel(state: TodayUiState): String {
-    val today = state.today ?: return "Waiting for your first run"
-    val n = today.remainingCount
-    return when {
-        today.phase == Phase.IDLE -> "No run assigned"
-        n == 0 -> "Nothing left on this run"
-        n == 1 -> "1 stop remaining today"
-        else -> "$n stops remaining today"
-    }
-}
-
-/**
- * ⚠ A STATUS INDICATOR, not a control — deliberately.
- *
- * The design makes this pill tap-to-go-off-duty. It is not wired that way here for two reasons: the
- * footer already carries an explicit, full-width "Go off duty" button, and a small pill in the
- * header is exactly the thing a driver brushes with a thumb while holding a parcel — silently
- * ending their shift. Two controls for one irreversible-ish action, one of them accidental, is not
- * a trade worth making.
- *
- * ⚠ The first draft of this function TOOK `enabled` and `onClick` and used neither, which renders
- * a control that looks interactive and does nothing — 054's decorative-tabs defect. The parameters
- * are gone rather than left unused.
- */
-@Composable
-private fun DutyPill(onDuty: Boolean) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (onDuty) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-        border = if (onDuty) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.heightIn(min = 48.dp),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            Box(
-                Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (onDuty) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    ),
-            )
-            Text(
-                if (onDuty) "ON DUTY" else "OFF DUTY",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = if (onDuty) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun OfflineBanner(syncedAtEpochMillis: Long?) {
-    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(
-                Modifier.size(7.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onErrorContainer),
-            )
-            Column {
-                Text(
-                    "No connection — showing your last synced run",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-                syncedAtEpochMillis?.let {
-                    Text(
-                        "Last synced ${localTimeText(it, withDay = false)}. Anything you confirm now " +
-                            "uploads when you reconnect.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ── Bodies ──────────────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun OffDutyBody(driver: Driver, state: TodayUiState) {
-    val now = remember { nowEpochMillis() }
-    Column(Modifier.fillMaxWidth().padding(top = 32.dp)) {
-        // The day on the phone's own calendar, then what the driver is cleared to cover.
         Text(
-            listOfNotNull(dayText(localDateIso(now)), driver.zone?.takeIf { it.isNotBlank() }).joinToString(" · "),
+            listOfNotNull(
+                dayText(localDateIso(nowEpochMillis())),
+                driver.hub?.takeIf { it.isNotBlank() },
+                driver.vehicle.plate?.takeIf { it.isNotBlank() }?.let { plate ->
+                    listOfNotNull(driver.vehicle.type?.takeIf { it.isNotBlank() }, plate).joinToString(" ")
+                },
+            ).joinToString(" · "),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = DriverSize.gutter).padding(bottom = 4.dp),
         )
-        Spacer(Modifier.height(10.dp))
-
-        val greeting = when (localHour(now)) {
-            in 5..11 -> "Morning"
-            in 12..17 -> "Afternoon"
-            else -> "Evening"
-        }
-        Text(
-            "$greeting,\n${driver.display.substringBefore(' ')}.",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Go on duty and Effy assigns your first collection run — a round of shops, then " +
-                "check-in at the hub.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        // ⚠ These were two dashes: "Stops done" and "Shift length" had nothing behind them. What is
-        // drawn now is counted from the driver's own history, and timed from the duty toggle on this
-        // phone. A figure that is not known is LEFT OUT — a `0` after a full shift would tell a
-        // driver their work did not register.
-        val stats = state.dayStats
-        val shift = state.lastShiftMillis
-        if (stats != null || shift != null) {
-            Spacer(Modifier.height(28.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            Spacer(Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                stats?.let {
-                    ShiftStat("Deliveries today", it.deliveries.toString())
-                    ShiftStat("Runs finished", it.runsFinished.toString())
-                }
-                shift?.let { ShiftStat("Last shift", durationText(it)) }
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            banners()
+            state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
+            val today = state.today
+            when {
+                !onDuty -> OffDuty(busy = state.isTogglingDuty, onGoOnDuty = onToggleDuty)
+                today == null && state.loadFailed -> DriverState(
+                    Res.drawable.lucide_circle_alert,
+                    title = "Your work didn't load",
+                    body = "That's on us. Check your signal and try again.",
+                    actionLabel = "Try again",
+                    onAction = onRefresh,
+                )
+                today == null -> TodaySkeleton()
+                else -> OnDuty(today, state.isReturning, onOpenRun, onOpenItem, onReturnParcels)
             }
         }
     }
-}
-
-@Composable
-private fun ShiftStat(label: String, value: String) {
-    Column {
-        Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
-        Text(
-            label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    if (confirmOffDuty) {
+        GoOffDutySheet(
+            today = state.today,
+            hub = driver.hub,
+            onConfirm = { confirmOffDuty = false; onToggleDuty() },
+            onDismiss = { confirmOffDuty = false },
         )
     }
 }
 
 @Composable
-private fun OnDutyBody(
-    state: TodayUiState,
-    driver: Driver,
+private fun DutyToggle(onDuty: Boolean, busy: Boolean, onClick: () -> Unit) {
+    val tint = if (onDuty) EffyRoles.brand else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        Modifier
+            .size(DriverSize.target)
+            .clip(CircleShape)
+            .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = if (onDuty) "On duty. Tap to go off duty." else "Off duty. Tap to go on duty." },
+        contentAlignment = Alignment.Center,
+    ) {
+        DriverIcon(Res.drawable.lucide_power, size = 24.dp, tint = tint)
+        if (onDuty) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 10.dp).size(12.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.background).padding(2.dp).clip(CircleShape).background(EffyRoles.brand),
+            )
+        }
+    }
+}
+
+@Composable
+private fun OffDuty(busy: Boolean, onGoOnDuty: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+            DriverIcon(Res.drawable.lucide_power, size = 32.dp)
+        }
+        Text("You're off duty", fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            "Go on duty to see your runs. New work is only given to drivers who are on duty.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        DriverButton(
+            "Go on duty",
+            onClick = onGoOnDuty,
+            icon = Res.drawable.lucide_power,
+            loading = busy,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun OnDuty(
+    today: Today,
+    returning: Boolean,
     onOpenRun: (String, Phase) -> Unit,
+    onOpenItem: (TodayItem) -> Unit,
     onReturnParcels: () -> Unit,
 ) {
-    val today = state.today ?: return
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        PhaseBar(today.phase)
+    val runId = today.activeRunId
+    val active = today.active
+    val toReturn = today.toReturn
+    when {
+        runId != null && active != null -> CurrentRun(today, runId, active, onOpenRun, onOpenItem)
+        toReturn != null -> ReturnStep(toReturn, returning, onOpenRun, onReturnParcels)
+        else -> {
+            DriverState(
+                Res.drawable.lucide_inbox,
+                title = if (today.upcoming.isEmpty()) "No work yet" else "Nothing to do right now",
+                body = if (today.upcoming.isEmpty()) {
+                    "You're on duty. When a run is assigned you'll get a notification, and it appears here by itself."
+                } else {
+                    "Your next run is below. It appears here by itself when it's time."
+                },
+            )
+            NotificationsOffAlert()
+        }
+    }
+    if (today.upcoming.isNotEmpty()) LaterToday(today.upcoming, onOpenRun)
+}
 
-        // 088 — only the return is left on this round: it is the current work.
-        if (today.active == null) {
-            today.toReturn?.let {
-                ReturnToHubBlock(it, working = state.isReturning, message = state.message, onReturn = onReturnParcels)
+@Composable
+private fun CurrentRun(today: Today, runId: String, active: TodayItem, onOpenRun: (String, Phase) -> Unit, onOpenItem: (TodayItem) -> Unit) {
+    val collection = today.phase == Phase.COLLECTION
+    val open = rememberIsOpen(today.opening)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                if (collection) "Collection run" else "Delivery run",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.weight(1f),
+            )
+            today.dueLabel?.let {
+                Text("Finish by $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-
-        today.active?.let { item ->
-            CurrentWorkCard(
-                phase = today.phase,
-                item = item,
-                onOpen = { today.activeRunId?.let { onOpenRun(it, today.phase) } },
-                opening = today.opening,
-                dueLabel = today.dueLabel,
+        val opening = today.opening
+        if (!open && opening != null) {
+            DriverAlert(
+                DriverAlertKind.Info, Res.drawable.lucide_clock,
+                title = opening.sentence,
+                description = "Look through the run now. ${if (collection) "Collecting" else "Delivering"} unlocks when it opens.",
             )
         }
-
-        UpNextList(
-            phase = today.phase,
-            items = today.upNext,
-            hubName = driver.hub,
-            onOpenRun = { today.activeRunId?.let { onOpenRun(it, today.phase) } },
+        if (today.stale) {
+            Text(
+                "Last loaded copy — changes since then won't show.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Hero(
+            badge = if (active.kind == TodayItem.Kind.HUB_CHECKIN) "Last stop" else "Next",
+            remaining = today.remainingCount,
+            title = active.title,
+            subtitle = active.subtitle,
+            primaryLabel = when (active.kind) {
+                TodayItem.Kind.COLLECTION_STOP -> "Open stop"
+                TodayItem.Kind.DELIVERY_DROP -> "Open drop"
+                TodayItem.Kind.HUB_CHECKIN -> "Check in at the hub"
+            },
+            onPrimary = { onOpenItem(active) },
+            onWholeRun = { onOpenRun(runId, today.phase) },
         )
-
-        // 072 — the other rounds this driver holds. Each opens its own run, readable in full.
-        UpcomingRounds(rounds = today.upcoming, onOpenRun = onOpenRun)
-
-        state.message?.let {
-            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        if (today.upNext.isNotEmpty()) {
+            Column {
+                DriverSectionLabel("Up next", Modifier.padding(top = 8.dp))
+                DriverGroup {
+                    today.upNext.forEachIndexed { i, item ->
+                        val hub = item.kind == TodayItem.Kind.HUB_CHECKIN
+                        DriverRow(
+                            title = if (hub) "Hub check-in" else item.title,
+                            meta = if (hub) "Hand over every package · ends the run" else item.subtitle,
+                            last = i == today.upNext.lastIndex,
+                            onClick = { onOpenItem(item) },
+                            leading = {
+                                if (hub) {
+                                    Box(Modifier.size(32.dp).clip(CircleShape).background(EffyRoles.primaryMuted), contentAlignment = Alignment.Center) {
+                                        DriverIcon(Res.drawable.lucide_warehouse, size = 16.dp, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                } else {
+                                    DriverNumberCircle(i + 2, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurface)
+                                }
+                            },
+                            trailing = { DriverIcon(Res.drawable.lucide_chevron_right, size = 16.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
-/**
- * The two-phase indicator (060 US1 acceptance 2).
- *
- * ⚠ Each half carries its own detail line now. 049's version was two bare labels, which told the
- * driver which phase they were in but nothing about either.
- */
+/** The one card on Today: what to do next, with its action. */
 @Composable
-private fun PhaseBar(phase: Phase) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.fillMaxWidth()) {
-            PhaseHalf(
-                kicker = "PHASE 1",
-                title = "Collection run",
-                meta = if (phase == Phase.COLLECTION) "In progress" else "Not your current round",
-                active = phase == Phase.COLLECTION,
-                modifier = Modifier.weight(1f),
-            )
-            Box(
-                Modifier
-                    .width(1.dp)
-                    .height(74.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant),
-            )
-            PhaseHalf(
-                kicker = "PHASE 2",
-                title = "Delivery run",
-                // ⚠ Not "Locked until check-in": a delivery round is planned for its own window and
-                // may belong to a driver who collected nothing (082).
-                meta = if (phase == Phase.SAME_DAY_DELIVERY) "In progress" else "Not your current round",
-                active = phase == Phase.SAME_DAY_DELIVERY,
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun PhaseHalf(
-    kicker: String,
+private fun Hero(
+    badge: String,
+    remaining: Int?,
     title: String,
-    meta: String,
-    active: Boolean,
-    modifier: Modifier = Modifier,
+    subtitle: String?,
+    primaryLabel: String,
+    onPrimary: () -> Unit,
+    onWholeRun: () -> Unit,
+    badgeIsLast: Boolean = false,
+    primaryLoading: Boolean = false,
 ) {
+    val shape = EffyStorefrontShape.card
     Column(
-        modifier
-            .background(
-                if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-            )
-            .padding(13.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        Modifier.fillMaxWidth().clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val fg = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-        Text(
-            kicker,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = fg.copy(alpha = 0.7f),
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            DriverStatusPill(if (badgeIsLast) DriverStatus.Last else DriverStatus.Next, label = badge)
+            Box(Modifier.weight(1f))
+            if (remaining != null && remaining > 0) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    DriverIcon(Res.drawable.lucide_package, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("$remaining left", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Column {
+            Text(title, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            DriverButton("Whole run", onClick = onWholeRun, style = DriverButtonStyle.Outline, tall = false, modifier = Modifier.weight(1f))
+            DriverButton(primaryLabel, onClick = onPrimary, tall = false, loading = primaryLoading, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/** 088 — only parcels from failed drops are left: take them back to the hub (canvas `Today-ReturnHub`). */
+@Composable
+private fun ReturnStep(toReturn: ParcelsToReturn, returning: Boolean, onOpenRun: (String, Phase) -> Unit, onReturnParcels: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Delivery run", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold))
+        val parcels = if (toReturn.count == 1) "1 parcel" else "${toReturn.count} parcels"
+        Hero(
+            badge = "Last step",
+            badgeIsLast = true,
+            remaining = null,
+            title = "Return $parcels to the hub",
+            subtitle = "Not delivered" + (toReturn.orders.takeIf { it.isNotEmpty() }?.let { " · ${it.joinToString(", ")}" } ?: "") +
+                ". Check ${if (toReturn.count == 1) "it" else "them"} back in and the run is done.",
+            primaryLabel = "Return all",
+            primaryLoading = returning,
+            onPrimary = onReturnParcels,
+            onWholeRun = { onOpenRun(toReturn.runId, Phase.SAME_DAY_DELIVERY) },
         )
-        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = fg)
-        Text(meta, style = MaterialTheme.typography.bodySmall, color = fg.copy(alpha = 0.75f))
     }
 }
 
 @Composable
-private fun IdleBody(reducedMotion: Boolean) {
-    val alpha by if (reducedMotion) {
-        androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(1f) }
-    } else {
-        rememberInfiniteTransition(label = "idle").animateFloat(
-            initialValue = 0.35f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
-            label = "idle-pulse",
-        )
-    }
-
-    Column(
-        Modifier.fillMaxWidth().padding(top = 72.dp, start = 20.dp, end = 20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp),
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.size(56.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier
-                        .size(22.dp)
-                        .alpha(alpha)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary),
+private fun LaterToday(rounds: List<UpcomingRound>, onOpenRun: (String, Phase) -> Unit) {
+    Column {
+        DriverSectionLabel("Later")
+        DriverGroup {
+            rounds.forEachIndexed { i, r ->
+                val collection = r.phase == Phase.COLLECTION
+                val places = if (collection) {
+                    if (r.stopCount == 1) "1 shop" else "${r.stopCount} shops"
+                } else {
+                    if (r.stopCount == 1) "1 drop" else "${r.stopCount} drops"
+                }
+                val packages = if (r.packageCount == 1) "1 package" else "${r.packageCount} packages"
+                DriverRow(
+                    title = if (collection) "Collection run" else "Delivery run",
+                    meta = "$places · $packages · finish by ${r.dueLabel}",
+                    last = i == rounds.lastIndex,
+                    onClick = { onOpenRun(r.runId, r.phase) },
+                    leading = {
+                        Box(Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                            DriverIcon(if (collection) Res.drawable.lucide_store else Res.drawable.lucide_truck, size = 16.dp)
+                        }
+                    },
+                    trailing = {
+                        val opens = r.opening
+                        if (opens != null && !rememberIsOpen(opens)) {
+                            Text(
+                                opens.sentence,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape).padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        } else {
+                            DriverIcon(Res.drawable.lucide_chevron_right, size = 16.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    },
                 )
             }
         }
-        Text(
-            "You're all caught up",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            "No run assigned right now. Stay on duty — your next collection run arrives here and " +
-                "buzzes your phone.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            "Pull down to refresh",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
-/** Design screen `error` — a named failure and a way out, not a red line of text in place. */
 @Composable
-private fun LoadFailedBody(onRetry: () -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().padding(top = 72.dp, start = 16.dp, end = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+private fun NotificationsOffAlert() {
+    val turnOn = rememberTurnOnNotifications() ?: return
+    DriverAlert(
+        DriverAlertKind.Problem, Res.drawable.lucide_bell,
+        title = "Notifications are off",
+        description = "You won't hear about new work while the app is closed.",
+        actions = { DriverButton("Turn on in Settings", onClick = turnOn, style = DriverButtonStyle.Outline, tall = false) },
+    )
+}
+
+@Composable
+private fun TodaySkeleton() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        DriverSkeleton(Modifier.fillMaxWidth(0.5f), height = 22.dp)
+        DriverSkeleton(Modifier.fillMaxWidth(), height = 170.dp)
+        DriverSkeleton(Modifier.fillMaxWidth(0.3f), height = 14.dp)
+        repeat(3) { DriverSkeleton(Modifier.fillMaxWidth(), height = 64.dp) }
+    }
+}
+
+/** "Go off duty?" — names the work still held, so nobody walks away from a van of parcels unaware. */
+@Composable
+private fun GoOffDutySheet(today: Today?, hub: String?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val held = today?.remainingCount ?: 0
+    val toReturn = today?.toReturn?.count ?: 0
+    val run = when (today?.phase) {
+        Phase.COLLECTION -> "this collection run"
+        Phase.SAME_DAY_DELIVERY -> "this delivery run"
+        else -> "your run"
+    }
+    DriverSheet(
+        title = "Go off duty?",
+        description = when {
+            held > 0 -> "You still have $held ${if (held == 1) "stop" else "stops"} on $run. Dispatch will be told, and may give the run to someone else."
+            else -> "You won't be given new work until you go back on duty."
+        },
+        onDismiss = onDismiss,
     ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.error),
-            modifier = Modifier.size(54.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text("!", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
-            }
-        }
-        Text(
-            "Couldn't load your run",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            "Effy's dispatch didn't respond. Your stops are safe — try again.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(13.dp),
-            modifier = Modifier.heightIn(min = 52.dp),
-        ) { Text("Retry") }
-    }
-}
-
-/**
- * Design screen `skeleton`.
- *
- * ⚠ Built from the SAME primitives as [OnDutyBody] — a phase bar, a hero, then rows. 028 recorded
- * why: a skeleton assembled from different containers than its content cannot line up with it.
- */
-@Composable
-private fun TodaySkeleton(reducedMotion: Boolean) {
-    Column(Modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        SkeletonBlock(height = 74.dp, reducedMotion = reducedMotion)
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SkeletonLine(widthFraction = 0.3f, height = 11.dp, reducedMotion = reducedMotion)
-            SkeletonBlock(height = 212.dp, corner = 14.dp, reducedMotion = reducedMotion)
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SkeletonLine(widthFraction = 0.4f, height = 11.dp, reducedMotion = reducedMotion)
-            repeat(3) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SkeletonSquare(size = 34.dp, reducedMotion = reducedMotion)
-                    Spacer(Modifier.size(14.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        SkeletonLine(widthFraction = 0.52f, reducedMotion = reducedMotion)
-                        SkeletonLine(widthFraction = 0.78f, height = 11.dp, reducedMotion = reducedMotion)
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-        }
-    }
-}
-
-// ── Footer ──────────────────────────────────────────────────────────────────────────────────────
-
-/** The primary action, bottom-anchored and fat-fingered (049 FR-016/044, 060 FR-008). */
-@Composable
-private fun Footer(state: TodayUiState, onToggleDuty: () -> Unit) {
-    val onDuty = state.dutyStatus == DutyStatus.ON_DUTY
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Button(
-            onClick = onToggleDuty,
-            enabled = !state.isTogglingDuty,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().height(if (onDuty) 56.dp else 62.dp),
-        ) {
-            Text(
-                if (onDuty) "Go off duty" else "Go on duty",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+        if (held > 0 || toReturn > 0) {
+            DriverAlert(
+                DriverAlertKind.Muted, Res.drawable.lucide_package,
+                title = "Packages in the van stay with you",
+                description = "Take them to ${hub?.takeIf { it.isNotBlank() } ?: "the hub"} and check them in before you finish.",
             )
         }
+        DriverButton("Go off duty", onClick = onConfirm, style = DriverButtonStyle.Problem, modifier = Modifier.fillMaxWidth())
+        DriverButton("Stay on duty", onClick = onDismiss, style = DriverButtonStyle.Ghost, tall = false, modifier = Modifier.fillMaxWidth())
     }
 }

@@ -4,6 +4,48 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**092-driver-mobile-redesign — Driver App Redesign.** 🚧 **BUILT (2026-10-16). NOT DEPLOYED OR WALKED.**
+Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built from the canvas
+`docs/reference-screens/Effy Driver Mobile v2/` (61 artboards). Spec, plan, tasks:
+[specs/092-driver-mobile-redesign/](specs/092-driver-mobile-redesign/tasks.md).
+
+- **The driver app wears the storefront identity (constitution v3.5.0)** like the customer app (087): Geist
+  bundled, Lucide icons, Effy blue for actions, Effy green only for done, **problems black with an icon —
+  never red or orange**, light and dark. `gen-compose-theme.mjs`'s driver target reads `storefront/tokens.css`;
+  `EffyStorefrontShape`; driver `EffyRoles`. `scripts/driver-guard.sh`: no colour literal in a screen, no
+  red/`colorScheme.error`/warning, no money, no Map/Activity.
+- **A driver kit** in `core/presentation/` (app-local): buttons (primary/outline/ghost/problem), pinned action
+  bar, rows and bordered groups, status pills (the canvas's eight words), alerts (muted/info/problem),
+  connection banners in ONE order (`driverBanners`: offline → waiting → refused → live paused), sheet,
+  snackbar, states, skeleton, large-title / inline bars, text field, choice rows, progress, swipe-to-confirm.
+  Every overlay is a sheet.
+- **Three tabs** — Today · History · Account. ⚠ **Removed**: Map (`features/map`, `EffyMapCanvas`, `MapRoot`),
+  the activity feed (`features/activity`, `ActivityRoute`, `SettingsActivitySeen`), the placeholder framework
+  (`core/placeholder`, every `PlaceholderData.kt`, its guard test), day stats and the shift timer,
+  `AppearanceScreen` (inline in Account), `ShopProblemScreen` (a sheet), `EnRouteScreen`, `ArrivedScreen`.
+  The activity route stays on the server for old builds.
+- **Two taps per drop** (E2, R5): Scan to deliver → "How did you hand it over?" → proof. ⚠ **Arrival is still
+  recorded** — `DeliveryViewModel.deliver` sends `arrived` silently BEFORE the proof (both queued in order
+  offline); an arrived drop is not moved again. "Load the van" (090's route) replaces per-drop start.
+- **Scanning screens** (`core/scan/ScanPanel.kt`, H6–H11): camera, torch, Type a code, a banner per read, a
+  count, every package tickable by hand, and a 3-second auto-complete bar with Undo. A beep/buzz for a package
+  that counts, a low tone + long buzz for the hard stop (`ScanTone`, silent mode respected). Wired at the shop
+  (S1), hub with per-package sort words (S2), load (S3), door (S4) and return (S5). Each hand-over sends each
+  package's method; an unscanned collected package is recorded `manual`.
+- **Server (driver, additive)**: `DeliveryDropDTO.customerPhone` — the checkout phone, **open drops of the
+  caller's round only** (F1, Call button); `HubCheckinResponse.nextCourierPickupLabel` — the default courier
+  service's next pickup in server words; `PackageHandover.packageCode` — a hand-over may name a package by its
+  label code (resolved against the hand-over's own packages; a foreign code names nothing).
+- **Not drawn, no data**: the round's change note (`changedNote` is on the dispatch wire, not the driver's —
+  backlog E4's note is open); a hub address to navigate to; per-run drop lists in History.
+- **Verified**: driver container tests (phone open/settled/blank, courier pickup label, code-named hand-over),
+  driver unit + typecheck; driver-mobile host tests (kit words and banner order, Today states, two-tap order
+  online and offline, load the van, scan methods on collect/check-in/proof, undo report); `assembleDebug`, iOS
+  Kotlin + `xcodebuild`; driver-guard, delivery words, refresh timers, tokens + mobile assets.
+- **Operator steps**: `make edge-deploy SERVICE=driver ENV=dev` (needs 088–090's migrations first), then the
+  app build. Walk on a device: sign in, go on duty, a collection run by scan and by tick, hub check-in, load the
+  van, a drop by scan (photo, left safely, signature), Can't deliver, return to hub, dark mode.
+
 **091-handover-visibility — Scan Versus Manual Visibility.** 🚧 **BUILT (2026-10-16). NOT DEPLOYED.** Driver
 backlog H12: three read-only views of 090's `package_handover`, each in the service that owns its screen; no
 route, no migration. Spec, plan, tasks: [specs/091-handover-visibility/](specs/091-handover-visibility/tasks.md).

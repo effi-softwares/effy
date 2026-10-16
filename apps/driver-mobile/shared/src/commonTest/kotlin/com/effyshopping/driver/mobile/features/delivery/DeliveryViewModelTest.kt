@@ -26,6 +26,8 @@ import kotlin.test.assertTrue
 import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
+import com.effyshopping.driver.mobile.features.delivery.domain.LoadVan
+import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
 
 private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = null) : DeliveryRepository {
     var mediaMethod: ProofMethod? = null
@@ -34,7 +36,7 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
     var run: DeliveryRun? = null
     override suspend fun getRun(runId: String): DeliveryRun = run ?: DeliveryRun(runId, "active", emptyList())
     val returned = mutableListOf<String>()
-    override suspend fun returnToHub(runId: String, changeId: String): WriteOutcome {
+    override suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
         fail?.let { throw AppException(it) }
         returned += changeId
         if (!offline) run = run?.copy(toReturn = null)
@@ -43,9 +45,23 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
     override suspend fun getDrop(dropId: String): Drop = fail?.let { throw AppException(it) } ?: drop!!
     var offline = false
     private val outcome get() = if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
-    override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome = outcome
-    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String): WriteOutcome {
+    /** Every write, in the order it was made — "advance:arrived", "proof", "load". */
+    val calls = mutableListOf<String>()
+    override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome {
+        calls += "advance:$to"
+        return outcome
+    }
+    override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
+        lastHanded = handed
         fail?.let { throw AppException(it) }
+        calls += "load"
+        return outcome
+    }
+    var lastHanded: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()
+    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
+        lastHanded = handed
+        fail?.let { throw AppException(it) }
+        calls += "proof"
         mediaMethod = method; mediaBytes = bytes; mediaNote = note
         return outcome
     }
@@ -65,12 +81,65 @@ class DeliveryViewModelTest {
             getRun = GetDeliveryRun(repo), getDrop = GetDrop(repo), advanceDrop = AdvanceDrop(repo),
             completeWithMedia = CompleteWithMedia(repo), failDrop = FailDrop(repo), newChangeId = { "cid-${n++}" },
             returnToHub = ReturnToHub(repo),
+            loadVan = LoadVan(repo),
+            now = { 1_000L },
         )
     }
 
     private val toReturn = ParcelsToReturn("r1", 2, listOf("EFY-1", "EFY-2"))
 
     private fun drop() = Drop("d1", "EFY-1", "Ada", "1 St", null, emptyList(), DropStatus.ARRIVED)
+
+    /**
+     * ⚠ 092 R5 — TWO TAPS, AND THE ARRIVAL IS STILL RECORDED. The driver no longer says "I've arrived";
+     * the ViewModel records it, silently and FIRST, so the platform's timeline keeps an arrival before
+     * the proof — sent in that order, or saved in that order with no signal.
+     */
+    @Test fun delivering_an_out_drop_records_arrival_first_then_the_proof() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.OUT_FOR_DELIVERY)); val v = vm(repo)
+        v.loadDrop("d1")
+        v.deliver("d1", ProofMethod.PHOTO, byteArrayOf(1), null)
+        assertEquals(listOf("advance:arrived", "proof"), repo.calls)
+        assertTrue(v.state.value.delivered)
+        assertEquals(ProofMethod.PHOTO, v.state.value.deliveredWith)
+        assertEquals(1_000L, v.state.value.deliveredAtEpochMillis)
+    }
+
+    @Test fun the_same_order_holds_with_no_signal() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.STAGED)).apply { offline = true }; val v = vm(repo)
+        v.loadDrop("d1")
+        v.deliver("d1", ProofMethod.CONTACTLESS, byteArrayOf(1), "Left at: Front door")
+        assertEquals(listOf("advance:arrived", "proof"), repo.calls)
+        assertTrue(v.state.value.proofSending)
+    }
+
+    /** 092 T026 — the door scan's methods ride the proof. */
+    @Test fun the_door_scan_rides_the_proof() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop()); val v = vm(repo)
+        v.loadDrop("d1")
+        val handed = listOf(com.effyshopping.driver.mobile.core.scan.HandedOver("AAAAAA", com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN))
+        v.deliver("d1", ProofMethod.PHOTO, byteArrayOf(1), null, handed)
+        assertEquals(handed, repo.lastHanded)
+    }
+
+    @Test fun an_arrived_drop_is_not_moved_again() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop()); val v = vm(repo)
+        v.loadDrop("d1")
+        v.deliver("d1", ProofMethod.SIGNATURE, byteArrayOf(1), "Signed by: Ada")
+        assertEquals(listOf("proof"), repo.calls)
+    }
+
+    /** 090 / 092 — the van is loaded once: every staged drop goes out, a drop further on stays put. */
+    @Test fun loading_the_van_sends_every_staged_drop_out() = runTest {
+        val staged = DropSummary("d1", 1, "EFY-1", "Carlton", 1, DropStatus.STAGED)
+        val arrived = DropSummary("d2", 2, "EFY-2", "Fitzroy", 1, DropStatus.ARRIVED)
+        val repo = FakeDeliveryRepo().apply { offline = true; run = DeliveryRun("r1", "planned", listOf(staged, arrived)) }
+        val v = vm(repo)
+        v.loadRun()
+        v.loadVan()
+        assertEquals(listOf("load"), repo.calls)
+        assertEquals(listOf(DropStatus.OUT_FOR_DELIVERY, DropStatus.ARRIVED), v.state.value.run?.drops?.map { it.status })
+    }
 
     @Test fun signature_proof_uses_the_media_path() = runTest {
         val repo = FakeDeliveryRepo(drop = drop()); val v = vm(repo)

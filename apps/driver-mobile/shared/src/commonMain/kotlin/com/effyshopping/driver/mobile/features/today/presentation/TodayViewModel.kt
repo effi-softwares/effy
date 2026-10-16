@@ -12,9 +12,7 @@ import com.effyshopping.driver.mobile.features.driver.domain.Driver
 import com.effyshopping.driver.mobile.features.driver.domain.DutyStatus
 import com.effyshopping.driver.mobile.features.driver.domain.SetDuty
 import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
-import com.effyshopping.driver.mobile.features.today.domain.DayStats
 import com.effyshopping.driver.mobile.features.today.domain.GetToday
-import com.effyshopping.driver.mobile.features.today.domain.ShiftClock
 import com.effyshopping.driver.mobile.features.today.domain.Today
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -43,12 +41,6 @@ data class TodayUiState(
      * text — so a screen cannot tell a failed load from a note and renders both as a red line.
      */
     val loadFailed: Boolean = false,
-    /** Activity items the driver has not opened yet — the number beside "Activity". */
-    val newActivity: Int = 0,
-    /** What was finished today; null until it has been read (and the figures are then not drawn). */
-    val dayStats: DayStats? = null,
-    /** How long the last shift on this phone ran; null when not known. */
-    val lastShiftMillis: Long? = null,
     /** 088 — a "Return to hub" is being sent. */
     val isReturning: Boolean = false,
 )
@@ -67,24 +59,18 @@ class TodayViewModel(
     private val syncFlush: suspend () -> Unit = {},
     /** 071 — "your work changed, or the channel just (re)connected: read now". Empty in tests. */
     private val liveChanges: Flow<Unit> = emptyFlow(),
-    /** How many activity items are new to this driver. */
-    private val countNewActivity: suspend () -> Int = { 0 },
-    /** What was finished today, from the driver's history. */
-    private val loadDayStats: suspend () -> DayStats? = { null },
-    private val shiftClock: ShiftClock? = null,
     private val now: () -> Long = ::nowEpochMillis,
     /** 088 — check the current run's failed parcels back in at the hub. Null in tests that do not care. */
     private val returnToHub: (suspend (runId: String, changeId: String) -> WriteOutcome)? = null,
 ) : ViewModel() {
     private val ids = ActionIds(newChangeId)
     private val _state = MutableStateFlow(
-        TodayUiState(dutyStatus = initialDuty, lastShiftMillis = shiftClock?.lastShiftMillis()),
+        TodayUiState(dutyStatus = initialDuty),
     )
     val state = _state.asStateFlow()
 
     init {
         if (initialDuty == DutyStatus.ON_DUTY) refresh()
-        refreshSideInfo()
         viewModelScope.launch { liveChanges.collect { refreshQuietly() } }
     }
 
@@ -107,20 +93,6 @@ class TodayViewModel(
                 )
             }
         }
-        readSideInfo()
-    }
-
-    /**
-     * The two things beside the round: how much activity is new, and what was finished today.
-     * Best-effort and silent — neither is worth an error on the home screen.
-     */
-    fun refreshSideInfo() {
-        viewModelScope.launch { readSideInfo() }
-    }
-
-    private suspend fun readSideInfo() {
-        runCatching { countNewActivity() }.onSuccess { n -> _state.update { it.copy(newActivity = n) } }
-        runCatching { loadDayStats() }.onSuccess { stats -> if (stats != null) _state.update { it.copy(dayStats = stats) } }
     }
 
     fun refresh() {
@@ -136,7 +108,6 @@ class TodayViewModel(
                         syncedAtEpochMillis = if (fresh.stale) it.syncedAtEpochMillis else now(),
                     )
                 }
-                readSideInfo()
             } catch (e: AppException) {
                 // ⚠ With nothing to show, a failed read is the error screen. It used to fall through
                 // to the idle body, which told a driver whose run did not load "You're all caught up".
@@ -184,19 +155,16 @@ class TodayViewModel(
         viewModelScope.launch {
             try {
                 val driver: Driver = setDuty(goingOn, newChangeId())
-                if (driver.dutyStatus == DutyStatus.ON_DUTY) shiftClock?.started(now()) else shiftClock?.ended(now())
                 _state.update {
                     it.copy(
                         dutyStatus = driver.dutyStatus,
                         isTogglingDuty = false,
-                        lastShiftMillis = shiftClock?.lastShiftMillis(),
                     )
                 }
                 if (driver.dutyStatus == DutyStatus.ON_DUTY) refresh()
                 else {
                     _state.update { it.copy(today = null, loadFailed = false) }
-                    readSideInfo()
-                }
+                    }
             } catch (e: AppException) {
                 _state.update { it.copy(isTogglingDuty = false, message = e.error.userMessage()) }
             }

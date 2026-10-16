@@ -78,27 +78,15 @@ fun App(
 
                 SessionState.SignedOut -> SignInFlow(container, reducedMotion = platformState.reducedMotion)
 
-                SessionState.Refused -> Centered {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("This account can't be used", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            "Please contact your administrator if you think this is a mistake.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                        TextButton(
-                            onClick = { scope.launch { container.session.signOutLocally() } },
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) { Text("Sign out") }
-                    }
-                }
+                SessionState.Refused -> com.effyshopping.driver.mobile.features.auth.presentation.RefusedScreen(
+                    onSignOut = { scope.launch { container.session.signOutLocally() } },
+                )
 
                 is SessionState.SignedIn -> {
                     // One-time permission priming (FR-004), then the shell.
                     var primed by remember { mutableStateOf(container.hasPrimedPermissions()) }
                     if (!primed) {
-                        PermissionPrimingScreen(onContinue = {
+                        PermissionPrimingScreen(firstName = s.driver.name.trim().substringBefore(' ').ifBlank { null }, onContinue = {
                             container.markPermissionsPrimed()
                             primed = true
                         })
@@ -111,11 +99,3 @@ fun App(
     }
 }
 
-@Composable
-private fun Centered(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) { content() }
-}

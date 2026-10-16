@@ -17,6 +17,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
+import com.effyshopping.driver.mobile.features.delivery.domain.LoadVan
 import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -60,6 +61,10 @@ data class DeliveryUiState(
     val dropSpot: DropSpot? = null,
     /** Delivered with no signal: the proof is saved on the phone and sends when it can (backlog B3). */
     val proofSending: Boolean = false,
+    /** 092 — how the last drop was completed, for the Delivered screen; null until one is. */
+    val deliveredWith: ProofMethod? = null,
+    /** 092 — when it was completed, on this phone's clock. */
+    val deliveredAtEpochMillis: Long? = null,
 )
 
 class DeliveryViewModel(
@@ -74,6 +79,9 @@ class DeliveryViewModel(
     private val liveChanges: Flow<Unit> = emptyFlow(),
     /** 088 — return the run's failed parcels to the hub. Null in tests that do not care. */
     private val returnToHub: ReturnToHub? = null,
+    /** 090 — load the van: every staged drop goes out together. Null in tests that do not care. */
+    private val loadVan: LoadVan? = null,
+    private val now: () -> Long = { com.effyshopping.driver.mobile.core.presentation.nowEpochMillis() },
 ) : ViewModel() {
     private val _state = MutableStateFlow(DeliveryUiState())
     val state = _state.asStateFlow()
@@ -131,7 +139,12 @@ class DeliveryViewModel(
     }
 
     fun loadDrop(dropId: String) {
-        _state.update { it.copy(isLoading = true, drop = null, delivered = false, failed = false, proofSending = false, message = null) }
+        _state.update {
+            it.copy(
+                isLoading = true, drop = null, delivered = false, failed = false, proofSending = false, message = null,
+                deliveredWith = null, deliveredAtEpochMillis = null,
+            )
+        }
         viewModelScope.launch {
             try {
                 _state.update { it.copy(drop = getDrop(dropId), isLoading = false) }
@@ -175,28 +188,75 @@ class DeliveryViewModel(
      * proof — the METHOD is what records that nobody took it in hand. The backend refuses a
      * contactless proof with no media, so a no-photo path here would simply 422 at the doorstep.
      */
-    fun deliverContactless(dropId: String, bytes: ByteArray, note: String?) =
-        complete(dropId) { completeWithMedia(dropId, ProofMethod.CONTACTLESS, bytes, note, it) }
+    fun deliverContactless(dropId: String, bytes: ByteArray, note: String?) = deliver(dropId, ProofMethod.CONTACTLESS, bytes, note)
 
-    fun deliverWithPhoto(dropId: String, bytes: ByteArray, note: String?) =
-        complete(dropId) { completeWithMedia(dropId, ProofMethod.PHOTO, bytes, note, it) }
+    fun deliverWithPhoto(dropId: String, bytes: ByteArray, note: String?) = deliver(dropId, ProofMethod.PHOTO, bytes, note)
 
-    fun deliverWithSignature(dropId: String, bytes: ByteArray, note: String?) =
-        complete(dropId) { completeWithMedia(dropId, ProofMethod.SIGNATURE, bytes, note, it) }
+    fun deliverWithSignature(dropId: String, bytes: ByteArray, note: String?) = deliver(dropId, ProofMethod.SIGNATURE, bytes, note)
 
-    /** One changeId per drop's proof, whichever method — a retry of the same delivery is one write. */
-    private fun complete(dropId: String, send: suspend (changeId: String) -> WriteOutcome) {
+    /**
+     * Complete a drop — the second of its two taps (092, R5). ⚠ ARRIVAL IS RECORDED HERE, SILENTLY,
+     * before the proof: the driver no longer says "On my way" or "I've arrived", but the platform's
+     * timeline still has an arrival, written in the same order (both saved and sent in order with no
+     * signal). A drop already arrived is not moved again.
+     *
+     * One changeId per drop's proof, whichever method — a retry of the same delivery is one write.
+     */
+    fun deliver(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
         if (_state.value.isWorking) return
         _state.update { it.copy(isWorking = true, message = null) }
+        val arrive = "advance:$dropId:arrived"
         val action = "proof:$dropId"
         viewModelScope.launch {
             try {
-                val outcome = send(ids.of(action))
+                val status = _state.value.drop?.takeIf { it.dropId == dropId }?.status
+                if (status == null || status == DropStatus.STAGED || status == DropStatus.OUT_FOR_DELIVERY || status == DropStatus.EN_ROUTE) {
+                    advanceDrop(dropId, "arrived", ids.of(arrive))
+                    ids.settled(arrive)
+                }
+                val outcome = completeWithMedia(dropId, method, bytes, note, ids.of(action), handed)
                 ids.settled(action)
                 // Saved with no signal, the re-read cannot reach the platform; the run's copy is
                 // corrected here so the count of drops left is right.
                 if (outcome == WriteOutcome.QUEUED) markInRun(dropId, DropStatus.DELIVERED) else refreshRunAfterClose()
-                _state.update { it.copy(isWorking = false, delivered = true, proofSending = outcome == WriteOutcome.QUEUED) }
+                _state.update {
+                    it.copy(
+                        isWorking = false, delivered = true, proofSending = outcome == WriteOutcome.QUEUED,
+                        deliveredWith = method, deliveredAtEpochMillis = now(),
+                    )
+                }
+            } catch (e: AppException) {
+                if (e.error.isFinal()) {
+                    ids.settled(arrive)
+                    ids.settled(action)
+                }
+                _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }
+            }
+        }
+    }
+
+    /**
+     * 090 — the van is loaded: every staged drop goes out for delivery in one step (replaces "Start
+     * this drop"). Saved with no signal, the run's copy is moved on here so the driver can start.
+     */
+    fun loadVan(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
+        val send = loadVan ?: return
+        if (_state.value.isWorking) return
+        _state.update { it.copy(isWorking = true, message = null) }
+        val action = "load:$runId"
+        viewModelScope.launch {
+            try {
+                val outcome = send(runId, ids.of(action), handed)
+                ids.settled(action)
+                _state.update { st ->
+                    st.copy(
+                        isWorking = false,
+                        run = st.run?.let { run ->
+                            run.copy(drops = run.drops.map { if (it.status == DropStatus.STAGED) it.copy(status = DropStatus.OUT_FOR_DELIVERY) else it })
+                        },
+                    )
+                }
+                if (outcome == WriteOutcome.SENT) refreshRunAfterClose()
             } catch (e: AppException) {
                 if (e.error.isFinal()) ids.settled(action)
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }
@@ -205,14 +265,14 @@ class DeliveryViewModel(
     }
 
     /** 088 — the parcels from this run's failed drops are back at the hub: return them all at once. */
-    fun returnParcels() {
+    fun returnParcels(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
         val send = returnToHub ?: return
         if (_state.value.isWorking || _state.value.run?.toReturn == null) return
         _state.update { it.copy(isWorking = true, message = null) }
         val action = "return:$runId"
         viewModelScope.launch {
             try {
-                val outcome = send(runId, ids.of(action))
+                val outcome = send(runId, ids.of(action), handed)
                 ids.settled(action)
                 _state.update { it.copy(isWorking = false, run = it.run?.copy(toReturn = null)) }
                 if (outcome == WriteOutcome.SENT) refreshRunAfterClose()

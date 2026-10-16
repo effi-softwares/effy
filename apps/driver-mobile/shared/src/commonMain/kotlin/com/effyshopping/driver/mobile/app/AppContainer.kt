@@ -50,27 +50,17 @@ import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
+import com.effyshopping.driver.mobile.features.delivery.domain.LoadVan
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
 import com.effyshopping.driver.mobile.features.history.data.HttpHistoryRepository
 import com.effyshopping.driver.mobile.features.history.domain.GetHistory
 import com.effyshopping.driver.mobile.features.history.domain.GetHistoryDetail
 import com.effyshopping.driver.mobile.features.history.domain.HistoryRepository
-import com.effyshopping.driver.mobile.features.activity.data.HttpActivityRepository
-import com.effyshopping.driver.mobile.features.activity.domain.ActivityRepository
-import com.effyshopping.driver.mobile.features.activity.domain.GetActivity
-import com.effyshopping.driver.mobile.features.activity.domain.MarkActivityRead
 import com.effyshopping.driver.mobile.core.observability.AnalyticsEvent
-import com.effyshopping.driver.mobile.core.platform.localDateIso
 import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
-import com.effyshopping.driver.mobile.features.activity.data.SettingsActivitySeen
-import com.effyshopping.driver.mobile.features.activity.domain.ActivitySeen
-import com.effyshopping.driver.mobile.features.activity.domain.CountNewActivity
 import com.effyshopping.driver.mobile.features.collection.data.SettingsStopDrafts
 import com.effyshopping.driver.mobile.features.collection.domain.StopDrafts
-import com.effyshopping.driver.mobile.features.today.data.SettingsShiftClock
-import com.effyshopping.driver.mobile.features.today.domain.DayStats
-import com.effyshopping.driver.mobile.features.today.domain.ShiftClock
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
@@ -158,14 +148,11 @@ class AppContainer(
         )
     }
     private val historyRepo: HistoryRepository by lazy { HttpHistoryRepository(driverClient) }
-    private val activityRepo: ActivityRepository by lazy { HttpActivityRepository(driverClient) }
 
     val appearance: AppearancePreferenceStore by lazy { AppearancePreferenceStore(Settings()) }
 
-    // Kept on the phone: the stop in progress, how far the activity feed was read, and shift timing.
+    // Kept on the phone: the stop in progress.
     val stopDrafts: StopDrafts by lazy { SettingsStopDrafts(Settings()) }
-    val activitySeen: ActivitySeen by lazy { SettingsActivitySeen(Settings()) }
-    val shiftClock: ShiftClock by lazy { SettingsShiftClock(Settings()) }
 
     // ── domain (use cases) — the layer ViewModels + SessionManager depend on ─────────────────────────
     val requestSignInCode by lazy { RequestSignInCode(authDriver) }
@@ -187,22 +174,11 @@ class AppContainer(
     val completeWithMedia by lazy { CompleteWithMedia(delivery) }
     val failDrop by lazy { FailDrop(delivery) }
     val returnToHub by lazy { ReturnToHub(delivery) }
+    val loadVan by lazy { LoadVan(delivery) }
 
     // history (US5)
     val getHistory by lazy { GetHistory(historyRepo) }
     val getHistoryDetail by lazy { GetHistoryDetail(historyRepo) }
-
-    // activity feed (US6)
-    val getActivity by lazy { GetActivity(activityRepo) }
-    val markActivityRead by lazy { MarkActivityRead(activityRepo) }
-    val countNewActivity by lazy { CountNewActivity(activityRepo, activitySeen) }
-
-    /** What the driver finished today, counted from their history on the phone's own calendar day. */
-    suspend fun dayStats(): DayStats {
-        val today = localDateIso(nowEpochMillis())
-        val day = getHistory().days.firstOrNull { it.date == today }
-        return DayStats(runsFinished = day?.runs?.size ?: 0, deliveries = day?.drops?.size ?: 0)
-    }
 
     /**
      * A notification the driver tapped, waiting for the shell to act on it; null when there is none.

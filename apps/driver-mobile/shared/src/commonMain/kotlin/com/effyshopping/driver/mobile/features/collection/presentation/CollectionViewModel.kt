@@ -150,13 +150,22 @@ class CollectionViewModel(
      * Commit the stop. ⚠ Every package's outcome goes IN this one request (063 FR-026): a package the
      * driver reported is sent as not collected with what was wrong, and the rest as collected.
      */
-    fun collect(stopId: String, onDone: () -> Unit) {
+    fun collect(stopId: String, onDone: () -> Unit) = collect(stopId, emptyMap(), onDone)
+
+    /**
+     * [methods] — 092: how each package was handed over, by label code, from the scan screen. A collected
+     * package with no scan was ticked (or swiped) by hand.
+     */
+    fun collect(stopId: String, methods: Map<String, com.effyshopping.driver.mobile.core.scan.HandMethod>, onDone: () -> Unit) {
         if (_state.value.isWorking) return
         val now = _state.value
         val outcomes = now.stop?.takeIf { it.stopId == stopId }?.packages.orEmpty().mapNotNull { pkg ->
             val id = pkg.packageId ?: return@mapNotNull null
             val problem = now.reportedPackages[pkg.key]
-            PackageOutcome(packageId = id, collected = problem == null, note = problem?.asNote())
+            PackageOutcome(
+                packageId = id, collected = problem == null, note = problem?.asNote(),
+                method = if (problem != null) null else pkg.packageCode?.let { methods[it] } ?: com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL,
+            )
         }
         _state.update { it.copy(isWorking = true, message = null) }
         val action = "collect:$stopId"
@@ -220,13 +229,19 @@ class CollectionViewModel(
         keepDraft()
     }
 
-    fun checkIn() {
+    /** Undo a report: the package is neither reported nor ticked — the driver looks again. */
+    fun withdrawReport(key: String) {
+        _state.update { it.copy(reportedPackages = it.reportedPackages - key) }
+        keepDraft()
+    }
+
+    fun checkIn(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
         if (_state.value.isWorking || _state.value.checkInSending) return
         _state.update { it.copy(isWorking = true, message = null) }
         val id = ids.of(CHECK_IN)
         viewModelScope.launch {
             try {
-                val split = checkInHub(runId, id)
+                val split = checkInHub(runId, id, handed)
                 if (split == null) {
                     // Saved to send (backlog C2). Its answer is read once the queue has sent it.
                     savedCheckIn = id

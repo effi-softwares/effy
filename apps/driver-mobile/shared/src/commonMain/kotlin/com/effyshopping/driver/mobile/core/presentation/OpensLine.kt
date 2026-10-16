@@ -50,36 +50,3 @@ fun rememberIsOpen(opening: Opening?): Boolean {
     return open
 }
 
-/**
- * "Opens 1:15 pm" — shown wherever a round's actions are unavailable because it has not opened.
- *
- * ⚠ SAID IN WORDS, WITH A MARK IN FRONT. Colour is not used at all: this is not an error and not
- * time pressure, it is simply not yet. A greyed-out button with no explanation is a dead end; this
- * line is the explanation (FR-025).
- *
- * Draws NOTHING once the round is open.
- */
-@Composable
-fun OpensLine(
-    opening: Opening?,
-    modifier: Modifier = Modifier,
-    style: TextStyle = MaterialTheme.typography.bodyMedium,
-) {
-    if (opening == null || rememberIsOpen(opening)) return
-    Row(
-        modifier = modifier.semantics(mergeDescendants = true) {
-            contentDescription = "Not open yet. ${opening.sentence}."
-        },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // The mark is part of the words, so the state survives a monochrome screen in sunlight.
-        Text("◷", style = style, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            "Not open yet · ${opening.sentence}",
-            style = style,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}

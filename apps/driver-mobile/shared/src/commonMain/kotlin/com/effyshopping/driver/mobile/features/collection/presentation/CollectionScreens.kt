@@ -1,977 +1,651 @@
 package com.effyshopping.driver.mobile.features.collection.presentation
 
-import com.effyshopping.driver.mobile.core.presentation.BackButton
-import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
-import com.effyshopping.driver.mobile.core.presentation.OpensLine
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.effyshopping.driver.mobile.core.presentation.DriverActionBar
+import com.effyshopping.driver.mobile.core.presentation.DriverAlert
+import com.effyshopping.driver.mobile.core.presentation.DriverAlertKind
+import com.effyshopping.driver.mobile.core.presentation.DriverButton
+import com.effyshopping.driver.mobile.core.presentation.DriverButtonStyle
+import com.effyshopping.driver.mobile.core.presentation.DriverChoice
+import com.effyshopping.driver.mobile.core.presentation.DriverGroup
+import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.DriverInlineBar
+import com.effyshopping.driver.mobile.core.presentation.DriverNumberCircle
+import com.effyshopping.driver.mobile.core.presentation.DriverProgress
+import com.effyshopping.driver.mobile.core.presentation.DriverRow
+import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
+import com.effyshopping.driver.mobile.core.presentation.DriverSheet
+import com.effyshopping.driver.mobile.core.presentation.DriverSize
+import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
+import com.effyshopping.driver.mobile.core.presentation.DriverState
+import com.effyshopping.driver.mobile.core.presentation.DriverStatus
+import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
+import com.effyshopping.driver.mobile.core.presentation.DriverSwipeToConfirm
+import com.effyshopping.driver.mobile.core.presentation.DriverTextField
+import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
+import com.effyshopping.driver.mobile.core.theme.EffyRoles
+import com.effyshopping.driver.mobile.design.EffyStorefrontShape
+import com.effyshopping.driver.mobile.features.collection.domain.CollectionPackage
+import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
+import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
+import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
-import com.effyshopping.driver.mobile.features.manifest.presentation.ExpandableManifest
-import com.effyshopping.driver.mobile.features.manifest.presentation.StaleNotice
-import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
-import com.effyshopping.mobile.kit.ui.SwipeToConfirm
+import com.effyshopping.driver.mobile.features.manifest.presentation.ManifestList
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.lucide_check
+import com.effyshopping.driver.mobile.resources.lucide_chevron_down
+import com.effyshopping.driver.mobile.resources.lucide_chevron_up
+import com.effyshopping.driver.mobile.resources.lucide_circle_alert
+import com.effyshopping.driver.mobile.resources.lucide_clock
+import com.effyshopping.driver.mobile.resources.lucide_ellipsis
+import com.effyshopping.driver.mobile.resources.lucide_navigation
+import com.effyshopping.driver.mobile.resources.lucide_package
+import com.effyshopping.driver.mobile.resources.lucide_phone
+import com.effyshopping.driver.mobile.resources.lucide_refresh_ccw
+import com.effyshopping.driver.mobile.resources.lucide_snowflake
+import com.effyshopping.driver.mobile.resources.lucide_truck
+import com.effyshopping.driver.mobile.resources.lucide_warehouse
+import com.effyshopping.driver.mobile.resources.lucide_scan_line
+import com.effyshopping.driver.mobile.core.scan.HandMethod
+import com.effyshopping.driver.mobile.core.scan.HandedOver
+import com.effyshopping.driver.mobile.core.scan.ScanContext
+import com.effyshopping.driver.mobile.core.scan.ScanContexts
+import com.effyshopping.driver.mobile.core.scan.ScanItem
+import com.effyshopping.driver.mobile.core.scan.ScanPanel
 
-// ── Collection run (design screen `collection-run`) ─────────────────────────────────────────────
+private fun packages(n: Int) = if (n == 1) "1 package" else "$n packages"
+private val StopStatus.done: Boolean get() = this == StopStatus.COLLECTED || this == StopStatus.SHORT
 
-/**
- * The ordered round of shops (060 US1, design screen `collection-run`).
- *
- * ⚠ **A RECORDED CARD EXCEPTION** (Principle V, plan Complexity Tracking, research R12): each stop
- * block carries **its own action button**, and a list row with a primary action inside it is a card
- * however it is named. Calling it a row would be a naming dodge rather than a layout decision.
- *
- * Each stop shows the shop's address (on the wire since 063).
- *
- * ⚠ The design shows an ETA per stop. Omitted — there is no routing engine and no coordinates
- * (049 R13), and a driver sequences their round by exactly those numbers.
- */
+// ── Collection run ────────────────────────────────────────────────────────────────────────────────
+
+/** A collection run (canvas `CollectionRun`): the shops in order, then the hub, and the next stop pinned. */
 @Composable
 fun CollectionRunScreen(
     state: CollectionUiState,
+    hubName: String?,
     onBack: () -> Unit,
     onOpenStop: (String) -> Unit,
     onCheckIn: () -> Unit,
-    onRefresh: () -> Unit = {},
-    hubName: String? = null,
+    onRefresh: () -> Unit,
 ) {
     val run = state.run
-    val done = run?.stops?.count { it.isDone } ?: 0
-    val total = run?.stops?.size ?: 0
-    // 072 — the round is readable from the moment it is assigned, hours before it can be collected.
     val open = rememberIsOpen(run?.opening)
+    val next = run?.stops?.filter { !it.status.done }?.minByOrNull { it.sequence }
+    Column(Modifier.fillMaxSize()) {
+        DriverInlineBar("Collection run", backLabel = "Today", onBack = onBack)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
+            when {
+                run == null && state.isLoading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DriverSkeleton(Modifier.fillMaxWidth(0.6f)); repeat(5) { DriverSkeleton(Modifier.fillMaxWidth(), height = 64.dp) }
+                }
+                run == null -> DriverState(
+                    Res.drawable.lucide_circle_alert, "This run didn't load", "That's on us. Check your signal and try again.",
+                    actionLabel = "Try again", onAction = onRefresh,
+                )
+                else -> RunBody(run, hubName, open, next?.stopId, onOpenStop, onCheckIn)
+            }
+        }
+        if (run != null && open) {
+            DriverActionBar {
+                if (next != null) {
+                    DriverButton("Open next stop · ${next.shopName}", onClick = { onOpenStop(next.stopId) }, modifier = Modifier.fillMaxWidth())
+                } else if (run.allCollected) {
+                    DriverButton("Check in at the hub", onClick = onCheckIn, icon = Res.drawable.lucide_warehouse, modifier = Modifier.fillMaxWidth())
+                }
+            }
+        }
+    }
+}
 
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        ScreenHeader(
-            title = "Collection run",
-            subtitle = if (run != null) "$done of $total shops collected" else null,
-            onBack = onBack,
+@Composable
+private fun RunBody(run: CollectionRun, hubName: String?, open: Boolean, nextId: String?, onOpenStop: (String) -> Unit, onCheckIn: () -> Unit) {
+    val collected = run.stops.filter { it.status.done }
+    val inVan = collected.sumOf { it.packageCount }
+    val toLoad = run.stops.filter { !it.status.done }.sumOf { it.packageCount }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            listOfNotNull(hubName?.takeIf { it.isNotBlank() }?.let { "Ends at $it" }, run.dueLabel?.let { "finish by $it" }).joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-
-        when {
-            state.isLoading && run == null -> Centered { CircularProgressIndicator() }
-            run == null -> Centered { Text(state.message ?: "Couldn't load the run.") }
-            else -> {
-                ProgressBar(fraction = if (total == 0) 0f else done.toFloat() / total)
-
-                EffyPullToRefresh(onRefresh = { onRefresh() }, modifier = Modifier.weight(1f)) {
-                    Column(
-                        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                            .padding(horizontal = 20.dp),
-                    ) {
-                        Spacer(Modifier.height(4.dp))
-                        if (run.opening != null) {
-                            OpensLine(run.opening, style = MaterialTheme.typography.bodyLarge)
-                            Spacer(Modifier.height(4.dp))
-                            run.dueLabel?.let {
-                                Text(
-                                    "Collect by $it",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Spacer(Modifier.height(10.dp))
-                        }
-                        Text(
-                            "Pull down to refresh",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(16.dp))
-
-                        run.stops.forEach { stop ->
-                            StopBlock(stop = stop, onOpen = { onOpenStop(stop.stopId) })
-                            Spacer(Modifier.height(11.dp))
-                        }
-
-                        HubBlock(hubName)
-                        Spacer(Modifier.height(20.dp))
-                    }
-                }
-
-                state.message?.let { ErrorText(it) }
-
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Button(
-                        onClick = onCheckIn,
-                        enabled = run.allCollected && !state.isWorking && open,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                    ) {
-                        Text(
-                            if (run.allCollected) "Check in at hub" else "Collect every shop first",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
-            }
-        }
+        DriverProgress(if (run.stops.isEmpty()) 0f else collected.size.toFloat() / run.stops.size)
+        Text(
+            "${collected.size} of ${run.stops.size} shops collected · ${packages(inVan)} in the van" + if (toLoad > 0) " · $toLoad still to load" else "",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
-}
-
-private val CollectionStop.isDone: Boolean
-    get() = status == StopStatus.COLLECTED || status == StopStatus.SHORT
-
-@Composable
-private fun StopBlock(stop: CollectionStop, onOpen: () -> Unit) {
-    val done = stop.isDone
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            1.5.dp,
-            if (done) MaterialTheme.colorScheme.outlineVariant else MaterialTheme.colorScheme.onSurface,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                SequenceMark(stop.sequence, done)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        stop.shopName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        listOfNotNull(stop.address?.takeIf { it.isNotBlank() }, stop.shopCode).joinToString(" · "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(9.dp))
-                    Text(
-                        "${stop.packageCount} package${if (stop.packageCount == 1) "" else "s"}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            if (done) {
-                OutlinedButton(
-                    onClick = onOpen,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) { Text("Collected ✓") }
-            } else {
-                Button(
-                    onClick = onOpen,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                ) { Text("Open stop", fontWeight = FontWeight.SemiBold) }
-            }
-        }
+    val opening = run.opening
+    if (!open && opening != null) {
+        DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_clock, title = opening.sentence, description = "Look through the run now. Collecting unlocks when it opens.")
     }
-}
-
-/**
- * A stop's place in the round.
- *
- * ⚠ Shows a tick when done rather than the number, so a driver scanning the list sees progress
- * without reading — and selection/completion is not carried by colour alone.
- */
-@Composable
-private fun SequenceMark(sequence: Int, done: Boolean) {
-    Surface(
-        shape = RoundedCornerShape(9.dp),
-        color = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.size(28.dp),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                if (done) "\u2713" else sequence.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (done) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+    Column {
+        DriverSectionLabel("Stops, in order")
+        DriverGroup {
+            run.stops.sortedBy { it.sequence }.forEach { s -> StopRow(s, isNext = s.stopId == nextId, onClick = { onOpenStop(s.stopId) }) }
+            DriverRow(
+                title = hubName?.takeIf { it.isNotBlank() } ?: "The hub",
+                meta = "Check in every package · ends the run",
+                last = true,
+                onClick = if (run.allCollected && open) onCheckIn else null,
+                leading = {
+                    Box(Modifier.size(32.dp).clip(CircleShape).background(EffyRoles.primaryMuted), contentAlignment = Alignment.Center) {
+                        DriverIcon(Res.drawable.lucide_warehouse, size = 16.dp, tint = MaterialTheme.colorScheme.primary)
+                    }
                 },
+                trailing = { DriverStatusPill(DriverStatus.Last) },
             )
         }
     }
-}
-
-/** The run's destination. Dashed, because it is where the stops end rather than one of them. */
-@Composable
-private fun HubBlock(hubName: String?) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Box(
-                Modifier.size(28.dp).clip(RoundedCornerShape(9.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "H",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    hubName ?: "Effy hub",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Check in every package · ends the run",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
+    run.stops.filter { it.status == StopStatus.SHORT }.forEach { s ->
+        DriverAlert(
+            DriverAlertKind.Muted, Res.drawable.lucide_package,
+            title = "Short at ${s.shopName}",
+            description = "A package was left behind. Dispatch has been told — nothing else to do.",
+        )
     }
 }
 
-// ── Shop stop (design screen `shop-stop`) ───────────────────────────────────────────────────────
+@Composable
+private fun StopRow(s: CollectionStop, isNext: Boolean, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val (fill, ink) = when {
+        s.status.done -> EffyRoles.brandMuted to EffyRoles.brand
+        isNext -> scheme.primary to scheme.onPrimary
+        else -> scheme.surfaceVariant to scheme.onSurface
+    }
+    DriverRow(
+        title = s.shopName,
+        meta = listOfNotNull(s.address, packages(s.packageCount)).joinToString(" · "),
+        onClick = onClick,
+        leading = { DriverNumberCircle(s.sequence, fill, ink) },
+        trailing = {
+            DriverStatusPill(
+                when {
+                    s.status == StopStatus.COLLECTED -> DriverStatus.Collected
+                    s.status == StopStatus.SHORT -> DriverStatus.Short
+                    isNext -> DriverStatus.Next
+                    else -> DriverStatus.ToCollect
+                },
+            )
+        },
+    )
+}
+
+// ── Shop stop ─────────────────────────────────────────────────────────────────────────────────────
+
+/** The three things that can be wrong with a package at a shop (canvas `ShopStop-Report`). */
+private enum class Problem(val label: String, val hint: String) {
+    Missing("Missing", "The shop can't find it"),
+    Damaged("Damaged", "Torn, leaking or crushed — don't take it"),
+    NotReady("Not ready", "Still being packed"),
+}
 
 /**
- * The package manifest at one shop (060 US1, design screen `shop-stop`).
- *
- * ⚠ Two things changed from 049, and both are behavioural, not cosmetic:
- *  1. **Packages are ticked individually** (FR-019) with a running count. The manifest was
- *     read-only, so a driver loading eight parcels had no way to keep their place.
- *  2. **Completion is a SWIPE** (FR-018), not a tap. It commits a physical fact about goods.
+ * One shop (canvas `ShopStop`): tick each package as it goes in the van, report any that are not, and
+ * swipe to collect. ⚠ Nothing is sent until the swipe — ticks and reports are kept on the phone.
  */
 @Composable
 fun ShopStopScreen(
     state: CollectionUiState,
+    position: Int?,
+    stopCount: Int,
     onBack: () -> Unit,
     onCollect: () -> Unit,
+    onScanCollect: (Map<String, HandMethod>) -> Unit,
     onTogglePackage: (String) -> Unit,
-    onOpenProblem: () -> Unit,
-    onRetry: (() -> Unit)? = null,
-    /** Hand the shop's address to the device's maps app. */
-    onNavigate: (String) -> Unit = {},
+    onReport: (key: String, kind: String, note: String?) -> Unit,
+    onWithdrawReport: (String) -> Unit,
+    onRetry: () -> Unit,
+    onNavigate: (String) -> Unit,
+    onCallDispatch: (() -> Unit)?,
 ) {
     val stop = state.stop
-    val confirmed = state.confirmedPackageIds
-    val reported = state.reportedPackages
-    val total = stop?.packages?.size ?: 0
-    // Packages the driver has neither ticked nor reported. Committing sends them as collected, so the
-    // swipe asks first — a tick the driver skipped must not become a package the platform thinks is
-    // in the van.
-    val unaccounted = stop?.packages?.count { it.key !in confirmed && it.key !in reported } ?: 0
-    var askUnticked by remember(stop?.stopId) { mutableStateOf(false) }
-    // SwipeToConfirm latches once committed; a new key gives the driver a fresh one after they back
-    // out of the question, or after a collect that failed.
-    var swipeAttempt by remember(stop?.stopId) { mutableStateOf(0) }
-    val done = stop?.status == StopStatus.COLLECTED || stop?.status == StopStatus.SHORT
-    // 072 — nothing here can be collected, ticked or reported before the round opens. Re-judged
-    // while the screen is up, so a driver waiting at the shop sees it come alive by itself.
-    // ⚠ A courtesy: the platform refuses an early collect whatever this says.
-    val open = rememberIsOpen(stop?.opening)
-
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        ScreenHeader(
-            title = stop?.shopName ?: "Shop stop",
-            subtitle = if (stop != null) "${confirmed.size} of $total confirmed" else null,
-            onBack = onBack,
-        )
-
-        when {
-            state.isLoading && stop == null -> Centered { CircularProgressIndicator() }
-            // ⚠ A failed load is an ERROR WITH A WAY BACK, never an empty list (065 FR-025) — a
-            // driver must not read "no packages" off a screen that simply could not reach the server.
-            stop == null -> Centered {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(state.message ?: "Couldn't load the stop.")
-                    if (onRetry != null) {
-                        Spacer(Modifier.height(12.dp))
-                        TextButton(onClick = onRetry, modifier = Modifier.heightIn(min = 48.dp)) { Text("Try again") }
-                    }
+    val title = if (position != null && stopCount > 0) "Stop $position of $stopCount" else "Shop stop"
+    if (stop == null) {
+        Column(Modifier.fillMaxSize()) {
+            DriverInlineBar(title, backLabel = "Run", onBack = onBack)
+            Column(Modifier.padding(DriverSize.gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (state.isLoading) {
+                    DriverSkeleton(Modifier.fillMaxWidth(0.7f), height = 32.dp); repeat(3) { DriverSkeleton(Modifier.fillMaxWidth(), height = 72.dp) }
+                } else {
+                    DriverState(Res.drawable.lucide_circle_alert, "This stop didn't load", state.message ?: "That's on us. Check your signal and try again.", actionLabel = "Try again", onAction = onRetry)
                 }
             }
-            else -> {
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp),
-                ) {
-                    if (stop.stale) StaleNotice()
-                    stop.address?.takeIf { it.isNotBlank() }?.let { address ->
-                        Text(
-                            address,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        OutlinedButton(
-                            onClick = { onNavigate(address) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                        ) { Text("Navigate \u2197") }
-                        Spacer(Modifier.height(16.dp))
-                    }
-                    if (!open) {
-                        OpensLine(stop.opening, style = MaterialTheme.typography.bodyLarge)
-                        Spacer(Modifier.height(10.dp))
-                    }
-                    Text(
-                        if (open) "Tick each package as you load it." else "This is what you will collect here.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(18.dp))
-                    SectionLabel("PACKAGES TO COLLECT")
-                    Spacer(Modifier.height(10.dp))
+        }
+        return
+    }
+    var scanning by rememberSaveable(stop.stopId) { mutableStateOf(false) }
+    val run = state.run
+    if (scanning) {
+        val live = stop.packages.filter { it.key !in state.reportedPackages && it.packageCode != null }
+        val base = if (run != null) ScanContexts.shopStop(run, stop) else ScanContext(emptySet())
+        ScanPanel(
+            title = stop.shopName,
+            backLabel = "Stop",
+            context = ScanContext(expected = live.mapNotNull { it.packageCode }.toSet(), elsewhere = base.elsewhere),
+            items = live.map { ScanItem(it.packageCode!!, it.ref, meta = "to ${it.destinationSuburb}", hint = coverage(it)) },
+            completeLabel = "Collecting the stop",
+            working = state.isWorking,
+            message = state.message,
+            onBack = { scanning = false },
+            onComplete = { handed -> onScanCollect(handed.associate { it.code to it.method }) },
+        )
+        return
+    }
+    var reporting by rememberSaveable(stop.stopId) { mutableStateOf<String?>(null) }
+    var checking by rememberSaveable(stop.stopId) { mutableStateOf(false) }
+    var swipeKey by rememberSaveable(stop.stopId) { mutableIntStateOf(0) }
+    val open = rememberIsOpen(stop.opening)
+    val ticked = stop.packages.count { it.key in state.confirmedPackageIds }
+    val reported = stop.packages.count { it.key in state.reportedPackages }
+    val unticked = stop.packages.filter { it.key !in state.confirmedPackageIds && it.key !in state.reportedPackages }
+    val alreadyCollected = stop.status.done
 
-                    stop.packages.forEach { pkg ->
-                        // ⚠ 065 — the count comes from the SERVER's summary of what is in the bag.
-                        // It used to be summed here from `pkg.items`, which held every line at the
-                        // stop, so each of three packages claimed the stop's total.
-                        val units = pkg.summary.total
-                        PackageRow(
-                            ref = pkg.ref,
-                            line = "${pkg.destinationSuburb} · $units item${if (units == 1) "" else "s"}",
-                            spokenContents = pkg.summary.spoken,
-                            toCourier = pkg.goesToCourier,
-                            windowLabel = pkg.windowLabel,
-                            checked = pkg.key in confirmed,
-                            problem = reported[pkg.key]?.kind,
-                            enabled = !done && open,
-                            onToggle = { onTogglePackage(pkg.key) },
-                        )
-                        // Sits OUTSIDE the tick row on purpose: opening the list must not confirm
-                        // a package the driver has not loaded.
-                        ExpandableManifest(
-                            key = pkg.ref,
-                            items = pkg.items,
-                            summary = pkg.summary,
-                            modifier = Modifier.padding(start = 38.dp, bottom = 6.dp),
-                        )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-                    TextButton(
-                        onClick = onOpenProblem,
-                        // 072 — "the shop could not supply it" is found out AT the shop.
-                        enabled = open,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    ) { Text("Report a missing or short package") }
-                    Spacer(Modifier.height(20.dp))
+    Column(Modifier.fillMaxSize()) {
+        DriverInlineBar(title, backLabel = "Run", onBack = onBack)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
+            if (stop.stale) Text("Last loaded copy — changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stop.shopName, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+                stop.address?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                stop.address?.let { address ->
+                    DriverButton("Navigate", onClick = { onNavigate(address) }, style = DriverButtonStyle.Outline, icon = Res.drawable.lucide_navigation, tall = false, modifier = Modifier.weight(1f))
                 }
-
-                state.message?.let { ErrorText(it) }
-
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    if (done) {
-                        OutlinedButton(
-                            onClick = {},
-                            enabled = false,
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth().height(56.dp),
-                        ) { Text("Collected ✓") }
-                    } else {
-                        // ⚠ The ticks are a memory aid, not a gate: a stop that came up short is what
-                        // the problem report is for (FR-021). A package neither ticked nor reported
-                        // is asked about once, because committing sends it as collected.
-                        key(swipeAttempt, state.message) {
-                            SwipeToConfirm(
-                                label = if (open) "Swipe to confirm collected" else (stop.opening?.sentence ?: "Not open yet"),
-                                onConfirm = { if (unaccounted > 0) askUnticked = true else onCollect() },
-                                enabled = !state.isWorking && open,
-                            )
-                        }
+                if (onCallDispatch != null) {
+                    DriverButton("Dispatch", onClick = onCallDispatch, style = DriverButtonStyle.Outline, icon = Res.drawable.lucide_phone, tall = false, modifier = Modifier.weight(1f))
+                }
+            }
+            val opening = stop.opening
+            if (!open && opening != null) {
+                DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_clock, title = opening.sentence, description = "Look through the stop now. Collecting unlocks when it opens.")
+            }
+            if (open && !alreadyCollected && stop.packages.any { it.packageCode != null }) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    DriverButton("Scan packages", onClick = { scanning = true }, icon = Res.drawable.lucide_scan_line, modifier = Modifier.fillMaxWidth())
+                    Text("Scanning the last one collects the stop. Or tick by hand below and swipe.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (alreadyCollected) {
+                DriverAlert(DriverAlertKind.Muted, Res.drawable.lucide_check, title = if (stop.status == StopStatus.SHORT) "Collected, short" else "Collected", description = "This stop is done.")
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(packages(stop.packages.size), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    if (!alreadyCollected) Text("Tick each as it goes in the van", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DriverGroup {
+                    stop.packages.forEachIndexed { i, p ->
+                        PackageRow(
+                            p,
+                            ticked = p.key in state.confirmedPackageIds,
+                            problem = state.reportedPackages[p.key]?.kind,
+                            enabled = open && !alreadyCollected,
+                            last = i == stop.packages.lastIndex,
+                            onToggle = { onTogglePackage(p.key) },
+                            onReport = { reporting = p.key },
+                            onUndo = { onWithdrawReport(p.key) },
+                        )
                     }
+                }
+                if (!alreadyCollected) {
+                    Text(
+                        "Tap a package's ••• to report it missing, damaged or not ready. Nothing is sent until you swipe.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        if (!alreadyCollected) {
+            DriverActionBar {
+                key(swipeKey) {
+                    DriverSwipeToConfirm(
+                        "Swipe to confirm collected",
+                        enabled = open && !state.isWorking,
+                        note = buildList {
+                            add("$ticked ticked")
+                            if (reported > 0) add("$reported reported")
+                            if (unticked.isNotEmpty()) add("${unticked.size} not ticked yet")
+                        }.joinToString(" · "),
+                        onConfirm = { if (unticked.isEmpty()) onCollect() else checking = true },
+                    )
                 }
             }
         }
     }
 
-    if (askUnticked) {
-        UntickedDialog(
-            count = unaccounted,
-            onLoaded = { askUnticked = false; onCollect() },
-            onGoBack = { askUnticked = false; swipeAttempt++ },
-        )
+    reporting?.let { key ->
+        stop.packages.firstOrNull { it.key == key }?.let { p ->
+            ReportSheet(p, onDismiss = { reporting = null }, onLeave = { kind, note -> onReport(key, kind, note); reporting = null })
+        }
+    }
+    if (checking) {
+        val first = unticked.firstOrNull()
+        if (first == null) {
+            androidx.compose.runtime.LaunchedEffect(Unit) { checking = false }
+        } else {
+            DriverSheet(
+                title = if (unticked.size == 1) "1 package isn't ticked" else "${unticked.size} packages aren't ticked",
+                description = "${first.ref} · ${coverage(first)} · to ${first.destinationSuburb}. Is it in the van?",
+                onDismiss = { checking = false; swipeKey++ },
+            ) {
+                DriverButton(if (unticked.size == 1) "Yes, it's in the van — collect" else "Yes, they're all in the van — collect", onClick = { checking = false; onCollect() }, modifier = Modifier.fillMaxWidth())
+                DriverButton("No — report a problem", onClick = { checking = false; swipeKey++; reporting = first.key }, style = DriverButtonStyle.Outline, modifier = Modifier.fillMaxWidth())
+                DriverButton("Go back and check", onClick = { checking = false; swipeKey++ }, style = DriverButtonStyle.Ghost, tall = false, modifier = Modifier.fillMaxWidth())
+            }
+        }
     }
 }
 
-/** Asked when the driver commits a stop with packages neither ticked nor reported. */
-@Composable
-private fun UntickedDialog(count: Int, onLoaded: () -> Unit, onGoBack: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onGoBack,
-        title = { Text(if (count == 1) "1 package isn't ticked" else "$count packages aren't ticked") },
-        text = {
-            Text(
-                "Confirming records ${if (count == 1) "it" else "them"} as loaded in your van. " +
-                    "If ${if (count == 1) "it isn't" else "any aren't"} here, go back and report it.",
-            )
-        },
-        confirmButton = { TextButton(onClick = onLoaded) { Text("All loaded") } },
-        dismissButton = { TextButton(onClick = onGoBack) { Text("Go back") } },
-    )
-}
+/** Who takes the package from the hub, in the driver's two words (082): "Effy · window" or "Courier". */
+private fun coverage(p: CollectionPackage): String =
+    if (p.goesToCourier) "Courier" else listOfNotNull("Effy", p.windowLabel).joinToString(" · ")
 
 @Composable
 private fun PackageRow(
-    ref: String,
-    line: String,
-    spokenContents: String,
-    toCourier: Boolean,
-    windowLabel: String?,
-    checked: Boolean,
-    /** What the driver reported about this package; null when nothing. It is then not collected. */
+    p: CollectionPackage,
+    ticked: Boolean,
     problem: String?,
     enabled: Boolean,
+    last: Boolean,
     onToggle: () -> Unit,
+    onReport: () -> Unit,
+    onUndo: () -> Unit,
 ) {
-    // 082 — who takes it from the hub, and (Effy's) the day and window it is for. Never the customer's
-    // word for the delivery.
-    val goes = if (toCourier) "courier" else listOfNotNull("Effy delivery", windowLabel).joinToString(", ")
-    val spoken = "$ref, $line, $spokenContents, $goes, " +
-        when {
-            problem != null -> "reported, $problem, not collected"
-            checked -> "confirmed"
-            else -> "not confirmed"
-        }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onToggle)
-            .heightIn(min = 48.dp)
-            .padding(vertical = 14.dp)
-            .clearAndSetSemantics { contentDescription = spoken },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TickBox(checked)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(ref, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                line,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (problem != null) {
-                Text(
-                    "Reported: $problem · staying at the shop",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.error,
-                )
+    val scheme = MaterialTheme.colorScheme
+    var open by rememberSaveable(p.key) { mutableStateOf(false) }
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled && problem == null, role = Role.Checkbox, onClick = onToggle)
+                .semantics { stateDescription = if (problem != null) "Reported" else if (ticked) "Ticked" else "Not ticked" }
+                .heightIn(min = DriverSize.rowTall)
+                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(26.dp)
+                    .clip(EffyStorefrontShape.small)
+                    .background(if (ticked) EffyRoles.brand else if (problem != null) scheme.surfaceVariant else scheme.background)
+                    .border(2.dp, if (ticked) EffyRoles.brand else scheme.outline, EffyStorefrontShape.small),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (ticked) DriverIcon(Res.drawable.lucide_check, size = 16.dp, tint = EffyRoles.brandForeground)
             }
-            // 082 — the day and window an Effy parcel is for, so it can be shelved for it at the hub.
-            if (!toCourier && windowLabel != null) {
-                Text(
-                    windowLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        p.ref,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                        textDecoration = if (problem != null) TextDecoration.LineThrough else null,
+                        color = if (problem != null) scheme.onSurfaceVariant else scheme.onSurface,
+                    )
+                    if (p.summary.hasCold) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+                            DriverIcon(Res.drawable.lucide_snowflake, size = 12.dp)
+                            Text("Cold", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DriverIcon(if (p.goesToCourier) Res.drawable.lucide_package else Res.drawable.lucide_truck, size = 12.dp, tint = scheme.onSurfaceVariant)
+                    Text(coverage(p), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                }
+                Row(
+                    Modifier.clickable(enabled = p.items.isNotEmpty(), role = Role.Button) { open = !open },
+                    horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "To ${p.destinationSuburb} · ${if (p.items.size == 1) "1 item" else "${p.items.size} items"}",
+                        style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant,
+                    )
+                    if (p.items.isNotEmpty()) DriverIcon(if (open) Res.drawable.lucide_chevron_up else Res.drawable.lucide_chevron_down, size = 12.dp, tint = scheme.onSurfaceVariant)
+                }
+                if (problem != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("$problem — leaving at shop", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                        if (enabled) {
+                            Text(
+                                "Undo",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = scheme.primary,
+                                modifier = Modifier.clickable(role = Role.Button, onClick = onUndo).padding(horizontal = 6.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            if (enabled && p.packageId != null) {
+                Box(
+                    Modifier.size(DriverSize.target).clip(CircleShape).clickable(role = Role.Button, onClick = onReport)
+                        .semantics { contentDescription = "Report a problem with ${p.ref}" },
+                    contentAlignment = Alignment.Center,
+                ) { DriverIcon(Res.drawable.lucide_ellipsis, tint = scheme.onSurfaceVariant) }
             }
         }
-        Spacer(Modifier.width(10.dp))
-        DeliveredByBadge(toCourier)
+        if (open) ManifestList(p.items, Modifier.padding(start = 54.dp, end = 16.dp, bottom = 8.dp))
+        if (!last) HorizontalDivider(color = scheme.outlineVariant)
     }
 }
 
 @Composable
-private fun TickBox(checked: Boolean) {
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-        border = if (checked) null else BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.size(24.dp),
+private fun ReportSheet(p: CollectionPackage, onDismiss: () -> Unit, onLeave: (kind: String, note: String?) -> Unit) {
+    var problem by rememberSaveable(p.key) { mutableStateOf(Problem.Missing) }
+    var note by rememberSaveable(p.key) { mutableStateOf("") }
+    DriverSheet(
+        title = "Report a problem",
+        description = "${p.ref} · to ${p.destinationSuburb} · ${if (p.items.size == 1) "1 item" else "${p.items.size} items"}",
+        onDismiss = onDismiss,
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (checked) {
-                Text(
-                    "✓",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
-        }
+        Text("What's wrong?", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+        Problem.entries.forEach { r -> DriverChoice(r.label, problem == r, { problem = r }, body = r.hint) }
+        DriverTextField(note, { note = it }, label = "Note for dispatch (optional)", placeholder = "What did the shop say?", lines = 2)
+        DriverButton("Leave it at the shop", onClick = { onLeave(problem.label, note.trim().ifBlank { null }) }, style = DriverButtonStyle.Problem, modifier = Modifier.fillMaxWidth())
+        Text("Sent with the stop when you swipe to confirm.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-@Composable
-private fun DeliveredByBadge(toCourier: Boolean) {
-    // 082 — the driver's two words: who takes the parcel from the hub.
-    val sameDay = !toCourier
-    Surface(
-        shape = RoundedCornerShape(5.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            1.dp,
-            if (sameDay) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
-        ),
-    ) {
-        Text(
-            if (sameDay) "EFFY" else "COURIER",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = if (sameDay) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 5.dp),
-        )
-    }
-}
+// ── Hub check-in ──────────────────────────────────────────────────────────────────────────────────
 
-// ── Hub check-in (design screens `hub-checkin`, `hub-checkin-empty`) ────────────────────────────
-
-/**
- * The run's pivot (060 US1, design screens `hub-checkin` / `hub-checkin-empty`).
- *
- * Every package the driver collected is checked in here, and the **same-day / standard split** —
- * already decided at checkout, so there is nothing for the driver to sort — decides what happens
- * next. Same-day stays with them; parcels a courier takes (080: "Courier", never "Standard") are staged at the dock and leave their run.
- *
- * ⚠ **A RECORDED CARD EXCEPTION** (Principle V, research R12): the two split blocks show two
- * mutually-exclusive outcomes of one quantity, each with its own state. A two-row table loses the
- * proportional relationship the screen exists to communicate.
- *
- * ⚠ **THE DESIGN'S COPY ASSERTS SOMETHING THAT HAS NOT HAPPENED.** Its standard block reads
- * "Handed to carrier" at the moment of check-in. It has not been handed to anyone — the driver has
- * just put it on a dock, and 053 established the platform has no `handed_over` state precisely
- * because a carrier handoff is a separate later event. Reworded to **"Staged for carrier"**, which
- * is true when it is shown.
- */
+/** Hub check-in (canvas `HubCheckin`, `-Done`, `-Offline`): what is in the van, then where each lot goes. */
 @Composable
 fun HubCheckinScreen(
     state: CollectionUiState,
+    hubName: String?,
     onBack: () -> Unit,
-    onCheckIn: () -> Unit,
+    onCheckIn: (List<HandedOver>) -> Unit,
     onDone: () -> Unit,
 ) {
-    // ⚠ CHECK-IN IS THE DRIVER'S ACT, NOT THE SCREEN'S. Opening this screen used to check the round
-    // in by itself, and the swipe at the bottom only left the screen — so a driver who opened it to
-    // look had already committed, and a check-in that failed had nothing to try again with.
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        ScreenHeader(
+    val split = state.hubSplit
+    var scanning by rememberSaveable { mutableStateOf(false) }
+    val run = state.run
+    if (scanning && run != null && split == null && !state.checkInSending) {
+        val sort = run.hubSort.associateBy { it.packageCode }
+        ScanPanel(
             title = "Hub check-in",
-            // \u26a0 The design's "Effy Hub \u00b7 Port Melbourne \u00b7 dock 4" \u2014 the dock has no field
-            // behind it, so only the hub name is shown, and only when the driver has one assigned.
-            subtitle = null,
-            onBack = onBack,
+            backLabel = "Hub",
+            context = ScanContexts.hub(run),
+            items = run.stops.filter { it.status.done }.flatMap { s -> s.packageCodes.map { c -> ScanItem(c, "From ${s.shopName}", hint = sort[c]?.label) } },
+            completeLabel = "Checking everything in",
+            working = state.isWorking,
+            message = state.message,
+            onBack = { scanning = false },
+            onComplete = { handed -> scanning = false; onCheckIn(handed) },
         )
-
-        val split = state.hubSplit
-        when {
-            state.isWorking && split == null -> Centered { CircularProgressIndicator() }
-            // Backlog C2 — checked in with no signal. Never a blank or an error at the hub: the
-            // check-in is saved, and where the parcels go shows here once it has been sent.
-            state.checkInSending && split == null -> {
-                Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
-                    Text(
-                        "Checked in — sending",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        "You're offline. Your check-in is saved on this phone and sends when you reconnect. " +
-                            "Where each parcel goes will show here then.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = onDone,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                    ) { Text("Done") }
-                }
-            }
-            split == null -> {
-                val shops = state.run?.stops?.size
-                val packages = state.run?.stops?.sumOf { it.packageCount }
-                Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
-                    Text(
-                        "Check in at the hub",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        listOfNotNull(
-                            if (shops != null && packages != null) {
-                                "This round has $packages package${if (packages == 1) "" else "s"} from " +
-                                    "$shops shop${if (shops == 1) "" else "s"}."
-                            } else {
-                                null
-                            },
-                            "Check in once you are at the hub with the load. It ends your collection run.",
-                        ).joinToString(" "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                state.message?.let { ErrorText(it) }
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    // Keyed on the message so a failed check-in hands back a fresh swipe to retry with.
-                    key(state.message) {
-                        SwipeToConfirm(
-                            label = "Swipe to check in at the hub",
-                            onConfirm = onCheckIn,
-                            enabled = !state.isWorking,
-                        )
-                    }
-                }
-            }
-            else -> {
-                val shops = state.run?.stops?.size
-                // 082 — "nothing to deliver today": no Effy parcel on this run goes out today. Parcels for
-                // a later day are shelved at the hub and are nobody's delivery round yet.
-                val nothingSameDay = split.dueToday == 0
-
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp),
-                ) {
-                    shops?.let {
-                        Text(
-                            "Checked in from $it shop${if (it == 1) "" else "s"}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(18.dp))
-                    }
-
-                    ScannedTotal(split.scannedTotal)
-                    Spacer(Modifier.height(22.dp))
-
-                    SplitBar(effy = split.effyCount, courier = split.toCourier)
-                    Spacer(Modifier.height(26.dp))
-
-                    if (nothingSameDay && split.effyCount == 0) {
-                        NothingSameDayBody(split.toCourier)
-                    } else {
-                        // 082 — TWO GROUPS, and the driver sorts nothing: Effy delivery, by the day and
-                        // window each parcel is for, and Courier. A group with nothing in it is not shown.
-                        SectionLabel("EFFY DELIVERY")
-                        Spacer(Modifier.height(12.dp))
-                        split.effy.forEach { g ->
-                            SplitBlock(
-                                count = g.count,
-                                title = g.label,
-                                body = if (g.dueToday) "Load these for your delivery run." else "Shelve these at the hub for that day.",
-                                chip = if (g.dueToday) "Loaded" else "Shelved",
-                                emphasised = g.dueToday,
-                            )
-                            Spacer(Modifier.height(11.dp))
-                        }
-                        if (split.toCourier > 0) {
-                        SectionLabel("COURIER")
-                        Spacer(Modifier.height(12.dp))
-                        SplitBlock(
-                            count = split.toCourier,
-                            // 080 — the driver's word is who takes it, "Courier"; "Standard" is the customer's.
-                            title = "Courier \u2014 handed to a courier at the hub",
-                            body = "Labelled and staged at the dock. Out of your run from here.",
-                            // \u26a0 NOT "Handed to carrier" \u2014 see the note on this screen.
-                            chip = "Staged for courier",
-                            emphasised = false,
-                        )
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            "This was set when each order was placed \u2014 there is nothing to sort.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Spacer(Modifier.height(24.dp))
-                }
-
-                state.message?.let { ErrorText(it) }
-
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    // A plain button: the check-in above was the commitment, and it has happened. This
-                    // only leaves the screen, so a deliberate gesture here would claim more than it does.
-                    Button(
-                        onClick = onDone,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                    ) {
-                        Text(
-                            "Done",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    if (!nothingSameDay) {
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            "Checked in \u00b7 your delivery run has ${split.dueToday} " +
-                                "package${if (split.dueToday == 1) "" else "s"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
-            }
-        }
+        return
     }
-}
-
-/** The headline figure. A count, never a currency (FR-011). */
-@Composable
-private fun ScannedTotal(total: Int) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            total.toString(),
-            style = MaterialTheme.typography.displayMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.width(14.dp))
-        Text(
-            "packages\nchecked in",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-/**
- * The proportional split.
- *
- * \u26a0 Carries a text label beneath it, not colour alone: the two segments are the same hue family,
- * and a driver with a colour-vision difference reading a bar in a dim loading dock needs the numbers.
- */
-@Composable
-private fun SplitBar(effy: Int, courier: Int) {
-    val total = (effy + courier).coerceAtLeast(1)
-    Column {
-        Row(
-            Modifier.fillMaxWidth().height(10.dp).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+    Column(Modifier.fillMaxSize()) {
+        DriverInlineBar("Hub check-in", backLabel = "Run", onBack = onBack)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            if (effy > 0) {
-                Box(
-                    Modifier.weight(effy.toFloat() / total).fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary),
-                )
-            }
-            if (courier > 0) {
-                Box(
-                    Modifier.weight(courier.toFloat() / total).fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                )
+            state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
+            when {
+                split != null -> CheckedIn(split)
+                state.checkInSending -> Sending()
+                else -> {
+                    Confirm(state.run, hubName)
+                    if (run != null && run.stops.any { it.packageCodes.isNotEmpty() }) {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            DriverButton("Scan packages off the van", onClick = { scanning = true }, icon = Res.drawable.lucide_scan_line, modifier = Modifier.fillMaxWidth())
+                            Text("Each scan tells you where it goes — load now, shelve, or the courier bay. The last scan checks everything in.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(
-                "$effy Effy delivery",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                "$courier courier",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SplitBlock(
-    count: Int,
-    title: String,
-    body: String,
-    chip: String,
-    emphasised: Boolean,
-) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(
-            1.5.dp,
-            if (emphasised) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Text(
-                count.toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    body,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(10.dp))
-                StateChip(chip)
+        DriverActionBar {
+            if (split != null || state.checkInSending) {
+                DriverButton("Back to Today", onClick = onDone, modifier = Modifier.fillMaxWidth())
+            } else {
+                DriverSwipeToConfirm("Swipe to check in without scanning", onConfirm = { onCheckIn(emptyList()) }, enabled = !state.isWorking, note = "Use only if the labels won't scan")
             }
         }
     }
 }
 
 @Composable
-private fun StateChip(label: String) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
+private fun Confirm(run: CollectionRun?, hubName: String?) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(hubName?.takeIf { it.isNotBlank() } ?: "The hub", fontSize = 28.sp, fontWeight = FontWeight.Bold)
         Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            listOfNotNull("Last stop on this run", run?.dueLabel?.let { "finish by $it" }).joinToString(" · "),
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-}
-
-/**
- * Design screen `hub-checkin-empty`.
- *
- * \u26a0 Its own body and its own closing action. Before 060 this case existed only as a different
- * BUTTON LABEL ("Done \u2014 nothing same-day") under the identical three rows, so a driver whose run
- * had ended was shown the same screen as one about to start a delivery round.
- */
-@Composable
-private fun NothingSameDayBody(courierCount: Int) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            "Nothing to deliver today",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            "All $courierCount package${if (courierCount == 1) "" else "s"} on this run " +
-                "${if (courierCount == 1) "goes" else "go"} to a courier from the hub. Your run ends here \u2014 stay on duty and dispatch may assign " +
-                "another collection round.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-// ── Shared chrome ───────────────────────────────────────────────────────────────────────────────
-
-@Composable
-internal fun ScreenHeader(title: String, subtitle: String?, onBack: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 4.dp, bottom = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BackButton(onBack)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            subtitle?.let {
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    val collected = run?.stops?.filter { it.status.done }.orEmpty()
+    if (collected.isNotEmpty()) {
+        Column {
+            DriverSectionLabel("${packages(collected.sumOf { it.packageCount })} from ${if (collected.size == 1) "1 shop" else "${collected.size} shops"}")
+            DriverGroup {
+                collected.forEachIndexed { i, s ->
+                    DriverRow(
+                        s.shopName,
+                        last = i == collected.lastIndex,
+                        trailing = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (s.status == StopStatus.SHORT) DriverStatusPill(DriverStatus.Short)
+                                Text("${s.packageCount}", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+                            }
+                        },
+                    )
+                }
             }
+        }
+        if (collected.any { it.status == StopStatus.SHORT }) {
+            DriverAlert(DriverAlertKind.Muted, Res.drawable.lucide_package, title = "Some packages were left at the shop", description = "They aren't in the van and aren't checked in.")
         }
     }
 }
 
 @Composable
-internal fun ProgressBar(fraction: Float) {
-    Box(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(5.dp)
-            .clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Box(
-            Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight()
-                .clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+private fun CheckedIn(split: HubSplit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Collection run done", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.brand)
+        Text("${packages(split.scannedTotal)} checked in", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+    }
+    if (split.effy.isNotEmpty()) {
+        Column {
+            DriverSectionLabel("Effy delivers · ${split.effyCount}")
+            DriverGroup {
+                split.effy.forEachIndexed { i, g ->
+                    DriverRow(
+                        g.label,
+                        meta = if (g.dueToday) "Goes out today" else "A later day",
+                        last = i == split.effy.lastIndex,
+                        trailing = { SortTag(if (g.dueToday) "Load now" else "Shelve", strong = g.dueToday, count = g.count) },
+                    )
+                }
+            }
+        }
+    }
+    if (split.toCourier > 0) {
+        Column {
+            DriverSectionLabel("Courier · ${split.toCourier}")
+            DriverGroup {
+                DriverRow(
+                    "Courier parcels",
+                    meta = split.nextCourierPickupLabel?.let { "Next courier pickup $it" },
+                    last = true,
+                    trailing = { SortTag("Courier bay", strong = false, count = split.toCourier) },
+                )
+            }
+        }
+    }
+    DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_truck, title = "Your next run is on Today", description = "It appears there by itself when it's assigned.")
+}
+
+@Composable
+private fun SortTag(word: String, strong: Boolean, count: Int) {
+    val scheme = MaterialTheme.colorScheme
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("$count", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+        Text(
+            word,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = if (strong) scheme.onPrimary else scheme.onSurface,
+            modifier = Modifier.clip(CircleShape).background(if (strong) scheme.primary else scheme.surfaceVariant).padding(horizontal = 10.dp, vertical = 4.dp),
         )
     }
 }
 
 @Composable
-internal fun SectionLabel(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-private fun ErrorText(msg: String) {
-    Text(
-        msg,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-    )
-}
-
-@Composable
-private fun Centered(content: @Composable () -> Unit) {
-    Column(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) { content() }
+private fun Sending() {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Saved on this phone", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.primary)
+        Text("Checked in — sending", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "You're offline. Your check-in sends as soon as there's signal. Where each parcel goes will show then — hand them all to the hub team now.",
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_refresh_ccw, title = "No need to wait here", description = "You can close the app. If the hub's Wi-Fi is available, connect to it to send now.")
 }

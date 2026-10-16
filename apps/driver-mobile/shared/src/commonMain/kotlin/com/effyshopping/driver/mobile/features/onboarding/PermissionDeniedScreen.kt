@@ -1,105 +1,76 @@
 package com.effyshopping.driver.mobile.features.onboarding
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.effyshopping.driver.mobile.core.presentation.DriverActionBar
+import com.effyshopping.driver.mobile.core.presentation.DriverAlert
+import com.effyshopping.driver.mobile.core.presentation.DriverAlertKind
+import com.effyshopping.driver.mobile.core.presentation.DriverButton
+import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.DriverInlineBar
+import com.effyshopping.driver.mobile.core.presentation.DriverSize
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.lucide_camera
+import com.effyshopping.driver.mobile.resources.lucide_pen_line
 
 /**
- * Permission-denied recovery (060 US5, design screen `perm-denied`).
- *
- * ⚠ The app had no such screen. A driver who declined location — easy to do, the OS prompt is one
- * tap — reached a feature that simply did not work, with nothing saying why or how to fix it.
- *
- * ⚠ **It states the CONSEQUENCE, not the permission.** "Effy can't plot your stops" tells a driver
- * what they lose; "location permission is required" tells them what the app wants. The design gets
- * this right and it is the whole reason the screen is worth having.
- *
- * ⚠ **No "Open Settings" button.** The design has one, and it would need a platform intent this
- * app has no driver for. A button that does nothing is worse than none (054's decorative tabs), so
- * the route is described in words until a settings launcher exists.
+ * The camera was refused (canvas `PermissionDenied`). It says what is lost and how to turn it back on,
+ * and offers the one proof that needs no camera. ⚠ No "Open Settings" button: this app has no settings
+ * launcher for the camera, and a button that does nothing is worse than none — the way is said in words.
  */
 @Composable
-fun PermissionDeniedScreen(
-    onBack: () -> Unit,
-    capability: String = "Camera",
-    consequence: String = "Effy can't photograph proof of delivery without it. You can still complete " +
-        "a drop with the customer's signature.",
-) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(horizontal = 30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.error),
-            modifier = Modifier.size(62.dp),
+fun PermissionDeniedScreen(onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        DriverInlineBar("", backLabel = "Drop", onBack = onBack)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    "!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
+            Box(Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                DriverIcon(Res.drawable.lucide_camera, size = 28.dp)
             }
+            Text("The camera is off for Effy Driver", fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Photo proof and \"left safely\" both need a photo, so they can't be used until the camera is on.",
+                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                listOf("Open Settings on your phone", "Find Effy Driver", "Turn on Camera, then come back here").forEachIndexed { i, step ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(28.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                            Text("${i + 1}", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                        Text(step, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+            DriverAlert(
+                DriverAlertKind.Info, Res.drawable.lucide_pen_line,
+                title = "Customer can sign instead",
+                description = "If they're at the door, a signature doesn't need the camera.",
+            )
         }
-
-        Spacer(Modifier.height(24.dp))
-        Text(
-            "$capability is off",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(12.dp))
-        Text(
-            consequence,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(10.dp))
-        Text(
-            "Turn it on for Effy Driver in your phone's Settings, then come back.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(Modifier.height(30.dp))
-        Button(
-            onClick = onBack,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) {
-            Text("Back", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        DriverActionBar {
+            DriverButton("Back to the drop", onClick = onBack, modifier = Modifier.fillMaxWidth())
         }
     }
 }

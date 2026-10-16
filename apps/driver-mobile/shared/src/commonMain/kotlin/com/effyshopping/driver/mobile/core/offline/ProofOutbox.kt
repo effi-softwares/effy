@@ -21,6 +21,8 @@ data class PendingProof(
     val method: String,
     val note: String?,
     val attempts: Int = 0,
+    /** 092 — how each package was handed over at the door; empty from a proof saved before scanning. */
+    val handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(),
 )
 
 /** Where proof images wait on the phone. One file per proof, named by its changeId. */

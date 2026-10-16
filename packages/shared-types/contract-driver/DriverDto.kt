@@ -406,6 +406,14 @@ data class DeliveryDropDTO (
     val customerName: String,
 
     /**
+     * 092 — the phone number the customer gave at checkout, for the driver to call from the
+     * door. ⚠ Sent ONLY while the drop is open (not delivered, not failed) and only to the
+     * round's own driver; null otherwise, or when the customer gave none. Never in history or
+     * run lists.
+     */
+    val customerPhone: String? = null,
+
+    /**
      * 069 — the time window the customer was sold. Null/absent for an order placed before 069.
      * ⚠ Due and late are derived by the app from this and the clock; the server does not send a
      * state that would be stale the moment the screen had been open a minute.
@@ -834,9 +842,15 @@ data class HubCheckinRequest (
 @Serializable
 data class PackageHandover (
     val method: HandoverMethod,
+    val packageCode: String? = null,
 
+    /**
+     * The package's own id. ⚠ 092 — OR `packageCode` (the label's code): the delivery steps
+     * hold only codes on the phone, and a scan reads a code. One of the two names the package;
+     * both may be sent.
+     */
     @SerialName("packageId")
-    val packageID: String
+    val packageID: String? = null
 )
 
 @Serializable
@@ -857,6 +871,14 @@ data class HubCheckinResponse (
     val effyCount: Long? = null,
 
     val effyGroups: List<HubCheckinEffyGroup>? = null,
+
+    /**
+     * 092 — when the courier next collects from the hub, in the server's words ("4 pm",
+     * "tomorrow 10 am"); null when no courier parcel was checked in or no courier service is
+     * set up.
+     */
+    val nextCourierPickupLabel: String? = null,
+
     val sameDayCount: Long,
     val scannedTotal: Long,
     val standardCount: Long

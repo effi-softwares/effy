@@ -389,6 +389,13 @@
         "customerName": {
           "type": "string"
         },
+        "customerPhone": {
+          "description": "092 — the phone number the customer gave at checkout, for the driver to call from the door. ⚠ Sent ONLY while the drop is open (not delivered, not failed) and only to the round's own driver; null otherwise, or when the customer gave none. Never in history or run lists.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "deliveryWindow": {
           "anyOf": [
             {
@@ -1198,6 +1205,13 @@
           },
           "type": "array"
         },
+        "nextCourierPickupLabel": {
+          "description": "092 — when the courier next collects from the hub, in the server's words (\"4 pm\", \"tomorrow 10 am\"); null when no courier parcel was checked in or no courier service is set up.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "sameDayCount": {
           "$ref": "#/definitions/WireInt"
         },
@@ -1355,12 +1369,15 @@
         "method": {
           "$ref": "#/definitions/HandoverMethod"
         },
+        "packageCode": {
+          "type": "string"
+        },
         "packageId": {
+          "description": "The package's own id. ⚠ 092 — OR `packageCode` (the label's code): the delivery steps hold only codes on the phone, and a scan reads a code. One of the two names the package; both may be sent.",
           "type": "string"
         }
       },
       "required": [
-        "packageId",
         "method"
       ],
       "type": "object"

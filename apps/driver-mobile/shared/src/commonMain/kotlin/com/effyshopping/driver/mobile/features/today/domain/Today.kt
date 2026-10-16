@@ -68,18 +68,3 @@ data class UpcomingRound(
     val packageCount: Int,
 )
 
-/** What this driver has finished today, counted from their own history. Counts, never money. */
-data class DayStats(val runsFinished: Int, val deliveries: Int)
-
-/**
- * How long the driver's shifts run, timed ON THE PHONE from the duty toggle.
- *
- * ⚠ The driver's own record does not say when they went on duty, so a shift that began on another
- * phone — or before this was built — has no length here, and none is shown for it.
- */
-interface ShiftClock {
-    fun started(atEpochMillis: Long)
-    fun ended(atEpochMillis: Long)
-    /** The length of the shift that last ended on this phone; null when it is not known. */
-    fun lastShiftMillis(): Long?
-}
