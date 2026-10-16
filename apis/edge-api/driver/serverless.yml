@@ -266,6 +266,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
+  driverDeliveryLoadV1:
+    handler: src/functions/driver-delivery-load-v1-post.handler
+    description: 090 - the van is loaded; every staged drop on the run goes out for delivery together.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/runs/{runId}/load
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
   driverHistoryV1:
     handler: src/functions/driver-history-v1-get.handler
     description: 063 — finished rounds by local day. ⚠ Thin until Slice D captures proof.

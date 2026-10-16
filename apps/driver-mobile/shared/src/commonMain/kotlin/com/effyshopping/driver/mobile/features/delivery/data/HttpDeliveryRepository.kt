@@ -245,11 +245,12 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
             // 069 — ⚠ `window` (the label) existed on this DTO since 049 and was never mapped, because
             // it was always null. It is real now, and so are the instants beside it.
             window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
+            packageCodes = it.packageCodes.orEmpty(),
         )
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
-    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders) },
+    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders, it.packageCodes.orEmpty()) },
 )
 
 private fun DeliveryDropDTO.toDomain() = Drop(
@@ -258,7 +259,7 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     customerName = customerName,
     addressFull = addressFull,
     instructions = instructions,
-    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain()) },
+    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain(), p.packageCode) },
     status = dropStatus(status),
     summary = summary.toDomain(),
     // 066 — exhaustive on purpose: a third preference on the wire must fail to compile here.

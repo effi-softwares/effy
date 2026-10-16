@@ -19,7 +19,15 @@ data class CollectionStop(
     val status: StopStatus,
     /** 063 — the shop's street address in one line; null when the shop has none. */
     val address: String? = null,
+    /** 089 — the codes on this stop's package labels; empty from an older server. */
+    val packageCodes: List<String> = emptyList(),
 )
+
+/** 090 — where a package goes at the hub. [UNKNOWN] is a kind this build does not know: show the label. */
+enum class HubSortKind { LOAD_NOW, SHELVE, COURIER_BAY, UNKNOWN }
+
+/** 090 — one package's hub instruction, in the platform's words ([label] is the whole line). */
+data class HubSort(val packageCode: String, val kind: HubSortKind, val label: String)
 
 data class CollectionRun(
     val runId: String,
@@ -29,6 +37,8 @@ data class CollectionRun(
     val opening: Opening? = null,
     /** 072 — the collection run's time, in the server's words: when collecting must be finished. */
     val dueLabel: String? = null,
+    /** 090 — every package's hub instruction, for the hub scan; empty from an older server. */
+    val hubSort: List<HubSort> = emptyList(),
 ) {
     val allCollected: Boolean get() = stops.isNotEmpty() && stops.all { it.status == StopStatus.COLLECTED || it.status == StopStatus.SHORT }
 }
@@ -53,6 +63,8 @@ data class CollectionPackage(
      * from a server that does not send it yet; such a package cannot be reported from the app.
      */
     val packageId: String? = null,
+    /** 089 — the code on this package's label; null from an older server. */
+    val packageCode: String? = null,
 ) {
     /** What the screen keys a package's tick or report by. */
     val key: String get() = packageId ?: ref

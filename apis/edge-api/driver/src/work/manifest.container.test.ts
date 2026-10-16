@@ -18,12 +18,28 @@ vi.mock("@effy/edge-shared", async () => {
   return {
     ...actual,
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
+    // 090 — collecting runs in a transaction; the same shape the other driver container tests use.
+    withTransaction: async (fn: (c: unknown) => unknown) => {
+      const client = await holder.pool!.connect();
+      try {
+        await client.query("BEGIN");
+        const out = await fn(client);
+        await client.query("COMMIT");
+        return out;
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
   };
 });
 
 import { migrationSql } from "@effy/edge-shared";
 
 import { deliveryDrop } from "./delivery";
+import { collectStop } from "./complete";
 import { NotFoundError, collectionRun, collectionStop, deliveryRun } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -162,7 +178,7 @@ d("065 — driver item manifest", () => {
 
   beforeEach(async () => {
     for (const t of [
-      "round_package", "round_stop", "driver_round", "dispatch_wave", "fulfillment_item",
+      "package_handover", "round_package", "round_stop", "driver_round", "dispatch_wave", "fulfillment_item",
       "shop_fulfillment", "order_item",
     ]) {
       await pool.query(`DELETE FROM public.${t}`);
@@ -217,6 +233,25 @@ d("065 — driver item manifest", () => {
     expect(first.packageCode).not.toBe(second.packageCode);
     const run = await collectionRun(roundId, driverId);
     expect(run.stops.find((st) => st.stopId === stopId)?.packageCodes?.sort()).toEqual([first.packageCode, second.packageCode].sort());
+    // 090 — and each carries its hub instruction, in the platform's words.
+    expect(run.hubSort?.map((h) => h.packageCode).sort()).toEqual([first.packageCode, second.packageCode].sort());
+    for (const h of run.hubSort ?? []) expect(["load_now", "shelve", "courier_bay"]).toContain(h.kind);
+  });
+
+  /** 090 — collecting at a counter records how each package was handed over (quickstart P4). */
+  it("090 — a collect records each package's method; a package left at the shop records none", async () => {
+    const { driverId, roundId, stopId } = await pickupFixture();
+    const stop = await collectionStop(roundId, stopId, driverId);
+    const [a, b] = stop.packages.map((p) => p.packageId!);
+    await collectStop(roundId, stopId, driverId, {
+      changeId: crypto.randomUUID(),
+      packages: [
+        { packageId: a!, outcome: "picked_up", method: "scan" },
+        { packageId: b!, outcome: "not_available", method: "manual" },
+      ],
+    });
+    const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover`);
+    expect(rows.rows).toEqual([{ shop_fulfillment_id: a, step: "collect", method: "scan" }]);
   });
 
   it("classes come back in the driver's vocabulary, cold first", async () => {

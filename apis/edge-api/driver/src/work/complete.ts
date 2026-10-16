@@ -6,8 +6,9 @@
 
 import { deliveredBySql } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
-import { anyTimeDayLabel, formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse } from "@effy/shared-types";
+import { anyTimeDayLabel, formatArrival, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse, type PackageHandover } from "@effy/shared-types";
 
+import { recordHandovers } from "./handover";
 import { assertRoundOpen } from "./open";
 import { NotFoundError } from "./service";
 
@@ -114,6 +115,17 @@ export async function collectStop(
       [runId],
     );
 
+    // 090 — how each package was handed over at the counter (scan / typed / manual), when the app says.
+    await recordHandovers(tx, {
+      step: "collect",
+      roundId: runId,
+      driverId,
+      changeId: body.changeId,
+      packages: (body.packages ?? []).filter((p) => p.method !== undefined && p.outcome === "picked_up")
+        .map((p) => ({ packageId: p.packageId, method: p.method! })),
+      allowed: new Set(rows.rows.map((r: any) => r.shop_fulfillment_id as string)),
+    });
+
     return { collected, notAvailable };
   });
 }
@@ -138,6 +150,8 @@ export async function collectStop(
 export async function hubCheckin(
   runId: string,
   driverId: string,
+  /** 090 — the request's changeId and how each package was handed over; optional. */
+  handover?: { changeId: string; packages?: PackageHandover[] },
 ): Promise<HubCheckinResponse> {
   return withTransaction(async (tx: any) => {
     const round = await tx.query(
@@ -239,6 +253,20 @@ export async function hubCheckin(
       `UPDATE public.driver_round SET status = 'completed', updated_at = now() WHERE id = $1`,
       [runId],
     );
+
+    // 090 — how each package was handed over at the hub.
+    if (handover) {
+      const onRound = await tx.query(
+        `SELECT rp.shop_fulfillment_id FROM public.round_package rp
+           JOIN public.round_stop rs ON rs.id = rp.stop_id
+          WHERE rs.round_id = $1 AND rp.state = 'picked_up'`,
+        [runId],
+      );
+      await recordHandovers(tx, {
+        step: "checkin", roundId: runId, driverId, changeId: handover.changeId, packages: handover.packages,
+        allowed: new Set(onRound.rows.map((r: any) => r.shop_fulfillment_id as string)),
+      });
+    }
 
     return { scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier, effyCount, effyGroups };
   });

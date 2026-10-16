@@ -25,6 +25,8 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
 import com.effyshopping.driver.mobile.features.collection.domain.EffyGroup
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
+import com.effyshopping.driver.mobile.features.collection.domain.HubSort
+import com.effyshopping.driver.mobile.features.collection.domain.HubSortKind
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
@@ -126,11 +128,23 @@ private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
     runId = runID,
     status = status,
     stops = stops.map {
-        CollectionStop(it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status), it.address)
+        CollectionStop(
+            it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status), it.address,
+            packageCodes = it.packageCodes.orEmpty(),
+        )
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
+    hubSort = hubSort.orEmpty().map { HubSort(it.packageCode, hubSortKind(it.kind), it.label) },
 )
+
+/** Never fails on a kind this build does not know — the label still says what to do. */
+private fun hubSortKind(kind: String): HubSortKind = when (kind) {
+    "load_now" -> HubSortKind.LOAD_NOW
+    "shelve" -> HubSortKind.SHELVE
+    "courier_bay" -> HubSortKind.COURIER_BAY
+    else -> HubSortKind.UNKNOWN
+}
 
 private fun CollectionStopDTO.toDomain() = ShopStop(
     stopId = stopID,
@@ -142,6 +156,7 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
             toCourier = p.deliveredBy?.let { it == DtoDeliveredBy.Courier },
             windowLabel = p.windowLabel,
             packageId = p.packageID,
+            packageCode = p.packageCode,
         )
     },
     status = stopStatus(status),

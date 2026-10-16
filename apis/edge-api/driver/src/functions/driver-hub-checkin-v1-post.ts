@@ -35,7 +35,7 @@ export const handler = async (
   }
 
   try {
-    const checkedIn = await hubCheckin(body.runId, guard.driver.id);
+    const checkedIn = await hubCheckin(body.runId, guard.driver.id, { changeId: body.changeId, packages: body.packages });
     // 071/073 — committed; back-office AND every shop whose packages arrived see them "At hub".
     await announceCheckedIn(body.runId);
     return json(200, checkedIn, guard.scope);

@@ -42,7 +42,7 @@ export const handler = async (
   }
 
   try {
-    const result = await returnParcels(runId, guard.driver.id, guard.driver.subject, body.changeId);
+    const result = await returnParcels(runId, guard.driver.id, guard.driver.subject, body.changeId, body.packages);
 
     if (!result.replayed && result.returned > 0) {
       emitMetric(metricNamespace(), "ParcelsReturned", result.returned);

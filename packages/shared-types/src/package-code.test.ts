@@ -4,7 +4,16 @@ import { describe, expect, it } from "vitest"
 
 import { PACKAGE_CODE_ALPHABET, isPackageCode, packageToken, parsePackageToken } from "./package-code"
 
+const FIXTURES = JSON.parse(readFileSync(resolve(__dirname, "../package-code.fixtures.json"), "utf8")) as {
+  reads: Array<{ read: string; code: string | null }>
+}
+
 describe("package codes (089)", () => {
+  /** 090 — the driver app's Kotlin parser is held to the same rows. */
+  it("agrees with every row of the shared fixture", () => {
+    for (const { read, code } of FIXTURES.reads) expect(parsePackageToken(read), JSON.stringify(read)).toBe(code)
+  })
+
   it("the token is EFY1: and the code", () => {
     expect(packageToken("7K3Q9M")).toBe("EFY1:7K3Q9M")
     expect(() => packageToken("7K3Q9O")).toThrow()
@@ -23,6 +32,16 @@ describe("package codes (089)", () => {
     for (const c of "01OILU") expect(PACKAGE_CODE_ALPHABET).not.toContain(c)
     expect(new Set(PACKAGE_CODE_ALPHABET).size).toBe(PACKAGE_CODE_ALPHABET.length)
     expect(isPackageCode("2345AB")).toBe(true)
+  })
+
+  /** 090 — the driver app embeds a copy of the fixture (commonTest cannot read outside the app). */
+  it("the driver app's embedded fixture is this JSON", () => {
+    const kt = readFileSync(
+      resolve(__dirname, "../../../apps/driver-mobile/shared/src/commonTest/kotlin/com/effyshopping/driver/mobile/core/scan/PackageCodeFixture.kt"),
+      "utf8",
+    )
+    const embedded = kt.slice(kt.indexOf('"""') + 3, kt.lastIndexOf('"""')).trim()
+    expect(JSON.parse(embedded)).toEqual(FIXTURES)
   })
 
   /** ⚠ The database generates codes from its own copy of the alphabet; they must be the same string. */

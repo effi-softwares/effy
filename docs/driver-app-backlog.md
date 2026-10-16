@@ -36,6 +36,11 @@ back-office, and the app.
 2026-10-16: not yet migrated or deployed. ⚠ The label says EFFY or COURIER only — no window (a shop is
 never told one); where a parcel goes at the hub will come from the scan (H7).
 
+**H4, H5 and the platform halves of H6–H10 — built as feature 090**
+([specs/090-scanning-foundation](../specs/090-scanning-foundation/tasks.md)), 2026-10-16: the scan rule, the
+camera reader (Android + iOS), hand-over records, per-package hub instructions and "load the van". The
+scanning SCREENS (H6–H11 UI) follow the redesign. Not yet migrated or deployed.
+
 **Still open:** B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
 stats, E6, E7 (decide before the redesign), F1 + G1–G3 + H4–H14 (design), H1–H3 (labels — best done as
 their own spec'd feature).

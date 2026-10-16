@@ -44,10 +44,6 @@ data class ActivityReadRequest (
     val ids: List<String>
 )
 
-/**
- * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's
- * packages.
- */
 @Serializable
 data class CollectRequest (
     @SerialName("changeId")
@@ -72,12 +68,31 @@ data class CollectRequest (
 
 @Serializable
 data class Package (
+    /**
+     * 090 — how it was handed over; omitted by builds that do not scan.
+     */
+    val method: HandoverMethod? = null,
+
     val note: String? = null,
     val outcome: Outcome,
 
     @SerialName("packageId")
     val packageID: String
 )
+
+/**
+ * 090 — how it was handed over; omitted by builds that do not scan.
+ *
+ * 090 — how a package was handed over: scanned from its label, its code typed (a torn
+ * label), or ticked by hand. Optional on every hand-over; an app that sends none behaves as
+ * before.
+ */
+@Serializable
+enum class HandoverMethod(val value: String) {
+    @SerialName("manual") Manual("manual"),
+    @SerialName("scan") Scan("scan"),
+    @SerialName("typed") Typed("typed");
+}
 
 @Serializable
 enum class Outcome(val value: String) {
@@ -243,6 +258,12 @@ data class DriverCollectionRunDTO (
     val dueLabel: String,
 
     /**
+     * 090 — where each package on this run goes at the hub, in the platform's words, so the hub
+     * scan can say it with no signal. Optional: absent from an older server.
+     */
+    val hubSort: List<HubSortInstruction>? = null,
+
+    /**
      * 072 — when this round opens; `null` = open.
      */
     val opening: RoundOpening? = null,
@@ -252,6 +273,23 @@ data class DriverCollectionRunDTO (
 
     val status: String,
     val stops: List<CollectionStopSummary>
+)
+
+/**
+ * 090 — one package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm".
+ */
+@Serializable
+data class HubSortInstruction (
+    /**
+     * `load_now` | `shelve` | `courier_bay` (`HubSortKind`). ⚠ A STRING ON THE WIRE, NOT AN
+     * ENUM: the driver app decodes enums as closed sets, and a fourth kind added later would
+     * fail the whole run read on every installed build. The app maps an unknown kind to "show
+     * the label".
+     */
+    val kind: String,
+
+    val label: String,
+    val packageCode: String
 )
 
 /**
@@ -568,6 +606,11 @@ data class ParcelsToReturn (
      */
     val orders: List<String>,
 
+    /**
+     * 090 — the label codes of the parcels to return, for the return scan.
+     */
+    val packageCodes: List<String>? = null,
+
     @SerialName("runId")
     val runID: String
 )
@@ -779,8 +822,21 @@ data class HubCheckinRequest (
     @SerialName("changeId")
     val changeID: String,
 
+    /**
+     * 090 — how each package was handed over at the hub.
+     */
+    val packages: List<PackageHandover>? = null,
+
     @SerialName("runId")
     val runID: String
+)
+
+@Serializable
+data class PackageHandover (
+    val method: HandoverMethod,
+
+    @SerialName("packageId")
+    val packageID: String
 )
 
 @Serializable
@@ -833,6 +889,26 @@ data class HubCheckinEffyGroup (
     val label: String,
     val windowEnd: String? = null,
     val windowStart: String? = null
+)
+
+/**
+ * POST /driver/v1/delivery/runs/{runId}/load — 090: the van is loaded; every staged drop
+ * goes out.
+ */
+@Serializable
+data class LoadRequest (
+    @SerialName("changeId")
+    val changeID: String,
+
+    val packages: List<PackageHandover>? = null
+)
+
+@Serializable
+data class LoadResponse (
+    /**
+     * How many drops this call moved to out for delivery.
+     */
+    val loaded: Long
 )
 
 @Serializable
@@ -909,7 +985,12 @@ data class DriverVehicle (
 @Serializable
 data class ParcelReturnRequest (
     @SerialName("changeId")
-    val changeID: String
+    val changeID: String,
+
+    /**
+     * 090 — how each parcel was handed back.
+     */
+    val packages: List<PackageHandover>? = null
 )
 
 @Serializable
@@ -1004,7 +1085,12 @@ data class ProofRequest (
     val code: String? = null,
     val mediaKey: String? = null,
     val method: ProofMethod,
-    val note: String? = null
+    val note: String? = null,
+
+    /**
+     * 090 — how each package was handed over at the door.
+     */
+    val packages: List<PackageHandover>? = null
 )
 
 @Serializable

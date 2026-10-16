@@ -40,7 +40,9 @@ import { migrationSql } from "@effy/edge-shared";
 
 import { recordFailure, recordProof } from "../proof/repository";
 import { deliveryDrop, setDropStatus } from "./delivery";
-import { deliveryRun, today } from "./service";
+import { loadRun } from "./load";
+import { RoundNotOpenError } from "./open";
+import { NotFoundError, deliveryRun, today } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -70,7 +72,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
 
   beforeEach(async () => {
     for (const t of [
-      "delivery_proof", "delivery_attempt_failure", "package_arrival", "notification_request", "round_package", "round_stop",
+      "package_handover", "delivery_proof", "delivery_attempt_failure", "package_arrival", "notification_request", "round_package", "round_stop",
       "driver_round", "dispatch_wave", "shop_fulfillment",
     ]) {
       await pool.query(`DELETE FROM public.${t}`);
@@ -208,7 +210,8 @@ d("064 fix — a drop advances through every state the app sends", () => {
     const t = await today(driverId);
     expect(t.activeRunId).toBe(roundId);
     expect(t.active).toBeNull();
-    expect(t.toReturn).toEqual({ runId: roundId, count: 1, orders: ["EFY-WALK01"] });
+    expect(t.toReturn).toMatchObject({ runId: roundId, count: 1, orders: ["EFY-WALK01"] });
+    expect(t.toReturn?.packageCodes).toHaveLength(1);
 
     const run = await deliveryRun(roundId, driverId);
     expect(run.toReturn?.count).toBe(1);
@@ -227,6 +230,53 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(drop.packages.map((p) => p.packageCode)).toEqual([code]);
     const run = await deliveryRun(roundId, driverId);
     expect(run.drops[0]!.packageCodes).toEqual([code]);
+  });
+
+  /** 090 — how each package was handed over is recorded with the hand-over itself (quickstart P4). */
+  it("090 — records each package's hand-over method once, ignoring foreign packages and unknown methods", async () => {
+    const sf = (await pool.query(`SELECT id FROM public.shop_fulfillment LIMIT 1`)).rows[0].id as string;
+    await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
+    await step("arrived");
+    const changeId = crypto.randomUUID();
+    const proof = {
+      dropId, driverId, driverSub, method: "photo" as const, mediaKey: "proof/h/1.jpg", note: null, changeId,
+      packages: [
+        { packageId: sf, method: "scan" as const },
+        { packageId: crypto.randomUUID(), method: "scan" as const }, // not at this drop
+        { packageId: sf, method: "telepathy" as never },              // a method this build does not know
+      ],
+    };
+    await recordProof(proof);
+    await recordProof(proof); // a retry
+    const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover`);
+    expect(rows.rows).toEqual([{ shop_fulfillment_id: sf, step: "deliver", method: "scan" }]);
+  });
+
+  it("090 — a hand-over without methods records nothing (today's app)", async () => {
+    await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
+    await step("arrived");
+    await recordProof({ dropId, driverId, driverSub, method: "photo", mediaKey: "proof/h/2.jpg", note: null, changeId: crypto.randomUUID() });
+    expect((await pool.query(`SELECT count(*)::int AS n FROM public.package_handover`)).rows[0].n).toBe(0);
+  });
+
+  /** 090 — "the van is loaded" (quickstart P6). */
+  it("090 — loading puts every staged drop out for delivery, once; a drop further along is untouched", async () => {
+    const r1 = await loadRun(roundId, driverId, crypto.randomUUID());
+    expect(r1.loadedDropIds).toEqual([dropId]);
+    expect(await dropScreen()).toBe("out_for_delivery");
+    const r2 = await loadRun(roundId, driverId, crypto.randomUUID());
+    expect(r2.loadedDropIds).toEqual([]);
+
+    await step("arrived");
+    await loadRun(roundId, driverId, crypto.randomUUID());
+    expect(await dropScreen()).toBe("arrived");
+  });
+
+  it("090 — loading is refused before the round opens, and for someone else's run", async () => {
+    await pool.query(`UPDATE public.driver_round SET window_start_at = now() + interval '2 days', deadline_at = now() + interval '2 days 2 hours' WHERE id = $1`, [roundId]);
+    await expect(loadRun(roundId, driverId, crypto.randomUUID())).rejects.toBeInstanceOf(RoundNotOpenError);
+    expect(await dropScreen()).toBe("staged");
+    await expect(loadRun(roundId, crypto.randomUUID(), crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("refuses a status the drop cannot be moved to by this route", async () => {

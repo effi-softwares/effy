@@ -8,6 +8,7 @@ import { orderRoundStops, query, type Queryable } from "@effy/edge-shared";
 import { toReturnOnRound } from "@effy/edge-shared/delivery";
 
 import { dropStatusOf } from "./drop-status";
+import { hubSortOf } from "./hub-sort";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
 import type {
   CollectionStopDTO,
@@ -224,6 +225,17 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
   return {
     runId,
     status: "assigned",
+    // 090 — where each package goes at the hub, for the hub scan with no signal. A package left at
+    // its shop is not coming to the hub, so it has no instruction.
+    hubSort: packages
+      .filter((p) => p.state !== "not_available")
+      .map((p) => ({
+        packageCode: p.package_code,
+        ...hubSortOf(
+          { deliveredBy: p.delivered_by, windowStart: p.window_start, windowEnd: p.window_end, anyTime: p.any_time },
+          new Date(),
+        ),
+      })),
     opening: times.opening,
     deadlineAt: times.deadlineAt,
     dueLabel: times.dueLabel,

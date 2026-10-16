@@ -33,6 +33,8 @@ data class DropSummary(
     val summary: ClassSummary = ClassSummary.Empty,
     /** 069 — the window the customer was sold; null for an order placed before 069. */
     val window: DeliveryWindow? = null,
+    /** 089 — the codes on this drop's package labels; empty from an older server. */
+    val packageCodes: List<String> = emptyList(),
 )
 
 data class DeliveryRun(
@@ -54,7 +56,13 @@ data class DeliveryRun(
  * 088 — what the driver must bring back to the hub from a run's failed drops: how many, and the order
  * numbers (no address). Returned all together, in one action.
  */
-data class ParcelsToReturn(val runId: String, val count: Int, val orders: List<String>)
+data class ParcelsToReturn(
+    val runId: String,
+    val count: Int,
+    val orders: List<String>,
+    /** 090 — their label codes, for the return scan; empty from an older server. */
+    val packageCodes: List<String> = emptyList(),
+)
 
 /**
  * One physical package at a drop (065).
@@ -67,6 +75,8 @@ data class DropPackage(
     val fromShopCount: Int,
     val items: List<ManifestLine> = emptyList(),
     val summary: ClassSummary = ClassSummary.Empty,
+    /** 089 — the code on this package's label; null from an older server. */
+    val packageCode: String? = null,
 )
 
 /**

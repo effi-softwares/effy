@@ -36,11 +36,12 @@ export const IN_TRANSIT_SQL = `(
 
 /** The parcels on one round still to return, with their order numbers. */
 const TO_RETURN_ON_ROUND = `
-  SELECT rp.id, o.order_number
+  SELECT rp.id, o.order_number, sf.package_code
     FROM public.round_package rp
     JOIN public.round_stop    rs ON rs.id = rp.stop_id
     JOIN public.driver_round  dr ON dr.id = rs.round_id
     JOIN public."order"       o  ON o.id = rs.order_id
+    JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
    WHERE dr.id = $1
      AND ${TO_RETURN_SQL}
    ORDER BY rs.seq NULLS LAST, o.order_number, rp.id
@@ -51,12 +52,19 @@ export interface ToReturn {
   runId: string;
   count: number;
   orders: string[];
+  /** 090 — the parcels' label codes, for the return scan. */
+  packageCodes: string[];
 }
 
 export async function toReturnOnRound(db: Queryable, roundId: string): Promise<ToReturn | null> {
-  const res = await db.query<{ id: string; order_number: string }>(TO_RETURN_ON_ROUND, [roundId]);
+  const res = await db.query<{ id: string; order_number: string; package_code: string }>(TO_RETURN_ON_ROUND, [roundId]);
   if (res.rows.length === 0) return null;
-  return { runId: roundId, count: res.rows.length, orders: [...new Set(res.rows.map((r) => r.order_number))] };
+  return {
+    runId: roundId,
+    count: res.rows.length,
+    orders: [...new Set(res.rows.map((r) => r.order_number))],
+    packageCodes: res.rows.map((r) => r.package_code),
+  };
 }
 
 /**

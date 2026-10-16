@@ -63,6 +63,8 @@ kotlin {
             implementation(libs.androidx.camera.camera2)
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.camera.view)
+            // 090 — reading package labels (QR + Code 128) from the CameraX stream.
+            implementation(libs.mlkit.barcode.scanning)
             implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
             // 049 photo proof — the camera ActivityResult launcher (rememberLauncherForActivityResult).

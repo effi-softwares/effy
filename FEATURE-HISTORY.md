@@ -4,6 +4,35 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**090-scanning-foundation — Package Scanning: Foundations.** 🚧 **BUILT (2026-10-16). NOT MIGRATED, DEPLOYED
+OR WALKED.** Everything under the scanning screens (driver backlog H4, H5 and the platform halves of
+H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanning-foundation/](specs/090-scanning-foundation/tasks.md).
+
+- **One scan rule** (`core/scan/ScanRule.kt`, pure, offline): Accepted / AlreadyScanned / BelongsElsewhere
+  (the hard stop, naming the other shop or "Drop n · Suburb") / NotOnYourWork / NotALabel. `ScanSession`
+  holds a step's progress; `ScanContexts` builds each step (shop S1, hub S2, load S3, door S4, return S5).
+- **One label reading, two languages**: `PackageToken.kt` is the Kotlin twin of `package-code.ts`; both are
+  tested against `packages/shared-types/package-code.fixtures.json` (the app embeds a copy the TS test checks).
+- **The camera reader** `PackageScanner` (expect/actual): Android CameraX → ML Kit **bundled**
+  `barcode-scanning 17.3.0` (QR + Code 128 only; the one new dependency); iOS AVFoundation metadata output
+  written in Kotlin/Native (no Swift bridge). Torch; labels only; `ReadDebouncer` 2 s per code. It draws only
+  the camera — no screen uses it yet.
+- **Hand-over record** `public.package_handover` (`20261016160000_package_handover.sql`): one row per package
+  per hand-over (`collect` / `checkin` / `load` / `deliver` / `return`) with `handover_method` (scan / typed /
+  manual); written by `work/handover.ts` inside each hand-over; optional on every request; a retry records once.
+  ⚠ The column is NOT `method` — that name belonged to a column 083 dropped, and `schema-drift.guard.test.ts`
+  tracks dropped names schema-wide (it failed on the first draft).
+- **Hub instruction** per package on the collection run (`hubSort`, `work/hub-sort.ts`): LOAD NOW · window,
+  SHELVE · day, COURIER BAY — 082's decision and words. ⚠ `kind` is a STRING on the wire, not an enum: a
+  later kind must not fail installed builds' run read (the 088 lesson).
+- **Load the van**: `POST /driver/v1/delivery/runs/{runId}/load` — every staged drop out for delivery in one
+  action; later drops untouched; gated (072); idempotent by state. Shared gateway +1.
+- **Verified**: shared-types 134, shared 944, driver 198 (incl. scan/hand-over/load container tests), fleet
+  (all but the pre-existing slots-defaults test), driver-mobile host tests (ScanRule 10, token, debouncer),
+  `assembleDebug`, iOS `xcodebuild`; change map, gateway capacity, delivery words, refresh timers, contract stable.
+- **Operator steps**: `make db-up ENV=dev` → `make edge-deploy SERVICE=driver ENV=dev`. No app release needed
+  until the redesign's screens use the reader; on a device, read a printed 089 label to check the reader.
+
 **089-package-labels — Package Labels.** 🚧 **BUILT (2026-10-16). NOT MIGRATED, DEPLOYED OR WALKED.**
 Driver backlog H1–H3: the prerequisite for scanning. Spec, plan, tasks: [specs/089-package-labels/](specs/089-package-labels/tasks.md).
 

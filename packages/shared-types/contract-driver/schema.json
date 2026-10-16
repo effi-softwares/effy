@@ -98,7 +98,6 @@
     },
     "CollectRequest": {
       "additionalProperties": false,
-      "description": "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's packages.",
       "properties": {
         "changeId": {
           "type": "string"
@@ -108,6 +107,10 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "method": {
+                "$ref": "#/definitions/HandoverMethod",
+                "description": "090 — how it was handed over; omitted by builds that do not scan."
+              },
               "note": {
                 "type": [
                   "string",
@@ -636,6 +639,13 @@
         "dueLabel": {
           "type": "string"
         },
+        "hubSort": {
+          "description": "090 — where each package on this run goes at the hub, in the platform's words, so the hub scan can say it with no signal. Optional: absent from an older server.",
+          "items": {
+            "$ref": "#/definitions/HubSortInstruction"
+          },
+          "type": "array"
+        },
         "opening": {
           "anyOf": [
             {
@@ -915,6 +925,15 @@
       ],
       "type": "object"
     },
+    "HandoverMethod": {
+      "description": "090 — how a package was handed over: scanned from its label, its code typed (a torn label), or ticked by hand. Optional on every hand-over; an app that sends none behaves as before.",
+      "enum": [
+        "scan",
+        "typed",
+        "manual"
+      ],
+      "type": "string"
+    },
     "HandoverPreference": {
       "description": "Delivery instructions — 066-delivery-instructions.\n\nWhat a customer tells the driver: how to hand the order over, and a short note. The vocabulary, the length limit and the normalisation rule live HERE and nowhere else (Principle II): the two customer surfaces use them to show a remaining-characters count, and the two backends use them to decide. A client holding a looser opinion than the server is how a 300-character note is typed, accepted by the screen and refused at payment.\n\n⚠ THE SERVER IMPORTS THIS FILE. Checkout (`edge-api/commerce`) calls `normaliseDeliveryInstructions` itself, so the client's opinion and the server's are the same function. (Until 070 the server was a second language and carried a mirror, pinned by `delivery-instructions.fixtures.json`; the fixture remains as this rule's table of cases.)",
       "enum": [
@@ -1144,6 +1163,13 @@
         "changeId": {
           "type": "string"
         },
+        "packages": {
+          "description": "090 — how each package was handed over at the hub.",
+          "items": {
+            "$ref": "#/definitions/PackageHandover"
+          },
+          "type": "array"
+        },
         "runId": {
           "type": "string"
         }
@@ -1187,6 +1213,60 @@
         "scannedTotal",
         "sameDayCount",
         "standardCount"
+      ],
+      "type": "object"
+    },
+    "HubSortInstruction": {
+      "additionalProperties": false,
+      "description": "090 — one package's hub instruction. `label` is the whole line: \"LOAD NOW · Today 4–6 pm\".",
+      "properties": {
+        "kind": {
+          "description": "`load_now` | `shelve` | `courier_bay` (`HubSortKind`). ⚠ A STRING ON THE WIRE, NOT AN ENUM: the driver app decodes enums as closed sets, and a fourth kind added later would fail the whole run read on every installed build. The app maps an unknown kind to \"show the label\".",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "packageCode": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "packageCode",
+        "kind",
+        "label"
+      ],
+      "type": "object"
+    },
+    "LoadRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/delivery/runs/{runId}/load — 090: the van is loaded; every staged drop goes out.",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/PackageHandover"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "LoadResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "loaded": {
+          "$ref": "#/definitions/WireInt",
+          "description": "How many drops this call moved to out for delivery."
+        }
+      },
+      "required": [
+        "loaded"
       ],
       "type": "object"
     },
@@ -1269,6 +1349,22 @@
       ],
       "type": "object"
     },
+    "PackageHandover": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "$ref": "#/definitions/HandoverMethod"
+        },
+        "packageId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "packageId",
+        "method"
+      ],
+      "type": "object"
+    },
     "PackageMethod": {
       "enum": [
         "same_day",
@@ -1282,6 +1378,13 @@
       "properties": {
         "changeId": {
           "type": "string"
+        },
+        "packages": {
+          "description": "090 — how each parcel was handed back.",
+          "items": {
+            "$ref": "#/definitions/PackageHandover"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1316,6 +1419,13 @@
         },
         "orders": {
           "description": "Order numbers only — no address, no customer (049 FR-013).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "packageCodes": {
+          "description": "090 — the label codes of the parcels to return, for the return scan.",
           "items": {
             "type": "string"
           },
@@ -1458,6 +1568,13 @@
         },
         "note": {
           "type": "string"
+        },
+        "packages": {
+          "description": "090 — how each package was handed over at the door.",
+          "items": {
+            "$ref": "#/definitions/PackageHandover"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1825,6 +1942,12 @@
     "hubCheckinResponse": {
       "$ref": "#/definitions/HubCheckinResponse"
     },
+    "loadRequest": {
+      "$ref": "#/definitions/LoadRequest"
+    },
+    "loadResponse": {
+      "$ref": "#/definitions/LoadResponse"
+    },
     "manifestLine": {
       "$ref": "#/definitions/ManifestLine"
     },
@@ -1909,6 +2032,8 @@
     "dropFailResponse",
     "parcelReturnRequest",
     "parcelReturnResponse",
+    "loadRequest",
+    "loadResponse",
     "runMap",
     "mapPoint",
     "mapStop",

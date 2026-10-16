@@ -232,7 +232,26 @@ export interface DriverCollectionRunDTO {
   /** 072 — the collection run's time: when collecting must be finished. */
   deadlineAt: string;
   dueLabel: string;
+  /**
+   * 090 — where each package on this run goes at the hub, in the platform's words, so the hub scan
+   * can say it with no signal. Optional: absent from an older server.
+   */
+  hubSort?: HubSortInstruction[];
 }
+
+/** 090 — one package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm". */
+export interface HubSortInstruction {
+  packageCode: string;
+  /**
+   * `load_now` | `shelve` | `courier_bay` (`HubSortKind`). ⚠ A STRING ON THE WIRE, NOT AN ENUM: the
+   * driver app decodes enums as closed sets, and a fourth kind added later would fail the whole run
+   * read on every installed build. The app maps an unknown kind to "show the label".
+   */
+  kind: string;
+  label: string;
+}
+
+export type HubSortKind = "load_now" | "shelve" | "courier_bay";
 
 export type PackageMethod = "same_day" | "standard";
 
@@ -310,6 +329,16 @@ export interface CollectionStopDTO {
 }
 
 /** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's packages. */
+/**
+ * 090 — how a package was handed over: scanned from its label, its code typed (a torn label), or
+ * ticked by hand. Optional on every hand-over; an app that sends none behaves as before.
+ */
+export type HandoverMethod = "scan" | "typed" | "manual";
+export interface PackageHandover {
+  packageId: string;
+  method: HandoverMethod;
+}
+
 export interface CollectRequest {
   changeId: string;
   /**
@@ -329,6 +358,8 @@ export interface CollectRequest {
     packageId: string;
     outcome: "picked_up" | "not_available";
     note?: string | null;
+    /** 090 — how it was handed over; omitted by builds that do not scan. */
+    method?: HandoverMethod;
   }>;
 }
 export interface CollectResponse {
@@ -349,6 +380,8 @@ export interface CollectionIssueRequest {
 export interface HubCheckinRequest {
   runId: string;
   changeId: string;
+  /** 090 — how each package was handed over at the hub. */
+  packages?: PackageHandover[];
 }
 export interface HubCheckinResponse {
   scannedTotal: WireInt;
@@ -447,11 +480,25 @@ export interface ParcelsToReturn {
   count: WireInt;
   /** Order numbers only — no address, no customer (049 FR-013). */
   orders: string[];
+  /** 090 — the label codes of the parcels to return, for the return scan. */
+  packageCodes?: string[];
 }
 
 /** POST /driver/v1/delivery/runs/{runId}/return — 088. */
 export interface ParcelReturnRequest {
   changeId: string;
+  /** 090 — how each parcel was handed back. */
+  packages?: PackageHandover[];
+}
+
+/** POST /driver/v1/delivery/runs/{runId}/load — 090: the van is loaded; every staged drop goes out. */
+export interface LoadRequest {
+  changeId: string;
+  packages?: PackageHandover[];
+}
+export interface LoadResponse {
+  /** How many drops this call moved to out for delivery. */
+  loaded: WireInt;
 }
 export interface ParcelReturnResponse {
   /** How many parcels this call returned; 0 when nothing was left to return. */
@@ -542,6 +589,8 @@ export interface ProofRequest {
   code?: string; // code
   note?: string;
   changeId: string;
+  /** 090 — how each package was handed over at the door. */
+  packages?: PackageHandover[];
 }
 export interface ProofResponse {
   status: "delivered";

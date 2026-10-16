@@ -86,7 +86,7 @@ private fun TodayDTO.toDomain(): Today = Today(
             packageCount = it.packageCount.toInt(),
         )
     },
-    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders) },
+    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders, it.packageCodes.orEmpty()) },
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(

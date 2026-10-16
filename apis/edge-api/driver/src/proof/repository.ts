@@ -3,7 +3,9 @@
 
 import { enqueueOrderDeliveredIfComplete, withTransaction } from "@effy/edge-shared";
 import { completeDeliveryRoundIfFinished } from "@effy/edge-shared/delivery";
+import type { PackageHandover } from "@effy/shared-types";
 
+import { recordHandovers } from "../work/handover";
 import { assertRoundOpen } from "../work/open";
 import * as SQL from "./sql";
 import type {
@@ -31,6 +33,8 @@ export interface RecordProofInput {
   mediaKey: string | null;
   note: string | null;
   changeId: string;
+  /** 090 — how each package was handed over at the door; optional. */
+  packages?: PackageHandover[];
 }
 
 export interface RecordProofResult {
@@ -114,6 +118,12 @@ export async function recordProof(input: RecordProofInput): Promise<RecordProofR
 
     await tx.query(SQL.MARK_STOP_DONE, [input.dropId]);
     await tx.query(SQL.MARK_ROUND_IN_PROGRESS, [row.round_id]);
+    // 090 — how each package was handed over at the door.
+    await recordHandovers(tx, {
+      step: "deliver", roundId: row.round_id, driverId: input.driverId, changeId: input.changeId,
+      packages: input.packages,
+      allowed: new Set((packages.rows as DropPackageRow[]).map((p) => p.shop_fulfillment_id)),
+    });
     await completeRoundIfFinished(tx, row.round_id);
 
     // ⚠ THE SHARED ROLLUP, NEVER A SECOND IMPLEMENTATION (Principle II, research R3). Its own header

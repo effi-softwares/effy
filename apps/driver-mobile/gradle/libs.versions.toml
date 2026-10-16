@@ -56,6 +56,9 @@ posthogAndroid = "3.11.1"
 # 060 — in-app camera viewfinder for photo proof (Android only; iOS uses a designed stand-in +
 # system-camera handoff until a Swift AVFoundation bridge exists — research R8).
 camerax = "1.5.0"
+# 090 — package label scanning. The BUNDLED model: works offline on first launch (~2.4 MB), no Play
+# Services download. Formats restricted to QR + Code 128 in code.
+mlkitBarcode = "17.3.0"
 # 060 — rendering a captured proof photo in history. Same version customer-mobile uses.
 coil = "3.1.0"
 
@@ -68,6 +71,7 @@ androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+mlkit-barcode-scanning = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkitBarcode" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
