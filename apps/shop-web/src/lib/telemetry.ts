@@ -46,6 +46,8 @@ export type ShopAnalyticsEvent =
   // 057 US5 — a shop manager refunded their own portion. ⚠ NO amount, NO order number, NO line names:
   // the same PII rule the fulfilment events hold to. `fulfillmentId` is a unit of work, not a person.
   | { name: "shop_refund_initiated"; fulfillmentId: string }
+  // 089 — package labels printed. ⚠ No package code or order number: a unit of work, a layout, a count.
+  | { name: "shop_labels_printed"; fulfillmentId: string; layout: string; count: number }
   // 057 US7 — team management. ⚠ NEVER the invitee's email or name: this is the one event that would
   // otherwise carry a colleague's identity into product analytics.
   | { name: "shop_staff_invited"; role: string }

@@ -183,6 +183,7 @@ export function toPackage(
     atRisk: verdict.atRisk,
     onTime: verdict.onTime,
     fulfillmentId: row.fulfillment_id,
+    packageCode: row.package_code,
     shopId: row.shop_id,
     shopName: row.shop_name,
     status: row.status,

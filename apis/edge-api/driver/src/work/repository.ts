@@ -58,6 +58,8 @@ export interface PackageRow {
   stop_id: string;
   state: string;
   package_id: string;
+  /** 089 — the code printed on the package's label. */
+  package_code: string;
   order_number: string;
   method: "standard" | "same_day";
   delivered_by: "effy" | "courier";
@@ -152,4 +154,14 @@ export async function packageItems(packageIds: string[]): Promise<ManifestRow[]>
 export async function stopPackageIds(stopId: string, driverId: string): Promise<string[]> {
   const res = await query<{ package_id: string }>(STOP_PACKAGES, [stopId, driverId]);
   return res.rows.map((r) => r.package_id);
+}
+
+/** 089 — the label codes of the given packages, by package id. */
+export async function packageCodes(packageIds: string[]): Promise<Map<string, string>> {
+  if (packageIds.length === 0) return new Map();
+  const res = await query<{ id: string; package_code: string }>(
+    `SELECT id::text AS id, package_code FROM public.shop_fulfillment WHERE id = ANY($1::uuid[])`,
+    [packageIds],
+  );
+  return new Map(res.rows.map((r) => [r.id, r.package_code]));
 }

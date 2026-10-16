@@ -217,6 +217,8 @@ export interface CollectionStopSummary {
    */
   address: string | null;
   packageCount: WireInt;
+  /** 089 — the codes printed on this stop's package labels, for matching a scan with no signal. */
+  packageCodes?: string[];
   status: CollectionStopStatus;
 }
 
@@ -276,6 +278,8 @@ export interface CollectionPackage {
    * was marked unavailable. Optional only so an app built against it still reads an older server.
    */
   packageId?: string;
+  /** 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers. */
+  packageCode?: string;
   ref: string; // the order number the package belongs to
   destinationSuburb: string;
   /** @deprecated 082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9). */
@@ -400,6 +404,8 @@ export interface DeliveryDropSummary {
   orderRef: string;
   customerSuburb: string;
   packageCount: WireInt;
+  /** 089 — the codes printed on this drop's package labels, for matching a scan with no signal. */
+  packageCodes?: string[];
   /**
    * The delivery window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time). ⚠ Null from 049
    * until 069 — the field existed and nothing could fill it, because no window was ever sold.
@@ -463,6 +469,8 @@ export interface ParcelReturnResponse {
  */
 export interface DropPackageRef {
   ref: string;
+  /** 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers. */
+  packageCode?: string;
   fromShopCount: WireInt; // how many shops contributed — never shop identity
   items: ManifestLine[];
   summary: ClassSummary;

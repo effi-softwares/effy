@@ -24,7 +24,7 @@ vi.mock("@effy/edge-shared", async () => {
 import { migrationSql } from "@effy/edge-shared";
 
 import { deliveryDrop } from "./delivery";
-import { NotFoundError, collectionStop, deliveryRun } from "./service";
+import { NotFoundError, collectionRun, collectionStop, deliveryRun } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -212,6 +212,11 @@ d("065 — driver item manifest", () => {
     expect(second.items.map((i) => i.name).sort()).toEqual(["Pasta", "Rice"]);
     expect(first.summary).toEqual({ frozen: 1, chilled: 1, normal: 0, notRecorded: 0 });
     expect(second.summary).toEqual({ frozen: 0, chilled: 0, normal: 5, notRecorded: 0 });
+    // 089 — each package carries its own label code, and the run's stop lists them.
+    expect(first.packageCode).toMatch(/^[2-9A-HJKMNP-TV-Z]{6}$/);
+    expect(first.packageCode).not.toBe(second.packageCode);
+    const run = await collectionRun(roundId, driverId);
+    expect(run.stops.find((st) => st.stopId === stopId)?.packageCodes?.sort()).toEqual([first.packageCode, second.packageCode].sort());
   });
 
   it("classes come back in the driver's vocabulary, cold first", async () => {

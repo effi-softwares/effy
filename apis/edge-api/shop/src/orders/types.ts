@@ -1,4 +1,4 @@
-import type { CourierPickupDTO } from "@effy/shared-types";
+import type { CourierPickupDTO, ShopPackageLabelDTO } from "@effy/shared-types";
 // Domain types for the shop ORDER CONSOLE (057 Amendment A3). Wire DTOs live in @effy/shared-types
 // (`shop-order-console`); nothing wire-shaped escapes the handler (Principle VI).
 //
@@ -160,6 +160,8 @@ export interface OrderDetail {
   deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
   delivery: FulfillmentDelivery;
+  /** 089 — what this package's printed label needs. */
+  label: ShopPackageLabelDTO;
   lines: OrderLine[];
   money: {
     currency: string;

@@ -219,6 +219,16 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect((await deliveryRun(roundId, driverId)).toReturn).toBeNull();
   });
 
+  /** 089 — every package the driver reads carries the code on its label (quickstart P7). */
+  it("089 — the drop and the run carry each package's label code", async () => {
+    const code = (await pool.query(`SELECT package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0].package_code as string;
+    expect(code).toMatch(/^[2-9A-HJKMNP-TV-Z]{6}$/);
+    const drop = await deliveryDrop(dropId, driverId);
+    expect(drop.packages.map((p) => p.packageCode)).toEqual([code]);
+    const run = await deliveryRun(roundId, driverId);
+    expect(run.drops[0]!.packageCodes).toEqual([code]);
+  });
+
   it("refuses a status the drop cannot be moved to by this route", async () => {
     await expect(step("delivered")).rejects.toBeDefined();
     await expect(step("pending")).rejects.toBeDefined();

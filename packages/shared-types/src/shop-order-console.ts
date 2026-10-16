@@ -246,6 +246,22 @@ export interface ShopOrderNoteDTO {
   createdAt: string
 }
 
+/**
+ * 089 — one package's label. ⚠ NO WINDOW, DAY OR ESTIMATE: the label says EFFY or COURIER (from
+ * `deliveredBy`), the one thing a shop is told about delivery (079).
+ */
+export interface ShopPackageLabelDTO {
+  /** The permanent code; the label's QR and barcode carry `EFY1:<code>`. */
+  packageCode: string
+  /** This package's place among the order's packages, from 1. */
+  position: WireInt
+  /** How many packages the whole order has, across shops (a count, never who). */
+  packageCount: WireInt
+  suburb: string | null
+  /** The coldest storage class among its products. */
+  cold: "frozen" | "chilled" | null
+}
+
 export interface ShopOrderDetailDTO {
   id: string
   orderId: string
@@ -267,6 +283,8 @@ export interface ShopOrderDetailDTO {
   deliveryMethod: "same_day" | "standard" | null
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO
+  /** 089 — what this package's printed label needs (with `orderNumber` and `deliveredBy`). */
+  label: ShopPackageLabelDTO
   lines: ShopOrderLineDTO[]
   money: ShopOrderMoneyDTO
   payment: ShopOrderPaymentDTO

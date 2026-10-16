@@ -10,6 +10,7 @@ const pkg = (over: Partial<OrderPackage> = {}): OrderPackage => ({
   collect: null,
   deliver: null,
   fulfillmentId: "f1",
+  packageCode: "7K3Q9M",
   shopId: "s1",
   shopName: "Shop One",
   status: "collected",

@@ -135,6 +135,12 @@ data class CollectionPackage (
     val method: PackageMethod,
 
     /**
+     * 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older
+     * servers.
+     */
+    val packageCode: String? = null,
+
+    /**
      * The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was
      * on the wire the app could not say WHICH package a report was about, so it sent none and
      * the whole stop was marked unavailable. Optional only so an app built against it still
@@ -282,6 +288,11 @@ data class CollectionStopSummary (
      * the address is missing rather than shown an empty line.
      */
     val address: String? = null,
+
+    /**
+     * 089 — the codes printed on this stop's package labels, for matching a scan with no signal.
+     */
+    val packageCodes: List<String>? = null,
 
     val packageCount: Long,
     val sequence: Long,
@@ -453,6 +464,13 @@ enum class HandoverPreference(val value: String) {
 data class DropPackageRef (
     val fromShopCount: Long,
     val items: List<ManifestLine>,
+
+    /**
+     * 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older
+     * servers.
+     */
+    val packageCode: String? = null,
+
     val ref: String,
     val summary: ClassSummary
 )
@@ -480,6 +498,12 @@ data class DeliveryDropSummary (
     val dropID: String,
 
     val orderRef: String,
+
+    /**
+     * 089 — the codes printed on this drop's package labels, for matching a scan with no signal.
+     */
+    val packageCodes: List<String>? = null,
+
     val packageCount: Long,
     val sequence: Long,
     val status: DeliveryDropStatus,

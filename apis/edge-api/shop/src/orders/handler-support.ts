@@ -63,6 +63,7 @@ export function toOrderDTO(d: OrderDetail): ShopOrderDetailDTO {
     deliveryMethod: d.deliveryMethod,
     atRisk: d.atRisk,
     delivery: { ...d.delivery },
+    label: { ...d.label },
     lines: d.lines.map((l) => ({ ...l })),
     money: { ...d.money },
     payment: { ...d.payment, paidAt: iso(d.payment.paidAt) },

@@ -238,6 +238,7 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
         shopCode: s.shop_code ?? "",
         address: addressLine([s.address_line1, s.address_line2, s.suburb, s.state, s.postcode]),
         packageCount: pkgs.length,
+        packageCodes: pkgs.map((p) => p.package_code), // 089
         status: stopStatus(s.stop_status, pkgs.some((p) => p.state === "not_available")),
       } satisfies CollectionStopSummary;
     }),
@@ -275,6 +276,7 @@ export async function collectionStop(
       const manifest = manifests.get(p.package_id);
       return {
         packageId: p.package_id,
+        packageCode: p.package_code, // 089
         ref: p.order_number,
         destinationSuburb: p.destination_suburb ?? "",
         method: p.method,
@@ -320,6 +322,7 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         orderRef: pkgs[0]?.order_number ?? "",
         customerSuburb: s.destination_suburb ?? "",
         packageCount: pkgs.length,
+        packageCodes: pkgs.map((p) => p.package_code), // 089
         // 069 — the window the CUSTOMER WAS SOLD, read from the order, never derived. ⚠ This read
         // `window: null` from 049 until 069, under a comment saying there was no window and that
         // inventing one would put a promise on the one screen a driver reads as instructions. That

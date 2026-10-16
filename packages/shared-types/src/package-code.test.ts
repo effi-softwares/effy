@@ -1,0 +1,37 @@
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+import { describe, expect, it } from "vitest"
+
+import { PACKAGE_CODE_ALPHABET, isPackageCode, packageToken, parsePackageToken } from "./package-code"
+
+describe("package codes (089)", () => {
+  it("the token is EFY1: and the code", () => {
+    expect(packageToken("7K3Q9M")).toBe("EFY1:7K3Q9M")
+    expect(() => packageToken("7K3Q9O")).toThrow()
+  })
+
+  it("reads an Effy label and nothing else", () => {
+    expect(parsePackageToken("EFY1:7K3Q9M")).toBe("7K3Q9M")
+    expect(parsePackageToken("  EFY1:7K3Q9M\n")).toBe("7K3Q9M")
+    expect(parsePackageToken("9300633603345")).toBeNull() // a product's EAN-13
+    expect(parsePackageToken("EFY1:7k3q9m")).toBeNull()
+    expect(parsePackageToken("EFY1:7K3Q9")).toBeNull()
+    expect(parsePackageToken("EFY2:7K3Q9M")).toBeNull()
+  })
+
+  it("has no look-alike characters", () => {
+    for (const c of "01OILU") expect(PACKAGE_CODE_ALPHABET).not.toContain(c)
+    expect(new Set(PACKAGE_CODE_ALPHABET).size).toBe(PACKAGE_CODE_ALPHABET.length)
+    expect(isPackageCode("2345AB")).toBe(true)
+  })
+
+  /** ⚠ The database generates codes from its own copy of the alphabet; they must be the same string. */
+  it("matches the alphabet the database generates from", () => {
+    const sql = readFileSync(resolve(__dirname, "../../../db/migrations/20261016150000_package_code.sql"), "utf8")
+    expect(sql).toContain(`alphabet constant text := '${PACKAGE_CODE_ALPHABET}'`)
+    const cls = /package_code ~ '\^\[([^\]]+)\]\{6\}\$'/.exec(sql)![1]!
+    const chars = [...PACKAGE_CODE_ALPHABET].filter((c) => new RegExp(`[${cls}]`).test(c))
+    expect(chars.join("")).toBe(PACKAGE_CODE_ALPHABET)
+    for (const c of "01OILU") expect(new RegExp(`[${cls}]`).test(c)).toBe(false)
+  })
+})

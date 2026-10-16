@@ -58,6 +58,7 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
     deliveredBy: "courier",
     deliveryMethod: "standard",
     atRisk: false,
+    label: { packageCode: "7K3Q9M", position: 1, packageCount: 2, suburb: "Fitzroy", cold: null },
     delivery: {
       recipientName: "Maya Oyelaran",
       phone: "0400 000 000",

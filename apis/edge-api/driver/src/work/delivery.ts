@@ -18,7 +18,7 @@ import type {
 
 import { dropStatusOf } from "./drop-status";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
-import { packageItems, stopPackageIds, stopRoundTimes } from "./repository";
+import { packageCodes, packageItems, stopPackageIds, stopRoundTimes } from "./repository";
 import { assertStopRoundOpen } from "./open";
 import { NotFoundError } from "./service";
 
@@ -80,7 +80,8 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
 
   // 065 — one manifest per physical package, in the stable order the app labels by position.
   const packageIds = await stopPackageIds(dropId, driverId);
-  const manifests = manifestsByPackage(packageIds, await packageItems(packageIds));
+  const [items, codes] = await Promise.all([packageItems(packageIds), packageCodes(packageIds)]);
+  const manifests = manifestsByPackage(packageIds, items);
 
   const address = [r.line1, r.line2, r.city, r.region, r.postal_code]
     .filter((p): p is string => typeof p === "string" && p.trim() !== "")
@@ -112,6 +113,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
       const manifest = manifests.get(id);
       return {
         ref: r.order_number,
+        packageCode: codes.get(id), // 089 — the code on this bag's label
         // ⚠ HOW MANY shops contributed, never WHICH. Hidden fulfilment is a product rule, not a UI
         // choice — a driver learning which shops served an order would leak it to the customer. A
         // package is one shop's portion, so this is 1; the drop-wide count is `packages.length`.

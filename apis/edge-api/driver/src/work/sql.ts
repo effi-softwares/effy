@@ -121,6 +121,7 @@ export const ROUND_PACKAGES = `
          rp.stop_id                             AS stop_id,
          rp.state                               AS state,
          sf.id                                  AS package_id,
+         sf.package_code                        AS package_code,
          o.order_number                         AS order_number,
          COALESCE(sf.delivery_method, 'standard') AS method,
          ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,

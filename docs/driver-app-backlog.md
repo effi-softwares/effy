@@ -32,6 +32,10 @@ The Android app adds `ACCESS_NETWORK_STATE` and a FileProvider (`<applicationId>
 2026-10-16: not yet migrated or deployed. Needs `20261016140000_parcel_return.sql`, then `fleet` + `driver`,
 back-office, and the app.
 
+**H1–H3 — built as feature 089** ([specs/089-package-labels](../specs/089-package-labels/tasks.md)),
+2026-10-16: not yet migrated or deployed. ⚠ The label says EFFY or COURIER only — no window (a shop is
+never told one); where a parcel goes at the hub will come from the scan (H7).
+
 **Still open:** B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
 stats, E6, E7 (decide before the redesign), F1 + G1–G3 + H4–H14 (design), H1–H3 (labels — best done as
 their own spec'd feature).

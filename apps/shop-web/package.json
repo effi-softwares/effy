@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy shop web \u2014 the shop operator console (007-shop-web). Vite + React 19 SPA on the shop Cognito pool; local-only this slice. Web half of the shop audience; kept at parity with apps/shop-mobile.",
+  "description": "Effy shop web — the shop operator console (007-shop-web). Vite + React 19 SPA on the shop Cognito pool; local-only this slice. Web half of the shop audience; kept at parity with apps/shop-mobile.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -32,6 +32,7 @@
     "idb-keyval": "^6.3.0",
     "lucide-react": "^1.24.0",
     "posthog-js": "^1.200.0",
+    "qrcode-generator": "2.0.4",
     "radix-ui": "^1.6.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

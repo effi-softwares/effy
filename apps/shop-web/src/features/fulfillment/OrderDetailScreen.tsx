@@ -16,6 +16,7 @@ import { OrderActivitySheet } from "./components/OrderActivitySheet";
 import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags";
 import { PackageStatusPill } from "@effy/web-kit/console";
 import { PaymentPill } from "./components/OrderPill";
+import { PrintLabels } from "./components/PrintLabels";
 import { RefundSheet } from "./components/RefundSheet";
 import { CantSupplyDialog, StateActions } from "./components/StateControl";
 import { canDeclareUnfulfillable } from "./model";
@@ -112,7 +113,13 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             ) : null}
           </div>
           {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
-          <div className="text-muted-foreground text-[12.5px]">{formatWhen(detail.placedAt)} · Online store</div>
+          <div className="text-muted-foreground text-[12.5px]">
+            {formatWhen(detail.placedAt)} · Online store ·{" "}
+            {/* 089 — the code on this package's label. */}
+            <span className="font-mono" aria-label="Package code">
+              {detail.label.packageCode}
+            </span>
+          </div>
         </div>
         <div className="min-w-3 flex-1" />
         <div className="flex flex-wrap gap-2">
@@ -174,6 +181,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <Button variant="outline" onClick={() => printPickList(detail)}>
               Print pick list
             </Button>
+            <PrintLabels detail={detail} />
             {/* ⚠ `destructive-ghost`, the platform's default destructive affordance — NOT the filled
                 red button. A solid fill here would give the riskiest control on the screen the visual
                 weight of a primary action. The three hand-rolled classes it used to carry were

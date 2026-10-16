@@ -184,6 +184,8 @@ export interface AdminOrderPackageDTO {
   /** 073 — who is delivering it (same-day only); null for standard, or before it reaches the hub. */
   deliver: OrderAssignment | null;
   fulfillmentId: string;
+  /** 089 — the package's permanent code, as printed on its label. */
+  packageCode: string;
   /** ⚠ Present here and ONLY here. Never on a customer-facing contract (FR-021). */
   shopId: string;
   shopName: string;

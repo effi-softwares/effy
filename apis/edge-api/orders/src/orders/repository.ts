@@ -379,6 +379,8 @@ export async function items(orderId: string): Promise<OrderItemRow[]> {
 
 export interface PackageRow {
   fulfillment_id: string;
+  /** 089 — the package's permanent code, printed on its label. */
+  package_code: string;
   shop_id: string;
   shop_name: string;
   status: string;
@@ -423,7 +425,7 @@ const MEL_DATE = (expr: string) => `(${expr} AT TIME ZONE 'Australia/Melbourne')
 
 export async function packages(orderId: string): Promise<PackageRow[]> {
   const res = await query<PackageRow>(
-    `SELECT sf.id AS fulfillment_id, sf.shop_id, s.name AS shop_name, sf.status,
+    `SELECT sf.id AS fulfillment_id, sf.package_code, sf.shop_id, s.name AS shop_name, sf.status,
             sf.item_count, sf.subtotal_amount::text, opd.method,
             ${COURIER_PACKAGE} AS delivered_by,
             (o.delivery_type = 'courier') IS TRUE AS courier_order,

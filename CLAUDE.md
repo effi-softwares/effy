@@ -547,6 +547,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **089-package-labels** — Package Labels (a permanent code per package; shops print QR + Code 128 labels; EFFY/COURIER only) — built; NOT migrated, deployed or walked
 - **088-failed-parcel-return** — Return Failed Parcels to the Hub (driver backlog A4; custody now sees delivery parcels) — built; NOT migrated, deployed or walked
 - **087-customer-mobile-redesign** — Customer Mobile Redesign (storefront identity; five tabs with Cart; sheets not dialogs; iOS transitions) — built; NOT walked or signed off
 - **086-catalogue-image-delivery** — Catalogue Pictures That Load Once (one permanent CDN address; WebP copies made at upload) — built; NOT applied, migrated, deployed or walked
@@ -613,5 +614,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/088-failed-parcel-return/plan.md
+at specs/089-package-labels/plan.md
 <!-- SPECKIT END -->

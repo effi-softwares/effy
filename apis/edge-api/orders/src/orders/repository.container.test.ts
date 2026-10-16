@@ -88,7 +88,9 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         order_id uuid NOT NULL REFERENCES public."order" (id) ON DELETE CASCADE,
         shop_id uuid NOT NULL REFERENCES public.shop (id),
         status text NOT NULL, item_count int NOT NULL DEFAULT 1,
-        subtotal_amount numeric(12,2) NOT NULL DEFAULT 0
+        subtotal_amount numeric(12,2) NOT NULL DEFAULT 0,
+        -- 089 — every package's label code (the real column has a generated default).
+        package_code text NOT NULL DEFAULT upper(substr(md5(gen_random_uuid()::text), 1, 6))
       );
       CREATE TABLE public.order_item (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

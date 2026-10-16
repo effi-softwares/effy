@@ -101,6 +101,12 @@ function PackageRow({
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="space-y-0.5">
           <p className="font-medium">{pkg.shopName}</p>
+          {/* 089 — the code on the package's label; what a driver will scan. */}
+          {pkg.packageCode ? (
+            <p className="font-mono text-xs text-muted-foreground" aria-label="Package code">
+              {pkg.packageCode}
+            </p>
+          ) : null}
           <p className="text-sm text-muted-foreground">
             {pkg.itemCount} item{pkg.itemCount === 1 ? "" : "s"} ·{" "}
             {packageDeliveryText(pkg)}

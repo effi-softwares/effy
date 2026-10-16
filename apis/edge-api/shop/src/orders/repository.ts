@@ -428,6 +428,29 @@ SELECT n.id, n.body, ss.name AS author_name, n.created_at
  ORDER BY n.created_at DESC, n.id DESC
 `;
 
+/**
+ * 089 — what this package's label needs beyond what the detail already has: its permanent code, its
+ * place among the ORDER's packages ("package 2 of 3" — a count of other shops' packages, never who
+ * they are), and the coldest storage class among its products (065: frozen beats chilled).
+ *
+ * ⚠ NO WINDOW, DAY OR ESTIMATE (spec Clarifications): a shop is told who takes a package away and
+ * nothing else about delivery (079).
+ */
+const READ_LABEL = `
+  SELECT sf.package_code,
+         (SELECT count(*) FROM public.shop_fulfillment o2
+           WHERE o2.order_id = sf.order_id AND (o2.created_at, o2.id) <= (sf.created_at, sf.id))::int AS position,
+         (SELECT count(*) FROM public.shop_fulfillment o3 WHERE o3.order_id = sf.order_id)::int AS package_count,
+         -- The order line's snapshot (065), the same fact the driver's manifest reads — not the
+         -- product's live attribute, which a shop can change after the sale.
+         (SELECT CASE WHEN bool_or(oi.storage_class = 'frozen')  THEN 'frozen'
+                      WHEN bool_or(oi.storage_class = 'chilled') THEN 'chilled' END
+            FROM public.order_item oi
+           WHERE oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id) AS cold
+    FROM public.shop_fulfillment sf
+   WHERE sf.id = $1 AND sf.shop_id = $2
+`;
+
 export async function readOrder(fulfillmentId: string, shopId: string): Promise<OrderDetail> {
   const head = await query<HeadRecord>(READ_HEAD, [fulfillmentId, shopId]);
   const row = head.rows[0];
@@ -435,12 +458,14 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   if (!row) throw new FulfillmentError("not_found", "order not found");
 
   const args = [fulfillmentId, shopId];
-  const [lines, refunds, tags, notes] = await Promise.all([
+  const [lines, refunds, tags, notes, label] = await Promise.all([
     query<LineRecord>(READ_LINES, args),
     query<RefundRecord>(READ_REFUNDS, args),
     query<{ tag: string }>(READ_TAGS, args),
     query<{ id: string; body: string; author_name: string | null; created_at: Date }>(READ_NOTES, args),
+    query<{ package_code: string; position: number; package_count: number; cold: "frozen" | "chilled" | null }>(READ_LABEL, args),
   ]);
+  const lbl = label.rows[0]!;
 
   const mappedLines = await Promise.all(lines.rows.map(toLine));
   const shopSubtotal = lines.rows.reduce((c, l) => c + cents(l.line_subtotal_amount), 0);
@@ -499,6 +524,13 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       collectedAt: row.collected_at,
       deliveredAt: row.delivered_at,
       unfulfillableReason: row.unfulfillable_reason,
+    },
+    label: {
+      packageCode: lbl.package_code,
+      position: Number(lbl.position),
+      packageCount: Number(lbl.package_count),
+      suburb: typeof row.delivery_address?.["city"] === "string" ? (row.delivery_address["city"] as string) : null,
+      cold: lbl.cold,
     },
     tags: tags.rows.map((t) => t.tag),
     notes: notes.rows.map(

@@ -65,7 +65,15 @@ describe("the summary bar", () => {
     expect(await screen.findByText("Preparing")).toBeInTheDocument();
     expect(screen.getAllByText("Partially refunded").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("At risk")).toBeInTheDocument();
-    expect(screen.getByText(/ · Online store$/)).toBeInTheDocument();
+    expect(screen.getByText(/ · Online store ·/)).toBeInTheDocument();
+    // 089 — the code on the package's label.
+    expect(screen.getByLabelText("Package code")).toHaveTextContent("7K3Q9M");
+  });
+
+  it("089 — offers a label for the bag, at a remembered size", async () => {
+    open();
+    expect(await screen.findByRole("button", { name: "Print label" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Label size" })).toBeInTheDocument();
   });
 
   it("offers Activity and the next step — and none of the controls Effy cannot perform", async () => {
