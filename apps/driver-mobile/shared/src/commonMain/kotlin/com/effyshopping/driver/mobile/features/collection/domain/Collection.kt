@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.collection.domain
 
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 import com.effyshopping.driver.mobile.core.opening.Opening
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
@@ -120,8 +121,9 @@ interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun
     suspend fun getStop(runId: String, stopId: String): ShopStop
     /** [outcomes] empty = every package at the stop was collected. */
-    suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList())
-    suspend fun checkIn(runId: String, changeId: String): HubSplit
+    suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList()): WriteOutcome
+    /** Null when there was no signal: the check-in is saved to send, and its answer comes later. */
+    suspend fun checkIn(runId: String, changeId: String): HubSplit?
 }
 
 class GetCollectionRun(private val repo: CollectionRepository) {

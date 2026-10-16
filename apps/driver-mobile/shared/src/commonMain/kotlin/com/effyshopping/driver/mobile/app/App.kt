@@ -59,6 +59,15 @@ fun App(
             // Flush any writes queued while offline on a previous run (FR-040).
             runCatching { container.syncCoordinator.flush() }
         }
+        // Backlog C6 — the moment the connection returns, send what is waiting and, if the app opened
+        // offline, check the session for real. Before, queued writes waited for a refresh.
+        LaunchedEffect(Unit) {
+            container.connectivity.online.collect { online ->
+                if (!online) return@collect
+                container.session.recheckIfOffline()
+                runCatching { container.syncCoordinator.flush() }
+            }
+        }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = session) {

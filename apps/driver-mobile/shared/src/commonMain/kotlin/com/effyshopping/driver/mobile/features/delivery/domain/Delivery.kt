@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.delivery.domain
 
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 import com.effyshopping.driver.mobile.core.opening.Opening
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
@@ -107,10 +108,10 @@ val Drop.driverInstructions: String?
 interface DeliveryRepository {
     suspend fun getRun(runId: String): DeliveryRun
     suspend fun getDrop(dropId: String): Drop
-    suspend fun advance(dropId: String, to: String, changeId: String): DropStatus
-    /** Presign → upload the image bytes → complete with method photo|signature. Throws on failure. */
-    suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String)
-    suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String)
+    suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome
+    /** Presign → upload the image bytes → complete. QUEUED when there was no signal (backlog B3). */
+    suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String): WriteOutcome
+    suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String): WriteOutcome
 }
 
 class GetDeliveryRun(private val repo: DeliveryRepository) {

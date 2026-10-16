@@ -63,6 +63,16 @@ class AmplifyAuthDriver : AuthDriver {
         null
     }
 
+    /**
+     * `isSignedIn` is read from the credentials stored on the device, so it answers with no signal —
+     * when `currentSession` cannot, because the tokens could not be refreshed (backlog C3).
+     */
+    override suspend fun holdsSignIn(): Boolean = try {
+        Amplify.Auth.fetchAuthSession().isSignedIn
+    } catch (e: Throwable) {
+        false
+    }
+
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
         // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP.
         // The managed factor's length is not configurable by any setting on any object, so the only
@@ -128,6 +138,16 @@ class AmplifyAuthDriver : AuthDriver {
         "CodeMismatchException" -> AuthError.CodeIncorrect
         "CodeExpiredException" -> AuthError.CodeExpired
         "LimitExceededException", "TooManyRequestsException", "TooManyFailedAttemptsException" -> AuthError.RateLimited()
-        else -> AuthError.Unexpected
+        else -> if (isNetworkFailure(e)) AuthError.Network else AuthError.Unexpected
     }
+
+    /**
+     * Amplify reports no signal as a generic `UnknownException` (or `NetworkException`) with the
+     * socket error underneath, so the cause chain is what tells "offline" apart from a fault.
+     */
+    private fun isNetworkFailure(e: Throwable): Boolean =
+        generateSequence(e) { it.cause.takeIf { c -> c !== it } }.take(8).any {
+            it is java.io.IOException ||
+                it::class.simpleName.orEmpty().let { n -> "Network" in n || "Timeout" in n }
+        }
 }

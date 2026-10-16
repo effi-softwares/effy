@@ -113,6 +113,7 @@ export async function recordProof(input: RecordProofInput): Promise<RecordProofR
 
     await tx.query(SQL.MARK_STOP_DONE, [input.dropId]);
     await tx.query(SQL.MARK_ROUND_IN_PROGRESS, [row.round_id]);
+    await completeRoundIfFinished(tx, row.round_id);
 
     // ⚠ THE SHARED ROLLUP, NEVER A SECOND IMPLEMENTATION (Principle II, research R3). Its own header
     // names `edge-api/driver` as a caller — and this service has imported it exactly never until now,
@@ -168,6 +169,7 @@ export async function recordFailure(input: RecordFailureInput): Promise<RecordFa
     // 072 — nor a failed attempt: nobody has attempted anything before the round opens.
     await assertRoundOpen(tx, (drop.rows[0] as DropRow).round_id);
 
+    const roundId = (drop.rows[0] as DropRow).round_id;
     const ins = await tx.query(SQL.INSERT_FAILURE, [
       input.dropId,
       input.reason,
@@ -176,8 +178,17 @@ export async function recordFailure(input: RecordFailureInput): Promise<RecordFa
       input.changeId,
     ]);
     await tx.query(SQL.MARK_STOP_SKIPPED, [input.dropId]);
+    await tx.query(SQL.MARK_ROUND_IN_PROGRESS, [roundId]);
+    await completeRoundIfFinished(tx, roundId);
 
     const r = ins.rows[0] as FailureRow;
     return { failureId: r.id, failedAt: toIso(r.failed_at), replayed: false };
   });
+}
+
+/** Close a delivery round whose last open drop was just settled (delivered or failed). */
+async function completeRoundIfFinished(tx: any, roundId: string): Promise<boolean> {
+  await tx.query(SQL.LOCK_ROUND, [roundId]);
+  const done = await tx.query(SQL.COMPLETE_ROUND_IF_FINISHED, [roundId]);
+  return done.rowCount > 0;
 }

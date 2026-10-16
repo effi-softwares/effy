@@ -20,7 +20,7 @@ import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIImage
-import platform.UIKit.UIImagePNGRepresentation
+import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIImagePickerController
 import platform.UIKit.UIImagePickerControllerDelegateProtocol
 import platform.UIKit.UIImagePickerControllerOriginalImage
@@ -37,8 +37,9 @@ import platform.posix.memcpy
  * nothing. Photo proof was impossible, and so was a contactless drop, which must be photographed
  * (064): an iOS driver could complete a delivery by signature only.
  *
- * The photograph is scaled down before it is encoded: a full-resolution camera frame as a PNG is
- * several times the platform's upload ceiling, and proof needs to be legible, not large.
+ * The photograph is made upright, scaled to a 1600px long side and sent as JPEG (backlog B1): a
+ * full-resolution camera frame is several times the upload ceiling, and proof needs to be legible,
+ * not large.
  *
  * ⚠ A device with no camera — the simulator — falls back to the photo library so the flow can be
  * walked there. Every iPhone a driver carries has a camera, so a driver never sees that path.
@@ -81,7 +82,7 @@ private class PhotoPickerDelegate(
     ) {
         val image = didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage
         picker.dismissViewControllerAnimated(true, completion = null)
-        val bytes = image?.toProofPng() ?: return
+        val bytes = image?.toProofJpeg() ?: return
         if (bytes.isNotEmpty()) onBytes(bytes)
     }
 
@@ -91,20 +92,21 @@ private class PhotoPickerDelegate(
 }
 
 /** The longest side a proof photograph is kept at, in pixels. */
-private const val PROOF_MAX_SIDE = 1280.0
+private const val PROOF_MAX_SIDE = 1600.0
+private const val PROOF_JPEG_QUALITY = 0.8
 
 @OptIn(ExperimentalForeignApi::class)
-private fun UIImage.toProofPng(): ByteArray {
+private fun UIImage.toProofJpeg(): ByteArray {
     val (w, h) = size.useContents { width to height }
     if (w <= 0.0 || h <= 0.0) return ByteArray(0)
     val scale = minOf(1.0, PROOF_MAX_SIDE / maxOf(w, h))
-    // Drawn into a 1x context: `drawInRect` also bakes in the camera's orientation, which a PNG
-    // cannot carry as metadata.
+    // Drawn into a 1x context: `drawInRect` bakes in the camera's orientation, so the JPEG is upright
+    // whatever reads it.
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(w * scale, h * scale), true, 1.0)
     drawInRect(CGRectMake(0.0, 0.0, w * scale, h * scale))
     val scaled = UIGraphicsGetImageFromCurrentImageContext()
     UIGraphicsEndImageContext()
-    val data: NSData = scaled?.let { UIImagePNGRepresentation(it) } ?: return ByteArray(0)
+    val data: NSData = scaled?.let { UIImageJPEGRepresentation(it, PROOF_JPEG_QUALITY) } ?: return ByteArray(0)
     val length = data.length.toInt()
     if (length == 0) return ByteArray(0)
     return ByteArray(length).also { out ->

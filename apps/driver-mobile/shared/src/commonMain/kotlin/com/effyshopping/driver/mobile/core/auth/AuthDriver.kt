@@ -19,6 +19,13 @@ interface AuthDriver {
 
     suspend fun currentSession(forceRefresh: Boolean = false): Session?
 
+    /**
+     * Whether this device holds a sign-in, answered WITHOUT the network (backlog C3). With no signal,
+     * [currentSession] is null for a signed-in driver whose token needs refreshing; this tells that
+     * apart from a device nobody has signed in on.
+     */
+    suspend fun holdsSignIn(): Boolean = currentSession() != null
+
     /** The ONLY credential flow: email → code. */
     suspend fun signInWithEmailOtp(email: String): AuthStep   // → NeedsOtp(destination)
     suspend fun confirmOtp(code: String): AuthStep            // → Done(session)

@@ -34,24 +34,32 @@ import kotlinx.io.IOException
 class SyncCoordinator(
     private val client: HttpClient,
     private val queue: OfflineQueue,
+    /** Proofs saved with no signal (backlog B3). Sent AFTER the queue, so a drop's "arrived" lands first. */
+    private val proofs: ProofOutbox? = null,
+    private val sendProofs: suspend () -> Unit = {},
 ) {
     private val lock = Mutex()
 
-    /** Attempt to flush every pending action. Safe to call repeatedly; a no-op when the queue is empty. */
+    /** Attempt to flush every pending action. Safe to call repeatedly; a no-op when nothing waits. */
     suspend fun flush() {
-        if (queue.count == 0) return
+        if (queue.count == 0 && proofs?.pending?.value.isNullOrEmpty()) return
         lock.withLock {
-            while (true) {
-                val action = queue.peek() ?: break
-                when (replay(action)) {
-                    Result.Applied -> queue.remove(action.changeId)
-                    Result.Dead -> queue.refuse(action.changeId)
-                    Result.Retry -> {
-                        queue.bumpAttempts(action.changeId)
-                        if (action.attempts + 1 >= MAX_ATTEMPTS) queue.refuse(action.changeId) else break
-                    }
-                    Result.Offline -> break // still offline — leave everything for the next trigger
+            drainQueue()
+            if (queue.count == 0) sendProofs()
+        }
+    }
+
+    private suspend fun drainQueue() {
+        while (true) {
+            val action = queue.peek() ?: break
+            when (replay(action)) {
+                Result.Applied -> queue.remove(action.changeId)
+                Result.Dead -> queue.refuse(action.changeId)
+                Result.Retry -> {
+                    queue.bumpAttempts(action.changeId)
+                    if (action.attempts + 1 >= MAX_ATTEMPTS) queue.refuse(action.changeId) else break
                 }
+                Result.Offline -> break // still offline — leave everything for the next trigger
             }
         }
     }

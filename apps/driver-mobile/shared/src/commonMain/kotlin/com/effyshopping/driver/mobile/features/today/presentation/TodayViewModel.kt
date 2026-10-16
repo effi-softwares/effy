@@ -92,7 +92,12 @@ class TodayViewModel(
         // Until now they waited for the driver to pull to refresh on this one screen.
         runCatching { syncFlush() }
         runCatching { getToday() }.onSuccess { fresh ->
-            _state.update { it.copy(today = fresh, loadFailed = false, offline = false, syncedAtEpochMillis = now()) }
+            _state.update {
+                it.copy(
+                    today = fresh, loadFailed = false, offline = fresh.stale,
+                    syncedAtEpochMillis = if (fresh.stale) it.syncedAtEpochMillis else now(),
+                )
+            }
         }
         readSideInfo()
     }
@@ -118,7 +123,10 @@ class TodayViewModel(
             try {
                 val fresh = getToday()
                 _state.update {
-                    it.copy(today = fresh, isLoading = false, loadFailed = false, offline = false, syncedAtEpochMillis = now())
+                    it.copy(
+                        today = fresh, isLoading = false, loadFailed = false, offline = fresh.stale,
+                        syncedAtEpochMillis = if (fresh.stale) it.syncedAtEpochMillis else now(),
+                    )
                 }
                 readSideInfo()
             } catch (e: AppException) {

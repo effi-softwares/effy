@@ -47,6 +47,7 @@ import * as svc from "../dispatch/service";
 import { readWindows } from "../dispatch/windows";
 import * as manual from "../assignments/service";
 import { planWave } from "./assign";
+import { enqueueRoundsOpeningSoon } from "../shared/driver-push";
 import { runPass } from "./service";
 import type { PlannablePackage, PlannerCandidate } from "./types";
 
@@ -241,7 +242,7 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
   });
 
   beforeEach(async () => {
-    await q(`TRUNCATE public.assignment_exclusion, public.hub_checkin, public.round_package,
+    await q(`TRUNCATE public.notification_request, public.assignment_exclusion, public.hub_checkin, public.round_package,
                       public.round_stop, public.driver_round, public.dispatch_wave,
                       public.driver_zone_capability, public.vehicle_holding, public.vehicle,
                       public.driver_duty_session, public.driver, public.shop_fulfillment,
@@ -263,6 +264,74 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     expect(rounds.rows).toHaveLength(1);
     expect(rounds.rows[0].driver_id).toBe(driver);
     expect(rounds.rows[0].kind).toBe("collection");
+  });
+
+  it("D1 — the driver is sent ONE 'run assigned' push for a new round, however many passes run", async () => {
+    const shop = await makeShop("Shop One", "S1");
+    const zone = await makeZone("Inner North", "3065");
+    const driver = await makeDriver("ada");
+    await clear(driver, "collection", "standard", zone);
+    await makeReadyPackage(shop);
+
+    await runWave();
+    await makeReadyPackage(shop); // more work for the same stop on the next pass
+    await runWave();
+
+    const pushes = await q(
+      `SELECT nr.audience, nr.type, nr.channel, nr.payload ->> 'entityId' AS round_id, d.id AS driver_id
+         FROM public.notification_request nr
+         JOIN public.driver d ON d.cognito_sub = nr.recipient_sub`,
+    );
+    const round = await q(`SELECT id FROM public.driver_round`);
+    expect(pushes.rows).toHaveLength(1);
+    expect(pushes.rows[0]).toMatchObject({
+      audience: "driver", type: "run_assigned", channel: "push", round_id: round.rows[0].id, driver_id: driver,
+    });
+  });
+
+  it("D2 — a dispatcher re-ordering a round under way tells its driver once; ending it says removed", async () => {
+    const shop = await makeShop("Shop One", "S1");
+    const zone = await makeZone("Inner North", "3065");
+    const driver = await makeDriver("ada");
+    await clear(driver, "collection", "standard", zone);
+    await makeReadyPackage(shop);
+    await runWave();
+    const round = (await q(`SELECT id FROM public.driver_round`)).rows[0].id as string;
+    const types = async () =>
+      (await q(`SELECT type FROM public.notification_request ORDER BY created_at, type`)).rows.map((r: any) => r.type);
+
+    // Not begun: a re-order is planning, not news.
+    const stamp = async () => (await svc.readRound(round)).updatedAt as string;
+    const stops = async () => (await q(`SELECT id FROM public.round_stop WHERE round_id = $1 ORDER BY id`, [round])).rows.map((r: any) => r.id);
+    await svc.reorder(round, (await stops()).reverse(), await stamp(), "sub-admin");
+    expect(await types()).toEqual(["run_assigned"]);
+
+    await q(`UPDATE public.driver_round SET status = 'in_progress'`);
+    await svc.reorder(round, await stops(), await stamp(), "sub-admin");
+    expect(await types()).toEqual(["run_assigned", "run_changed"]);
+
+    await svc.unassign(round, await stamp(), "sub-admin");
+    expect((await types()).sort()).toEqual(["run_assigned", "run_changed", "run_withdrawn"]);
+  });
+
+  it("D2 — 'run opens soon' goes once, within fifteen minutes of the opening and not before", async () => {
+    const shop = await makeShop("Shop One", "S1");
+    const zone = await makeZone("Inner North", "3065");
+    const driver = await makeDriver("ada");
+    await clear(driver, "collection", "standard", zone);
+    await makeReadyPackage(shop);
+    await runWave();
+    const opens = new Date(
+      (await q(`SELECT public.round_opens_at(kind, deadline_at, window_start_at) AS o FROM public.driver_round`)).rows[0].o,
+    );
+    const soon = async () =>
+      (await q(`SELECT count(*)::int AS n FROM public.notification_request WHERE type = 'run_opens_soon'`)).rows[0].n;
+
+    await enqueueRoundsOpeningSoon(holder.pool!, new Date(opens.getTime() - 30 * 60_000));
+    expect(await soon()).toBe(0);
+    await enqueueRoundsOpeningSoon(holder.pool!, new Date(opens.getTime() - 10 * 60_000));
+    await enqueueRoundsOpeningSoon(holder.pool!, new Date(opens.getTime() - 5 * 60_000));
+    expect(await soon()).toBe(1);
   });
 
   // ⚠ FR-005 / SC-004 — the property the whole design rests on.

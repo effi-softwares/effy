@@ -189,6 +189,16 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(await dropScreen()).toBe("delivered");
   });
 
+  /** Backlog A3 — an offline replay of an earlier step must not undo a later one. */
+  it("⚠ never moves an open drop backwards", async () => {
+    await step("arrived");
+    const res = await step("out_for_delivery");
+    expect(res.status).toBe("arrived");
+    expect(await dropScreen()).toBe("arrived");
+    await step("en_route");
+    expect(await dropScreen()).toBe("arrived");
+  });
+
   it("refuses a status the drop cannot be moved to by this route", async () => {
     await expect(step("delivered")).rejects.toBeDefined();
     await expect(step("pending")).rejects.toBeDefined();

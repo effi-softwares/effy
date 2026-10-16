@@ -38,7 +38,7 @@ fun rememberCameraCaptureController(): CameraCaptureController = remember { Came
  * all since 049. After 060 they do, via the system camera, even before a Swift AVFoundation bridge
  * exists. That bridge is deferred and recorded (plan Complexity Tracking, research R8).
  *
- * @param onCaptured PNG bytes, when a live preview produces an image
+ * @param onCaptured upright JPEG bytes, when a live preview produces an image
  * @return true if a LIVE preview is being rendered. When false the caller shows its stand-in and
  *   the shutter hands off to the system camera.
  */

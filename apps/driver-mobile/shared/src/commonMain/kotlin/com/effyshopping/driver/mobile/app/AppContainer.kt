@@ -11,8 +11,14 @@ import com.effyshopping.driver.mobile.core.observability.AnalyticsDriver
 import com.effyshopping.driver.mobile.core.observability.CrashReporter
 import com.effyshopping.driver.mobile.core.observability.NoOpAnalyticsDriver
 import com.effyshopping.driver.mobile.core.observability.NoOpCrashReporter
+import com.effyshopping.driver.mobile.core.offline.LastCopies
+import com.effyshopping.driver.mobile.core.push.OpenedNotification
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
+import com.effyshopping.driver.mobile.core.offline.ProofFiles
+import com.effyshopping.driver.mobile.core.offline.ProofOutbox
 import com.effyshopping.driver.mobile.core.offline.SyncCoordinator
+import com.effyshopping.driver.mobile.core.platform.Connectivity
+import com.effyshopping.driver.mobile.core.platform.NoConnectivity
 import com.effyshopping.driver.mobile.core.platform.platformTag
 import com.effyshopping.driver.mobile.core.push.DeviceRepository
 import com.effyshopping.driver.mobile.core.push.HttpDeviceRepository
@@ -92,10 +98,24 @@ class AppContainer(
      * showed a version typed into the source ("0.1.0 (dev)") that no build had ever carried.
      */
     val appVersion: String? = null,
+    /**
+     * Where proof photos taken with no signal wait to be sent (backlog B3) — a directory the app owns,
+     * per platform, so they survive the app being killed.
+     */
+    private val proofFiles: ProofFiles,
+    /** Backlog C6 — the connection coming back sends what is waiting, without the driver doing anything. */
+    val connectivity: Connectivity = NoConnectivity,
 ) {
     // ── data ──────────────────────────────────────────────────────────────────────────────────────
     private val driverClient by lazy {
-        createHttpClient(AppConfig.driverApiBaseUrl, sessionProvider = { authDriver.currentSession() }, debug = debugLogging)
+        createHttpClient(
+            AppConfig.driverApiBaseUrl,
+            sessionProvider = { authDriver.currentSession() },
+            debug = debugLogging,
+            // A 401 or 403 mid-shift re-checks the session, so a driver disabled during a shift is
+            // taken to the refusal screen on their next request (backlog C4).
+            onRejected = { session.onRequestRejected() },
+        )
     }
 
     /**
@@ -114,15 +134,23 @@ class AppContainer(
     }
     // Offline write queue + drain coordinator (US6, FR-039/040). Persisted; survives process death.
     val offlineQueue: OfflineQueue by lazy { OfflineQueue(Settings()) }
-    val syncCoordinator: SyncCoordinator by lazy { SyncCoordinator(driverClient, offlineQueue) }
+    /** Proof captured with no signal (backlog B3): the images live in [proofFiles], the list in settings. */
+    val proofOutbox: ProofOutbox by lazy { ProofOutbox(Settings(), proofFiles) }
+    val syncCoordinator: SyncCoordinator by lazy {
+        SyncCoordinator(driverClient, offlineQueue, proofOutbox, sendProofs = { httpDelivery.flushProofs() })
+    }
 
-    private val driver: DriverRepository by lazy { HttpDriverRepository(driverClient) }
-    private val today: TodayRepository by lazy { HttpTodayRepository(driverClient) }
+    /** The driver record and Today, kept so the app opens with no signal (backlog C3). */
+    private val lastCopies by lazy { LastCopies(Settings()) }
+    private val driver: DriverRepository by lazy { HttpDriverRepository(driverClient, lastCopies) }
+    private val today: TodayRepository by lazy { HttpTodayRepository(driverClient, lastCopies) }
     private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient, offlineQueue) }
-    private val delivery: DeliveryRepository by lazy {
+    private val delivery: DeliveryRepository get() = httpDelivery
+    private val httpDelivery: HttpDeliveryRepository by lazy {
         HttpDeliveryRepository(
             driverClient,
             offlineQueue,
+            proofOutbox,
             // ⚠ Only the phone can see this: the image goes straight to storage, so when the upload
             // fails the platform receives nothing at all (064 FR-006).
             onProofUploadFailed = { reason -> analyticsDriver.capture(AnalyticsEvent.ProofUploadFailed(reason)) },
@@ -178,10 +206,12 @@ class AppContainer(
      * A notification the driver tapped, waiting for the shell to act on it; null when there is none.
      * Set by the platform's entry point, cleared by the shell once it has gone where the tap leads.
      */
-    val openedNotification = MutableStateFlow<String?>(null)
+    val openedNotification = MutableStateFlow<OpenedNotification?>(null)
 
     // ── app services / presentation wiring ───────────────────────────────────────────────────────────
-    val session: SessionManager by lazy { SessionManager(authDriver, getDriverIdentity, appScope) }
+    val session: SessionManager by lazy {
+        SessionManager(authDriver, getDriverIdentity, appScope, onSignedOut = { lastCopies.clear() })
+    }
 
     /** A per-action idempotency id for driver writes (offline queue + retries, research R10). */
     @OptIn(ExperimentalUuidApi::class)
@@ -241,9 +271,21 @@ class AppContainer(
         }
     }
 
+    /**
+     * The driver's analytics choice, kept on the phone (backlog F3 — it was hard-coded `true` at both
+     * entry points). On until they turn it off in Account, which is what every build did before.
+     */
+    val analyticsConsent = MutableStateFlow(prefs.getBoolean(ANALYTICS_CONSENT_KEY, true))
+
     /** Grant/withdraw analytics consent at runtime; crash reporting is unaffected (FR-023). */
     fun setAnalyticsConsent(granted: Boolean) {
+        prefs.putBoolean(ANALYTICS_CONSENT_KEY, granted)
+        analyticsConsent.value = granted
         if (granted && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
         else runCatching { analyticsDriver.optOut() }
+    }
+
+    private companion object {
+        const val ANALYTICS_CONSENT_KEY = "driver.analytics.consent"
     }
 }

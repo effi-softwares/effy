@@ -30,7 +30,8 @@ internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (s
     409 -> if (problem?.type == ROUND_NOT_OPEN) AppError.NotOpenYet(problem.opening()) else AppError.Conflict
     429 -> AppError.RateLimited()
     in 500..599 -> AppError.Unavailable
-    400 -> AppError.Validation(problem?.detail ?: problem?.title ?: "That didn't work — please try again.")
+    // The proof, presign and fail routes answer 422 with a sentence written for the driver.
+    400, 422 -> AppError.Validation(problem?.detail ?: problem?.title ?: "That didn't work — please try again.")
     else -> AppError.Unexpected
 }
 

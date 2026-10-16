@@ -46,3 +46,12 @@ sealed interface AppError {
 }
 
 class AppException(val error: AppError) : Exception()
+
+/**
+ * True when the platform has given its final answer to a write — trying the same action again cannot
+ * change it. A transient failure is not final: a retry keeps the same changeId (backlog C1).
+ */
+fun AppError.isFinal(): Boolean = when (this) {
+    is AppError.Validation, AppError.Unauthenticated, AppError.Forbidden, AppError.NotFound, AppError.Conflict -> true
+    is AppError.NotOpenYet, is AppError.RateLimited, AppError.Network, AppError.Unavailable, AppError.Unexpected -> false
+}

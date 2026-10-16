@@ -37,6 +37,17 @@ private fun shopBearer(sessionProvider: suspend () -> Session?) =
     }
 
 /**
+ * Every 401 and 403 is reported to [onRejected]. The driver service answers 403 only from its guard —
+ * a driver who is disabled or not provisioned — so either status means the session is over.
+ */
+private fun rejectionHook(onRejected: () -> Unit) =
+    createClientPlugin("Rejection") {
+        onResponse { response ->
+            if (response.status.value == 401 || response.status.value == 403) onRejected()
+        }
+    }
+
+/**
  * The one client, for `DRIVER_API_BASE_URL` (cross-pool isolation, FR-029). [debug] gates request
  * logging — NEVER `BODY` in release, and the Authorization header is redacted even in debug (SC-013):
  * no code or credential reaches a log.
@@ -45,6 +56,7 @@ fun createHttpClient(
     baseUrl: String,
     sessionProvider: suspend () -> Session?,
     debug: Boolean = false,
+    onRejected: () -> Unit = {},
 ): HttpClient = HttpClient(httpEngine()) {
     expectSuccess = false // we map non-2xx to AppError ourselves (HttpErrors.kt)
 
@@ -61,6 +73,7 @@ fun createHttpClient(
     }
 
     install(shopBearer(sessionProvider))
+    install(rejectionHook(onRejected))
 
     defaultRequest {
         url(baseUrl.ensureTrailingSlash())

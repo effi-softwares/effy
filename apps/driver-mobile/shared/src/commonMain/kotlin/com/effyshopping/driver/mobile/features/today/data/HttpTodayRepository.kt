@@ -7,7 +7,9 @@ import com.effyshopping.driver.mobile.contract.TodayItemRef
 import com.effyshopping.driver.mobile.contract.TodayItemRefKind
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
+import com.effyshopping.driver.mobile.core.http.effyJson
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
+import com.effyshopping.driver.mobile.core.offline.LastCopies
 import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.domain.Today
@@ -22,11 +24,28 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /** The Today repository over `edge-api/driver` (049). The DTO never escapes this layer (Principle VI). */
-class HttpTodayRepository(private val driverApi: HttpClient) : TodayRepository {
+class HttpTodayRepository(
+    private val driverApi: HttpClient,
+    /** Today's last copy, kept so the app opens on it with no signal (backlog C3). */
+    private val lastCopies: LastCopies? = null,
+) : TodayRepository {
 
     override suspend fun today(): Today =
         try {
-            driverApi.get("driver/v1/today").ensureSuccess().body<TodayDTO>().toDomain()
+            fetch()
+        } catch (e: AppException) {
+            if (e.error != AppError.Network) throw e
+            lastCopies?.get(LastCopies.TODAY)
+                ?.let { raw -> runCatching { effyJson.decodeFromString(TodayDTO.serializer(), raw) }.getOrNull() }
+                ?.toDomain()?.copy(stale = true)
+                ?: throw e
+        }
+
+    private suspend fun fetch(): Today =
+        try {
+            val dto = driverApi.get("driver/v1/today").ensureSuccess().body<TodayDTO>()
+            lastCopies?.put(LastCopies.TODAY, effyJson.encodeToString(TodayDTO.serializer(), dto))
+            dto.toDomain()
         } catch (e: CancellationException) {
             throw e
         } catch (e: AppException) {

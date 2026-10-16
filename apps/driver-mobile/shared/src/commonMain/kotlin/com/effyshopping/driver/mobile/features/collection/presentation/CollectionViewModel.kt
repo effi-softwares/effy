@@ -3,6 +3,8 @@ package com.effyshopping.driver.mobile.features.collection.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.driver.mobile.core.error.AppException
+import com.effyshopping.driver.mobile.core.error.isFinal
+import com.effyshopping.driver.mobile.core.offline.ActionIds
 import com.effyshopping.driver.mobile.core.presentation.userMessage
 import com.effyshopping.driver.mobile.features.collection.domain.CheckInHub
 import com.effyshopping.driver.mobile.features.collection.domain.CollectStop
@@ -41,6 +43,11 @@ data class CollectionUiState(
     val confirmedPackageIds: Set<String> = emptySet(),
     /** Packages the driver said they are NOT collecting, by [CollectionPackage.key]. Sent with the collect. */
     val reportedPackages: Map<String, PackageProblem> = emptyMap(),
+    /**
+     * The check-in was made with no signal and is saved to send (backlog C2). The split it answers
+     * with is read once it has been sent.
+     */
+    val checkInSending: Boolean = false,
 )
 
 /** What is wrong with a package the driver is leaving at the shop. [kind] is the words they chose. */
@@ -59,12 +66,25 @@ class CollectionViewModel(
     private val liveChanges: Flow<Unit> = emptyFlow(),
     /** Where the stop in progress is kept across the app being closed. Null in tests that do not care. */
     private val drafts: StopDrafts? = null,
+    /** The changeIds still waiting in the offline queue — how a saved check-in learns it was sent. */
+    private val pendingChangeIds: Flow<Set<String>> = emptyFlow(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionUiState())
     val state = _state.asStateFlow()
 
+    private val ids = ActionIds(newChangeId)
+
+    /** The changeId of a check-in saved with no signal, until its answer has been read. */
+    private var savedCheckIn: String? = null
+
     init {
         viewModelScope.launch { liveChanges.collect { reloadRunQuietly() } }
+        viewModelScope.launch {
+            pendingChangeIds.collect { pending ->
+                val id = savedCheckIn ?: return@collect
+                if (id !in pending) readSavedCheckIn(id)
+            }
+        }
     }
 
     /**
@@ -91,6 +111,14 @@ class CollectionViewModel(
             } catch (e: AppException) {
                 _state.update { it.copy(isLoading = false, message = e.error.userMessage()) }
             }
+        }
+    }
+
+    /** Read the run when nothing has yet — quietly: the hub screen works without it (backlog F2). */
+    fun ensureRunLoaded() {
+        if (_state.value.run != null) return
+        viewModelScope.launch {
+            runCatching { getRun(runId) }.onSuccess { fresh -> _state.update { it.copy(run = it.run ?: fresh) } }
         }
     }
 
@@ -131,13 +159,18 @@ class CollectionViewModel(
             PackageOutcome(packageId = id, collected = problem == null, note = problem?.asNote())
         }
         _state.update { it.copy(isWorking = true, message = null) }
+        val action = "collect:$stopId"
         viewModelScope.launch {
             try {
-                collectStop(runId, stopId, newChangeId(), outcomes)
+                // Sent or saved to send, the stop is collected as far as the driver is concerned
+                // (backlog C1): the queue banner says what is still on the phone.
+                collectStop(runId, stopId, ids.of(action), outcomes)
+                ids.settled(action)
                 drafts?.clear()
                 _state.update { it.copy(isWorking = false) }
                 onDone()
             } catch (e: AppException) {
+                if (e.error.isFinal()) ids.settled(action)
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }
             }
         }
@@ -188,14 +221,48 @@ class CollectionViewModel(
     }
 
     fun checkIn() {
-        if (_state.value.isWorking) return
+        if (_state.value.isWorking || _state.value.checkInSending) return
         _state.update { it.copy(isWorking = true, message = null) }
+        val id = ids.of(CHECK_IN)
         viewModelScope.launch {
             try {
-                _state.update { it.copy(hubSplit = checkInHub(runId, newChangeId()), isWorking = false) }
+                val split = checkInHub(runId, id)
+                if (split == null) {
+                    // Saved to send (backlog C2). Its answer is read once the queue has sent it.
+                    savedCheckIn = id
+                    _state.update { it.copy(isWorking = false, checkInSending = true) }
+                } else {
+                    ids.settled(CHECK_IN)
+                    _state.update { it.copy(hubSplit = split, isWorking = false) }
+                }
             } catch (e: AppException) {
+                if (e.error.isFinal()) ids.settled(CHECK_IN)
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }
             }
         }
+    }
+
+    /**
+     * The saved check-in has left the queue: ask again under the SAME changeId. Check-in is
+     * idempotent, so this answers with the split without checking in twice.
+     */
+    private suspend fun readSavedCheckIn(id: String) {
+        savedCheckIn = null
+        try {
+            val split = checkInHub(runId, id)
+            if (split == null) {
+                savedCheckIn = id // offline again, and saved again: wait for the next send
+                return
+            }
+            ids.settled(CHECK_IN)
+            _state.update { it.copy(hubSplit = split, checkInSending = false) }
+        } catch (e: AppException) {
+            ids.settled(CHECK_IN)
+            _state.update { it.copy(checkInSending = false, message = e.error.userMessage()) }
+        }
+    }
+
+    private companion object {
+        const val CHECK_IN = "checkin"
     }
 }

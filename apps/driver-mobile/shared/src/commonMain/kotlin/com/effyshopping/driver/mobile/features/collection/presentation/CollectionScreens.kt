@@ -611,6 +611,30 @@ fun HubCheckinScreen(
         val split = state.hubSplit
         when {
             state.isWorking && split == null -> Centered { CircularProgressIndicator() }
+            // Backlog C2 — checked in with no signal. Never a blank or an error at the hub: the
+            // check-in is saved, and where the parcels go shows here once it has been sent.
+            state.checkInSending && split == null -> {
+                Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
+                    Text(
+                        "Checked in — sending",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "You're offline. Your check-in is saved on this phone and sends when you reconnect. " +
+                            "Where each parcel goes will show here then.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onDone,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    ) { Text("Done") }
+                }
+            }
             split == null -> {
                 val shops = state.run?.stops?.size
                 val packages = state.run?.stops?.sumOf { it.packageCount }

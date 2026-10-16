@@ -46,7 +46,10 @@ export type NotificationType =
   // 080 — a parcel of a courier order was handed to the courier. Push + email, once per consignment.
   | "order_with_courier"
   // 081 — back-office moved the order to courier delivery, or back to Effy. Push + email, once per move.
-  | "order_delivery_changed";
+  | "order_delivery_changed"
+  | "run_changed"
+  | "run_withdrawn"
+  | "run_opens_soon";
 
 /**
  * Which notification group a type belongs to, for coalescing and badge counting on the web.
@@ -240,6 +243,34 @@ const COPY: Record<NotificationType, NotificationCopy> = {
     tag: "customer-order",
     group: "customer",
     entityInLink: false,
+  },
+
+  // ── driver backlog D2 — a driver's work changing under them ────────────────────────────────────
+  // ⚠ No stop, address or order in the banner: what changed is on the run the tap opens.
+  run_changed: {
+    title: "Run updated",
+    body: "A run you're working has changed. Tap to see it.",
+    deepLinkPath: "run",
+    webPath: "/runs",
+    tag: "driver-run",
+    group: "driver",
+  },
+  // The tap opens the run's link; the app finds it is no longer theirs and shows Today.
+  run_withdrawn: {
+    title: "Run removed",
+    body: "A run has been taken off your work.",
+    deepLinkPath: "run",
+    webPath: "/runs",
+    tag: "driver-run",
+    group: "driver",
+  },
+  run_opens_soon: {
+    title: "Run opens soon",
+    body: "Your next run opens in a few minutes.",
+    deepLinkPath: "run",
+    webPath: "/runs",
+    tag: "driver-run",
+    group: "driver",
   },
 };
 

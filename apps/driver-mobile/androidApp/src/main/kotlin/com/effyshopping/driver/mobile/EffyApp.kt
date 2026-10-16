@@ -6,6 +6,8 @@ import com.effyshopping.driver.mobile.app.AppContainer
 import com.effyshopping.driver.mobile.core.auth.AmplifyAuthDriver
 import com.effyshopping.driver.mobile.core.auth.AmplifyBootstrap
 import com.effyshopping.driver.mobile.core.config.AppConfig
+import com.effyshopping.driver.mobile.core.offline.DirectoryProofFiles
+import com.effyshopping.driver.mobile.core.platform.AndroidConnectivity
 import com.effyshopping.driver.mobile.core.observability.AndroidCrashReporter
 import com.effyshopping.driver.mobile.core.observability.PostHogAnalyticsDriver
 import com.effyshopping.driver.mobile.core.push.FirebasePushTokenProvider
@@ -31,6 +33,9 @@ class EffyApp : Application() {
             pushTokenProvider = FirebasePushTokenProvider(applicationContext),
             // What this installed build calls itself — shown on Help.
             appVersion = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull(),
+            // Backlog B3 — proof photos taken with no signal, kept in app-private storage until sent.
+            proofFiles = DirectoryProofFiles(java.io.File(filesDir, "proof-outbox").path),
+            connectivity = AndroidConnectivity(applicationContext),
         )
     }
 
@@ -45,6 +50,6 @@ class EffyApp : Application() {
         }
         // 050 — crash reporting on (independent of analytics consent, Q1); analytics ON by default for this
         // INTERNAL audience (employees, disclosed — clarification Q4; no opt-out UI this slice). Off-thread.
-        container.startObservability(analyticsConsented = true)
+        container.startObservability(analyticsConsented = container.analyticsConsent.value)
     }
 }

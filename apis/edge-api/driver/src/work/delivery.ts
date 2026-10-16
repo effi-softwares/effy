@@ -126,6 +126,9 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
   };
 }
 
+/** An open drop's states, in the only order it may move through them. */
+const PROGRESS = ["pending", "out_for_delivery", "en_route", "arrived"];
+
 /** POST /driver/v1/delivery/drops/{dropId}/status — progress a drop. */
 export async function setDropStatus(
   dropId: string,
@@ -165,6 +168,12 @@ export async function setDropStatus(
     const ALLOWED = new Set(["out_for_delivery", "en_route", "arrived"]);
     if (!ALLOWED.has(body.to)) throw new NotFoundError();
     const next = body.to;
+
+    // ⚠ NOR IS AN OPEN DROP. An offline replay of "Start this drop" can land after "I've arrived";
+    // it answers with where the drop is and writes nothing.
+    if (PROGRESS.indexOf(next) <= PROGRESS.indexOf(current)) {
+      return { status: dropStatusOf(current) };
+    }
     await tx.query(`UPDATE public.round_stop SET status = $2 WHERE id = $1`, [dropId, next]);
     await tx.query(
       `UPDATE public.driver_round SET status = 'in_progress', updated_at = now()

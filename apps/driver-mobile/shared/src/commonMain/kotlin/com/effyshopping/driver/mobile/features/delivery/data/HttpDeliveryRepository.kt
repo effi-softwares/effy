@@ -1,6 +1,7 @@
 package com.effyshopping.driver.mobile.features.delivery.data
 
 import com.effyshopping.driver.mobile.core.opening.toOpening
+import com.effyshopping.driver.mobile.core.platform.imageContentType
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow
 import com.effyshopping.driver.mobile.contract.HandoverPreference
 import com.effyshopping.driver.mobile.contract.DeliveryDropDTO
@@ -23,6 +24,10 @@ import com.effyshopping.driver.mobile.features.delivery.domain.Handover
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
+import com.effyshopping.driver.mobile.core.offline.PendingAction
+import com.effyshopping.driver.mobile.core.offline.PendingProof
+import com.effyshopping.driver.mobile.core.offline.ProofOutbox
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 import com.effyshopping.driver.mobile.core.offline.withReplay
 import kotlinx.serialization.json.Json
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
@@ -44,6 +49,8 @@ import kotlinx.io.IOException
 class HttpDeliveryRepository(
     private val api: HttpClient,
     private val offline: OfflineQueue,
+    /** Proof captured with no signal, waiting to be sent (backlog B3). */
+    private val proofs: ProofOutbox,
     private val json: Json = Json { encodeDefaults = true },
     /** Told when a proof image did not reach storage, with a bounded reason — never the image. */
     private val onProofUploadFailed: (reason: String) -> Unit = {},
@@ -51,6 +58,9 @@ class HttpDeliveryRepository(
 
     override suspend fun getRun(runId: String): DeliveryRun = request {
         api.get("driver/v1/delivery/runs/$runId").ensureSuccess().body<DeliveryRunDTO>().toDomain()
+    }.let { run ->
+        // A drop whose proof is waiting on the phone is delivered as far as the driver is concerned.
+        run.copy(drops = run.drops.map { if (proofs.isPending(it.dropId)) it.copy(status = DropStatus.DELIVERED) else it })
     }
 
     /** 065 FR-024 — a drop the driver has already seen stays readable with no connection. */
@@ -60,9 +70,9 @@ class HttpDeliveryRepository(
         request {
             api.get("driver/v1/delivery/drops/$dropId").ensureSuccess().body<DeliveryDropDTO>().toDomain()
         }
-    }
+    }.let { if (proofs.isPending(dropId)) it.copy(status = DropStatus.DELIVERED) else it }
 
-    override suspend fun advance(dropId: String, to: String, changeId: String): DropStatus {
+    override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome {
         val toEnum = when (to) {
             "out_for_delivery" -> To.OutForDelivery
             "en_route" -> To.EnRoute
@@ -71,17 +81,66 @@ class HttpDeliveryRepository(
         val path = "driver/v1/delivery/drops/$dropId/status"
         val body = DropStatusRequest(changeID = changeId, to = toEnum)
         return request {
-            offline.withReplay(path, json.encodeToString(DropStatusRequest.serializer(), body), changeId, "Advance a drop") {
-                val r = api.post(path) { setBody(body) }.ensureSuccess().body<StatusResp>()
-                dropStatus(r.status)
+            offline.withReplay(path, json.encodeToString(DropStatusRequest.serializer(), body), changeId, "Advance a drop", queued = { WriteOutcome.QUEUED }) {
+                api.post(path) { setBody(body) }.ensureSuccess()
+                WriteOutcome.SENT
             }
         }
     }
 
-    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) {
-        // 1. Presign (driver-authed). 2. PUT bytes to S3 (no bearer). 3. Complete the proof with the key.
-        // NOT offline-queueable (the bytes can't be replayed cheaply) — a media proof needs connectivity.
-        val contentType = "image/png"
+    /**
+     * Presign → upload → submit (064). ⚠ WITH NO SIGNAL THE PROOF IS KEPT, NOT LOST (backlog B3): the
+     * image is saved on the phone and sent by [flushProofs] under the same changeId, and the drop
+     * reads as delivered here meanwhile. It used to be a dead end at a doorstep with no signal.
+     */
+    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String): WriteOutcome =
+        try {
+            sendProof(dropId, method, bytes, note, changeId)
+            WriteOutcome.SENT
+        } catch (e: AppException) {
+            if (e.error != AppError.Network) throw e
+            proofs.add(PendingProof(changeId, dropId, method.name.lowercase(), note), bytes)
+            WriteOutcome.QUEUED
+        }
+
+    /**
+     * Send every proof waiting on the phone, oldest first. Stops at the first sign the connection is
+     * still down; a proof the platform refuses is dropped and reported in the "Not recorded" banner.
+     */
+    suspend fun flushProofs() {
+        for (p in proofs.pending.value) {
+            val bytes = proofs.bytes(p.changeId)
+            val method = ProofMethod.entries.firstOrNull { it.name.equals(p.method, ignoreCase = true) }
+            if (bytes == null || method == null) {
+                proofs.remove(p.changeId)
+                offline.recordRefused(PendingAction(p.changeId, "driver/v1/delivery/drops/${p.dropId}/proof", "", PROOF_LABEL))
+                continue
+            }
+            try {
+                sendProof(p.dropId, method, bytes, p.note, p.changeId)
+                proofs.remove(p.changeId)
+            } catch (e: AppException) {
+                when (e.error) {
+                    AppError.Network, AppError.Unavailable, AppError.Unauthenticated,
+                    is AppError.NotOpenYet, is AppError.RateLimited -> return
+                    AppError.Unexpected -> {
+                        proofs.bumpAttempts(p.changeId)
+                        if (p.attempts + 1 < MAX_PROOF_ATTEMPTS) return
+                        proofs.remove(p.changeId)
+                        offline.recordRefused(PendingAction(p.changeId, "driver/v1/delivery/drops/${p.dropId}/proof", "", PROOF_LABEL))
+                    }
+                    else -> {
+                        proofs.remove(p.changeId)
+                        offline.recordRefused(PendingAction(p.changeId, "driver/v1/delivery/drops/${p.dropId}/proof", "", PROOF_LABEL))
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun sendProof(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) {
+        // A photo is JPEG; a drawn signature is PNG. The bytes say which.
+        val contentType = imageContentType(bytes)
         val presign = request {
             api.post("driver/v1/delivery/drops/$dropId/proof/presign") {
                 setBody(ProofPresignRequest(changeID = changeId, contentType = contentType, fileSize = bytes.size.toLong()))
@@ -90,8 +149,7 @@ class HttpDeliveryRepository(
         val uploaded = uploadBytes(presign.uploadURL, bytes, contentType)
         // ⚠ FR-006 — the drop is NOT completed if the image did not land. The submission below carries
         // a key to something already stored, so a delivery can never be marked against proof that
-        // failed to upload. This is also why the media path is not offline-queueable: bytes do not
-        // belong in a replay queue (research R9).
+        // failed to upload. A failed upload is treated as no signal: the proof waits in the outbox.
         if (!uploaded) {
             onProofUploadFailed("upload_rejected")
             throw AppException(AppError.Network)
@@ -116,12 +174,13 @@ class HttpDeliveryRepository(
         }
     }
 
-    override suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String) {
+    override suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String): WriteOutcome {
         val path = "driver/v1/delivery/drops/$dropId/fail"
         val body = DropFailRequest(changeID = changeId, reason = failureReason(reason), note = note)
-        request {
-            offline.withReplay(path, json.encodeToString(DropFailRequest.serializer(), body), changeId, "Mark a drop undeliverable") {
+        return request {
+            offline.withReplay(path, json.encodeToString(DropFailRequest.serializer(), body), changeId, "Mark a drop undeliverable", queued = { WriteOutcome.QUEUED }) {
                 api.post(path) { setBody(body) }.ensureSuccess()
+                WriteOutcome.SENT
             }
         }
     }
@@ -142,8 +201,9 @@ class HttpDeliveryRepository(
         }
 }
 
-@kotlinx.serialization.Serializable
-private data class StatusResp(val status: DeliveryDropStatus)
+
+private const val PROOF_LABEL = "Proof of delivery"
+private const val MAX_PROOF_ATTEMPTS = 5
 
 private fun dropStatus(s: DeliveryDropStatus): DropStatus = when (s) {
     DeliveryDropStatus.Staged -> DropStatus.STAGED

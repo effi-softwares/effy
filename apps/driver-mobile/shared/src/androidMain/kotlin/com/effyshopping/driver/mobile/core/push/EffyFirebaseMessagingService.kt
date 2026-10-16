@@ -39,6 +39,7 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
         val open = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             message.data[PushOpen.EXTRA_TYPE]?.let { putExtra(PushOpen.EXTRA_TYPE, it) }
+            message.data[PushOpen.EXTRA_ENTITY]?.let { putExtra(PushOpen.EXTRA_ENTITY, it) }
         }
         val id = message.messageId?.hashCode() ?: 0
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -66,15 +67,21 @@ class EffyFirebaseMessagingService : FirebaseMessagingService() {
     }
 }
 
-/** What a tapped notification carries into the app: the KIND of thing it was about, nothing else. */
+/**
+ * What a tapped notification carries into the app: the KIND of thing it was about and, for a round,
+ * which one (backlog D4) — an id, never an address or an order.
+ */
 object PushOpen {
-    /** The data key the notifications worker sends (`dataFor` in `notifications/src/worker/copy.ts`). */
+    /** The data keys the notifications worker sends (`dataFor` in `notifications/src/worker/copy.ts`). */
     const val EXTRA_TYPE = "type"
+    const val EXTRA_ENTITY = "entityId"
 
-    /** The tapped notification's type, taken OUT of [intent] so a rotation does not act on it twice. */
-    fun consume(intent: Intent?): String? {
+    /** The tapped notification, taken OUT of [intent] so a rotation does not act on it twice. */
+    fun consume(intent: Intent?): OpenedNotification? {
         val type = intent?.getStringExtra(EXTRA_TYPE) ?: return null
+        val entity = intent.getStringExtra(EXTRA_ENTITY)
         intent.removeExtra(EXTRA_TYPE)
-        return type
+        intent.removeExtra(EXTRA_ENTITY)
+        return OpenedNotification(type, entity)
     }
 }

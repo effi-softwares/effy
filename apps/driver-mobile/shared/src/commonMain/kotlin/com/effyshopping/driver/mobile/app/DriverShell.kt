@@ -47,6 +47,7 @@ import com.effyshopping.driver.mobile.core.nav.ShopStopRoute
 import com.effyshopping.driver.mobile.core.nav.TodayRoot
 import com.effyshopping.driver.mobile.core.nav.driverNavJson
 import com.effyshopping.driver.mobile.core.nav.driverStartRoute
+import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 import com.effyshopping.driver.mobile.core.session.SessionState
 import com.effyshopping.driver.mobile.features.map.presentation.MapUiState
 import com.effyshopping.driver.mobile.features.map.presentation.MapStop
@@ -95,6 +96,7 @@ import com.effyshopping.mobile.kit.nav.rememberTabBackStacks
 import com.effyshopping.mobile.kit.shell.ResponsiveDestination
 import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 
 /**
  * The signed-in driver shell (049 §4 IA): an adaptive bottom bar / navigation rail (mobile-kit) with four
@@ -134,14 +136,24 @@ fun DriverShell(
         if (screenName.isNotEmpty()) container.analyticsDriver.screen(screenName.lowercase())
     }
 
-    // A tapped notification is about the driver's work, and Today is where their work is.
+    // A tapped notification is about the driver's work, and Today is where their work is. One about
+    // a round opens that round (backlog D4) — when Today still holds it, which also says its kind.
+    val analyticsOn by container.analyticsConsent.collectAsState()
     val openedNotification by container.openedNotification.collectAsState()
     LaunchedEffect(openedNotification) {
-        val type = openedNotification ?: return@LaunchedEffect
-        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(type))
+        val opened = openedNotification ?: return@LaunchedEffect
+        container.analyticsDriver.capture(AnalyticsEvent.NotificationOpened(opened.type))
         tabs.selectTab(DriverTab.TODAY)
         while (tabs.canGoBack) tabs.pop()
         container.openedNotification.value = null
+        val runId = opened.entityId?.takeIf { opened.type.startsWith("run_") } ?: return@LaunchedEffect
+        val today = runCatching { container.getToday() }.getOrNull() ?: return@LaunchedEffect
+        val phase = if (today.activeRunId == runId) today.phase else today.upcoming.firstOrNull { it.runId == runId }?.phase
+        when (phase) {
+            Phase.COLLECTION -> tabs.push(CollectionRunRoute(runId))
+            Phase.SAME_DAY_DELIVERY -> tabs.push(DeliveryRunRoute(runId))
+            else -> Unit // no longer theirs, or finished: Today says what is
+        }
     }
 
     val destinations = DriverTab.entries.map { tab ->
@@ -274,6 +286,9 @@ fun DriverShell(
                 is HubCheckinRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
+                    // Backlog F2 — after the system reclaims the app, this screen is restored on its own,
+                    // with no run screen before it to have loaded the counts.
+                    androidx.compose.runtime.LaunchedEffect(route.runId) { vm.ensureRunLoaded() }
                     HubCheckinScreen(
                         state = st,
                         onBack = { tabs.pop() },
@@ -406,6 +421,8 @@ fun DriverShell(
                         onOpenAppearance = { tabs.push(AppearanceRoute) },
                         onOpenHelp = { tabs.push(HelpRoute) },
                         outstandingWork = todaySt.today?.remainingCount,
+                        analyticsOn = analyticsOn,
+                        onToggleAnalytics = { container.setAnalyticsConsent(!analyticsOn) },
                         onSignOut = {
                             if (!signingOut) {
                                 signingOut = true
@@ -416,6 +433,8 @@ fun DriverShell(
                                     // given work. Best-effort — signing out never waits on it.
                                     if (todaySt.dutyStatus == DutyStatus.ON_DUTY) {
                                         runCatching { container.setDuty(false, container.newChangeId()) }
+                                        // Review M4 — the shift ends with the duty, or the timer ran on.
+                                        container.shiftClock.ended(nowEpochMillis())
                                     }
                                     container.session.signOutLocally()
                                 }
@@ -519,10 +538,13 @@ private fun manifestOpened(container: AppContainer, surface: String): (Boolean, 
 @Composable
 private fun PendingWritesLine(container: AppContainer) {
     val pending by container.offlineQueue.pending.collectAsState()
-    if (pending.isEmpty()) return
+    // Backlog B3 — a proof saved with no signal is an update waiting too, and the one that matters most.
+    val proofs by container.proofOutbox.pending.collectAsState()
+    val count = pending.size + proofs.size
+    if (count == 0) return
     Text(
-        if (pending.size == 1) "1 update saved on this phone — it sends when you reconnect."
-        else "${pending.size} updates saved on this phone — they send when you reconnect.",
+        if (count == 1) "1 update saved on this phone — it sends when you reconnect."
+        else "$count updates saved on this phone — they send when you reconnect.",
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
@@ -563,6 +585,7 @@ private fun newCollectionVm(container: AppContainer, runId: String) = Collection
     newChangeId = container::newChangeId,
     liveChanges = container.live.changes(LiveKind.WORK),
     drafts = container.stopDrafts,
+    pendingChangeIds = container.offlineQueue.pending.map { list -> list.mapTo(mutableSetOf()) { it.changeId } },
 )
 
 private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryViewModel(

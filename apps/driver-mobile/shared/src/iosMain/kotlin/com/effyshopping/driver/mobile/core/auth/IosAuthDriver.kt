@@ -29,6 +29,10 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
             }
         }
 
+    /** Answered from the device's stored credentials, so it works with no signal (backlog C3). */
+    override suspend fun holdsSignIn(): Boolean =
+        suspendCancellableCoroutine { cont -> bridge.holdsSignIn { cont.resumeIfActive(it) } }
+
     override suspend fun signInWithEmailOtp(email: String): AuthStep =
         mapResult(await { cb -> bridge.signInWithEmailOtp(email, cb) })
 
@@ -93,6 +97,8 @@ data class BridgeAuthResult(
  */
 interface IosAuthBridge {
     fun fetchSession(forceRefresh: Boolean, onResult: (BridgeSession?) -> Unit)
+    /** Whether this device holds a sign-in — `isSignedIn` from stored credentials, no network needed. */
+    fun holdsSignIn(onResult: (Boolean) -> Unit)
     fun signInWithEmailOtp(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun confirmOtp(code: String, onResult: (BridgeAuthResult) -> Unit)
     fun signOut(onResult: () -> Unit)

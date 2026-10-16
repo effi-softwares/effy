@@ -2,7 +2,6 @@ package com.effyshopping.driver.mobile.core.platform
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -20,7 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
 
 /**
  * A live CameraX viewfinder (060 T046).
@@ -49,10 +48,13 @@ actual fun CameraPreviewSurface(
     }
     if (!granted) return false
 
-    val imageCapture = remember { ImageCapture.Builder().build() }
+    val imageCapture = remember {
+        ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build()
+    }
     val previewView = remember { PreviewView(context) }
 
     DisposableEffect(lifecycleOwner) {
+        val worker = Executors.newSingleThreadExecutor()
         val future = ProcessCameraProvider.getInstance(context)
         val listener = Runnable {
             runCatching {
@@ -71,13 +73,16 @@ actual fun CameraPreviewSurface(
         }
         future.addListener(listener, ContextCompat.getMainExecutor(context))
 
+        val main = ContextCompat.getMainExecutor(context)
         controller.capture = {
+            // ⚠ The frame is decoded and re-encoded on the worker, never the main thread (backlog B1).
             imageCapture.takePicture(
-                ContextCompat.getMainExecutor(context),
+                worker,
                 object : ImageCapture.OnImageCapturedCallback() {
                     override fun onCaptureSuccess(image: ImageProxy) {
-                        runCatching { onCaptured(image.toPngBytes()) }
+                        val bytes = runCatching { image.toProofJpeg() }.getOrNull()
                         image.close()
+                        if (bytes != null) main.execute { onCaptured(bytes) }
                     }
 
                     // ⚠ Swallowed deliberately: a failed shutter must not crash a driver mid-drop.
@@ -90,6 +95,7 @@ actual fun CameraPreviewSurface(
         onDispose {
             controller.capture = null
             runCatching { future.get().unbindAll() }
+            worker.shutdown()
         }
     }
 
@@ -97,13 +103,10 @@ actual fun CameraPreviewSurface(
     return true
 }
 
-/** CameraX hands back YUV/JPEG planes; the platform's proof upload expects PNG (049). */
-private fun ImageProxy.toPngBytes(): ByteArray {
+/** CameraX's in-memory capture is a JPEG in one plane; [proofJpeg] makes it upright and small. */
+private fun ImageProxy.toProofJpeg(): ByteArray? {
     val buffer = planes[0].buffer
     val bytes = ByteArray(buffer.remaining())
     buffer.get(bytes)
-    val bitmap: Bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-        ?: return bytes
-    return ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        .toByteArray()
+    return proofJpeg(bytes, imageInfo.rotationDegrees)
 }

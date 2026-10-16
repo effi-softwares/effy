@@ -28,6 +28,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 
 private class FakeCollectionRepo(
     var run: CollectionRun? = null,
@@ -40,24 +46,78 @@ private class FakeCollectionRepo(
     var outcomes: List<PackageOutcome>? = null
     override suspend fun getStop(runId: String, stopId: String): ShopStop =
         ShopStop(stopId, "Shop", "S1", packages, StopStatus.ASSIGNED)
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>) {
+    /** When true, writes answer as saved-to-send, as the real repository does with no signal. */
+    var offline = false
+    val changeIds = mutableListOf<String>()
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): WriteOutcome {
         fail?.let { throw AppException(it) }; collectedStop = stopId; this.outcomes = outcomes
+        changeIds += changeId
+        return if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
     }
-    override suspend fun checkIn(runId: String, changeId: String): HubSplit = fail?.let { throw AppException(it) } ?: split!!
+    override suspend fun checkIn(runId: String, changeId: String): HubSplit? {
+        fail?.let { throw AppException(it) }
+        changeIds += changeId
+        return if (offline) null else split!!
+    }
 }
 
 class CollectionViewModelTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 
-    private fun vm(repo: FakeCollectionRepo, drafts: StopDrafts? = null) = CollectionViewModel(
-        runId = "r1",
-        getRun = GetCollectionRun(repo),
-        getStop = GetShopStop(repo),
-        collectStop = CollectStop(repo),
-        checkInHub = CheckInHub(repo),
-        newChangeId = { "cid" },
-        drafts = drafts,
-    )
+    private fun vm(
+        repo: FakeCollectionRepo,
+        drafts: StopDrafts? = null,
+        pending: Flow<Set<String>> = emptyFlow(),
+    ): CollectionViewModel {
+        var n = 0
+        return CollectionViewModel(
+            runId = "r1",
+            getRun = GetCollectionRun(repo),
+            getStop = GetShopStop(repo),
+            collectStop = CollectStop(repo),
+            checkInHub = CheckInHub(repo),
+            newChangeId = { "cid-${n++}" },
+            drafts = drafts,
+            pendingChangeIds = pending,
+        )
+    }
+
+    /** Backlog C1 — collecting with no signal moves the driver on; it is not an error. */
+    @Test fun a_collect_saved_offline_moves_the_driver_on() = runTest {
+        val repo = FakeCollectionRepo().apply { offline = true }
+        var done = false
+        vm(repo).apply { loadStop("s1"); collect("s1") { done = true } }
+        assertTrue(done)
+    }
+
+    /** Backlog C1 — a retry of the same action is the same write, so the queue cannot hold it twice. */
+    @Test fun a_retried_collect_keeps_its_change_id() = runTest {
+        val repo = FakeCollectionRepo(fail = AppError.Unavailable)
+        val v = vm(repo).apply { loadStop("s1") }
+        v.collect("s1") {}
+        repo.fail = null
+        v.collect("s1") {}
+        assertEquals(listOf("cid-0"), repo.changeIds)
+    }
+
+    /** Backlog C2 — a check-in with no signal is saved, then read again once it has been sent. */
+    @Test fun an_offline_check_in_shows_its_split_once_sent() = runTest {
+        val pending = MutableStateFlow(setOf<String>())
+        val split = HubSplit(3, 3, 0, 0, emptyList())
+        val repo = FakeCollectionRepo(split = split).apply { offline = true }
+        val v = vm(repo, pending = pending)
+
+        v.checkIn()
+        assertTrue(v.state.value.checkInSending)
+        assertNull(v.state.value.hubSplit)
+
+        pending.value = setOf("cid-0")   // queued
+        repo.offline = false
+        pending.value = emptySet()       // sent
+        assertEquals(split, v.state.value.hubSplit)
+        assertFalse(v.state.value.checkInSending)
+        assertEquals(listOf("cid-0", "cid-0"), repo.changeIds) // the same check-in, asked twice
+    }
 
     /** The phone closed the app while the driver was loading: what they entered must still be there. */
     @Test fun ticks_and_reports_survive_the_app_being_closed_and_go_once_collected() = runTest {

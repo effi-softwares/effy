@@ -46,6 +46,8 @@ data class Today(
      * round at a time, because a round only existed for the last 45 minutes before it was due.
      */
     val upcoming: List<UpcomingRound> = emptyList(),
+    /** The last copy kept on the phone, shown with no signal (backlog C3) — not a fresh read. */
+    val stale: Boolean = false,
 )
 
 /** A round the driver holds besides the current one (072). Opens its own run screen when tapped. */

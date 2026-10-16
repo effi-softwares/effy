@@ -20,6 +20,7 @@ import { nonDeliveryDates } from "@effy/edge-shared/delivery";
 import { loadCandidates, loadSchedule } from "../planner/repository";
 import { dueRun, isoDateOf } from "../planner/service";
 import { recordAudit, type DispatchAuditAction } from "../shared/audit";
+import { enqueueRoundChanged, enqueueRunAssigned } from "../shared/driver-push";
 import {
   DAY_ROUNDS,
   ROUND_DETAIL_STOPS,
@@ -255,6 +256,8 @@ export async function reassign(
       `UPDATE public.driver_round SET driver_id = $2, updated_at = now() WHERE id = $1`,
       [roundId, toDriverId],
     );
+    await enqueueRunAssigned(tx, roundId); // backlog D1 — the new driver is told
+    if (r.driver_id && r.driver_id !== toDriverId) await enqueueRoundChanged(tx, roundId, r.driver_id); // D2 — the old one too
     await audit(tx, actorSub, "dispatch.reassign", roundId, { toDriverId });
   });
 }
@@ -280,6 +283,7 @@ export async function unassign(roundId: string, expectedUpdatedAt: string, actor
       `UPDATE public.driver_round SET status = 'cancelled', updated_at = now() WHERE id = $1`,
       [roundId],
     );
+    if (r.driver_id) await enqueueRoundChanged(tx, roundId, r.driver_id); // backlog D2 — "Run removed"
     await audit(tx, actorSub, "dispatch.unassign", roundId, {});
   });
 }
@@ -309,6 +313,7 @@ export async function reorder(
       await tx.query(`UPDATE public.round_stop SET seq = $2 WHERE id = $1`, [id, i]);
     }
     await tx.query(`UPDATE public.driver_round SET updated_at = now() WHERE id = $1`, [roundId]);
+    if (r.driver_id) await enqueueRoundChanged(tx, roundId, r.driver_id); // backlog D2 — "Run updated"
     await audit(tx, actorSub, "dispatch.reorder", roundId, { stops: stopIds.length });
   });
 }

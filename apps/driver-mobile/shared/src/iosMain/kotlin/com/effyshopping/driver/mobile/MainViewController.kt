@@ -10,9 +10,14 @@ import com.effyshopping.driver.mobile.core.observability.IosAnalyticsBridge
 import com.effyshopping.driver.mobile.core.observability.IosAnalyticsDriver
 import com.effyshopping.driver.mobile.core.observability.IosCrashBridge
 import com.effyshopping.driver.mobile.core.observability.IosCrashReporter
+import com.effyshopping.driver.mobile.core.platform.IosConnectivity
 import com.effyshopping.driver.mobile.core.platform.IosMapLauncher
 import com.effyshopping.driver.mobile.core.platform.IosPlatformUiController
+import com.effyshopping.driver.mobile.core.offline.DirectoryProofFiles
+import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSBundle
+import platform.Foundation.NSSearchPathForDirectoriesInDomains
+import platform.Foundation.NSUserDomainMask
 import platform.UIKit.UIViewController
 
 /**
@@ -33,11 +38,21 @@ fun MainViewController(
         analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
         // What this installed build calls itself — shown on Help.
         appVersion = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String,
+        // Backlog B3 — proof photos taken with no signal, kept in Application Support until sent.
+        proofFiles = DirectoryProofFiles(proofOutboxDirectory()),
+        connectivity = IosConnectivity(),
     )
-    container.startObservability(analyticsConsented = true)
+    container.startObservability(analyticsConsented = container.analyticsConsent.value)
     val viewController = ComposeUIViewController {
         App(container, platformUiController, IosMapLauncher())
     }
     platformUiController.attach(viewController)
     return viewController
+}
+
+/** Application Support is backed up, never purged by the system, and private to the app. */
+private fun proofOutboxDirectory(): String {
+    val base = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, true)
+        .firstOrNull() as? String ?: error("No Application Support directory")
+    return "$base/proof-outbox"
 }

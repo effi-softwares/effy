@@ -1,8 +1,6 @@
 package com.effyshopping.driver.mobile
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color
 import android.os.Bundle
@@ -10,8 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import com.effyshopping.driver.mobile.app.App
 import com.effyshopping.driver.mobile.core.platform.AndroidMapLauncher
 import com.effyshopping.driver.mobile.core.platform.AndroidPlatformUiController
@@ -19,11 +15,6 @@ import com.effyshopping.driver.mobile.core.push.PushOpen
 
 class MainActivity : ComponentActivity() {
     private lateinit var platformUiController: AndroidPlatformUiController
-
-    // 050 T046 — Android 13+ notification permission (registered before STARTED). Result ignored:
-    // denial just means no push shown (FR-019); the FCM token still registers.
-    private val requestNotifications =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -39,12 +30,9 @@ class MainActivity : ComponentActivity() {
         // Opened by tapping a notification: tell the shell, which goes to the driver's work.
         PushOpen.consume(intent)?.let { container.openedNotification.value = it }
         platformUiController = AndroidPlatformUiController(this, window)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+        // ⚠ Notification permission is NOT asked for here (backlog D5). It was, on every launch, before
+        // the permission explanation screen — so a driver saw two prompts, and one that came with no
+        // reason. That screen asks, once; a refusal shows "Notifications are off" on Today and Account.
         setContent {
             App(container, platformUiController, AndroidMapLauncher(applicationContext))
         }

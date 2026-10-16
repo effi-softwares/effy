@@ -235,7 +235,11 @@ fun DropDetailScreen(
                 packageCount = d?.packages?.size ?: 0,
                 address = d?.addressFull.orEmpty(),
                 // When the app was told the delivery was recorded, on the phone's own clock.
-                methodLabel = remember(d?.dropId) { "Delivered ${localTimeText(nowEpochMillis(), withDay = false)}" },
+                methodLabel = remember(d?.dropId, state.proofSending) {
+                    // Backlog B3 — no signal: delivered on the phone, the proof sends when it can.
+                    if (state.proofSending) "Delivered — sending proof"
+                    else "Delivered ${localTimeText(nowEpochMillis(), withDay = false)}"
+                },
                 dropsDone = state.run?.drops?.count { it.status == DropStatus.DELIVERED },
                 dropsLeft = state.run?.drops?.count {
                     it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED

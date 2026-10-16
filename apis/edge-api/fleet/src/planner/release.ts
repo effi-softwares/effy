@@ -17,6 +17,7 @@ import type pg from "pg";
 
 import { recordAudit } from "../shared/audit";
 import { PLANNED_COLLECTION_ROUNDS, RELEASE_ASSIGNED, UNWORKABLE_ROUNDS } from "./sql";
+import { enqueueRoundChanged } from "../shared/driver-push";
 
 /** The audit actor for something the platform did by itself. */
 const SYSTEM_ACTOR = "system:planner";
@@ -60,6 +61,8 @@ async function releaseRound(
   }
 
   if (released > 0 || round.status === "planned") {
+    // Backlog D2 — ended: "Run removed"; under way and shorter: "Run updated".
+    await enqueueRoundChanged(tx, round.id, round.driver_id);
     await recordAudit(
       {
         actorSub: SYSTEM_ACTOR,

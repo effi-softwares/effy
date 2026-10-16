@@ -31,6 +31,15 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         }
     }
 
+    /// Whether this device holds a sign-in, from the stored credentials — answers with no signal, when
+    /// `fetchSession` cannot refresh the tokens (driver backlog C3).
+    func holdsSignIn(onResult: @escaping (KotlinBoolean) -> Void) {
+        Task {
+            let signedIn = (try? await Amplify.Auth.fetchAuthSession().isSignedIn) ?? false
+            onResult(KotlinBoolean(value: signedIn))
+        }
+    }
+
     // MARK: Sign-in (the ONLY credential flow: email → code)
 
     func signInWithEmailOtp(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {

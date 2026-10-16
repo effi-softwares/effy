@@ -384,6 +384,52 @@ d("064 — proof IS the delivery completion", () => {
     });
   });
 
+  describe("a delivery round closes when its last drop is settled (backlog A1)", () => {
+    beforeEach(() => seedOrder(["same_day"]));
+
+    const roundStatus = async () =>
+      (await pool.query(
+        "SELECT dr.status FROM public.driver_round dr JOIN public.round_stop rs ON rs.round_id = dr.id WHERE rs.id = $1",
+        [dropId],
+      )).rows[0].status as string;
+
+    /** A second drop on the same round, still open. */
+    async function addOpenDrop(): Promise<string> {
+      const r = await pool.query<{ id: string }>(
+        `INSERT INTO public.round_stop (round_id, kind, order_id)
+         SELECT round_id, 'customer_drop', order_id FROM public.round_stop WHERE id = $1
+         RETURNING id`,
+        [dropId],
+      );
+      return r.rows[0]!.id;
+    }
+
+    it("proof on the last drop completes the round", async () => {
+      await recordProof(proofArgs());
+      expect(await roundStatus()).toBe("completed");
+    });
+
+    it("a failure on the last drop completes the round", async () => {
+      await recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
+      expect(await roundStatus()).toBe("completed");
+    });
+
+    it("a round with a drop still open stays in progress", async () => {
+      const other = await addOpenDrop();
+      await recordProof(proofArgs());
+      expect(await roundStatus()).toBe("in_progress");
+
+      await recordFailure({ dropId: other, driverId, reason: "nobody_home", note: null, changeId: crypto.randomUUID() });
+      expect(await roundStatus()).toBe("completed");
+    });
+
+    it("the finished run appears in History", async () => {
+      await recordProof(proofArgs());
+      const h = await history(driverId);
+      expect(h.days.flatMap((d) => d.runs)).toHaveLength(1);
+    });
+  });
+
   describe("⚠ US2 — a failure never delivers anything (SC-011)", () => {
     beforeEach(() => seedOrder(["same_day"]));
 

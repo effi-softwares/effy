@@ -3,6 +3,8 @@
 
 import { query, withTransaction, type CollectionRun, type Queryable } from "@effy/edge-shared";
 
+import { enqueueRoundChanged, enqueueRunAssigned } from "../shared/driver-push";
+
 import {
   BUCKET_ROUNDS,
   CANDIDATE_DRIVERS,
@@ -322,6 +324,7 @@ export async function commitWave(
     }
     assigned += placed;
     driverIds.add(driverId);
+    await enqueueRunAssigned(tx, roundId); // backlog D1 — the driver is told, app open or not
 
     // ⚠ 064 — A COLLECTION ROUND ENDS AT THE HUB, AND THAT ENDING IS A STOP.
     //
@@ -372,6 +375,8 @@ export async function commitWave(
 
     assigned += added.length;
     driverIds.add(round.driver_id);
+    // A no-op for a round the driver was already told about; a round from before D1 is told now.
+    await enqueueRunAssigned(tx, roundId);
 
     // ⚠ FR-004b — a driver WORKING a round must be TOLD it changed. A round that grows silently
     // underneath somebody working it is worse than one that never grows.
@@ -391,6 +396,8 @@ export async function commitWave(
         WHERE id = $1`,
       [roundId, note],
     );
+    // Backlog D2 — a round under way grew: "Run updated" (a round not begun says nothing).
+    await enqueueRoundChanged(tx, roundId, round.driver_id);
   }
 
   if (assigned === 0) {

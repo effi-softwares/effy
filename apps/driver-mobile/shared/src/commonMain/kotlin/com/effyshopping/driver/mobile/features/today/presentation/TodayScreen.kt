@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.today.presentation
 
+import com.effyshopping.driver.mobile.core.presentation.NotificationsOffRow
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -96,6 +97,7 @@ fun TodayScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp),
             ) {
+                NotificationsOffRow()
                 when {
                     state.dutyStatus == DutyStatus.OFF_DUTY -> OffDutyBody(driver, state)
                     state.isLoading && state.today == null -> TodaySkeleton(reducedMotion)

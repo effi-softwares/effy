@@ -39,6 +39,10 @@ const ALL: NotificationType[] = [
   "order_with_courier",
   // 081
   "order_delivery_changed",
+  // driver backlog D2
+  "run_changed",
+  "run_withdrawn",
+  "run_opens_soon",
 ];
 
 describe("notification copy + wire contract", () => {
@@ -113,6 +117,10 @@ describe("notification copy + wire contract", () => {
     // Shop → the pick queue; driver → the assigned run.
     expect(deepLinkFor("shop_new_order", "f1")).toBe("effy://queue/f1");
     expect(deepLinkFor("run_assigned", "r1")).toBe("effy://run/r1");
+    // Driver backlog D2 — every driver push opens the run it is about.
+    expect(deepLinkFor("run_changed", "r1")).toBe("effy://run/r1");
+    expect(deepLinkFor("run_withdrawn", "r1")).toBe("effy://run/r1");
+    expect(deepLinkFor("run_opens_soon", "r1")).toBe("effy://run/r1");
   });
 
   // ── 059 ─────────────────────────────────────────────────────────────────────────────────────

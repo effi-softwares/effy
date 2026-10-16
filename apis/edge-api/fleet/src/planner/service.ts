@@ -18,6 +18,7 @@ import {
 } from "./repository";
 import type { PlannedExclusion, PlannerSettings, WavePlan } from "./types";
 import { deadlineFor, groupByWindow } from "./windows";
+import { enqueueRoundsOpeningSoon } from "../shared/driver-push";
 
 /** What one pass did for one kind of work. */
 export interface KindOutcome {
@@ -116,6 +117,9 @@ export async function runPass(now = new Date()): Promise<PassOutcome> {
     // 4. The standing reasons, rewritten only where they changed.
     const collectionReasons = await replaceExclusions(tx, "collection", collection.exclusions);
     const deliveryReasons = await replaceExclusions(tx, "delivery", delivery.exclusions);
+
+    // 5. Backlog D2 — tell drivers whose round opens in the next few minutes.
+    await enqueueRoundsOpeningSoon(tx, now);
 
     return {
       skipped: null,

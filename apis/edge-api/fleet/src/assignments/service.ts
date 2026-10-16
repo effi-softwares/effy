@@ -37,6 +37,7 @@ import {
 import type { BucketRound, PlannablePackage, WavePlan } from "../planner/types";
 import { deadlineFor } from "../planner/windows";
 import { recordAudit } from "../shared/audit";
+import { enqueueRoundChanged } from "../shared/driver-push";
 
 export type Stage = "collection" | "delivery";
 
@@ -244,7 +245,10 @@ export async function assignTo(input: {
       throw new AssignmentError("needs_confirm", `${reasons.map(reasonWords).join(", ")}. Assign anyway?`);
     }
 
-    if (current) await removeAssignment(tx, current);
+    if (current) {
+      await removeAssignment(tx, current);
+      await enqueueRoundChanged(tx, current.round_id, current.driver_id); // backlog D2
+    }
 
     const who = await staffName(tx, input.actorSub);
     const note = reasons.length > 0
@@ -301,6 +305,7 @@ export async function unassign(input: {
     const current = await prepare(tx, input.packageId, input.stage, input.expectedAssignmentId);
     if (!current) throw new AssignmentError("changed", "This changed a moment ago — showing the latest.");
     await removeAssignment(tx, current);
+    await enqueueRoundChanged(tx, current.round_id, current.driver_id); // backlog D2
     await recordAudit(
       { actorSub: input.actorSub, action: "dispatch.manual_unassign", targetType: "driver_round", driverId: current.driver_id,
         detail: { packageId: input.packageId, stage: input.stage } },

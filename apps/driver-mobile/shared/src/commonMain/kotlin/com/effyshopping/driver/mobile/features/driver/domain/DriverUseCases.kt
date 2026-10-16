@@ -8,6 +8,9 @@ package com.effyshopping.driver.mobile.features.driver.domain
 /** Read the driver's platform RECORD (identity + zone + hub + vehicle + duty). Throws on refusal. */
 class GetDriverIdentity(private val repository: DriverRepository) {
     suspend operator fun invoke(): Driver = repository.me()
+
+    /** The last record read, for opening the app with no signal (backlog C3). */
+    fun lastKnown(): Driver? = repository.lastKnown()
 }
 
 /** Go on/off duty (FR-005/006). A per-action [changeId] makes a retried request idempotent (R10). */

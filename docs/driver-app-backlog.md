@@ -11,6 +11,27 @@ P3 = later.
 
 Items marked **DESIGN** should be built against the new design rather than restyled twice.
 
+## Status — 2026-10-16
+
+**Built and tested (not yet deployed or walked):** A1, A2, A3, B1, B2, B3, C1, C2, C3, C4, C5, C6, D1,
+D2, D4, D5, F2, F3, and the M4 half of E5 (the shift timer stops on sign-out).
+
+- Backend: `driver` (A1, A3), `fleet` (D1, D2), `notifications` (D2 copy). Container tests cover each.
+- Migrations: `20261016120000_close_finished_delivery_rounds.sql` (A2),
+  `20261016130000_driver_work_notifications.sql` (D2 — the three new push types).
+- App: Android and iOS both build (`assembleDebug`, `xcodebuild` simulator); host tests pass.
+  - B3 keeps proof photos in an app-owned directory (`DirectoryProofFiles`) and sends them after the
+    offline queue. C3 keeps the last `/me` and `/today` on the phone (cleared on sign-out).
+  - F3: analytics stay **on** by default (as before) with an Account → "Usage analytics" switch.
+  - D4: a push names the round; the app opens it when Today still holds it, else Today.
+
+**Deploy order:** run both migrations → deploy `notifications` → `driver` → `fleet` → ship the app.
+The Android app adds `ACCESS_NETWORK_STATE` and a FileProvider (`<applicationId>.proofphoto`).
+
+**Still open:** A4 (needs a short spec), B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
+stats, E6, E7 (decide before the redesign), F1 + G1–G3 + H4–H14 (design), H1–H3 (labels — best done as
+their own spec'd feature).
+
 ---
 
 ## Epic A — Make the delivery loop finish (P0)

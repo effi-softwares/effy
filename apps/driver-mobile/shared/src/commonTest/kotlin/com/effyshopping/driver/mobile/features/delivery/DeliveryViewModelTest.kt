@@ -23,6 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 
 private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = null) : DeliveryRepository {
     var mediaMethod: ProofMethod? = null
@@ -30,12 +31,18 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
     var mediaNote: String? = null
     override suspend fun getRun(runId: String): DeliveryRun = DeliveryRun(runId, "active", emptyList())
     override suspend fun getDrop(dropId: String): Drop = fail?.let { throw AppException(it) } ?: drop!!
-    override suspend fun advance(dropId: String, to: String, changeId: String): DropStatus = DropStatus.ARRIVED
-    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) {
+    var offline = false
+    private val outcome get() = if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
+    override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome = outcome
+    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String): WriteOutcome {
         fail?.let { throw AppException(it) }
         mediaMethod = method; mediaBytes = bytes; mediaNote = note
+        return outcome
     }
-    override suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String) { fail?.let { throw AppException(it) } }
+    override suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String): WriteOutcome {
+        fail?.let { throw AppException(it) }
+        return outcome
+    }
 }
 
 class DeliveryViewModelTest {
@@ -100,6 +107,25 @@ class DeliveryViewModelTest {
         v.deliverContactless("d1", byteArrayOf(1), null)
         assertTrue(!v.state.value.delivered)
         assertNull(repo.mediaMethod)
+    }
+
+    /** Backlog B3 — proof with no signal is saved: the drop is delivered, the proof is sending. */
+    @Test fun proof_saved_offline_reads_delivered_and_sending() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop()).apply { offline = true }; val v = vm(repo)
+        v.deliverWithPhoto("d1", byteArrayOf(1), null)
+        assertTrue(v.state.value.delivered)
+        assertTrue(v.state.value.proofSending)
+        assertNull(v.state.value.message)
+    }
+
+    /** Backlog C1 — a step saved offline moves the drop on, rather than showing "You're offline". */
+    @Test fun a_step_saved_offline_moves_the_drop_on() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.EN_ROUTE)); val v = vm(repo)
+        v.loadDrop("d1")
+        repo.offline = true
+        v.advance("d1", "arrived")
+        assertEquals(DropStatus.ARRIVED, v.state.value.drop?.status)
+        assertNull(v.state.value.message)
     }
 
     @Test fun fail_marks_the_failed_state() = runTest {

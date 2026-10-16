@@ -62,6 +62,13 @@ class OfflineQueue(private val settings: Settings, private val json: Json = Json
         _refused.value = list
     }
 
+    /** Something sent outside this queue (a proof from the outbox) was refused: show it the same way. */
+    fun recordRefused(action: PendingAction) {
+        val list = _refused.value + action
+        settings.putString(REFUSED_KEY, json.encodeToString(listSerializer, list))
+        _refused.value = list
+    }
+
     /** The driver has read what was refused. */
     fun clearRefused() {
         settings.remove(REFUSED_KEY)

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Backlog C6 — to send what is saved on the phone the moment the connection returns. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- 050 — runtime notification permission (API 33+); older versions grant it implicitly. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- 049 photo proof-of-delivery. Camera is optional hardware — not required to install. -->
@@ -26,6 +28,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Backlog B1 — the system camera writes a full-size proof photo to a file it is given here,
+             instead of returning a thumbnail. Authority: PhotoCapture.android.kt. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.proofphoto"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/proof_photo_paths" />
+        </provider>
 
         <!-- 050 — FCM service (class in :shared/androidMain). Forwards token rotation; system tray shows notifications. -->
         <service

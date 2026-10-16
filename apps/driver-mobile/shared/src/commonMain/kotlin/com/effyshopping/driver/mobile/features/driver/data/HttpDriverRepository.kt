@@ -4,7 +4,9 @@ import com.effyshopping.driver.mobile.contract.DriverMeDTO
 import com.effyshopping.driver.mobile.contract.DutyRequest
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
+import com.effyshopping.driver.mobile.core.http.effyJson
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
+import com.effyshopping.driver.mobile.core.offline.LastCopies
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
 import com.effyshopping.driver.mobile.features.driver.domain.DriverRepository
 import io.ktor.client.HttpClient
@@ -21,10 +23,20 @@ import kotlinx.io.IOException
  * `DRIVER_API_BASE_URL`, carrying the single access-token bearer. A transport failure becomes
  * `AppError.Network`. The DTO never escapes this layer (Principle VI).
  */
-class HttpDriverRepository(private val driverApi: HttpClient) : DriverRepository {
+class HttpDriverRepository(
+    private val driverApi: HttpClient,
+    /** Where the last record is kept, so the app can open with no signal (backlog C3). */
+    private val lastCopies: LastCopies? = null,
+) : DriverRepository {
 
     override suspend fun me(): Driver = request {
-        driverApi.get("driver/v1/me").ensureSuccess().body<DriverMeDTO>().toDomain()
+        val dto = driverApi.get("driver/v1/me").ensureSuccess().body<DriverMeDTO>()
+        lastCopies?.put(LastCopies.ME, effyJson.encodeToString(DriverMeDTO.serializer(), dto))
+        dto.toDomain()
+    }
+
+    override fun lastKnown(): Driver? = lastCopies?.get(LastCopies.ME)?.let { raw ->
+        runCatching { effyJson.decodeFromString(DriverMeDTO.serializer(), raw).toDomain() }.getOrNull()
     }
 
     override suspend fun setDuty(onDuty: Boolean, changeId: String): Driver = request {

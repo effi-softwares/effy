@@ -15,6 +15,7 @@ import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
+import com.effyshopping.driver.mobile.core.offline.WriteOutcome
 import com.effyshopping.driver.mobile.core.offline.withReplay
 import kotlinx.serialization.json.Json
 import com.effyshopping.driver.mobile.core.opening.toOpening
@@ -57,7 +58,7 @@ class HttpCollectionRepository(
         }
     }
 
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>) {
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): WriteOutcome {
         val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
         // ⚠ Each package's outcome travels IN the collect (063 FR-026). The separate `/issue` call
         // this app used to make named no package, and the platform reads "no package" as "every
@@ -72,18 +73,19 @@ class HttpCollectionRepository(
                 )
             },
         )
-        request {
-            offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop") {
+        return request {
+            offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop", queued = { WriteOutcome.QUEUED }) {
                 api.post(path) { setBody(body) }.ensureSuccess()
+                WriteOutcome.SENT
             }
         }
     }
 
-    override suspend fun checkIn(runId: String, changeId: String): HubSplit {
+    override suspend fun checkIn(runId: String, changeId: String): HubSplit? {
         val path = "driver/v1/hub/checkin"
         val body = HubCheckinRequest(changeID = changeId, runID = runId)
         return request {
-            offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in") {
+            offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in", queued = { null }) {
                 val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
                 HubSplit(
                     r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt(), r.courierCount?.toInt(),

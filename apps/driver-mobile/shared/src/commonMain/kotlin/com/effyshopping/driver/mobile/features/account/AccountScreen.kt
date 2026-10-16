@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.account
 
+import com.effyshopping.driver.mobile.core.presentation.NotificationsOffRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,6 +63,9 @@ fun AccountScreen(
     onSignOut: () -> Unit,
     outstandingWork: Int? = null,
     appVersion: String = "0.1.0 (dev)",
+    /** Backlog F3 — whether usage analytics are on, and how to switch them; null hides the row. */
+    analyticsOn: Boolean? = null,
+    onToggleAnalytics: () -> Unit = {},
 ) {
     var confirmSignOut by remember { mutableStateOf(false) }
 
@@ -100,6 +104,7 @@ fun AccountScreen(
         Spacer(Modifier.height(26.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
+        NotificationsOffRow()
         AccountRow(
             label = "Duty status",
             value = if (driver.dutyStatus == DutyStatus.ON_DUTY) "On duty" else "Off duty",
@@ -119,6 +124,9 @@ fun AccountScreen(
             },
             onClick = onOpenAppearance,
         )
+        if (analyticsOn != null) {
+            AccountRow(label = "Usage analytics", value = if (analyticsOn) "On" else "Off", onClick = onToggleAnalytics)
+        }
         AccountRow(label = "Help & support", value = null, onClick = onOpenHelp)
         AccountRow(
             label = "Sign out",

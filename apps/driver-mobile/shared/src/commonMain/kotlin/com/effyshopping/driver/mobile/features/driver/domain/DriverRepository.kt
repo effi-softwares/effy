@@ -9,6 +9,9 @@ interface DriverRepository {
     /** `GET /driver/v1/me` — the provisioned record. Throws Forbidden if absent/disabled. */
     suspend fun me(): Driver
 
+    /** The record from the last successful [me], kept on the phone; null when there is none. */
+    fun lastKnown(): Driver? = null
+
     /** `POST /driver/v1/duty` — go on/off duty. Returns the resulting driver record (fresh duty state). */
     suspend fun setDuty(onDuty: Boolean, changeId: String): Driver
 }
