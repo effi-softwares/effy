@@ -31,6 +31,7 @@ import com.effyshopping.driver.mobile.core.presentation.DriverIcon
 import com.effyshopping.driver.mobile.core.presentation.DriverInlineBar
 import com.effyshopping.driver.mobile.core.presentation.DriverLargeTitleBar
 import com.effyshopping.driver.mobile.core.presentation.DriverRow
+import com.effyshopping.driver.mobile.core.presentation.DriverNumberCircle
 import com.effyshopping.driver.mobile.core.presentation.DriverSectionLabel
 import com.effyshopping.driver.mobile.core.presentation.DriverSize
 import com.effyshopping.driver.mobile.core.presentation.DriverSkeleton
@@ -154,7 +155,7 @@ private fun Circle(done: Boolean) {
  * driver needs when a customer says the parcel never came. A run has no proof section.
  */
 @Composable
-fun HistoryDetailScreen(state: HistoryUiState, title: String, kind: String, onBack: () -> Unit) {
+fun HistoryDetailScreen(state: HistoryUiState, title: String, kind: String, onBack: () -> Unit, onOpenDrop: (String) -> Unit = {}) {
     Column(Modifier.fillMaxSize()) {
         DriverInlineBar(title, backLabel = "History", onBack = onBack)
         Column(
@@ -174,12 +175,45 @@ fun HistoryDetailScreen(state: HistoryUiState, title: String, kind: String, onBa
                         Text(whenText(it.at), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (kind != "run") detail.proof?.let { Proof(it) }
-                    if (kind == "run" && detail.timeline.isNotEmpty()) {
+                    if (kind == "run" && detail.stops.isNotEmpty()) {
+                        val delivered = detail.stops.count { it.kind == "drop" && it.done }
+                        val returned = detail.stops.count { it.kind == "drop" && !it.done }
+                        val shops = detail.stops.count { it.kind == "shop" }
+                        Text(
+                            listOfNotNull(
+                                shops.takeIf { it > 0 }?.let { if (it == 1) "1 shop" else "$it shops" },
+                                delivered.takeIf { it > 0 }?.let { "$it delivered" },
+                                returned.takeIf { it > 0 }?.let { "$it returned to hub" },
+                            ).joinToString(" · "),
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         Column {
-                            DriverSectionLabel("Timeline")
+                            DriverSectionLabel(if (detail.stops.any { it.kind == "drop" }) "Drops" else "Stops")
                             DriverGroup {
-                                detail.timeline.forEachIndexed { i, e ->
-                                    DriverDetailRow(e.status.replace('_', ' ').replaceFirstChar { c -> c.uppercase() }, whenText(e.at), last = i == detail.timeline.lastIndex)
+                                detail.stops.forEachIndexed { i, s ->
+                                    DriverRow(
+                                        title = s.title,
+                                        meta = listOfNotNull(s.completedAt?.let { timeText(it) }, s.proofMethod?.let { methodWords(it) }).joinToString(" · ").ifBlank { null },
+                                        last = i == detail.stops.lastIndex,
+                                        onClick = if (s.kind == "drop") ({ onOpenDrop(s.stopId) }) else null,
+                                        leading = {
+                                            DriverNumberCircle(
+                                                s.sequence,
+                                                if (s.done) EffyRoles.brandMuted else MaterialTheme.colorScheme.surfaceVariant,
+                                                if (s.done) EffyRoles.brand else MaterialTheme.colorScheme.onSurface,
+                                            )
+                                        },
+                                        trailing = {
+                                            val status = when {
+                                                s.kind == "drop" && s.done -> DriverStatus.Delivered
+                                                s.kind == "drop" -> DriverStatus.NotDelivered
+                                                s.kind == "hub" -> DriverStatus.CheckedIn
+                                                s.done -> DriverStatus.Collected
+                                                else -> DriverStatus.Short
+                                            }
+                                            DriverStatusPill(status, label = if (status == DriverStatus.NotDelivered) "Returned" else status.word)
+                                        },
+                                    )
                                 }
                             }
                         }

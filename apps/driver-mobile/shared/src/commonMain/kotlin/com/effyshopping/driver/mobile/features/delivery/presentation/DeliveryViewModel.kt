@@ -65,6 +65,8 @@ data class DeliveryUiState(
     val deliveredWith: ProofMethod? = null,
     /** 092 — when it was completed, on this phone's clock. */
     val deliveredAtEpochMillis: Long? = null,
+    /** 092 — a short confirmation for the snackbar ("Van loaded"); cleared once shown. */
+    val notice: String? = null,
 )
 
 class DeliveryViewModel(
@@ -127,6 +129,8 @@ class DeliveryViewModel(
             ?.filter { it.dropId != dropId && it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED }
             ?.minByOrNull { it.sequence }
             ?.dropId
+    fun clearNotice() = _state.update { it.copy(notice = null) }
+
     fun loadRun() {
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
@@ -251,6 +255,7 @@ class DeliveryViewModel(
                 _state.update { st ->
                     st.copy(
                         isWorking = false,
+                        notice = "Van loaded · every drop is out for delivery",
                         run = st.run?.let { run ->
                             run.copy(drops = run.drops.map { if (it.status == DropStatus.STAGED) it.copy(status = DropStatus.OUT_FOR_DELIVERY) else it })
                         },
@@ -274,7 +279,7 @@ class DeliveryViewModel(
             try {
                 val outcome = send(runId, ids.of(action), handed)
                 ids.settled(action)
-                _state.update { it.copy(isWorking = false, run = it.run?.copy(toReturn = null)) }
+                _state.update { it.copy(isWorking = false, run = it.run?.copy(toReturn = null), notice = "Parcels checked in at the hub") }
                 if (outcome == WriteOutcome.SENT) refreshRunAfterClose()
             } catch (e: AppException) {
                 if (e.error.isFinal()) ids.settled(action)

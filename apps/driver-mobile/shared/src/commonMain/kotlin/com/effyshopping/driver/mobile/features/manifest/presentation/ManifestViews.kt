@@ -135,33 +135,6 @@ private fun DrawScope.dashedRing(tint: Color) {
 }
 
 /**
- * What a package or a drop holds, readable WITHOUT opening it (FR-013/FR-014).
- *
- * A class with nothing in it is left out (FR-015), so a package of shelf goods shows one quiet chip
- * and nothing that looks like a cold-handling signal.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun ClassSummaryRow(summary: ClassSummary, modifier: Modifier = Modifier) {
-    if (summary.total == 0) {
-        Text(
-            "No items in this package",
-            modifier = modifier,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        return
-    }
-    FlowRow(
-        modifier = modifier.clearAndSetSemantics { contentDescription = summary.spoken },
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        summary.present.forEach { (c, n) -> ClassChip(c, n) }
-    }
-}
-
-/**
  * Every line of one package. List rows, not cards (Principle V).
  *
  * ⚠ NOTHING IS DROPPED TO MAKE IT FIT (FR-005). A long name wraps under itself; the quantity and the

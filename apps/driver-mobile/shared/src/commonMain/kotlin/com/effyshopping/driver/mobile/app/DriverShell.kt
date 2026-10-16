@@ -73,6 +73,9 @@ import com.effyshopping.mobile.kit.live.LiveState
 import com.effyshopping.driver.mobile.core.presentation.DriverBannerState
 import com.effyshopping.driver.mobile.core.presentation.DriverBanners
 import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.DriverSnack
+import com.effyshopping.driver.mobile.core.presentation.DriverSnackbar
+import androidx.compose.foundation.layout.fillMaxSize
 import com.effyshopping.driver.mobile.core.presentation.rememberLivePaused
 import com.effyshopping.driver.mobile.features.today.domain.TodayItem
 import com.effyshopping.driver.mobile.resources.lucide_history
@@ -106,6 +109,8 @@ fun DriverShell(
     val scope = rememberCoroutineScope()
     val appearanceMode by container.appearance.mode.collectAsState()
     var signingOut by remember { mutableStateOf(false) }
+    // 092 — one snackbar for the whole shell, over the content and above the tab bar.
+    var snack by remember { mutableStateOf<DriverSnack?>(null) }
 
     BackHandler(enabled = tabs.canGoBack || tabs.currentTab != DriverTab.TODAY) {
         if (tabs.canGoBack) tabs.pop() else tabs.selectTab(DriverTab.TODAY)
@@ -132,7 +137,7 @@ fun DriverShell(
         val phase = if (today.activeRunId == runId) today.phase else today.upcoming.firstOrNull { it.runId == runId }?.phase
         when (phase) {
             Phase.COLLECTION -> tabs.push(CollectionRunRoute(runId))
-            Phase.SAME_DAY_DELIVERY -> tabs.push(DeliveryRunRoute(runId))
+            Phase.DELIVERY -> tabs.push(DeliveryRunRoute(runId))
             else -> Unit // no longer theirs, or finished: Today says what is
         }
     }
@@ -151,11 +156,13 @@ fun DriverShell(
         onSelectTab = tabs::selectTab,
         railFooter = { RailAvatar(session.driver.railInitials()) },
     ) {
+        Box(Modifier.fillMaxSize()) {
         AnimatedContent(
-            targetState = tabs.currentRoute,
-            transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(160)) },
-            contentKey = { it::class },
-        ) { route ->
+            targetState = NavFrame(tabs.currentTab, tabs.currentStack.size, tabs.currentRoute),
+            transitionSpec = { navTransition(initialState, targetState, reducedMotion) },
+            contentKey = { Triple(it.tab, it.depth, it.route::class) },
+        ) { frame ->
+            val route = frame.route
             when (route) {
                 TodayRoot -> {
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
@@ -224,12 +231,14 @@ fun DriverShell(
                             onCollect = {
                                 vm.collect(route.stopId) {
                                     container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
+                                    snack = DriverSnack("Collected · ${st.stop?.shopName ?: "shop stop"}")
                                     tabs.pop()
                                 }
                             },
                             onScanCollect = { methods ->
                                 vm.collect(route.stopId, methods) {
                                     container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
+                                    snack = DriverSnack("Collected · ${st.stop?.shopName ?: "shop stop"}")
                                     tabs.pop()
                                 }
                             },
@@ -248,9 +257,12 @@ fun DriverShell(
                     // Backlog F2 — after the system reclaims the app, this screen is restored on its own,
                     // with no run screen before it to have loaded the counts.
                     androidx.compose.runtime.LaunchedEffect(route.runId) { vm.ensureRunLoaded() }
+                    val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
+                    val todaySt by todayVm.state.collectAsState()
                     HubCheckinScreen(
                         state = st,
                         hubName = session.driver.hub,
+                        nextRun = todaySt.today?.nextDeliveryRun(route.runId),
                         onBack = { tabs.pop() },
                         onCheckIn = { handed ->
                             container.analyticsDriver.capture(AnalyticsEvent.HubCheckedIn(route.runId))
@@ -263,6 +275,9 @@ fun DriverShell(
                     val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
+                    LaunchedEffect(st.notice) {
+                        st.notice?.let { snack = DriverSnack(it); vm.clearNotice() }
+                    }
                     DeliveryRunScreen(
                         state = st,
                         hubName = session.driver.hub,
@@ -321,7 +336,10 @@ fun DriverShell(
                     val vm = viewModel(key = "history") { newHistoryVm(container) }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(route.id) { vm.loadDetail(route.kind, route.id) }
-                    HistoryDetailScreen(state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() })
+                    HistoryDetailScreen(
+                        state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() },
+                        onOpenDrop = { dropId -> tabs.push(HistoryDetailRoute("drop", dropId, "Delivery")) },
+                    )
                 }
                 AccountRoot -> {
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
@@ -380,7 +398,30 @@ fun DriverShell(
                 else -> Unit
             }
         }
+        DriverSnackbar(snack, onDismiss = { snack = null }, modifier = Modifier.align(Alignment.BottomCenter))
+        }
     }
+}
+
+/** Where the shell is: which tab, how deep, and the route on top. */
+private data class NavFrame(val tab: DriverTab, val depth: Int, val route: com.effyshopping.mobile.kit.nav.AppNavKey)
+
+/**
+ * 092 — the canvas's Motion: a pushed screen slides in from the right over the one it leaves (which
+ * drifts left), a pop is the reverse, and switching tabs is a short fade. ⚠ Reduced motion: nothing moves.
+ */
+private fun navTransition(from: NavFrame, to: NavFrame, reducedMotion: Boolean): androidx.compose.animation.ContentTransform {
+    if (reducedMotion) return androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+    val ease = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0.9f, 0.3f, 1f)
+    val spec = tween<androidx.compose.ui.unit.IntOffset>(320, easing = ease)
+    return when {
+        from.tab != to.tab -> fadeIn(tween(160)) togetherWith fadeOut(tween(160))
+        to.depth > from.depth -> (androidx.compose.animation.slideInHorizontally(spec) { it } togetherWith
+            androidx.compose.animation.slideOutHorizontally(spec) { -it / 4 } + fadeOut(tween(320)))
+        to.depth < from.depth -> (androidx.compose.animation.slideInHorizontally(spec) { -it / 4 } + fadeIn(tween(320)) togetherWith
+            androidx.compose.animation.slideOutHorizontally(spec) { it })
+        else -> fadeIn(tween(160)) togetherWith fadeOut(tween(160))
+    }.apply { targetContentZIndex = if (to.depth >= from.depth) 1f else 0f }
 }
 
 /** A tab's Lucide icon (the canvas's TabBar: truck, history, user-round). */
@@ -414,6 +455,21 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
     liveChanges = container.live.changes(LiveKind.WORK),
     returnToHub = { runId, changeId -> container.returnToHub(runId, changeId) },
 )
+
+/**
+ * 092 — the delivery run that follows a collection run, in the words the check-in screen says it:
+ * "Your delivery run opens at 3:15 pm" / "finish by 6 pm · 7 drops · it's on Today".
+ */
+private fun com.effyshopping.driver.mobile.features.today.domain.Today.nextDeliveryRun(collectionRunId: String): Pair<String, String>? {
+    val current = activeRunId?.takeIf { it != collectionRunId && phase == Phase.DELIVERY }
+    if (current != null) {
+        val title = opening?.let { "Your delivery run opens at ${it.label}" } ?: "Your delivery run is ready"
+        return title to listOfNotNull(dueLabel?.let { "finish by $it" }, "$remainingCount ${if (remainingCount == 1) "drop" else "drops"}", "it's on Today").joinToString(" · ")
+    }
+    val next = upcoming.firstOrNull { it.phase == Phase.DELIVERY } ?: return null
+    val title = next.opening?.let { "Your delivery run opens at ${it.label}" } ?: "Your delivery run is ready"
+    return title to "finish by ${next.dueLabel} · ${next.stopCount} ${if (next.stopCount == 1) "drop" else "drops"} · it's on Today"
+}
 
 private fun newHistoryVm(container: AppContainer) = HistoryViewModel(
     container.getHistory, container.getHistoryDetail, container.live.changes(LiveKind.WORK),

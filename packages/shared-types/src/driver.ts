@@ -148,6 +148,11 @@ export interface TodayDTO {
    * issues), not merely hidden by the app.
    */
   opening: RoundOpening | null;
+  /**
+   * 092 — what dispatch changed on the current round while it was under way ("Added 2 drops"), in their
+   * words; null when nothing has changed. Shown on Today until the driver dismisses it.
+   */
+  changedNote?: string | null;
   /** 072 — the current round's deadline. `null` only when there is no current round. */
   deadlineAt: string | null;
   /** 072 — the deadline in words, Melbourne time ("2 pm", "tomorrow 11 am"). */
@@ -712,6 +717,23 @@ export interface HistoryDetailDTO {
   } | null;
   addressFull: string | null;
   packages: DropPackageRef[];
+  /**
+   * 092 — for a RUN: its stops in order, each with how it ended. Absent for a drop. ⚠ Until 092 a run's
+   * detail looked its id up as a stop and was always "not found".
+   */
+  stops?: HistoryStop[];
+}
+
+/** 092 — one stop of a finished run, as History lists it. No money, no customer name. */
+export interface HistoryStop {
+  stopId: string;
+  sequence: WireInt;
+  kind: "shop" | "drop" | "hub";
+  /** The shop's name, the drop's street and suburb, or "Hub check-in". */
+  title: string;
+  status: "done" | "skipped";
+  completedAt: string | null;
+  proofMethod: ProofMethod | null;
 }
 
 export type ActivityType =

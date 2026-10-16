@@ -8,6 +8,7 @@ import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.features.history.domain.History
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDay
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDetail
+import com.effyshopping.driver.mobile.features.history.domain.HistoryStopRow
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDropRow
 import com.effyshopping.driver.mobile.features.history.domain.HistoryRepository
 import com.effyshopping.driver.mobile.features.history.domain.HistoryRunRow
@@ -60,4 +61,7 @@ private fun HistoryDetailDTO.toDomain() = HistoryDetail(
     timeline = timeline.map { TimelineEntry(it.status, it.at) },
     proof = proof?.let { ProofRecord(it.method.value, it.mediaURL, it.note, it.capturedAt) },
     addressFull = addressFull,
+    stops = stops.orEmpty().map {
+        HistoryStopRow(it.stopID, it.sequence.toInt(), it.kind.value, it.title, it.status.value == "done", it.completedAt, it.proofMethod?.value)
+    },
 )

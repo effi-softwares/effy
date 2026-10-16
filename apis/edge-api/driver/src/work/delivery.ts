@@ -13,6 +13,7 @@ import type {
   HandoverPreference,
   DropStatusRequest,
   HistoryDetailDTO,
+  HistoryStop,
   HistoryDTO,
 } from "@effy/shared-types";
 
@@ -301,6 +302,7 @@ export async function historyDetail(
   id: string,
   driverId: string,
 ): Promise<HistoryDetailDTO> {
+  if (kind === "run") return historyRun(id, driverId);
   const res = await query<{
     status: string;
     completed_at: Date | null;
@@ -334,6 +336,52 @@ export async function historyDetail(
     proof: await renderProof(r),
     addressFull: r.address,
     packages: [],
+  };
+}
+
+/** 092 — a finished run: its stops in order and how each ended. Only the caller's own, completed rounds. */
+async function historyRun(runId: string, driverId: string): Promise<HistoryDetailDTO> {
+  const res = await query<{
+    stop_id: string;
+    seq: number | null;
+    kind: string;
+    status: string;
+    completed_at: Date | null;
+    shop_name: string | null;
+    address: string | null;
+    proof_method: "photo" | "signature" | "contactless" | null;
+  }>(
+    `SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.completed_at,
+            s.name AS shop_name,
+            CASE WHEN rs.kind = 'customer_drop'
+                 THEN concat_ws(', ', o.delivery_address ->> 'line1', o.delivery_address ->> 'city') END AS address,
+            dp.method AS proof_method
+       FROM public.driver_round dr
+       JOIN public.round_stop rs ON rs.round_id = dr.id
+       LEFT JOIN public."order" o ON o.id = rs.order_id
+       LEFT JOIN public.shop    s ON s.id = rs.shop_id
+       LEFT JOIN public.delivery_proof dp ON dp.stop_id = rs.id
+      WHERE dr.id = $1 AND dr.driver_id = $2 AND dr.status = 'completed'
+      ORDER BY rs.kind = 'hub_checkin', rs.seq NULLS LAST, rs.completed_at NULLS LAST`,
+    [runId, driverId],
+  );
+  if (res.rows.length === 0) throw new NotFoundError();
+  const stops: HistoryStop[] = res.rows.map((r, i) => ({
+    stopId: r.stop_id,
+    sequence: i + 1,
+    kind: r.kind === "customer_drop" ? "drop" : r.kind === "hub_checkin" ? "hub" : "shop",
+    title: r.kind === "hub_checkin" ? "Hub check-in" : r.kind === "customer_drop" ? (r.address || "Delivery") : (r.shop_name ?? "Shop"),
+    status: r.status === "skipped" ? "skipped" : "done",
+    completedAt: r.completed_at ? r.completed_at.toISOString() : null,
+    proofMethod: r.proof_method,
+  }));
+  const last = res.rows.map((r) => r.completed_at).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
+  return {
+    timeline: last ? [{ status: "completed", at: last.toISOString() }] : [],
+    proof: null,
+    addressFull: null,
+    packages: [],
+    stops,
   };
 }
 

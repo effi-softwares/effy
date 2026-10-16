@@ -52,10 +52,10 @@ on a device.
 ([specs/092-driver-mobile-redesign](../specs/092-driver-mobile-redesign/tasks.md)), 2026-10-16: the app on the
 storefront identity, three tabs, two-tap drops (arrival recorded silently), Call the customer, the scanning
 screens at all five steps with Type a code and Undo. E6 done screen by screen. Not yet deployed or walked.
-E4's change note on Today is NOT drawn — the driver wire has no `changedNote` yet.
+E4's change note shows on Today (`changedNote` added to the driver's Today read); E7 done.
 
-**Still open:** B4/F4/H15 (decisions), D3 (Apple account), E4's change note (needs a driver-wire field), E7,
-H14 (ring scanners).
+**Still open:** B4/F4/H15 (decisions), D3 (Apple account), H14 (ring scanners), a hub address (for
+"Navigate to the hub").
 
 ---
 

@@ -17,6 +17,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,13 +69,18 @@ fun DriverButton(
         else -> Color.Transparent to scheme.onSurface
     }
     val shape = EffyStorefrontShape.card
+    // The canvas's press: the button gives a little (97%) under the thumb.
+    val press = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, tween(90), label = "press")
     Row(
         modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .heightIn(min = if (tall) DriverSize.primary else DriverSize.secondary)
             .clip(shape)
             .background(fill)
             .then(if (style == DriverButtonStyle.Outline) Modifier.border(1.dp, scheme.outline, shape) else Modifier)
-            .clickable(enabled = enabled && !loading, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = press, indication = androidx.compose.foundation.LocalIndication.current, enabled = enabled && !loading, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,

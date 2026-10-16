@@ -794,6 +794,13 @@ data class HistoryDetailDTO (
     val addressFull: String? = null,
     val packages: List<DropPackageRef>,
     val proof: Proof? = null,
+
+    /**
+     * 092 — for a RUN: its stops in order, each with how it ended. Absent for a drop. ⚠ Until
+     * 092 a run's detail looked its id up as a stop and was always "not found".
+     */
+    val stops: List<HistoryStop>? = null,
+
     val timeline: List<TimelineEntry>
 )
 
@@ -814,6 +821,39 @@ enum class ProofMethod(val value: String) {
     @SerialName("contactless") Contactless("contactless"),
     @SerialName("photo") Photo("photo"),
     @SerialName("signature") Signature("signature");
+}
+
+/**
+ * 092 — one stop of a finished run, as History lists it. No money, no customer name.
+ */
+@Serializable
+data class HistoryStop (
+    val completedAt: String? = null,
+    val kind: StopKind,
+    val proofMethod: ProofMethod? = null,
+    val sequence: Long,
+    val status: StopStatus,
+
+    @SerialName("stopId")
+    val stopID: String,
+
+    /**
+     * The shop's name, the drop's street and suburb, or "Hub check-in".
+     */
+    val title: String
+)
+
+@Serializable
+enum class StopKind(val value: String) {
+    @SerialName("drop") Drop("drop"),
+    @SerialName("hub") Hub("hub"),
+    @SerialName("shop") Shop("shop");
+}
+
+@Serializable
+enum class StopStatus(val value: String) {
+    @SerialName("done") Done("done"),
+    @SerialName("skipped") Skipped("skipped");
 }
 
 @Serializable
@@ -942,18 +982,11 @@ data class MapPoint (
 @Serializable
 data class MapStop (
     val id: String,
-    val kind: MapStopKind,
+    val kind: StopKind,
     val lat: Double,
     val lng: Double,
     val sequence: Long
 )
-
-@Serializable
-enum class MapStopKind(val value: String) {
-    @SerialName("drop") Drop("drop"),
-    @SerialName("hub") Hub("hub"),
-    @SerialName("shop") Shop("shop");
-}
 
 /**
  * GET /driver/v1/me — the record-backed identity read. Display strings only; no currency.
@@ -1144,6 +1177,13 @@ data class TodayDTO (
 
     @SerialName("activeRunId")
     val activeRunID: String? = null,
+
+    /**
+     * 092 — what dispatch changed on the current round while it was under way ("Added 2
+     * drops"), in their words; null when nothing has changed. Shown on Today until the driver
+     * dismisses it.
+     */
+    val changedNote: String? = null,
 
     /**
      * 072 — the current round's deadline. `null` only when there is no current round.

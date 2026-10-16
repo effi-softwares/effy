@@ -51,7 +51,7 @@ class ParcelsToReturnTest {
     }
 
     @Test fun returning_clears_the_step_and_rereads() = runTest {
-        val pending = Today(Phase.SAME_DAY_DELIVERY, "r1", null, emptyList(), 0, toReturn = ParcelsToReturn("r1", 1, listOf("EFY-1")))
+        val pending = Today(Phase.DELIVERY, "r1", null, emptyList(), 0, toReturn = ParcelsToReturn("r1", 1, listOf("EFY-1")))
         val repo = FakeToday(pending)
         val sent = mutableListOf<String>()
         val vm = TodayViewModel(

@@ -502,6 +502,8 @@ fun HubCheckinScreen(
     onBack: () -> Unit,
     onCheckIn: (List<HandedOver>) -> Unit,
     onDone: () -> Unit,
+    /** 092 — the driver's next delivery run, as Today holds it: (title, detail); null when there is none. */
+    nextRun: Pair<String, String>? = null,
 ) {
     val split = state.hubSplit
     var scanning by rememberSaveable { mutableStateOf(false) }
@@ -512,7 +514,10 @@ fun HubCheckinScreen(
             title = "Hub check-in",
             backLabel = "Hub",
             context = ScanContexts.hub(run),
-            items = run.stops.filter { it.status.done }.flatMap { s -> s.packageCodes.map { c -> ScanItem(c, "From ${s.shopName}", hint = sort[c]?.label) } },
+            // Grouped as the hub is: load now, then shelve, then the courier bay.
+            items = run.stops.filter { it.status.done }
+                .flatMap { s -> s.packageCodes.map { c -> ScanItem(c, "From ${s.shopName}", hint = sort[c]?.label) } }
+                .sortedBy { sort[it.code]?.kind?.ordinal ?: Int.MAX_VALUE },
             completeLabel = "Checking everything in",
             working = state.isWorking,
             message = state.message,
@@ -529,7 +534,7 @@ fun HubCheckinScreen(
         ) {
             state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
             when {
-                split != null -> CheckedIn(split)
+                split != null -> CheckedIn(split, nextRun)
                 state.checkInSending -> Sending()
                 else -> {
                     Confirm(state.run, hubName)
@@ -587,7 +592,7 @@ private fun Confirm(run: CollectionRun?, hubName: String?) {
 }
 
 @Composable
-private fun CheckedIn(split: HubSplit) {
+private fun CheckedIn(split: HubSplit, nextRun: Pair<String, String>?) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("Collection run done", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = EffyRoles.brand)
         Text("${packages(split.scannedTotal)} checked in", fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -620,7 +625,11 @@ private fun CheckedIn(split: HubSplit) {
             }
         }
     }
-    DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_truck, title = "Your next run is on Today", description = "It appears there by itself when it's assigned.")
+    if (nextRun != null) {
+        DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_truck, title = nextRun.first, description = nextRun.second)
+    } else {
+        DriverAlert(DriverAlertKind.Muted, Res.drawable.lucide_truck, title = "Nothing else assigned yet", description = "Your next run appears on Today by itself when it's assigned.")
+    }
 }
 
 @Composable

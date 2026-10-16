@@ -4,7 +4,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.core.opening.Opening
 
 /** The driver's current phase (049 FR-021). */
-enum class Phase { COLLECTION, SAME_DAY_DELIVERY, IDLE }
+enum class Phase { COLLECTION, DELIVERY, IDLE }
 
 /** A queued/active work item shown on the home. Kind distinguishes a shop stop from a customer drop. */
 data class TodayItem(
@@ -54,6 +54,8 @@ data class Today(
      * [active] is null and Today shows the "Return to hub" step.
      */
     val toReturn: ParcelsToReturn? = null,
+    /** 092 — what dispatch changed on the current round, in their words; null when nothing has. */
+    val changedNote: String? = null,
 )
 
 /** A round the driver holds besides the current one (072). Opens its own run screen when tapped. */

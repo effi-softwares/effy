@@ -9,10 +9,23 @@ data class History(val days: List<HistoryDay>)
 
 data class TimelineEntry(val status: String, val at: String)
 data class ProofRecord(val method: String, val mediaUrl: String?, val note: String?, val capturedAt: String)
+/** 092 — one stop of a finished run. [kind] is `shop` | `drop` | `hub`; [proofMethod] as the wire says it. */
+data class HistoryStopRow(
+    val stopId: String,
+    val sequence: Int,
+    val kind: String,
+    val title: String,
+    val done: Boolean,
+    val completedAt: String?,
+    val proofMethod: String?,
+)
+
 data class HistoryDetail(
     val timeline: List<TimelineEntry>,
     val proof: ProofRecord?,
     val addressFull: String?,
+    /** 092 — a run's stops in order; empty for a drop. */
+    val stops: List<HistoryStopRow> = emptyList(),
 )
 
 interface HistoryRepository {

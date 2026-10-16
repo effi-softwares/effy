@@ -67,6 +67,8 @@ import com.effyshopping.driver.mobile.resources.lucide_chevron_right
 import com.effyshopping.driver.mobile.resources.lucide_circle_alert
 import com.effyshopping.driver.mobile.resources.lucide_clock
 import com.effyshopping.driver.mobile.resources.lucide_inbox
+import com.effyshopping.driver.mobile.resources.lucide_info
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.effyshopping.driver.mobile.resources.lucide_package
 import com.effyshopping.driver.mobile.resources.lucide_power
 import com.effyshopping.driver.mobile.resources.lucide_store
@@ -241,6 +243,17 @@ private fun CurrentRun(today: Today, runId: String, active: TodayItem, onOpenRun
                 description = "Look through the run now. ${if (collection) "Collecting" else "Delivering"} unlocks when it opens.",
             )
         }
+        today.changedNote?.let { note ->
+            var seen by rememberSaveable(runId, note) { mutableStateOf(false) }
+            if (!seen) {
+                DriverAlert(
+                    DriverAlertKind.Info, Res.drawable.lucide_info,
+                    title = "Dispatch changed this run",
+                    description = note,
+                    actions = { DriverButton("Got it", onClick = { seen = true }, style = DriverButtonStyle.Ghost, tall = false) },
+                )
+            }
+        }
         if (today.stale) {
             Text(
                 "Last loaded copy — changes since then won't show.",
@@ -345,7 +358,7 @@ private fun ReturnStep(toReturn: ParcelsToReturn, returning: Boolean, onOpenRun:
             primaryLabel = "Return all",
             primaryLoading = returning,
             onPrimary = onReturnParcels,
-            onWholeRun = { onOpenRun(toReturn.runId, Phase.SAME_DAY_DELIVERY) },
+            onWholeRun = { onOpenRun(toReturn.runId, Phase.DELIVERY) },
         )
     }
 }
@@ -419,7 +432,7 @@ private fun GoOffDutySheet(today: Today?, hub: String?, onConfirm: () -> Unit, o
     val toReturn = today?.toReturn?.count ?: 0
     val run = when (today?.phase) {
         Phase.COLLECTION -> "this collection run"
-        Phase.SAME_DAY_DELIVERY -> "this delivery run"
+        Phase.DELIVERY -> "this delivery run"
         else -> "your run"
     }
     DriverSheet(

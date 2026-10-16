@@ -36,8 +36,16 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   caller's round only** (F1, Call button); `HubCheckinResponse.nextCourierPickupLabel` — the default courier
   service's next pickup in server words; `PackageHandover.packageCode` — a hand-over may name a package by its
   label code (resolved against the hand-over's own packages; a foreign code names nothing).
-- **Not drawn, no data**: the round's change note (`changedNote` is on the dispatch wire, not the driver's —
-  backlog E4's note is open); a hub address to navigate to; per-run drop lists in History.
+- **Completing pass (same day)**: Today shows dispatch's change note with "Got it"
+  (`TodayDTO.changedNote` — the round's `changed_note`, already read, now sent); History → a run lists its
+  stops and how each ended (`HistoryDetailDTO.stops`) — ⚠ **this also fixes a live defect**: a run's detail
+  looked its id up as a STOP and was always "not found"; after check-in the screen says when the delivery run
+  opens; snackbars for collected / van loaded / parcels checked in; push slides in, pop slides out, tabs fade,
+  nothing moves under reduced motion; buttons give to 97% on press; the hub scan lists load-now first.
+  Tidy: mobile-kit's `SwipeToConfirm` and `ClassSummaryRow` deleted; E7 `Phase.SAME_DAY_DELIVERY` →
+  `Phase.DELIVERY` (the wire keeps `same_day_delivery`).
+- **Not drawn, no data**: "Navigate to the hub" — the platform holds no hub address (`HUB_LABEL` is a
+  constant in `driver/service.ts`); it needs a hub record first.
 - **Verified**: driver container tests (phone open/settled/blank, courier pickup label, code-named hand-over),
   driver unit + typecheck; driver-mobile host tests (kit words and banner order, Today states, two-tap order
   online and offline, load the van, scan methods on collect/check-in/proof, undo report); `assembleDebug`, iOS

@@ -39,7 +39,7 @@ vi.mock("@effy/edge-shared", async () => {
 import { migrationSql } from "@effy/edge-shared";
 
 import { recordFailure, recordProof } from "../proof/repository";
-import { deliveryDrop, setDropStatus } from "./delivery";
+import { deliveryDrop, historyDetail, setDropStatus } from "./delivery";
 import { loadRun } from "./load";
 import { RoundNotOpenError } from "./open";
 import { NotFoundError, deliveryRun, today } from "./service";
@@ -126,6 +126,25 @@ d("064 fix — a drop advances through every state the app sends", () => {
 
   const dropScreen = async () => (await deliveryDrop(dropId, driverId)).status;
   const runScreen = async () => (await deliveryRun(roundId, driverId)).drops[0]!.status;
+
+  /** 092 — Today carries what dispatch changed on the round, until there is nothing to say. */
+  it("092 — Today carries the round's change note", async () => {
+    expect((await today(driverId)).changedNote).toBeNull();
+    await pool.query(`UPDATE public.driver_round SET changed_note = 'Added 2 drops' WHERE id = $1`, [roundId]);
+    expect((await today(driverId)).changedNote).toBe("Added 2 drops");
+  });
+
+  /** 092 — a finished run's detail lists its stops; ⚠ before, a run id was looked up as a stop. */
+  it("092 — a finished run lists its stops; an unfinished or someone else's run is not found", async () => {
+    await expect(historyDetail("run", roundId, driverId)).rejects.toBeInstanceOf(NotFoundError);
+    await pool.query(`UPDATE public.round_stop SET status = 'done', completed_at = now() WHERE id = $1`, [dropId]);
+    await pool.query(`UPDATE public.driver_round SET status = 'completed' WHERE id = $1`, [roundId]);
+    const run = await historyDetail("run", roundId, driverId);
+    expect(run.stops).toEqual([
+      expect.objectContaining({ stopId: dropId, sequence: 1, kind: "drop", title: "1 Walk St, Melbourne", status: "done", proofMethod: null }),
+    ]);
+    await expect(historyDetail("run", roundId, crypto.randomUUID())).rejects.toBeInstanceOf(NotFoundError);
+  });
 
   it("starts staged", async () => {
     expect(await dropScreen()).toBe("staged");

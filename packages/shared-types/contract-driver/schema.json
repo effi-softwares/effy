@@ -1044,6 +1044,13 @@
             }
           ]
         },
+        "stops": {
+          "description": "092 — for a RUN: its stops in order, each with how it ended. Absent for a drop. ⚠ Until 092 a run's detail looked its id up as a stop and was always \"not found\".",
+          "items": {
+            "$ref": "#/definitions/HistoryStop"
+          },
+          "type": "array"
+        },
         "timeline": {
           "items": {
             "$ref": "#/definitions/TimelineEntry"
@@ -1111,6 +1118,63 @@
         "type",
         "completedAt",
         "stopCount"
+      ],
+      "type": "object"
+    },
+    "HistoryStop": {
+      "additionalProperties": false,
+      "description": "092 — one stop of a finished run, as History lists it. No money, no customer name.",
+      "properties": {
+        "completedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "shop",
+            "drop",
+            "hub"
+          ],
+          "type": "string"
+        },
+        "proofMethod": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProofMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sequence": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "status": {
+          "enum": [
+            "done",
+            "skipped"
+          ],
+          "type": "string"
+        },
+        "stopId": {
+          "type": "string"
+        },
+        "title": {
+          "description": "The shop's name, the drop's street and suburb, or \"Hub check-in\".",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stopId",
+        "sequence",
+        "kind",
+        "title",
+        "status",
+        "completedAt",
+        "proofMethod"
       ],
       "type": "object"
     },
@@ -1704,6 +1768,13 @@
           ]
         },
         "activeRunId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "changedNote": {
+          "description": "092 — what dispatch changed on the current round while it was under way (\"Added 2 drops\"), in their words; null when nothing has changed. Shown on Today until the driver dismisses it.",
           "type": [
             "string",
             "null"

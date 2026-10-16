@@ -194,6 +194,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
     dueLabel: formatMoment(round.deadline_at, now),
     upcoming,
     toReturn,
+    changedNote: round.changed_note?.trim() || null,
   };
 }
 
