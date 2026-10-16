@@ -30,6 +30,8 @@ interface RoundDetail {
     orderNumber: string | null;
     /** 069 — the customer's delivery window; null for a pickup, the hub, or an order before 069. */
     deliveryWindow?: DeliveryWindow | null;
+    /** 091 — how this stop's hand-overs were done; absent when none was recorded. */
+    handovers?: { scan: number; typed: number; manual: number };
   }>;
 }
 
@@ -120,6 +122,11 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
                 {s.orderNumber ? (
                   <p className="mt-0.5 text-sm text-muted-foreground">{s.orderNumber}</p>
                 ) : null}
+                {s.handovers ? (
+                  <p className="mt-0.5 text-sm text-muted-foreground tabular-nums" aria-label="Scanning">
+                    {handoverCounts(s.handovers)}
+                  </p>
+                ) : null}
                 {note ? (
                   <p className="mt-0.5 text-sm tabular-nums">
                     {note.text}
@@ -143,4 +150,13 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
       </section>
     </div>
   );
+}
+
+/** 091 — "2 scanned · 1 typed · 1 by hand", leaving out what is zero. */
+export function handoverCounts(h: { scan: number; typed: number; manual: number }): string {
+  return [
+    h.scan ? `${h.scan} scanned` : null,
+    h.typed ? `${h.typed} typed` : null,
+    h.manual ? `${h.manual} by hand` : null,
+  ].filter(Boolean).join(" · ");
 }

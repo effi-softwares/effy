@@ -4,6 +4,20 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**091-handover-visibility — Scan Versus Manual Visibility.** 🚧 **BUILT (2026-10-16). NOT DEPLOYED.** Driver
+backlog H12: three read-only views of 090's `package_handover`, each in the service that owns its screen; no
+route, no migration. Spec, plan, tasks: [specs/091-handover-visibility/](specs/091-handover-visibility/tasks.md).
+
+- **Order** (`orders`): each package lists its hand-overs oldest first — "Collected · scanned · Ada · time"
+  (`AdminOrderPackageDTO.handovers`, back-office `PackageRows`).
+- **Round** (`fleet` `readRound`): each stop counts its hand-overs on THAT round — "2 scanned · 1 typed".
+- **Shop** (`admin` shop detail): `labelScanning` over the last 30 days — "8 scanned · 2 not scanned (20%)".
+- ⚠ Nothing is inferred: no record shows nothing, never "by hand". Nothing reaches a customer, shop or driver.
+- **Verified**: orders/fleet/admin container tests for each read; back-office 389. Pre-existing and unrelated:
+  admin `go-live.container.test.ts` (6 — its schema lacks 085's `any_time`), orders 9, fleet 1 (as recorded above).
+- **Operator steps**: `make edge-deploy SERVICE=orders|fleet|admin ENV=dev` → back-office. Data appears once
+  drivers use the scanning screens.
+
 **090-scanning-foundation — Package Scanning: Foundations.** 🚧 **BUILT (2026-10-16). NOT MIGRATED, DEPLOYED
 OR WALKED.** Everything under the scanning screens (driver backlog H4, H5 and the platform halves of
 H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanning-foundation/](specs/090-scanning-foundation/tasks.md).

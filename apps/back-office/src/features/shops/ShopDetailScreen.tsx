@@ -130,6 +130,8 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
             <Field label="Notes" value={shop.notes ?? "—"} />
             <Field label="Created" value={formatTime(shop.createdAt)} />
             <Field label="Updated" value={formatTime(shop.updatedAt)} />
+            {/* 091 — a shop whose labels often fail to scan is printing them badly. */}
+            {shop.labelScanning ? <Field label="Label scanning" value={labelScanningText(shop.labelScanning)} /> : null}
           </dl>
         </CardContent>
       </Card>
@@ -341,4 +343,12 @@ function Field({ label, value }: { label: string; value: string }) {
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
+/** 091 — "8 scanned · 2 not scanned (20%) · last 30 days", or that nothing is recorded yet. */
+export function labelScanningText(l: { scanned: number; notScanned: number; sinceDays: number }): string {
+  const total = l.scanned + l.notScanned;
+  if (total === 0) return `No scanning recorded in the last ${l.sinceDays} days`;
+  const share = Math.round((l.notScanned / total) * 100);
+  return `${l.scanned} scanned · ${l.notScanned} not scanned (${share}%) · last ${l.sinceDays} days`;
 }

@@ -224,8 +224,30 @@ async function readRoster(shopId: string): Promise<ShopUser[]> {
 export async function getShopDetail(shopId: string): Promise<ShopDetail | null> {
   const shop = await readShop(shopId);
   if (!shop) return null;
-  const users = await readRoster(shopId);
-  return { ...shop, users };
+  const [users, labelScanning] = await Promise.all([readRoster(shopId), readLabelScanning(shopId)]);
+  return { ...shop, users, labelScanning };
+}
+
+/** 091 — the window the shop page counts label scanning over. */
+const LABEL_SCAN_DAYS = 30;
+
+/**
+ * 091 — this shop's packages' recorded hand-overs over the last 30 days (090's record): scanned, and
+ * typed or ticked by hand. Every step counts — a label that will not scan fails at the hub and the door
+ * too. Nothing recorded is nothing counted, never "not scanned".
+ */
+async function readLabelScanning(shopId: string): Promise<{ scanned: number; notScanned: number; sinceDays: number }> {
+  const res = await query<{ scanned: number; not_scanned: number }>(
+    `SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int  AS scanned,
+            count(*) FILTER (WHERE ph.handover_method <> 'scan')::int AS not_scanned
+       FROM public.package_handover ph
+       JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
+      WHERE sf.shop_id = $1
+        AND ph.recorded_at >= now() - make_interval(days => $2)`,
+    [shopId, LABEL_SCAN_DAYS],
+  );
+  const r = res.rows[0];
+  return { scanned: Number(r?.scanned ?? 0), notScanned: Number(r?.not_scanned ?? 0), sinceDays: LABEL_SCAN_DAYS };
 }
 
 /** The user's assignment + email, for a roster PATCH. Throws not_found if absent; conflict if the

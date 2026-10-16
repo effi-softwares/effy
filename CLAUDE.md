@@ -547,6 +547,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — built; NOT deployed
 - **090-scanning-foundation** — Package Scanning: Foundations (one scan rule, the camera reader, hand-over records, hub sort, load the van; no screens) — built; NOT migrated, deployed or walked
 - **089-package-labels** — Package Labels (a permanent code per package; shops print QR + Code 128 labels; EFFY/COURIER only) — built; NOT migrated, deployed or walked
 - **088-failed-parcel-return** — Return Failed Parcels to the Hub (driver backlog A4; custody now sees delivery parcels) — built; NOT migrated, deployed or walked
@@ -615,5 +616,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/090-scanning-foundation/plan.md
+at specs/091-handover-visibility/plan.md
 <!-- SPECKIT END -->

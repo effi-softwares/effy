@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { OrderAssignment } from "@effy/shared-types";
+import type { HandoverMethod, HandoverStep, OrderAssignment } from "@effy/shared-types";
 import { AssignmentLine } from "./AssignmentLine";
 import { ConsignmentBlock } from "./ConsignmentBlock";
 import { PackageStatusPill } from "@effy/web-kit/console";
@@ -106,6 +106,18 @@ function PackageRow({
             <p className="font-mono text-xs text-muted-foreground" aria-label="Package code">
               {pkg.packageCode}
             </p>
+          ) : null}
+          {/* 091 — how it was handed over at each step, as recorded. Nothing is shown — never "by
+              hand" by assumption — when nothing was recorded. */}
+          {pkg.handovers && pkg.handovers.length > 0 ? (
+            <ul className="text-xs text-muted-foreground" aria-label="Hand-overs">
+              {pkg.handovers.map((h, i) => (
+                <li key={i}>
+                  {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {h.driverName} ·{" "}
+                  <span className="tabular-nums">{new Date(h.at).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
           ) : null}
           <p className="text-sm text-muted-foreground">
             {pkg.itemCount} item{pkg.itemCount === 1 ? "" : "s"} ·{" "}
@@ -259,3 +271,17 @@ function PackageRow({
     </div>
   );
 }
+
+/** 091 — the hand-over's step and method, in staff words. */
+const HANDOVER_STEP_WORDS: Record<HandoverStep, string> = {
+  collect: "Collected",
+  checkin: "Checked in at hub",
+  load: "Loaded",
+  deliver: "Delivered",
+  return: "Returned to hub",
+};
+const HANDOVER_METHOD_WORDS: Record<HandoverMethod, string> = {
+  scan: "scanned",
+  typed: "code typed",
+  manual: "by hand",
+};

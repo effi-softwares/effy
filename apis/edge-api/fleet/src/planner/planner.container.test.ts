@@ -1048,6 +1048,20 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
     await expect(svc.reassign(roundId, other, await token(), "staff-1")).rejects.toMatchObject({ kind: "parcels_to_return" });
   });
 
+  it("091 — a round's stop counts its hand-overs by method, on this round only; none recorded shows none", async () => {
+    const { shopId, driverId } = await world();
+    const sfId = await atHub(driverId, shopId, null);
+    const { roundId, stopId } = await failedDrop(driverId, sfId);
+    expect((await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId)).not.toHaveProperty("handovers");
+    await q(
+      `INSERT INTO public.package_handover (shop_fulfillment_id, round_id, driver_id, step, handover_method, change_id)
+       VALUES ($1, $2, $3, 'load', 'scan', gen_random_uuid()), ($1, $2, $3, 'deliver', 'typed', gen_random_uuid())`,
+      [sfId, roundId, driverId],
+    );
+    const stop = (await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId) as any;
+    expect(stop.handovers).toEqual({ scan: 1, typed: 1, manual: 0 });
+  });
+
   it("088 US4 — staff record a return for the driver: attributed, audited, and the driver's step is gone", async () => {
     const { shopId, driverId } = await world();
     const sfId = await atHub(driverId, shopId, null);

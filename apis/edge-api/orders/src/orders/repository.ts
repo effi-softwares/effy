@@ -611,3 +611,26 @@ export async function courierParcels(): Promise<CourierParcelRow[]> {
   );
   return res.rows;
 }
+
+/** 091 — recorded hand-overs of these packages (090), oldest first, with the driver's name. Staff only. */
+export interface HandoverRow {
+  package_id: string;
+  step: "collect" | "checkin" | "load" | "deliver" | "return";
+  method: "scan" | "typed" | "manual";
+  recorded_at: Date;
+  driver_name: string;
+}
+
+export async function handovers(packageIds: string[]): Promise<HandoverRow[]> {
+  if (packageIds.length === 0) return [];
+  const res = await query<HandoverRow>(
+    `SELECT ph.shop_fulfillment_id::text AS package_id, ph.step, ph.handover_method AS method,
+            ph.recorded_at, d.name AS driver_name
+       FROM public.package_handover ph
+       JOIN public.driver d ON d.id = ph.driver_id
+      WHERE ph.shop_fulfillment_id = ANY($1::uuid[])
+      ORDER BY ph.recorded_at, ph.id`,
+    [packageIds],
+  );
+  return res.rows;
+}

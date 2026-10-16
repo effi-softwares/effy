@@ -96,7 +96,8 @@ private const val PROOF_MAX_SIDE = 1600.0
 private const val PROOF_JPEG_QUALITY = 0.8
 
 @OptIn(ExperimentalForeignApi::class)
-private fun UIImage.toProofJpeg(): ByteArray {
+/** Upright, long side at most 1600px, JPEG — shared with the live viewfinder (`CameraPreviewSurface.ios.kt`). */
+internal fun UIImage.toProofJpeg(): ByteArray {
     val (w, h) = size.useContents { width to height }
     if (w <= 0.0 || h <= 0.0) return ByteArray(0)
     val scale = minOf(1.0, PROOF_MAX_SIDE / maxOf(w, h))

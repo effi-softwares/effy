@@ -271,7 +271,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
   const pkgIds = packageRows.map((p) => p.fulfillment_id);
-  const [statusById, assignmentById, consignmentById, collectionHistory, deliveryMoves] = await Promise.all([
+  const [statusById, assignmentById, consignmentById, collectionHistory, deliveryMoves, handoverRows] = await Promise.all([
     packageStatuses(db, pkgIds),
     assignmentsFor(pkgIds),
     // 080 — each courier parcel's live consignment, and the order's collection-mode history.
@@ -279,13 +279,18 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     order.delivery_type === "courier" ? repo.courierCollectionHistory(orderId) : Promise.resolve([]),
     // 081 — every move by back-office, with its compensation; none for an order placed before 079.
     order.delivery_type ? deliveryMovesFor(db, orderId) : Promise.resolve([]),
+    // 091 — how each package was handed over at each step (090's record).
+    repo.handovers(pkgIds),
   ]);
   const consignments = new Map(
     await Promise.all([...consignmentById].map(async ([id, c]) => [id, await toConsignment(c)] as const)),
   );
-  const packages = packageRows.map((p) =>
-    toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id), consignments.get(p.fulfillment_id) ?? null),
-  );
+  const packages = packageRows.map((p) => ({
+    ...toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id), consignments.get(p.fulfillment_id) ?? null),
+    handovers: handoverRows
+      .filter((h) => h.package_id === p.fulfillment_id)
+      .map((h) => ({ step: h.step, method: h.method, at: h.recorded_at.toISOString(), driverName: h.driver_name })),
+  }));
   const statuses = packageRows.map((p) => p.status);
   const awaitingHandover = packageRows.filter(
     // ⚠ 079 — the same definition the list's badge and filter use. Until then this one line had

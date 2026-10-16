@@ -41,6 +41,13 @@ never told one); where a parcel goes at the hub will come from the scan (H7).
 camera reader (Android + iOS), hand-over records, per-package hub instructions and "load the van". The
 scanning SCREENS (H6–H11 UI) follow the redesign. Not yet migrated or deployed.
 
+**H12 — built as feature 091** ([specs/091-handover-visibility](../specs/091-handover-visibility/tasks.md)):
+hand-overs on the order, counts per stop on a round, labels that didn't scan per shop. Not yet deployed.
+
+**H13 — done** (2026-10-16): iOS photo proof has a live in-app viewfinder (AVFoundation, `CameraPreviewSurface.ios.kt`),
+shrinking and uprighting the photo exactly as the system-camera path does. Ships with the next app build; check
+on a device.
+
 **Still open:** B4/F4/H15 (decisions), D3 (Apple account), E1–E4, E5 day
 stats, E6, E7 (decide before the redesign), F1 + G1–G3 + H4–H14 (design), H1–H3 (labels — best done as
 their own spec'd feature).

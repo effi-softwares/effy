@@ -334,6 +334,9 @@ export interface CollectionStopDTO {
  * ticked by hand. Optional on every hand-over; an app that sends none behaves as before.
  */
 export type HandoverMethod = "scan" | "typed" | "manual";
+
+/** 090 — which hand-over: shop → driver, driver → hub, hub → van, van → door, failed parcel → hub. */
+export type HandoverStep = "collect" | "checkin" | "load" | "deliver" | "return";
 export interface PackageHandover {
   packageId: string;
   method: HandoverMethod;

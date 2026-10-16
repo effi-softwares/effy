@@ -164,7 +164,9 @@ export const ROUND_DETAIL_STOPS = `
          s.name AS shop_name,
          o.order_number,
          o.delivery_address ->> 'city' AS destination_suburb,
-         w.window_start, w.window_end
+         w.window_start, w.window_end,
+         -- 091 — how this stop's hand-overs ON THIS ROUND were done (090's record).
+         ho.scan AS handovers_scan, ho.typed AS handovers_typed, ho.manual AS handovers_manual
     FROM public.round_stop rs
     LEFT JOIN public.shop           s ON s.id = rs.shop_id
     LEFT JOIN public."order"        o ON o.id = rs.order_id
@@ -176,6 +178,14 @@ export const ROUND_DETAIL_STOPS = `
         FROM public.order_package_delivery opd
        WHERE opd.order_id = rs.order_id AND opd.window_start IS NOT NULL
     ) w ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int   AS scan,
+             count(*) FILTER (WHERE ph.handover_method = 'typed')::int  AS typed,
+             count(*) FILTER (WHERE ph.handover_method = 'manual')::int AS manual
+        FROM public.package_handover ph
+       WHERE ph.round_id = rs.round_id
+         AND ph.shop_fulfillment_id IN (SELECT rp.shop_fulfillment_id FROM public.round_package rp WHERE rp.stop_id = rs.id)
+    ) ho ON TRUE
    WHERE rs.round_id = $1
    ORDER BY rs.seq NULLS LAST, rs.id
 `;

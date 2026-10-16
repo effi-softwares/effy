@@ -29,6 +29,7 @@ import type {
   RefundRequestDTO,
 } from "./refund";
 import type { WireInt } from "./cart";
+import type { HandoverMethod, HandoverStep } from "./driver";
 import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryPromise, DeliveryType, DeliveryTypeReason } from "./delivery-type";
@@ -173,6 +174,14 @@ export interface DeliveryTypeChangeDTO {
 }
 
 /** One shop's portion of an order, as an operator sees it. */
+/** 091 — one recorded hand-over of a package (090's `package_handover`). Staff only. */
+export interface AdminPackageHandoverDTO {
+  step: HandoverStep;
+  method: HandoverMethod;
+  at: string;
+  driverName: string;
+}
+
 export interface AdminOrderPackageDTO {
   /**
    * 073 — where this package really is: derived from collection, hub check-in, delivery and
@@ -186,6 +195,11 @@ export interface AdminOrderPackageDTO {
   fulfillmentId: string;
   /** 089 — the package's permanent code, as printed on its label. */
   packageCode: string;
+  /**
+   * 091 — every recorded hand-over of this package, oldest first: how it was done and by whom. Empty
+   * when none was recorded — never "by hand" by assumption.
+   */
+  handovers?: AdminPackageHandoverDTO[];
   /** ⚠ Present here and ONLY here. Never on a customer-facing contract (FR-021). */
   shopId: string;
   shopName: string;

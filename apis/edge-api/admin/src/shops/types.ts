@@ -40,6 +40,8 @@ export interface Shop {
 
 export interface ShopDetail extends Shop {
   users: ShopUser[];
+  /** 091 — how this shop's package labels scanned over the last [sinceDays] days. */
+  labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
 }
 
 export interface ShopListItem {

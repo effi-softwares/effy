@@ -10,6 +10,7 @@ import {
   WINDOW_STATE_LABEL,
   windowNoteFor,
 } from "./model";
+import { handoverCounts } from "./RoundDetailScreen";
 
 describe("describeReasons", () => {
   it("has a sentence for every reason the contract can produce", () => {
@@ -129,5 +130,13 @@ describe("waitingFor — where an unassigned package is, and what for (072)", ()
     expect(waitingFor({ stage: "collection", targetAt: null }, NOON)).toBe(
       "At the shop · no collection run is scheduled",
     );
+  });
+});
+
+
+describe("091 — scanning counts on a round", () => {
+  it("names each method once, leaving out what is zero", () => {
+    expect(handoverCounts({ scan: 2, typed: 1, manual: 0 })).toBe("2 scanned · 1 typed");
+    expect(handoverCounts({ scan: 0, typed: 0, manual: 3 })).toBe("3 by hand");
   });
 });

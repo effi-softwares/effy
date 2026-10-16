@@ -181,6 +181,11 @@ export async function readRound(roundId: string) {
         s.window_start && s.window_end
           ? { startAt: (s.window_start as Date).toISOString(), endAt: (s.window_end as Date).toISOString() }
           : null,
+      // 091 — scanned / typed / by hand, for the hand-overs recorded at this stop on this round. Absent
+      // when none was recorded: nothing is assumed.
+      ...(s.handovers_scan + s.handovers_typed + s.handovers_manual > 0
+        ? { handovers: { scan: s.handovers_scan, typed: s.handovers_typed, manual: s.handovers_manual } }
+        : {}),
     })),
   };
 }

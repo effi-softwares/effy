@@ -35,8 +35,8 @@ fun rememberCameraCaptureController(): CameraCaptureController = remember { Came
  *
  * ⚠ **This closes a live defect on iOS as a side effect.** `rememberPhotoCapture` returns `null`
  * there, so the Photo proof option is **hidden entirely** — iOS drivers have had no photo proof at
- * all since 049. After 060 they do, via the system camera, even before a Swift AVFoundation bridge
- * exists. That bridge is deferred and recorded (plan Complexity Tracking, research R8).
+ * all since 049. After 060 they do, via the system camera; since driver backlog H13 (2026-10-16) iOS
+ * has a live viewfinder too, on AVFoundation directly (no Swift bridge was needed).
  *
  * @param onCaptured upright JPEG bytes, when a live preview produces an image
  * @return true if a LIVE preview is being rendered. When false the caller shows its stand-in and

@@ -178,6 +178,11 @@ export interface ShopDetailDTO {
   createdAt: string;
   updatedAt: string;
   users: ShopUserDTO[];
+  /**
+   * 091 — how this shop's package labels scanned over the last [sinceDays] days: hand-overs recorded as
+   * scanned, and as typed or ticked by hand. A shop whose labels often fail is printing them badly.
+   */
+  labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
 }
 
 /** POST /admin/v1/shops — create a shop + provision its primary manager. */

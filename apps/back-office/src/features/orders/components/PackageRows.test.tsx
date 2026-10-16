@@ -37,4 +37,18 @@ describe("PackageRows — 089", () => {
     );
     expect(screen.getByLabelText("Package code")).toHaveTextContent("7K3Q9M");
   });
+
+  it("091 — lists recorded hand-overs, and nothing when none were recorded", () => {
+    const { unmount } = render(
+      <PackageRows
+        orderId="o1"
+        packages={[{ ...pkg, handovers: [{ step: "collect", method: "scan", at: "2026-10-16T01:00:00.000Z", driverName: "Ada" }] }]}
+        canRecord={false} busy={false} onHandoff={() => {}} onArrival={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("Hand-overs")).toHaveTextContent("Collected · scanned · Ada");
+    unmount();
+    render(<PackageRows orderId="o1" packages={[pkg]} canRecord={false} busy={false} onHandoff={() => {}} onArrival={() => {}} />);
+    expect(screen.queryByLabelText("Hand-overs")).toBeNull();
+  });
 });
