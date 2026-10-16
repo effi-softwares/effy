@@ -550,7 +550,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — built; NOT deployed or walked
+- **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — built, `driver` deployed to dev; app not walked
 - **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — built; NOT deployed
 - **090-scanning-foundation** — Package Scanning: Foundations (one scan rule, the camera reader, hand-over records, hub sort, load the van; no screens) — built; NOT migrated, deployed or walked
 - **089-package-labels** — Package Labels (a permanent code per package; shops print QR + Code 128 labels; EFFY/COURIER only) — built; NOT migrated, deployed or walked

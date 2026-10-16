@@ -4,7 +4,7 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**092-driver-mobile-redesign — Driver App Redesign.** 🚧 **BUILT (2026-10-16). NOT DEPLOYED OR WALKED.**
+**092-driver-mobile-redesign — Driver App Redesign.** 🚧 **BUILT (2026-10-16). `driver` DEPLOYED TO DEV; APP NOT WALKED.**
 Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built from the canvas
 `docs/reference-screens/Effy Driver Mobile v2/` (61 artboards). Spec, plan, tasks:
 [specs/092-driver-mobile-redesign/](specs/092-driver-mobile-redesign/tasks.md).
