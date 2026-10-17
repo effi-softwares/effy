@@ -9,6 +9,7 @@ import com.effyshopping.driver.mobile.features.history.domain.History
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDay
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDetail
 import com.effyshopping.driver.mobile.features.history.domain.HistoryStopRow
+import com.effyshopping.driver.mobile.core.map.toDomain
 import com.effyshopping.driver.mobile.features.history.domain.HistoryDropRow
 import com.effyshopping.driver.mobile.features.history.domain.HistoryRepository
 import com.effyshopping.driver.mobile.features.history.domain.HistoryRunRow
@@ -51,8 +52,13 @@ private fun HistoryDTO.toDomain() = History(
     days = days.map { d ->
         HistoryDay(
             date = d.date,
-            runs = d.runs.map { HistoryRunRow(it.runID, it.type.value, it.completedAt, it.stopCount.toInt()) },
-            drops = d.drops.map { HistoryDropRow(it.dropID, it.orderRef, it.customerSuburb, it.completedAt, it.proofCaptured) },
+            runs = d.runs.map { HistoryRunRow(it.runID, it.type.value, it.completedAt, it.stopCount.toInt(), it.packageCount?.toInt() ?: 0, it.window) },
+            drops = d.drops.map {
+                HistoryDropRow(
+                    it.dropID, it.orderRef, it.customerSuburb, it.completedAt, it.proofCaptured,
+                    street = it.street?.takeIf { s -> s.isNotBlank() }, proofMethod = it.proofMethod?.value, failureReason = it.failureReason?.value,
+                )
+            },
         )
     },
 )
@@ -62,6 +68,11 @@ private fun HistoryDetailDTO.toDomain() = HistoryDetail(
     proof = proof?.let { ProofRecord(it.method.value, it.mediaURL, it.note, it.capturedAt) },
     addressFull = addressFull,
     stops = stops.orEmpty().map {
-        HistoryStopRow(it.stopID, it.sequence.toInt(), it.kind.value, it.title, it.status.value == "done", it.completedAt, it.proofMethod?.value)
+        HistoryStopRow(it.stopID, it.sequence.toInt(), it.kind.value, it.title, it.status.value == "done", it.completedAt, it.proofMethod?.value, it.failureReason?.value)
     },
+    map = map?.toDomain(),
+    orderRef = orderRef,
+    packageCount = packageCount?.toInt() ?: 0,
+    failureReason = failureReason?.value,
+    window = window,
 )

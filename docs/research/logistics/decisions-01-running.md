@@ -446,3 +446,21 @@ rather than inventing a default shift length.
 all the types."* Confirms D8 in full — register, detail, assign/return, compliance dates, capacity,
 refrigeration, status lifecycle — with a seeded fixture covering each vehicle type. Seeds live in
 `db/seeds/` and are plainly fictional (plates included).
+
+---
+
+## D25. A decorative run map, from points the platform already holds (092 rev 2). Display only.
+**Operator direction (2026-10-17):** the driver redesign draws a small schematic map on Today's run card,
+the collection and delivery run screens and a past run — no map SDK, no tiles, no pan or zoom.
+
+**What it reads, and nothing else:** a postcode's place from `public.locality` (latitude/longitude, picked
+by suburb name, then by address count) and the hub's point on `delivery_settings`. Both already existed.
+**Nothing new is stored and nothing about a driver's position is read or collected** — D20/D22 stand.
+
+**Why the points are rough by design:** a postcode's centre is enough to draw "the route goes north, then
+east"; it is not a place to drive to (Navigate still hands the address to the phone's maps app).
+
+**Held by** `fleet/src/planner/no-location.guard.test.ts`: `driver/src/work/run-map.ts` is the one file that
+may read a point, only the driver's read services may import it, and its test seed
+(`run-map.fixture.ts`) may be imported by tests only. Distance, travel time or nearest-driver logic built
+on these points is still a spec change to reopen, not a tie-break to add quietly.

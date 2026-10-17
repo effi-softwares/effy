@@ -35,6 +35,11 @@ data class DropSummary(
     val window: DeliveryWindow? = null,
     /** 089 — the codes on this drop's package labels; empty from an older server. */
     val packageCodes: List<String> = emptyList(),
+    /** 092 rev 2 — the street line, and how a finished drop ended. */
+    val street: String? = null,
+    val completedAtIso: String? = null,
+    val proofMethod: ProofMethod? = null,
+    val failureReason: FailureReason? = null,
 )
 
 data class DeliveryRun(
@@ -50,6 +55,8 @@ data class DeliveryRun(
     val dueLabel: String? = null,
     /** 088 — parcels from this run's failed drops, still to go back to the hub; null when none. */
     val toReturn: ParcelsToReturn? = null,
+    /** 092 rev 2 — the run map. */
+    val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
 )
 
 /**
@@ -62,7 +69,12 @@ data class ParcelsToReturn(
     val orders: List<String>,
     /** 090 — their label codes, for the return scan; empty from an older server. */
     val packageCodes: List<String> = emptyList(),
+    /** 092 rev 2 — each parcel, for the Return to hub screen. */
+    val parcels: List<ReturnParcel> = emptyList(),
 )
+
+/** 092 rev 2 — one parcel coming back: its order ref, label code, where it was for, why. */
+data class ReturnParcel(val ref: String, val packageCode: String, val place: String?, val reason: FailureReason?)
 
 /**
  * One physical package at a drop (065).

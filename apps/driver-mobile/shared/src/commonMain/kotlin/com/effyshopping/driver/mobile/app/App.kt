@@ -74,6 +74,9 @@ fun App(
             }
         }
 
+        androidx.compose.runtime.CompositionLocalProvider(
+            com.effyshopping.driver.mobile.core.presentation.LocalReducedMotion provides platformState.reducedMotion,
+        ) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = session) {
                 // The launch intro covers this; it hands over only once the session is known.
@@ -98,6 +101,7 @@ fun App(
                     }
                 }
             }
+        }
         }
         if (!introDone) {
             DriverIntro(

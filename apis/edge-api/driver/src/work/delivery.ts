@@ -21,7 +21,9 @@ import { dropStatusOf } from "./drop-status";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
 import { packageCodes, packageItems, stopPackageIds, stopRoundTimes } from "./repository";
 import { assertStopRoundOpen } from "./open";
-import { NotFoundError } from "./service";
+import { NotFoundError, ordered } from "./service";
+import { runMapOf } from "./run-map";
+import { roundStops } from "./repository";
 
 /** GET /driver/v1/delivery/drops/{dropId} — one customer stop. */
 export async function deliveryDrop(dropId: string, driverId: string): Promise<DeliveryDropDTO> {
@@ -202,12 +204,23 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     kind: string;
     completed_at: Date | null;
     stop_count: string;
+    package_count: string;
+    window_start: Date | null;
+    window_end: Date | null;
   }>(
     `SELECT to_char(dr.updated_at AT TIME ZONE 'Australia/Melbourne', 'YYYY-MM-DD') AS local_date,
             dr.id        AS run_id,
             dr.kind      AS kind,
             dr.updated_at AS completed_at,
-            (SELECT count(*) FROM public.round_stop rs WHERE rs.round_id = dr.id)::text AS stop_count
+            -- 092 rev 2 — a delivery run's window: the span its drops were sold (none for a collection).
+            (SELECT min(opd.window_start) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
+              WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_start,
+            (SELECT max(opd.window_end) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
+              WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_end,
+            -- 092 rev 2 — shops or drops, not the hub: what a driver would count.
+            (SELECT count(*) FROM public.round_stop rs WHERE rs.round_id = dr.id AND rs.kind <> 'hub_checkin')::text AS stop_count,
+            (SELECT count(*) FROM public.round_package rp JOIN public.round_stop rs ON rs.id = rp.stop_id
+              WHERE rs.round_id = dr.id)::text AS package_count
        FROM public.driver_round dr
       WHERE dr.driver_id = $1 AND dr.status = 'completed'
       ORDER BY dr.updated_at DESC
@@ -227,22 +240,37 @@ export async function history(driverId: string): Promise<HistoryDTO> {
     customer_suburb: string | null;
     completed_at: Date | null;
     proof_captured: boolean;
+    street: string | null;
+    proof_method: string | null;
+    failure_reason: string | null;
   }>(
-    `SELECT to_char(rs.completed_at AT TIME ZONE 'Australia/Melbourne', 'YYYY-MM-DD') AS local_date,
-            rs.id          AS drop_id,
-            o.order_number AS order_number,
-            o.delivery_address ->> 'city' AS customer_suburb,
-            rs.completed_at AS completed_at,
-            (dp.id IS NOT NULL) AS proof_captured
-       FROM public.round_stop rs
-       JOIN public.driver_round dr ON dr.id = rs.round_id
-       JOIN public."order"      o  ON o.id = rs.order_id
-       LEFT JOIN public.delivery_proof dp ON dp.stop_id = rs.id
-      WHERE dr.driver_id = $1
-        AND rs.kind = 'customer_drop'
-        AND rs.status = 'done'
-        AND rs.completed_at IS NOT NULL
-      ORDER BY rs.completed_at DESC
+    // 092 rev 2 — a drop that CAME BACK is history too ("Returned · nobody home"), with its street and
+    // how a delivered one was handed over.
+    `SELECT to_char(x.at AT TIME ZONE 'Australia/Melbourne', 'YYYY-MM-DD') AS local_date, x.*
+       FROM (
+         SELECT rs.id          AS drop_id,
+                o.order_number AS order_number,
+                o.delivery_address ->> 'city' AS customer_suburb,
+                nullif(btrim(o.delivery_address ->> 'line1'), '') AS street,
+                COALESCE(rs.completed_at, f.failed_at) AS completed_at,
+                COALESCE(rs.completed_at, f.failed_at) AS at,
+                (dp.id IS NOT NULL) AS proof_captured,
+                dp.method AS proof_method,
+                CASE WHEN rs.status = 'skipped' THEN f.reason END AS failure_reason
+           FROM public.round_stop rs
+           JOIN public.driver_round dr ON dr.id = rs.round_id
+           JOIN public."order"      o  ON o.id = rs.order_id
+           LEFT JOIN public.delivery_proof dp ON dp.stop_id = rs.id
+           LEFT JOIN LATERAL (
+             SELECT fa.reason, fa.failed_at FROM public.delivery_attempt_failure fa
+              WHERE fa.stop_id = rs.id ORDER BY fa.failed_at DESC LIMIT 1
+           ) f ON TRUE
+          WHERE dr.driver_id = $1
+            AND rs.kind = 'customer_drop'
+            AND rs.status IN ('done', 'skipped')
+       ) x
+      WHERE x.at IS NOT NULL
+      ORDER BY x.at DESC
       LIMIT 200`,
     [driverId],
   );
@@ -281,6 +309,8 @@ export async function history(driverId: string): Promise<HistoryDTO> {
       type: r.kind === "collection" ? "collection" : "same_day_delivery",
       completedAt: r.completed_at ? r.completed_at.toISOString() : null,
       stopCount: Number(r.stop_count),
+      packageCount: Number(r.package_count),
+      window: dropWindow(r.window_start, r.window_end).window,
     });
   }
   for (const d of dropRows) {
@@ -290,6 +320,9 @@ export async function history(driverId: string): Promise<HistoryDTO> {
       customerSuburb: d.customer_suburb ?? "",
       completedAt: d.completed_at!.toISOString(),
       proofCaptured: d.proof_captured,
+      street: d.street,
+      proofMethod: (d.proof_method as HistoryDTO["days"][number]["drops"][number]["proofMethod"]) ?? null,
+      failureReason: (d.failure_reason as HistoryDTO["days"][number]["drops"][number]["failureReason"]) ?? null,
     });
   }
 
@@ -311,8 +344,21 @@ export async function historyDetail(
     proof_media_key: string | null;
     proof_note: string | null;
     proof_captured_at: Date | null;
+    order_number: string | null;
+    package_count: string;
+    failure_reason: HistoryDetailDTO["failureReason"];
+    failed_at: Date | null;
+    window_start: Date | null;
+    window_end: Date | null;
   }>(
     `SELECT rs.status, rs.completed_at,
+            o.order_number,
+            (SELECT min(opd.window_start) FROM public.order_package_delivery opd
+              WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_start,
+            (SELECT min(opd.window_end)   FROM public.order_package_delivery opd
+              WHERE opd.order_id = o.id AND opd.window_start IS NOT NULL) AS window_end,
+            (SELECT count(*) FROM public.round_package rp WHERE rp.stop_id = rs.id)::text AS package_count,
+            f.reason AS failure_reason, f.failed_at,
             CASE WHEN rs.kind = 'customer_drop'
                  THEN concat_ws(', ', o.delivery_address ->> 'line1', o.delivery_address ->> 'city')
                  ELSE concat_ws(', ', s.address_line1, s.suburb) END AS address,
@@ -325,17 +371,27 @@ export async function historyDetail(
        LEFT JOIN public."order" o ON o.id = rs.order_id
        LEFT JOIN public.shop    s ON s.id = rs.shop_id
        LEFT JOIN public.delivery_proof dp ON dp.stop_id = rs.id
+       LEFT JOIN LATERAL (
+         SELECT fa.reason, fa.failed_at FROM public.delivery_attempt_failure fa
+          WHERE fa.stop_id = rs.id ORDER BY fa.failed_at DESC LIMIT 1
+       ) f ON TRUE
       WHERE rs.id = $1 AND dr.driver_id = $2`,
     [id, driverId],
   );
   const r = res.rows[0];
   if (!r) throw new NotFoundError();
 
+  const at = r.completed_at ?? r.failed_at;
   return {
-    timeline: r.completed_at ? [{ status: r.status, at: r.completed_at.toISOString() }] : [],
+    timeline: at ? [{ status: r.status, at: at.toISOString() }] : [],
     proof: await renderProof(r),
     addressFull: r.address,
     packages: [],
+    // 092 rev 2 — the order, how many packages, and why a drop came back.
+    orderRef: r.order_number,
+    packageCount: Number(r.package_count),
+    window: dropWindow(r.window_start, r.window_end).window,
+    failureReason: r.status === "skipped" ? (r.failure_reason ?? null) : null,
   };
 }
 
@@ -350,8 +406,18 @@ async function historyRun(runId: string, driverId: string): Promise<HistoryDetai
     shop_name: string | null;
     address: string | null;
     proof_method: "photo" | "signature" | "contactless" | null;
+    failure_reason: HistoryStop["failureReason"];
+    round_kind: string;
+    window_start: Date | null;
+    window_end: Date | null;
   }>(
-    `SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.completed_at,
+    `SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.completed_at, dr.kind AS round_kind,
+            -- 092 rev 2 — a delivery run's window: the span its drops were sold (none for a collection).
+            (SELECT min(opd.window_start) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
+              WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_start,
+            (SELECT max(opd.window_end) FROM public.round_stop rw JOIN public.order_package_delivery opd ON opd.order_id = rw.order_id
+              WHERE rw.round_id = dr.id AND opd.window_start IS NOT NULL) AS window_end,
+            (SELECT f.reason FROM public.delivery_attempt_failure f WHERE f.stop_id = rs.id ORDER BY f.failed_at DESC LIMIT 1) AS failure_reason,
             s.name AS shop_name,
             CASE WHEN rs.kind = 'customer_drop'
                  THEN concat_ws(', ', o.delivery_address ->> 'line1', o.delivery_address ->> 'city') END AS address,
@@ -374,7 +440,10 @@ async function historyRun(runId: string, driverId: string): Promise<HistoryDetai
     status: r.status === "skipped" ? "skipped" : "done",
     completedAt: r.completed_at ? r.completed_at.toISOString() : null,
     proofMethod: r.proof_method,
+    failureReason: r.status === "skipped" ? r.failure_reason : null,
   }));
+  // 092 rev 2 — the finished run's map, every stop done (the list's own order, from the shared rule).
+  const map = await runMapOf(ordered(await roundStops(runId, driverId)), res.rows[0]!.round_kind === "collection" ? "collection" : "delivery", true);
   const last = res.rows.map((r) => r.completed_at).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
   return {
     timeline: last ? [{ status: "completed", at: last.toISOString() }] : [],
@@ -382,6 +451,8 @@ async function historyRun(runId: string, driverId: string): Promise<HistoryDetai
     addressFull: null,
     packages: [],
     stops,
+    map,
+    window: dropWindow(res.rows[0]!.window_start, res.rows[0]!.window_end).window,
   };
 }
 

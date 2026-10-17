@@ -41,6 +41,8 @@ enum class DriverButtonStyle {
     Outline,
     /** No border — a quiet action ("Back to the run"). */
     Ghost,
+    /** Grey fill — a quiet action beside an outline one ("View stop" before a run opens). */
+    Secondary,
     /** Black — a problem or a destructive action. ⚠ Never red (v3.5.0). */
     Problem,
 }
@@ -66,6 +68,7 @@ fun DriverButton(
         !enabled -> scheme.surfaceVariant to scheme.onSurfaceVariant
         style == DriverButtonStyle.Primary -> scheme.primary to scheme.onPrimary
         style == DriverButtonStyle.Problem -> scheme.onSurface to scheme.surface
+        style == DriverButtonStyle.Secondary -> scheme.surfaceVariant to scheme.onSurface
         else -> Color.Transparent to scheme.onSurface
     }
     val shape = EffyStorefrontShape.card

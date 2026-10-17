@@ -35,19 +35,27 @@ fun DriverState(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    actionIcon: DrawableResource? = null,
+    /** The action as the primary (blue) button — "Back to Today" on a stop that was moved. */
+    primaryAction: Boolean = false,
 ) {
     Column(
         modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            DriverIcon(icon, size = 26.dp)
+        // The redesign's state icon: a 48 dp muted rounded square.
+        Box(Modifier.size(48.dp).clip(EffyStorefrontShape.card).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+            DriverIcon(icon, size = 22.dp)
         }
-        Text(title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold), textAlign = TextAlign.Center)
+        Text(title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), textAlign = TextAlign.Center)
         Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp))
         if (actionLabel != null && onAction != null) {
-            DriverButton(actionLabel, onClick = onAction, style = DriverButtonStyle.Outline, tall = false, modifier = Modifier.padding(top = 8.dp))
+            DriverButton(
+                actionLabel, onClick = onAction,
+                style = if (primaryAction) DriverButtonStyle.Primary else DriverButtonStyle.Outline,
+                icon = actionIcon, tall = false, modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }

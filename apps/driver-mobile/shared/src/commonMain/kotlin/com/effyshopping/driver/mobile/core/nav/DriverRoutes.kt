@@ -25,7 +25,7 @@ data object AccountRoot : AppNavKey
 data class CollectionRunRoute(val runId: String) : AppNavKey
 
 @Serializable
-data class ShopStopRoute(val runId: String, val stopId: String) : AppNavKey
+data class ShopStopRoute(val runId: String, val stopId: String, val scan: Boolean = false) : AppNavKey
 
 @Serializable
 data class HubCheckinRoute(val runId: String) : AppNavKey
@@ -34,7 +34,7 @@ data class HubCheckinRoute(val runId: String) : AppNavKey
 data class DeliveryRunRoute(val runId: String) : AppNavKey
 
 @Serializable
-data class DropRoute(val runId: String, val dropId: String) : AppNavKey
+data class DropRoute(val runId: String, val dropId: String, val scan: Boolean = false) : AppNavKey
 
 // Pushed within the History tab (049 US5).
 @Serializable
@@ -50,6 +50,10 @@ data class HistoryDetailRoute(val kind: String, val id: String, val title: Strin
  */
 @Serializable
 data object HelpRoute : AppNavKey
+
+/** 092 rev 2 — the parcels from failed drops, coming back to the hub (redesign `11 Return parcels`). */
+@Serializable
+data class ReturnHubRoute(val runId: String, val scan: Boolean = false) : AppNavKey
 
 /** Recovery when a permission the app needs was refused (design screen `perm-denied`). */
 @Serializable
@@ -84,6 +88,7 @@ val driverNavJson: Json = Json {
         // ⚠ 060 — a route absent from here is NOT a compile error. It fails at runtime, only after
         // process death, only on that tab. RouteSerializerGuardTest makes the omission a test failure.
         subclass(HelpRoute::class, HelpRoute.serializer())
+        subclass(ReturnHubRoute::class, ReturnHubRoute.serializer())
         subclass(PermissionDeniedRoute::class, PermissionDeniedRoute.serializer())
     }
 }

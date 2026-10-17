@@ -44,8 +44,10 @@ import type {
   LoadRequest,
   LoadResponse,
   RunMapDTO,
-  MapPoint,
-  MapStop,
+  RunMapPoint,
+  RunMapStop,
+  TodayProgress,
+  ReturnParcel,
   ContactRequest,
   ContactResponse,
   HistoryDTO,
@@ -95,8 +97,10 @@ export interface DriverContract {
   loadRequest: LoadRequest;
   loadResponse: LoadResponse;
   runMap: RunMapDTO;
-  mapPoint: MapPoint;
-  mapStop: MapStop;
+  runMapPoint: RunMapPoint;
+  runMapStop: RunMapStop;
+  todayProgress: TodayProgress;
+  returnParcel: ReturnParcel;
   contactRequest: ContactRequest;
   contactResponse: ContactResponse;
   history: HistoryDTO;

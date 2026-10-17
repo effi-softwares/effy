@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.core.theme.EffyRoles
 import com.effyshopping.driver.mobile.design.EffyStorefrontShape
 
@@ -39,6 +40,8 @@ fun DriverSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
+    /** A centred icon above a centred title (the confirm sheets: go off duty, sign out). */
+    icon: org.jetbrains.compose.resources.DrawableResource? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ModalBottomSheet(
@@ -62,15 +65,32 @@ fun DriverSheet(
                 .padding(horizontal = 20.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            val centred = icon != null
+            if (icon != null) {
+                Box(
+                    Modifier.fillMaxWidth().padding(top = 12.dp),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) {
+                    Box(
+                        Modifier.size(56.dp).clip(com.effyshopping.driver.mobile.design.EffyStorefrontShape.banner).background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
+                    ) { DriverIcon(icon, size = 26.dp) }
+                }
+            }
             if (title != null) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                    fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold,
+                    textAlign = if (centred) androidx.compose.ui.text.style.TextAlign.Center else null,
+                    modifier = Modifier.fillMaxWidth().padding(top = if (centred) 0.dp else 8.dp).semantics { heading() },
                 )
             }
             if (description != null) {
-                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = if (centred) androidx.compose.ui.text.style.TextAlign.Center else null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             content()
         }

@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.design.EffyStorefrontShape
 import org.jetbrains.compose.resources.DrawableResource
 
@@ -105,13 +106,15 @@ fun DriverChoice(
     body: String? = null,
     icon: DrawableResource? = null,
     tag: String? = null,
+    /** The icon in a filled square tile (how-was-it-handed-over) or plain beside the text (report a problem). */
+    iconTile: Boolean = true,
 ) {
     val scheme = MaterialTheme.colorScheme
     val shape = EffyStorefrontShape.card
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 60.dp)
+            .heightIn(min = 64.dp)
             .clip(shape)
             .border(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant, shape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
@@ -119,33 +122,37 @@ fun DriverChoice(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) {
+        if (icon == null) {
+            // The radio ring leads when there is no icon (the redesign's "Can't deliver" reasons).
             Box(
-                Modifier.size(40.dp).clip(EffyStorefrontShape.card).background(if (selected) scheme.primary else scheme.surfaceVariant),
+                Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (selected) scheme.primary else scheme.outline, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(scheme.primary))
+            }
+        } else if (iconTile) {
+            Box(
+                Modifier.size(44.dp).clip(EffyStorefrontShape.card).background(if (selected) scheme.primary else scheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 DriverIcon(icon, size = 20.dp, tint = if (selected) scheme.onPrimary else scheme.onSurface)
             }
+        } else {
+            DriverIcon(icon, size = 22.dp, tint = scheme.onSurface)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+                Text(title, fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 if (tag != null) {
                     Text(
                         tag,
                         style = MaterialTheme.typography.labelSmall,
                         color = scheme.primary,
-                        modifier = Modifier.clip(CircleShape).border(1.dp, scheme.primary, CircleShape).padding(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.clip(EffyStorefrontShape.control).background(com.effyshopping.driver.mobile.core.theme.EffyRoles.primaryMuted).padding(horizontal = 8.dp, vertical = 3.dp),
                     )
                 }
             }
-            if (body != null) Text(body, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-        }
-        Box(
-            Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (selected) scheme.primary else scheme.outline, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) Box(Modifier.size(10.dp).clip(CircleShape).background(scheme.primary))
+            if (body != null) Text(body, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
         }
     }
 }
@@ -154,7 +161,9 @@ fun DriverChoice(
 @Composable
 fun DriverProgress(fraction: Float, modifier: Modifier = Modifier, done: Boolean = false) {
     val f = fraction.coerceIn(0f, 1f)
-    Box(modifier.fillMaxWidth().heightIn(min = 6.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant)) {
+    // The track is the bar's own tint: blue-muted for work under way, green-muted for done.
+    val track = if (done) com.effyshopping.driver.mobile.core.theme.EffyRoles.brandMuted else com.effyshopping.driver.mobile.core.theme.EffyRoles.primaryMuted
+    Box(modifier.fillMaxWidth().heightIn(min = 6.dp).clip(CircleShape).background(track)) {
         Box(
             Modifier.fillMaxWidth(f).heightIn(min = 6.dp).clip(CircleShape)
                 .background(if (done) com.effyshopping.driver.mobile.core.theme.EffyRoles.brand else MaterialTheme.colorScheme.primary),

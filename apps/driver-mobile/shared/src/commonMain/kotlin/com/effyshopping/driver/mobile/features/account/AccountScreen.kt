@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -60,6 +61,9 @@ import com.effyshopping.driver.mobile.resources.lucide_map_pin
 import com.effyshopping.driver.mobile.resources.lucide_package
 import com.effyshopping.driver.mobile.resources.lucide_refresh_ccw
 import com.effyshopping.driver.mobile.resources.lucide_smartphone
+import com.effyshopping.driver.mobile.resources.lucide_truck
+import com.effyshopping.driver.mobile.core.theme.EffyRoles
+import androidx.compose.ui.unit.sp
 
 /** Who the driver is, their work set-up, this phone's settings, help and sign out (canvas `Account`). */
 @Composable
@@ -85,6 +89,8 @@ fun AccountScreen(
     /** Backlog F3 — whether usage analytics are on; null hides the row. */
     analyticsOn: Boolean? = null,
     onToggleAnalytics: () -> Unit = {},
+    /** The duty row opens Today, where the driver goes on or off duty. */
+    onOpenDuty: () -> Unit = {},
 ) {
     var confirmSignOut by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
@@ -94,12 +100,12 @@ fun AccountScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Box(Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                    Text(driver.initials(), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+                Box(Modifier.size(64.dp).clip(CircleShape).background(EffyRoles.primaryMuted), contentAlignment = Alignment.Center) {
+                    Text(driver.initials(), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
                 }
                 Column {
-                    Text(driver.display, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold))
-                    Text("${driver.workEmail} · Driver", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(driver.display, fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${driver.workEmail} · Driver", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -107,12 +113,32 @@ fun AccountScreen(
                 DriverSectionLabel("Your work")
                 DriverGroup {
                     // A field the record does not have is left out, never filled with a stand-in.
-                    driver.hub?.takeIf { it.isNotBlank() }?.let { DriverDetailRow("Hub", it) }
-                    driver.vehicleLabel()?.let { DriverDetailRow("Vehicle", it) }
-                    DriverDetailRow("Duty", if (driver.dutyStatus == DutyStatus.ON_DUTY) "On duty" else "Off duty", last = true)
+                    driver.hub?.takeIf { it.isNotBlank() }?.let { WorkRow(Res.drawable.lucide_map_pin, "Hub", it) }
+                    driver.vehicleLabel()?.let { WorkRow(Res.drawable.lucide_truck, "Vehicle", it) }
+                    val on = driver.dutyStatus == DutyStatus.ON_DUTY
+                    DriverRow(
+                        title = "Duty",
+                        onClick = onOpenDuty,
+                        last = true,
+                        leading = {
+                            Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                                Box(Modifier.size(10.dp).clip(CircleShape).background(if (on) EffyRoles.brand else MaterialTheme.colorScheme.outline))
+                            }
+                        },
+                        trailing = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    if (on) "On duty" else "Off duty",
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                                    color = if (on) EffyRoles.brand else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                DriverIcon(Res.drawable.lucide_chevron_right, size = 16.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        },
+                    )
                 }
                 Text(
-                    "Wrong hub or vehicle? Ask dispatch to change it. Go on or off duty from Today.",
+                    "Wrong hub or vehicle? Ask dispatch to change it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
@@ -133,7 +159,7 @@ fun AccountScreen(
                         meta = if (turnOn != null) "Off — you won't hear about new work" else null,
                         onClick = turnOn,
                         leading = { DriverIcon(Res.drawable.lucide_bell, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        trailing = { Text(if (turnOn != null) "Turn on" else "On", color = if (turnOn != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailing = { Text(if (turnOn != null) "Turn on" else "On", style = MaterialTheme.typography.bodyLarge, color = if (turnOn != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
                         last = analyticsOn == null,
                     )
                     if (analyticsOn != null) {
@@ -203,27 +229,39 @@ fun AccountScreen(
     }
 }
 
+/** A label with its icon, and the value on the right (Hub, Vehicle). Read only. */
+@Composable
+private fun WorkRow(icon: org.jetbrains.compose.resources.DrawableResource, label: String, value: String) {
+    DriverRow(
+        title = label,
+        leading = { DriverIcon(icon, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+        trailing = { Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+    )
+}
+
 /** Match phone / Light / Dark, inline (the canvas has no separate appearance screen). */
 @Composable
 private fun AppearanceSegments(mode: AppearanceMode, onChange: (AppearanceMode) -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val shape = EffyStorefrontShape.card
     Row(
-        Modifier.fillMaxWidth().clip(EffyStorefrontShape.card).background(scheme.surfaceVariant).padding(4.dp).selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Modifier.fillMaxWidth().clip(shape).border(1.dp, scheme.outlineVariant, shape).selectableGroup(),
     ) {
-        listOf(AppearanceMode.System to "Match phone", AppearanceMode.Light to "Light", AppearanceMode.Dark to "Dark").forEach { (m, label) ->
+        listOf(AppearanceMode.System to "Match phone", AppearanceMode.Light to "Light", AppearanceMode.Dark to "Dark").forEachIndexed { i, (m, label) ->
             val on = m == mode
-            Box(
+            if (i > 0) Box(Modifier.width(1.dp).heightIn(min = 52.dp).background(scheme.outlineVariant))
+            Row(
                 Modifier
                     .weight(1f)
-                    .heightIn(min = 44.dp)
-                    .clip(EffyStorefrontShape.control)
-                    .background(if (on) scheme.background else scheme.surfaceVariant)
-                    .then(if (on) Modifier.border(1.dp, scheme.outlineVariant, EffyStorefrontShape.control) else Modifier)
-                    .selectable(selected = on, role = Role.RadioButton, onClick = { onChange(m) }),
-                contentAlignment = Alignment.Center,
+                    .heightIn(min = 52.dp)
+                    .background(if (on) scheme.surfaceVariant else scheme.background)
+                    .selectable(selected = on, role = Role.RadioButton, onClick = { onChange(m) })
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium))
+                if (m == AppearanceMode.System) DriverIcon(Res.drawable.lucide_smartphone, size = 16.dp)
+                Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium), textAlign = TextAlign.Center)
             }
         }
     }
@@ -240,6 +278,7 @@ private fun SignOutSheet(
 ) {
     DriverSheet(
         title = "Sign out of Effy Driver?",
+        icon = Res.drawable.lucide_log_out,
         description = "You'll go off duty and stop getting work notifications on this phone.",
         onDismiss = onDismiss,
     ) {

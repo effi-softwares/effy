@@ -130,6 +130,58 @@ export interface TodayItemRef {
   title: string; // shop name or customer suburb — no address detail, no currency
   subtitle: string | null;
   status: string;
+  /**
+   * 092 rev 2 — what the Today card and its "Up next" rows show (the redesign's canvas). All optional:
+   * a server without them leaves the card as it was.
+   * - `street`: a drop's street line ("12 Lygon St") — the card's title; null for a shop or the hub.
+   * - `place`: the rest of the place in one line — a shop's full address, or a drop's "Carlton VIC 3053".
+   */
+  street?: string | null;
+  place?: string | null;
+  packageCount?: WireInt;
+  /** Packages holding chilled or frozen goods. */
+  coldCount?: WireInt;
+  /** A drop's window, in the server's words, and its instants (for "Due now" / "Late"). */
+  window?: string | null;
+  deliveryWindow?: DeliveryWindow | null;
+  handover?: HandoverPreference | null;
+}
+
+/** 092 rev 2 — how far through the current round the driver is. Counts, never money. */
+export interface TodayProgress {
+  /** Shops collected (collection) or drops finished (delivery). */
+  done: WireInt;
+  total: WireInt;
+  delivered?: WireInt;
+  notDelivered?: WireInt;
+  /** Collection: packages picked up so far / still to pick up. */
+  packagesInVan?: WireInt;
+  packagesToLoad?: WireInt;
+}
+
+/**
+ * 092 rev 2 — the RUN MAP (decorative, operator direction 2026-10-17, decision D25): where a run's stops
+ * roughly are, so the app can draw a small schematic map. ⚠ A STOP'S POINT IS ITS POSTCODE'S PLACE —
+ * the locality the platform already holds — never a geocoded address and never a device position; the
+ * hub's is the hub's own. Nothing that orders or assigns work reads it (D20 stands). Stops whose place
+ * has no point are left out.
+ */
+export interface RunMapPoint {
+  lat: number;
+  lng: number;
+}
+export interface RunMapStop {
+  /** The stop's number in the run's list; null for the hub. */
+  n: WireInt | null;
+  kind: "shop" | "customer" | "hub";
+  status: "done" | "next" | "todo";
+  point: RunMapPoint;
+}
+export interface RunMapDTO {
+  /** In route order: a collection run ends at the hub, a delivery run starts there. */
+  stops: RunMapStop[];
+  /** The hub's point — also where "Navigate to the hub" goes. */
+  hub: RunMapPoint | null;
 }
 
 /** GET /driver/v1/today */
@@ -153,6 +205,9 @@ export interface TodayDTO {
    * words; null when nothing has changed. Shown on Today until the driver dismisses it.
    */
   changedNote?: string | null;
+  /** 092 rev 2 — progress through the current round, and its map. */
+  progress?: TodayProgress | null;
+  map?: RunMapDTO | null;
   /** 072 — the current round's deadline. `null` only when there is no current round. */
   deadlineAt: string | null;
   /** 072 — the deadline in words, Melbourne time ("2 pm", "tomorrow 11 am"). */
@@ -242,6 +297,8 @@ export interface DriverCollectionRunDTO {
    * can say it with no signal. Optional: absent from an older server.
    */
   hubSort?: HubSortInstruction[];
+  /** 092 rev 2 — the run map. */
+  map?: RunMapDTO | null;
 }
 
 /** 090 — one package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm". */
@@ -467,6 +524,12 @@ export interface DeliveryDropSummary {
   status: DeliveryDropStatus;
   /** 065 — the drop's total across its packages, so cold goods show in the list unopened. */
   summary: ClassSummary;
+  /** 092 rev 2 — the street line, for the run list ("5 Faraday St"); null when the address has none. */
+  street?: string | null;
+  /** 092 rev 2 — when a finished drop was finished, and how: the proof method or the failure reason. */
+  completedAt?: string | null;
+  proofMethod?: ProofMethod | null;
+  failureReason?: DeliveryFailureReason | null;
 }
 
 /** GET /driver/v1/delivery/runs/{runId} */
@@ -484,6 +547,8 @@ export interface DeliveryRunDTO {
    * hub. `null` (or absent, from an older server) when there are none.
    */
   toReturn?: ParcelsToReturn | null;
+  /** 092 rev 2 — the run map. */
+  map?: RunMapDTO | null;
 }
 
 /**
@@ -500,6 +565,16 @@ export interface ParcelsToReturn {
   orders: string[];
   /** 090 — the label codes of the parcels to return, for the return scan. */
   packageCodes?: string[];
+  /** 092 rev 2 — each parcel, for the Return to hub screen: its ref, where it was for and why it came back. */
+  parcels?: ReturnParcel[];
+}
+
+export interface ReturnParcel {
+  ref: string;
+  packageCode: string;
+  /** "8 Scotchmer St, Fitzroy North". */
+  place: string | null;
+  reason: DeliveryFailureReason | null;
 }
 
 /** POST /driver/v1/delivery/runs/{runId}/return — 088. */
@@ -637,26 +712,10 @@ export interface DropFailResponse {
   status: "failed";
 }
 
-// ── Map (US4) ────────────────────────────────────────────────────────────────────────────────────
-
-export interface MapPoint {
-  lat: number;
-  lng: number;
-}
-export interface MapStop {
-  id: string;
-  kind: "shop" | "drop" | "hub";
-  lat: number;
-  lng: number;
-  sequence: WireInt;
-}
-
-/** GET /driver/v1/runs/{runId}/map */
-export interface RunMapDTO {
-  hub: MapPoint;
-  stops: MapStop[];
-  currentLocation: MapPoint | null;
-}
+// ── Map ──────────────────────────────────────────────────────────────────────────────────────────
+// ⚠ 049's `GET /driver/v1/runs/{runId}/map` types (MapPoint, MapStop, a RunMapDTO with the driver's
+// `currentLocation`) were DELETED by 092 rev 2: no route served them and D22 removed device position.
+// The run map now rides the run reads — `RunMapDTO` above.
 
 /** POST /driver/v1/delivery/drops/{dropId}/contact — masked relay (capability-flagged, R6). */
 export interface ContactRequest {
@@ -675,6 +734,11 @@ export interface HistoryDropRow {
   customerSuburb: string;
   completedAt: string; // ISO 8601
   proofCaptured: boolean;
+  /** 092 rev 2 — the street line, how it was handed over, and — for a drop that came back — why. */
+  street?: string | null;
+  proofMethod?: ProofMethod | null;
+  /** Set for a drop that was NOT delivered (its parcels went back to the hub). */
+  failureReason?: DeliveryFailureReason | null;
 }
 /**
  * The two kinds of work a driver run can be. Named as a type by 056 because back-office reads it too
@@ -691,6 +755,9 @@ export interface HistoryRunRow {
   type: DriverRunType;
   completedAt: string | null;
   stopCount: WireInt;
+  /** 092 rev 2 — packages on the run, and a delivery run's window in words. */
+  packageCount?: WireInt;
+  window?: string | null;
 }
 export interface HistoryDay {
   date: string; // YYYY-MM-DD (Australia/Melbourne)
@@ -722,6 +789,14 @@ export interface HistoryDetailDTO {
    * detail looked its id up as a stop and was always "not found".
    */
   stops?: HistoryStop[];
+  /** 092 rev 2 — a run's map (every stop done), and its window in words. */
+  map?: RunMapDTO | null;
+  window?: string | null;
+  /** 092 rev 2 — a drop's packages, and the window it was sold. */
+  packageCount?: WireInt;
+  orderRef?: string | null;
+  /** 092 rev 2 — why a drop came back to the hub. */
+  failureReason?: DeliveryFailureReason | null;
 }
 
 /** 092 — one stop of a finished run, as History lists it. No money, no customer name. */
@@ -734,6 +809,8 @@ export interface HistoryStop {
   status: "done" | "skipped";
   completedAt: string | null;
   proofMethod: ProofMethod | null;
+  /** 092 rev 2 — why a drop came back to the hub. */
+  failureReason?: DeliveryFailureReason | null;
 }
 
 export type ActivityType =

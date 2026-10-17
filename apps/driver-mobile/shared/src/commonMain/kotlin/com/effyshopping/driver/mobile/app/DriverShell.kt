@@ -41,6 +41,7 @@ import com.effyshopping.driver.mobile.core.nav.HistoryRoot
 import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
 import com.effyshopping.driver.mobile.core.nav.ShopStopRoute
 import com.effyshopping.driver.mobile.core.nav.TodayRoot
+import com.effyshopping.driver.mobile.core.nav.ReturnHubRoute
 import com.effyshopping.driver.mobile.core.nav.driverNavJson
 import com.effyshopping.driver.mobile.core.nav.driverStartRoute
 import com.effyshopping.driver.mobile.core.session.SessionState
@@ -58,6 +59,7 @@ import com.effyshopping.driver.mobile.features.collection.presentation.ShopStopS
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryRunScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryViewModel
 import com.effyshopping.driver.mobile.features.delivery.presentation.DropScreen
+import com.effyshopping.driver.mobile.features.delivery.presentation.ReturnHubScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryDetailScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryViewModel
@@ -66,13 +68,14 @@ import com.effyshopping.driver.mobile.features.today.presentation.TodayScreen
 import com.effyshopping.driver.mobile.features.today.presentation.TodayViewModel
 import com.effyshopping.driver.mobile.resources.Res
 import com.effyshopping.mobile.kit.nav.rememberTabBackStacks
-import com.effyshopping.mobile.kit.shell.ResponsiveDestination
-import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
 import kotlinx.coroutines.launch
 import com.effyshopping.mobile.kit.live.LiveState
 import com.effyshopping.driver.mobile.core.presentation.DriverBannerState
 import com.effyshopping.driver.mobile.core.presentation.DriverBanners
 import com.effyshopping.driver.mobile.core.presentation.DriverIcon
+import com.effyshopping.driver.mobile.core.presentation.DriverTabBar
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import com.effyshopping.driver.mobile.core.presentation.DriverSnack
 import com.effyshopping.driver.mobile.core.presentation.DriverSnackbar
 import androidx.compose.foundation.layout.fillMaxSize
@@ -142,21 +145,10 @@ fun DriverShell(
         }
     }
 
-    val destinations = DriverTab.entries.map { tab ->
-        ResponsiveDestination(
-            tab = tab,
-            label = tab.label,
-            icon = { selected -> TabIcon(tab, selected) },
-        )
-    }
-
-    ResponsiveNavigation(
-        destinations = destinations,
-        selectedTab = tabs.currentTab,
-        onSelectTab = tabs::selectTab,
-        railFooter = { RailAvatar(session.driver.railInitials()) },
-    ) {
-        Box(Modifier.fillMaxSize()) {
+    // 092 rev 2 — the tab bar shows ONLY on the three tab roots; every screen pushed from a tab is a
+    // full-screen inner view with its own back bar (the redesign's navigation rule).
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
         AnimatedContent(
             targetState = NavFrame(tabs.currentTab, tabs.currentStack.size, tabs.currentRoute),
             transitionSpec = { navTransition(initialState, targetState, reducedMotion) },
@@ -177,7 +169,8 @@ fun DriverShell(
                             vm.toggleDuty()
                         },
                         onRefresh = vm::refresh,
-                        onReturnParcels = vm::returnParcels,
+                        onOpenReturn = { runId, scan -> tabs.push(ReturnHubRoute(runId, scan)) },
+                        onNavigate = { address -> mapLauncher.navigateTo(address) },
                         onOpenRun = { runId, phase ->
                             container.analyticsDriver.capture(
                                 if (phase == Phase.COLLECTION) AnalyticsEvent.CollectionRunOpened(runId)
@@ -185,12 +178,12 @@ fun DriverShell(
                             )
                             tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
                         },
-                        onOpenItem = { item ->
+                        onOpenItem = { item, scan ->
                             tabs.push(
                                 when (item.kind) {
-                                    TodayItem.Kind.COLLECTION_STOP -> ShopStopRoute(item.runId, item.id)
+                                    TodayItem.Kind.COLLECTION_STOP -> ShopStopRoute(item.runId, item.id, scan)
                                     TodayItem.Kind.HUB_CHECKIN -> HubCheckinRoute(item.runId)
-                                    TodayItem.Kind.DELIVERY_DROP -> DropRoute(item.runId, item.id)
+                                    TodayItem.Kind.DELIVERY_DROP -> DropRoute(item.runId, item.id, scan)
                                 },
                             )
                         },
@@ -248,6 +241,7 @@ fun DriverShell(
                             onRetry = { vm.loadStop(route.stopId) },
                             onNavigate = { address -> mapLauncher.navigateTo(address) },
                             onCallDispatch = AppConfig.dispatchPhone?.let { number -> { mapLauncher.dial(number) } },
+                            startScanning = route.scan,
                         )
                     }
                 }
@@ -263,6 +257,7 @@ fun DriverShell(
                         state = st,
                         hubName = session.driver.hub,
                         nextRun = todaySt.today?.nextDeliveryRun(route.runId),
+                        onNavigate = { address -> mapLauncher.navigateTo(address) },
                         onBack = { tabs.pop() },
                         onCheckIn = { handed ->
                             container.analyticsDriver.capture(AnalyticsEvent.HubCheckedIn(route.runId))
@@ -285,7 +280,24 @@ fun DriverShell(
                         onOpenDrop = { dropId -> tabs.push(DropRoute(route.runId, dropId)) },
                         onRefresh = { vm.loadRun() },
                         onLoadVan = { handed -> vm.loadVan(handed) },
-                        onReturnParcels = { handed -> vm.returnParcels(handed) },
+                        onOpenReturn = { scan -> tabs.push(ReturnHubRoute(route.runId, scan)) },
+                    )
+                }
+                is ReturnHubRoute -> {
+                    val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.runId) { if (st.run == null) vm.loadRun() }
+                    LaunchedEffect(st.notice) {
+                        st.notice?.let { snack = DriverSnack(it); vm.clearNotice(); tabs.pop() }
+                    }
+                    ReturnHubScreen(
+                        state = st,
+                        hubName = session.driver.hub,
+                        backLabel = if (tabs.currentStack.size > 2) "Run" else "Today",
+                        startScanning = route.scan,
+                        onBack = { tabs.pop() },
+                        onNavigate = { address -> mapLauncher.navigateTo(address) },
+                        onReturn = { handed -> vm.returnParcels(handed) },
                     )
                 }
                 is DropRoute -> {
@@ -317,6 +329,7 @@ fun DriverShell(
                             // The camera was refused: say what is lost and how to turn it back on.
                             onCameraDenied = { tabs.push(PermissionDeniedRoute) },
                             onCallDispatch = AppConfig.dispatchPhone?.let { number -> { mapLauncher.dial(number) } },
+                            startScanning = route.scan,
                         )
                     }
                 }
@@ -337,7 +350,7 @@ fun DriverShell(
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(route.id) { vm.loadDetail(route.kind, route.id) }
                     HistoryDetailScreen(
-                        state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() },
+                        state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() }, hubName = session.driver.hub,
                         onOpenDrop = { dropId -> tabs.push(HistoryDetailRoute("drop", dropId, "Delivery")) },
                     )
                 }
@@ -364,6 +377,7 @@ fun DriverShell(
                         pendingUpdates = pending.size + proofs.size,
                         analyticsOn = analyticsOn,
                         onToggleAnalytics = { container.setAnalyticsConsent(!analyticsOn) },
+                        onOpenDuty = { tabs.selectTab(DriverTab.TODAY) },
                         onSignOut = {
                             if (!signingOut) {
                                 signingOut = true
@@ -400,6 +414,9 @@ fun DriverShell(
         }
         DriverSnackbar(snack, onDismiss = { snack = null }, modifier = Modifier.align(Alignment.BottomCenter))
         }
+        if (!tabs.canGoBack) {
+            DriverTabBar(selected = tabs.currentTab, onSelect = tabs::selectTab)
+        }
     }
 }
 
@@ -424,27 +441,6 @@ private fun navTransition(from: NavFrame, to: NavFrame, reducedMotion: Boolean):
     }.apply { targetContentZIndex = if (to.depth >= from.depth) 1f else 0f }
 }
 
-/** A tab's Lucide icon (the canvas's TabBar: truck, history, user-round). */
-@Composable
-private fun TabIcon(tab: DriverTab, selected: Boolean) {
-    val icon = when (tab) {
-        DriverTab.TODAY -> Res.drawable.lucide_truck
-        DriverTab.HISTORY -> Res.drawable.lucide_history
-        DriverTab.ACCOUNT -> Res.drawable.lucide_user_round
-    }
-    // No description: the destination's own label is announced by the navigation item.
-    DriverIcon(icon, size = 26.dp, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-@Composable
-private fun RailAvatar(initials: String) {
-    Box(
-        modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(initials, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
-    }
-}
 
 private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) = TodayViewModel(
     initialDuty = session.driver.dutyStatus,
@@ -527,12 +523,3 @@ private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryView
     loadVan = container.loadVan,
 )
 
-private fun com.effyshopping.driver.mobile.features.driver.domain.Driver.railInitials(): String {
-    val source = name.trim().ifBlank { workEmail.substringBefore("@") }
-    val parts = source.split('.', '_', '-', ' ').filter { it.isNotBlank() }
-    return when {
-        parts.size >= 2 -> "${parts[0].first()}${parts[1].first()}"
-        source.length >= 2 -> source.take(2)
-        else -> "DR"
-    }.uppercase()
-}

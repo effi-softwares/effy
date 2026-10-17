@@ -1,5 +1,9 @@
 package com.effyshopping.driver.mobile.features.delivery.presentation
 
+import androidx.compose.material3.HorizontalDivider
+import com.effyshopping.driver.mobile.resources.lucide_truck
+import com.effyshopping.driver.mobile.resources.lucide_arrow_right
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -198,20 +202,32 @@ internal fun ProofReview(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
-            Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f).clip(EffyStorefrontShape.card).background(MaterialTheme.colorScheme.surfaceVariant)) {
+            Box(Modifier.fillMaxWidth().aspectRatio(3f / 2f).clip(EffyStorefrontShape.banner).background(MaterialTheme.colorScheme.surfaceVariant)) {
                 if (bitmap != null) {
                     Image(bitmap, contentDescription = "The proof photo", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 }
+                Row(
+                    Modifier.align(Alignment.BottomStart).padding(12.dp).clip(EffyStorefrontShape.control).background(EffyRoles.brandMuted).padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    DriverIcon(Res.drawable.lucide_check, size = 13.dp, tint = EffyRoles.brand)
+                    Text("Photo taken $takenAt", fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, color = EffyRoles.brand)
+                }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Photo taken $takenAt", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                DriverButton("Retake", onClick = onRetake, style = DriverButtonStyle.Ghost, icon = Res.drawable.lucide_rotate_ccw, tall = false)
+            Row(
+                Modifier.clickable(role = Role.Button, onClick = onRetake).padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DriverIcon(Res.drawable.lucide_rotate_ccw, size = 18.dp, tint = MaterialTheme.colorScheme.primary)
+                Text("Retake", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)
             }
             if (contactless) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Where did you leave it?", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DropSpot.entries.forEach { s -> SpotChip(s.label, selected = spot == s, onClick = { spot = s }) }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Where did you leave it?", fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold)
+                    DropSpot.entries.chunked(2).forEach { pair ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pair.forEach { s -> SpotChip(s.label, selected = spot == s, onClick = { spot = s }, modifier = Modifier.weight(1f)) }
+                        }
                     }
                 }
             }
@@ -238,20 +254,21 @@ internal fun ProofReview(
 }
 
 @Composable
-private fun SpotChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun SpotChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
-    val shape = EffyStorefrontShape.control
+    val shape = EffyStorefrontShape.card
     Text(
         label,
-        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-        color = if (selected) scheme.onPrimary else scheme.onSurface,
-        modifier = Modifier
+        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+        color = scheme.onSurface,
+        maxLines = 1,
+        modifier = modifier
             .clip(shape)
-            .background(if (selected) scheme.primary else scheme.background)
-            .border(1.dp, if (selected) scheme.primary else scheme.outline, shape)
+            .background(if (selected) EffyRoles.primaryMuted else scheme.background)
+            .border(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant, shape)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .heightIn(min = DriverSize.target)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 14.dp, vertical = 16.dp),
     )
 }
 
@@ -327,7 +344,7 @@ internal fun CantDeliverScreen(
         ) {
             message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
             Column {
-                Text("What happened?", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold))
+                Text("What happened?", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     "${drop.addressFull.split(", ").take(2).joinToString(", ")} · ${packages(drop.packages.size)}",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -335,7 +352,7 @@ internal fun CantDeliverScreen(
             }
             if (onCall != null) {
                 DriverAlert(
-                    DriverAlertKind.Info, Res.drawable.lucide_phone,
+                    DriverAlertKind.Muted, Res.drawable.lucide_phone,
                     title = "Tried calling ${firstName ?: "the customer"}?",
                     description = "A quick call often sorts it out.",
                     actions = { DriverButton(firstName?.let { "Call $it" } ?: "Call", onClick = onCall, style = DriverButtonStyle.Outline, tall = false) },
@@ -372,7 +389,7 @@ internal fun CantDeliverScreen(
 internal fun DeliveredView(
     drop: Drop,
     state: DeliveryUiState,
-    nextSuburb: String?,
+    nextName: String?,
     runDone: Int,
     runTotal: Int,
     onNext: () -> Unit,
@@ -385,10 +402,11 @@ internal fun DeliveredView(
         ProofMethod.SIGNATURE -> "Signature"
         null -> "Recorded"
     }
+    val leftAt = splitLeftAt(state.deliveredNote)
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Box(
                 Modifier.size(64.dp).clip(CircleShape).background(if (offline) EffyRoles.primaryMuted else EffyRoles.brandMuted),
@@ -396,16 +414,20 @@ internal fun DeliveredView(
             ) {
                 DriverIcon(if (offline) Res.drawable.lucide_refresh_ccw else Res.drawable.lucide_check, size = 30.dp, tint = if (offline) MaterialTheme.colorScheme.primary else EffyRoles.brand)
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     if (offline) "Saved — sending when you're back online" else "Proof recorded · customer told",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                     color = if (offline) MaterialTheme.colorScheme.primary else EffyRoles.brand,
                 )
-                Text("Delivered", fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                Text("Delivered", fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "${drop.addressFull.split(", ").take(2).joinToString(", ")} · ${packages(drop.packages.size)}",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    listOfNotNull(
+                        drop.addressFull.split(", ").take(2).joinToString(", "),
+                        packages(drop.packages.size),
+                        leftAt?.let { "left at the ${it.lowercase()}" },
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             if (offline) {
@@ -415,70 +437,96 @@ internal fun DeliveredView(
                     description = "You're offline. It sends as soon as there's signal — carry on to the next drop. Don't sign out until it has.",
                 )
             }
-            DriverGroup {
-                DriverDetailRow("Proof", how)
-                state.deliveredAtEpochMillis?.let { DriverDetailRow("Time", localTimeText(it, withDay = false), last = runTotal == 0) }
-                if (runTotal > 0) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row {
-                            Text("This run", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                            Text("$runDone of $runTotal done", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
-                        }
-                        DriverProgress(runDone.toFloat() / runTotal, done = true)
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                DriverGroup {
+                    DriverDetailRow("Proof", how, last = state.deliveredAtEpochMillis == null && runTotal == 0)
+                    state.deliveredAtEpochMillis?.let { at ->
+                        val inWindow = drop.window?.let { at in it.startEpochMillis..it.endEpochMillis } == true
+                        DriverDetailRow("Time", localTimeText(at, withDay = false) + if (inWindow) " · in the window" else "", last = runTotal == 0)
                     }
+                    if (runTotal > 0) DriverDetailRow("This run", "$runDone of $runTotal done", last = true)
                 }
+                if (runTotal > 0) DriverProgress(runDone.toFloat() / runTotal, done = true)
             }
         }
         DriverActionBar {
-            if (nextSuburb != null) DriverButton("Next drop · $nextSuburb", onClick = onNext, modifier = Modifier.fillMaxWidth())
-            DriverButton("Back to the run", onClick = onBackToRun, style = if (nextSuburb != null) DriverButtonStyle.Ghost else DriverButtonStyle.Primary, tall = nextSuburb == null, modifier = Modifier.fillMaxWidth())
+            if (nextName != null) DriverButton("Next drop · $nextName", onClick = onNext, trailingIcon = Res.drawable.lucide_arrow_right, modifier = Modifier.fillMaxWidth())
+            DriverButton("Back to the run", onClick = onBackToRun, style = if (nextName != null) DriverButtonStyle.Ghost else DriverButtonStyle.Primary, tall = nextName == null, modifier = Modifier.fillMaxWidth())
         }
     }
 }
+
+/** "Front door" from the proof note the app wrote ("Left at: Front door — …"); null when there is none. */
+private fun splitLeftAt(note: String?): String? =
+    note?.trim()?.takeIf { it.startsWith("Left at: ") }?.removePrefix("Left at: ")?.substringBefore(" — ")?.ifBlank { null }
 
 /** Not delivered (canvas `CantDeliver-Done`): keep the parcels in the van for the hub. */
 @Composable
 internal fun NotDeliveredView(
     drop: Drop,
+    state: DeliveryUiState,
     hubName: String?,
-    nextSuburb: String?,
+    nextName: String?,
     onNext: () -> Unit,
     onBackToRun: () -> Unit,
     onCallDispatch: (() -> Unit)?,
 ) {
     val n = drop.packages.size
+    val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = DriverSize.gutter, vertical = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Box(Modifier.size(64.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-                DriverIcon(Res.drawable.lucide_circle_x, size = 30.dp)
+            Box(Modifier.size(64.dp).clip(CircleShape).background(scheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                DriverIcon(Res.drawable.lucide_package, size = 28.dp)
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Recorded · dispatch told", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Not delivered", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                Text(drop.addressFull.split(", ").take(2).joinToString(", "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    listOfNotNull("Recorded", state.deliveredAtEpochMillis?.let { localTimeText(it, withDay = false) }, "dispatch told").joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), color = scheme.onSurfaceVariant,
+                )
+                Text("Not delivered", fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold)
+                val why = state.failedReason?.let { r ->
+                    val words = r.words().lowercase()
+                    state.failedNote?.takeIf { it.isNotBlank() }?.let { "$words: \"$it\"" } ?: words
+                }
+                Text(
+                    listOfNotNull(drop.addressFull.split(", ").take(2).joinToString(", "), why).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant,
+                )
             }
-            DriverAlert(
-                DriverAlertKind.Muted, Res.drawable.lucide_package,
-                title = "Keep ${if (n == 1) "this package" else "these $n packages"} in the van",
-                description = "Return ${if (n == 1) "it" else "them"} to ${hubName?.takeIf { it.isNotBlank() } ?: "the hub"} after your last drop. Today will remind you.",
-            )
-            if (n > 0) {
-                DriverGroup {
-                    drop.packages.forEachIndexed { i, p ->
-                        DriverRow(
-                            "Package ${i + 1} of $n" + if (p.summary.hasCold) " · cold" else "",
-                            meta = if (p.items.size == 1) "1 item" else "${p.items.size} items",
-                            last = i == n - 1,
+            val shape = EffyStorefrontShape.card
+            Column(Modifier.fillMaxWidth().clip(shape).border(1.dp, scheme.outlineVariant, shape).padding(16.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DriverIcon(Res.drawable.lucide_truck, size = 20.dp, modifier = Modifier.padding(top = 2.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            "Keep ${if (n == 1) "this package" else "these $n packages"} in the van",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                         )
+                        Text(
+                            "Return ${if (n == 1) "it" else "them"} to ${hubName?.takeIf { it.isNotBlank() } ?: "the hub"} after your last drop. Today will remind you.",
+                            style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (n > 0) {
+                    HorizontalDivider(color = scheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        drop.packages.forEachIndexed { i, p ->
+                            Row {
+                                Text("Package ${i + 1} of $n" + if (p.summary.hasCold) " · cold" else "", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                                val items = p.summary.total.takeIf { it > 0 } ?: p.items.sumOf { it.qty }
+                                Text(if (items == 1) "1 item" else "$items items", style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+                            }
+                        }
                     }
                 }
             }
         }
         DriverActionBar {
-            if (nextSuburb != null) DriverButton("Next drop · $nextSuburb", onClick = onNext, modifier = Modifier.fillMaxWidth())
+            if (nextName != null) DriverButton("Next drop · $nextName", onClick = onNext, trailingIcon = Res.drawable.lucide_arrow_right, modifier = Modifier.fillMaxWidth())
             else DriverButton("Back to the run", onClick = onBackToRun, modifier = Modifier.fillMaxWidth())
             if (onCallDispatch != null) DriverButton("Call dispatch", onClick = onCallDispatch, style = DriverButtonStyle.Ghost, tall = false, modifier = Modifier.fillMaxWidth())
         }

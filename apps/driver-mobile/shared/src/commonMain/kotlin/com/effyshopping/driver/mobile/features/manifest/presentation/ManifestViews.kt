@@ -1,5 +1,8 @@
 package com.effyshopping.driver.mobile.features.manifest.presentation
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.withStyle
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -211,3 +214,42 @@ private fun ManifestRow(line: ManifestLine) {
 val LocalManifestOpened = staticCompositionLocalOf<(hasCold: Boolean, lineCount: Int) -> Unit> { { _, _ -> } }
 
 
+
+/**
+ * 092 rev 2 — a package's items in a grey rounded box (the redesign's shop stop and drop): "2× Greek
+ * yoghurt 1kg", the cold class on the right. A line the shop could not supply is struck through and says so.
+ */
+@Composable
+fun ManifestBox(items: List<ManifestLine>, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier.fillMaxWidth().clip(com.effyshopping.driver.mobile.design.EffyStorefrontShape.card).background(scheme.surfaceVariant)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (items.isEmpty()) {
+            Text("No items in this package", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+        }
+        items.forEach { line ->
+            Row(verticalAlignment = Alignment.Top) {
+                Text(
+                    androidx.compose.ui.text.buildAnnotatedString {
+                        withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.SemiBold)) { append("${line.qty}× ") }
+                        append(line.name)
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    textDecoration = if (!line.included) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                    color = if (!line.included) scheme.onSurfaceVariant else scheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                val side = when {
+                    !line.included -> "Not included"
+                    line.partSupplied -> "${line.qty} of ${line.orderedQty}"
+                    line.temperatureClass == TemperatureClass.Frozen || line.temperatureClass == TemperatureClass.Chilled -> line.temperatureClass.label
+                    else -> null
+                }
+                side?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 2.dp)) }
+            }
+        }
+    }
+}

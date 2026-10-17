@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { Pool } from "pg";
+import { seedHub, seedPlace } from "./run-map.fixture";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -126,6 +127,24 @@ d("064 fix — a drop advances through every state the app sends", () => {
 
   const dropScreen = async () => (await deliveryDrop(dropId, driverId)).status;
   const runScreen = async () => (await deliveryRun(roundId, driverId)).drops[0]!.status;
+
+  /** 092 rev 2 — Today's card details, progress and the run map; the run list's street; the outcome. */
+  it("092 rev 2 — Today carries progress, the card's details and a map from the postcode's place", async () => {
+    await seedPlace(pool, { name: "Melbourne", state: "VIC", postcode: "3000", lat: -37.8136, lng: 144.9631 });
+    await seedHub(pool, -37.8, 144.97);
+    const t = await today(driverId);
+    expect(t.progress).toEqual({ done: 0, total: 1, delivered: 0, notDelivered: 0 });
+    expect(t.active).toMatchObject({ street: "1 Walk St", place: "Melbourne VIC 3000", packageCount: 1 });
+    // A delivery run starts at the hub; the drop is next; its point is its postcode's place.
+    expect(t.map?.stops).toEqual([
+      { n: null, kind: "hub", status: "done", point: { lat: -37.8, lng: 144.97 } },
+      { n: 1, kind: "customer", status: "next", point: { lat: -37.8136, lng: 144.9631 } },
+    ]);
+    expect(t.map?.hub).toEqual({ lat: -37.8, lng: 144.97 });
+    const run = await deliveryRun(roundId, driverId);
+    expect(run.drops[0]).toMatchObject({ street: "1 Walk St", proofMethod: null, failureReason: null });
+    expect(run.map?.stops).toHaveLength(2);
+  });
 
   /** 092 — Today carries what dispatch changed on the round, until there is nothing to say. */
   it("092 — Today carries the round's change note", async () => {

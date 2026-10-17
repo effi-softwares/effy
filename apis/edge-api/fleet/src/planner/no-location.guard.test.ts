@@ -51,8 +51,29 @@ function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
+/**
+ * ⚠ D25 (092 rev 2, operator direction 2026-10-17) — THE ONE EXCEPTION: the driver app's decorative run
+ * map. `run-map.ts` reads the postcode place points the platform already holds, to draw a schematic; it
+ * is a DISPLAY read, and the second test below fails if anything that plans, orders or assigns work
+ * imports it. Every other file stays under the rule.
+ */
+const RUN_MAP = resolve(__dirname, "../../../driver/src/work/run-map.ts");
+// Its test-only seed for the same two points (D25) — imported by tests only.
+const RUN_MAP_FIXTURE = resolve(__dirname, "../../../driver/src/work/run-map.fixture.ts");
+
 describe("no location data (SC-012)", () => {
-  const files = ROOTS.flatMap(sources).filter((f) => !f.endsWith(".guard.test.ts"));
+  const files = ROOTS.flatMap(sources).filter((f) => !f.endsWith(".guard.test.ts") && f !== RUN_MAP && f !== RUN_MAP_FIXTURE);
+
+  it("the run map exists, and only display reads import it (D25)", () => {
+    expect(statSync(RUN_MAP).isFile()).toBe(true);
+    const importers = files.filter((f) => /from "\.\/run-map"|run-map"/.test(readFileSync(f, "utf8")));
+    for (const f of importers) {
+      expect(f, "only the driver's read services may use the run map").toMatch(/driver\/src\/work\/(service|delivery)\.ts$/);
+    }
+    for (const f of files.filter((f) => /run-map\.fixture"/.test(readFileSync(f, "utf8")))) {
+      expect(f, "the run map's seed is for tests only").toMatch(/\.test\.ts$/);
+    }
+  });
 
   it("reads a meaningful number of files (a guard over nothing guards nothing)", () => {
     expect(files.length).toBeGreaterThan(10);

@@ -26,10 +26,25 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.design.EffyStorefrontShape
+import com.effyshopping.driver.mobile.core.theme.EffyRoles
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.lucide_check
+import com.effyshopping.driver.mobile.resources.lucide_clock
+import com.effyshopping.driver.mobile.resources.lucide_refresh_ccw
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import kotlinx.coroutines.delay
 
-/** What a snackbar says, and its one optional action ("Undo"). */
-data class DriverSnack(val message: String, val actionLabel: String? = null, val onAction: (() -> Unit)? = null)
+/** What a snackbar says, its look, and its one optional action ("Undo"). */
+data class DriverSnack(
+    val message: String,
+    val kind: Kind = Kind.Done,
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null,
+) {
+    /** Done: a green tick. Info: a clock. Saved: saved on the phone, sending later. */
+    enum class Kind { Done, Info, Saved }
+}
 
 /**
  * A short confirmation at the bottom ("Delivered · 2 left", "Collected"). Inverse surface — ink on the
@@ -57,23 +72,32 @@ fun DriverSnackbar(
     ) {
         val s = snack ?: return@AnimatedVisibility
         val scheme = MaterialTheme.colorScheme
+        // The redesign's snackbar: a light floating card (the ground colour, a hairline and a soft shadow)
+        // with a leading icon — not an inverse bar.
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 12.dp)
+                .shadow(8.dp, EffyStorefrontShape.card, clip = false)
                 .clip(EffyStorefrontShape.card)
-                .background(scheme.inverseSurface)
+                .background(scheme.background)
+                .border(1.dp, scheme.outlineVariant, EffyStorefrontShape.card)
                 .heightIn(min = 52.dp)
                 .padding(start = 16.dp, end = 4.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite },
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(s.message, color = scheme.inverseOnSurface, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+            when (s.kind) {
+                DriverSnack.Kind.Done -> DriverIcon(Res.drawable.lucide_check, size = 18.dp, tint = EffyRoles.brand)
+                DriverSnack.Kind.Info -> DriverIcon(Res.drawable.lucide_clock, size = 18.dp, tint = scheme.onSurface)
+                DriverSnack.Kind.Saved -> DriverIcon(Res.drawable.lucide_refresh_ccw, size = 18.dp, tint = scheme.onSurface)
+            }
+            Text(s.message, color = scheme.onSurface, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f).padding(vertical = 12.dp))
             if (s.actionLabel != null && s.onAction != null) {
                 Text(
                     s.actionLabel,
-                    color = scheme.inverseOnSurface, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                    color = scheme.primary,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     modifier = Modifier
                         .heightIn(min = DriverSize.target)

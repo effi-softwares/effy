@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.effyshopping.driver.mobile.design.EffyStorefrontShape
 import androidx.compose.foundation.background
 
@@ -78,9 +79,9 @@ fun DriverRow(
         ) {
             leading?.invoke()
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (meta != null) {
-                    Text(meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(meta, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             trailing?.invoke()
@@ -91,9 +92,9 @@ fun DriverRow(
 
 /** The numbered circle that leads a stop or drop row: [fill] / [ink] say done (green), next (blue) or to do (grey). */
 @Composable
-fun DriverNumberCircle(number: Int, fill: Color, ink: Color) {
-    Box(Modifier.size(32.dp).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
-        Text("$number", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold), color = ink)
+fun DriverNumberCircle(number: Int, fill: Color, ink: Color, size: androidx.compose.ui.unit.Dp = 32.dp) {
+    Box(Modifier.size(size).clip(CircleShape).background(fill), contentAlignment = Alignment.Center) {
+        Text("$number", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = ink)
     }
 }
 

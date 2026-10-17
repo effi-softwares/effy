@@ -86,6 +86,7 @@ export const ROUND_STOPS = `
          o.delivery_address ->> 'line2'      AS destination_line2,
          o.delivery_address ->> 'postalCode' AS destination_postcode,
          o.delivery_address ->> 'region'     AS destination_state,
+         o.delivery_handover                 AS handover,
          w.window_start   AS window_start,
          w.window_end     AS window_end,
          COALESCE(w.any_time, false) AS any_time

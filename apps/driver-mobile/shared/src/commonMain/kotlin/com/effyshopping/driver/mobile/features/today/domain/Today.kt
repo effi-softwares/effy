@@ -14,6 +14,13 @@ data class TodayItem(
     val title: String,
     val subtitle: String?,
     val status: String,
+    /** 092 rev 2 — the card's details: a drop's street, the place in one line, counts, window, handover. */
+    val street: String? = null,
+    val place: String? = null,
+    val packageCount: Int = 0,
+    val coldCount: Int = 0,
+    val window: com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow? = null,
+    val handover: com.effyshopping.driver.mobile.features.delivery.domain.Handover? = null,
 ) {
     /**
      * ⚠ `HUB_CHECKIN` ADDED BY 064. A collection round ends at the hub, and until this existed the
@@ -56,6 +63,19 @@ data class Today(
     val toReturn: ParcelsToReturn? = null,
     /** 092 — what dispatch changed on the current round, in their words; null when nothing has. */
     val changedNote: String? = null,
+    /** 092 rev 2 — progress through the current round, and its map. */
+    val progress: TodayProgress? = null,
+    val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
+)
+
+/** 092 rev 2 — shops collected or drops finished, of all; and the packages in and still to load. */
+data class TodayProgress(
+    val done: Int,
+    val total: Int,
+    val delivered: Int = 0,
+    val notDelivered: Int = 0,
+    val packagesInVan: Int = 0,
+    val packagesToLoad: Int = 0,
 )
 
 /** A round the driver holds besides the current one (072). Opens its own run screen when tapped. */

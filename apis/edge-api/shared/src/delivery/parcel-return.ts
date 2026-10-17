@@ -36,7 +36,9 @@ export const IN_TRANSIT_SQL = `(
 
 /** The parcels on one round still to return, with their order numbers. */
 const TO_RETURN_ON_ROUND = `
-  SELECT rp.id, o.order_number, sf.package_code
+  SELECT rp.id, o.order_number, sf.package_code,
+         concat_ws(', ', nullif(btrim(o.delivery_address ->> 'line1'), ''), nullif(btrim(o.delivery_address ->> 'city'), '')) AS place,
+         (SELECT f.reason FROM public.delivery_attempt_failure f WHERE f.stop_id = rs.id ORDER BY f.failed_at DESC LIMIT 1) AS reason
     FROM public.round_package rp
     JOIN public.round_stop    rs ON rs.id = rp.stop_id
     JOIN public.driver_round  dr ON dr.id = rs.round_id
@@ -54,16 +56,21 @@ export interface ToReturn {
   orders: string[];
   /** 090 — the parcels' label codes, for the return scan. */
   packageCodes: string[];
+  /** 092 rev 2 — each parcel: its order, label code, where it was for, and why it came back. */
+  parcels: Array<{ ref: string; packageCode: string; place: string | null; reason: ReturnReason | null }>;
 }
 
+type ReturnReason = "nobody_home" | "wrong_address" | "customer_refused" | "access_blocked" | "other";
+
 export async function toReturnOnRound(db: Queryable, roundId: string): Promise<ToReturn | null> {
-  const res = await db.query<{ id: string; order_number: string; package_code: string }>(TO_RETURN_ON_ROUND, [roundId]);
+  const res = await db.query<{ id: string; order_number: string; package_code: string; place: string | null; reason: ReturnReason | null }>(TO_RETURN_ON_ROUND, [roundId]);
   if (res.rows.length === 0) return null;
   return {
     runId: roundId,
     count: res.rows.length,
     orders: [...new Set(res.rows.map((r) => r.order_number))],
     packageCodes: res.rows.map((r) => r.package_code),
+    parcels: res.rows.map((r) => ({ ref: r.order_number, packageCode: r.package_code, place: r.place || null, reason: r.reason })),
   };
 }
 

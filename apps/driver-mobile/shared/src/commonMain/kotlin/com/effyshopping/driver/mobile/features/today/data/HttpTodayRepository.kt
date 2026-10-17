@@ -10,6 +10,8 @@ import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.effyJson
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.offline.LastCopies
+import com.effyshopping.driver.mobile.core.map.toDomain
+import com.effyshopping.driver.mobile.features.delivery.data.toParcels
 import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 import com.effyshopping.driver.mobile.features.today.domain.Phase
@@ -87,7 +89,15 @@ private fun TodayDTO.toDomain(): Today = Today(
         )
     },
     changedNote = changedNote?.takeIf { it.isNotBlank() },
-    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders, it.packageCodes.orEmpty()) },
+    progress = progress?.let {
+        com.effyshopping.driver.mobile.features.today.domain.TodayProgress(
+            done = it.done.toInt(), total = it.total.toInt(),
+            delivered = it.delivered?.toInt() ?: 0, notDelivered = it.notDelivered?.toInt() ?: 0,
+            packagesInVan = it.packagesInVan?.toInt() ?: 0, packagesToLoad = it.packagesToLoad?.toInt() ?: 0,
+        )
+    },
+    map = map?.toDomain(),
+    toReturn = toReturn?.let { it.toParcels() },
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(
@@ -105,4 +115,14 @@ private fun TodayItemRef.toDomain(): TodayItem = TodayItem(
     title = title,
     subtitle = subtitle,
     status = status,
+    street = street?.takeIf { it.isNotBlank() },
+    place = place?.takeIf { it.isNotBlank() },
+    packageCount = packageCount?.toInt() ?: 0,
+    coldCount = coldCount?.toInt() ?: 0,
+    window = com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow.of(window, deliveryWindow?.startAt, deliveryWindow?.endAt),
+    handover = when (handover) {
+        com.effyshopping.driver.mobile.contract.HandoverPreference.LeaveAtDoor -> com.effyshopping.driver.mobile.features.delivery.domain.Handover.LeaveAtDoor
+        com.effyshopping.driver.mobile.contract.HandoverPreference.MeetAtDoor -> com.effyshopping.driver.mobile.features.delivery.domain.Handover.MeetAtDoor
+        null -> null
+    },
 )

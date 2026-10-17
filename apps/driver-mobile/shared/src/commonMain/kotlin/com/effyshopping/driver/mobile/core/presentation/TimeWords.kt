@@ -16,7 +16,7 @@ import kotlin.time.Instant
 fun nowEpochMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
 @OptIn(ExperimentalTime::class)
-private fun isoToMillis(iso: String): Long? = runCatching { Instant.parse(iso).toEpochMilliseconds() }.getOrNull()
+internal fun isoToMillis(iso: String): Long? = runCatching { Instant.parse(iso).toEpochMilliseconds() }.getOrNull()
 
 /** "Mon 12 Oct, 2:35 pm" for an ISO instant. An unreadable value is shown as it came, never dropped. */
 fun whenText(iso: String): String = isoToMillis(iso)?.let { localTimeText(it, withDay = true) } ?: iso

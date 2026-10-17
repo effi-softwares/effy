@@ -77,16 +77,16 @@ fun SignInScreen(
                     contentAlignment = Alignment.Center,
                 ) { DriverIcon(Res.drawable.lucide_chevron_left, size = 26.dp, tint = MaterialTheme.colorScheme.primary) }
             }
+            DriverWordmark(Modifier.align(Alignment.CenterEnd).padding(end = 20.dp, top = 16.dp), size = 24.sp)
         }
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).widthIn(max = 480.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            DriverWordmark(Modifier.padding(top = 8.dp, bottom = 12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.padding(top = 40.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     if (code) "Enter your code" else "Sign in to Effy Driver",
-                    fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
@@ -98,18 +98,24 @@ fun SignInScreen(
             if (code) CodeStage(state, onCodeChange, onPrimaryAction, onResend, onDifferentEmail, otpInputOverride)
             else EmailStage(state, onEmailChange, onPrimaryAction)
         }
-        Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            Modifier.fillMaxWidth().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             if (!code) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    DriverIcon(Res.drawable.lucide_lock, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("No account? Driver accounts are set up by your manager.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                Text(
+                    "No account? Driver accounts are set up by your manager.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
             // ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a): shown to everyone, always — never conditional on
             // whether the address exists, which would make this line an account-enumeration oracle.
             Text(
                 "Code not arriving? Email hello@effyshopping.com",
                 style = MaterialTheme.typography.bodySmall,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("auth_stuck_note"),
             )

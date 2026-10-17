@@ -22,6 +22,9 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+    // 092 rev 2 — the debug-only design gallery draws screens directly.
+    debugImplementation(libs.compose.foundation)
+    debugImplementation(libs.compose.material3)
 
     // 049 — Amplify Android requires core library desugaring (enabled in compileOptions below).
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)

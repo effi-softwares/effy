@@ -9,6 +9,28 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
 `docs/reference-screens/Effy Driver Mobile v2/` (61 artboards). Spec, plan, tasks:
 [specs/092-driver-mobile-redesign/](specs/092-driver-mobile-redesign/tasks.md).
 
+- **REV 2 (2026-10-17) — matched to `docs/reference-screens/Effy Driver redesigns/` (PNG + HTML). ⚠ NEEDS
+  `make edge-deploy SERVICE=driver ENV=dev`** — the app reads new optional wire fields; an old service
+  leaves them empty and the screens fall back (no map, no progress line), nothing breaks.
+  - **Navigation:** the tab bar (`DriverTabBar`) shows on the three tab roots only; every inner screen is
+    full-screen with "‹ Parent" + centred title. Return-to-hub is its own screen (`ReturnHubRoute`).
+  - **Run map (decision D25):** `core/map/RunMapView.kt` draws the schematic map (seeded streets, legs,
+    van, pins, legend; animations off under reduced motion and on a past run). Points come from
+    `driver/src/work/run-map.ts` only — postcode places + the hub's point; no new data, no device position.
+  - **Wire (all optional):** Today `progress` / `map` and richer card refs; run `map`; drop outcomes
+    (street, completedAt, proof method, failure reason); returned parcels; History rows with street /
+    proof / reason / window, run detail `map` + `window`, drop detail order / packages / window / reason.
+  - **Screens restyled:** Today (all states), collection run, shop stop, hub check-in + result, delivery
+    run, drop, scanner panels, Delivered / Not delivered / Can't deliver / Left safely, History + past run +
+    past delivery, Account, sign in.
+  - **Debug-only design gallery:** `androidApp/src/debug/.../DesignGalleryActivity.kt` renders each screen
+    from sample data — `adb shell am start -n com.effyshopping.driver.mobile/.DesignGalleryActivity -e
+    screen today` (today, today-delivery, today-return, today-off, collection-run, shop-stop, scan-shop,
+    hub, hub-done, delivery-run, drop, delivered, not-delivered, return, history, past-run, account).
+    Never in a release build.
+  - Verified: Android + iOS builds, host tests, driver service 205/205 (container), the location guard,
+    driver / delivery-words / refresh-timer guards. **Not walked on a device against dev.**
+
 - **The driver app wears the storefront identity (constitution v3.5.0)** like the customer app (087): Geist
   bundled, Lucide icons, Effy blue for actions, Effy green only for done, **problems black with an icon —
   never red or orange**, light and dark. `gen-compose-theme.mjs`'s driver target reads `storefront/tokens.css`;

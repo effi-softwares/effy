@@ -67,6 +67,8 @@ import com.effyshopping.driver.mobile.resources.lucide_navigation
 import com.effyshopping.driver.mobile.resources.lucide_package
 import com.effyshopping.driver.mobile.resources.lucide_phone
 import com.effyshopping.driver.mobile.resources.lucide_snowflake
+import com.effyshopping.driver.mobile.resources.lucide_house
+import com.effyshopping.driver.mobile.resources.lucide_scan_line
 import com.effyshopping.driver.mobile.core.scan.HandedOver
 import com.effyshopping.driver.mobile.core.scan.ScanContext
 import com.effyshopping.driver.mobile.core.scan.ScanContexts
@@ -95,6 +97,7 @@ fun DropScreen(
     onRetry: () -> Unit,
     onCameraDenied: () -> Unit,
     onCallDispatch: (() -> Unit)?,
+    startScanning: Boolean = false,
 ) {
     val drop = state.drop
     if (drop == null) {
@@ -122,10 +125,10 @@ fun DropScreen(
     val runTotal = run?.drops?.size ?: 0
 
     when {
-        state.delivered -> DeliveredView(drop, state, next?.customerSuburb, runDone, runTotal, onNext = onNext, onBackToRun = onBackToRun)
-        state.failed -> NotDeliveredView(drop, hubName, next?.customerSuburb, onNext = onNext, onBackToRun = onBackToRun, onCallDispatch = onCallDispatch)
+        state.delivered -> DeliveredView(drop, state, next?.let { it.street ?: it.customerSuburb }, runDone, runTotal, onNext = onNext, onBackToRun = onBackToRun)
+        state.failed -> NotDeliveredView(drop, state, hubName, next?.let { it.street ?: it.customerSuburb }, onNext = onNext, onBackToRun = onBackToRun, onCallDispatch = onCallDispatch)
         drop.status.isClosed -> ClosedView(drop, onBack)
-        else -> OpenDrop(drop, state, position, runTotal, onBack, onNavigate, onCall, onDeliver, onFail, onCameraDenied)
+        else -> OpenDrop(drop, state, position, runTotal, onBack, onNavigate, onCall, onDeliver, onFail, onCameraDenied, startScanning)
     }
 }
 
@@ -141,8 +144,12 @@ private fun OpenDrop(
     onDeliver: (ProofMethod, ByteArray, String?, List<HandedOver>) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
     onCameraDenied: () -> Unit,
+    startScanning: Boolean,
 ) {
-    var stage by rememberSaveable(drop.dropId) { mutableStateOf(DropStage.Detail) }
+    val canScan = drop.packages.any { it.packageCode != null }
+    var stage by rememberSaveable(drop.dropId) {
+        mutableStateOf(if (startScanning && canScan && rememberIsOpenNow(drop)) DropStage.Scan else DropStage.Detail)
+    }
     var method by rememberSaveable(drop.dropId) {
         mutableStateOf(if (drop.handover == Handover.MeetAtDoor) ProofMethod.PHOTO else ProofMethod.CONTACTLESS)
     }
@@ -156,14 +163,42 @@ private fun OpenDrop(
         DropStage.Scan -> {
             val run = state.run
             val base = if (run != null) ScanContexts.drop(run, drop) else ScanContext(drop.packages.mapNotNull { it.packageCode }.toSet())
+            val street = splitAddress(drop.addressFull).first
+            val n = drop.packages.size
             ScanPanel(
-                title = splitAddress(drop.addressFull).first, backLabel = "Drop",
+                title = street, backLabel = "Drop",
                 context = base,
-                items = drop.packages.mapIndexedNotNull { i, p -> p.packageCode?.let { ScanItem(it, "Package ${i + 1} of ${drop.packages.size}", hint = if (p.summary.hasCold) "Cold" else null) } },
-                completeLabel = "Choosing how it was handed over",
+                items = drop.packages.mapIndexedNotNull { i, p ->
+                    p.packageCode?.let {
+                        ScanItem(
+                            it, "Package ${i + 1} of $n",
+                            meta = listOfNotNull(itemWords(p.summary.total.takeIf { it > 0 } ?: p.items.sumOf { it.qty }), "cold".takeIf { p.summary.hasCold }).joinToString(" · "),
+                            bannerTitle = "Package ${i + 1} of $n", bannerSub = "For $street",
+                        )
+                    }
+                },
+                listTitle = { s, t -> "Packages · $s of $t scanned" },
+                idleSub = "$street · ${packages(n)}",
+                completeVerb = "handing over",
                 working = false,
                 onBack = { stage = DropStage.Detail },
                 onComplete = { h -> handed = h; stage = DropStage.Choose },
+                fallbackLabel = "Deliver without scanning",
+                onFallback = { handed = emptyList(); stage = DropStage.Choose },
+                secondaryLabel = "Can't deliver",
+                onSecondary = { stage = DropStage.CantDeliver },
+                footer = {
+                    val note = listOfNotNull(
+                        when (drop.handover) { Handover.LeaveAtDoor -> "Leave at the door"; Handover.MeetAtDoor -> "Hand it over in person"; null -> null },
+                        drop.instructions?.trim()?.takeIf { it.isNotEmpty() },
+                    ).joinToString(" · ")
+                    if (note.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            DriverIcon(Res.drawable.lucide_house, size = 18.dp, tint = MaterialTheme.colorScheme.primary)
+                            Text(note, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                },
             )
         }
         DropStage.Camera -> ProofCamera(
@@ -198,7 +233,7 @@ private fun OpenDrop(
         )
         DropStage.Detail, DropStage.Choose -> {
             DropDetail(drop, title, open, state.message, onBack, onNavigate, onCall,
-                onDeliver = { stage = if (drop.packages.any { it.packageCode != null }) DropStage.Scan else DropStage.Choose },
+                onDeliver = { stage = if (canScan) DropStage.Scan else DropStage.Choose },
                 onCantDeliver = { stage = DropStage.CantDeliver },
             )
             if (stage == DropStage.Choose) {
@@ -244,15 +279,22 @@ private fun DropDetail(
                 val now = rememberNow()
                 val ws = windowStatus(drop.window, drop.status, now)
                 if (ws != null || drop.window != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        ws?.let { DriverStatusPill(it) }
-                        drop.window?.let { Text(it.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    // The window as two pills: its state (Due now — blue while it's the time) and its hours.
+                    Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        ws?.let { if (it == DriverStatus.DueNow) DriverStatusPill(DriverStatus.Next, label = "Due now") else DriverStatusPill(it) }
+                        drop.window?.let { w ->
+                            Text(
+                                w.label,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.control).padding(horizontal = 9.dp, vertical = 4.dp),
+                            )
+                        }
                     }
                 }
-                Text(street, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+                Text(street, fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold)
                 Text(
                     listOfNotNull(rest, firstName?.let { "for $it" }).joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -280,7 +322,10 @@ private fun DropDetail(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 DriverButton("Can't deliver", onClick = onCantDeliver, style = DriverButtonStyle.Outline, enabled = open, modifier = Modifier.weight(1f))
-                DriverButton("Scan to deliver", onClick = onDeliver, enabled = open, icon = Res.drawable.lucide_package, modifier = Modifier.weight(1.4f))
+                DriverButton(
+                    if (drop.packages.any { it.packageCode != null }) "Scan to deliver" else "Deliver",
+                    onClick = onDeliver, enabled = open, icon = Res.drawable.lucide_scan_line, modifier = Modifier.weight(1.5f),
+                )
             }
         }
     }
@@ -292,22 +337,22 @@ private fun InstructionCallout(drop: Drop) {
     val note = drop.instructions?.trim()?.takeIf { it.isNotEmpty() }
     if (drop.handover == null && note == null) return
     val shape = EffyStorefrontShape.card
-    Column(
-        Modifier.fillMaxWidth().clip(shape).background(EffyRoles.primaryMuted).padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    Row(
+        Modifier.fillMaxWidth().clip(EffyStorefrontShape.banner).background(EffyRoles.primaryMuted).padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        drop.handover?.let { h ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                DriverIcon(if (h == Handover.LeaveAtDoor) Res.drawable.lucide_door_open else Res.drawable.lucide_hand, size = 18.dp, tint = MaterialTheme.colorScheme.primary)
-                Text(
-                    if (h == Handover.LeaveAtDoor) "Leave at the door" else "Hand it over in person",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                )
+        DriverIcon(
+            if (drop.handover == Handover.MeetAtDoor) Res.drawable.lucide_hand else Res.drawable.lucide_house,
+            size = 20.dp, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 2.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            drop.handover?.let { h ->
+                Text(if (h == Handover.LeaveAtDoor) "Leave at the door" else "Hand it over in person", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
             }
-        }
-        note?.let {
-            Text("“$it”", style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Normal)
-            Text("From the customer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            note?.let {
+                Text("“$it”", style = MaterialTheme.typography.bodyLarge, fontStyle = FontStyle.Normal)
+                Text("From the customer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -319,7 +364,7 @@ private fun PackagesList(drop: Drop) {
     if (n == 0) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(packages(n), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+            Text(packages(n), fontSize = 26.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             val items = drop.summary.total
             Text(
                 listOfNotNull(
@@ -330,7 +375,8 @@ private fun PackagesList(drop: Drop) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        DriverGroup {
+        val shape = EffyStorefrontShape.banner
+        Column(Modifier.fillMaxWidth().clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)) {
             drop.packages.forEachIndexed { i, p -> PackageRow(drop.dropId, p, i + 1, n, last = i == n - 1) }
         }
     }
@@ -349,25 +395,26 @@ private fun PackageRow(dropId: String, p: DropPackage, position: Int, of: Int, l
                     if (open) report(p.summary.hasCold, p.items.size)
                 }
                 .semantics { stateDescription = if (open) "Expanded" else "Collapsed" }
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .heightIn(min = 60.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Package $position of $of", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), modifier = Modifier.weight(1f))
+            Text("Package $position of $of", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
+            Text(itemWords(p.summary.total.takeIf { it > 0 } ?: p.items.sumOf { it.qty }), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (p.summary.hasCold) {
                 Row(
-                    Modifier.clip(EffyStorefrontShape.card).border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.card).padding(horizontal = 8.dp, vertical = 2.dp),
+                    Modifier.clip(EffyStorefrontShape.control).background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal = 8.dp, vertical = 3.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     DriverIcon(Res.drawable.lucide_snowflake, size = 12.dp)
-                    Text("Cold", style = MaterialTheme.typography.labelMedium)
+                    Text("Cold", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
                 }
             }
-            Text(if (p.items.size == 1) "1 item" else "${p.items.size} items", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            DriverIcon(if (open) Res.drawable.lucide_chevron_up else Res.drawable.lucide_chevron_down, size = 16.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(Modifier.weight(1f))
+            DriverIcon(if (open) Res.drawable.lucide_chevron_up else Res.drawable.lucide_chevron_down, size = 18.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (open) ManifestList(p.items, Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp))
+        if (open) com.effyshopping.driver.mobile.features.manifest.presentation.ManifestBox(p.items, Modifier.padding(horizontal = 16.dp).padding(bottom = 14.dp))
         if (!last) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }
@@ -388,3 +435,9 @@ private fun ClosedView(drop: Drop, onBack: () -> Unit) {
         Box(Modifier.weight(1f))
     }
 }
+
+/** Whether the drop's round is open right now (a one-off check for the starting stage). */
+private fun rememberIsOpenNow(drop: Drop): Boolean =
+    drop.opening?.isOpenAt(com.effyshopping.driver.mobile.core.presentation.nowEpochMillis()) ?: true
+
+private fun itemWords(n: Int) = if (n == 1) "1 item" else "$n items"

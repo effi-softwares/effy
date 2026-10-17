@@ -35,7 +35,7 @@ export const ICONS = [
   // 092 — the driver app's redesign canvas (Navigate, Call, the hub, scanning, proof, offline).
   "arrow-left", "camera", "circle-x", "cloud-off", "door-open", "ellipsis", "external-link", "flashlight",
   "flashlight-off", "hand", "inbox", "keyboard", "list-checks", "navigation", "pause", "pen-line", "phone",
-  "refresh-ccw", "rotate-ccw", "scan-line", "signature", "undo-2", "warehouse", "power",
+  "refresh-ccw", "rotate-ccw", "scan-line", "signature", "undo-2", "warehouse", "power", "search-x",
 ];
 
 const num = (s) => Number.parseFloat(s);

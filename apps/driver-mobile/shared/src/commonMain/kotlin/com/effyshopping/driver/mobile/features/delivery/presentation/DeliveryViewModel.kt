@@ -63,8 +63,13 @@ data class DeliveryUiState(
     val proofSending: Boolean = false,
     /** 092 — how the last drop was completed, for the Delivered screen; null until one is. */
     val deliveredWith: ProofMethod? = null,
-    /** 092 — when it was completed, on this phone's clock. */
+    /** 092 — when it was completed (or recorded as not delivered), on this phone's clock. */
     val deliveredAtEpochMillis: Long? = null,
+    /** 092 rev 2 — the proof note as sent ("Left at: Front door — …"), for the Delivered line. */
+    val deliveredNote: String? = null,
+    /** 092 rev 2 — why the last drop was not delivered, and the driver's words, for Not delivered. */
+    val failedReason: FailureReason? = null,
+    val failedNote: String? = null,
     /** 092 — a short confirmation for the snackbar ("Van loaded"); cleared once shown. */
     val notice: String? = null,
 )
@@ -146,7 +151,7 @@ class DeliveryViewModel(
         _state.update {
             it.copy(
                 isLoading = true, drop = null, delivered = false, failed = false, proofSending = false, message = null,
-                deliveredWith = null, deliveredAtEpochMillis = null,
+                deliveredWith = null, deliveredAtEpochMillis = null, deliveredNote = null, failedReason = null, failedNote = null,
             )
         }
         viewModelScope.launch {
@@ -226,7 +231,7 @@ class DeliveryViewModel(
                 _state.update {
                     it.copy(
                         isWorking = false, delivered = true, proofSending = outcome == WriteOutcome.QUEUED,
-                        deliveredWith = method, deliveredAtEpochMillis = now(),
+                        deliveredWith = method, deliveredAtEpochMillis = now(), deliveredNote = note,
                     )
                 }
             } catch (e: AppException) {
@@ -302,7 +307,7 @@ class DeliveryViewModel(
                     // Saved to send: the run's copy would still show this drop open.
                     markInRun(dropId, DropStatus.FAILED)
                 }
-                _state.update { it.copy(isWorking = false, failed = true) }
+                _state.update { it.copy(isWorking = false, failed = true, failedReason = reason, failedNote = note, deliveredAtEpochMillis = now()) }
             } catch (e: AppException) {
                 if (e.error.isFinal()) ids.settled(action)
                 _state.update { it.copy(isWorking = false, message = e.error.userMessage()) }

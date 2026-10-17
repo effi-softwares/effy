@@ -1,6 +1,7 @@
 package com.effyshopping.driver.mobile.features.collection.data
 
 import com.effyshopping.driver.mobile.core.scan.toWire
+import com.effyshopping.driver.mobile.core.map.toDomain
 import com.effyshopping.driver.mobile.contract.CollectRequest
 import com.effyshopping.driver.mobile.contract.Outcome
 import com.effyshopping.driver.mobile.contract.Package as CollectPackage
@@ -139,6 +140,7 @@ private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
     opening = opening.toOpening(),
     dueLabel = dueLabel,
     hubSort = hubSort.orEmpty().map { HubSort(it.packageCode, hubSortKind(it.kind), it.label) },
+    map = map?.toDomain(),
 )
 
 /** Never fails on a kind this build does not know — the label still says what to do. */

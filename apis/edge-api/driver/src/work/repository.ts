@@ -51,6 +51,8 @@ export interface StopRow {
   window_end: Date | null;
   /** 085 — sold a day with no time. */
   any_time?: boolean;
+  /** 066 — how the customer asked for it to be handed over. */
+  handover?: "leave_at_door" | "meet_at_door" | null;
 }
 
 export interface PackageRow {
@@ -142,6 +144,19 @@ export async function roundStops(roundId: string, driverId: string): Promise<Sto
 export async function roundPackages(roundId: string, driverId: string): Promise<PackageRow[]> {
   const res = await query<PackageRow>(ROUND_PACKAGES, [roundId, driverId]);
   return res.rows;
+}
+
+/** 092 rev 2 — how each finished drop on a round ended: its proof method, or why it failed. */
+export async function stopOutcomes(roundId: string): Promise<Map<string, { method: string | null; reason: string | null }>> {
+  const res = await query<{ stop_id: string; method: string | null; reason: string | null }>(
+    `SELECT rs.id AS stop_id,
+            (SELECT dp.method FROM public.delivery_proof dp WHERE dp.stop_id = rs.id ORDER BY dp.captured_at DESC LIMIT 1) AS method,
+            (SELECT f.reason FROM public.delivery_attempt_failure f WHERE f.stop_id = rs.id ORDER BY f.failed_at DESC LIMIT 1) AS reason
+       FROM public.round_stop rs
+      WHERE rs.round_id = $1 AND rs.kind = 'customer_drop'`,
+    [roundId],
+  );
+  return new Map(res.rows.map((r) => [r.stop_id, { method: r.method, reason: r.reason }]));
 }
 
 export async function packageItems(packageIds: string[]): Promise<ManifestRow[]> {

@@ -22,8 +22,10 @@ import type {
   UpcomingRound,
 } from "@effy/shared-types";
 
+import { runMapOf } from "./run-map";
 import {
   addressLine,
+  stopOutcomes,
   completedToday,
   openingOf,
   openRounds,
@@ -58,7 +60,7 @@ function stopStatus(s: StopRow["stop_status"], anyShort: boolean): CollectionSto
  * silently never reach the driver and NOTHING would fail — both surfaces would keep rendering
  * something. NP8 re-implements it locally to prove the guard catches it.
  */
-function ordered(stops: StopRow[]): StopRow[] {
+export function ordered(stops: StopRow[]): StopRow[] {
   const keyed = stops.map((s) => ({
     id: s.stop_id,
     seq: s.seq,
@@ -133,6 +135,14 @@ export async function today(driverId: string): Promise<TodayDTO> {
   ]);
   const byStop = packagesByStop(packages);
   const sorted = ordered(stops);
+  // 092 rev 2 — which packages hold cold goods, for the Today card's "1 cold".
+  const allIds = packages.map((p) => p.package_id);
+  const manifests = manifestsByPackage(allIds, await packageItems(allIds));
+  const coldOf = (stopId: string) =>
+    (byStop.get(stopId) ?? []).filter((p) => {
+      const sm = manifests.get(p.package_id)?.summary;
+      return !!sm && (sm.frozen > 0 || sm.chilled > 0);
+    }).length;
 
   // ⚠ 064 — `outstanding` IS WHY THE HUB HAD TO BECOME A STOP. It keeps only work still to be done,
   // which is correct; the defect was that a collection round had nothing left in it once the last
@@ -173,8 +183,34 @@ export async function today(driverId: string): Promise<TodayDTO> {
       title: round.kind === "collection" ? (s.shop_name ?? "Shop") : (s.destination_suburb ?? "Delivery"),
       subtitle: (byStop.get(s.stop_id)?.length ?? 0) > 0 ? `${byStop.get(s.stop_id)!.length} packages` : null,
       status: s.stop_status,
+      // 092 rev 2 — what the redesigned Today card shows.
+      street: round.kind === "collection" ? null : (s.destination_line1?.trim() || null),
+      place: round.kind === "collection"
+        ? addressLine([s.address_line1, s.address_line2, s.suburb, s.state, s.postcode])
+        : [s.destination_suburb, s.destination_state, s.destination_postcode].filter((x) => x && x.trim()).join(" ") || null,
+      packageCount: byStop.get(s.stop_id)?.length ?? 0,
+      coldCount: coldOf(s.stop_id),
+      ...(round.kind === "collection" ? {} : windowOf(s)),
+      handover: s.handover ?? null,
     };
   };
+
+  // 092 rev 2 — progress through the round: shops (and packages) for a collection, drops for a delivery.
+  const places = sorted.filter((s) => s.stop_kind !== "hub_checkin");
+  const settled = (s: StopRow) => s.stop_status === "done" || s.stop_status === "skipped";
+  const progress: TodayDTO["progress"] = round.kind === "collection"
+    ? {
+        done: places.filter(settled).length,
+        total: places.length,
+        packagesInVan: packages.filter((p) => p.state === "picked_up").length,
+        packagesToLoad: places.filter((s) => !settled(s)).reduce((a, s) => a + (byStop.get(s.stop_id)?.length ?? 0), 0),
+      }
+    : {
+        done: places.filter(settled).length,
+        total: places.length,
+        delivered: places.filter((s) => s.stop_status === "done").length,
+        notDelivered: places.filter((s) => s.stop_status === "skipped").length,
+      };
 
   // 088 — parcels from failed drops still in the van. When they are all that is left on the round,
   // `active` is null and the app shows the "Return to hub" step from this field. ⚠ NOT a new item
@@ -195,6 +231,8 @@ export async function today(driverId: string): Promise<TodayDTO> {
     upcoming,
     toReturn,
     changedNote: round.changed_note?.trim() || null,
+    progress,
+    map: await runMapOf(sorted, round.kind === "collection" ? "collection" : "delivery"),
   };
 }
 
@@ -224,6 +262,7 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
   const stops = allStops.filter((s) => s.stop_kind !== "hub_checkin");
 
   return {
+    map: await runMapOf(ordered(allStops), "collection"),
     runId,
     status: "assigned",
     // 090 — where each package goes at the hub, for the hub scan with no signal. A package left at
@@ -317,9 +356,14 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
   // ⚠ ONE items read for the whole run, not one per drop (065) — a round is a dozen drops and this
   // list is the screen a driver opens most.
   const allIds = packages.map((p) => p.package_id);
-  const manifests = manifestsByPackage(allIds, await packageItems(allIds));
+  const [manifests, outcomes] = await Promise.all([
+    packageItems(allIds).then((items) => manifestsByPackage(allIds, items)),
+    stopOutcomes(runId),
+  ]);
+  const sorted = ordered(stops);
 
   return {
+    map: await runMapOf(sorted, "delivery"),
     runId,
     status: "assigned",
     // 088 — parcels from this run's failed drops, still to be returned to the hub.
@@ -327,8 +371,9 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
     opening: times.opening,
     deadlineAt: times.deadlineAt,
     dueLabel: times.dueLabel,
-    drops: ordered(stops).map((s, i) => {
+    drops: sorted.map((s, i) => {
       const pkgs = byStop.get(s.stop_id) ?? [];
+      const outcome = outcomes.get(s.stop_id);
       return {
         dropId: s.stop_id,
         sequence: i + 1,
@@ -349,6 +394,11 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         // screen about the same drop. Both now read through one mapping.
         status: dropStatusOf(s.stop_status),
         summary: addSummaries(pkgs.map((p) => manifests.get(p.package_id)?.summary ?? EMPTY_SUMMARY)),
+        // 092 rev 2 — the run list's street, and how a finished drop ended.
+        street: s.destination_line1?.trim() || null,
+        completedAt: s.completed_at ? s.completed_at.toISOString() : null,
+        proofMethod: s.stop_status === "done" ? ((outcome?.method as DeliveryDropSummary["proofMethod"]) ?? null) : null,
+        failureReason: s.stop_status === "skipped" ? ((outcome?.reason as DeliveryDropSummary["failureReason"]) ?? null) : null,
       } satisfies DeliveryDropSummary;
     }),
   };

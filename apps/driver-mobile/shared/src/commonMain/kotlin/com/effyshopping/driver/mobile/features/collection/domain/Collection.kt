@@ -39,6 +39,8 @@ data class CollectionRun(
     val dueLabel: String? = null,
     /** 090 — every package's hub instruction, for the hub scan; empty from an older server. */
     val hubSort: List<HubSort> = emptyList(),
+    /** 092 rev 2 — the run map. */
+    val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
 ) {
     val allCollected: Boolean get() = stops.isNotEmpty() && stops.all { it.status == StopStatus.COLLECTED || it.status == StopStatus.SHORT }
 }

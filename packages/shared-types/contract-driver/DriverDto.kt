@@ -264,6 +264,11 @@ data class DriverCollectionRunDTO (
     val hubSort: List<HubSortInstruction>? = null,
 
     /**
+     * 092 rev 2 — the run map.
+     */
+    val map: RunMapDTO? = null,
+
+    /**
      * 072 — when this round opens; `null` = open.
      */
     val opening: RoundOpening? = null,
@@ -291,6 +296,59 @@ data class HubSortInstruction (
     val label: String,
     val packageCode: String
 )
+
+@Serializable
+data class RunMapDTO (
+    /**
+     * The hub's point — also where "Navigate to the hub" goes.
+     */
+    val hub: RunMapPoint? = null,
+
+    /**
+     * In route order: a collection run ends at the hub, a delivery run starts there.
+     */
+    val stops: List<RunMapStop>
+)
+
+/**
+ * 092 rev 2 — the RUN MAP (decorative, operator direction 2026-10-17, decision D25): where
+ * a run's stops roughly are, so the app can draw a small schematic map. ⚠ A STOP'S POINT IS
+ * ITS POSTCODE'S PLACE — the locality the platform already holds — never a geocoded address
+ * and never a device position; the hub's is the hub's own. Nothing that orders or assigns
+ * work reads it (D20 stands). Stops whose place has no point are left out.
+ */
+@Serializable
+data class RunMapPoint (
+    val lat: Double,
+    val lng: Double
+)
+
+@Serializable
+data class RunMapStop (
+    val kind: RunMapStopKind,
+
+    /**
+     * The stop's number in the run's list; null for the hub.
+     */
+    val n: Long? = null,
+
+    val point: RunMapPoint,
+    val status: RunMapStopStatus
+)
+
+@Serializable
+enum class RunMapStopKind(val value: String) {
+    @SerialName("customer") Customer("customer"),
+    @SerialName("hub") Hub("hub"),
+    @SerialName("shop") Shop("shop");
+}
+
+@Serializable
+enum class RunMapStopStatus(val value: String) {
+    @SerialName("done") Done("done"),
+    @SerialName("next") Next("next"),
+    @SerialName("todo") Todo("todo");
+}
 
 /**
  * 072 — when a round opens. ⚠ ONLY EVER SENT FOR A ROUND THAT HAS NOT OPENED: the server
@@ -533,6 +591,12 @@ enum class DeliveryDropStatus(val value: String) {
 
 @Serializable
 data class DeliveryDropSummary (
+    /**
+     * 092 rev 2 — when a finished drop was finished, and how: the proof method or the failure
+     * reason.
+     */
+    val completedAt: String? = null,
+
     val customerSuburb: String,
 
     /**
@@ -543,6 +607,7 @@ data class DeliveryDropSummary (
     @SerialName("dropId")
     val dropID: String,
 
+    val failureReason: DeliveryFailureReason? = null,
     val orderRef: String,
 
     /**
@@ -551,8 +616,15 @@ data class DeliveryDropSummary (
     val packageCodes: List<String>? = null,
 
     val packageCount: Long,
+    val proofMethod: ProofMethod? = null,
     val sequence: Long,
     val status: DeliveryDropStatus,
+
+    /**
+     * 092 rev 2 — the street line, for the run list ("5 Faraday St"); null when the address has
+     * none.
+     */
+    val street: String? = null,
 
     /**
      * 065 — the drop's total across its packages, so cold goods show in the list unopened.
@@ -567,6 +639,23 @@ data class DeliveryDropSummary (
     val window: String? = null
 )
 
+@Serializable
+enum class DeliveryFailureReason(val value: String) {
+    @SerialName("access_blocked") AccessBlocked("access_blocked"),
+    @SerialName("customer_refused") CustomerRefused("customer_refused"),
+    @SerialName("nobody_home") NobodyHome("nobody_home"),
+    @SerialName("other") Other("other"),
+    @SerialName("wrong_address") WrongAddress("wrong_address");
+}
+
+@Serializable
+enum class ProofMethod(val value: String) {
+    @SerialName("code") Code("code"),
+    @SerialName("contactless") Contactless("contactless"),
+    @SerialName("photo") Photo("photo"),
+    @SerialName("signature") Signature("signature");
+}
+
 /**
  * GET /driver/v1/delivery/runs/{runId}
  */
@@ -579,6 +668,11 @@ data class DeliveryRunDTO (
 
     val drops: List<DeliveryDropSummary>,
     val dueLabel: String,
+
+    /**
+     * 092 rev 2 — the run map.
+     */
+    val map: RunMapDTO? = null,
 
     /**
      * 072 — when this round opens; `null` = open (always, for a round with no delivery window).
@@ -619,8 +713,27 @@ data class ParcelsToReturn (
      */
     val packageCodes: List<String>? = null,
 
+    /**
+     * 092 rev 2 — each parcel, for the Return to hub screen: its ref, where it was for and why
+     * it came back.
+     */
+    val parcels: List<ReturnParcel>? = null,
+
     @SerialName("runId")
     val runID: String
+)
+
+@Serializable
+data class ReturnParcel (
+    val packageCode: String,
+
+    /**
+     * "8 Scotchmer St, Fitzroy North".
+     */
+    val place: String? = null,
+
+    val reason: DeliveryFailureReason? = null,
+    val ref: String
 )
 
 /**
@@ -634,15 +747,6 @@ data class DropFailRequest (
     val note: String? = null,
     val reason: DeliveryFailureReason
 )
-
-@Serializable
-enum class DeliveryFailureReason(val value: String) {
-    @SerialName("access_blocked") AccessBlocked("access_blocked"),
-    @SerialName("customer_refused") CustomerRefused("customer_refused"),
-    @SerialName("nobody_home") NobodyHome("nobody_home"),
-    @SerialName("other") Other("other"),
-    @SerialName("wrong_address") WrongAddress("wrong_address");
-}
 
 @Serializable
 data class DropFailResponse (
@@ -757,19 +861,37 @@ data class HistoryDropRow (
     @SerialName("dropId")
     val dropID: String,
 
+    /**
+     * Set for a drop that was NOT delivered (its parcels went back to the hub).
+     */
+    val failureReason: DeliveryFailureReason? = null,
+
     val orderRef: String,
-    val proofCaptured: Boolean
+    val proofCaptured: Boolean,
+    val proofMethod: ProofMethod? = null,
+
+    /**
+     * 092 rev 2 — the street line, how it was handed over, and — for a drop that came back —
+     * why.
+     */
+    val street: String? = null
 )
 
 @Serializable
 data class HistoryRunRow (
     val completedAt: String? = null,
 
+    /**
+     * 092 rev 2 — packages on the run, and a delivery run's window in words.
+     */
+    val packageCount: Long? = null,
+
     @SerialName("runId")
     val runID: String,
 
     val stopCount: Long,
-    val type: DriverRunType
+    val type: DriverRunType,
+    val window: String? = null
 )
 
 /**
@@ -792,6 +914,24 @@ enum class DriverRunType(val value: String) {
 @Serializable
 data class HistoryDetailDTO (
     val addressFull: String? = null,
+
+    /**
+     * 092 rev 2 — why a drop came back to the hub.
+     */
+    val failureReason: DeliveryFailureReason? = null,
+
+    /**
+     * 092 rev 2 — a run's map (every stop done), and its window in words.
+     */
+    val map: RunMapDTO? = null,
+
+    val orderRef: String? = null,
+
+    /**
+     * 092 rev 2 — a drop's packages, and the window it was sold.
+     */
+    val packageCount: Long? = null,
+
     val packages: List<DropPackageRef>,
     val proof: Proof? = null,
 
@@ -801,7 +941,8 @@ data class HistoryDetailDTO (
      */
     val stops: List<HistoryStop>? = null,
 
-    val timeline: List<TimelineEntry>
+    val timeline: List<TimelineEntry>,
+    val window: String? = null
 )
 
 @Serializable
@@ -815,24 +956,22 @@ data class Proof (
     val note: String? = null
 )
 
-@Serializable
-enum class ProofMethod(val value: String) {
-    @SerialName("code") Code("code"),
-    @SerialName("contactless") Contactless("contactless"),
-    @SerialName("photo") Photo("photo"),
-    @SerialName("signature") Signature("signature");
-}
-
 /**
  * 092 — one stop of a finished run, as History lists it. No money, no customer name.
  */
 @Serializable
 data class HistoryStop (
     val completedAt: String? = null,
-    val kind: StopKind,
+
+    /**
+     * 092 rev 2 — why a drop came back to the hub.
+     */
+    val failureReason: DeliveryFailureReason? = null,
+
+    val kind: PurpleKind,
     val proofMethod: ProofMethod? = null,
     val sequence: Long,
-    val status: StopStatus,
+    val status: PurpleStatus,
 
     @SerialName("stopId")
     val stopID: String,
@@ -844,14 +983,14 @@ data class HistoryStop (
 )
 
 @Serializable
-enum class StopKind(val value: String) {
+enum class PurpleKind(val value: String) {
     @SerialName("drop") Drop("drop"),
     @SerialName("hub") Hub("hub"),
     @SerialName("shop") Shop("shop");
 }
 
 @Serializable
-enum class StopStatus(val value: String) {
+enum class PurpleStatus(val value: String) {
     @SerialName("done") Done("done"),
     @SerialName("skipped") Skipped("skipped");
 }
@@ -971,21 +1110,6 @@ data class LoadResponse (
      * How many drops this call moved to out for delivery.
      */
     val loaded: Long
-)
-
-@Serializable
-data class MapPoint (
-    val lat: Double,
-    val lng: Double
-)
-
-@Serializable
-data class MapStop (
-    val id: String,
-    val kind: StopKind,
-    val lat: Double,
-    val lng: Double,
-    val sequence: Long
 )
 
 /**
@@ -1159,16 +1283,6 @@ enum class ProofResponseStatus(val value: String) {
 }
 
 /**
- * GET /driver/v1/runs/{runId}/map
- */
-@Serializable
-data class RunMapDTO (
-    val currentLocation: MapPoint? = null,
-    val hub: MapPoint,
-    val stops: List<MapStop>
-)
-
-/**
  * GET /driver/v1/today
  */
 @Serializable
@@ -1195,6 +1309,8 @@ data class TodayDTO (
      */
     val dueLabel: String? = null,
 
+    val map: RunMapDTO? = null,
+
     /**
      * 072 — when the current round OPENS. `null` means it is open (or there is none).
      *
@@ -1206,6 +1322,12 @@ data class TodayDTO (
     val opening: RoundOpening? = null,
 
     val phase: DriverPhase,
+
+    /**
+     * 092 rev 2 — progress through the current round, and its map.
+     */
+    val progress: TodayProgress? = null,
+
     val remainingCount: Long,
 
     /**
@@ -1237,15 +1359,40 @@ data class TodayDTO (
  */
 @Serializable
 data class TodayItemRef (
+    /**
+     * Packages holding chilled or frozen goods.
+     */
+    val coldCount: Long? = null,
+
+    val deliveryWindow: DeliveryWindow? = null,
+    val handover: HandoverPreference? = null,
     val id: String,
     val kind: TodayItemRefKind,
+    val packageCount: Long? = null,
+    val place: String? = null,
 
     @SerialName("runId")
     val runID: String,
 
     val status: String,
+
+    /**
+     * 092 rev 2 — what the Today card and its "Up next" rows show (the redesign's canvas). All
+     * optional: a server without them leaves the card as it was.
+     * - `street`: a drop's street line ("12 Lygon St") — the card's title; null for a shop or
+     * the hub.
+     * - `place`: the rest of the place in one line — a shop's full address, or a drop's
+     * "Carlton VIC 3053".
+     */
+    val street: String? = null,
+
     val subtitle: String? = null,
-    val title: String
+    val title: String,
+
+    /**
+     * A drop's window, in the server's words, and its instants (for "Due now" / "Late").
+     */
+    val window: String? = null
 )
 
 @Serializable
@@ -1264,6 +1411,29 @@ enum class DriverPhase(val value: String) {
     @SerialName("idle") Idle("idle"),
     @SerialName("same_day_delivery") SameDayDelivery("same_day_delivery");
 }
+
+/**
+ * 092 rev 2 — how far through the current round the driver is. Counts, never money.
+ */
+@Serializable
+data class TodayProgress (
+    val delivered: Long? = null,
+
+    /**
+     * Shops collected (collection) or drops finished (delivery).
+     */
+    val done: Long,
+
+    val notDelivered: Long? = null,
+
+    /**
+     * Collection: packages picked up so far / still to pick up.
+     */
+    val packagesInVan: Long? = null,
+
+    val packagesToLoad: Long? = null,
+    val total: Long
+)
 
 /**
  * 072 — a round the driver holds besides the current one. Readable in full; a count here.

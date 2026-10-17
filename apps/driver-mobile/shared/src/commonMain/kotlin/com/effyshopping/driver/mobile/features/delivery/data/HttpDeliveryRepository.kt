@@ -49,6 +49,8 @@ import io.ktor.client.request.setBody
 import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
+import com.effyshopping.driver.mobile.core.map.toDomain
+import com.effyshopping.driver.mobile.features.delivery.domain.ReturnParcel
 
 class HttpDeliveryRepository(
     private val api: HttpClient,
@@ -260,12 +262,39 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
             // it was always null. It is real now, and so are the instants beside it.
             window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
             packageCodes = it.packageCodes.orEmpty(),
+            street = it.street?.takeIf { s -> s.isNotBlank() },
+            completedAtIso = it.completedAt,
+            proofMethod = it.proofMethod?.toDomain(),
+            failureReason = it.failureReason?.toDomain(),
         )
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
-    toReturn = toReturn?.let { ParcelsToReturn(it.runID, it.count.toInt(), it.orders, it.packageCodes.orEmpty()) },
+    toReturn = toReturn?.toParcels(),
+    map = map?.toDomain(),
 )
+
+/** 088/092 — the wire's parcels to return → the domain's. Shared with Today's read. */
+internal fun com.effyshopping.driver.mobile.contract.ParcelsToReturn.toParcels() = ParcelsToReturn(
+    runID, count.toInt(), orders, packageCodes.orEmpty(),
+    parcels = parcels.orEmpty().map { ReturnParcel(it.ref, it.packageCode, it.place?.takeIf { p -> p.isNotBlank() }, it.reason?.toDomain()) },
+)
+
+internal fun DeliveryFailureReason.toDomain(): FailureReason = when (this) {
+    DeliveryFailureReason.NobodyHome -> FailureReason.NOBODY_HOME
+    DeliveryFailureReason.WrongAddress -> FailureReason.WRONG_ADDRESS
+    DeliveryFailureReason.CustomerRefused -> FailureReason.CUSTOMER_REFUSED
+    DeliveryFailureReason.AccessBlocked -> FailureReason.ACCESS_BLOCKED
+    DeliveryFailureReason.Other -> FailureReason.OTHER
+}
+
+/** A code proof does not exist on this platform (064); it reads as no method. */
+internal fun DtoProofMethod.toDomain(): ProofMethod? = when (this) {
+    DtoProofMethod.Photo -> ProofMethod.PHOTO
+    DtoProofMethod.Signature -> ProofMethod.SIGNATURE
+    DtoProofMethod.Contactless -> ProofMethod.CONTACTLESS
+    DtoProofMethod.Code -> null
+}
 
 private fun DeliveryDropDTO.toDomain() = Drop(
     dropId = dropID,
