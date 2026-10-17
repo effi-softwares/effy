@@ -37,6 +37,7 @@ const GATED: Record<string, { file: string; fn: string }> = {
 /** State-changing routes that do not progress a round — each with the reason it is exempt. */
 const EXEMPT: Record<string, string> = {
   "POST /driver/v1/duty": "going on or off duty is not work on a round",
+  "POST /driver/v1/vehicle-check": "a check of the vehicle, made before any round (093)",
   "POST /driver/v1/devices": "registers a push token",
   "DELETE /driver/v1/devices/{token}": "removes a push token",
   "POST /driver/v1/activity/read": "marks the activity feed read",

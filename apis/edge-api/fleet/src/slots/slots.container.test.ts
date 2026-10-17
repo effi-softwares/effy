@@ -306,6 +306,8 @@ d("069 — the delivery calendar", () => {
   it("reads the migration's defaults before anything is saved", async () => {
     expect(await getDeliveryDays()).toEqual({
       noDeliveryWeekdays: [], slotHoldMin: 10, hubTurnaroundMin: 60, effyLookaheadDays: 3, dates: [],
+      // 093 — drivers' work: the migration's defaults, the vehicle check off.
+      loadOverdueMin: 20, checkinOverdueMin: 30, vehicleCheckRequired: false, asapEstimate: expect.any(String),
     });
   });
 

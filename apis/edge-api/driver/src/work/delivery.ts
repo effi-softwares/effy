@@ -21,6 +21,7 @@ import { dropStatusOf } from "./drop-status";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
 import { packageCodes, packageItems, stopPackageIds, stopRoundTimes } from "./repository";
 import { assertStopRoundOpen } from "./open";
+import { assertDropLoaded } from "./sequence";
 import { NotFoundError, ordered } from "./service";
 import { runMapOf } from "./run-map";
 import { roundStops } from "./repository";
@@ -134,6 +135,8 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     // WHILE THE DROP IS OPEN: once it is delivered or not delivered the driver has no reason to call,
     // and history never carries it.
     customerPhone: OPEN_DROP.has(r.status) ? (r.phone?.trim() || null) : null,
+    // 093 — loaded with the van. Until then nothing on the drop can be done.
+    loaded: r.status !== "pending",
   };
 }
 
@@ -171,13 +174,13 @@ export async function setDropStatus(
     // round opens.
     await assertStopRoundOpen(tx, dropId, driverId);
 
-    // ⚠⚠ THIS MAPPING WAS THE WHOLE DEFECT (fixed 2026-09-30). It read
-    //     const next = body.to === "arrived" ? "arrived" : "pending";
-    // so "Start this drop" (out_for_delivery) and "On my way" (en_route) were written back as the
-    // state the drop was already in. The route answered 200, the app re-read "staged", and the same
-    // button returned — a driver could never reach proof, so no same-day order could complete.
-    // `delivered` is still NOT reachable here: completing a drop requires proof (064).
-    const ALLOWED = new Set(["out_for_delivery", "en_route", "arrived"]);
+    // 093 — not before the van is loaded. Loading is the only writer of `out_for_delivery` (the
+    // per-drop "Start this drop" is gone), so this route moves a loaded drop on and nothing else.
+    await assertDropLoaded(tx, dropId, driverId);
+
+    // ⚠ `delivered` is NOT reachable here: completing a drop requires proof (064). Nor is
+    // `out_for_delivery` since 093: that is the van being loaded.
+    const ALLOWED = new Set(["en_route", "arrived"]);
     if (!ALLOWED.has(body.to)) throw new NotFoundError();
     const next = body.to;
 
@@ -444,7 +447,9 @@ async function historyRun(runId: string, driverId: string): Promise<HistoryDetai
   }));
   // 092 rev 2 — the finished run's map, every stop done (the list's own order, from the shared rule).
   const map = await runMapOf(ordered(await roundStops(runId, driverId)), res.rows[0]!.round_kind === "collection" ? "collection" : "delivery", true);
-  const last = res.rows.map((r) => r.completed_at).filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0];
+  // The latest finish — a max, not a sort (one-ordering.guard.test.ts forbids `.sort(` in this file).
+  const last = res.rows.map((r) => r.completed_at).filter((d): d is Date => d !== null)
+    .reduce<Date | undefined>((a, b) => (a === undefined || b.getTime() > a.getTime() ? b : a), undefined);
   return {
     timeline: last ? [{ status: "completed", at: last.toISOString() }] : [],
     proof: null,

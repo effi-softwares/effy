@@ -17,6 +17,8 @@ import com.effyshopping.driver.mobile.features.today.domain.Today
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer
+import com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -43,6 +45,10 @@ data class TodayUiState(
     val loadFailed: Boolean = false,
     /** 088 — a "Return to hub" is being sent. */
     val isReturning: Boolean = false,
+    /** 093 — today's check of the vehicle held: asked while DUE, explained while UNSAFE. */
+    val vehicleCheck: VehicleCheckStatus = VehicleCheckStatus.NONE,
+    val vehicleLabel: String? = null,
+    val isSubmittingCheck: Boolean = false,
 )
 
 /**
@@ -62,10 +68,15 @@ class TodayViewModel(
     private val now: () -> Long = ::nowEpochMillis,
     /** 088 — check the current run's failed parcels back in at the hub. Null in tests that do not care. */
     private val returnToHub: (suspend (runId: String, changeId: String) -> WriteOutcome)? = null,
+    /** 093 — the vehicle check: its state when the screen opens, how to answer it, and how to re-read it. */
+    initialVehicleCheck: VehicleCheckStatus = VehicleCheckStatus.NONE,
+    initialVehicleLabel: String? = null,
+    private val submitCheck: (suspend (changeId: String, answers: List<VehicleCheckAnswer>) -> VehicleCheckStatus)? = null,
+    private val readMe: (suspend () -> Driver)? = null,
 ) : ViewModel() {
     private val ids = ActionIds(newChangeId)
     private val _state = MutableStateFlow(
-        TodayUiState(dutyStatus = initialDuty),
+        TodayUiState(dutyStatus = initialDuty, vehicleCheck = initialVehicleCheck, vehicleLabel = initialVehicleLabel),
     )
     val state = _state.asStateFlow()
 
@@ -85,6 +96,10 @@ class TodayViewModel(
         // The channel also speaks when it reconnects — the moment queued writes can be sent (FR-040).
         // Until now they waited for the driver to pull to refresh on this one screen.
         runCatching { syncFlush() }
+        // 093 — a dispatcher clearing an unsafe check is announced as work changing: read it back.
+        if (now.vehicleCheck == VehicleCheckStatus.UNSAFE) {
+            readMe?.let { me -> runCatching { me() }.onSuccess { d -> _state.update { it.copy(vehicleCheck = d.vehicleCheck, vehicleLabel = d.vehicleLabel) } } }
+        }
         runCatching { getToday() }.onSuccess { fresh ->
             _state.update {
                 it.copy(
@@ -158,6 +173,25 @@ class TodayViewModel(
         }
     }
 
+    /** 093 — today's vehicle check, every item answered. Work comes once it is in (and nothing is unsafe). */
+    fun submitVehicleCheck(answers: List<VehicleCheckAnswer>) {
+        val send = submitCheck ?: return
+        if (_state.value.isSubmittingCheck) return
+        _state.update { it.copy(isSubmittingCheck = true, message = null) }
+        val action = "vehicle-check"
+        viewModelScope.launch {
+            try {
+                val result = send(ids.of(action), answers)
+                ids.settled(action)
+                _state.update { it.copy(isSubmittingCheck = false, vehicleCheck = result) }
+                refresh()
+            } catch (e: AppException) {
+                if (e.error.isFinal()) ids.settled(action)
+                _state.update { it.copy(isSubmittingCheck = false, message = e.error.userMessage()) }
+            }
+        }
+    }
+
     fun toggleDuty() {
         if (_state.value.isTogglingDuty) return
         val goingOn = _state.value.dutyStatus == DutyStatus.OFF_DUTY
@@ -169,6 +203,8 @@ class TodayViewModel(
                     it.copy(
                         dutyStatus = driver.dutyStatus,
                         isTogglingDuty = false,
+                        vehicleCheck = driver.vehicleCheck,
+                        vehicleLabel = driver.vehicleLabel,
                     )
                 }
                 if (driver.dutyStatus == DutyStatus.ON_DUTY) refresh()

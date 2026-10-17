@@ -66,7 +66,15 @@ data class Today(
     /** 092 rev 2 — progress through the current round, and its map. */
     val progress: TodayProgress? = null,
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
+    /**
+     * 093 — the current run is a delivery run not yet loaded: loading the van is the one next step.
+     * [active] is null while it is set; the drops follow it in [upNext].
+     */
+    val loadStep: LoadStep? = null,
 )
+
+/** 093 — "Load the van": the run, and how much goes in it. */
+data class LoadStep(val runId: String, val packageCount: Int, val dropCount: Int)
 
 /** 092 rev 2 — shops collected or drops finished, of all; and the packages in and still to load. */
 data class TodayProgress(

@@ -11,6 +11,7 @@ import {
   coverageLabel,
   query,
 } from "@effy/edge-shared";
+import { vehicleCheckStateSql } from "@effy/edge-shared/delivery";
 
 import { type DriverRecord, type DriverStatus } from "./types";
 
@@ -24,6 +25,9 @@ interface DriverRow {
   cov_n: string;
   vehicle_type: string | null;
   vehicle_plate: string | null;
+  vehicle_id: string | null;
+  vehicle_label: string | null;
+  vehicle_check: "none" | "ok" | "due" | "unsafe";
   status: DriverStatus;
   on_duty_since: Date | null;
   expected_end_at: Date | null;
@@ -44,6 +48,10 @@ const SELECT_BY_SUB = `
          -- nothing right now.
          hv.body_type          AS vehicle_type,
          hv.registration_plate AS vehicle_plate,
+         -- 093 — the vehicle to check, and today's check of it.
+         hv.id                 AS vehicle_id,
+         CASE WHEN hv.id IS NULL THEN NULL ELSE concat_ws(' ', hv.make, hv.model) || ' · ' || hv.registration_plate END AS vehicle_label,
+         ${vehicleCheckStateSql("d", "hv")} AS vehicle_check,
          d.status,
          s.started_at       AS on_duty_since,
          s.expected_end_at  AS expected_end_at
@@ -67,6 +75,9 @@ function mapRow(row: DriverRow): DriverRecord {
     coverageLabel: coverageLabel({ every: row.cov_every, names: row.cov_names, n: row.cov_n }),
     vehicleType: row.vehicle_type,
     vehiclePlate: row.vehicle_plate,
+    vehicleId: row.vehicle_id,
+    vehicleLabel: row.vehicle_label,
+    vehicleCheck: row.vehicle_check,
     status: row.status,
     dutyStatus: row.on_duty_since ? "on_duty" : "off_duty",
     onDutySince: row.on_duty_since ? row.on_duty_since.toISOString() : null,

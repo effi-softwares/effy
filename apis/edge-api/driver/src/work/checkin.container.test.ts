@@ -50,6 +50,12 @@ async function q(sql: string, params: unknown[] = []) {
   return holder.pool!.query(sql, params as never[]);
 }
 
+/** 093 — a collect names every package the driver was shown: here, all those still waiting. */
+async function shown(stopId: string) {
+  const { rows } = await q(`SELECT shop_fulfillment_id AS id FROM public.round_package WHERE stop_id = $1 AND state = 'assigned'`, [stopId]);
+  return rows.map((r: any) => ({ packageId: r.id as string, outcome: "picked_up" as const }));
+}
+
 let seq = 0;
 
 /** A collection round with one stop and two packages: one same-day, one standard. */
@@ -132,7 +138,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     // One collected, one not available.
     await collectStop(runId, stopId, driverId, {
       changeId: "c1",
-      packages: [{ packageId: ids[1]!, outcome: "not_available", note: "Shelf was empty" }],
+      packages: [{ packageId: ids[0]!, outcome: "picked_up" }, { packageId: ids[1]!, outcome: "not_available", note: "Shelf was empty" }],
     });
 
     const res = await hubCheckin(runId, driverId);
@@ -151,7 +157,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
   // ⚠ C14 — THE TEST NP9 PROVED WAS MISSING.
   it("C14 — a standard package is checked in and enters NO delivery round (FR-024, SC-010)", async () => {
     const { runId, stopId, driverId } = await aCollectedRound();
-    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+    await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const res = await hubCheckin(runId, driverId);
     expect(res.sameDayCount).toBe(1);
@@ -179,7 +185,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
                                                  pickup_weekdays, pickup_cutoff, is_default, updated_by)
              VALUES ('Test Couriers', 'Standard', '2–4 business days', 4, ARRAY[1,2,3,4,5,6,7], '23:59', true, 'test')`);
     const { runId, stopId, driverId } = await aCollectedRound();
-    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+    await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const res = await hubCheckin(runId, driverId);
     expect(res.courierCount).toBe(1);
@@ -202,7 +208,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     // Far enough ahead that neither is "today" whenever this runs: fixed days in 2031.
     await sell(ids[0]!, "same_day", await slot("16:00"), "2031-03-04T05:00:00Z", "2031-03-04T07:00:00Z"); // Tue 4 Mar, 4–6 pm
     await sell(ids[1]!, "standard", await slot("10:00"), "2031-03-06T23:00:00Z", "2031-03-07T01:00:00Z"); // Fri 7 Mar, 10 am–12 pm
-    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+    await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const res = await hubCheckin(runId, driverId);
     expect(res.courierCount).toBe(0);
@@ -217,7 +223,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
 
   it("advances the fulfillment out of ready_for_pickup, or the planner re-collects it forever", async () => {
     const { runId, stopId, driverId, ids } = await aCollectedRound();
-    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+    await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const states = await q(
       `SELECT status FROM public.shop_fulfillment WHERE id = ANY($1::uuid[]) ORDER BY id`,
@@ -230,7 +236,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     const { runId, stopId, driverId, ids } = await aCollectedRound();
     await collectStop(runId, stopId, driverId, {
       changeId: "c1",
-      packages: [{ packageId: ids[0]!, outcome: "not_available" }],
+      packages: [{ packageId: ids[0]!, outcome: "not_available" }, { packageId: ids[1]!, outcome: "picked_up" }],
     });
 
     const s = await q(`SELECT status FROM public.shop_fulfillment WHERE id = $1`, [ids[0]]);
@@ -241,7 +247,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
 
   it("is idempotent — checking in twice writes one row", async () => {
     const { runId, stopId, driverId } = await aCollectedRound();
-    await collectStop(runId, stopId, driverId, { changeId: "c1" });
+    await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
     await hubCheckin(runId, driverId);
     await hubCheckin(runId, driverId);
     const n = await q(`SELECT count(*)::int AS n FROM public.hub_checkin`);
@@ -250,8 +256,8 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
 
   it("is idempotent — collecting twice does not double-settle", async () => {
     const { runId, stopId, driverId } = await aCollectedRound();
-    const first = await collectStop(runId, stopId, driverId, { changeId: "c1" });
-    const again = await collectStop(runId, stopId, driverId, { changeId: "c1" });
+    const first = await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
+    const again = await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
     expect(again).toEqual(first);
   });
 
@@ -290,7 +296,7 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
       const mine = await aCollectedRound();
       const theirs = await aCollectedRound();
       await expect(
-        collectStop(theirs.runId, theirs.stopId, mine.driverId, { changeId: "x" }),
+        collectStop(theirs.runId, theirs.stopId, mine.driverId, { changeId: "x", packages: await shown(theirs.stopId) }),
       ).rejects.toBeInstanceOf(NotFoundError);
     });
 

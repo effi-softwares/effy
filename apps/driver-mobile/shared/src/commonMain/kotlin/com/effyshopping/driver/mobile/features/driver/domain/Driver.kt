@@ -21,6 +21,9 @@ data class Driver(
     val hub: String?,
     val vehicle: Vehicle,
     val dutyStatus: DutyStatus,
+    /** 093 — today's check of the vehicle they hold, and its name for the check screen. */
+    val vehicleCheck: VehicleCheckStatus = VehicleCheckStatus.NONE,
+    val vehicleLabel: String? = null,
 ) {
     /** What the shell greets them as — never a raw subject id. */
     val display: String get() = name.trim().ifBlank { workEmail }

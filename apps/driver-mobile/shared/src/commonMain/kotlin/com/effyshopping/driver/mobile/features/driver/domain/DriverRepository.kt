@@ -14,4 +14,8 @@ interface DriverRepository {
 
     /** `POST /driver/v1/duty` — go on/off duty. Returns the resulting driver record (fresh duty state). */
     suspend fun setDuty(onDuty: Boolean, changeId: String): Driver
+
+    /** 093 — `POST /driver/v1/vehicle-check`: today's check of the vehicle held. Answers OK or UNSAFE. */
+    suspend fun submitVehicleCheck(changeId: String, answers: List<VehicleCheckAnswer>): VehicleCheckStatus =
+        throw UnsupportedOperationException("vehicle check not supported by this repository")
 }

@@ -15,7 +15,8 @@ import {
   orderRoundStops,
 } from "@effy/edge-shared";
 
-import { TO_RETURN_SQL, nonDeliveryDates } from "@effy/edge-shared/delivery";
+import { TO_RETURN_SQL, nonDeliveryDates, stageOfRound, type RoundStageRow } from "@effy/edge-shared/delivery";
+import type { RoundWaiverDTO } from "@effy/shared-types";
 
 import { loadCandidates, loadSchedule } from "../planner/repository";
 import { dueRun, isoDateOf } from "../planner/service";
@@ -26,6 +27,7 @@ import {
   FAILED_PARCEL_COUNTS,
   ROUND_DETAIL_STOPS,
   ROUND_FOR_UPDATE,
+  ROUND_STAGE_AND_WAIVER,
   ROUND_WORK,
   UNASSIGNED_WORK,
 } from "./sql";
@@ -115,6 +117,8 @@ export async function readDay() {
       // ⚠ Derived on read, never stored (027's counted-not-stored rule). A stored `isLate` would be
       // wrong every minute nothing wrote to it.
       isLate: r.status !== "completed" && r.status !== "cancelled" && r.deadline_at.getTime() < now,
+      // 093 — where the run is, worded as the driver's app words it, and any waiver of the gate.
+      ...stageFields(r),
     })),
     unassigned: listed.map((u: any) => ({
       packageId: u.package_id,
@@ -139,14 +143,54 @@ export async function readDay() {
   };
 }
 
+/** 093 — a round's stage and waiver, from a row carrying the stage lateral's and waiver's columns. */
+function stageFields(r: any): { stage: string; stageLabel: string; waiver: RoundWaiverDTO | null } {
+  const stage = stageOfRound(r.kind, r.status, r as RoundStageRow);
+  return {
+    stage: stage.stage,
+    stageLabel: stage.label,
+    waiver: r.waiver_reason
+      ? { reason: r.waiver_reason, staffName: r.waiver_staff ?? "a staff member", at: (r.waiver_at as Date).toISOString() }
+      : null,
+  };
+}
+
+/**
+ * 093 — were the stops finished in a different order from the one shown? Shown, never prevented: the
+ * finishing order (`completed_at`) against the shared display order.
+ */
+function workedOutOfOrder(orderedStops: Array<{ kind: string; completed_at: Date | null }>): boolean {
+  const finished = orderedStops
+    .map((s, i) => ({ i, at: s.completed_at, kind: s.kind }))
+    .filter((s): s is { i: number; at: Date; kind: string } => s.at !== null && s.kind !== "hub_checkin");
+  for (let k = 1; k < finished.length; k++) {
+    if (finished[k]!.at.getTime() < finished[k - 1]!.at.getTime()) return true;
+  }
+  return false;
+}
+
 export async function readRound(roundId: string) {
-  const [round, stops] = await Promise.all([
+  const [round, stops, stageRow] = await Promise.all([
     query<any>(ROUND_FOR_UPDATE.replace("FOR UPDATE", ""), [roundId]),
     query<any>(ROUND_DETAIL_STOPS, [roundId]),
+    query<any>(ROUND_STAGE_AND_WAIVER, [roundId]),
   ]);
   const r = round.rows[0];
   if (!r) throw new DispatchError("not_found", "That round does not exist.");
+  const orderedRows = orderRoundStops(
+    stops.rows.map((s) => ({
+      id: s.stop_id as string,
+      seq: s.seq as number | null,
+      status: s.status,
+      dueAt: (s.window_start as Date | null) ?? null,
+      zoneId: s.zone_id as string | null,
+      shopId: s.shop_id as string | null,
+      row: s,
+    })),
+  ).map(({ row }) => row);
   return {
+    ...(stageRow.rows[0] ? stageFields(stageRow.rows[0]) : {}),
+    outOfOrder: workedOutOfOrder(orderedRows),
     id: r.id,
     kind: r.kind,
     status: r.status,

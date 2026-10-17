@@ -50,7 +50,10 @@ export type ExclusionReasonDTO =
   | "not_cleared"
   | "no_refrigeration"
   | "over_capacity"
-  | "cannot_meet_deadline";
+  | "cannot_meet_deadline"
+  // 093 — the driver has not checked their vehicle today, or the check found it unsafe.
+  | "vehicle_check_due"
+  | "vehicle_unsafe";
 
 /** One package to handle at a stop. */
 export interface RoundPackageDTO {
@@ -166,6 +169,30 @@ export interface DispatchRoundSummaryDTO {
   packagesRemaining: WireInt;
   /** Derived on read against `deadlineAt`, never stored (027's counted-not-stored rule). */
   isLate: boolean;
+  /** 093 — where the run is (`RunStage`), and the same in words. */
+  stage?: string;
+  stageLabel?: string;
+  /** 093 — stops or drops were finished in a different order from the plan. Shown, never prevented. */
+  outOfOrder?: boolean;
+  /** 093 — a dispatcher let this run skip the cross-run gate. */
+  waiver?: RoundWaiverDTO | null;
+}
+
+/** 093 — a dispatcher's permission for one run to skip the cross-run gate. */
+export interface RoundWaiverDTO {
+  reason: string;
+  staffName: string;
+  at: string;
+}
+
+/** POST /fleet/v1/dispatch/rounds/{id}/waive-sequence — 093. */
+export interface WaiveSequenceRequest {
+  reason: string;
+}
+
+/** A one-line answer from a 093 staff action. */
+export interface StaffActionResponse {
+  message: string;
 }
 
 /** The dispatcher's day. */
@@ -274,6 +301,70 @@ export interface StaffParcelReturnResponse {
 export interface DeliveryExceptionListDTO {
   exceptions: DeliveryExceptionDTO[];
   openCount: WireInt;
+  /** 093 — packages a driver declared missing at loading or check-in, still to be decided. */
+  held?: HeldPackageDTO[];
+  /** 093 — runs whose next step is overdue. */
+  overdue?: OverdueRunDTO[];
+  /** 093 — today's vehicle checks with anything to see (a minor or unsafe answer). */
+  vehicleChecks?: VehicleCheckDTO[];
+}
+
+/** 093 — a package declared missing. `step` is where: `load` (hub → van) or `checkin` (van → hub). */
+export interface HeldPackageDTO {
+  holdId: string;
+  packageId: string;
+  orderNumber: string;
+  shopName: string;
+  driverName: string;
+  roundId: string;
+  step: "load" | "checkin";
+  /** `not_at_hub` | `damaged` | `wrong_temperature` | `not_in_van` | `other`. */
+  reason: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export const HOLD_REASON_WORDS: Record<string, string> = {
+  not_at_hub: "Not at the hub",
+  damaged: "Damaged",
+  wrong_temperature: "Wrong temperature",
+  not_in_van: "Not in the van",
+  other: "Other",
+};
+
+/** POST /fleet/v1/held-packages/{holdId}/resolve — 093. */
+export interface ResolveHoldRequest {
+  resolution: "found" | "lost";
+}
+
+/** 093 — a run whose next step is late: loading (delivery) or the hub check-in (collection). */
+export interface OverdueRunDTO {
+  roundId: string;
+  kind: RoundKind;
+  driverName: string;
+  stage: string;
+  stageLabel: string;
+  /** When the step became due. */
+  since: string;
+  /** How late, in whole minutes, at the time of the read. */
+  minutes: WireInt;
+}
+
+/** 093 — one driver's vehicle check. */
+export interface VehicleCheckDTO {
+  checkId: string;
+  driverName: string;
+  vehicleLabel: string;
+  answers: Array<{ item: string; answer: string; note: string | null }>;
+  unsafe: boolean;
+  createdAt: string;
+  clearedAt: string | null;
+  clearNote: string | null;
+}
+
+/** POST /fleet/v1/vehicle-checks/{checkId}/clear — 093. */
+export interface ClearVehicleCheckRequest {
+  note: string;
 }
 
 /** POST /fleet/v1/exceptions/{id}/resolve */

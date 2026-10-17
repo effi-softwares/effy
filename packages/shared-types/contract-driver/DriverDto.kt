@@ -50,20 +50,15 @@ data class CollectRequest (
     val changeID: String,
 
     /**
-     * ⚠ ADDED BY 063, OPTIONAL BY DESIGN. Absent means what it has always meant: every package
-     * at this stop was collected. Present, it records each package's own outcome IN THE SAME
-     * REQUEST.
+     * Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one
+     * request, so it cannot half-happen).
      *
-     * That atomicity is the point (FR-026). With collect-all followed by a separate `/issue`
-     * call there is a window in which the platform believes a package is in the van and it is
-     * not — and if the second call never arrives (the driver walks out of signal, the app is
-     * killed), the window never closes and nobody is told. One request cannot half-happen.
-     *
-     * ⚠ It is OPTIONAL rather than required so the existing client call remains valid and no
-     * Kotlin call site changes. A required field here would have meant reworking the ViewModels
-     * behind several of 060's screens to say something the old shape already said correctly.
+     * ⚠ 093 — REQUIRED, AND ONLY WHAT IS NAMED IS SETTLED. Until 093 an absent package meant
+     * "collected", so a package added to the stop while the driver stood at the counter was
+     * recorded as in the van without anybody having seen it. A package not named here stays
+     * waiting, and the stop stays open (`CollectResponse.remaining`).
      */
-    val packages: List<Package>? = null
+    val packages: List<Package>
 )
 
 @Serializable
@@ -102,6 +97,19 @@ enum class Outcome(val value: String) {
 
 @Serializable
 data class CollectResponse (
+    /**
+     * 093 — how many were collected and declared not available by this call.
+     */
+    val collected: Long? = null,
+
+    val notAvailable: Long? = null,
+
+    /**
+     * 093 — packages on the stop this request did not name (added while the driver was there).
+     * When more than 0 the stop is still open, and the app re-reads it and shows them.
+     */
+    val remaining: Long? = null,
+
     val status: CollectResponseStatus
 )
 
@@ -276,6 +284,12 @@ data class DriverCollectionRunDTO (
     @SerialName("runId")
     val runID: String,
 
+    /**
+     * 093 — the run's stage and its words.
+     */
+    val stage: String? = null,
+
+    val stageLabel: String? = null,
     val status: String,
     val stops: List<CollectionStopSummary>
 )
@@ -497,6 +511,12 @@ data class DeliveryDropDTO (
     val instructions: String? = null,
 
     /**
+     * 093 — the van has been loaded with this drop. Until it is, nothing on the drop can be
+     * done.
+     */
+    val loaded: Boolean? = null,
+
+    /**
      * 072 — when this drop's round opens; `null` = open. Every action on it is refused before
      * then.
      */
@@ -682,6 +702,12 @@ data class DeliveryRunDTO (
     @SerialName("runId")
     val runID: String,
 
+    /**
+     * 093 — the run's stage and its words.
+     */
+    val stage: String? = null,
+
+    val stageLabel: String? = null,
     val status: String,
 
     /**
@@ -766,14 +792,19 @@ data class DropStatusRequest (
     @SerialName("changeId")
     val changeID: String,
 
+    /**
+     * 093 — `out_for_delivery` is written only by loading the van.
+     */
     val to: To
 )
 
+/**
+ * 093 — `out_for_delivery` is written only by loading the van.
+ */
 @Serializable
 enum class To(val value: String) {
     @SerialName("arrived") Arrived("arrived"),
-    @SerialName("en_route") EnRoute("en_route"),
-    @SerialName("out_for_delivery") OutForDelivery("out_for_delivery");
+    @SerialName("en_route") EnRoute("en_route");
 }
 
 @Serializable
@@ -1010,12 +1041,29 @@ data class HubCheckinRequest (
     val changeID: String,
 
     /**
+     * 093 — collected packages that are not in the van. Each is held out of delivery planning
+     * and shown to dispatch as a shortage; the rest check in.
+     */
+    val missing: List<PackageRefOnly>? = null,
+
+    /**
      * 090 — how each package was handed over at the hub.
      */
     val packages: List<PackageHandover>? = null,
 
     @SerialName("runId")
     val runID: String
+)
+
+/**
+ * 093 — a package named by its id or its label code.
+ */
+@Serializable
+data class PackageRefOnly (
+    val packageCode: String? = null,
+
+    @SerialName("packageId")
+    val packageID: String? = null
 )
 
 @Serializable
@@ -1050,6 +1098,11 @@ data class HubCheckinResponse (
     val effyCount: Long? = null,
 
     val effyGroups: List<HubCheckinEffyGroup>? = null,
+
+    /**
+     * 093 — packages declared not in the van at this check-in, now held for dispatch.
+     */
+    val held: Long? = null,
 
     /**
      * 092 — when the courier next collects from the hub, in the server's words ("4 pm",
@@ -1101,15 +1154,63 @@ data class LoadRequest (
     @SerialName("changeId")
     val changeID: String,
 
+    /**
+     * 093 — packages the driver could not load, each with a reason. Each comes off the run and
+     * is held at the hub for dispatch; a drop left with nothing comes off the run too.
+     */
+    val notLoaded: List<NotLoadedPackage>? = null,
+
     val packages: List<PackageHandover>? = null
 )
 
 @Serializable
+data class NotLoadedPackage (
+    val note: String? = null,
+    val packageCode: String? = null,
+
+    @SerialName("packageId")
+    val packageID: String? = null,
+
+    val reason: MissingReason
+)
+
+/**
+ * 093 — why a package did not go in the van. `other` needs a note.
+ */
+@Serializable
+enum class MissingReason(val value: String) {
+    @SerialName("damaged") Damaged("damaged"),
+    @SerialName("not_at_hub") NotAtHub("not_at_hub"),
+    @SerialName("other") Other("other"),
+    @SerialName("wrong_temperature") WrongTemperature("wrong_temperature");
+}
+
+@Serializable
 data class LoadResponse (
+    val dropsRemoved: Long? = null,
+
+    /**
+     * 093 — packages taken off the run as not loaded, and drops removed because nothing was
+     * left.
+     */
+    val held: Long? = null,
+
     /**
      * How many drops this call moved to out for delivery.
      */
     val loaded: Long
+)
+
+/**
+ * 093 — "Load the van": the run, and what goes in it.
+ */
+@Serializable
+data class LoadStep (
+    val dropCount: Long,
+    val packageCount: Long,
+
+    @SerialName("runId")
+    val runID: String
 )
 
 /**
@@ -1122,6 +1223,14 @@ data class DriverMeDTO (
     val id: String,
     val name: String,
     val vehicle: DriverVehicle,
+
+    /**
+     * 093 — today's pre-trip check of the vehicle the driver holds. `due` until it is answered
+     * (the driver is given no work until then), `unsafe` until a dispatcher clears it, `none`
+     * with no vehicle.
+     */
+    val vehicleCheck: DriverVehicleCheckState? = null,
+
     val workEmail: String,
 
     /**
@@ -1156,6 +1265,23 @@ data class DriverMeDTO (
 data class DriverVehicle (
     val plate: String? = null,
     val type: String? = null
+)
+
+/**
+ * 093 — the state of the driver's vehicle check today.
+ */
+@Serializable
+data class DriverVehicleCheckState (
+    /**
+     * `due` | `ok` | `unsafe` | `none` — a string on the wire; the app treats an unknown value
+     * as `ok`.
+     */
+    val state: String,
+
+    /**
+     * "Toyota HiAce · ABC123", for the check screen's title.
+     */
+    val vehicleLabel: String? = null
 )
 
 /**
@@ -1309,6 +1435,12 @@ data class TodayDTO (
      */
     val dueLabel: String? = null,
 
+    /**
+     * 093 — the current run is a delivery run that is open and not loaded: loading is the next
+     * step, and `active` is null. Nothing on a drop can be done before it.
+     */
+    val loadStep: LoadStep? = null,
+
     val map: RunMapDTO? = null,
 
     /**
@@ -1329,6 +1461,13 @@ data class TodayDTO (
     val progress: TodayProgress? = null,
 
     val remainingCount: Long,
+
+    /**
+     * 093 — the current run's stage (`RunStage`) and the same in words ("Collecting 2 of 5").
+     */
+    val stage: String? = null,
+
+    val stageLabel: String? = null,
 
     /**
      * 088 — the current round's parcels still to return to the hub. When that is the only work
@@ -1455,4 +1594,50 @@ data class UpcomingRound (
     val runID: String,
 
     val stopCount: Long
+)
+
+@Serializable
+data class VehicleCheckEntry (
+    val answer: VehicleCheckAnswer,
+    val item: VehicleCheckItem,
+    val note: String? = null
+)
+
+@Serializable
+enum class VehicleCheckAnswer(val value: String) {
+    @SerialName("minor") Minor("minor"),
+    @SerialName("ok") Ok("ok"),
+    @SerialName("unsafe") Unsafe("unsafe");
+}
+
+/**
+ * 093 — the six things a driver checks before taking the vehicle out.
+ */
+@Serializable
+enum class VehicleCheckItem(val value: String) {
+    @SerialName("body") Body("body"),
+    @SerialName("brakes") Brakes("brakes"),
+    @SerialName("cold_storage") ColdStorage("cold_storage"),
+    @SerialName("lights") Lights("lights"),
+    @SerialName("mirrors") Mirrors("mirrors"),
+    @SerialName("tyres") Tyres("tyres");
+}
+
+/**
+ * POST /driver/v1/vehicle-check — 093. Every item, once.
+ */
+@Serializable
+data class VehicleCheckRequest (
+    val answers: List<VehicleCheckEntry>,
+
+    @SerialName("changeId")
+    val changeID: String
+)
+
+@Serializable
+data class VehicleCheckResponse (
+    /**
+     * `ok` | `unsafe`.
+     */
+    val state: String
 )

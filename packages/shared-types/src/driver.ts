@@ -65,6 +65,48 @@ export interface DriverMeDTO {
   hub: string | null; // display label of the central hub (from delivery_settings)
   vehicle: DriverVehicle;
   dutyStatus: DriverDutyStatus;
+  /**
+   * 093 — today's pre-trip check of the vehicle the driver holds. `due` until it is answered (the
+   * driver is given no work until then), `unsafe` until a dispatcher clears it, `none` with no vehicle.
+   */
+  vehicleCheck?: DriverVehicleCheckState | null;
+}
+
+/** 093 — the state of the driver's vehicle check today. */
+export interface DriverVehicleCheckState {
+  /** `due` | `ok` | `unsafe` | `none` — a string on the wire; the app treats an unknown value as `ok`. */
+  state: string;
+  /** "Toyota HiAce · ABC123", for the check screen's title. */
+  vehicleLabel: string | null;
+}
+
+/** 093 — the six things a driver checks before taking the vehicle out. */
+export type VehicleCheckItem = "tyres" | "lights" | "brakes" | "mirrors" | "cold_storage" | "body";
+export type VehicleCheckAnswer = "ok" | "minor" | "unsafe";
+export const VEHICLE_CHECK_ITEMS: readonly VehicleCheckItem[] = ["tyres", "lights", "brakes", "mirrors", "cold_storage", "body"];
+export const VEHICLE_CHECK_WORDS: Record<VehicleCheckItem, string> = {
+  tyres: "Tyres",
+  lights: "Lights and indicators",
+  brakes: "Brakes",
+  mirrors: "Mirrors and windows",
+  cold_storage: "Cold storage",
+  body: "Body damage",
+};
+
+export interface VehicleCheckEntry {
+  item: VehicleCheckItem;
+  answer: VehicleCheckAnswer;
+  note?: string | null;
+}
+
+/** POST /driver/v1/vehicle-check — 093. Every item, once. */
+export interface VehicleCheckRequest {
+  changeId: string;
+  answers: VehicleCheckEntry[];
+}
+export interface VehicleCheckResponse {
+  /** `ok` | `unsafe`. */
+  state: string;
 }
 
 /** POST /driver/v1/duty */
@@ -222,6 +264,21 @@ export interface TodayDTO {
    * on it, `active` is `null` and this is what the driver is shown.
    */
   toReturn?: ParcelsToReturn | null;
+  /** 093 — the current run's stage (`RunStage`) and the same in words ("Collecting 2 of 5"). */
+  stage?: string | null;
+  stageLabel?: string | null;
+  /**
+   * 093 — the current run is a delivery run that is open and not loaded: loading is the next step, and
+   * `active` is null. Nothing on a drop can be done before it.
+   */
+  loadStep?: LoadStep | null;
+}
+
+/** 093 — "Load the van": the run, and what goes in it. */
+export interface LoadStep {
+  runId: string;
+  packageCount: WireInt;
+  dropCount: WireInt;
 }
 
 /**
@@ -299,6 +356,9 @@ export interface DriverCollectionRunDTO {
   hubSort?: HubSortInstruction[];
   /** 092 rev 2 — the run map. */
   map?: RunMapDTO | null;
+  /** 093 — the run's stage and its words. */
+  stage?: string | null;
+  stageLabel?: string | null;
 }
 
 /** 090 — one package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm". */
@@ -412,19 +472,15 @@ export interface PackageHandover {
 export interface CollectRequest {
   changeId: string;
   /**
-   * ⚠ ADDED BY 063, OPTIONAL BY DESIGN. Absent means what it has always meant: every package at this
-   * stop was collected. Present, it records each package's own outcome IN THE SAME REQUEST.
+   * Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one request,
+   * so it cannot half-happen).
    *
-   * That atomicity is the point (FR-026). With collect-all followed by a separate `/issue` call there
-   * is a window in which the platform believes a package is in the van and it is not — and if the
-   * second call never arrives (the driver walks out of signal, the app is killed), the window never
-   * closes and nobody is told. One request cannot half-happen.
-   *
-   * ⚠ It is OPTIONAL rather than required so the existing client call remains valid and no Kotlin
-   * call site changes. A required field here would have meant reworking the ViewModels behind
-   * several of 060's screens to say something the old shape already said correctly.
+   * ⚠ 093 — REQUIRED, AND ONLY WHAT IS NAMED IS SETTLED. Until 093 an absent package meant "collected",
+   * so a package added to the stop while the driver stood at the counter was recorded as in the van
+   * without anybody having seen it. A package not named here stays waiting, and the stop stays open
+   * (`CollectResponse.remaining`).
    */
-  packages?: Array<{
+  packages: Array<{
     packageId: string;
     outcome: "picked_up" | "not_available";
     note?: string | null;
@@ -434,6 +490,14 @@ export interface CollectRequest {
 }
 export interface CollectResponse {
   status: "collected";
+  /** 093 — how many were collected and declared not available by this call. */
+  collected?: WireInt;
+  notAvailable?: WireInt;
+  /**
+   * 093 — packages on the stop this request did not name (added while the driver was there). When
+   * more than 0 the stop is still open, and the app re-reads it and shows them.
+   */
+  remaining?: WireInt;
 }
 
 /** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue — report a missing/short package. */
@@ -452,6 +516,17 @@ export interface HubCheckinRequest {
   changeId: string;
   /** 090 — how each package was handed over at the hub. */
   packages?: PackageHandover[];
+  /**
+   * 093 — collected packages that are not in the van. Each is held out of delivery planning and shown
+   * to dispatch as a shortage; the rest check in.
+   */
+  missing?: PackageRefOnly[];
+}
+
+/** 093 — a package named by its id or its label code. */
+export interface PackageRefOnly {
+  packageId?: string;
+  packageCode?: string;
 }
 export interface HubCheckinResponse {
   scannedTotal: WireInt;
@@ -476,6 +551,8 @@ export interface HubCheckinResponse {
    * 10 am"); null when no courier parcel was checked in or no courier service is set up.
    */
   nextCourierPickupLabel?: string | null;
+  /** 093 — packages declared not in the van at this check-in, now held for dispatch. */
+  held?: WireInt;
 }
 
 /** 082 — the Effy parcels of one check-in that wait for one day and window. */
@@ -549,6 +626,9 @@ export interface DeliveryRunDTO {
   toReturn?: ParcelsToReturn | null;
   /** 092 rev 2 — the run map. */
   map?: RunMapDTO | null;
+  /** 093 — the run's stage and its words. */
+  stage?: string | null;
+  stageLabel?: string | null;
 }
 
 /**
@@ -588,10 +668,36 @@ export interface ParcelReturnRequest {
 export interface LoadRequest {
   changeId: string;
   packages?: PackageHandover[];
+  /**
+   * 093 — packages the driver could not load, each with a reason. Each comes off the run and is held
+   * at the hub for dispatch; a drop left with nothing comes off the run too.
+   */
+  notLoaded?: NotLoadedPackage[];
 }
+
+/** 093 — why a package did not go in the van. `other` needs a note. */
+export type MissingReason = "not_at_hub" | "damaged" | "wrong_temperature" | "other";
+
+export const MISSING_REASON_WORDS: Record<MissingReason, string> = {
+  not_at_hub: "Not at the hub",
+  damaged: "Damaged",
+  wrong_temperature: "Wrong temperature",
+  other: "Other",
+};
+
+export interface NotLoadedPackage {
+  packageId?: string;
+  packageCode?: string;
+  reason: MissingReason;
+  note?: string | null;
+}
+
 export interface LoadResponse {
   /** How many drops this call moved to out for delivery. */
   loaded: WireInt;
+  /** 093 — packages taken off the run as not loaded, and drops removed because nothing was left. */
+  held?: WireInt;
+  dropsRemoved?: WireInt;
 }
 export interface ParcelReturnResponse {
   /** How many parcels this call returned; 0 when nothing was left to return. */
@@ -657,11 +763,14 @@ export interface DeliveryDropDTO {
    * null otherwise, or when the customer gave none. Never in history or run lists.
    */
   customerPhone?: string | null;
+  /** 093 — the van has been loaded with this drop. Until it is, nothing on the drop can be done. */
+  loaded?: boolean;
 }
 
 /** POST /driver/v1/delivery/drops/{dropId}/status */
 export interface DropStatusRequest {
-  to: "out_for_delivery" | "en_route" | "arrived";
+  /** 093 — `out_for_delivery` is written only by loading the van. */
+  to: "en_route" | "arrived";
   changeId: string;
 }
 export interface DropStatusResponse {

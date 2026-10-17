@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import type { DeliveryDaysDTO } from "@effy/shared-types";
-import { Button, Input, Label } from "@effy/design-system/ui";
+import { Button, Checkbox, Input, Label } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { deliveryMutationError, fieldErrors, HUB_NOT_SET } from "../errorText";
@@ -46,6 +46,10 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
   const [hold, setHold] = useState(String(value.slotHoldMin));
   const [turnaround, setTurnaround] = useState(String(value.hubTurnaroundMin));
   const [asapEstimate, setAsapEstimate] = useState(value.asapEstimate ?? "");
+  // 093 — drivers' work: when a late step is raised to dispatch, and the daily vehicle check.
+  const [loadOverdue, setLoadOverdue] = useState(String(value.loadOverdueMin ?? 20));
+  const [checkinOverdue, setCheckinOverdue] = useState(String(value.checkinOverdueMin ?? 30));
+  const [vehicleCheck, setVehicleCheck] = useState(value.vehicleCheckRequired ?? false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -57,6 +61,9 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
     setHold(String(value.slotHoldMin));
     setTurnaround(String(value.hubTurnaroundMin));
     setAsapEstimate(value.asapEstimate ?? "");
+    setLoadOverdue(String(value.loadOverdueMin ?? 20));
+    setCheckinOverdue(String(value.checkinOverdueMin ?? 30));
+    setVehicleCheck(value.vehicleCheckRequired ?? false);
   }, [value]);
 
   function toggle(day: number) {
@@ -76,6 +83,9 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
         slotHoldMin: Number(hold),
         hubTurnaroundMin: Number(turnaround),
         asapEstimate: asapEstimate.trim(),
+        loadOverdueMin: Number(loadOverdue),
+        checkinOverdueMin: Number(checkinOverdue),
+        vehicleCheckRequired: vehicleCheck,
       });
       setSaved(true);
     } catch (err) {
@@ -186,6 +196,43 @@ function SettingsForm({ value, canManage }: { value: DeliveryDaysDTO; canManage:
           hold,
           setHold,
         )}
+      </section>
+
+      <section className="space-y-4 border-t pt-6">
+        <h2 className="text-base font-semibold">Drivers&apos; work</h2>
+        {number(
+          "loadOverdueMin",
+          "Tell dispatch when a van isn't loaded after (minutes)",
+          "From when a delivery run opens. It is listed on Exceptions until it is loaded.",
+          loadOverdue,
+          setLoadOverdue,
+        )}
+        {number(
+          "checkinOverdueMin",
+          "Tell dispatch when collected parcels aren't checked in after (minutes)",
+          "From the run's last shop. It is listed on Exceptions until the parcels are checked in at the hub.",
+          checkinOverdue,
+          setCheckinOverdue,
+        )}
+        <div className="flex items-start gap-3">
+          <Checkbox
+            id="days-vehicleCheckRequired"
+            className="mt-1"
+            checked={vehicleCheck}
+            disabled={!canManage}
+            onCheckedChange={(v) => {
+              setSaved(false);
+              setVehicleCheck(v === true);
+            }}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="days-vehicleCheckRequired">Drivers check their vehicle before taking work</Label>
+            <p className="text-sm text-muted-foreground">
+              Once a day, in the driver app. Anything unsafe and the driver gets no work until you clear it on
+              Exceptions. Turn on only once every driver has the app version that asks.
+            </p>
+          </div>
+        </div>
       </section>
 
       {canManage ? (

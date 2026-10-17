@@ -64,8 +64,24 @@ const SCHEMA = `
   CREATE TABLE public.vehicle (
     id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     registration_plate text NOT NULL,
+    make               text NOT NULL DEFAULT 'Toyota',
+    model              text NOT NULL DEFAULT 'HiAce',
     body_type          text NOT NULL,
     status             text NOT NULL DEFAULT 'available'
+  );
+
+  -- 093 — what the daily vehicle check reads.
+  CREATE TABLE public.delivery_settings (
+    id                     int PRIMARY KEY,
+    vehicle_check_required boolean NOT NULL DEFAULT false
+  );
+  CREATE TABLE public.vehicle_check (
+    id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    driver_id  uuid NOT NULL,
+    vehicle_id uuid NOT NULL,
+    local_date date NOT NULL,
+    unsafe     boolean NOT NULL DEFAULT false,
+    cleared_at timestamptz
   );
 
   CREATE TABLE public.vehicle_holding (

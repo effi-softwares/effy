@@ -8,6 +8,7 @@ import type { DropFailRequest, DropFailResponse } from "@effy/shared-types";
 import { authenticate } from "../driver/guard";
 import { DropNotFoundError, ProofValidationError, submitFailure } from "../proof/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
+import { SequenceError, sequenceProblem } from "../work/sequence";
 
 /**
  * POST /driver/v1/delivery/drops/{dropId}/fail (064, US2).
@@ -57,6 +58,7 @@ export const handler = async (
   } catch (err) {
     // 072 — the round has not opened. Nothing was written; the answer says when it will.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
+    if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof ProofValidationError) {
       return problem(422, "validation_failed", "Cannot record that", err.detail, guard.scope, [
         { field: err.field, message: err.detail },

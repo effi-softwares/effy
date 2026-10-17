@@ -202,6 +202,19 @@ export function planWave(input: AssignInput): WavePlan {
       }
     }
 
+    // ⚠ 093 — ONE TRIP: THE DRIVER WHO BROUGHT IT TO THE HUB TAKES IT ON. They are standing at the hub
+    // with it; sending another driver costs a second person and a second trip. Only when they pass every
+    // gate above (cleared, a vehicle that can carry it, time to finish) — eligibility is never bent —
+    // and only after an order's packages are kept together (the visiting rule above).
+    if (kind === "delivery" && pkg.collectedBy) {
+      const collector = eligible.find((r) => r.candidate.driverId === pkg.collectedBy);
+      if (collector) {
+        place(collector, pkg);
+        notes.set(pkg.packageId, "Auto-assigned — collected it, continuing to delivery");
+        continue;
+      }
+    }
+
     const loads = eligible.map((r) => ({
       driverId: r.candidate.driverId,
       packagesAssignedToday: loadOf(r.candidate.driverId),

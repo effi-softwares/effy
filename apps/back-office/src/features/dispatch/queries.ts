@@ -47,3 +47,9 @@ export const useUnassignRound = (id: string) =>
 export const useReorderStops = (id: string) =>
   useDispatchMutation<ReorderStopsInput>((body) => repo.reorder(id, body));
 
+
+/** 093 — waive the order of work for one run. */
+export const useWaiveSequence = (id: string) =>
+  useDispatchMutation<string>(async (reason) => {
+    await repo.waiveSequence(id, reason);
+  });

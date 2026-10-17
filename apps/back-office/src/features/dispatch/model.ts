@@ -23,6 +23,9 @@ export const REASON_TEXT: Record<ExclusionReasonDTO, string> = {
   no_refrigeration: "Vehicle cannot carry these goods",
   over_capacity: "Round too heavy for the vehicle",
   cannot_meet_deadline: "Cannot finish in time",
+  // 093
+  vehicle_check_due: "Vehicle not checked today",
+  vehicle_unsafe: "Vehicle found unsafe — clear it on Exceptions",
 };
 
 /**

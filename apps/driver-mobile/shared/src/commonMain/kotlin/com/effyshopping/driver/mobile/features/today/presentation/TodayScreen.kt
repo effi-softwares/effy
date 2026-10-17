@@ -108,6 +108,8 @@ fun TodayScreen(
     onOpenReturn: (runId: String, scan: Boolean) -> Unit,
     onNavigate: (String) -> Unit,
     banners: @Composable () -> Unit = {},
+    /** 093 — answer today's vehicle check. */
+    onSubmitVehicleCheck: (List<com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer>) -> Unit = {},
 ) {
     var confirmOffDuty by remember { mutableStateOf(false) }
     val onDuty = state.dutyStatus == DutyStatus.ON_DUTY
@@ -136,6 +138,9 @@ fun TodayScreen(
             val today = state.today
             when {
                 !onDuty -> OffDuty(busy = state.isTogglingDuty, onGoOnDuty = onToggleDuty)
+                // 093 — before any work, the vehicle is checked; until it is, none is given.
+                state.vehicleCheck == com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus.DUE ->
+                    VehicleCheckForm(state.vehicleLabel, state.isSubmittingCheck, onSubmitVehicleCheck)
                 today == null && state.loadFailed -> DriverState(
                     Res.drawable.lucide_circle_alert,
                     title = "We couldn't load your run",
@@ -144,7 +149,16 @@ fun TodayScreen(
                     onAction = onRefresh,
                 )
                 today == null -> TodaySkeleton()
-                else -> OnDuty(today, driver.hub, state.isReturning, onOpenRun, onOpenItem, onOpenReturn, onNavigate)
+                else -> {
+                    if (state.vehicleCheck == com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus.UNSAFE) {
+                        DriverAlert(
+                            DriverAlertKind.Problem, Res.drawable.lucide_circle_alert,
+                            title = "Your vehicle check found something unsafe",
+                            description = "Dispatch has been told. You'll get work once it's fixed and cleared.",
+                        )
+                    }
+                    OnDuty(today, driver.hub, state.isReturning, onOpenRun, onOpenItem, onOpenReturn, onNavigate)
+                }
             }
         }
     }
@@ -221,6 +235,8 @@ private fun OnDuty(
     val toReturn = today.toReturn
     when {
         runId != null && active != null -> CurrentRun(today, runId, active, hub, onOpenRun, onOpenItem, onNavigate)
+        // 093 — a delivery run not yet loaded has one next step, before any drop.
+        today.loadStep != null -> LoadStepCard(today, today.loadStep, onOpenRun)
         toReturn != null -> ReturnStep(today, onOpenReturn, onNavigate, returning)
         else -> {
             DriverState(
@@ -489,6 +505,41 @@ private fun TextLink(label: String, onClick: () -> Unit) {
 }
 
 /** 088 — only parcels from failed drops are left: take them back to the hub (redesign `07 Today — return parcels`). */
+/**
+ * 093 — "Load the van": the first step of a delivery run, and the only one until it is done. The drops
+ * are listed after it; none of them can be started before the van is loaded.
+ */
+@Composable
+private fun LoadStepCard(today: Today, step: com.effyshopping.driver.mobile.features.today.domain.LoadStep, onOpenRun: (String, Phase) -> Unit) {
+    val open = rememberIsOpen(today.opening)
+    RunHead(today, collection = false, onOpenRun = { onOpenRun(step.runId, today.phase) })
+    val shape = EffyStorefrontShape.banner
+    Column(
+        Modifier.fillMaxWidth().clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        DriverStatusPill(DriverStatus.Next, label = "First step", showIcon = false)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Load the van", fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "${if (step.packageCount == 1) "1 package" else "${step.packageCount} packages"} for " +
+                    "${if (step.dropCount == 1) "1 drop" else "${step.dropCount} drops"}. Load the last drops first, so drop 1 ends up nearest the door.",
+                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (!open && today.opening != null) {
+            Text("Opens ${today.opening.label}. Look through the run now.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        DriverButton(
+            if (open) "Load the van" else "View the run",
+            onClick = { onOpenRun(step.runId, today.phase) },
+            icon = Res.drawable.lucide_scan_line,
+            style = if (open) DriverButtonStyle.Primary else DriverButtonStyle.Secondary,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
 @Composable
 private fun ReturnStep(today: Today, onOpenReturn: (String, Boolean) -> Unit, onNavigate: (String) -> Unit, returning: Boolean) {
     val toReturn = today.toReturn ?: return

@@ -18,6 +18,9 @@ const SEVERITY: Record<ExclusionReason, ReasonSeverity> = {
   over_capacity: "cannot",
   not_cleared: "concern",
   cannot_meet_deadline: "concern",
+  // 093 — facts about the vehicle a person cannot wave through: check it, or clear it on Exceptions.
+  vehicle_check_due: "cannot",
+  vehicle_unsafe: "cannot",
 };
 
 const WORDS: Record<ExclusionReason, string> = {
@@ -29,6 +32,8 @@ const WORDS: Record<ExclusionReason, string> = {
   over_capacity: "Van too full",
   not_cleared: "Not cleared for this area",
   cannot_meet_deadline: "Round may run late",
+  vehicle_check_due: "Vehicle not checked today",
+  vehicle_unsafe: "Vehicle found unsafe",
 };
 
 export function reasonSeverity(reason: ExclusionReason): ReasonSeverity {

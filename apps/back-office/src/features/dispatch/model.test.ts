@@ -1,3 +1,4 @@
+import { RUN_STAGE_WORDS, runStage } from "@effy/shared-types";
 import { describe, expect, it } from "vitest";
 
 import type { ExclusionReasonDTO } from "@effy/shared-types";
@@ -26,12 +27,20 @@ describe("describeReasons", () => {
       "no_refrigeration",
       "over_capacity",
       "cannot_meet_deadline",
+      "vehicle_check_due",
+      "vehicle_unsafe",
     ];
     for (const r of all) {
       expect(REASON_TEXT[r], `${r} has no wording`).toBeTruthy();
       expect(REASON_TEXT[r]).not.toMatch(/_/); // never the raw enum
     }
     expect(Object.keys(REASON_TEXT).sort()).toEqual([...all].sort());
+  });
+
+  it("093 — every stage reads as words, the same words the driver's app shows", () => {
+    expect(runStage({ kind: "delivery", status: "in_progress", shopsTotal: 0, shopsSettled: 0, checkedIn: false, dropsTotal: 9, dropsPending: 0, dropsFinished: 4, toReturn: 0 }).label)
+      .toBe("Out 4 of 9");
+    for (const words of Object.values(RUN_STAGE_WORDS)) expect(words).not.toMatch(/_/);
   });
 
   it("joins several reasons readably", () => {

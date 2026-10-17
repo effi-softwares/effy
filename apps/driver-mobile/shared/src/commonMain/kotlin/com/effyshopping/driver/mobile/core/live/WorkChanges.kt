@@ -54,12 +54,12 @@ class SignallingCollectionRepository(
     private val inner: CollectionRepository,
     private val work: WorkChanges,
 ) : CollectionRepository by inner {
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): WriteOutcome =
-        inner.collect(runId, stopId, changeId, outcomes).also { if (it.reached()) work.changed() }
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): com.effyshopping.driver.mobile.features.collection.domain.Collected =
+        inner.collect(runId, stopId, changeId, outcomes).also { if (it.outcome.reached()) work.changed() }
 
     // A check-in answers with where the parcels go once the platform has it; null is saved to send.
-    override suspend fun checkIn(runId: String, changeId: String, handed: List<HandedOver>): HubSplit? =
-        inner.checkIn(runId, changeId, handed).also { if (it != null) work.changed() }
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<HandedOver>, missing: List<String>): HubSplit? =
+        inner.checkIn(runId, changeId, handed, missing).also { if (it != null) work.changed() }
 }
 
 /** The delivery writes, saying so when they land. */
@@ -80,8 +80,9 @@ class SignallingDeliveryRepository(
     override suspend fun returnToHub(runId: String, changeId: String, handed: List<HandedOver>): WriteOutcome =
         inner.returnToHub(runId, changeId, handed).also { if (it.reached()) work.changed() }
 
-    override suspend fun load(runId: String, changeId: String, handed: List<HandedOver>): WriteOutcome =
-        inner.load(runId, changeId, handed).also { if (it.reached()) work.changed() }
+    override suspend fun load(
+        runId: String, changeId: String, handed: List<HandedOver>, notLoaded: List<com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded>,
+    ): WriteOutcome = inner.load(runId, changeId, handed, notLoaded).also { if (it.reached()) work.changed() }
 }
 
 /** Going on or off duty changes what Today shows. */
@@ -91,4 +92,10 @@ class SignallingDriverRepository(
 ) : DriverRepository by inner {
     override suspend fun setDuty(onDuty: Boolean, changeId: String): Driver =
         inner.setDuty(onDuty, changeId).also { work.changed() }
+
+    // 093 — a check answered changes whether work can come.
+    override suspend fun submitVehicleCheck(
+        changeId: String, answers: List<com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer>,
+    ): com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus =
+        inner.submitVehicleCheck(changeId, answers).also { work.changed() }
 }

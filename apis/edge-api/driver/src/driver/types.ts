@@ -20,6 +20,10 @@ export interface DriverRecord {
   coverageLabel: string | null;
   vehicleType: string | null;
   vehiclePlate: string | null;
+  /** 093 — the vehicle behind the open holding, its label, and today's check of it. */
+  vehicleId?: string | null;
+  vehicleLabel?: string | null;
+  vehicleCheck?: "none" | "ok" | "due" | "unsafe";
   status: DriverStatus;
   dutyStatus: DutyStatus;
   onDutySince: string | null; // ISO 8601; null when off duty

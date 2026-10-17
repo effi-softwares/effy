@@ -174,6 +174,11 @@ fun ScanPanel(
     grouped: Boolean = false,
     message: String? = null,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
+    /**
+     * 093 — the fallback, told what has been scanned so far. Set where the step accounts for every
+     * package (loading, check-in): what was scanned stays scanned, and the rest are asked about.
+     */
+    onFallbackWith: ((List<HandedOver>) -> Unit)? = null,
 ) {
     val session = remember(context) { ScanSession(context) }
     val methods = remember(context) { mutableStateMapOf<String, HandMethod>() }
@@ -307,7 +312,14 @@ fun ScanPanel(
         } else {
             DriverActionBar {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    DriverButton(fallbackLabel, onClick = onFallback, style = DriverButtonStyle.Outline, tall = false, modifier = Modifier.weight(1f))
+                    DriverButton(
+                        fallbackLabel,
+                        onClick = {
+                            val with = onFallbackWith
+                            if (with != null) with(session.scanned.map { HandedOver(it, methods[it] ?: HandMethod.MANUAL) }) else onFallback()
+                        },
+                        style = DriverButtonStyle.Outline, tall = false, modifier = Modifier.weight(1f),
+                    )
                     if (secondaryLabel != null && onSecondary != null) {
                         DriverButton(secondaryLabel, onClick = onSecondary, style = DriverButtonStyle.Ghost, tall = false)
                     }

@@ -344,6 +344,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
+  driverVehicleCheckV1:
+    handler: src/functions/driver-vehicle-check-v1-post.handler
+    description: 093 — the driver's daily check of the vehicle they hold; an unsafe answer means no work until dispatch clears it.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/vehicle-check
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
   driverDevicesV1Post:
     handler: src/functions/driver-devices-v1-post.handler
     description: Register/refresh this device's FCM push token for the signed-in driver (050)

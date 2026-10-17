@@ -33,7 +33,9 @@ export type VehicleAuditAction =
   | "vehicle.updated"
   | "vehicle.status_changed"
   | "vehicle.holding_issued"
-  | "vehicle.holding_returned";
+  | "vehicle.holding_returned"
+  // 093 — a dispatcher cleared a vehicle check that found something unsafe.
+  | "vehicle.check_cleared";
 
 /**
  * ⚠ 063 — what a DISPATCHER did by hand (FR-033). These are the actions that override the wave
@@ -53,7 +55,10 @@ export type DispatchAuditAction =
   // when is the only record there will ever be.
   | "dispatch.exception_resolve"
   // 088 — a staff member recorded that a driver's failed parcels were handed in at the hub.
-  | "dispatch.parcels_returned";
+  | "dispatch.parcels_returned"
+  // 093 — a dispatcher let a run skip the cross-run gate, or decided a package a driver declared missing.
+  | "dispatch.sequence_waived"
+  | "dispatch.hold_resolved";
 
 /**
  * 069 — delivery capacity and calendar. Each of these changes what a CUSTOMER is offered at checkout
@@ -86,7 +91,10 @@ export type AuditTargetType =
   | "driver_round"
   | "delivery_exception"
   | "delivery_slot"
-  | "delivery_settings";
+  | "delivery_settings"
+  // 093
+  | "package_hold"
+  | "vehicle_check";
 
 /**
  * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.

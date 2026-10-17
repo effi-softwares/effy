@@ -49,15 +49,19 @@ private class FakeCollectionRepo(
     /** When true, writes answer as saved-to-send, as the real repository does with no signal. */
     var offline = false
     val changeIds = mutableListOf<String>()
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): WriteOutcome {
+    /** 093 — how many packages the next collect leaves waiting (added while the driver was there). */
+    var remaining = 0
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): com.effyshopping.driver.mobile.features.collection.domain.Collected {
         fail?.let { throw AppException(it) }; collectedStop = stopId; this.outcomes = outcomes
         changeIds += changeId
-        return if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT
+        return com.effyshopping.driver.mobile.features.collection.domain.Collected(if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT, remaining)
     }
     var handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()
-    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): HubSplit? {
+    var missing: List<String> = emptyList()
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<String>): HubSplit? {
         fail?.let { throw AppException(it) }
         this.handed = handed
+        this.missing = missing
         changeIds += changeId
         return if (offline) null else split!!
     }
@@ -187,6 +191,26 @@ class CollectionViewModelTest {
         v.collect("s1") { done = true }
         assertEquals("s1", repo.collectedStop)
         assertEquals(true, done)
+    }
+
+    /** 093 — a package added while the driver was at the counter: the stop stays open and says so. */
+    @Test fun a_package_added_meanwhile_keeps_the_stop_open() = runTest {
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a")); remaining = 1 }
+        val v = vm(repo); v.loadStop("s1")
+        repo.packages = listOf(pkg("a"), pkg("b"))
+        var done = false
+        v.collect("s1") { done = true }
+        assertEquals(false, done)
+        assertEquals("1 more package was added — collect it before you leave.", v.state.value.message)
+        assertEquals(listOf("a", "b"), v.state.value.stop?.packages?.map { it.packageId })
+    }
+
+    /** 093 — packages not in the van ride the check-in. */
+    @Test fun missing_packages_ride_the_check_in() = runTest {
+        val repo = FakeCollectionRepo(split = HubSplit(1, 1, 0))
+        val v = vm(repo)
+        v.checkIn(emptyList(), listOf("ZZZZZZ"))
+        assertEquals(listOf("ZZZZZZ"), repo.missing)
     }
 
     private fun pkg(id: String) = CollectionPackage(

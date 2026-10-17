@@ -43,6 +43,7 @@ export function toMeDTO(record: DriverRecord): DriverMeDTO {
     hub: HUB_LABEL,
     vehicle: { type: record.vehicleType, plate: record.vehiclePlate },
     dutyStatus: record.dutyStatus,
+    vehicleCheck: { state: record.vehicleCheck ?? "none", vehicleLabel: record.vehicleLabel ?? null },
   };
 }
 

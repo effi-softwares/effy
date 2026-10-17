@@ -30,6 +30,11 @@ export interface PlannablePackage {
    */
   windowStart: Date | null;
   windowEnd: Date | null;
+  /**
+   * 093 — delivery work only: the driver who collected it and checked it in at the hub. Preferred for
+   * delivering it, so a driver's collecting and delivering are one trip. Absent or null otherwise.
+   */
+  collectedBy?: string | null;
 }
 
 /** One driver the wave may give work to. */
@@ -51,6 +56,8 @@ export interface PlannerCandidate {
     zoneId: string | null;
   }>;
   packagesAssignedToday: number;
+  /** 093 — today's vehicle check, when it stands in the way (`due` or `unsafe`). */
+  vehicleCheck?: "ok" | "due" | "unsafe";
 }
 
 /** Why one package could not go to one driver — or, with `driverId: null`, to anybody at all. */

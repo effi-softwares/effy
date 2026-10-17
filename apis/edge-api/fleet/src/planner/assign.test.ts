@@ -353,3 +353,66 @@ describe("planWave — how it was assigned, in one line (073)", () => {
   });
 });
 
+
+// ── 093 — one trip: the collector delivers what they brought to the hub ─────────────────────────
+
+describe("planWave — the collector is preferred for delivery (093 US3)", () => {
+  const deliveryDriver = (driverId: string, packagesAssignedToday = 0, over: Partial<PlannerCandidate> = {}) =>
+    driver({ driverId, packagesAssignedToday, clearances: [{ function: "delivery", zoneId: "zone-1" }], ...over });
+  const delivery = (over: Partial<AssignInput>) => plan({ kind: "delivery", ...over });
+
+  it("gives the parcel to the driver who collected it, even when another has fewer packages today", () => {
+    const out = delivery({
+      packages: [pkg({ packageId: "p1", orderId: "o1", collectedBy: "busy" })],
+      candidates: [deliveryDriver("idle", 0), deliveryDriver("busy", 30)],
+    });
+    expect(out.assignments.get("busy")?.map((p) => p.packageId)).toEqual(["p1"]);
+    expect(out.notes.get("p1")).toBe("Auto-assigned — collected it, continuing to delivery");
+  });
+
+  it("falls back to the fewest-packages rule when the collector cannot take it", () => {
+    const out = delivery({
+      packages: [pkg({ packageId: "p1", orderId: "o1", collectedBy: "nofridge", requiresChilled: true })],
+      candidates: [
+        deliveryDriver("nofridge", 0, { vehicle: { vehicleId: "v2", payloadKg: 900, canCarryChilled: false, canCarryFrozen: false } }),
+        deliveryDriver("other", 5),
+      ],
+    });
+    expect(out.assignments.get("other")?.map((p) => p.packageId)).toEqual(["p1"]);
+    expect(out.notes.get("p1")).toMatch(/fewest packages|only driver/);
+  });
+
+  it("keeps an order together before preferring the collector", () => {
+    const rounds: BucketRound[] = [
+      { roundId: "r-other", driverId: "other", status: "planned", weightGrams: 1000, stops: [{ key: "o1", outstanding: true }] },
+    ];
+    const out = delivery({
+      packages: [pkg({ packageId: "p2", orderId: "o1", collectedBy: "collector" })],
+      candidates: [deliveryDriver("other", 9), deliveryDriver("collector", 0)],
+      rounds,
+    });
+    expect(out.additions.get("r-other")?.map((p) => p.packageId)).toEqual(["p2"]);
+  });
+
+  it("never adds to a delivery round already loaded and under way, even the collector's own", () => {
+    const rounds: BucketRound[] = [
+      { roundId: "r-out", driverId: "collector", status: "in_progress", weightGrams: 1000, stops: [{ key: "o1", outstanding: true }] },
+    ];
+    const out = delivery({
+      packages: [pkg({ packageId: "p3", orderId: "o1", collectedBy: "collector" })],
+      candidates: [deliveryDriver("collector", 0)],
+      rounds,
+    });
+    expect(out.additions.get("r-out")).toBeUndefined();
+    // It goes on a round not yet loaded — a new one for the same driver.
+    expect(out.assignments.get("collector")?.map((p) => p.packageId)).toEqual(["p3"]);
+  });
+
+  it("collection work ignores the field", () => {
+    const out = plan({
+      packages: [pkg({ packageId: "p1", collectedBy: "nobody" })],
+      candidates: [driver({ driverId: "d1" })],
+    });
+    expect(out.assignments.get("d1")?.map((p) => p.packageId)).toEqual(["p1"]);
+  });
+});

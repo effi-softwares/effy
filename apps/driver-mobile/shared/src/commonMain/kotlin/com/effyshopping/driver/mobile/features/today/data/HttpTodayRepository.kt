@@ -98,6 +98,7 @@ private fun TodayDTO.toDomain(): Today = Today(
     },
     map = map?.toDomain(),
     toReturn = toReturn?.let { it.toParcels() },
+    loadStep = loadStep?.let { com.effyshopping.driver.mobile.features.today.domain.LoadStep(it.runID, it.packageCount.toInt(), it.dropCount.toInt()) },
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(

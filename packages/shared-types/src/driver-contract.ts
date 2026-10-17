@@ -58,6 +58,13 @@ import type {
   TimelineEntry,
   ActivityItem,
   ActivityReadRequest,
+  DriverVehicleCheckState,
+  VehicleCheckEntry,
+  VehicleCheckRequest,
+  VehicleCheckResponse,
+  LoadStep,
+  PackageRefOnly,
+  NotLoadedPackage,
 } from "./driver";
 import type { ProblemJSON } from "./problem";
 
@@ -111,5 +118,12 @@ export interface DriverContract {
   timelineEntry: TimelineEntry;
   activityItem: ActivityItem;
   activityRead: ActivityReadRequest;
+  vehicleCheckState: DriverVehicleCheckState;
+  vehicleCheckEntry: VehicleCheckEntry;
+  vehicleCheckRequest: VehicleCheckRequest;
+  vehicleCheckResponse: VehicleCheckResponse;
+  loadStep: LoadStep;
+  packageRef: PackageRefOnly;
+  notLoadedPackage: NotLoadedPackage;
   problem: ProblemJSON;
 }

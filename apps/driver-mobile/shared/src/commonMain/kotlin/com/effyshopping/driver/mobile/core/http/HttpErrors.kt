@@ -27,7 +27,12 @@ internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (s
     403 -> AppError.Forbidden
     404 -> AppError.NotFound
     // 072 — "not open yet" is its own answer, not a conflict: see AppError.NotOpenYet.
-    409 -> if (problem?.type == ROUND_NOT_OPEN) AppError.NotOpenYet(problem.opening()) else AppError.Conflict
+    409 -> when {
+        problem?.type == ROUND_NOT_OPEN -> AppError.NotOpenYet(problem.opening())
+        // 093 — out of turn: the server's sentence says what to do first.
+        problem?.type in OUT_OF_TURN -> AppError.OutOfTurn(problem?.detail ?: "Do the step before this one first.")
+        else -> AppError.Conflict
+    }
     429 -> AppError.RateLimited()
     in 500..599 -> AppError.Unavailable
     // The proof, presign and fail routes answer 422 with a sentence written for the driver.
@@ -37,6 +42,11 @@ internal fun appErrorFor(status: Int, problem: ProblemJSON?): AppError = when (s
 
 /** The problem type every route that progresses a round answers with before the round opens (072). */
 private const val ROUND_NOT_OPEN = "round_not_open"
+
+/** 093 — the order-of-work refusals (`sequence.ts` in the driver service). */
+private val OUT_OF_TURN = setOf(
+    "stops_outstanding", "run_not_loaded", "finish_collection_first", "return_parcels_first", "finish_deliveries_first",
+)
 
 /** The opening the refusal carries, as its `opensAt` and `opensLabel` field issues. */
 private fun ProblemJSON.opening(): Opening? {

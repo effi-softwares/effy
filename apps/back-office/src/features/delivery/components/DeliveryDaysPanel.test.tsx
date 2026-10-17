@@ -68,6 +68,8 @@ describe("DeliveryDaysPanel", () => {
     await waitFor(() =>
       expect(repo.putDeliveryDays).toHaveBeenCalledWith({
         effyLookaheadDays: 5, noDeliveryWeekdays: [6, 7], slotHoldMin: 10, hubTurnaroundMin: 60, asapEstimate: "usually within 2–3 days",
+        // 093 — kept as they were read (the fixture carries none: the defaults).
+        loadOverdueMin: 20, checkinOverdueMin: 30, vehicleCheckRequired: false,
       }),
     );
     expect(await screen.findByText(/the next checkout uses these/i)).toBeInTheDocument();

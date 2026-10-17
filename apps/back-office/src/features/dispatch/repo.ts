@@ -1,4 +1,5 @@
 import type {
+  StaffActionResponse,
   DispatchDayDTO,
   DispatchWindowsResponse,
   ReassignRoundInput,
@@ -33,4 +34,9 @@ export async function unassign(id: string, expectedUpdatedAt: string): Promise<v
 
 export async function reorder(id: string, body: ReorderStopsInput): Promise<void> {
   await api.post(`/fleet/v1/dispatch/rounds/${id}/reorder`, body);
+}
+
+/** 093 — let one run skip the order of work, with a reason. */
+export async function waiveSequence(id: string, reason: string): Promise<StaffActionResponse> {
+  return api.post<StaffActionResponse>(`/fleet/v1/dispatch/rounds/${id}/waive-sequence`, { reason });
 }

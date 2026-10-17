@@ -69,6 +69,7 @@ import com.effyshopping.driver.mobile.resources.lucide_phone
 import com.effyshopping.driver.mobile.resources.lucide_snowflake
 import com.effyshopping.driver.mobile.resources.lucide_house
 import com.effyshopping.driver.mobile.resources.lucide_scan_line
+import com.effyshopping.driver.mobile.resources.lucide_truck
 import com.effyshopping.driver.mobile.core.scan.HandedOver
 import com.effyshopping.driver.mobile.core.scan.ScanContext
 import com.effyshopping.driver.mobile.core.scan.ScanContexts
@@ -128,7 +129,7 @@ fun DropScreen(
         state.delivered -> DeliveredView(drop, state, next?.let { it.street ?: it.customerSuburb }, runDone, runTotal, onNext = onNext, onBackToRun = onBackToRun)
         state.failed -> NotDeliveredView(drop, state, hubName, next?.let { it.street ?: it.customerSuburb }, onNext = onNext, onBackToRun = onBackToRun, onCallDispatch = onCallDispatch)
         drop.status.isClosed -> ClosedView(drop, onBack)
-        else -> OpenDrop(drop, state, position, runTotal, onBack, onNavigate, onCall, onDeliver, onFail, onCameraDenied, startScanning)
+        else -> OpenDrop(drop, state, position, runTotal, onBack, onNavigate, onCall, onDeliver, onFail, onCameraDenied, startScanning, onBackToRun)
     }
 }
 
@@ -145,10 +146,12 @@ private fun OpenDrop(
     onFail: (FailureReason, String?) -> Unit,
     onCameraDenied: () -> Unit,
     startScanning: Boolean,
+    onBackToRun: () -> Unit,
 ) {
     val canScan = drop.packages.any { it.packageCode != null }
     var stage by rememberSaveable(drop.dropId) {
-        mutableStateOf(if (startScanning && canScan && rememberIsOpenNow(drop)) DropStage.Scan else DropStage.Detail)
+        // 093 — never straight to the door scan for a drop that is still at the hub.
+        mutableStateOf(if (startScanning && canScan && drop.loaded && rememberIsOpenNow(drop)) DropStage.Scan else DropStage.Detail)
     }
     var method by rememberSaveable(drop.dropId) {
         mutableStateOf(if (drop.handover == Handover.MeetAtDoor) ProofMethod.PHOTO else ProofMethod.CONTACTLESS)
@@ -235,6 +238,7 @@ private fun OpenDrop(
             DropDetail(drop, title, open, state.message, onBack, onNavigate, onCall,
                 onDeliver = { stage = if (canScan) DropStage.Scan else DropStage.Choose },
                 onCantDeliver = { stage = DropStage.CantDeliver },
+                onLoadVan = onBackToRun,
             )
             if (stage == DropStage.Choose) {
                 ProofChooser(
@@ -262,6 +266,8 @@ private fun DropDetail(
     onCall: (String) -> Unit,
     onDeliver: () -> Unit,
     onCantDeliver: () -> Unit,
+    /** 093 — to the run, where the van is loaded. */
+    onLoadVan: () -> Unit,
 ) {
     val (street, rest) = splitAddress(drop.addressFull)
     val firstName = drop.customerName.trim().substringBefore(' ').ifBlank { null }
@@ -320,12 +326,21 @@ private fun DropDetail(
                     Text("Not open yet · ${opening.sentence}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                DriverButton("Can't deliver", onClick = onCantDeliver, style = DriverButtonStyle.Outline, enabled = open, modifier = Modifier.weight(1f))
-                DriverButton(
-                    if (drop.packages.any { it.packageCode != null }) "Scan to deliver" else "Deliver",
-                    onClick = onDeliver, enabled = open, icon = Res.drawable.lucide_scan_line, modifier = Modifier.weight(1.5f),
-                )
+            if (!drop.loaded) {
+                // 093 — the drop is still at the hub: loading the van is the next step, not this drop.
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DriverIcon(Res.drawable.lucide_truck, size = 14.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Load the van first — then this drop opens.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                DriverButton("Go to Load the van", onClick = onLoadVan, icon = Res.drawable.lucide_truck, modifier = Modifier.fillMaxWidth())
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    DriverButton("Can't deliver", onClick = onCantDeliver, style = DriverButtonStyle.Outline, enabled = open, modifier = Modifier.weight(1f))
+                    DriverButton(
+                        if (drop.packages.any { it.packageCode != null }) "Scan to deliver" else "Deliver",
+                        onClick = onDeliver, enabled = open, icon = Res.drawable.lucide_scan_line, modifier = Modifier.weight(1.5f),
+                    )
+                }
             }
         }
     }

@@ -103,7 +103,7 @@
           "type": "string"
         },
         "packages": {
-          "description": "⚠ ADDED BY 063, OPTIONAL BY DESIGN. Absent means what it has always meant: every package at this stop was collected. Present, it records each package's own outcome IN THE SAME REQUEST.\n\nThat atomicity is the point (FR-026). With collect-all followed by a separate `/issue` call there is a window in which the platform believes a package is in the van and it is not — and if the second call never arrives (the driver walks out of signal, the app is killed), the window never closes and nobody is told. One request cannot half-happen.\n\n⚠ It is OPTIONAL rather than required so the existing client call remains valid and no Kotlin call site changes. A required field here would have meant reworking the ViewModels behind several of 060's screens to say something the old shape already said correctly.",
+          "description": "Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one request, so it cannot half-happen).\n\n⚠ 093 — REQUIRED, AND ONLY WHAT IS NAMED IS SETTLED. Until 093 an absent package meant \"collected\", so a package added to the stop while the driver stood at the counter was recorded as in the van without anybody having seen it. A package not named here stays waiting, and the stop stays open (`CollectResponse.remaining`).",
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -138,13 +138,25 @@
         }
       },
       "required": [
-        "changeId"
+        "changeId",
+        "packages"
       ],
       "type": "object"
     },
     "CollectResponse": {
       "additionalProperties": false,
       "properties": {
+        "collected": {
+          "$ref": "#/definitions/WireInt",
+          "description": "093 — how many were collected and declared not available by this call."
+        },
+        "notAvailable": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "remaining": {
+          "$ref": "#/definitions/WireInt",
+          "description": "093 — packages on the stop this request did not name (added while the driver was there). When more than 0 the stop is still open, and the app re-reads it and shows them."
+        },
         "status": {
           "const": "collected",
           "type": "string"
@@ -428,6 +440,10 @@
             "null"
           ]
         },
+        "loaded": {
+          "description": "093 — the van has been loaded with this drop. Until it is, nothing on the drop can be done.",
+          "type": "boolean"
+        },
         "opening": {
           "anyOf": [
             {
@@ -636,6 +652,19 @@
         "runId": {
           "type": "string"
         },
+        "stage": {
+          "description": "093 — the run's stage and its words.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stageLabel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "status": {
           "type": "string"
         },
@@ -723,6 +752,19 @@
         "runId": {
           "type": "string"
         },
+        "stage": {
+          "description": "093 — the run's stage and its words.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stageLabel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "status": {
           "type": "string"
         },
@@ -771,6 +813,17 @@
         },
         "vehicle": {
           "$ref": "#/definitions/DriverVehicle"
+        },
+        "vehicleCheck": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DriverVehicleCheckState"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "093 — today's pre-trip check of the vehicle the driver holds. `due` until it is answered (the driver is given no work until then), `unsafe` until a dispatcher clears it, `none` with no vehicle."
         },
         "workEmail": {
           "type": "string"
@@ -831,6 +884,28 @@
       "required": [
         "type",
         "plate"
+      ],
+      "type": "object"
+    },
+    "DriverVehicleCheckState": {
+      "additionalProperties": false,
+      "description": "093 — the state of the driver's vehicle check today.",
+      "properties": {
+        "state": {
+          "description": "`due` | `ok` | `unsafe` | `none` — a string on the wire; the app treats an unknown value as `ok`.",
+          "type": "string"
+        },
+        "vehicleLabel": {
+          "description": "\"Toyota HiAce · ABC123\", for the check screen's title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "vehicleLabel"
       ],
       "type": "object"
     },
@@ -907,8 +982,8 @@
           "type": "string"
         },
         "to": {
+          "description": "093 — `out_for_delivery` is written only by loading the van.",
           "enum": [
-            "out_for_delivery",
             "en_route",
             "arrived"
           ],
@@ -1377,6 +1452,13 @@
         "changeId": {
           "type": "string"
         },
+        "missing": {
+          "description": "093 — collected packages that are not in the van. Each is held out of delivery planning and shown to dispatch as a shortage; the rest check in.",
+          "items": {
+            "$ref": "#/definitions/PackageRefOnly"
+          },
+          "type": "array"
+        },
         "packages": {
           "description": "090 — how each package was handed over at the hub.",
           "items": {
@@ -1411,6 +1493,10 @@
             "$ref": "#/definitions/HubCheckinEffyGroup"
           },
           "type": "array"
+        },
+        "held": {
+          "$ref": "#/definitions/WireInt",
+          "description": "093 — packages declared not in the van at this check-in, now held for dispatch."
         },
         "nextCourierPickupLabel": {
           "description": "092 — when the courier next collects from the hub, in the server's words (\"4 pm\", \"tomorrow 10 am\"); null when no courier parcel was checked in or no courier service is set up.",
@@ -1466,6 +1552,13 @@
         "changeId": {
           "type": "string"
         },
+        "notLoaded": {
+          "description": "093 — packages the driver could not load, each with a reason. Each comes off the run and is held at the hub for dispatch; a drop left with nothing comes off the run too.",
+          "items": {
+            "$ref": "#/definitions/NotLoadedPackage"
+          },
+          "type": "array"
+        },
         "packages": {
           "items": {
             "$ref": "#/definitions/PackageHandover"
@@ -1481,6 +1574,13 @@
     "LoadResponse": {
       "additionalProperties": false,
       "properties": {
+        "dropsRemoved": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "held": {
+          "$ref": "#/definitions/WireInt",
+          "description": "093 — packages taken off the run as not loaded, and drops removed because nothing was left."
+        },
         "loaded": {
           "$ref": "#/definitions/WireInt",
           "description": "How many drops this call moved to out for delivery."
@@ -1488,6 +1588,27 @@
       },
       "required": [
         "loaded"
+      ],
+      "type": "object"
+    },
+    "LoadStep": {
+      "additionalProperties": false,
+      "description": "093 — \"Load the van\": the run, and what goes in it.",
+      "properties": {
+        "dropCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "packageCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "runId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "packageCount",
+        "dropCount"
       ],
       "type": "object"
     },
@@ -1521,6 +1642,40 @@
       ],
       "type": "object"
     },
+    "MissingReason": {
+      "description": "093 — why a package did not go in the van. `other` needs a note.",
+      "enum": [
+        "not_at_hub",
+        "damaged",
+        "wrong_temperature",
+        "other"
+      ],
+      "type": "string"
+    },
+    "NotLoadedPackage": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packageCode": {
+          "type": "string"
+        },
+        "packageId": {
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/definitions/MissingReason"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "type": "object"
+    },
     "PackageHandover": {
       "additionalProperties": false,
       "properties": {
@@ -1546,6 +1701,19 @@
         "standard"
       ],
       "type": "string"
+    },
+    "PackageRefOnly": {
+      "additionalProperties": false,
+      "description": "093 — a package named by its id or its label code.",
+      "properties": {
+        "packageCode": {
+          "type": "string"
+        },
+        "packageId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     },
     "ParcelReturnRequest": {
       "additionalProperties": false,
@@ -1986,6 +2154,17 @@
             "null"
           ]
         },
+        "loadStep": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LoadStep"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "093 — the current run is a delivery run that is open and not loaded: loading is the next step, and `active` is null. Nothing on a drop can be done before it."
+        },
         "map": {
           "anyOf": [
             {
@@ -2023,6 +2202,19 @@
         },
         "remainingCount": {
           "$ref": "#/definitions/WireInt"
+        },
+        "stage": {
+          "description": "093 — the current run's stage (`RunStage`) and the same in words (\"Collecting 2 of 5\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stageLabel": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "toReturn": {
           "anyOf": [
@@ -2230,6 +2422,81 @@
       ],
       "type": "object"
     },
+    "VehicleCheckAnswer": {
+      "enum": [
+        "ok",
+        "minor",
+        "unsafe"
+      ],
+      "type": "string"
+    },
+    "VehicleCheckEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "$ref": "#/definitions/VehicleCheckAnswer"
+        },
+        "item": {
+          "$ref": "#/definitions/VehicleCheckItem"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "item",
+        "answer"
+      ],
+      "type": "object"
+    },
+    "VehicleCheckItem": {
+      "description": "093 — the six things a driver checks before taking the vehicle out.",
+      "enum": [
+        "tyres",
+        "lights",
+        "brakes",
+        "mirrors",
+        "cold_storage",
+        "body"
+      ],
+      "type": "string"
+    },
+    "VehicleCheckRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/vehicle-check — 093. Every item, once.",
+      "properties": {
+        "answers": {
+          "items": {
+            "$ref": "#/definitions/VehicleCheckEntry"
+          },
+          "type": "array"
+        },
+        "changeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "changeId",
+        "answers"
+      ],
+      "type": "object"
+    },
+    "VehicleCheckResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "description": "`ok` | `unsafe`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
     "WireInt": {
       "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",
       "type": "integer"
@@ -2327,11 +2594,20 @@
     "loadResponse": {
       "$ref": "#/definitions/LoadResponse"
     },
+    "loadStep": {
+      "$ref": "#/definitions/LoadStep"
+    },
     "manifestLine": {
       "$ref": "#/definitions/ManifestLine"
     },
     "me": {
       "$ref": "#/definitions/DriverMeDTO"
+    },
+    "notLoadedPackage": {
+      "$ref": "#/definitions/NotLoadedPackage"
+    },
+    "packageRef": {
+      "$ref": "#/definitions/PackageRefOnly"
     },
     "parcelReturnRequest": {
       "$ref": "#/definitions/ParcelReturnRequest"
@@ -2383,6 +2659,18 @@
     },
     "upcomingRound": {
       "$ref": "#/definitions/UpcomingRound"
+    },
+    "vehicleCheckEntry": {
+      "$ref": "#/definitions/VehicleCheckEntry"
+    },
+    "vehicleCheckRequest": {
+      "$ref": "#/definitions/VehicleCheckRequest"
+    },
+    "vehicleCheckResponse": {
+      "$ref": "#/definitions/VehicleCheckResponse"
+    },
+    "vehicleCheckState": {
+      "$ref": "#/definitions/DriverVehicleCheckState"
     }
   },
   "required": [
@@ -2434,6 +2722,13 @@
     "timelineEntry",
     "activityItem",
     "activityRead",
+    "vehicleCheckState",
+    "vehicleCheckEntry",
+    "vehicleCheckRequest",
+    "vehicleCheckResponse",
+    "loadStep",
+    "packageRef",
+    "notLoadedPackage",
     "problem"
   ],
   "type": "object",

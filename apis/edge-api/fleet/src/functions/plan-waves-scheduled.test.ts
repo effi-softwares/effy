@@ -9,6 +9,7 @@ vi.mock("../planner/service", async () => {
 });
 vi.mock("../lib/live", () => ({ announceDispatch }));
 vi.mock("../dispatch/custody", () => ({ maxCustodyHours: async () => 0 }));
+vi.mock("../sequence/service", () => ({ overdueCrossedSince: async () => 0 }));
 
 import { handler } from "./plan-waves-scheduled";
 

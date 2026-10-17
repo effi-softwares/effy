@@ -137,3 +137,8 @@ export async function announceReturned(roundId: string): Promise<void> {
 export async function announceDuty(): Promise<void> {
   await announce([DISPATCH]);
 }
+
+/** 093 — a driver declared packages missing at loading or check-in: dispatch's held list and orders. */
+export async function announceHeld(): Promise<void> {
+  await announce([DISPATCH, { scope: "ops", kind: "orders" }]);
+}

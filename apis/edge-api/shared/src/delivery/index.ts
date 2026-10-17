@@ -21,3 +21,6 @@ export * from "./readiness";
 export * from "./locality";
 export * from "./quote";
 export * from "./fee-wire";
+export * from "./held";
+export * from "./round-stage";
+export * from "./vehicle-check";

@@ -18,6 +18,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.LoadVan
+import com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded
 import com.effyshopping.driver.mobile.features.delivery.domain.ReturnToHub
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -190,8 +191,19 @@ class DeliveryViewModel(
         }
     }
 
+    /**
+     * 093 — nothing on a drop before the van is loaded. The platform refuses it too; this says so at once,
+     * with no write — a refusal arriving later from the offline queue would be a dead end at the door.
+     */
+    private fun refuseIfNotLoaded(dropId: String): Boolean {
+        val drop = _state.value.drop?.takeIf { it.dropId == dropId } ?: return false
+        if (drop.loaded) return false
+        _state.update { it.copy(message = LOAD_FIRST) }
+        return true
+    }
+
     fun advance(dropId: String, to: String) {
-        if (_state.value.isWorking) return
+        if (_state.value.isWorking || refuseIfNotLoaded(dropId)) return
         _state.update { it.copy(isWorking = true, message = null) }
         val action = "advance:$dropId:$to"
         viewModelScope.launch {
@@ -239,14 +251,14 @@ class DeliveryViewModel(
      * One changeId per drop's proof, whichever method — a retry of the same delivery is one write.
      */
     fun deliver(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
-        if (_state.value.isWorking) return
+        if (_state.value.isWorking || refuseIfNotLoaded(dropId)) return
         _state.update { it.copy(isWorking = true, message = null) }
         val arrive = "advance:$dropId:arrived"
         val action = "proof:$dropId"
         viewModelScope.launch {
             try {
                 val status = _state.value.drop?.takeIf { it.dropId == dropId }?.status
-                if (status == null || status == DropStatus.STAGED || status == DropStatus.OUT_FOR_DELIVERY || status == DropStatus.EN_ROUTE) {
+                if (status == null || status == DropStatus.OUT_FOR_DELIVERY || status == DropStatus.EN_ROUTE) {
                     advanceDrop(dropId, "arrived", ids.of(arrive))
                     ids.settled(arrive)
                 }
@@ -272,24 +284,41 @@ class DeliveryViewModel(
     }
 
     /**
-     * 090 — the van is loaded: every staged drop goes out for delivery in one step (replaces "Start
-     * this drop"). Saved with no signal, the run's copy is moved on here so the driver can start.
+     * 090 — the van is loaded: every staged drop goes out for delivery in one step (093: the only way a
+     * drop goes out). Saved with no signal, the run's copy is moved on here so the driver can start.
+     *
+     * 093 — [notLoaded] is what the driver could not find, each with a reason: those packages come off
+     * the run, and a drop left with none comes off with them.
      */
-    fun loadVan(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
+    fun loadVan(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), notLoaded: List<NotLoaded> = emptyList()) {
         val send = loadVan ?: return
         if (_state.value.isWorking) return
         _state.update { it.copy(isWorking = true, message = null) }
         val action = "load:$runId"
         viewModelScope.launch {
             try {
-                val outcome = send(runId, ids.of(action), handed)
+                val outcome = send(runId, ids.of(action), handed, notLoaded)
                 ids.settled(action)
+                val missing = notLoaded.map { it.code }.toSet()
                 _state.update { st ->
                     st.copy(
                         isWorking = false,
-                        notice = "Van loaded · every drop is out for delivery",
+                        notice = if (missing.isEmpty()) "Van loaded · every drop is out for delivery"
+                        else "Van loaded · ${missing.size} ${if (missing.size == 1) "package" else "packages"} left for dispatch",
                         run = st.run?.let { run ->
-                            run.copy(drops = run.drops.map { if (it.status == DropStatus.STAGED) it.copy(status = DropStatus.OUT_FOR_DELIVERY) else it })
+                            run.copy(
+                                drops = run.drops
+                                    // A drop with nothing loaded is off the run.
+                                    .filterNot { it.status == DropStatus.STAGED && it.packageCodes.isNotEmpty() && it.packageCodes.all { c -> c in missing } }
+                                    .map {
+                                        if (it.status != DropStatus.STAGED) it
+                                        else it.copy(
+                                            status = DropStatus.OUT_FOR_DELIVERY,
+                                            packageCodes = it.packageCodes.filterNot { c -> c in missing },
+                                            packageCount = it.packageCount - it.packageCodes.count { c -> c in missing },
+                                        )
+                                    },
+                            )
                         },
                     )
                 }
@@ -321,7 +350,7 @@ class DeliveryViewModel(
     }
 
     fun fail(dropId: String, reason: FailureReason, note: String?) {
-        if (_state.value.isWorking) return
+        if (_state.value.isWorking || refuseIfNotLoaded(dropId)) return
         _state.update { it.copy(isWorking = true, message = null) }
         val action = "fail:$dropId"
         viewModelScope.launch {
@@ -345,7 +374,9 @@ class DeliveryViewModel(
 
 /** The status a drop is in once [to] (the wire's step name) has been applied. */
 private fun dropStatusFor(to: String): DropStatus = when (to) {
-    "out_for_delivery" -> DropStatus.OUT_FOR_DELIVERY
     "en_route" -> DropStatus.EN_ROUTE
     else -> DropStatus.ARRIVED
 }
+
+/** 093 — the platform's own sentence for a drop that has not been loaded. */
+internal const val LOAD_FIRST = "Load the van first."

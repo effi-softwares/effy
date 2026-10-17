@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +72,9 @@ import com.effyshopping.driver.mobile.core.presentation.nowEpochMillis
 import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
 import com.effyshopping.driver.mobile.core.scan.HandMethod
 import com.effyshopping.driver.mobile.core.scan.HandedOver
+import com.effyshopping.driver.mobile.core.scan.Unscanned
+import com.effyshopping.driver.mobile.core.scan.Accounted
+import com.effyshopping.driver.mobile.core.scan.AccountSheet
 import com.effyshopping.driver.mobile.core.scan.RouteTone
 import com.effyshopping.driver.mobile.core.scan.ScanContext
 import com.effyshopping.driver.mobile.core.scan.ScanContexts
@@ -587,7 +591,8 @@ fun HubCheckinScreen(
     state: CollectionUiState,
     hubName: String?,
     onBack: () -> Unit,
-    onCheckIn: (List<HandedOver>) -> Unit,
+    /** What was handed over, and (093) the label codes of collected packages that are not in the van. */
+    onCheckIn: (List<HandedOver>, List<String>) -> Unit,
     onDone: () -> Unit,
     onNavigate: (String) -> Unit,
     /** 092 — the driver's next delivery run, as Today holds it: (title, detail); null when there is none. */
@@ -596,6 +601,39 @@ fun HubCheckinScreen(
     val split = state.hubSplit
     var scanning by rememberSaveable { mutableStateOf(false) }
     val run = state.run
+    // 093 — checking in without scanning asks about every package not scanned; this is what WAS scanned.
+    var accounting by remember { mutableStateOf<List<HandedOver>?>(null) }
+    if (run != null && split == null && !state.checkInSending) {
+        accounting?.let { scanned ->
+            val done = scanned.map { it.code }.toSet()
+            // Only what came off the shelves: a package left at its shop has no hub instruction.
+            val coming = run.hubSort.map { it.packageCode }.toSet()
+            val unscanned = run.stops.filter { it.status.done }.flatMap { s ->
+                s.packageCodes.filter { c -> c !in done && (coming.isEmpty() || c in coming) }.map { c -> Unscanned(c, "From ${s.shopName}", c) }
+            }
+            if (unscanned.isEmpty()) {
+                androidx.compose.runtime.LaunchedEffect(scanned) { accounting = null; onCheckIn(scanned, emptyList()) }
+            } else {
+                AccountSheet(
+                    title = "Is every package here?",
+                    description = "Say what happened to each package you didn't scan. One that isn't in the van is kept off delivery, and dispatch is told.",
+                    unscanned = unscanned,
+                    hereLabel = "It's here",
+                    missingLabel = "Not in the van",
+                    reasons = emptyList(),
+                    otherKey = null,
+                    confirmLabel = "Check in",
+                    working = state.isWorking,
+                    onDismiss = { accounting = null },
+                    onConfirm = { answers ->
+                        accounting = null
+                        val here = answers.filterValues { it == Accounted.Here }.keys.map { HandedOver(it, HandMethod.MANUAL) }
+                        onCheckIn(scanned + here, answers.filterValues { it is Accounted.Missing }.keys.toList())
+                    },
+                )
+            }
+        }
+    }
     if (scanning && run != null && split == null && !state.checkInSending) {
         val sort = run.hubSort.associateBy { it.packageCode }
         val items = run.stops.filter { it.status.done }.flatMap { s ->
@@ -621,9 +659,10 @@ fun HubCheckinScreen(
             working = state.isWorking,
             message = state.message,
             onBack = { scanning = false },
-            onComplete = { handed -> scanning = false; onCheckIn(handed) },
+            onComplete = { handed -> scanning = false; onCheckIn(handed, emptyList()) },
             fallbackLabel = "Can't scan? Check in without scanning",
-            onFallback = { scanning = false },
+            onFallback = { scanning = false; accounting = emptyList() },
+            onFallbackWith = { scanned -> scanning = false; accounting = scanned },
             grouped = items.any { it.group != null },
             listNote = "The last scan checks everything in and ends your collection run.",
         )
@@ -637,7 +676,16 @@ fun HubCheckinScreen(
         ) {
             state.message?.let { DriverAlert(DriverAlertKind.Problem, Res.drawable.lucide_circle_alert, title = it) }
             when {
-                split != null -> CheckedIn(split, nextRun)
+                split != null -> {
+                    if (split.held > 0) {
+                        DriverAlert(
+                            DriverAlertKind.Muted, Res.drawable.lucide_circle_alert,
+                            title = "${if (split.held == 1) "1 package isn't" else "${split.held} packages aren't"} in the van",
+                            description = "Dispatch has been told. Nothing else to do.",
+                        )
+                    }
+                    CheckedIn(split, nextRun)
+                }
                 state.checkInSending -> Sending()
                 else -> {
                     Confirm(run, hubName, onNavigate)
@@ -659,7 +707,7 @@ fun HubCheckinScreen(
                 val scannable = run?.stops?.any { it.packageCodes.isNotEmpty() } == true
                 DriverSwipeToConfirm(
                     if (scannable) "Swipe to check in without scanning" else "Swipe to check in",
-                    onConfirm = { onCheckIn(emptyList()) },
+                    onConfirm = { if (scannable) accounting = emptyList() else onCheckIn(emptyList(), emptyList()) },
                     enabled = !state.isWorking,
                     note = if (scannable) "Fallback — use only if the labels won't scan" else "Hand every package to the hub team",
                 )

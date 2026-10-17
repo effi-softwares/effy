@@ -107,6 +107,8 @@ data class HubSplit(
     val effyGroups: List<EffyGroup>? = null,
     /** 092 — when the courier next collects from the hub, in the server's words; null when not known. */
     val nextCourierPickupLabel: String? = null,
+    /** 093 — packages declared not in the van, now held for dispatch. */
+    val held: Int = 0,
 ) {
     /** How many go to a courier — never called "standard" on screen (080). */
     val toCourier: Int get() = courierCount ?: standardCount
@@ -139,13 +141,22 @@ data class PackageOutcome(
     /** 090 — how it was handed over; null when not known (an older path). */
     val method: com.effyshopping.driver.mobile.core.scan.HandMethod? = null,
 )
+/**
+ * 093 — a collect's answer: sent or saved, and how many packages at the stop it did NOT name (added while
+ * the driver was there). Those are still waiting and the stop is still open. 0 when saved with no signal.
+ */
+data class Collected(val outcome: WriteOutcome, val remaining: Int = 0)
+
 interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun
     suspend fun getStop(runId: String, stopId: String): ShopStop
-    /** [outcomes] empty = every package at the stop was collected. */
-    suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList()): WriteOutcome
-    /** Null when there was no signal: the check-in is saved to send, and its answer comes later. */
-    suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): HubSplit?
+    /** [outcomes] — every package the driver was shown, each collected or not. 093: only these are settled. */
+    suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList()): Collected
+    /**
+     * Null when there was no signal: the check-in is saved to send, and its answer comes later.
+     * 093 — [missing]: label codes of collected packages that are not in the van (held for dispatch).
+     */
+    suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<String> = emptyList()): HubSplit?
 }
 
 class GetCollectionRun(private val repo: CollectionRepository) {
@@ -159,7 +170,8 @@ class CollectStop(private val repo: CollectionRepository) {
         repo.collect(runId, stopId, changeId, outcomes)
 }
 class CheckInHub(private val repo: CollectionRepository) {
-    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) = repo.checkIn(runId, changeId, handed)
+    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<String> = emptyList()) =
+        repo.checkIn(runId, changeId, handed, missing)
 }
 
 /** What the driver has ticked and reported at ONE stop, before the swipe sends it. */

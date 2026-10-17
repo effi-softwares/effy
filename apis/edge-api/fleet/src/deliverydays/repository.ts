@@ -29,6 +29,9 @@ interface SettingsRow {
   sameday_hub_turnaround_min: number;
   effy_lookahead_days: number;
   asap_estimate: string;
+  load_overdue_min: number;
+  checkin_overdue_min: number;
+  vehicle_check_required: boolean;
 }
 
 /** The migrations' own defaults, used only until the operator has saved the delivery settings. */
@@ -38,6 +41,9 @@ const DEFAULTS: Omit<DeliveryDaysDTO, "dates"> = {
   slotHoldMin: 10,
   hubTurnaroundMin: 60,
   asapEstimate: ASAP_ESTIMATE_DEFAULT,
+  loadOverdueMin: 20,
+  checkinOverdueMin: 30,
+  vehicleCheckRequired: false,
 };
 
 async function dates(): Promise<NonDeliveryDateDTO[]> {
@@ -53,7 +59,8 @@ async function dates(): Promise<NonDeliveryDateDTO[]> {
 export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolean }> {
   const res = await query<SettingsRow>(
     `SELECT standard_no_delivery_weekdays,
-            slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days, asap_estimate
+            slot_hold_min, sameday_hub_turnaround_min, effy_lookahead_days, asap_estimate,
+            load_overdue_min, checkin_overdue_min, vehicle_check_required
        FROM public.delivery_settings WHERE id = 1`,
   );
   const r = res.rows[0];
@@ -64,6 +71,9 @@ export async function read(): Promise<{ dto: DeliveryDaysDTO; configured: boolea
         hubTurnaroundMin: r.sameday_hub_turnaround_min,
         effyLookaheadDays: r.effy_lookahead_days,
         asapEstimate: r.asap_estimate,
+        loadOverdueMin: r.load_overdue_min,
+        checkinOverdueMin: r.checkin_overdue_min,
+        vehicleCheckRequired: r.vehicle_check_required,
       }
     : DEFAULTS;
   return { dto: { ...settings, dates: await dates() }, configured: Boolean(r) };
@@ -87,10 +97,14 @@ export async function save(
               slot_hold_min = $3, sameday_hub_turnaround_min = $4,
               -- 085 — reworded when the request carries one; kept otherwise.
               asap_estimate = COALESCE($6, asap_estimate),
+              -- 093 — kept when the request carries none.
+              load_overdue_min = COALESCE($7, load_overdue_min),
+              checkin_overdue_min = COALESCE($8, checkin_overdue_min),
+              vehicle_check_required = COALESCE($9, vehicle_check_required),
               updated_by = $5, updated_at = now()
         WHERE id = 1`,
       [v.effyLookaheadDays, v.noDeliveryWeekdays, v.slotHoldMin, v.hubTurnaroundMin, actorSub,
-       v.asapEstimate ?? null],
+       v.asapEstimate ?? null, v.loadOverdueMin ?? null, v.checkinOverdueMin ?? null, v.vehicleCheckRequired ?? null],
     );
     if (res.rowCount === 0) return false;
     await audit(tx);

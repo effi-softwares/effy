@@ -22,6 +22,17 @@ enum class DropStatus { STAGED, OUT_FOR_DELIVERY, EN_ROUTE, ARRIVED, DELIVERED, 
 enum class ProofMethod { PHOTO, SIGNATURE, CONTACTLESS }
 enum class FailureReason { NOBODY_HOME, WRONG_ADDRESS, CUSTOMER_REFUSED, ACCESS_BLOCKED, OTHER }
 
+/** 093 — why a package did not go in the van. [OTHER] needs a note. */
+enum class MissingReason(val label: String) {
+    NOT_AT_HUB("Not at the hub"),
+    DAMAGED("Damaged"),
+    WRONG_TEMPERATURE("Wrong temperature"),
+    OTHER("Other"),
+}
+
+/** 093 — one package the driver could not load, by its label code. */
+data class NotLoaded(val code: String, val reason: MissingReason, val note: String? = null)
+
 data class DropSummary(
     val dropId: String,
     val sequence: Int,
@@ -57,7 +68,12 @@ data class DeliveryRun(
     val toReturn: ParcelsToReturn? = null,
     /** 092 rev 2 — the run map. */
     val map: com.effyshopping.driver.mobile.core.map.RunMap? = null,
-)
+    /** 093 — where the run is, in the server's words ("Out 2 of 6"); null from an older server. */
+    val stageLabel: String? = null,
+) {
+    /** 093 — the van is not loaded yet: loading is the next step, and nothing on a drop can be done. */
+    val toLoad: Boolean get() = drops.any { it.status == DropStatus.STAGED }
+}
 
 /**
  * 088 — what the driver must bring back to the hub from a run's failed drops: how many, and the order
@@ -123,7 +139,13 @@ data class Drop(
     val stale: Boolean = false,
     /** 092 — the customer's phone, sent only while the drop is open; null when there is none to call. */
     val customerPhone: String? = null,
-)
+) {
+    /**
+     * 093 — the van has been loaded with this drop. Until it is, the platform refuses every action on
+     * it ("Load the van first"), and the drop screen offers none.
+     */
+    val loaded: Boolean get() = status != DropStatus.STAGED
+}
 
 /**
  * Everything the customer told the driver, as ONE block the instruction callout shows: the handover
@@ -146,8 +168,11 @@ interface DeliveryRepository {
     suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String): WriteOutcome
     /** 088 — check every parcel from a run's failed drops back in at the hub. */
     suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
-    /** 090 — the van is loaded: every staged drop on the run goes out for delivery together. */
-    suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()): WriteOutcome
+    /**
+     * 090 — the van is loaded: every staged drop on the run goes out for delivery together. 093 — what
+     * could not be loaded is declared in [notLoaded]; it comes off the run and is held for dispatch.
+     */
+    suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), notLoaded: List<NotLoaded> = emptyList()): WriteOutcome
 }
 
 class GetDeliveryRun(private val repo: DeliveryRepository) {
@@ -164,7 +189,8 @@ class CompleteWithMedia(private val repo: DeliveryRepository) {
         repo.completeWithMedia(dropId, method, bytes, note, changeId, handed)
 }
 class LoadVan(private val repo: DeliveryRepository) {
-    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) = repo.load(runId, changeId, handed)
+    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), notLoaded: List<NotLoaded> = emptyList()) =
+        repo.load(runId, changeId, handed, notLoaded)
 }
 class ReturnToHub(private val repo: DeliveryRepository) {
     suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) = repo.returnToHub(runId, changeId, handed)

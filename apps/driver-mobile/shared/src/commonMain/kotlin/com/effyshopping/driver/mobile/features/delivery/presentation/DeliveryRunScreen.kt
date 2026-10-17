@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,7 +48,11 @@ import com.effyshopping.driver.mobile.core.presentation.DriverStatusPill
 import com.effyshopping.driver.mobile.core.presentation.DriverSwipeToConfirm
 import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
 import com.effyshopping.driver.mobile.core.presentation.timeText
+import com.effyshopping.driver.mobile.core.scan.AccountSheet
+import com.effyshopping.driver.mobile.core.scan.Accounted
+import com.effyshopping.driver.mobile.core.scan.HandMethod
 import com.effyshopping.driver.mobile.core.scan.HandedOver
+import com.effyshopping.driver.mobile.core.scan.Unscanned
 import com.effyshopping.driver.mobile.core.scan.ScanContexts
 import com.effyshopping.driver.mobile.core.scan.ScanGroup
 import com.effyshopping.driver.mobile.core.scan.ScanItem
@@ -58,6 +63,8 @@ import com.effyshopping.driver.mobile.design.effyMonoFontFamily
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
+import com.effyshopping.driver.mobile.features.delivery.domain.MissingReason
+import com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.features.today.presentation.reasonWords
 import com.effyshopping.driver.mobile.resources.Res
@@ -93,7 +100,8 @@ fun DeliveryRunScreen(
     onBack: () -> Unit,
     onOpenDrop: (String) -> Unit,
     onRefresh: () -> Unit,
-    onLoadVan: (List<HandedOver>) -> Unit,
+    /** 093 — what was handed over, and what could not be loaded (each with a reason). */
+    onLoadVan: (List<HandedOver>, List<NotLoaded>) -> Unit,
     onOpenReturn: (scan: Boolean) -> Unit,
 ) {
     val run = state.run
@@ -101,6 +109,43 @@ fun DeliveryRunScreen(
     val next = run?.drops?.filter { !it.status.isClosed }?.minByOrNull { it.sequence }
     val staged = run?.drops?.count { it.status == DropStatus.STAGED } ?: 0
     var loading by rememberSaveable { mutableStateOf(false) }
+    // 093 — the fallback asks about every package not scanned; this is what WAS scanned meanwhile.
+    var accounting by remember { mutableStateOf<List<HandedOver>?>(null) }
+    if (run != null && staged > 0) {
+        accounting?.let { scanned ->
+            val done = scanned.map { it.code }.toSet()
+            val unscanned = run.drops.filter { it.status == DropStatus.STAGED }.sortedBy { it.sequence }.flatMap { d ->
+                d.packageCodes.mapIndexedNotNull { i, c ->
+                    if (c in done) null
+                    else Unscanned(c, "${d.street ?: d.customerSuburb} · package ${i + 1} of ${d.packageCodes.size}", "Drop ${d.sequence} · $c")
+                }
+            }
+            if (unscanned.isEmpty()) {
+                androidx.compose.runtime.LaunchedEffect(scanned) { accounting = null; onLoadVan(scanned, emptyList()) }
+            } else {
+                AccountSheet(
+                    title = "Is everything in the van?",
+                    description = "Say what happened to each package you didn't scan. One that isn't loaded comes off the run, and dispatch is told.",
+                    unscanned = unscanned,
+                    hereLabel = "It's in the van",
+                    missingLabel = "Not loaded",
+                    reasons = MissingReason.entries.map { it.name to it.label },
+                    otherKey = MissingReason.OTHER.name,
+                    confirmLabel = "Finish loading",
+                    working = state.isWorking,
+                    onDismiss = { accounting = null },
+                    onConfirm = { answers ->
+                        accounting = null
+                        val here = answers.filterValues { it == Accounted.Here }.keys.map { HandedOver(it, HandMethod.MANUAL) }
+                        val missing = answers.mapNotNull { (code, a) ->
+                            (a as? Accounted.Missing)?.let { NotLoaded(code, MissingReason.valueOf(it.reason ?: MissingReason.OTHER.name), it.note) }
+                        }
+                        onLoadVan(scanned + here, missing)
+                    },
+                )
+            }
+        }
+    }
     if (run != null && loading && staged > 0) {
         val stagedDrops = run.drops.filter { it.status == DropStatus.STAGED }
         val window = runWindow(run)
@@ -125,9 +170,10 @@ fun DeliveryRunScreen(
             completeVerb = "starting the run",
             working = state.isWorking, message = state.message,
             onBack = { loading = false },
-            onComplete = { handed -> loading = false; onLoadVan(handed) },
+            onComplete = { handed -> loading = false; onLoadVan(handed, emptyList()) },
             fallbackLabel = "Can't scan? Mark all loaded",
-            onFallback = { loading = false; onLoadVan(emptyList()) },
+            onFallback = { loading = false; accounting = emptyList() },
+            onFallbackWith = { scanned -> loading = false; accounting = scanned },
             grouped = true,
             listNote = "The last scan starts the run: every drop goes out for delivery and the customers are told you're on the way.",
         )
@@ -149,7 +195,10 @@ fun DeliveryRunScreen(
                     Res.drawable.lucide_circle_alert, "We couldn't load your run", "This is on us, not you. Try again, or call dispatch if it keeps happening.",
                     actionLabel = "Try again", onAction = onRefresh, actionIcon = Res.drawable.lucide_refresh_ccw,
                 )
-                else -> RunBody(run, hubName, open, staged, next, state.isWorking, onOpenDrop, onScanLoad = { loading = true }, onLoadVan = { onLoadVan(emptyList()) }, onOpenReturn = onOpenReturn)
+                else -> RunBody(run, hubName, open, staged, next, state.isWorking, onOpenDrop, onScanLoad = { loading = true }, onLoadVan = {
+                    if (run.drops.any { it.status == DropStatus.STAGED && it.packageCodes.isNotEmpty() }) accounting = emptyList()
+                    else onLoadVan(emptyList(), emptyList())
+                }, onOpenReturn = onOpenReturn)
             }
         }
         if (run != null && next != null && open && staged == 0) {

@@ -41,6 +41,9 @@ import com.effyshopping.driver.mobile.features.delivery.domain.DropPackage
 import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
+import com.effyshopping.driver.mobile.features.delivery.domain.MissingReason
+import com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded
+import com.effyshopping.driver.mobile.contract.NotLoadedPackage
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -79,8 +82,8 @@ class HttpDeliveryRepository(
     }.let { if (proofs.isPending(dropId)) it.copy(status = DropStatus.DELIVERED) else it }
 
     override suspend fun advance(dropId: String, to: String, changeId: String): WriteOutcome {
+        // 093 — out for delivery is the van being loaded ([load]); a drop is only moved on from there.
         val toEnum = when (to) {
-            "out_for_delivery" -> To.OutForDelivery
             "en_route" -> To.EnRoute
             else -> To.Arrived
         }
@@ -204,9 +207,15 @@ class HttpDeliveryRepository(
     }
 
     /** 090 — saved and sent later with no signal, like every other driver write. */
-    override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
+    override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, notLoaded: List<NotLoaded>): WriteOutcome {
         val path = "driver/v1/delivery/runs/$runId/load"
-        val body = LoadRequest(changeID = changeId, packages = handed.toWire())
+        val body = LoadRequest(
+            changeID = changeId,
+            packages = handed.toWire(),
+            notLoaded = notLoaded.takeIf { it.isNotEmpty() }?.map {
+                NotLoadedPackage(packageCode = it.code, reason = it.reason.toWire(), note = it.note?.trim()?.takeIf { n -> n.isNotEmpty() })
+            },
+        )
         return request {
             offline.withReplay(path, json.encodeToString(LoadRequest.serializer(), body), changeId, "Load the van", queued = { WriteOutcome.QUEUED }) {
                 api.post(path) { setBody(body) }.ensureSuccess()
@@ -272,7 +281,15 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     dueLabel = dueLabel,
     toReturn = toReturn?.toParcels(),
     map = map?.toDomain(),
+    stageLabel = stageLabel?.takeIf { it.isNotBlank() },
 )
+
+private fun MissingReason.toWire(): com.effyshopping.driver.mobile.contract.MissingReason = when (this) {
+    MissingReason.NOT_AT_HUB -> com.effyshopping.driver.mobile.contract.MissingReason.NotAtHub
+    MissingReason.DAMAGED -> com.effyshopping.driver.mobile.contract.MissingReason.Damaged
+    MissingReason.WRONG_TEMPERATURE -> com.effyshopping.driver.mobile.contract.MissingReason.WrongTemperature
+    MissingReason.OTHER -> com.effyshopping.driver.mobile.contract.MissingReason.Other
+}
 
 /** 088/092 — the wire's parcels to return → the domain's. Shared with Today's read. */
 internal fun com.effyshopping.driver.mobile.contract.ParcelsToReturn.toParcels() = ParcelsToReturn(

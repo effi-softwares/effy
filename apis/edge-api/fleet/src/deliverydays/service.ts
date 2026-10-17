@@ -45,6 +45,16 @@ export function daysProblems(v: Partial<DeliveryDaysInput>): FieldError[] {
   if (asap !== undefined && (typeof asap !== "string" || asap.trim() === "" || asap.trim().length > 80)) {
     errors.push({ field: "asapEstimate", message: "say what customers are told, in 1 to 80 characters" });
   }
+  // 093 — absent keeps the one saved.
+  if (v.loadOverdueMin !== undefined && !wholeNumber(v.loadOverdueMin, 5, 240)) {
+    errors.push({ field: "loadOverdueMin", message: "between 5 and 240 minutes" });
+  }
+  if (v.checkinOverdueMin !== undefined && !wholeNumber(v.checkinOverdueMin, 5, 240)) {
+    errors.push({ field: "checkinOverdueMin", message: "between 5 and 240 minutes" });
+  }
+  if (v.vehicleCheckRequired !== undefined && typeof v.vehicleCheckRequired !== "boolean") {
+    errors.push({ field: "vehicleCheckRequired", message: "on or off" });
+  }
   return errors;
 }
 
@@ -62,6 +72,9 @@ export async function putDeliveryDays(body: DeliveryDaysInput, actorSub: string,
     slotHoldMin: body.slotHoldMin,
     hubTurnaroundMin: body.hubTurnaroundMin,
     ...(body.asapEstimate === undefined ? {} : { asapEstimate: body.asapEstimate.trim() }),
+    ...(body.loadOverdueMin === undefined ? {} : { loadOverdueMin: body.loadOverdueMin }),
+    ...(body.checkinOverdueMin === undefined ? {} : { checkinOverdueMin: body.checkinOverdueMin }),
+    ...(body.vehicleCheckRequired === undefined ? {} : { vehicleCheckRequired: body.vehicleCheckRequired }),
   };
   const saved = await repo.save(v, actorSub, (tx) =>
     recordAudit({ actorSub, action: "delivery_days.updated", targetType: "delivery_settings", driverId: null, detail: { ...v } }, tx),

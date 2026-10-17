@@ -12,6 +12,7 @@ import { exceptionMutationError } from "./errorText";
 import { locationLabel, reasonLabel, sortForTriage } from "./model";
 import { exceptionsQuery, useResolveException } from "./queries";
 import { RecordReturnButton } from "./RecordReturnDialog";
+import { SequenceSections } from "./SequenceSections";
 
 /**
  * Deliveries that could not be completed (064, US3).
@@ -146,6 +147,9 @@ export function ExceptionsScreen() {
           </table>
         </div>
       )}
+
+      {/* 093 — late steps, packages declared missing, vehicles found unsafe. */}
+      {exceptions.data ? <SequenceSections data={exceptions.data} canAct={canResolve} /> : null}
     </div>
   );
 }

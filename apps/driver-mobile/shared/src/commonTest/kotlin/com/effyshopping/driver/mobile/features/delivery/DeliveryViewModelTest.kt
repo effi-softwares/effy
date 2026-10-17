@@ -51,8 +51,10 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
         calls += "advance:$to"
         return outcome
     }
-    override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
+    var lastNotLoaded: List<com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded> = emptyList()
+    override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, notLoaded: List<com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded>): WriteOutcome {
         lastHanded = handed
+        lastNotLoaded = notLoaded
         fail?.let { throw AppException(it) }
         calls += "load"
         return outcome
@@ -124,7 +126,7 @@ class DeliveryViewModelTest {
     }
 
     @Test fun the_same_order_holds_with_no_signal() = runTest {
-        val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.STAGED)).apply { offline = true }; val v = vm(repo)
+        val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.OUT_FOR_DELIVERY)).apply { offline = true }; val v = vm(repo)
         v.loadDrop("d1")
         v.deliver("d1", ProofMethod.CONTACTLESS, byteArrayOf(1), "Left at: Front door")
         assertEquals(listOf("advance:arrived", "proof"), repo.calls)
@@ -145,6 +147,38 @@ class DeliveryViewModelTest {
         v.loadDrop("d1")
         v.deliver("d1", ProofMethod.SIGNATURE, byteArrayOf(1), "Signed by: Ada")
         assertEquals(listOf("proof"), repo.calls)
+    }
+
+    /** 093 — a drop not yet loaded: delivering, failing or moving it is refused at once, and nothing is sent. */
+    @Test fun nothing_on_a_drop_before_the_van_is_loaded() = runTest {
+        val repo = FakeDeliveryRepo(drop = drop().copy(status = DropStatus.STAGED)); val v = vm(repo)
+        v.loadDrop("d1")
+        v.deliver("d1", ProofMethod.PHOTO, byteArrayOf(1), null)
+        v.fail("d1", com.effyshopping.driver.mobile.features.delivery.domain.FailureReason.NOBODY_HOME, null)
+        v.advance("d1", "arrived")
+        assertEquals(emptyList(), repo.calls)
+        assertEquals("Load the van first.", v.state.value.message)
+        assertTrue(!v.state.value.delivered && !v.state.value.failed)
+    }
+
+    /** 093 — a package declared not loaded rides the load; a drop with nothing loaded leaves the run. */
+    @Test fun loading_with_a_package_declared_missing() = runTest {
+        val lone = DropSummary("d1", 1, "EFY-1", "Carlton", 1, DropStatus.STAGED, packageCodes = listOf("AAAAAA"))
+        val pair = DropSummary("d2", 2, "EFY-2", "Fitzroy", 2, DropStatus.STAGED, packageCodes = listOf("BBBBBB", "CCCCCC"))
+        val repo = FakeDeliveryRepo().apply { offline = true; run = DeliveryRun("r1", "planned", listOf(lone, pair)) }
+        val v = vm(repo)
+        v.loadRun()
+        val missing = listOf(
+            com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded("AAAAAA", com.effyshopping.driver.mobile.features.delivery.domain.MissingReason.DAMAGED),
+            com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded("CCCCCC", com.effyshopping.driver.mobile.features.delivery.domain.MissingReason.NOT_AT_HUB),
+        )
+        v.loadVan(notLoaded = missing)
+        assertEquals(missing, repo.lastNotLoaded)
+        val drops = v.state.value.run!!.drops
+        assertEquals(listOf("d2"), drops.map { it.dropId })
+        assertEquals(listOf("BBBBBB"), drops.single().packageCodes)
+        assertEquals(DropStatus.OUT_FOR_DELIVERY, drops.single().status)
+        assertEquals("Van loaded · 2 packages left for dispatch", v.state.value.notice)
     }
 
     /** 090 / 092 — the van is loaded once: every staged drop goes out, a drop further on stays put. */

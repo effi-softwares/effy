@@ -1,4 +1,9 @@
-import type { DeliveryExceptionListDTO, ResolveExceptionResponse, StaffParcelReturnResponse } from "@effy/shared-types";
+import type {
+  DeliveryExceptionListDTO,
+  ResolveExceptionResponse,
+  StaffActionResponse,
+  StaffParcelReturnResponse,
+} from "@effy/shared-types";
 
 import { api } from "@/lib/api";
 
@@ -20,4 +25,14 @@ export async function resolveException(id: string, note: string | null): Promise
 /** 088 — the parcels from a round's failed drops were handed in at the hub. One action per round. */
 export async function recordReturn(roundId: string, changeId: string): Promise<StaffParcelReturnResponse> {
   return api.post<StaffParcelReturnResponse>(`/fleet/v1/dispatch/rounds/${roundId}/return`, { changeId });
+}
+
+/** 093 — decide a package a driver declared missing: found (planned again) or lost. */
+export async function resolveHold(holdId: string, resolution: "found" | "lost"): Promise<StaffActionResponse> {
+  return api.post<StaffActionResponse>(`/fleet/v1/held-packages/${holdId}/resolve`, { resolution });
+}
+
+/** 093 — a vehicle found unsafe has been fixed or swapped. */
+export async function clearVehicleCheck(checkId: string, note: string): Promise<StaffActionResponse> {
+  return api.post<StaffActionResponse>(`/fleet/v1/vehicle-checks/${checkId}/clear`, { note });
 }

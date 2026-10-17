@@ -9,6 +9,7 @@ import { authenticate } from "../driver/guard";
 import { collectStop } from "../work/complete";
 import { NotFoundError } from "../work/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
+import { SequenceError, sequenceProblem } from "../work/sequence";
 
 /**
  * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect (063, FR-026).
@@ -38,15 +39,20 @@ export const handler = async (
   if (!body.changeId) {
     return problem(400, "invalid_request", "Missing changeId", "A changeId is required so a retry is recognised.", guard.scope);
   }
+  // 093 — every package the driver was shown, each with its outcome. Only these are settled.
+  if (!Array.isArray(body.packages) || body.packages.length === 0) {
+    return problem(400, "invalid_request", "Missing packages", "Say what happened to each package at this stop.", guard.scope);
+  }
 
   try {
-    await collectStop(runId, stopId, guard.driver.id, body);
+    const result = await collectStop(runId, stopId, guard.driver.id, body);
     // 071 — committed; tell the screens that show it.
     await announceCollected(stopId);
-    return json(200, { status: "collected" }, guard.scope);
+    return json(200, { status: "collected", ...result }, guard.scope);
   } catch (err) {
     // 072 — the round has not opened. Nothing was written; the answer says when it will.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
+    if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
     if (err instanceof NotFoundError) {
       return problem(404, "not_found", "Not available", "That stop is not available.", guard.scope);
     }

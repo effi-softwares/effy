@@ -67,6 +67,8 @@ describe("toMeDTO — the identity read shows no currency and a hub label", () =
       hub: "Effy Hub",
       vehicle: { type: "Van", plate: "1QZ 4KP" },
       dutyStatus: "off_duty",
+      // 093 — no check state loaded on this record: nothing to check.
+      vehicleCheck: { state: "none", vehicleLabel: null },
     });
     expect(JSON.stringify(dto)).not.toMatch(/\$|amount|price|fee/i);
   });

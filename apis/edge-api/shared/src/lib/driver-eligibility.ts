@@ -23,7 +23,10 @@ export type ExclusionReason =
   | "not_cleared"
   | "no_refrigeration"
   | "over_capacity"
-  | "cannot_meet_deadline";
+  | "cannot_meet_deadline"
+  // 093 — the driver has not checked their vehicle today / the check found it unsafe and nobody cleared it.
+  | "vehicle_check_due"
+  | "vehicle_unsafe";
 
 /** A candidate driver, as the planner and the reassign route both load them. */
 export interface CandidateDriver {
@@ -47,6 +50,11 @@ export interface CandidateDriver {
   }>;
   /** Packages already assigned to them today — the load balance input (FR-014, research R7). */
   packagesAssignedToday: number;
+  /**
+   * 093 — today's pre-trip check of the vehicle they hold: `ok`, `due` (not answered yet) or `unsafe`
+   * (an unsafe answer not yet cleared). Absent means not loaded by this caller, and is not a reason.
+   */
+  vehicleCheck?: "ok" | "due" | "unsafe";
 }
 
 /** The work being considered. */
@@ -118,6 +126,9 @@ export function eligibilityReasons(input: EligibilityInput): ExclusionReason[] {
   if (licenceExpired(driver, now)) reasons.push("licence_expired");
   if (driver.vehicle === null) reasons.push("no_vehicle");
   if (!isCleared(driver, work)) reasons.push("not_cleared");
+  // 093 — a vehicle nobody has checked today, or one found unsafe, takes no work.
+  if (driver.vehicle !== null && driver.vehicleCheck === "due") reasons.push("vehicle_check_due");
+  if (driver.vehicle !== null && driver.vehicleCheck === "unsafe") reasons.push("vehicle_unsafe");
 
   if (driver.vehicle !== null) {
     if (

@@ -6,7 +6,14 @@
 // The engine earns its place by making the common case automatic and the EXCEPTIONAL case visible.
 
 import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
-import { TO_RETURN_SQL } from "@effy/edge-shared/delivery";
+import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL, TO_RETURN_SQL } from "@effy/edge-shared/delivery";
+
+/** 093 — a dispatcher's waiver of the cross-run gate, with who gave it. */
+const WAIVER = `
+  LEFT JOIN public.round_sequence_waiver wv ON wv.round_id = dr.id
+  LEFT JOIN admin.staff wst ON wst.cognito_sub = wv.staff_sub`;
+const WAIVER_COLUMNS = `wv.reason AS waiver_reason, wv.created_at AS waiver_at,
+         COALESCE(NULLIF(btrim(wst.name), ''), wst.email::text) AS waiver_staff`;
 
 /** Who takes a parcel to the customer — 079's one definition, over these queries' aliases. */
 const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
@@ -24,9 +31,14 @@ export const DAY_ROUNDS = `
            WHERE rs.round_id = dr.id AND rs.status NOT IN ('done','skipped'))::text AS stops_remaining,  -- ⚠ finished states named, not open ones (2026-09-30): a started drop still counts as remaining
          (SELECT count(*) FROM public.round_package rp
             JOIN public.round_stop rs2 ON rs2.id = rp.stop_id
-           WHERE rs2.round_id = dr.id AND rp.state = 'assigned')::text AS packages_remaining
+           WHERE rs2.round_id = dr.id AND rp.state = 'assigned')::text AS packages_remaining,
+         -- 093 — where the run is, by the one shared definition the driver's app reads too.
+         ${ROUND_STAGE_COLUMNS},
+         ${WAIVER_COLUMNS}
     FROM public.driver_round dr
     JOIN public.driver d ON d.id = dr.driver_id
+    ${ROUND_STAGE_LATERAL}
+    ${WAIVER}
    -- ⚠ 072 — EVERY UNFINISHED ROUND, plus what was finished or created today. This read "created
    -- today", which was the same thing while a round existed for 45 minutes. A round is now assigned
    -- the evening before its run, and "created today" would hide it on the morning it is due.
@@ -157,9 +169,18 @@ export const ROUND_FOR_UPDATE = `
    FOR UPDATE
 `;
 
+/** 093 — one round's stage and waiver, for its detail screen. */
+export const ROUND_STAGE_AND_WAIVER = `
+  SELECT dr.kind, dr.status, ${ROUND_STAGE_COLUMNS}, ${WAIVER_COLUMNS}
+    FROM public.driver_round dr
+    ${ROUND_STAGE_LATERAL}
+    ${WAIVER}
+   WHERE dr.id = $1
+`;
+
 /** One round's stops, for the detail screen and for reordering. */
 export const ROUND_DETAIL_STOPS = `
-  SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.zone_id, rs.shop_id,
+  SELECT rs.id AS stop_id, rs.seq, rs.kind, rs.status, rs.zone_id, rs.shop_id, rs.completed_at,
          z.name AS zone_name,
          s.name AS shop_name,
          o.order_number,

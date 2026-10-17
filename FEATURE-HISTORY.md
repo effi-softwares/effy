@@ -4,6 +4,49 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**093-driver-work-sequence — Driver Work in One Order, and Trips That Join Up.** 🚧 **BUILT (2026-10-17); NOT
+MIGRATED, DEPLOYED OR WALKED.** Research: [research-07](docs/research/logistics/research-07-driver-task-sequencing.md)
+(Onfleet Route Load, Bringg linked tasks, Track-POD load check, Amazon Flex/DSP, Shipsy hub exceptions). Spec,
+plan, tasks: [specs/093-driver-work-sequence/](specs/093-driver-work-sequence/tasks.md).
+
+- **The order of work is enforced BY THE SERVER** (`driver/src/work/sequence.ts`, one gate per step, 409 with a
+  sentence): check-in after every shop is settled (`stops_outstanding`); nothing on a drop before the van is
+  loaded (`run_not_loaded` — loading is now the ONLY writer of `out_for_delivery`, per-drop "Start this drop"
+  removed); no load while holding collected-not-checked-in or failed-not-returned parcels
+  (`finish_collection_first` / `return_parcels_first`); no collect with deliveries in the van
+  (`finish_deliveries_first`). A dispatcher may waive the cross-run gate for ONE run with a reason
+  (`round_sequence_waiver`, `POST /fleet/v1/dispatch/rounds/{id}/waive-sequence`). `sequence.guard.test.ts`
+  fails a progressing route that skips its gate (proven by removing one).
+- ⚠ **A collect settles ONLY the packages it names** (US2). "Absent means collected" let a package added to
+  the stop while the driver stood at the counter be recorded as in the van. `packages` is now required; an
+  unnamed one stays `assigned`, the stop stays open, the response carries `remaining`, the app re-reads the stop.
+- **Trips join up** (US3): the delivery gather returns `collected_by`; `planWave` prefers the collector for
+  delivery when they pass every gate, after the keep-an-order-together rule ("collected it, continuing to
+  delivery"). ⚠ Correction to research-07 S4: a loaded (in-progress) delivery round was ALREADY never added to.
+- **Missing packages are declared, never assumed** (US4): loading takes `notLoaded` (reason; "other" needs a
+  note), check-in takes `missing`. Each writes `package_hold`; a load declaration removes the package through
+  the one writer `removeAssignment` (empty drop / empty planned run go with it). `heldSql` keeps open and
+  `lost` holds out of BOTH gathers; dispatch resolves Found (planned again) or Lost on Exceptions. The app's
+  "Mark all loaded" / "Check in without scanning" ask about every unscanned package (`core/scan/AccountSheet.kt`).
+- **One worded stage per run** (`runStage` in shared-types, `ROUND_STAGE_LATERAL` in edge-shared): Today, run
+  reads, dispatch day and round detail. Today shows **"Load the van"** as the first step (`loadStep`; `active`
+  null). Round detail says "Worked out of order" (derived from `completed_at`). Exceptions lists overdue runs
+  (`load_overdue_min` 20 / `checkin_overdue_min` 30, on Delivery days); the 5-minute pass announces a crossing.
+- **Daily vehicle check** (US6): six items; `vehicle_check_due` / `vehicle_unsafe` eligibility reasons via
+  `vehicleCheckStateSql`; `POST /driver/v1/vehicle-check`, `POST /fleet/v1/vehicle-checks/{id}/clear`.
+  ⚠ **OFF BY DEFAULT** (`delivery_settings.vehicle_check_required`) — turned on before the app that asks is
+  installed, every driver would get no work. Not on the readiness list yet (Exceptions + unassigned reasons only).
+- **Found while building:** `one-ordering.guard` was already failing on `dev` (a `.sort(` in `delivery.ts`);
+  the 069 delivery-days defaults test had never been given 085's `asapEstimate`; the drop-progress fixture seeds
+  delivery packages `picked_up`, so loading reads `('assigned','picked_up')` like the proof path.
+- **Verified:** driver 224/224 and fleet 328/328 against real PostgreSQL; shared, back-office 390; app 310 host
+  tests, Android + iOS builds; driver-guard, delivery-words, refresh-timer, design-system guards; gateway
+  capacity (+1 shared, +3 staff). Held-exclusion and gate guards negative-proven.
+- **Operator steps:** `make db-up ENV=dev` (`20261017100000_driver_work_sequence.sql`) → `make edge-deploy
+  ENV=dev SERVICE=driver` and `SERVICE=fleet` → back-office → the driver app (⚠ the app and `driver` must ship
+  together: the collect body and drop status changed, with no compatibility kept — the app has no installed
+  users). Then walk `specs/093-driver-work-sequence/quickstart.md`; turn the vehicle check on when ready.
+
 **092-driver-mobile-redesign — Driver App Redesign.** 🚧 **BUILT (2026-10-16). `driver` DEPLOYED TO DEV; APP NOT WALKED.**
 Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built from the canvas
 `docs/reference-screens/Effy Driver Mobile v2/` (61 artboards). Spec, plan, tasks:

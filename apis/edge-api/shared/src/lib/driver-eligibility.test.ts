@@ -184,3 +184,23 @@ describe("pickByLoad — choosing between eligible drivers (FR-014)", () => {
     expect(input.map((c) => c.driverId)).toEqual(["b", "a"]);
   });
 });
+
+describe("093 — the daily vehicle check", () => {
+  const base = {
+    driverId: "d", status: "active" as const, onDuty: true, licenceExpiresOn: null, expectedEndAt: null,
+    vehicle: { vehicleId: "v", payloadKg: null, canCarryChilled: true, canCarryFrozen: true },
+    clearances: [{ function: "delivery" as const, zoneId: null }], packagesAssignedToday: 0,
+  };
+  const work = { function: "delivery" as const, zoneId: null, totalWeightGrams: 0, requiresChilled: false, requiresFrozen: false, stopCount: 1, deadlineAt: new Date("2099-01-01") };
+  const reasons = (vehicleCheck?: "ok" | "due" | "unsafe") =>
+    eligibilityReasons({ driver: { ...base, ...(vehicleCheck ? { vehicleCheck } : {}) }, work, now: new Date("2026-10-17T00:00:00Z"), perStopAllowanceMin: 10 });
+
+  it("an unchecked vehicle and an unsafe one each take no work, with their own reason", () => {
+    expect(reasons("due")).toEqual(["vehicle_check_due"]);
+    expect(reasons("unsafe")).toEqual(["vehicle_unsafe"]);
+  });
+  it("a checked vehicle, and a caller that does not load the check, are not refused for it", () => {
+    expect(reasons("ok")).toEqual([]);
+    expect(reasons()).toEqual([]);
+  });
+});

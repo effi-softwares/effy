@@ -235,12 +235,12 @@ private fun Gallery(screen: String) {
             3, 5, noop, noop, {}, {}, { _, _, _ -> }, {}, noop, {}, noop,
         )
         "scan-shop" -> ShopStopScreen(CollectionUiState(run = collectionRun, stop = shopStop), 3, 5, noop, noop, {}, {}, { _, _, _ -> }, {}, noop, {}, noop, startScanning = true)
-        "hub" -> HubCheckinScreen(CollectionUiState(run = collectionRun.copy(stops = stops.map { it.copy(status = StopStatus.COLLECTED) })), "Carlton hub", noop, {}, noop, {})
+        "hub" -> HubCheckinScreen(CollectionUiState(run = collectionRun.copy(stops = stops.map { it.copy(status = StopStatus.COLLECTED) })), "Carlton hub", noop, { _, _ -> }, noop, {})
         "hub-done" -> HubCheckinScreen(
             CollectionUiState(run = collectionRun, hubSplit = HubSplit(17, 13, 4, 4, listOf(EffyGroup("Today, 4 pm – 6 pm", 8, true), EffyGroup("Today, 6:30 pm – 8:30 pm", 2, true), EffyGroup("Thu 15 Oct, 10 am – 12 pm", 3, false)), "4:00 pm")),
-            "Carlton hub", noop, {}, noop, {}, nextRun = "Your delivery run opens at 3:15 pm" to "Today, 4 pm – 6 pm · 7 drops · it's on Today.",
+            "Carlton hub", noop, { _, _ -> }, noop, {}, nextRun = "Your delivery run opens at 3:15 pm" to "Today, 4 pm – 6 pm · 7 drops · it's on Today.",
         )
-        "delivery-run" -> DeliveryRunScreen(DeliveryUiState(run = deliveryRun), "Carlton hub", noop, {}, noop, {}, {})
+        "delivery-run" -> DeliveryRunScreen(DeliveryUiState(run = deliveryRun), "Carlton hub", noop, {}, noop, { _, _ -> }, {})
         "drop" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)
         "door-scan" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop, startScanning = true)
         "delivered" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop, delivered = true, deliveredWith = ProofMethod.CONTACTLESS, deliveredAtEpochMillis = now, deliveredNote = "Left at: Front door"), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)

@@ -176,6 +176,9 @@ class AppContainer(
     val confirmSignIn by lazy { ConfirmSignIn(authDriver) }
     val getDriverIdentity by lazy { GetDriverIdentity(driver) }
     val setDuty by lazy { SetDuty(driver) }
+    // 093 — the daily vehicle check, and the record read that tells when a dispatcher has cleared it.
+    val submitVehicleCheck by lazy { com.effyshopping.driver.mobile.features.driver.domain.SubmitVehicleCheck(driver) }
+    suspend fun readMe() = driver.me()
     val getToday by lazy { GetToday(today) }
 
     // collection (US1)

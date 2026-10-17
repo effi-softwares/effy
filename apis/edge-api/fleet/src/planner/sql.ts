@@ -4,7 +4,7 @@
 // to select (D20/D22). A shop has an ADDRESS so a driver knows where to drive; nothing computes how
 // far it is.
 
-import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
+import { COURIER_COLLECTION_SQL, deliveredBySql, heldSql, vehicleCheckStateSql } from "@effy/edge-shared/delivery";
 
 /** Who takes a parcel to the customer — 079's one definition, over the gathers' aliases. */
 const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
@@ -63,6 +63,8 @@ export const GATHER_COLLECTION = `
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE sf.status = 'ready_for_pickup'
+     -- 093 — a package a driver declared missing waits for a dispatcher's decision.
+     AND NOT ${heldSql("sf.id")}
      -- ⚠ 080 — A COURIER COLLECTS IT FROM THE SUPPLIER: no Effy driver goes for it, ever — not in a
      -- pass and not when staff ask "who can take this one?". Asked through the ONE fragment, so the
      -- planner and the shop console cannot disagree about which parcels are the supplier's to hand over.
@@ -133,6 +135,8 @@ export const GATHER_DELIVERY = `
          z.id                        AS zone_id,
          z.name                      AS zone_name,
          hc.checked_in_at            AS ready_since,
+         -- 093 — who brought it to the hub: preferred for taking it on to the customer (one trip).
+         (array_agg(dr.driver_id ORDER BY hc.checked_in_at DESC))[1] AS collected_by,
          -- 069 — the window the customer was sold. NULL for an order placed before 069. ⚠ Read as
          -- stored INSTANTS: checkout turned the slot's wall-clock times into these once, and nothing
          -- here rebuilds one (research R5) — which is why this needed no Go↔TypeScript duplicate.
@@ -169,6 +173,8 @@ export const GATHER_DELIVERY = `
    WHERE rp.state = 'picked_up'
      AND ${DELIVERED_BY} = 'effy'
      AND (opd.window_start IS NULL OR opd.window_start <= $2::timestamptz)
+     -- 093 — declared missing at loading or check-in: held for a dispatcher, never re-planned by itself.
+     AND NOT ${heldSql("sf.id")}
      -- ⚠ 072 — STILL TO BE DELIVERED. Without this a package that HAS been delivered matches again:
      -- its collection row is 'picked_up' for ever and its delivery row is 'delivered', not 'assigned',
      -- so the NOT EXISTS below passes and the next pass puts it on a new delivery round. Proof moves
@@ -243,7 +249,9 @@ export const CANDIDATE_DRIVERS = `
                AND rp.created_at >= date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
                                     AT TIME ZONE 'Australia/Melbourne'),
            0
-         )::bigint               AS packages_assigned_today
+         )::bigint               AS packages_assigned_today,
+         -- 093 — today's check of the vehicle they hold.
+         ${vehicleCheckStateSql("d", "v")} AS vehicle_check
     FROM public.driver d
     LEFT JOIN public.driver_duty_session ds ON ds.driver_id = d.id AND ds.ended_at IS NULL
     LEFT JOIN public.vehicle_holding    vh ON vh.driver_id = d.id AND vh.ended_at IS NULL

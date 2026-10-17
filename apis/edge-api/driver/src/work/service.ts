@@ -5,7 +5,7 @@
 
 import { ANY_TIME_LABEL, anyTimeDayLabel, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops, query, type Queryable } from "@effy/edge-shared";
-import { toReturnOnRound } from "@effy/edge-shared/delivery";
+import { readRoundStage, toReturnOnRound } from "@effy/edge-shared/delivery";
 
 import { dropStatusOf } from "./drop-status";
 import { hubSortOf } from "./hub-sort";
@@ -217,11 +217,22 @@ export async function today(driverId: string): Promise<TodayDTO> {
   // kind: installed builds decode `kind` as a closed enum and would fail the whole response.
   const toReturn = round.kind === "delivery" ? await toReturnOnRound(db, round.id) : null;
 
+  // 093 — where the round is. A delivery round not yet loaded has ONE next step, loading the van:
+  // `active` is null and `loadStep` says what goes in it. Its drops are still listed, as what follows.
+  const stage = await readRoundStage(db, round.id);
+  const staged = round.kind === "delivery" ? outstanding.filter((s) => s.stop_status === "pending") : [];
+  const loadStep = stage?.stage === "to_load" && staged.length > 0
+    ? { runId: round.id, dropCount: staged.length, packageCount: staged.reduce((a, s) => a + (byStop.get(s.stop_id)?.length ?? 0), 0) }
+    : null;
+
   return {
     phase,
     activeRunId: round.id,
-    active: outstanding.length > 0 ? toRef(outstanding[0]!) : null,
-    upNext: outstanding.slice(1).map(toRef),
+    active: loadStep === null && outstanding.length > 0 ? toRef(outstanding[0]!) : null,
+    upNext: (loadStep === null ? outstanding.slice(1) : outstanding).map(toRef),
+    stage: stage?.stage ?? null,
+    stageLabel: stage?.label ?? null,
+    loadStep,
     remainingCount: outstanding.length,
     // ⚠ Null means OPEN. The round is shown in full either way; while this is set, every action on
     // it is refused by the platform (`assertRoundOpen`), and the app says when it opens.
@@ -261,10 +272,13 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
   // outstanding work, which is the thing that was missing.
   const stops = allStops.filter((s) => s.stop_kind !== "hub_checkin");
 
+  const stage = await readRoundStage(db, runId);
   return {
     map: await runMapOf(ordered(allStops), "collection"),
     runId,
     status: "assigned",
+    stage: stage?.stage ?? null,
+    stageLabel: stage?.label ?? null,
     // 090 — where each package goes at the hub, for the hub scan with no signal. A package left at
     // its shop is not coming to the hub, so it has no instruction.
     hubSort: packages
@@ -362,10 +376,13 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
   ]);
   const sorted = ordered(stops);
 
+  const stage = await readRoundStage(db, runId);
   return {
     map: await runMapOf(sorted, "delivery"),
     runId,
     status: "assigned",
+    stage: stage?.stage ?? null,
+    stageLabel: stage?.label ?? null,
     // 088 — parcels from this run's failed drops, still to be returned to the hub.
     toReturn: await toReturnOnRound(db, runId),
     opening: times.opening,

@@ -23,10 +23,14 @@
 import { announceDispatch } from "../lib/live";
 import type { ScheduledHandler } from "aws-lambda";
 
-import { logger } from "@effy/edge-shared";
+import { logger, query } from "@effy/edge-shared";
 
 import { maxCustodyHours } from "../dispatch/custody";
 import { passChangedAnything, runPass } from "../planner/service";
+import { overdueCrossedSince } from "../sequence/service";
+
+/** The schedule's interval (`rate(5 minutes)` in serverless.yml): a step that became overdue since the last tick. */
+const PASS_INTERVAL_MS = 5 * 60_000;
 
 /** One EMF record. ⚠ No dimensions: a dimensioned metric is a DIFFERENT metric and the alarm goes blind (059). */
 function emit(metrics: Record<string, number>): void {
@@ -56,7 +60,17 @@ export const handler: ScheduledHandler = async (_event, context) => {
   // ⚠ ANNOUNCED AFTER THE PASS HAS COMMITTED, AND ONLY IF IT CHANGED SOMETHING (071 FR-004, 072 R9).
   // The pass runs all day; telling every open screen "something changed" 288 times a day when
   // nothing had would be a refresh timer with extra steps.
-  if (passChangedAnything(outcome)) await announceDispatch(outcome.driverIds);
+  const changed = passChangedAnything(outcome);
+  if (changed) await announceDispatch(outcome.driverIds);
+
+  // ⚠ 093 — AN OVERDUE STEP IS TIME PASSING, NOT A WRITE, so nothing else would tell dispatch. A round
+  // that crossed its threshold since the last tick is announced once; the Exceptions screen re-reads.
+  try {
+    const crossed = await overdueCrossedSince({ query: (t, v) => query(t, v) }, new Date(Date.now() - PASS_INTERVAL_MS));
+    if (crossed > 0 && !changed) await announceDispatch([]);
+  } catch (err) {
+    scope.log.error({ err }, "dispatch.overdue_check_failed");
+  }
 
   // ⚠ 064 — the held-hours measurement rides on the planner tick because an on-demand custody read
   // only happens when a dispatcher opens a screen: an alarm fed by that would be silent exactly when

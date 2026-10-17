@@ -7,6 +7,7 @@ import type { PackageHandover } from "@effy/shared-types";
 
 import { recordHandovers } from "../work/handover";
 import { assertRoundOpen } from "../work/open";
+import { assertDropLoaded } from "../work/sequence";
 import * as SQL from "./sql";
 import type {
   CapturedProof,
@@ -99,6 +100,9 @@ export async function recordProof(input: RecordProofInput): Promise<RecordProofR
       };
     }
 
+    // 093 — a drop is delivered from the van, so it must have been loaded.
+    await assertDropLoaded(tx, input.dropId, input.driverId);
+
     const inserted = await tx.query(SQL.INSERT_PROOF, [
       input.dropId,
       input.method,
@@ -179,6 +183,8 @@ export async function recordFailure(input: RecordFailureInput): Promise<RecordFa
 
     // 072 — nor a failed attempt: nobody has attempted anything before the round opens.
     await assertRoundOpen(tx, (drop.rows[0] as DropRow).round_id);
+    // 093 — nor an attempt at a drop that was never loaded.
+    await assertDropLoaded(tx, input.dropId, input.driverId);
 
     const roundId = (drop.rows[0] as DropRow).round_id;
     const ins = await tx.query(SQL.INSERT_FAILURE, [

@@ -5,6 +5,7 @@ import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { canDispatch } from "./access";
 import { ReassignDialog } from "./components/ReassignDialog";
 import { ReorderControl } from "./components/ReorderControl";
+import { WaiveSequenceButton } from "./components/WaiveSequenceButton";
 import type { DeliveryWindow } from "@effy/shared-types";
 
 import { WINDOW_STATE_LABEL, momentText, roundOpenState, windowNoteFor } from "./model";
@@ -20,6 +21,13 @@ interface RoundDetail {
   deadlineAt: string;
   /** 072 — when it opens to its driver; null = no opening time (a delivery with no window). */
   opensAt: string | null;
+  /** 093 — where the run is, worded as the driver's app words it. */
+  stage?: string;
+  stageLabel?: string;
+  /** 093 — stops finished in a different order from the one shown. */
+  outOfOrder?: boolean;
+  /** 093 — a dispatcher let this run skip the order of work. */
+  waiver?: { reason: string; staffName: string; at: string } | null;
   stops: Array<{
     stopId: string;
     seq: number | null;
@@ -67,8 +75,14 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
           {round.kind === "collection" ? "Collection round" : "Delivery round"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {round.status.replace("_", " ")}
+          {round.stageLabel ?? round.status.replace("_", " ")}
+          {round.outOfOrder ? <span className="ml-2">· Worked out of order</span> : null}
         </p>
+        {round.waiver ? (
+          <p className="mt-1 text-sm">
+            Allowed to go ahead by {round.waiver.staffName}: {round.waiver.reason}
+          </p>
+        ) : null}
         {/* 072 — a round is assigned hours before it can be worked. Its driver can read it and
             cannot act on it until it opens; every control below works either way. */}
         {opening.text ? (
@@ -89,6 +103,11 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
               expectedUpdatedAt={round.updatedAt}
               drivers={drivers.filter((d) => d.driverId !== round.driverId)}
             />
+            {/* 093 — the driver's phone failed at the hub and the order of work is stuck: let this run
+                go ahead (load while still holding parcels, or collect with deliveries open). */}
+            {!round.waiver && round.status !== "completed" && round.status !== "cancelled" ? (
+              <WaiveSequenceButton roundId={round.id} driverName={holder} />
+            ) : null}
           </div>
         ) : null}
       </header>

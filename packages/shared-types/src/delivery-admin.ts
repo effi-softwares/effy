@@ -458,6 +458,12 @@ export interface DeliveryDaysDTO {
   effyLookaheadDays: number;
   /** 085 — what an "as soon as possible" customer is told to expect, 1–80 characters. Never empty. */
   asapEstimate?: string;
+  /** 093 — minutes a delivery run may stay open and unloaded before dispatch is told (5–240). */
+  loadOverdueMin?: number;
+  /** 093 — minutes a collection run may wait at "heading to the hub" before dispatch is told (5–240). */
+  checkinOverdueMin?: number;
+  /** 093 — drivers check the vehicle they hold once a day before they are given work. Off by default. */
+  vehicleCheckRequired?: boolean;
   dates: NonDeliveryDateDTO[];
 }
 

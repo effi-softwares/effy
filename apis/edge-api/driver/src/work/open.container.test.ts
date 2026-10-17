@@ -50,6 +50,7 @@ import { recordFailure, recordProof } from "../proof/repository";
 import { presignProof } from "../proof/service";
 import { collectStop, hubCheckin, reportIssue } from "./complete";
 import { deliveryDrop, setDropStatus } from "./delivery";
+import { loadRun } from "./load";
 import { RoundNotOpenError } from "./open";
 import { collectionRun, collectionStop, deliveryRun, today } from "./service";
 
@@ -93,6 +94,15 @@ async function aWave(kind: "collection" | "delivery"): Promise<string> {
 }
 
 /** A collection round for a run `minutesToRun` away: one shop stop with one package, and the hub. */
+/** 093 — a collect names every package the driver was shown: here, all of them. */
+async function shown(stopId: string) {
+  const { rows } = await pool.query<{ id: string }>(
+    `SELECT shop_fulfillment_id AS id FROM public.round_package WHERE stop_id = $1 AND state = 'assigned'`,
+    [stopId],
+  );
+  return rows.map((r) => ({ packageId: r.id, outcome: "picked_up" as const }));
+}
+
 async function collectionRound(minutesToRun: number, forDriver = driverId) {
   const { sfId } = await aPackage();
   const round = await one<{ id: string }>(
@@ -182,7 +192,7 @@ d("072 — a round cannot be worked before it opens", () => {
       const before = await snapshot();
 
       const calls: Array<[string, () => Promise<unknown>]> = [
-        ["collect", () => collectStop(roundId, stopId, driverId, { changeId: change() })],
+        ["collect", async () => collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })],
         ["issue", () => reportIssue(roundId, stopId, driverId, sfId, "shop was shut")],
         ["hub check-in", () => hubCheckin(roundId, driverId)],
       ];
@@ -200,11 +210,11 @@ d("072 — a round cannot be worked before it opens", () => {
 
     it("delivery: start / on my way / arrived, proof upload slot, proof, failed attempt", async () => {
       // A window three hours off: the round opens in two and a quarter.
-      const { dropId } = await deliveryRound(180);
+      const { roundId, dropId } = await deliveryRound(180);
       const before = await snapshot();
 
       const calls: Array<[string, () => Promise<unknown>]> = [
-        ["start", () => setDropStatus(dropId, driverId, { to: "out_for_delivery", changeId: change() })],
+        ["load", () => loadRun(roundId, driverId, change())],
         ["on my way", () => setDropStatus(dropId, driverId, { to: "en_route", changeId: change() })],
         ["arrived", () => setDropStatus(dropId, driverId, { to: "arrived", changeId: change() })],
         ["proof presign", () => presignProof(dropId, driverId, { contentType: "image/jpeg", fileSize: 1000, changeId: change() })],
@@ -227,7 +237,7 @@ d("072 — a round cannot be worked before it opens", () => {
       )).id;
       const { roundId, stopId } = await collectionRound(180, other);
 
-      await expect(collectStop(roundId, stopId, driverId, { changeId: change() })).rejects.toMatchObject({ name: "NotFoundError" });
+      await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).rejects.toMatchObject({ name: "NotFoundError" });
       await expect(hubCheckin(roundId, driverId)).rejects.toMatchObject({ name: "NotFoundError" });
       await expect(reportIssue(roundId, stopId, driverId, undefined, undefined)).rejects.toMatchObject({ name: "NotFoundError" });
     });
@@ -238,7 +248,7 @@ d("072 — a round cannot be worked before it opens", () => {
   describe("C8 — once it has opened, the same calls succeed", () => {
     it("collection round whose run is inside the lead time", async () => {
       const { roundId, stopId } = await collectionRound(30); // opened fifteen minutes ago
-      await expect(collectStop(roundId, stopId, driverId, { changeId: change() })).resolves.toMatchObject({ collected: 1 });
+      await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).resolves.toMatchObject({ collected: 1 });
       await expect(hubCheckin(roundId, driverId)).resolves.toMatchObject({ scannedTotal: 1 });
     });
 
@@ -249,10 +259,8 @@ d("072 — a round cannot be worked before it opens", () => {
     });
 
     it("delivery round whose window is inside the lead time", async () => {
-      const { dropId } = await deliveryRound(30);
-      await expect(setDropStatus(dropId, driverId, { to: "out_for_delivery", changeId: change() })).resolves.toMatchObject({
-        status: "out_for_delivery",
-      });
+      const { roundId, dropId } = await deliveryRound(30);
+      await expect(loadRun(roundId, driverId, change())).resolves.toMatchObject({ loadedDropIds: [dropId] });
       await expect(
         recordFailure({ dropId, driverId, reason: "nobody_home", note: null, changeId: change() }),
       ).resolves.toMatchObject({ replayed: false });
@@ -260,8 +268,8 @@ d("072 — a round cannot be worked before it opens", () => {
 
     // Spec US2 scenario 5 — an order placed before delivery windows existed has nothing to wait for.
     it("a delivery round with NO window is open the moment it is assigned", async () => {
-      const { dropId } = await deliveryRound(null);
-      await expect(setDropStatus(dropId, driverId, { to: "out_for_delivery", changeId: change() })).resolves.toBeDefined();
+      const { roundId, dropId } = await deliveryRound(null);
+      await expect(loadRun(roundId, driverId, change())).resolves.toBeDefined();
       await expect(
         recordProof({ dropId, driverId, driverSub: "sub-open", method: "photo", mediaKey: "proof/x.jpg", note: null, changeId: change() }),
       ).resolves.toMatchObject({ replayed: false });
@@ -273,7 +281,7 @@ d("072 — a round cannot be worked before it opens", () => {
   // ⚠ FR-014. The opening time is DERIVED. A stored one would still say 45 minutes here.
   it("C9 — changing the lead moves the opening time of a round that already exists", async () => {
     const { roundId, stopId } = await collectionRound(120); // opens in 75 minutes at the default lead
-    await expect(collectStop(roundId, stopId, driverId, { changeId: change() })).rejects.toBeInstanceOf(RoundNotOpenError);
+    await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).rejects.toBeInstanceOf(RoundNotOpenError);
 
     await pool.query(
       `INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, updated_by, planning_lead_min)
@@ -281,7 +289,7 @@ d("072 — a round cannot be worked before it opens", () => {
     );
 
     // The lead is now two and a half hours: the same round, untouched, has been open for thirty minutes.
-    await expect(collectStop(roundId, stopId, driverId, { changeId: change() })).resolves.toMatchObject({ collected: 1 });
+    await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).resolves.toMatchObject({ collected: 1 });
   });
 
   // ── What the driver is shown ────────────────────────────────────────────────────────────────────

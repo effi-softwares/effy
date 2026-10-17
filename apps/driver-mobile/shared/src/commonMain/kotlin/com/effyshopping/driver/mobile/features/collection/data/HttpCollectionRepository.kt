@@ -3,6 +3,7 @@ package com.effyshopping.driver.mobile.features.collection.data
 import com.effyshopping.driver.mobile.core.scan.toWire
 import com.effyshopping.driver.mobile.core.map.toDomain
 import com.effyshopping.driver.mobile.contract.CollectRequest
+import com.effyshopping.driver.mobile.contract.CollectResponse
 import com.effyshopping.driver.mobile.contract.Outcome
 import com.effyshopping.driver.mobile.contract.Package as CollectPackage
 import com.effyshopping.driver.mobile.contract.CollectionStopDTO
@@ -31,6 +32,7 @@ import com.effyshopping.driver.mobile.features.collection.domain.HubSort
 import com.effyshopping.driver.mobile.features.collection.domain.HubSortKind
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
+import com.effyshopping.driver.mobile.features.collection.domain.Collected
 import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
@@ -62,14 +64,14 @@ class HttpCollectionRepository(
         }
     }
 
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): WriteOutcome {
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): Collected {
         val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
         // ⚠ Each package's outcome travels IN the collect (063 FR-026). The separate `/issue` call
         // this app used to make named no package, and the platform reads "no package" as "every
         // package at this stop" — one report marked the whole stop unavailable.
         val body = CollectRequest(
             changeID = changeId,
-            packages = outcomes.takeIf { it.isNotEmpty() }?.map {
+            packages = outcomes.map {
                 CollectPackage(
                     method = it.method?.toWire(),
                     note = it.note,
@@ -79,16 +81,19 @@ class HttpCollectionRepository(
             },
         )
         return request {
-            offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop", queued = { WriteOutcome.QUEUED }) {
-                api.post(path) { setBody(body) }.ensureSuccess()
-                WriteOutcome.SENT
+            offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop", queued = { Collected(WriteOutcome.QUEUED) }) {
+                val r = api.post(path) { setBody(body) }.ensureSuccess().body<CollectResponse>()
+                Collected(WriteOutcome.SENT, remaining = r.remaining?.toInt() ?: 0)
             }
         }
     }
 
-    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): HubSplit? {
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<String>): HubSplit? {
         val path = "driver/v1/hub/checkin"
-        val body = HubCheckinRequest(changeID = changeId, runID = runId, packages = handed.toWire())
+        val body = HubCheckinRequest(
+            changeID = changeId, runID = runId, packages = handed.toWire(),
+            missing = missing.takeIf { it.isNotEmpty() }?.map { com.effyshopping.driver.mobile.contract.PackageRefOnly(packageCode = it) },
+        )
         return request {
             offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in", queued = { null }) {
                 val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
@@ -97,6 +102,7 @@ class HttpCollectionRepository(
                     // 082 — null from a server that predates it; the domain falls back to the counts above.
                     r.effyGroups?.map { g -> EffyGroup(g.label, g.count.toInt(), g.dueToday) },
                     nextCourierPickupLabel = r.nextCourierPickupLabel?.takeIf { it.isNotBlank() },
+                    held = r.held?.toInt() ?: 0,
                 )
             }
         }

@@ -55,8 +55,20 @@ let driverSub: string;
 let roundId: string;
 let dropId: string;
 
-const step = (to: string) =>
-  setDropStatus(dropId, driverId, { to, changeId: crypto.randomUUID() } as never);
+/** 093 — loading the van is what puts a drop out for delivery; nothing on a drop happens before it. */
+const load = () => loadRun(roundId, driverId, crypto.randomUUID());
+
+/** A drop step as the app makes it: `out_for_delivery` is the van being loaded (093), the rest follow it. */
+const dropStatus = async () => (await deliveryDrop(dropId, driverId)).status;
+
+const step = async (to: string): Promise<{ status: string }> => {
+  if (to === "out_for_delivery") {
+    await load();
+    return { status: await dropStatus() };
+  }
+  if ((await dropStatus()) === "staged") await load();
+  return setDropStatus(dropId, driverId, { to, changeId: crypto.randomUUID() } as never);
+};
 
 d("064 fix — a drop advances through every state the app sends", () => {
   beforeAll(async () => {
@@ -132,7 +144,15 @@ d("064 fix — a drop advances through every state the app sends", () => {
   it("092 rev 2 — Today carries progress, the card's details and a map from the postcode's place", async () => {
     await seedPlace(pool, { name: "Melbourne", state: "VIC", postcode: "3000", lat: -37.8136, lng: 144.9631 });
     await seedHub(pool, -37.8, 144.97);
+    // 093 — before the van is loaded the one step is loading it; the drop follows it.
+    const before = await today(driverId);
+    expect(before.active).toBeNull();
+    expect(before.loadStep).toEqual({ runId: roundId, dropCount: 1, packageCount: 1 });
+    expect(before.stage).toBe("to_load");
+    expect(before.upNext.map((i) => i.id)).toEqual([dropId]);
+    await load();
     const t = await today(driverId);
+    expect(t.stageLabel).toBe("Out 0 of 1");
     expect(t.progress).toEqual({ done: 0, total: 1, delivered: 0, notDelivered: 0 });
     expect(t.active).toMatchObject({ street: "1 Walk St", place: "Melbourne VIC 3000", packageCount: 1 });
     // A delivery run starts at the hub; the drop is next; its point is its postcode's place.
@@ -170,7 +190,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
   });
 
   /** ⚠ THE DEFECT. Before the fix this assertion read "staged" — the button did nothing. */
-  it("⚠ 'Start this drop' moves it to out_for_delivery, on BOTH screens", async () => {
+  it("⚠ loading the van moves it to out_for_delivery, on BOTH screens", async () => {
     await step("out_for_delivery");
     expect(await dropScreen()).toBe("out_for_delivery");
     expect(await runScreen()).toBe("out_for_delivery");

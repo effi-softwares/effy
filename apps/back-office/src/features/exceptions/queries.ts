@@ -41,3 +41,27 @@ export function useRecordReturn() {
     },
   });
 }
+
+/** 093 — a held package decided; the lists, and dispatch's day, change. */
+export function useResolveHold() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ holdId, resolution }: { holdId: string; resolution: "found" | "lost" }) => repo.resolveHold(holdId, resolution),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: exceptionKeys.all });
+      void qc.invalidateQueries({ queryKey: dispatchKeys.all });
+    },
+  });
+}
+
+/** 093 — an unsafe vehicle check cleared; the driver can be given work again. */
+export function useClearVehicleCheck() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ checkId, note }: { checkId: string; note: string }) => repo.clearVehicleCheck(checkId, note),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: exceptionKeys.all });
+      void qc.invalidateQueries({ queryKey: dispatchKeys.all });
+    },
+  });
+}

@@ -171,6 +171,7 @@ fun DriverShell(
                             vm.toggleDuty()
                         },
                         onRefresh = vm::refresh,
+                        onSubmitVehicleCheck = vm::submitVehicleCheck,
                         onOpenReturn = { runId, scan -> tabs.push(ReturnHubRoute(runId, scan)) },
                         onNavigate = { address -> mapLauncher.navigateTo(address) },
                         onOpenRun = { runId, phase ->
@@ -261,9 +262,9 @@ fun DriverShell(
                         nextRun = todaySt.today?.nextDeliveryRun(route.runId),
                         onNavigate = { address -> mapLauncher.navigateTo(address) },
                         onBack = { tabs.pop() },
-                        onCheckIn = { handed ->
+                        onCheckIn = { handed, missing ->
                             container.analyticsDriver.capture(AnalyticsEvent.HubCheckedIn(route.runId))
-                            vm.checkIn(handed)
+                            vm.checkIn(handed, missing)
                         },
                         onDone = { while (tabs.canGoBack) tabs.pop() },
                     )
@@ -281,7 +282,7 @@ fun DriverShell(
                         onBack = { tabs.pop() },
                         onOpenDrop = { dropId -> tabs.push(DropRoute(route.runId, dropId)) },
                         onRefresh = { vm.loadRun() },
-                        onLoadVan = { handed -> vm.loadVan(handed) },
+                        onLoadVan = { handed, notLoaded -> vm.loadVan(handed, notLoaded) },
                         onOpenReturn = { scan -> tabs.push(ReturnHubRoute(route.runId, scan)) },
                     )
                 }
@@ -452,6 +453,10 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
     syncFlush = { container.syncCoordinator.flush() },
     liveChanges = container.work.changes,
     returnToHub = { runId, changeId -> container.returnToHub(runId, changeId) },
+    initialVehicleCheck = session.driver.vehicleCheck,
+    initialVehicleLabel = session.driver.vehicleLabel,
+    submitCheck = { changeId, answers -> container.submitVehicleCheck(changeId, answers) },
+    readMe = { container.readMe() },
 )
 
 /**

@@ -205,8 +205,17 @@ class CollectionViewModel(
             try {
                 // Sent or saved to send, the stop is collected as far as the driver is concerned
                 // (backlog C1): the queue banner says what is still on the phone.
-                collectStop(runId, stopId, ids.of(action), outcomes)
+                val result = collectStop(runId, stopId, ids.of(action), outcomes)
                 ids.settled(action)
+                if (result.remaining > 0) {
+                    // 093 — a package was added while the driver was here. Only what they were shown is
+                    // collected; the stop stays open and shows it. The ticks so far are kept.
+                    _state.update { it.copy(isWorking = false) }
+                    reloadStopQuietly()
+                    val n = result.remaining
+                    _state.update { it.copy(message = "${if (n == 1) "1 more package was" else "$n more packages were"} added — collect ${if (n == 1) "it" else "them"} before you leave.") }
+                    return@launch
+                }
                 drafts?.clear()
                 _state.update { it.copy(isWorking = false) }
                 onDone()
@@ -267,13 +276,14 @@ class CollectionViewModel(
         keepDraft()
     }
 
-    fun checkIn(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()) {
+    /** 093 — [missing]: label codes of collected packages that are not in the van. */
+    fun checkIn(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<String> = emptyList()) {
         if (_state.value.isWorking || _state.value.checkInSending) return
         _state.update { it.copy(isWorking = true, message = null) }
         val id = ids.of(CHECK_IN)
         viewModelScope.launch {
             try {
-                val split = checkInHub(runId, id, handed)
+                val split = checkInHub(runId, id, handed, missing)
                 if (split == null) {
                     // Saved to send (backlog C2). Its answer is read once the queue has sent it.
                     savedCheckIn = id

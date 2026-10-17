@@ -55,6 +55,8 @@ interface GatherRow {
   requires_frozen: boolean | null;
   window_start?: Date | null;
   window_end?: Date | null;
+  /** 093 — the delivery gather: the driver whose collection run brought it to the hub. */
+  collected_by?: string | null;
 }
 
 /** ⚠ One line a driver can read and hand to their maps app (D7). Never a coordinate. */
@@ -85,6 +87,7 @@ function mapPackage(r: GatherRow): PlannablePackage {
     requiresFrozen: r.requires_frozen === true,
     windowStart: r.window_start ?? null,
     windowEnd: r.window_end ?? null,
+    collectedBy: r.collected_by ?? null,
   };
 }
 
@@ -116,6 +119,7 @@ interface CandidateRow {
   can_carry_frozen: boolean;
   clearances: Array<{ function: "collection" | "delivery"; zoneId: string | null }>;
   packages_assigned_today: string;
+  vehicle_check?: "none" | "ok" | "due" | "unsafe";
 }
 
 export async function loadCandidates(db: Queryable = pooled): Promise<PlannerCandidate[]> {
@@ -137,6 +141,8 @@ export async function loadCandidates(db: Queryable = pooled): Promise<PlannerCan
       : null,
     clearances: r.clearances ?? [],
     packagesAssignedToday: Number(r.packages_assigned_today),
+    // 093 — `none` is already `no_vehicle`; only a held vehicle's check is a reason of its own.
+    ...(r.vehicle_check === "due" || r.vehicle_check === "unsafe" ? { vehicleCheck: r.vehicle_check } : {}),
   }));
 }
 

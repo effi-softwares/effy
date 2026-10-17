@@ -9,6 +9,14 @@ import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.offline.LastCopies
 import com.effyshopping.driver.mobile.features.driver.domain.Driver
 import com.effyshopping.driver.mobile.features.driver.domain.DriverRepository
+import com.effyshopping.driver.mobile.features.driver.domain.CheckAnswer
+import com.effyshopping.driver.mobile.features.driver.domain.CheckItem
+import com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckAnswer
+import com.effyshopping.driver.mobile.features.driver.domain.VehicleCheckStatus
+import com.effyshopping.driver.mobile.contract.VehicleCheckEntry
+import com.effyshopping.driver.mobile.contract.VehicleCheckItem
+import com.effyshopping.driver.mobile.contract.VehicleCheckRequest
+import com.effyshopping.driver.mobile.contract.VehicleCheckResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -45,6 +53,32 @@ class HttpDriverRepository(
         // The duty response carries only the new status; re-read the record so the UI shows the full,
         // fresh driver (identity is always displayed from the record — Principle IV).
         driverApi.get("driver/v1/me").ensureSuccess().body<DriverMeDTO>().toDomain()
+    }
+
+    override suspend fun submitVehicleCheck(changeId: String, answers: List<VehicleCheckAnswer>): VehicleCheckStatus = request {
+        val body = VehicleCheckRequest(
+            changeID = changeId,
+            answers = answers.map { a ->
+                VehicleCheckEntry(
+                    item = when (a.item) {
+                        CheckItem.TYRES -> VehicleCheckItem.Tyres
+                        CheckItem.LIGHTS -> VehicleCheckItem.Lights
+                        CheckItem.BRAKES -> VehicleCheckItem.Brakes
+                        CheckItem.MIRRORS -> VehicleCheckItem.Mirrors
+                        CheckItem.COLD_STORAGE -> VehicleCheckItem.ColdStorage
+                        CheckItem.BODY -> VehicleCheckItem.Body
+                    },
+                    answer = when (a.answer) {
+                        CheckAnswer.OK -> com.effyshopping.driver.mobile.contract.VehicleCheckAnswer.Ok
+                        CheckAnswer.MINOR -> com.effyshopping.driver.mobile.contract.VehicleCheckAnswer.Minor
+                        CheckAnswer.UNSAFE -> com.effyshopping.driver.mobile.contract.VehicleCheckAnswer.Unsafe
+                    },
+                    note = a.note?.trim()?.takeIf { it.isNotEmpty() },
+                )
+            },
+        )
+        val r = driverApi.post("driver/v1/vehicle-check") { setBody(body) }.ensureSuccess().body<VehicleCheckResponse>()
+        if (r.state == "unsafe") VehicleCheckStatus.UNSAFE else VehicleCheckStatus.OK
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

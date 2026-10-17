@@ -34,6 +34,15 @@ sealed interface AppError {
      */
     data class NotOpenYet(val opening: com.effyshopping.driver.mobile.core.opening.Opening?) : AppError
 
+    /**
+     * 093 — a step taken out of turn: check-in before every shop, a drop before the van is loaded, a
+     * load before the collected parcels are checked in. The platform refused and wrote nothing;
+     * [message] is its sentence saying what to do first ("Load the van first.").
+     *
+     * ⚠ NOT [Conflict] either: "pull to refresh" does not help a driver who has to do something first.
+     */
+    data class OutOfTurn(val message: String) : AppError
+
     /** Throttled. [retryAfterSeconds] is shown; explain the wait, never loop (FR-012). */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 
@@ -52,6 +61,7 @@ class AppException(val error: AppError) : Exception()
  * change it. A transient failure is not final: a retry keeps the same changeId (backlog C1).
  */
 fun AppError.isFinal(): Boolean = when (this) {
-    is AppError.Validation, AppError.Unauthenticated, AppError.Forbidden, AppError.NotFound, AppError.Conflict -> true
+    is AppError.Validation, AppError.Unauthenticated, AppError.Forbidden, AppError.NotFound, AppError.Conflict,
+    is AppError.OutOfTurn -> true
     is AppError.NotOpenYet, is AppError.RateLimited, AppError.Network, AppError.Unavailable, AppError.Unexpected -> false
 }

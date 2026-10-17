@@ -8,6 +8,7 @@ import type {
   ResolveExceptionResponse,
 } from "@effy/shared-types";
 
+import { heldPackages, overdueRuns, vehicleChecksToday } from "../sequence/service";
 import { recordAudit } from "../shared/audit";
 import { EXCEPTION_BY_ID, LIST_EXCEPTIONS, RESOLVE_EXCEPTION } from "./sql";
 
@@ -61,9 +62,15 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
     returnedAt: r.returned_at ? iso(r.returned_at) : null,
   }));
 
+  // 093 — what else needs a dispatcher: packages declared missing, steps overdue, vehicles found unsafe.
+  const [held, overdue, vehicleChecks] = await Promise.all([heldPackages(), overdueRuns(), vehicleChecksToday()]);
+
   return {
     exceptions,
     openCount: exceptions.filter((e) => e.resolvedAt === null).length,
+    held,
+    overdue,
+    vehicleChecks,
   };
 }
 

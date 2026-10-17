@@ -4,12 +4,13 @@
 // that arrives without its response reaching them is ordinary, and the retry must not apply twice
 // (027's changeId-per-action rule). "Simplify the request shape" was never licence to drop that.
 
-import { deliveredBySql, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
+import { deliveredBySql, heldSql, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
 import { query, withTransaction } from "@effy/edge-shared";
-import { anyTimeDayLabel, formatArrival, formatMoment, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse, type PackageHandover } from "@effy/shared-types";
+import { anyTimeDayLabel, formatArrival, formatMoment, melbourneDate, type CollectRequest, type HubCheckinEffyGroup, type HubCheckinResponse, type PackageHandover, type PackageRefOnly } from "@effy/shared-types";
 
 import { recordHandovers } from "./handover";
 import { assertRoundOpen } from "./open";
+import { assertNoDeliveriesOpen, assertStopsSettled } from "./sequence";
 import { NotFoundError } from "./service";
 
 export class ConflictError extends Error {
@@ -31,13 +32,18 @@ export class ConflictError extends Error {
  * ⚠ A PACKAGE NOT TAKEN IS RECORDED, NEVER OMITTED. Quietly leaving it out would mark it collected
  * by silence, and a package nobody is looking for is exactly the failure 056 found written into two
  * tables with no reader.
+ *
+ * ⚠ 093 — ONLY WHAT THE DRIVER NAMED IS SETTLED. Work joins a stop while the driver is at it (072's late
+ * join). Until 093 a package absent from the request counted as collected, so one added while the driver
+ * stood at the counter was recorded as in the van with nobody having seen it. It now stays `assigned`,
+ * the stop stays open, and `remaining` tells the app to show it.
  */
 export async function collectStop(
   runId: string,
   stopId: string,
   driverId: string,
   body: CollectRequest,
-): Promise<{ collected: number; notAvailable: number }> {
+): Promise<{ collected: number; notAvailable: number; remaining: number }> {
   return withTransaction(async (tx: any) => {
     const stop = await tx.query(
       `SELECT rs.id, rs.status
@@ -57,13 +63,15 @@ export async function collectStop(
         [stopId],
       );
       const by = (s: string) => Number(prior.rows.find((r: any) => r.state === s)?.n ?? 0);
-      return { collected: by("picked_up"), notAvailable: by("not_available") };
+      return { collected: by("picked_up"), notAvailable: by("not_available"), remaining: 0 };
     }
 
     // 072 — not before the round opens. After the ownership check (so somebody else's round still
     // answers "not found") and after the retry answer above (a stop already collected was collected
     // on an open round).
     await assertRoundOpen(tx, runId);
+    // 093 — not with deliveries still in the van.
+    await assertNoDeliveriesOpen(tx, driverId, runId);
 
     const rows = await tx.query(
       `SELECT id, shop_fulfillment_id FROM public.round_package WHERE stop_id = $1 AND state = 'assigned'`,
@@ -74,10 +82,17 @@ export async function collectStop(
     let collected = 0;
     let notAvailable = 0;
 
+    let remaining = 0;
+
     for (const r of rows.rows) {
-      // Absent from the body means collected — the shape the app has always sent.
-      const outcome = declared.get(r.shop_fulfillment_id)?.outcome ?? "picked_up";
-      const note = declared.get(r.shop_fulfillment_id)?.note ?? null;
+      const named = declared.get(r.shop_fulfillment_id);
+      // 093 — not named: the driver was not shown it. It waits, and so does the stop.
+      if (!named) {
+        remaining += 1;
+        continue;
+      }
+      const outcome = named.outcome;
+      const note = named.note ?? null;
 
       await tx.query(
         `UPDATE public.round_package SET state = $2, settled_at = now() WHERE id = $1`,
@@ -105,10 +120,12 @@ export async function collectStop(
       }
     }
 
-    await tx.query(
-      `UPDATE public.round_stop SET status = 'done', completed_at = now() WHERE id = $1`,
-      [stopId],
-    );
+    if (remaining === 0) {
+      await tx.query(
+        `UPDATE public.round_stop SET status = 'done', completed_at = now() WHERE id = $1`,
+        [stopId],
+      );
+    }
     await tx.query(
       `UPDATE public.driver_round SET status = 'in_progress', updated_at = now()
         WHERE id = $1 AND status = 'planned'`,
@@ -126,7 +143,7 @@ export async function collectStop(
       allowed: new Set(rows.rows.map((r: any) => r.shop_fulfillment_id as string)),
     });
 
-    return { collected, notAvailable };
+    return { collected, notAvailable, remaining };
   });
 }
 
@@ -150,8 +167,8 @@ export async function collectStop(
 export async function hubCheckin(
   runId: string,
   driverId: string,
-  /** 090 — the request's changeId and how each package was handed over; optional. */
-  handover?: { changeId: string; packages?: PackageHandover[] },
+  /** 090 — the request's changeId and how each package was handed over; optional. 093 — and what is missing. */
+  handover?: { changeId: string; packages?: PackageHandover[]; missing?: PackageRefOnly[] },
 ): Promise<HubCheckinResponse> {
   return withTransaction(async (tx: any) => {
     const round = await tx.query(
@@ -163,6 +180,46 @@ export async function hubCheckin(
 
     // 072 — a round that has not opened has collected nothing; there is nothing to check in.
     await assertRoundOpen(tx, runId);
+
+    // 093 — check-in closes the run, so every shop on it must be settled first. A run already checked
+    // in answers as checked in (a retry), whatever has happened since.
+    const already = await tx.query(`SELECT 1 FROM public.hub_checkin WHERE round_id = $1`, [runId]);
+    if ((already.rowCount ?? 0) === 0) await assertStopsSettled(tx, runId);
+
+    // 093 — a collected package that is not in the van is declared, never assumed: it is held out of
+    // delivery planning for a dispatcher (a shortage), and is not counted as arrived.
+    let held = 0;
+    if (handover && (handover.missing ?? []).length > 0 && (already.rowCount ?? 0) === 0) {
+      const onRound = await tx.query(
+        `SELECT rp.shop_fulfillment_id, sf.package_code
+           FROM public.round_package rp
+           JOIN public.round_stop rs ON rs.id = rp.stop_id
+           JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
+          WHERE rs.round_id = $1 AND rp.state = 'picked_up'`,
+        [runId],
+      );
+      const ids = new Set<string>(onRound.rows.map((r: any) => r.shop_fulfillment_id));
+      const byCode = new Map<string, string>(
+        onRound.rows.filter((r: any) => r.package_code).map((r: any) => [String(r.package_code).toUpperCase(), r.shop_fulfillment_id]),
+      );
+      const missing = new Set<string>();
+      for (const m of handover.missing ?? []) {
+        const id = m.packageId && ids.has(m.packageId) ? m.packageId : m.packageCode ? byCode.get(m.packageCode.toUpperCase()) : undefined;
+        if (id) missing.add(id);
+      }
+      for (const id of missing) {
+        const ins = await tx.query(
+          `INSERT INTO public.package_hold (shop_fulfillment_id, step, reason, driver_id, round_id, change_id)
+           VALUES ($1, 'checkin', 'not_in_van', $2, $3, $4)
+           ON CONFLICT DO NOTHING`,
+          [id, driverId, runId, handover.changeId],
+        );
+        held += ins.rowCount ?? 0;
+      }
+    } else if (handover) {
+      const prior = await tx.query(`SELECT count(*)::int AS n FROM public.package_hold WHERE change_id = $1`, [handover.changeId]);
+      held = Number(prior.rows[0]?.n ?? 0);
+    }
 
     const counts = await tx.query(
       `SELECT COALESCE(sf.delivery_method, 'standard') AS method,
@@ -182,6 +239,8 @@ export async function hubCheckin(
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.delivery_slot ds ON ds.id = opd.slot_id
         WHERE rs.round_id = $1
+          -- 093 — a package declared not in the van did not arrive.
+          AND NOT ${heldSql("rp.shop_fulfillment_id")}
         GROUP BY 1, 2, 3, 4, 5, 6`,
       [runId],
     );
@@ -274,7 +333,7 @@ export async function hubCheckin(
 
     return {
       scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier, effyCount, effyGroups,
-      nextCourierPickupLabel,
+      nextCourierPickupLabel, held,
     };
   });
 }

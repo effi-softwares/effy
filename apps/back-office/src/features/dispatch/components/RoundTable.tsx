@@ -56,12 +56,9 @@ export function RoundTable({ rounds }: { rounds: DispatchRoundSummaryDTO[] }) {
             <td className="px-3 py-2">
               {/* ⚠ Late is DERIVED on read, never stored — a stored flag is wrong every minute
                   nothing writes to it (027's counted-not-stored rule). */}
-              {r.isLate ? (
-                <span className="text-destructive">Late</span>
-
-              ) : (
-                <span className="text-muted-foreground">{r.round.status.replace("_", " ")}</span>
-              )}
+              {/* 093 — where the run is, in the words the driver's app uses ("Out 4 of 9"). */}
+              <span>{r.stageLabel ?? r.round.status.replace("_", " ")}</span>
+              {r.isLate ? <span className="ml-2 text-destructive">Late</span> : null}
             </td>
           </tr>
         ))}

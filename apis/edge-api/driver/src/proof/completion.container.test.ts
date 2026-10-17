@@ -97,8 +97,9 @@ async function seedOrder(methods: Array<"same_day" | "standard">) {
     [wave.rows[0]!.id, driverId],
   );
   const stop = await pool.query<{ id: string }>(
-    `INSERT INTO public.round_stop (round_id, kind, order_id)
-     VALUES ($1, 'customer_drop', $2) RETURNING id`,
+    // 093 — loaded: a drop is delivered from the van.
+    `INSERT INTO public.round_stop (round_id, kind, order_id, status)
+     VALUES ($1, 'customer_drop', $2, 'out_for_delivery') RETURNING id`,
     [round.rows[0]!.id, orderId],
   );
   dropId = stop.rows[0]!.id;
@@ -415,8 +416,8 @@ d("064 — proof IS the delivery completion", () => {
     /** A second drop on the same round, still open. */
     async function addOpenDrop(): Promise<string> {
       const r = await pool.query<{ id: string }>(
-        `INSERT INTO public.round_stop (round_id, kind, order_id)
-         SELECT round_id, 'customer_drop', order_id FROM public.round_stop WHERE id = $1
+        `INSERT INTO public.round_stop (round_id, kind, order_id, status)
+         SELECT round_id, 'customer_drop', order_id, 'out_for_delivery' FROM public.round_stop WHERE id = $1
          RETURNING id`,
         [dropId],
       );

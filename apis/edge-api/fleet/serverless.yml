@@ -474,6 +474,42 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  dispatchWaiveSequenceV1:
+    handler: src/functions/dispatch-waive-sequence-v1-post.handler
+    description: >-
+      093 — let one run skip the cross-run gate (a driver's phone failed at the hub), with a reason. Mutate. Audited.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/rounds/{id}/waive-sequence
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  heldPackageResolveV1:
+    handler: src/functions/held-package-resolve-v1-post.handler
+    description: >-
+      093 — decide a package a driver declared missing at loading or check-in: found (planned again) or lost. Mutate. Audited.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/held-packages/{holdId}/resolve
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  vehicleCheckClearV1:
+    handler: src/functions/vehicle-check-clear-v1-post.handler
+    description: >-
+      093 — clear a vehicle check that found something unsafe, once the vehicle is fixed or swapped. Mutate. Audited.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/vehicle-checks/{checkId}/clear
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   dispatchCustodyV1:
     handler: src/functions/dispatch-custody-v1-get.handler
     description: >-
