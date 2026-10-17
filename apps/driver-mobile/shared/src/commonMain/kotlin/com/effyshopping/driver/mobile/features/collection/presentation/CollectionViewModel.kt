@@ -103,6 +103,25 @@ class CollectionViewModel(
         }
     }
 
+    /**
+     * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * time after, it re-reads quietly. ⚠ A driver's OWN change is never announced back to them (the
+     * live channel tells the shops, the customer and dispatch), so coming back from a stop, a drop or
+     * the hub is the moment this screen learns what the driver just did — without this it kept the
+     * copy it loaded first.
+     */
+    fun showRun(quiet: Boolean = false) {
+        when {
+            _state.value.run != null -> viewModelScope.launch { reloadRunQuietly() }
+            !quiet -> loadRun()
+            // A screen that works without the run (the stop, the hub — backlog F2) reads it with no
+            // loading or error state of its own.
+            else -> viewModelScope.launch {
+                runCatching { getRun(runId) }.onSuccess { fresh -> _state.update { it.copy(run = it.run ?: fresh) } }
+            }
+        }
+    }
+
     fun loadRun() {
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
@@ -111,14 +130,6 @@ class CollectionViewModel(
             } catch (e: AppException) {
                 _state.update { it.copy(isLoading = false, message = e.error.userMessage()) }
             }
-        }
-    }
-
-    /** Read the run when nothing has yet — quietly: the hub screen works without it (backlog F2). */
-    fun ensureRunLoaded() {
-        if (_state.value.run != null) return
-        viewModelScope.launch {
-            runCatching { getRun(runId) }.onSuccess { fresh -> _state.update { it.copy(run = it.run ?: fresh) } }
         }
     }
 

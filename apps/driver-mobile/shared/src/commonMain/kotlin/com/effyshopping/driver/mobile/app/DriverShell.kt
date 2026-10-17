@@ -159,6 +159,8 @@ fun DriverShell(
                 TodayRoot -> {
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
+                    // Every return to Today re-reads it — after a stop, a drop or the hub (see `shown`).
+                    LaunchedEffect(Unit) { vm.shown() }
                     TodayScreen(
                         driver = session.driver,
                         state = state,
@@ -196,7 +198,7 @@ fun DriverShell(
                 is CollectionRunRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
+                    LaunchedEffect(route.runId) { vm.showRun() }
                     CollectionRunScreen(
                         state = st,
                         hubName = session.driver.hub,
@@ -211,8 +213,8 @@ fun DriverShell(
                     val st by vm.state.collectAsState()
                     // The ViewModel is keyed per RUN, so `loadStop` is what drops one stop's ticks when
                     // a different stop opens — and keeps them when this one is come back to.
-                    androidx.compose.runtime.LaunchedEffect(route.stopId) {
-                        vm.ensureRunLoaded()
+                    LaunchedEffect(route.stopId) {
+                        vm.showRun(quiet = true)
                         vm.loadStop(route.stopId)
                     }
                     CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "pickup")) {
@@ -250,9 +252,11 @@ fun DriverShell(
                     val st by vm.state.collectAsState()
                     // Backlog F2 — after the system reclaims the app, this screen is restored on its own,
                     // with no run screen before it to have loaded the counts.
-                    androidx.compose.runtime.LaunchedEffect(route.runId) { vm.ensureRunLoaded() }
+                    LaunchedEffect(route.runId) { vm.showRun(quiet = true) }
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
                     val todaySt by todayVm.state.collectAsState()
+                    // "Your delivery run opens at …" is read from Today — fresh, not the copy from this morning.
+                    LaunchedEffect(Unit) { todayVm.shown() }
                     HubCheckinScreen(
                         state = st,
                         hubName = session.driver.hub,
@@ -269,7 +273,7 @@ fun DriverShell(
                 is DeliveryRunRoute -> {
                     val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
+                    LaunchedEffect(route.runId) { vm.showRun() }
                     LaunchedEffect(st.notice) {
                         st.notice?.let { snack = DriverSnack(it); vm.clearNotice() }
                     }
@@ -286,7 +290,7 @@ fun DriverShell(
                 is ReturnHubRoute -> {
                     val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.runId) { if (st.run == null) vm.loadRun() }
+                    LaunchedEffect(route.runId) { vm.showRun() }
                     LaunchedEffect(st.notice) {
                         st.notice?.let { snack = DriverSnack(it); vm.clearNotice(); tabs.pop() }
                     }
@@ -303,8 +307,8 @@ fun DriverShell(
                 is DropRoute -> {
                     val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.dropId) {
-                        if (st.run == null) vm.loadRun()
+                    LaunchedEffect(route.dropId) {
+                        vm.showRun()
                         vm.loadDrop(route.dropId)
                     }
                     CompositionLocalProvider(LocalManifestOpened provides manifestOpened(container, "drop")) {
@@ -357,6 +361,8 @@ fun DriverShell(
                 AccountRoot -> {
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
                     val todaySt by todayVm.state.collectAsState()
+                    // The sign-out sheet counts what is still on the run — from a fresh read.
+                    LaunchedEffect(Unit) { todayVm.shown() }
                     val pending by container.offlineQueue.pending.collectAsState()
                     val proofs by container.proofOutbox.pending.collectAsState()
                     AccountScreen(

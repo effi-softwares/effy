@@ -95,6 +95,17 @@ class TodayViewModel(
         }
     }
 
+    /**
+     * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * time after, it re-reads quietly (no spinner, a message left alone). ⚠ A driver's OWN change is never announced back to them (the
+     * live channel tells the shops, the customer and dispatch), so coming back from a stop, a drop or
+     * the hub is the moment this screen learns what the driver just did — without this it kept the
+     * copy it loaded first.
+     */
+    fun shown() {
+        if (_state.value.today == null) refresh() else viewModelScope.launch { refreshQuietly() }
+    }
+
     fun refresh() {
         if (_state.value.dutyStatus != DutyStatus.ON_DUTY) return
         _state.update { it.copy(isLoading = true, message = null) }

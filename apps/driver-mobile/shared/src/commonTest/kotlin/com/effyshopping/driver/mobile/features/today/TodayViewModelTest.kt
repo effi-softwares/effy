@@ -55,6 +55,29 @@ class TodayViewModelTest {
     private fun vm(repo: Repo, drivers: Drivers, duty: DutyStatus) =
         TodayViewModel(initialDuty = duty, getToday = GetToday(repo), setDuty = SetDuty(drivers), newChangeId = { "c" }, now = { 42L })
 
+    /**
+     * 092 rev 2 — the reported defect: a driver collected the first shop, came back, and Today still
+     * said "Next · stop 1". Their own change is never announced back to them, so coming back is when
+     * Today must re-read — quietly, with no spinner over the run already on screen.
+     */
+    @Test fun coming_back_to_today_reads_it_again_quietly() = runTest {
+        val repo = Repo(run)
+        val v = vm(repo, Drivers(), DutyStatus.ON_DUTY)
+        assertEquals(1, repo.reads)
+        repo.today = run.copy(active = TodayItem(TodayItem.Kind.COLLECTION_STOP, "s2", "r1", "Northcote store", "High St", "assigned"))
+        v.shown()
+        assertEquals(2, repo.reads)
+        assertEquals("Northcote store", v.state.value.today?.active?.title)
+        assertFalse(v.state.value.isLoading)
+    }
+
+    @Test fun shown_off_duty_reads_nothing() = runTest {
+        val repo = Repo(run)
+        val v = vm(repo, Drivers(), DutyStatus.OFF_DUTY)
+        v.shown()
+        assertEquals(0, repo.reads)
+    }
+
     @Test fun off_duty_reads_nothing() = runTest {
         val repo = Repo(run)
         val v = vm(repo, Drivers(), DutyStatus.OFF_DUTY)

@@ -136,6 +136,17 @@ class DeliveryViewModel(
             ?.dropId
     fun clearNotice() = _state.update { it.copy(notice = null) }
 
+    /**
+     * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
+     * time after, it re-reads quietly. ⚠ A driver's OWN change is never announced back to them (the
+     * live channel tells the shops, the customer and dispatch), so coming back from a stop, a drop or
+     * the hub is the moment this screen learns what the driver just did — without this it kept the
+     * copy it loaded first.
+     */
+    fun showRun() {
+        if (_state.value.run == null) loadRun() else viewModelScope.launch { reloadRunQuietly() }
+    }
+
     fun loadRun() {
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
