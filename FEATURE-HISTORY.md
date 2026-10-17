@@ -23,6 +23,12 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   - **Screens restyled:** Today (all states), collection run, shop stop, hub check-in + result, delivery
     run, drop, scanner panels, Delivered / Not delivered / Can't deliver / Left safely, History + past run +
     past delivery, Account, sign in.
+  - **Paired Bluetooth scanners (2026-10-17):** every scanning screen listens for a keyboard-style scanner
+    (`core/scan/HardwareScanner.kt`) — a label counts the moment `EFY1:` + 6 characters has arrived
+    (Enter, Tab or no suffix), recorded as a SCAN, through the same `ScanRule` as the camera. Caps Lock
+    and a stray key before the scan are tolerated; a key event with no character (iOS) is mapped from
+    the key. The type-a-code sheet no longer mangles a scan typed into it (it kept "EFY15M"). Verified:
+    `KeyboardWedgeTest`, iOS UI tests with real key presses, and `adb input` on the Android emulator.
   - **Debug-only design gallery:** `androidApp/src/debug/.../DesignGalleryActivity.kt` renders each screen
     from sample data — `adb shell am start -n com.effyshopping.driver.mobile/.DesignGalleryActivity -e
     screen today` (today, today-delivery, today-return, today-off, collection-run, shop-stop, scan-shop,
@@ -138,6 +144,12 @@ Driver backlog H1–H3: the prerequisite for scanning. Spec, plan, tasks: [specs
   UNIQUE, CHECKed, backfilled row by row in `20261016150000_package_code.sql`. Never changed or reused.
 - **One token definition** — `packages/shared-types/src/package-code.ts`: `EFY1:<code>`, and a parser that
   ignores anything else (a product's EAN). A test pins the alphabet to the migration.
+- **2026-10-17 — the BARCODE is the main element** (operator direction: shops and the hub may use handheld
+  scanners, as delivery services do; the driver app's camera reads Code 128 too). First on the label and
+  ~full printable width; bar width per layout 0.31 / 0.53 / 0.34 mm (the A4 sheet's was 0.19 mm — too
+  fine for a phone). The QR stays, smaller, beside the code. Rendered and decoded (Code 128 →
+  `EFY1:5MQKVF`) on all three layouts; `labels.test.ts` pins order and width. Ships with the next
+  shop-web deploy.
 - **Labels in the shop console** — "Print label" on the order detail, three layouts (62 mm roll, 4×6 in,
   A4 21-up), remembered per browser. QR via `qrcode-generator@2.0.4` (the one new dependency), Code 128 B
   by our own pinned encoder (`labels/code128.ts`). ⚠ **EFFY / COURIER only — no window, day or estimate**

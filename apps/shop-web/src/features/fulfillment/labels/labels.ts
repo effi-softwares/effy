@@ -6,10 +6,16 @@
 /**
  * Package labels (089) — one renderer, three layouts.
  *
- * A label carries the package's code three ways — a QR code (what a phone aims for), a Code 128 barcode
- * (what a handheld scanner reads) and in large type (what a person reads or types) — all for the same
- * value, `EFY1:<code>`. Beside it: the order number and "package n of m", who takes it away, the
- * destination suburb and a cold mark.
+ * A label carries the package's code three ways — a Code 128 barcode, a QR code and in large type (what a
+ * person reads or types) — all for the same value, `EFY1:<code>`. Beside it: the order number and
+ * "package n of m", who takes it away, the destination suburb and a cold mark.
+ *
+ * ⚠ THE BARCODE IS THE MAIN ELEMENT (operator direction, 2026-10-17): shops and the hub may use handheld
+ * barcode scanners, as delivery services do, and the driver app's camera reads Code 128 too. So it is
+ * first on the label and nearly the label's full width — each layout's bar width (`barModuleMm`) is set
+ * so the 176-module symbol (11 characters + start, check, stop and the two quiet zones) fills the
+ * printable width; ≥ 0.3 mm everywhere, which a phone camera reads as well as a scanner. The QR is
+ * secondary: what a phone reads at an angle or off a crumpled bag.
  *
  * ⚠ NEVER ON A LABEL: the shop's name (hidden fulfilment — the customer receives this bag), the
  * customer's name or street (the driver has the address in the app), any price — and no delivery
@@ -42,6 +48,8 @@ interface Geometry {
   /** The label's own size. */
   widthMm: number
   heightMm: number
+  /** The padding inside the label; the barcode fills the width between it. */
+  padMm: number
   qrMm: number
   codePt: number
   textPt: number
@@ -54,18 +62,21 @@ interface Geometry {
 }
 
 const GEOMETRY: Record<LabelLayout, Geometry> = {
+  // 176 modules × 0.31 = 54.6 mm of 56 mm printable.
   roll62: {
-    widthMm: 62, heightMm: 100, qrMm: 34, codePt: 26, textPt: 10, deliversPt: 20,
-    barModuleMm: 0.3, barHeightMm: 12, page: "size: 62mm 100mm; margin: 0", perRow: 1,
+    widthMm: 62, heightMm: 100, padMm: 3, qrMm: 26, codePt: 22, textPt: 10, deliversPt: 18,
+    barModuleMm: 0.31, barHeightMm: 24, page: "size: 62mm 100mm; margin: 0", perRow: 1,
   },
+  // 176 × 0.53 = 93.3 mm of 95.6 mm.
   label4x6: {
-    widthMm: 101.6, heightMm: 152.4, qrMm: 50, codePt: 40, textPt: 14, deliversPt: 32,
-    barModuleMm: 0.45, barHeightMm: 18, page: "size: 4in 6in; margin: 0", perRow: 1,
+    widthMm: 101.6, heightMm: 152.4, padMm: 3, qrMm: 38, codePt: 36, textPt: 14, deliversPt: 28,
+    barModuleMm: 0.53, barHeightMm: 34, page: "size: 4in 6in; margin: 0", perRow: 1,
   },
   // The common 21-up sheet: 63.5 × 38.1 mm labels, 7.2 mm side and 15.15 mm top margins.
+  // 176 × 0.34 = 59.8 mm of 60.5 mm — it was 0.19 mm, too fine for a phone camera.
   a4sheet: {
-    widthMm: 63.5, heightMm: 38.1, qrMm: 20, codePt: 13, textPt: 6.5, deliversPt: 9,
-    barModuleMm: 0.19, barHeightMm: 5.5, page: "size: A4; margin: 15.15mm 7.2mm", perRow: 3,
+    widthMm: 63.5, heightMm: 38.1, padMm: 1.5, qrMm: 15, codePt: 11, textPt: 6, deliversPt: 8,
+    barModuleMm: 0.34, barHeightMm: 11, page: "size: A4; margin: 15.15mm 7.2mm", perRow: 3,
   },
 }
 
@@ -106,10 +117,13 @@ export function renderLabel(doc: LabelDocument, layout: LabelLayout): string {
     ? `<span style="display:inline-block;border:1.5px solid #000;padding:0 4px;font-weight:700">${doc.label.cold === "frozen" ? "FROZEN" : "CHILLED"}</span>`
     : ""
   const position = `package ${doc.label.position} of ${doc.label.packageCount}`
+  const gap = layout === "a4sheet" ? 1 : 3
   return (
-    `<div class="label" style="width:${g.widthMm}mm;height:${g.heightMm}mm;box-sizing:border-box;padding:${layout === "a4sheet" ? 1.5 : 3}mm;` +
-    `display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;font:${g.textPt}pt system-ui,sans-serif;color:#000">` +
-    `<div style="display:flex;gap:${layout === "a4sheet" ? 1.5 : 3}mm;align-items:flex-start">` +
+    `<div class="label" style="width:${g.widthMm}mm;height:${g.heightMm}mm;box-sizing:border-box;padding:${g.padMm}mm;` +
+    `display:flex;flex-direction:column;gap:${gap}mm;overflow:hidden;font:${g.textPt}pt system-ui,sans-serif;color:#000">` +
+    // The barcode first and full width: what a handheld scanner, and the driver's camera, aims at.
+    `<div data-part="barcode" style="display:flex;justify-content:center">${code128BSvg(token, { moduleMm: g.barModuleMm, heightMm: g.barHeightMm })}</div>` +
+    `<div style="display:flex;gap:${gap}mm;align-items:flex-start">` +
     `<div data-part="qr">${qrSvg(token, g.qrMm)}</div>` +
     `<div style="min-width:0">` +
     `<div data-part="code" style="font:700 ${g.codePt}pt ui-monospace,Menlo,monospace;letter-spacing:0.05em">${esc(doc.label.packageCode)}</div>` +
@@ -118,7 +132,6 @@ export function renderLabel(doc: LabelDocument, layout: LabelLayout): string {
     (doc.label.suburb ? `<div data-part="suburb">${esc(doc.label.suburb)}</div>` : "") +
     (cold ? `<div data-part="cold" style="margin-top:1mm">${cold}</div>` : "") +
     `</div></div>` +
-    `<div data-part="barcode">${code128BSvg(token, { moduleMm: g.barModuleMm, heightMm: g.barHeightMm })}</div>` +
     `</div>`
   )
 }

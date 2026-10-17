@@ -23,6 +23,24 @@ describe("package labels (089, quickstart P4)", () => {
     })
   }
 
+  /**
+   * The barcode is the main element (2026-10-17): first on the label, and nearly its full width with bars
+   * no finer than 0.3 mm — what a handheld scanner and the driver's phone camera both read.
+   */
+  for (const { id } of LABEL_LAYOUTS) {
+    it(`${id}: the barcode comes first and fills the printable width`, () => {
+      const html = renderLabel(doc(), id)
+      expect(html.indexOf('data-part="barcode"')).toBeLessThan(html.indexOf('data-part="qr"'))
+      const label = html.match(/width:([\d.]+)mm;height:[\d.]+mm;box-sizing:border-box;padding:([\d.]+)mm/)!
+      const printable = Number(label[1]) - 2 * Number(label[2])
+      const bars = html.match(/data-part="barcode"[^]*?<svg[^>]*width="([\d.]+)mm"/)!
+      const width = Number(bars[1])
+      expect(width).toBeLessThanOrEqual(printable)
+      expect(width / printable).toBeGreaterThan(0.9)
+      expect(width / 176).toBeGreaterThanOrEqual(0.3) // the module, in mm
+    })
+  }
+
   it("says COURIER for a courier parcel, and EFFY otherwise — never a window, day or estimate", () => {
     expect(deliversWord("courier")).toBe("COURIER")
     expect(deliversWord("effy_driver")).toBe("EFFY")

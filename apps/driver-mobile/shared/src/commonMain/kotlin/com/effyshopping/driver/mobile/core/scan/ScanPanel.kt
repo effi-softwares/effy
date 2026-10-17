@@ -1,5 +1,7 @@
 package com.effyshopping.driver.mobile.core.scan
 
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -217,7 +219,9 @@ fun ScanPanel(
     val total = session.expectedCount
     val lastSort = (banner as? ScanBanner.Counted)?.item?.sort
 
-    Column(modifier.fillMaxSize()) {
+    // A paired handheld scanner reads into the same rule as the camera (it is a scan, not typing). The
+    // type-a-code sheet borrows the keyboard while it is open.
+    Column(modifier.fillMaxSize().hardwareScanner(enabled = !typing) { read(it, HandMethod.SCAN) }) {
         DriverInlineBar(title, backLabel = backLabel, onBack = onBack)
         CameraBox(
             scanned = scanned.size,
@@ -326,6 +330,7 @@ fun ScanPanel(
             },
             onDismiss = { typing = false },
             onAdd = { code -> typing = false; read(code, HandMethod.TYPED) },
+            onScanned = { token -> typing = false; read(token, HandMethod.SCAN) },
         )
     }
 }
@@ -444,6 +449,26 @@ private fun CameraBanner(b: ScanBanner?, idleSub: String?, modifier: Modifier) {
             sub?.let { Text(it, color = fg.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyMedium) }
         }
     }
+}
+
+private const val TOKEN_MAX = 16
+
+/** A whole label token at the end of what was typed (a paired scanner), or null. */
+internal fun tokenIn(typed: String): String? {
+    val i = typed.lastIndexOf(PackageToken.PREFIX)
+    if (i < 0) return null
+    return typed.substring(i).take(PackageToken.PREFIX.length + 6).takeIf { PackageToken.parse(it) != null }
+}
+
+/**
+ * The six boxes' code from what was typed: after the `EFY1:` a scanner is part-way through typing, else
+ * the letters and digits a person typed.
+ */
+internal fun typedCode(typed: String): String {
+    val up = typed.uppercase()
+    val i = up.lastIndexOf(PackageToken.PREFIX)
+    val base = if (i >= 0) up.substring(i + PackageToken.PREFIX.length) else up
+    return base.filter { it.isLetterOrDigit() }.take(6)
 }
 
 /** What the banner shows for the last read: its colours, icon and words. */
@@ -626,8 +651,17 @@ private fun AutoCompleteBar(count: Int, verb: String, working: Boolean, onUndo: 
 
 /** Type the code from a torn or unreadable label (redesign `05 Type the code`): six boxes, a live match. */
 @Composable
-private fun TypeCodeSheet(preview: (String) -> Pair<String?, Boolean>, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
-    var code by remember { mutableStateOf("") }
+private fun TypeCodeSheet(
+    preview: (String) -> Pair<String?, Boolean>,
+    onDismiss: () -> Unit,
+    onAdd: (String) -> Unit,
+    /** A paired scanner read a label into this box: it counts as a scan, at once. */
+    onScanned: (String) -> Unit,
+) {
+    // ⚠ The field holds what was TYPED, not the six boxes: a scanner types `EFY1:5MQKVF` here, and
+    // filtering each keystroke down to six letters and digits turned that into "EFY15M".
+    var raw by remember { mutableStateOf("") }
+    val code = typedCode(raw)
     val (line, matches) = if (code.length == 6) preview(code) else (null to false)
     DriverSheet(
         title = "Type the package code",
@@ -635,10 +669,15 @@ private fun TypeCodeSheet(preview: (String) -> Pair<String?, Boolean>, onDismiss
         onDismiss = onDismiss,
     ) {
         BasicTextField(
-            value = code,
-            onValueChange = { code = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(6) },
+            value = raw,
+            onValueChange = { v ->
+                val up = v.uppercase().takeLast(TOKEN_MAX)
+                val token = tokenIn(up)
+                if (token != null) onScanned(token) else raw = up
+            },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, keyboardType = KeyboardType.Ascii),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (code.length == 6) onAdd(code) }),
             modifier = Modifier.semantics { contentDescription = "Package code" },
             decorationBox = {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
