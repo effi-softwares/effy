@@ -236,16 +236,25 @@ private fun OnDuty(
 
 /** The run's head: its name, the time on the right, the progress bar and the counts under it. */
 @Composable
-private fun RunHead(today: Today, collection: Boolean) {
+private fun RunHead(today: Today, collection: Boolean, onOpenRun: (() -> Unit)? = null) {
     val open = rememberIsOpen(today.opening)
     val progress = today.progress
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.Top) {
-            Text(
-                if (collection) "Collection run" else "Delivery run",
-                fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f),
-            )
+            // The heading opens the whole run — every stop in order (the card below opens just the next one).
+            Row(
+                Modifier.weight(1f).then(
+                    if (onOpenRun != null) Modifier.clickable(role = Role.Button, onClickLabel = "Open the run", onClick = onOpenRun) else Modifier,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    if (collection) "Collection run" else "Delivery run",
+                    fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold,
+                )
+                if (onOpenRun != null) DriverIcon(Res.drawable.lucide_chevron_right, size = 20.dp, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             val right = when {
                 !open && today.opening != null -> listOfNotNull(today.opening.sentence, today.dueLabel?.let { "finish by $it" }).joinToString(" · ")
                 collection -> today.dueLabel?.let { "Finish by $it" }
@@ -286,7 +295,7 @@ private fun CurrentRun(
 ) {
     val collection = today.phase == Phase.COLLECTION
     val open = rememberIsOpen(today.opening)
-    RunHead(today, collection)
+    RunHead(today, collection, onOpenRun = { onOpenRun(runId, today.phase) })
     today.changedNote?.let { note ->
         var seen by rememberSaveable(runId, note) { mutableStateOf(false) }
         if (!seen) {
@@ -308,6 +317,16 @@ private fun CurrentRun(
     }
     if (today.stale) {
         Text("Last loaded copy — changes since then won't show.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    // The run's map belongs to the run (like the heading, it opens it) — its own block, not the stop's card.
+    today.map?.let { map ->
+        RunMapView(
+            map = map,
+            seed = runId,
+            description = runMapDescription(if (collection) "collection" else "delivery", hub, map, active.street ?: active.title),
+            height = 170.dp,
+            onClick = { onOpenRun(runId, today.phase) },
+        )
     }
     RunCard(today, runId, active, hub, collection, open, onOpenRun, onOpenItem, onNavigate)
     if (today.upNext.isNotEmpty()) {
@@ -367,17 +386,13 @@ private fun RunCard(
     val hubStop = active.kind == TodayItem.Kind.HUB_CHECKIN
     val position = (today.progress?.done ?: 0) + 1
     val total = today.progress?.total ?: 0
-    Column(Modifier.fillMaxWidth().clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)) {
-        today.map?.let { map ->
-            RunMapView(
-                map = map,
-                seed = runId,
-                description = runMapDescription(if (collection) "collection" else "delivery", hub, map, active.street ?: active.title),
-                height = 150.dp,
-                flush = true,
-                onClick = { onOpenRun(runId, today.phase) },
-            )
-        }
+    // ⚠ The whole card opens the stop; its buttons (Navigate, Scan) keep their own actions — a child's
+    // click is consumed before the card's. The run map is NOT in here: it opens the run, so it sits with
+    // the run's heading above, not inside the stop's card.
+    Column(
+        Modifier.fillMaxWidth().clip(shape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+            .clickable(role = Role.Button, onClickLabel = if (collection) "Open the stop" else "Open the drop") { onOpenItem(active, false) },
+    ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val badge = when {

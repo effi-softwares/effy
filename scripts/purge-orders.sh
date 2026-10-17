@@ -83,19 +83,37 @@ DSN="$(bash "$ROOT/infra/scripts/db-dsn.sh" "$ENV")" || {
 # ⚠ S3 IS NOT TOUCHED. Deleting a `delivery_proof` row orphans its image under `proof/` in the media
 #   bucket — a bucket shared with the live product catalogue. A purge script that also deleted objects
 #   there is not something to point at dev data.
+# ⚠⚠ AND IT WENT STALE AGAIN (found 2026-10-17): 074–090 hung eleven more tables off an order or a
+#   driver round — 090's `package_handover` stopped the run at `driver_round`. Added below, and the
+#   list is now CHECKED against the database before anything is deleted (`preflight`): a foreign key
+#   into a purged table from a table this list does not name stops the run, dry run included, with
+#   the tables named. A new migration that forgets this script now fails here, by name, not halfway.
+#
+# ⚠ POINTS (074): only ledger entries tied to an order or a refund go, with every allocation that
+#   touches one. A customer's balance therefore drops by what those orders earned and gives back what
+#   they spent; a staff grant with no order stays. Points are a way of paying — keeping points earned
+#   by orders that no longer exist would be money with no record of where it came from.
+#
 # Dependency order: children before parents. `to_regclass` below skips anything an environment does
 # not have, so entries for tables a future migration drops stay harmless rather than breaking the run.
 read -r -d '' TARGETS <<'LIST' || true
+package_handover|
 delivery_proof|
 delivery_attempt_failure|
 assignment_exclusion|
 round_package|
 hub_checkin|
 round_stop|
+parcel_return|
 driver_round|
 dispatch_wave|
 package_arrival|
 carrier_handoff|
+courier_consignment_event|
+courier_consignment|
+delivery_override|
+points_allocation|debit_entry_id IN (SELECT id FROM public.points_entry WHERE order_id IS NOT NULL OR refund_id IS NOT NULL) OR credit_entry_id IN (SELECT id FROM public.points_entry WHERE order_id IS NOT NULL OR refund_id IS NOT NULL)
+points_entry|order_id IS NOT NULL OR refund_id IS NOT NULL
 refund_line|
 refund|
 refund_request_item|
@@ -109,6 +127,10 @@ shop_fulfillment|
 receipt_dispatch|
 promo_redemption|
 order_package_delivery|
+order_delivery_type_change|
+order_courier_collection_change|
+delivery_slot_booking|
+points_hold|
 payment|
 stock_movement|order_id IS NOT NULL
 order_item|
@@ -171,7 +193,50 @@ $$;
 EOSQL
 }
 
+# ⚠ THE LIST IS CHECKED, NOT TRUSTED. Every foreign key that points INTO a table this script purges must
+# come FROM a table it also purges (or be ON DELETE CASCADE / SET NULL, which the delete handles itself).
+# Anything else would abort the delete partway down — as would two listed tables in the wrong order —
+# so both are refused here, before any row is touched.
+preflight() {
+  local names ordered
+  names="$(printf '%s\n' "$TARGETS" | cut -d'|' -f1 | sed '/^$/d' | sed "s/.*/'&'/" | paste -sd, -)"
+  # (name, position) pairs, so the database can say which of two listed tables is deleted first.
+  ordered="$(printf '%s\n' "$TARGETS" | cut -d'|' -f1 | sed '/^$/d' | awk '{printf "%s(\x27%s\x27,%d)", (NR>1?",":""), $0, NR}')"
+  local problems
+  problems="$(psql "$DSN" -v ON_ERROR_STOP=1 -At <<EOSQL
+WITH listed(name, pos) AS (VALUES $ordered),
+fk AS (
+  SELECT src.relname AS child, dst.relname AS parent, c.conname
+    FROM pg_constraint c
+    JOIN pg_class src ON src.oid = c.conrelid
+    JOIN pg_class dst ON dst.oid = c.confrelid
+    JOIN pg_namespace n ON n.oid = src.relnamespace
+   WHERE c.contype = 'f' AND n.nspname = 'public'
+     AND c.confdeltype NOT IN ('c', 'n', 'd')   -- CASCADE / SET NULL / SET DEFAULT handle themselves
+     AND src.oid <> dst.oid
+)
+-- A table pointing at order data that this script does not purge.
+SELECT format('not listed:  %s  (-> %s, via %s)', fk.child, fk.parent, fk.conname)
+  FROM fk JOIN listed p ON p.name = fk.parent
+ WHERE fk.child NOT IN ($names)
+UNION ALL
+-- Two listed tables in the wrong order: the child must be deleted before its parent.
+SELECT format('out of order:  %s must come before %s  (via %s)', fk.child, fk.parent, fk.conname)
+  FROM fk JOIN listed c ON c.name = fk.child JOIN listed p ON p.name = fk.parent
+ WHERE c.pos > p.pos
+ORDER BY 1;
+EOSQL
+)"
+  if [[ -n "$problems" ]]; then
+    echo "purge-orders: REFUSED — the table list does not match this database:" >&2
+    sed 's/^/  /' <<<"$problems" >&2
+    echo "  Fix TARGETS in scripts/purge-orders.sh (children before parents). Nothing was deleted." >&2
+    exit 1
+  fi
+}
+
 echo "purge-orders: ENV=$ENV"
+preflight
 echo "before:"
 counts
 
