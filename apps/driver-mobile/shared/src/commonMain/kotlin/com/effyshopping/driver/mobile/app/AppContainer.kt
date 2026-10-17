@@ -4,6 +4,11 @@ import com.effyshopping.driver.mobile.core.auth.AuthDriver
 import com.effyshopping.driver.mobile.core.config.AppConfig
 import com.effyshopping.mobile.kit.live.KtorLiveTransport
 import com.effyshopping.mobile.kit.live.LiveClient
+import com.effyshopping.mobile.kit.live.LiveKind
+import com.effyshopping.driver.mobile.core.live.SignallingCollectionRepository
+import com.effyshopping.driver.mobile.core.live.SignallingDeliveryRepository
+import com.effyshopping.driver.mobile.core.live.SignallingDriverRepository
+import com.effyshopping.driver.mobile.core.live.WorkChanges
 import com.effyshopping.mobile.kit.live.fetchLiveDescriptor
 import com.effyshopping.driver.mobile.core.http.createHttpClient
 import com.effyshopping.driver.mobile.core.http.liveEngine
@@ -123,20 +128,32 @@ class AppContainer(
             transport = KtorLiveTransport(liveEngine()),
         )
     }
+    /**
+     * 092 rev 2 — the ONE "work changed, read now" stream: the live channel's word, plus each write of
+     * the driver's once the platform has it (the `Signalling…Repository` wrappers below and the sync
+     * coordinator). Every ViewModel that shows work collects [WorkChanges.changes].
+     */
+    val work: WorkChanges by lazy { WorkChanges(live.changes(LiveKind.WORK)) }
+
     // Offline write queue + drain coordinator (US6, FR-039/040). Persisted; survives process death.
     val offlineQueue: OfflineQueue by lazy { OfflineQueue(Settings()) }
     /** Proof captured with no signal (backlog B3): the images live in [proofFiles], the list in settings. */
     val proofOutbox: ProofOutbox by lazy { ProofOutbox(Settings(), proofFiles) }
     val syncCoordinator: SyncCoordinator by lazy {
-        SyncCoordinator(driverClient, offlineQueue, proofOutbox, sendProofs = { httpDelivery.flushProofs() })
+        SyncCoordinator(
+            driverClient, offlineQueue, proofOutbox,
+            sendProofs = { httpDelivery.flushProofs() },
+            onDelivered = { work.changed() },
+        )
     }
 
     /** The driver record and Today, kept so the app opens with no signal (backlog C3). */
     private val lastCopies by lazy { LastCopies(Settings()) }
-    private val driver: DriverRepository by lazy { HttpDriverRepository(driverClient, lastCopies) }
+    // ⚠ The three repositories that WRITE are wrapped so each write that lands says so (092 rev 2).
+    private val driver: DriverRepository by lazy { SignallingDriverRepository(HttpDriverRepository(driverClient, lastCopies), work) }
     private val today: TodayRepository by lazy { HttpTodayRepository(driverClient, lastCopies) }
-    private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient, offlineQueue) }
-    private val delivery: DeliveryRepository get() = httpDelivery
+    private val collection: CollectionRepository by lazy { SignallingCollectionRepository(HttpCollectionRepository(driverClient, offlineQueue), work) }
+    private val delivery: DeliveryRepository by lazy { SignallingDeliveryRepository(httpDelivery, work) }
     private val httpDelivery: HttpDeliveryRepository by lazy {
         HttpDeliveryRepository(
             driverClient,
@@ -188,7 +205,7 @@ class AppContainer(
 
     // ── app services / presentation wiring ───────────────────────────────────────────────────────────
     val session: SessionManager by lazy {
-        SessionManager(authDriver, getDriverIdentity, appScope, onSignedOut = { lastCopies.clear() })
+        SessionManager(authDriver, getDriverIdentity, appScope, onSignedOut = { lastCopies.clear() }, workChanges = work.changes)
     }
 
     /** A per-action idempotency id for driver writes (offline queue + retries, research R10). */

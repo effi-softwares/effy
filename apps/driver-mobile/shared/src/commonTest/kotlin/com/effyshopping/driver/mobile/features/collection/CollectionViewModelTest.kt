@@ -70,6 +70,7 @@ class CollectionViewModelTest {
         repo: FakeCollectionRepo,
         drafts: StopDrafts? = null,
         pending: Flow<Set<String>> = emptyFlow(),
+        live: Flow<Unit> = emptyFlow(),
     ): CollectionViewModel {
         var n = 0
         return CollectionViewModel(
@@ -81,7 +82,24 @@ class CollectionViewModelTest {
             newChangeId = { "cid-${n++}" },
             drafts = drafts,
             pendingChangeIds = pending,
+            liveChanges = live,
         )
+    }
+
+    /**
+     * 092 rev 2 — "work changed" while the driver is on a stop: the stop's packages are re-read. A tick
+     * on a package still there is kept (it is the work in progress); one on a package dispatch withdrew
+     * is dropped, so the collect never names a package the stop no longer has.
+     */
+    @Test fun work_changed_re_reads_the_open_stop_and_keeps_the_ticks_that_still_apply() = runTest {
+        val live = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+        val repo = FakeCollectionRepo(run = CollectionRun("r1", "active", emptyList())).apply { packages = listOf(pkg("a"), pkg("b"), pkg("c")) }
+        val v = vm(repo, live = live).apply { loadRun(); loadStop("s1"); togglePackage("a"); togglePackage("b"); reportPackage("c", "Damaged", null) }
+        repo.packages = listOf(pkg("a"), pkg("c"), pkg("d")) // "b" withdrawn, "d" made ready
+        live.emit(Unit)
+        assertEquals(listOf("a", "c", "d"), v.state.value.stop?.packages?.map { it.key })
+        assertEquals(setOf("a"), v.state.value.confirmedPackageIds)
+        assertEquals(setOf("c"), v.state.value.reportedPackages.keys)
     }
 
     /** Backlog C1 — collecting with no signal moves the driver on; it is not an error. */

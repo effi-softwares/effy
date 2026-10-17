@@ -74,7 +74,7 @@ private class FakeDeliveryRepo(var drop: Drop? = null, var fail: AppError? = nul
 class DeliveryViewModelTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 
-    private fun vm(repo: FakeDeliveryRepo): DeliveryViewModel {
+    private fun vm(repo: FakeDeliveryRepo, live: kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.emptyFlow()): DeliveryViewModel {
         var n = 0
         return DeliveryViewModel(
             runId = "r1",
@@ -83,7 +83,25 @@ class DeliveryViewModelTest {
             returnToHub = ReturnToHub(repo),
             loadVan = LoadVan(repo),
             now = { 1_000L },
+            liveChanges = live,
         )
+    }
+
+    /**
+     * 092 rev 2 — "work changed" while the driver is at the door: the drop is re-read (new instructions,
+     * a cancelled order). Not once they have finished it: Delivered describes what they did.
+     */
+    @Test fun work_changed_re_reads_the_open_drop_until_it_is_finished() = runTest {
+        val live = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+        val repo = FakeDeliveryRepo(drop = drop())
+        val v = vm(repo, live).apply { loadRun(); loadDrop("d1") }
+        repo.drop = drop().copy(instructions = "Side gate")
+        live.emit(Unit)
+        assertEquals("Side gate", v.state.value.drop?.instructions)
+        v.fail("d1", com.effyshopping.driver.mobile.features.delivery.domain.FailureReason.NOBODY_HOME, null)
+        repo.drop = drop().copy(instructions = "Changed after")
+        live.emit(Unit)
+        assertEquals("Side gate", v.state.value.drop?.instructions)
     }
 
     private val toReturn = ParcelsToReturn("r1", 2, listOf("EFY-1", "EFY-2"))

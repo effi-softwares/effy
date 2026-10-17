@@ -101,14 +101,35 @@ class CollectionViewModel(
         runCatching { getRun(runId) }.onSuccess { fresh ->
             _state.update { if (it.isLoading || it.isWorking) it else it.copy(run = fresh) }
         }
+        reloadStopQuietly()
+    }
+
+    /**
+     * 092 rev 2 — the stop on screen is re-read too: a package dispatch withdrew, or one the shop has
+     * only now made ready, shows without the driver leaving the screen. ⚠ The driver's ticks and
+     * reports are KEPT for every package still there (they are the work in progress); one for a package
+     * that has gone is dropped, so the collect never names a package the stop no longer has.
+     */
+    private suspend fun reloadStopQuietly() {
+        val open = _state.value.stop ?: return
+        runCatching { getStop(runId, open.stopId) }.onSuccess { fresh ->
+            _state.update { st ->
+                if (st.isLoading || st.isWorking || st.stop?.stopId != fresh.stopId) return@update st
+                val keys = fresh.packages.mapTo(mutableSetOf()) { it.key }
+                st.copy(
+                    stop = fresh,
+                    confirmedPackageIds = st.confirmedPackageIds.filterTo(mutableSetOf()) { it in keys },
+                    reportedPackages = st.reportedPackages.filterKeys { it in keys },
+                )
+            }
+        }
     }
 
     /**
      * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
-     * time after, it re-reads quietly. ⚠ A driver's OWN change is never announced back to them (the
-     * live channel tells the shops, the customer and dispatch), so coming back from a stop, a drop or
-     * the hub is the moment this screen learns what the driver just did — without this it kept the
-     * copy it loaded first.
+     * time after, it re-reads quietly. ⚠ A FALLBACK: the driver's own writes already re-read every
+     * work screen through `WorkChanges` (the server never announces a driver's change back to them).
+     * This catches what slips past that — a write made before the app last closed, a missed signal.
      */
     fun showRun(quiet: Boolean = false) {
         when {

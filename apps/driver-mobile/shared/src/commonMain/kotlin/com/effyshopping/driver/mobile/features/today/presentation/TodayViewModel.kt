@@ -97,10 +97,9 @@ class TodayViewModel(
 
     /**
      * 092 rev 2 — the screen is showing (again). The first time it loads with its loading state; every
-     * time after, it re-reads quietly (no spinner, a message left alone). ⚠ A driver's OWN change is never announced back to them (the
-     * live channel tells the shops, the customer and dispatch), so coming back from a stop, a drop or
-     * the hub is the moment this screen learns what the driver just did — without this it kept the
-     * copy it loaded first.
+     * time after, it re-reads quietly. ⚠ A FALLBACK: the driver's own writes already re-read every
+     * work screen through `WorkChanges` (the server never announces a driver's change back to them).
+     * This catches what slips past that — a write made before the app last closed, a missed signal.
      */
     fun shown() {
         if (_state.value.today == null) refresh() else viewModelScope.launch { refreshQuietly() }

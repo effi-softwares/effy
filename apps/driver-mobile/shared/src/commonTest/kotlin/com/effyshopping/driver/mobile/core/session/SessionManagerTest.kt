@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,7 +34,8 @@ private class FakeAuth(var session: Session?, var holds: Boolean) : AuthDriver {
 }
 
 private class FakeDrivers(var fail: AppError? = null, var kept: Driver? = null) : DriverRepository {
-    override suspend fun me(): Driver = fail?.let { throw AppException(it) } ?: ada
+    var record: Driver = ada
+    override suspend fun me(): Driver = fail?.let { throw AppException(it) } ?: record
     override fun lastKnown(): Driver? = kept
     override suspend fun setDuty(onDuty: Boolean, changeId: String): Driver = ada
 }
@@ -41,6 +43,36 @@ private class FakeDrivers(var fail: AppError? = null, var kept: Driver? = null) 
 class SessionManagerTest {
     private fun TestScope.manager(auth: AuthDriver, drivers: DriverRepository, cleared: () -> Unit = {}) =
         SessionManager(auth, GetDriverIdentity(drivers), this, onSignedOut = cleared)
+
+    /**
+     * 092 rev 2 — back-office gave the driver another van mid-shift. Its driver edit tells the driver
+     * "work"; the record is re-read on it, so Today and Account stop showing the old van.
+     */
+    @Test fun work_changed_re_reads_the_driver_record() = runTest {
+        val work = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+        val drivers = FakeDrivers()
+        // backgroundScope: the manager listens for the rest of the session, which a test never ends.
+        val m = SessionManager(FakeAuth(Session("sub", "a", "i"), holds = true), GetDriverIdentity(drivers), backgroundScope, workChanges = work)
+        m.bootstrap()
+        runCurrent() // the manager is listening before anything is said
+        drivers.record = ada.copy(vehicle = Vehicle("Van", "EFY-002"))
+        work.emit(Unit)
+        advanceUntilIdle()
+        assertEquals("EFY-002", (m.state.value as SessionState.SignedIn).driver.vehicle.plate)
+    }
+
+    /** A failed re-read changes nothing — "could not check" is never "signed out". */
+    @Test fun a_failed_re_read_keeps_the_record() = runTest {
+        val work = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
+        val drivers = FakeDrivers()
+        val m = SessionManager(FakeAuth(Session("sub", "a", "i"), holds = true), GetDriverIdentity(drivers), backgroundScope, workChanges = work)
+        m.bootstrap()
+        runCurrent()
+        drivers.fail = AppError.Network
+        work.emit(Unit)
+        advanceUntilIdle()
+        assertEquals("d1", (m.state.value as SessionState.SignedIn).driver.id)
+    }
 
     /** Backlog C3 — opening in a loading dock: tokens cannot refresh, the device is still signed in. */
     @Test fun offline_with_a_kept_record_opens_signed_in_offline() = runTest {

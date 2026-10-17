@@ -1,5 +1,7 @@
 package com.effyshopping.driver.mobile.core.session
 
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.Flow
 import com.effyshopping.driver.mobile.core.auth.AuthDriver
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
@@ -22,12 +24,15 @@ class SessionManager(
     private val scope: CoroutineScope,
     /** Clears what the app keeps on the phone for the signed-in driver (last copies). */
     private val onSignedOut: () -> Unit = {},
+    /** 092 rev 2 — "the driver's work changed" (`WorkChanges`); the record is re-read on it. */
+    private val workChanges: Flow<Unit> = emptyFlow(),
 ) {
     private val _state = MutableStateFlow<SessionState>(SessionState.Restoring)
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
     init {
         scope.launch { authDriver.sessionChanges.collect { bootstrap() } }
+        scope.launch { workChanges.collect { refreshRecordQuietly() } }
     }
 
     /** On launch (and on an unexpected drop): Restoring → SignedOut / SignedIn / Refused. */
@@ -74,6 +79,21 @@ class SessionManager(
             } finally {
                 rechecking.value = false
             }
+        }
+    }
+
+    /**
+     * 092 rev 2 — the driver's work changed (`WorkChanges`): re-read their record quietly, so a hub, van
+     * or name back-office changed mid-shift shows on Today and Account. Back-office's driver edit
+     * already tells this driver "work" (`announceDispatch`); until now nothing here listened. A failure
+     * changes nothing — a refused credential is [onRequestRejected]'s, via the client.
+     */
+    private suspend fun refreshRecordQuietly() {
+        val now = _state.value
+        if (now !is SessionState.SignedIn || now.offline) return
+        runCatching { getDriverIdentity() }.onSuccess { fresh ->
+            val still = _state.value
+            if (still is SessionState.SignedIn && !still.offline && still.driver != fresh) _state.value = still.copy(driver = fresh)
         }
     }
 

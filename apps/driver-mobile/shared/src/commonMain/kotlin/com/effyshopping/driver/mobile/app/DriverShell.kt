@@ -30,7 +30,6 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.effyshopping.mobile.kit.live.LiveKind
 import com.effyshopping.driver.mobile.core.nav.AccountRoot
 import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
 import com.effyshopping.driver.mobile.core.nav.DeliveryRunRoute
@@ -159,7 +158,8 @@ fun DriverShell(
                 TodayRoot -> {
                     val vm = viewModel(key = "today") { newTodayVm(container, session) }
                     val state by vm.state.collectAsState()
-                    // Every return to Today re-reads it — after a stop, a drop or the hub (see `shown`).
+                    // FALLBACK only — the driver's own writes already re-read Today (`WorkChanges`); this
+                    // catches anything that slipped past it (a write made before the app last closed, say).
                     LaunchedEffect(Unit) { vm.shown() }
                     TodayScreen(
                         driver = session.driver,
@@ -255,8 +255,6 @@ fun DriverShell(
                     LaunchedEffect(route.runId) { vm.showRun(quiet = true) }
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
                     val todaySt by todayVm.state.collectAsState()
-                    // "Your delivery run opens at …" is read from Today — fresh, not the copy from this morning.
-                    LaunchedEffect(Unit) { todayVm.shown() }
                     HubCheckinScreen(
                         state = st,
                         hubName = session.driver.hub,
@@ -361,8 +359,6 @@ fun DriverShell(
                 AccountRoot -> {
                     val todayVm = viewModel(key = "today") { newTodayVm(container, session) }
                     val todaySt by todayVm.state.collectAsState()
-                    // The sign-out sheet counts what is still on the run — from a fresh read.
-                    LaunchedEffect(Unit) { todayVm.shown() }
                     val pending by container.offlineQueue.pending.collectAsState()
                     val proofs by container.proofOutbox.pending.collectAsState()
                     AccountScreen(
@@ -454,7 +450,7 @@ private fun newTodayVm(container: AppContainer, session: SessionState.SignedIn) 
     setDuty = container.setDuty,
     newChangeId = container::newChangeId,
     syncFlush = { container.syncCoordinator.flush() },
-    liveChanges = container.live.changes(LiveKind.WORK),
+    liveChanges = container.work.changes,
     returnToHub = { runId, changeId -> container.returnToHub(runId, changeId) },
 )
 
@@ -474,7 +470,7 @@ private fun com.effyshopping.driver.mobile.features.today.domain.Today.nextDeliv
 }
 
 private fun newHistoryVm(container: AppContainer) = HistoryViewModel(
-    container.getHistory, container.getHistoryDetail, container.live.changes(LiveKind.WORK),
+    container.getHistory, container.getHistoryDetail, container.work.changes,
 )
 
 /** A driver opened a package's item list on [surface] (`pickup` | `drop`). No item, no order. */
@@ -511,7 +507,7 @@ private fun newCollectionVm(container: AppContainer, runId: String) = Collection
     collectStop = container.collectStop,
     checkInHub = container.checkInHub,
     newChangeId = container::newChangeId,
-    liveChanges = container.live.changes(LiveKind.WORK),
+    liveChanges = container.work.changes,
     drafts = container.stopDrafts,
     pendingChangeIds = container.offlineQueue.pending.map { list -> list.mapTo(mutableSetOf()) { it.changeId } },
 )
@@ -524,7 +520,7 @@ private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryView
     completeWithMedia = container.completeWithMedia,
     failDrop = container.failDrop,
     newChangeId = container::newChangeId,
-    liveChanges = container.live.changes(LiveKind.WORK),
+    liveChanges = container.work.changes,
     returnToHub = container.returnToHub,
     loadVan = container.loadVan,
 )

@@ -37,6 +37,11 @@ class SyncCoordinator(
     /** Proofs saved with no signal (backlog B3). Sent AFTER the queue, so a drop's "arrived" lands first. */
     private val proofs: ProofOutbox? = null,
     private val sendProofs: suspend () -> Unit = {},
+    /**
+     * 092 rev 2 — something saved with no signal has now reached the platform: the screens showing work
+     * re-read (`WorkChanges.changed`). Called once per flush, however many landed.
+     */
+    private val onDelivered: () -> Unit = {},
 ) {
     private val lock = Mutex()
 
@@ -44,24 +49,33 @@ class SyncCoordinator(
     suspend fun flush() {
         if (queue.count == 0 && proofs?.pending?.value.isNullOrEmpty()) return
         lock.withLock {
-            drainQueue()
+            val settled = drainQueue()
+            val proofsBefore = proofs?.pending?.value?.size ?: 0
             if (queue.count == 0) sendProofs()
+            val proofsSent = proofsBefore - (proofs?.pending?.value?.size ?: 0)
+            if (settled > 0 || proofsSent > 0) onDelivered()
         }
     }
 
-    private suspend fun drainQueue() {
+    /**
+     * Replays the queue in order; answers how many actions the platform SETTLED — applied, or refused
+     * (a refused one was shown as done on the phone, so the screens must re-read to un-show it).
+     */
+    private suspend fun drainQueue(): Int {
+        var settled = 0
         while (true) {
             val action = queue.peek() ?: break
             when (replay(action)) {
-                Result.Applied -> queue.remove(action.changeId)
-                Result.Dead -> queue.refuse(action.changeId)
+                Result.Applied -> { queue.remove(action.changeId); settled++ }
+                Result.Dead -> { queue.refuse(action.changeId); settled++ }
                 Result.Retry -> {
                     queue.bumpAttempts(action.changeId)
-                    if (action.attempts + 1 >= MAX_ATTEMPTS) queue.refuse(action.changeId) else break
+                    if (action.attempts + 1 >= MAX_ATTEMPTS) { queue.refuse(action.changeId); settled++ } else break
                 }
                 Result.Offline -> break // still offline — leave everything for the next trigger
             }
         }
+        return settled
     }
 
     private enum class Result { Applied, Offline, Retry, Dead }
