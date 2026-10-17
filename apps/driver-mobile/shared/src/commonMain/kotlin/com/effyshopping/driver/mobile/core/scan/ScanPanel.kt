@@ -431,22 +431,7 @@ private fun CameraBox(
 
 @Composable
 private fun CameraBanner(b: ScanBanner?, idleSub: String?, modifier: Modifier) {
-    val (bg, fg, icon) = when (b) {
-        is ScanBanner.Counted -> Triple(EffyColor.Light.brand, EffyColor.Light.brandForeground, Res.drawable.lucide_circle_check)
-        is ScanBanner.Already -> Triple(GreyBanner, BannerInk, Res.drawable.lucide_rotate_ccw)
-        is ScanBanner.WrongPlace -> Triple(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert)
-        is ScanBanner.NotYours -> Triple(PaperBanner, BannerInk, Res.drawable.lucide_circle_x)
-        ScanBanner.NotACode -> Triple(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert)
-        null -> Triple(CameraChip, Bracket, Res.drawable.lucide_search)
-    }
-    val (title, sub) = when (b) {
-        is ScanBanner.Counted -> (b.item?.bannerTitle ?: b.code) to b.item?.bannerSub
-        is ScanBanner.Already -> "Already scanned" to b.item?.bannerTitle
-        is ScanBanner.WrongPlace -> "This is for ${b.where}" to "Don't hand it over — put it back"
-        is ScanBanner.NotYours -> "Not on any of your runs" to "Don't take it. Call dispatch if they insist."
-        ScanBanner.NotACode -> "That isn't a package code" to "The code is the six large characters on the label."
-        null -> "Point at a package label" to idleSub
-    }
+    val (bg, fg, icon, title, sub) = bannerLook(b, idleSub)
     Row(
         modifier.fillMaxWidth().clip(EffyStorefrontShape.banner).background(bg).padding(horizontal = 16.dp, vertical = 12.dp)
             .semantics { liveRegion = LiveRegionMode.Assertive },
@@ -459,6 +444,31 @@ private fun CameraBanner(b: ScanBanner?, idleSub: String?, modifier: Modifier) {
             sub?.let { Text(it, color = fg.copy(alpha = 0.85f), style = MaterialTheme.typography.bodyMedium) }
         }
     }
+}
+
+/** What the banner shows for the last read: its colours, icon and words. */
+internal data class BannerLook(
+    val background: androidx.compose.ui.graphics.Color,
+    val ink: androidx.compose.ui.graphics.Color,
+    val icon: org.jetbrains.compose.resources.DrawableResource,
+    val title: String,
+    val sub: String?,
+)
+
+/**
+ * ⚠ A PLAIN FUNCTION ON PURPOSE — NOT INLINE IN [CameraBanner]. Written as two `when`s inside the
+ * composable, Kotlin/Native (iOS) threw `NoWhenBranchMatchedException` on an exhaustive `when` the
+ * moment a package counted, and the app aborted (SIGABRT) at the door — Android was fine. The same
+ * `when` outside Compose is correct on iOS (`ScanBannerWhenIosTest`); `DoorScanTypedCodeIosTest` drives
+ * the screen that crashed. Keep the decision here.
+ */
+internal fun bannerLook(b: ScanBanner?, idleSub: String?): BannerLook = when (b) {
+    is ScanBanner.Counted -> BannerLook(EffyColor.Light.brand, EffyColor.Light.brandForeground, Res.drawable.lucide_circle_check, b.item?.bannerTitle ?: b.code, b.item?.bannerSub)
+    is ScanBanner.Already -> BannerLook(GreyBanner, BannerInk, Res.drawable.lucide_rotate_ccw, "Already scanned", b.item?.bannerTitle)
+    is ScanBanner.WrongPlace -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert, "This is for ${b.where}", "Don't hand it over — put it back")
+    is ScanBanner.NotYours -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_x, "Not on any of your runs", "Don't take it. Call dispatch if they insist.")
+    ScanBanner.NotACode -> BannerLook(PaperBanner, BannerInk, Res.drawable.lucide_circle_alert, "That isn't a package code", "The code is the six large characters on the label.")
+    null -> BannerLook(CameraChip, Bracket, Res.drawable.lucide_search, "Point at a package label", idleSub)
 }
 
 // ── below the camera ───────────────────────────────────────────────────────────────────────────────

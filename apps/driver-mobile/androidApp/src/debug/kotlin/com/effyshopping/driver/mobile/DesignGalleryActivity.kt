@@ -242,6 +242,7 @@ private fun Gallery(screen: String) {
         )
         "delivery-run" -> DeliveryRunScreen(DeliveryUiState(run = deliveryRun), "Carlton hub", noop, {}, noop, {}, {})
         "drop" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)
+        "door-scan" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop, startScanning = true)
         "delivered" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop, delivered = true, deliveredWith = ProofMethod.CONTACTLESS, deliveredAtEpochMillis = now, deliveredNote = "Left at: Front door"), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)
         "not-delivered" -> DropScreen(DeliveryUiState(run = deliveryRun, drop = drop, failed = true, failedReason = FailureReason.OTHER, failedNote = "Building locked, no answer on intercom.", deliveredAtEpochMillis = now), "Carlton hub", noop, {}, {}, { _, _, _, _ -> }, { _, _ -> }, noop, noop, noop, noop, noop)
         "return" -> ReturnHubScreen(
