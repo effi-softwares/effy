@@ -41,6 +41,15 @@ if (storefrontDeclared.size < 15) {
   process.exit(1);
 }
 
+// The back-office identity (the "Effy Back-Office Redesign" canvas). back-office imports IT and not
+// tokens.css; check-backoffice-tokens.mjs holds it to every console name, so the shared kit it renders
+// still resolves, and it adds the redesign's own roles (primary-muted, row-hover, sidebar-muted…).
+const backofficeDeclared = declaredIn("../src/backoffice/tokens.css");
+if (backofficeDeclared.size < consoleDeclared.size) {
+  console.error("check-token-usage: FAILED — backoffice/tokens.css declares fewer --color-* vars than tokens.css");
+  process.exit(1);
+}
+
 const PREFIXES = [
   "bg", "text", "border", "ring", "fill", "stroke", "from", "via", "to",
   "outline", "decoration", "shadow", "accent", "caret", "divide", "placeholder",
@@ -109,14 +118,14 @@ function scan(label, file, declared, known, roots) {
   return true;
 }
 
-const everyToken = new Set([...consoleDeclared, ...storefrontDeclared]);
+const everyToken = new Set([...consoleDeclared, ...storefrontDeclared, ...backofficeDeclared]);
 const ok = [
   scan("console", "tokens.css", consoleDeclared, consoleDeclared, [
     "apps/shop-web/src",
-    "apps/back-office/src",
     "packages/web-kit/src",
     "packages/design-system/src/ui",
   ]),
+  scan("back-office", "backoffice/tokens.css", backofficeDeclared, everyToken, ["apps/back-office/src"]),
   scan("storefront", "storefront/tokens.css", storefrontDeclared, everyToken, [
     "apps/customer-web/app",
     "apps/customer-web/components",

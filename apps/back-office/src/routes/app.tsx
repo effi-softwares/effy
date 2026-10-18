@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useStore } from "@tanstack/react-store";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import {
@@ -15,16 +14,15 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@effy/design-system/ui";
-import { ConsoleShell, DashboardOverview, LiveProvider, LiveStatus } from "@effy/web-kit/console";
+import { DashboardOverview, LiveProvider } from "@effy/web-kit/console";
 
-import { NAV } from "@/components/layout/nav";
+import { AppShell } from "@/components/shell/AppShell";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
 import { getLiveDescriptor } from "@/features/live/repo";
 import { LIVE_ROUTES } from "@/features/live/routes";
 import { AdminOnlyScreen } from "@/features/staff-identity/AdminOnlyScreen";
 import { ProvingScreen } from "@/features/staff-identity/ProvingScreen";
-import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
 
@@ -37,7 +35,7 @@ export const appRoute = createRoute({
     const identity = await requireSession(context.queryClient, location.href);
     return { identity };
   },
-  component: AppShell,
+  component: AppShellRoute,
 });
 
 export const appIndexRoute = createRoute({
@@ -52,12 +50,10 @@ export const adminRoute = createRoute({
   component: AdminOnlyScreen,
 });
 
-// The default dashboard shell (FR-023 / Amendment D1, shadcn sidebar-07). The shell itself is
-// shared (@effy/web-kit/console); what this surface supplies is its brand, its nav config, the
-// session it reads roles from, and the client-state bits it owns. Wired by hand — no DI framework.
-function AppShell() {
-  const sidebarOpen = useStore(uiStore, (s) => s.sidebarOpen);
-  const theme = useStore(uiStore, (s) => s.theme);
+// The authenticated frame (the redesign's "Foundations and shell": shadcn sidebar-07 with grouped
+// navigation, live counts, ⌘K search). It is this surface's own composition of the shared sidebar
+// primitives — shop-web keeps @effy/web-kit's ConsoleShell. Wired by hand — no DI framework.
+function AppShellRoute() {
   const { data } = useQuery(sessionQuery);
   const signOut = useSignOut();
   const navigate = useNavigate();
@@ -68,24 +64,16 @@ function AppShell() {
     // 071 — orders, dispatch and drivers, slot load and the review queue re-read when the platform
     // says they changed; nothing here refreshes on a timer. Open only while signed in.
     <LiveProvider enabled={identity !== null} loadDescriptor={getLiveDescriptor} routes={LIVE_ROUTES}>
-      <ConsoleShell
-        headerActions={<LiveStatus />}
-        brand={{ name: "Effy", surface: "Back-Office" }}
-        surfaceLabel="Effy Back-Office"
-        nav={NAV}
-        roles={identity?.roles ?? []}
+      <AppShell
         email={identity?.email ?? ""}
-        theme={theme}
-        onSetTheme={setTheme}
+        roles={identity?.roles ?? []}
         onSignOut={() =>
           signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
         }
         signingOut={signOut.isPending}
-        sidebarOpen={sidebarOpen}
-        onSidebarOpenChange={setSidebarOpen}
       >
         <Outlet />
-      </ConsoleShell>
+      </AppShell>
     </LiveProvider>
   );
 }

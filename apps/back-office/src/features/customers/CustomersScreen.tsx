@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import type { CustomerSearchResultDTO } from "@effy/shared-types";
@@ -38,6 +38,10 @@ const columns: ColumnDef<CustomerSearchResultDTO>[] = [
 export function CustomersScreen() {
   const [q, setQ] = useState("");
   const search = useQuery(customerSearchQuery(q.trim()));
+  // The tab is in the URL, so the sidebar can open "Points settings" directly.
+  const { tab: tabParam } = useSearch({ strict: false }) as { tab?: string };
+  const navigate = useNavigate();
+  const tab = tabParam === "settings" ? "settings" : "customers";
 
   return (
     <div className="space-y-6">
@@ -46,7 +50,7 @@ export function CustomersScreen() {
         <p className="text-muted-foreground">Find a customer to see and change their points.</p>
       </div>
 
-      <Tabs defaultValue="customers">
+      <Tabs value={tab} onValueChange={(next) => void navigate({ to: "/customers", search: { tab: next } })}>
         <TabsList>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="settings">Points settings</TabsTrigger>

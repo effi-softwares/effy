@@ -126,7 +126,7 @@ function PackageRow({
         </div>
         {/* 073 — where it REALLY is, from the shared derivation; the old guess from the shop's status
             said "At hub" the moment a driver picked a package up. */}
-        {pkg.statusView ? <PackageStatusPill view={pkg.statusView} /> : null}
+        {pkg.statusView ? <PackageStatusPill view={pkg.statusView} icons /> : null}
       </div>
 
       {/* 073 — who has it. One line per stage; nothing when the stage has nothing to say yet. */}

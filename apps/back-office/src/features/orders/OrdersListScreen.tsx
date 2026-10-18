@@ -79,7 +79,7 @@ const columns: ColumnDef<OrderSummary>[] = [
     // 073 — where the order really is, in the words every staff screen uses (its least advanced
     // package; a Problem anywhere wins).
     cell: ({ row }) =>
-      row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} /> : "—",
+      row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} icons /> : "—",
   },
   {
     id: "delivery",

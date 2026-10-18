@@ -43,11 +43,8 @@ export interface QueueParams {
  * that "a new product" and "a change" are stored differently — and two lists would let one of them
  * go unwatched.
  */
-const QUEUE = `
-  SELECT q.product_id, q.kind, q.shop_id, q.shop_name, q.product_name, q.submitted_at,
-         q.submitted_at::text AS submitted_at_text,
-         floor(extract(epoch FROM (now() - q.submitted_at)) / 3600)::text AS waiting_hours
-    FROM (
+/** The queue's rows — new products in review and pending changes, one shape. Shared by the page and its count. */
+const QUEUE_ROWS = `
       SELECT p.id AS product_id, 'new_product'::text AS kind, p.shop_id, s.name AS shop_name,
              p.name AS product_name, p.submitted_at
         FROM public.product p
@@ -59,18 +56,44 @@ const QUEUE = `
         JOIN public.product p ON p.id = pc.product_id
         JOIN public.shop s ON s.id = p.shop_id
        WHERE pc.state = 'in_review'
-    ) q
+`;
+
+/** The filters a reviewer can set ($1 shop, $2 kind, $3 name). The cursor is NOT one of them. */
+const QUEUE_FILTERS = `
    WHERE ($1::uuid IS NULL OR q.shop_id = $1)
      AND ($2::text IS NULL OR q.kind = $2)
      AND ($3::text IS NULL OR lower(q.product_name) LIKE '%' || lower($3) || '%')
+`;
+
+const QUEUE = `
+  SELECT q.product_id, q.kind, q.shop_id, q.shop_name, q.product_name, q.submitted_at,
+         q.submitted_at::text AS submitted_at_text,
+         floor(extract(epoch FROM (now() - q.submitted_at)) / 3600)::text AS waiting_hours
+    FROM (${QUEUE_ROWS}) q
+  ${QUEUE_FILTERS}
      AND ($4::text IS NULL OR (q.submitted_at, q.product_id) > ($4::timestamptz, $5::uuid))
    ORDER BY q.submitted_at, q.product_id
    LIMIT $6
 `;
 
+/**
+ * How many items the filtered queue holds — every page, not this one. The back-office rail shows it
+ * beside "Product review", so it is the SAME rows and the SAME filters as the list, minus the cursor.
+ */
+const QUEUE_COUNT = `
+  SELECT count(*)::text AS n
+    FROM (${QUEUE_ROWS}) q
+  ${QUEUE_FILTERS}
+`;
+
 export async function listQueue(p: QueueParams): Promise<QueueRow[]> {
   const res = await query<QueueRow>(QUEUE, [p.shopId, p.kind, p.q, p.afterSubmittedAt, p.afterProductId, p.limit]);
   return res.rows;
+}
+
+export async function countQueue(p: Pick<QueueParams, "shopId" | "kind" | "q">): Promise<number> {
+  const res = await query<{ n: string }>(QUEUE_COUNT, [p.shopId, p.kind, p.q]);
+  return Number(res.rows[0]?.n ?? 0);
 }
 
 export interface MarginNotSetRow {

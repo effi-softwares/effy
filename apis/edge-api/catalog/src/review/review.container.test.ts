@@ -236,6 +236,23 @@ d("067 — product review against real PostgreSQL", () => {
     expect(seen).toEqual(ids);
   });
 
+  // The back-office rail's count beside "Product review" (redesign): every page, the same filters.
+  it("counts the whole filtered queue, not the page — and the cursor does not shrink it", async () => {
+    const other = await makeShop("SC");
+    for (let i = 3; i >= 1; i -= 1) await makeProduct({ name: `Q${i}`, submittedAgo: `${i} hours` });
+    await makeProduct({ name: "Elsewhere", shop: other });
+    const changed = await makeProduct({ name: "Milk", approved: true });
+    await proposeChange(changed, { name: "Oat milk" });
+
+    const first = await queue({ limit: "2" });
+    expect(first.items).toHaveLength(2);
+    expect(first.total).toBe(5);
+    expect((await queue({ limit: "2", cursor: first.nextCursor! })).total).toBe(5);
+    expect((await queue({ shopId: other })).total).toBe(1);
+    expect((await queue({ kind: "change" })).total).toBe(1);
+    expect((await queue({ q: "q" })).total).toBe(3);
+  });
+
   it("reports the age of the oldest waiting item, and nothing when the queue is empty", async () => {
     expect(await oldestWaitingHours()).toBeNull();
     await makeProduct({ submittedAgo: "5 hours" });

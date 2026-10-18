@@ -122,8 +122,16 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
 
   if (params.q) {
     args.push(`%${params.q}%`);
+    const like = args.length;
+    // 089 — or a package's label code, exactly: the six characters printed on the label are what a
+    // person holding a parcel has to hand. Upper-cased because the code's alphabet is.
+    args.push(params.q.trim().toUpperCase());
+    const code = args.length;
     // Reference OR customer email — the two things an operator actually has to hand.
-    where.push(`(o.order_number ILIKE $${args.length} OR c.email::text ILIKE $${args.length})`);
+    where.push(
+      `(o.order_number ILIKE $${like} OR c.email::text ILIKE $${like}` +
+        ` OR EXISTS (SELECT 1 FROM public.shop_fulfillment pc WHERE pc.order_id = o.id AND pc.package_code = $${code}))`,
+    );
   }
   if (params.status) {
     args.push(params.status);

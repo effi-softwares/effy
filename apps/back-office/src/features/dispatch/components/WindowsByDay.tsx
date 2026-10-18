@@ -67,7 +67,7 @@ export function WindowsByDay() {
                       {w.parcels.map((p) => (
                         <tr key={p.packageId}>
                           <td className="w-40 px-3 py-2 font-medium">{p.orderNumber}</td>
-                          <td className="px-3 py-2"><PackageStatusPill view={p.status} /></td>
+                          <td className="px-3 py-2"><PackageStatusPill view={p.status} icons /></td>
                           <td className="px-3 py-2 text-muted-foreground">{p.group ?? "No area"}</td>
                           <td className="px-3 py-2">
                             {p.collectLate ? <span className="font-medium">Late for its run</span> : null}
