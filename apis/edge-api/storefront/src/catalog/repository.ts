@@ -1,5 +1,6 @@
 // The category tree and the product detail page. SQL only.
 import { availabilityPredicate, pooled, renditionWidthsSql, type Queryable } from "@effy/edge-shared";
+import { PRODUCT_OFFER_SQL, type ProductOfferRow } from "@effy/edge-shared/promotions";
 
 import { categoryClosure } from "../lib/category-tree";
 
@@ -21,6 +22,7 @@ export interface DetailRow {
   price_amount: string;
   currency: string;
   compare_at_amount: string | null;
+  offer?: ProductOfferRow | null;
   short_description: string;
   long_description: string | null;
   primary_category_id: string;
@@ -141,6 +143,8 @@ SELECT p.id::text                  AS id,
        p.price_amount::text        AS price_amount,
        p.currency                  AS currency,
        p.compare_at_amount::text   AS compare_at_amount,
+       -- 094 — an item or buy-X-get-Y offer open to everyone that covers this product (R11).
+       ${PRODUCT_OFFER_SQL("p", "now()")} AS offer,
        p.short_description         AS short_description,
        p.long_description          AS long_description,
        p.primary_category_id::text AS primary_category_id,

@@ -27,7 +27,7 @@ export function RefundsSection({
   canIssue: boolean;
 }) {
   return (
-    <>
+    <div className="space-y-4">
       {order.refundRequest && order.refundRequest.status === "open" ? (
         <OpenRequest orderId={order.id} request={order.refundRequest} canAct={canIssue} />
       ) : null}
@@ -45,7 +45,7 @@ export function RefundsSection({
       ) : null}
 
       <RefundHistory refunds={order.refunds} refundedAmount={order.refundedAmount} />
-    </>
+    </div>
   );
 }
 
@@ -73,8 +73,8 @@ function OpenRequest({
   const [note, setNote] = useState("");
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-medium">The customer has asked for a refund</h2>
+    <section className="space-y-3 rounded-lg border border-border p-4">
+      <h3 className="font-medium">The customer has asked for a refund</h3>
       <p className="text-sm">{request.message}</p>
       {request.items.length > 0 ? (
         <ul className="text-sm text-muted-foreground">
@@ -158,8 +158,8 @@ function ProposedRefunds({
   const [reason, setReason] = useState("");
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-medium">Owed but not refunded</h2>
+    <section className="space-y-3 rounded-lg border border-border p-4">
+      <h3 className="font-medium">Owed but not refunded</h3>
       <p className="text-sm text-muted-foreground">
         The shop recorded these as not supplied. The customer paid for them.
       </p>
@@ -241,8 +241,8 @@ function RefundHistory({
 }) {
   if (refunds.length === 0) {
     return (
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Refunds</h2>
+      <section className="space-y-1">
+        <h3 className="font-medium">Refunds issued</h3>
         <p className="text-sm text-muted-foreground">Nothing has been refunded on this order.</p>
       </section>
     );
@@ -250,8 +250,8 @@ function RefundHistory({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-medium">Refunds</h2>
-      <table className="w-full text-sm">
+      <h3 className="font-medium">Refunds issued</h3>
+      <table className="bo-table bo-table--compact bo-table--plain rounded-lg border border-border">
         <thead className="text-left text-muted-foreground">
           <tr className="border-b">
             <th className="py-2 font-medium">When</th>

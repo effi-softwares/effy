@@ -1,37 +1,26 @@
 import type { SchemaStatus } from "@effy/shared-types";
-import { SCHEMA_STATUSES } from "@effy/shared-types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui";
 
-// Client-side status filter shared by all three schema tabs. The catalog list endpoints return
-// unpaginated arrays with no query params, so the filter narrows the already-loaded rows.
+import { cn } from "@effy/design-system";
+
+// Client-side status filter shared by all three schema tabs (redesign: a segmented control —
+// Active · Retired · All). The catalog list endpoints return unpaginated arrays, so the filter
+// narrows the already-loaded rows.
 export type StatusFilterValue = SchemaStatus | "all";
 
-export function StatusFilter({
-  value,
-  onChange,
-}: {
-  value: StatusFilterValue;
-  onChange: (value: StatusFilterValue) => void;
-}) {
+const OPTIONS: readonly { value: StatusFilterValue; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "retired", label: "Retired" },
+  { value: "all", label: "All" },
+];
+
+export function StatusFilter({ value, onChange }: { value: StatusFilterValue; onChange: (value: StatusFilterValue) => void }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as StatusFilterValue)}>
-      <SelectTrigger size="sm" className="w-40">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All statuses</SelectItem>
-        {SCHEMA_STATUSES.map((s) => (
-          <SelectItem key={s} value={s}>
-            {s}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div role="group" aria-label="Status" className="bo-seg">
+      {OPTIONS.map((o) => (
+        <button key={o.value} type="button" className={cn(value === o.value && "is-active")} aria-pressed={value === o.value} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -10,6 +10,8 @@ import {
 } from "@effy/design-system/ui";
 import { DataTable, ErrorState } from "@effy/web-kit/console";
 
+import { Callout } from "@/components/patterns/States";
+
 import { deliveryMutationError, fieldErrors, SLOT_DUPLICATE } from "../errorText";
 import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries";
 
@@ -140,8 +142,8 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
   const anyActive = (slots.data ?? []).some((s) => s.status === "active");
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           The delivery windows a customer can choose — today, or on one of the next delivery days (Australia/Melbourne). A window is
           offered until its “order by” time and while a collection run can still bring the goods to the
@@ -165,9 +167,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
         <>
           {!anyActive ? (
             // ⚠ The one consequence an operator must not discover from a customer.
-            <p role="status" className="rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
-              No window is active, so Effy delivery is not being offered to anyone.
-            </p>
+            <Callout tone="destructive" role="status" title="No window is active, so Effy delivery is not being offered to anyone." />
           ) : null}
           {slots.data && slots.data.length > 0 ? <DataTable columns={columns} data={slots.data} /> : null}
         </>
@@ -175,7 +175,7 @@ export function SlotsPanel({ canManage }: { canManage: boolean }) {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       {editing ? <SlotDialog slot={editing === "new" ? null : editing} onClose={() => setEditing(null)} /> : null}
-    </div>
+    </section>
   );
 }
 

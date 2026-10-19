@@ -69,15 +69,21 @@ export async function queue(params: Record<string, string | undefined>): Promise
   const kind = params.kind === "new_product" || params.kind === "change" ? params.kind : null;
   if (params.shopId && !UUID.test(params.shopId)) throw new ReviewError("validation", "shopId is not valid");
 
-  // One extra row tells us whether there is a next page without a second query.
-  const rows = await repo.listQueue({
+  const filters: Pick<repo.QueueParams, "shopId" | "kind" | "q"> = {
     shopId: params.shopId ?? null,
     kind,
     q: params.q?.trim() ? params.q.trim() : null,
-    afterSubmittedAt: cursor?.[0] ?? null,
-    afterProductId: cursor?.[1] ?? null,
-    limit: limit + 1,
-  });
+  };
+  // One extra row tells us whether there is a next page without a second query.
+  const [rows, total] = await Promise.all([
+    repo.listQueue({
+      ...filters,
+      afterSubmittedAt: cursor?.[0] ?? null,
+      afterProductId: cursor?.[1] ?? null,
+      limit: limit + 1,
+    }),
+    repo.countQueue(filters),
+  ]);
   const page = rows.slice(0, limit);
   const last = page[page.length - 1];
   return {
@@ -93,6 +99,7 @@ export async function queue(params: Record<string, string | undefined>): Promise
     // ⚠ Minted from the LAST ROW RETURNED and the column the query ORDERS BY (053 shipped a cursor
     // built from a different column than the sort, and pages re-showed rows).
     nextCursor: rows.length > limit && last ? encodeCursor([last.submitted_at_text, last.product_id]) : null,
+    total,
   };
 }
 

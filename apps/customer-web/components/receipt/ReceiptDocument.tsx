@@ -177,16 +177,35 @@ function Totals({ order }: { order: OrderDTO }) {
     <div className="mt-4 ml-auto max-w-sm">
       <dl className="flex flex-col gap-2">
         <Row label="Items subtotal" value={formatMoney(order.itemSubtotalAmount, order.currency)} />
-        {discount ? (
-          <Row
-            label={
-              <>
-                Discount{" "}
-                {order.promoCode ? <span className="font-medium text-foreground">{order.promoCode}</span> : null}
-              </>
-            }
-            value={`−${formatMoney(discount, order.currency)}`}
-          />
+        {/* 094 — one row per promotion as sold; an order from before 094 has one code. */}
+        {order.promotions && order.promotions.length > 0
+          ? order.promotions
+              .filter((p) => p.goodsAmount !== "0.00")
+              .map((p) => (
+                <Row
+                  key={`${p.headline}-${p.code ?? ""}`}
+                  label={
+                    <>
+                      {p.headline}
+                      {p.code ? <span className="font-medium text-foreground"> {p.code}</span> : null}
+                    </>
+                  }
+                  value={`−${formatMoney(p.goodsAmount, order.currency)}`}
+                />
+              ))
+          : discount ? (
+              <Row
+                label={
+                  <>
+                    Discount{" "}
+                    {order.promoCode ? <span className="font-medium text-foreground">{order.promoCode}</span> : null}
+                  </>
+                }
+                value={`−${formatMoney(discount, order.currency)}`}
+              />
+            ) : null}
+        {order.deliveryDiscountAmount && order.deliveryDiscountAmount !== "0.00" ? (
+          <Row label="Delivery offer" value={`−${formatMoney(order.deliveryDiscountAmount, order.currency)}`} />
         ) : null}
         {/* 077 — an order placed since the fee engine shows the lines it was SOLD with (stored, never
             re-priced); a free delivery is shown as the lines that make its $0. Before 077, one row. */}

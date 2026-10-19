@@ -5,6 +5,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { createCartRepository, type CartRepository } from "./repository";
+import { promotionPort } from "../promotions/pricing";
 import { createCartService, type CartService } from "./service";
 
 /**
@@ -63,7 +64,7 @@ d("070 — cart repository against the real schema", () => {
     ).rows.map((r) => r.id) as [string, string];
 
     repo = createCartRepository(pool, transactorFor(pool));
-    svc = createCartService({ repo, policy: () => loadCartPolicy(pool), imageAddress: async () => null });
+    svc = createCartService({ repo, policy: () => loadCartPolicy(pool), imageAddress: async () => null, promotions: promotionPort(pool) });
     cartId = await repo.getOrCreateCartId(customerId);
   }, 180_000);
 
@@ -174,18 +175,17 @@ d("070 — cart repository against the real schema", () => {
     await expect(repo.addItem(cartId, p.Milk!, "not-a-uuid", 1, 99)).rejects.toThrow(/uuid/);
   });
 
-  it("promo: lookup is case-insensitive, usage is counted from redemptions, applying it discounts", async () => {
-    await pool.query(
-      `INSERT INTO public.promo_code (code, kind, percent_off, minimum_subtotal_amount, status, created_by)
-       VALUES ('CRT10', 'percentage', 10, 0, 'active', 'seed')`,
+  it("094 — a code is matched without regard to case or spaces, and applying it discounts through the engine", async () => {
+    const promo = await pool.query<{ id: string }>(
+      `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, published_at, created_by)
+       VALUES ('Ten off', 'cart', 'code', 'percent', 10, 'cart', now() - interval '1 minute', 'seed') RETURNING id::text AS id`,
     );
-    const code = await repo.promoByCode("crt10");
-    expect(code).toMatchObject({ code: "CRT10", kind: "percentage", percentOff: 10, minimumSubtotalCents: 0, maxRedemptions: null });
-    expect(await repo.promoUsageFor(code!.id, customerId)).toEqual({ total: 0, byThisShopper: 0 });
+    await pool.query(`INSERT INTO public.promotion_code (promotion_id, code) VALUES ($1, 'CRT10')`, [promo.rows[0]!.id]);
 
     await repo.addItem(cartId, p.Bread!, chg(9), 1, 99);
-    const cart = await svc.applyPromo(customerId, "crt10");
+    const cart = await svc.applyPromo(customerId, " crt 10 ");
     expect(cart).toMatchObject({ itemSubtotalAmount: "9.00", discountAmount: "0.90", grandTotalAmount: "8.10" });
+    expect(cart.discount).toMatchObject({ code: "CRT10", amount: "0.90", label: "10% off" });
     expect((await svc.removePromo(customerId)).discount).toBeNull();
     await expect(svc.applyPromo(customerId, "NOPE")).rejects.toMatchObject({ reason: "promo_unknown" });
   });

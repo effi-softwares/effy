@@ -25,7 +25,7 @@ function banner(i: number, over: Partial<BannerDTO> = {}): BannerDTO {
 
 describe("PromoHero", () => {
   it("renders nothing when there are no promotions", () => {
-    const { container } = render(<PromoHero banners={[]} />)
+    const { container } = render(<PromoHero slides={[]} side={[]} />)
     expect(container.firstChild).toBeNull()
   })
 
@@ -34,7 +34,7 @@ describe("PromoHero", () => {
    * to be shown, and its artwork is not put under the words.
    */
   it("shows a promotion with no artwork, and draws no image", () => {
-    const { container } = render(<PromoHero banners={[banner(1, { imageUrl: null }), banner(2)]} />)
+    const { container } = render(<PromoHero slides={[banner(1, { imageUrl: null }), banner(2)]} side={[banner(1, { imageUrl: null }), banner(2)]} />)
     expect(Array.from(container.querySelectorAll("h2")).map((h) => h.textContent)).toEqual([
       "Promotion 1",
       "Promotion 2",
@@ -43,7 +43,7 @@ describe("PromoHero", () => {
   })
 
   it("draws the band in promo green, with its decoration hidden from assistive technology", () => {
-    const { container } = render(<PromoHero banners={[banner(1)]} />)
+    const { container } = render(<PromoHero slides={[banner(1)]} side={[banner(1)]} />)
     const band = container.querySelector<HTMLElement>("[style*='--promo-']")!
     expect(band.style.background).toBe("var(--promo-green)")
     expect(band.querySelectorAll("svg").length).toBeGreaterThan(4)
@@ -53,7 +53,7 @@ describe("PromoHero", () => {
   })
 
   it("shows no controls for a single promotion — one slide is not a carousel", () => {
-    const { queryByRole } = render(<PromoHero banners={[banner(1)]} />)
+    const { queryByRole } = render(<PromoHero slides={[banner(1)]} side={[banner(1)]} />)
     expect(queryByRole("button", { name: "Next slide" })).toBeNull()
   })
 
@@ -63,7 +63,7 @@ describe("PromoHero", () => {
    * through N sets of buttons of which N-1 cannot be seen.
    */
   it("keeps every slide in the document, and only the showing one reachable", () => {
-    const { container } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
+    const { container } = render(<PromoHero slides={[banner(1), banner(2), banner(3)]} side={[banner(1), banner(2), banner(3)]} />)
     const slides = Array.from(container.querySelectorAll<HTMLElement>("[aria-roledescription='slide']"))
     expect(slides.map((s) => s.getAttribute("aria-label"))).toEqual(["1 of 3", "2 of 3", "3 of 3"])
     expect(slides.map((s) => s.hasAttribute("inert"))).toEqual([false, true, true])
@@ -71,7 +71,7 @@ describe("PromoHero", () => {
   })
 
   it("moves with previous and next, and wraps at both ends", () => {
-    const { container, getByRole } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
+    const { container, getByRole } = render(<PromoHero slides={[banner(1), banner(2), banner(3)]} side={[banner(1), banner(2), banner(3)]} />)
     const showing = () =>
       Array.from(container.querySelectorAll("[aria-roledescription='slide']")).findIndex((s) => !s.hasAttribute("inert"))
 
@@ -87,7 +87,7 @@ describe("PromoHero", () => {
   it("advances by itself, and keeps advancing after a control is clicked", () => {
     vi.useFakeTimers()
     try {
-      const { container, getByRole, queryByRole } = render(<PromoHero banners={[banner(1), banner(2), banner(3)]} />)
+      const { container, getByRole, queryByRole } = render(<PromoHero slides={[banner(1), banner(2), banner(3)]} side={[banner(1), banner(2), banner(3)]} />)
       const showing = () =>
         Array.from(container.querySelectorAll("[aria-roledescription='slide']")).findIndex((s) => !s.hasAttribute("inert"))
 
@@ -112,7 +112,7 @@ describe("PromoHero", () => {
   it("waits while the pointer is over it, and carries on when it leaves", () => {
     vi.useFakeTimers()
     try {
-      const { container } = render(<PromoHero banners={[banner(1), banner(2)]} />)
+      const { container } = render(<PromoHero slides={[banner(1), banner(2)]} side={[banner(1), banner(2)]} />)
       const showing = () =>
         Array.from(container.querySelectorAll("[aria-roledescription='slide']")).findIndex((s) => !s.hasAttribute("inert"))
       const band = container.querySelector("[aria-roledescription='slide']")!.parentElement!
@@ -133,7 +133,7 @@ describe("PromoHero", () => {
     const original = window.matchMedia
     window.matchMedia = ((q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} })) as never
     try {
-      const { container } = render(<PromoHero banners={[banner(1), banner(2)]} />)
+      const { container } = render(<PromoHero slides={[banner(1), banner(2)]} side={[banner(1), banner(2)]} />)
       act(() => void vi.advanceTimersByTime(30_000))
       expect(container.querySelector("[aria-roledescription='slide']")!.hasAttribute("inert")).toBe(false)
     } finally {
@@ -144,7 +144,7 @@ describe("PromoHero", () => {
 
   /** FR-037d — a shopper learns of a condition from the banner or from where it leads. */
   it("shows a promotion's terms on the face when it has them", () => {
-    const { getByText } = render(<PromoHero banners={[banner(1, { terms: "On orders over $30" })]} />)
+    const { getByText } = render(<PromoHero slides={[banner(1, { terms: "On orders over $30" })]} side={[banner(1, { terms: "On orders over $30" })]} />)
     expect(getByText("On orders over $30")).toBeTruthy()
   })
 
@@ -153,7 +153,7 @@ describe("PromoHero", () => {
    * interactive elements are invalid HTML and unusable with a screen reader.
    */
   it("links the band to the promotion without nesting the buttons inside that link", () => {
-    const { container } = render(<PromoHero banners={[banner(1)]} />)
+    const { container } = render(<PromoHero slides={[banner(1)]} side={[banner(1)]} />)
     const bandLink = container.querySelector('a[href="/promotions/promo-1"]')
     expect(bandLink).not.toBeNull()
     expect(bandLink!.querySelector("a")).toBeNull()
@@ -166,7 +166,7 @@ describe("PromoHero — the cards beside the band", () => {
 
   it("stacks a linked offer above a code, blue then purple", () => {
     const { container } = render(
-      <PromoHero banners={[banner(1), banner(2), banner(3, { code: "HELLO10", terms: "On orders over $30" })]} />,
+      <PromoHero slides={[banner(1), banner(2), banner(3, { code: "HELLO10", terms: "On orders over $30" })]} side={[banner(1), banner(2), banner(3, { code: "HELLO10", terms: "On orders over $30" })]} />,
     )
     expect(grounds(container)).toEqual(["var(--promo-blue)", "var(--promo-purple)"])
     // One column at every width: the side-by-side layout is what overflowed.
@@ -174,12 +174,12 @@ describe("PromoHero — the cards beside the band", () => {
   })
 
   it("does not repeat the first slide beside itself", () => {
-    const { container } = render(<PromoHero banners={[banner(1)]} />)
+    const { container } = render(<PromoHero slides={[banner(1)]} side={[banner(1)]} />)
     expect(container.querySelector("ul")).toBeNull()
   })
 
   it("makes the whole offer card one link, without nesting anything interactive in it", () => {
-    const { getByRole } = render(<PromoHero banners={[banner(1), banner(2)]} />)
+    const { getByRole } = render(<PromoHero slides={[banner(1), banner(2)]} side={[banner(1), banner(2)]} />)
     const link = getByRole("link", { name: "Shop now: Promotion 2" })
     expect(link.getAttribute("href")).toBe("/promotions/promo-2")
     expect(link.className).toContain("after:absolute")
@@ -188,7 +188,7 @@ describe("PromoHero — the cards beside the band", () => {
 
   it("hands over a code as selectable text beside a real copy button, in a row that wraps", () => {
     const { getByText, getByRole } = render(
-      <PromoHero banners={[banner(1, { code: "HELLO10", terms: "On orders over $30" })]} />,
+      <PromoHero slides={[banner(1)]} side={[banner(2, { code: "HELLO10", terms: "On orders over $30" })]} />,
     )
     const row = getByText("HELLO10").parentElement!
     expect(row.className).toContain("flex-wrap")

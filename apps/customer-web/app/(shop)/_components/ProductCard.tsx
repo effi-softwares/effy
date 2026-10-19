@@ -131,7 +131,10 @@ export function ProductCard({
 
         {/* ONE badge, by precedence: a product that cannot be bought says so and nothing else. */}
         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
-          {discounted && product.available ? (
+          {/* 094 — an offer on the product ("15% off", "Buy 2 get 1 free") leads; it is what the cart will apply. */}
+          {product.offer && product.available ? (
+            <Badge variant="brand">{product.offer.label}</Badge>
+          ) : discounted && product.available ? (
             <Badge variant="brand">Sale</Badge>
           ) : isNew && product.available ? (
             <Badge>New</Badge>

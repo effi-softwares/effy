@@ -10,14 +10,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
   Textarea,
   toast,
 } from "@effy/design-system/ui";
+
+import { ResponsiveSheet } from "@/components/patterns/ResponsiveSheet";
 
 import { pointsActionError } from "../errorText";
 import { useDebitPoints } from "../queries";
@@ -55,14 +52,12 @@ export function DebitPointsSheet({
   const canSubmit = n !== null && !tooMany && !(reason === "other" && note.trim() === "") && !debit.isPending;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Remove points</SheetTitle>
-          <SheetDescription>
-            {customerName} · {usable.toLocaleString("en-AU")} usable
-          </SheetDescription>
-        </SheetHeader>
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Remove points"
+      description={<>{customerName} · {usable.toLocaleString("en-AU")} usable</>}
+    >
 
         <form
           className="space-y-4 px-4"
@@ -122,7 +117,6 @@ export function DebitPointsSheet({
             {debit.isPending ? "Removing…" : n !== null ? `Remove ${n.toLocaleString("en-AU")} points` : "Remove points"}
           </Button>
         </form>
-      </SheetContent>
-    </Sheet>
+    </ResponsiveSheet>
   );
 }

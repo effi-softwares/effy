@@ -71,6 +71,8 @@ export interface CartLineDTO {
    * customer token that lets the cart show the split (021 FR-005a) while revealing no shop (SC-006).
    */
   packageKey: string;
+  /** 094 — what promotions take off this line, in cents exactly as allocated; "0.00" when none. */
+  discountAmount?: string;
 }
 
 /**
@@ -119,6 +121,35 @@ export interface CartDiscountDTO {
   label: string;
 }
 
+/** 094 — one promotion that applies to this cart, and what it takes off. */
+export interface CartPromotionLineDTO {
+  promotionId: string;
+  /** The shopper words (the promotion's headline, or its offer label when it has none). */
+  headline: string;
+  /** The code the shopper entered for it; null for an automatic promotion. */
+  code: string | null;
+  goodsAmount: string;
+  /** Known once a delivery quote exists (checkout); "0.00" in the cart. */
+  deliveryAmount: string;
+}
+
+/** 094 — why a promotion the shopper could expect does not apply. A NAMED union (Kotlin generator). */
+export type CartPromotionNotAppliedReason =
+  | "not_combined"
+  | "below_minimum"
+  | "below_quantity"
+  | "wrong_time"
+  | "wrong_delivery"
+  | "sign_in";
+
+export interface CartNotAppliedDTO {
+  promotionId: string;
+  headline: string;
+  reason: CartPromotionNotAppliedReason;
+  /** The sentence to show, composed server-side. */
+  detail: string;
+}
+
 /** Why checkout is unavailable, when it is. */
 export type CartBlockedReason = "empty" | "no_payable_items" | "below_minimum";
 
@@ -162,7 +193,12 @@ export interface CartDTO {
   grandTotalAmount: string;
   currency: string;
   notices: CartNoticeDTO[];
+  /** The entered code's line, as before 094 — kept for installed apps. `promotions` lists every one. */
   discount: CartDiscountDTO | null;
+  /** 094 — every promotion applying, automatic and by code. */
+  promotions?: CartPromotionLineDTO[];
+  /** 094 — promotions the shopper might expect that do not apply, each with its sentence. */
+  promotionsNotApplied?: CartNotAppliedDTO[];
   checkout: CartCheckoutStateDTO;
   limits: CartLimitsDTO;
 }

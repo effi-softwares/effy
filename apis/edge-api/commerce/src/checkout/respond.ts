@@ -4,7 +4,7 @@ import {
 } from "@effy/edge-shared";
 import { CourierNotPurchasableError } from "@effy/edge-shared/delivery";
 import { InsufficientPointsError } from "@effy/edge-shared/points";
-import { COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE, DELIVERY_FEE_CHANGED_CODE, DELIVERY_FEE_WORDS, DELIVERY_WINDOW_WORDS } from "@effy/shared-types";
+import { COVERAGE_REFUSAL_CODE, COVERAGE_REFUSAL_SENTENCE, DELIVERY_FEE_CHANGED_CODE, PROMOTIONS_CHANGED_CODE, DELIVERY_FEE_WORDS, DELIVERY_WINDOW_WORDS } from "@effy/shared-types";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { DeliveryChoiceError } from "./delivery-choice";
@@ -53,6 +53,20 @@ export function deliveryFeeChanged(scope: RequestScope, quote: unknown | null): 
       type: ProblemType.Conflict, title: "Conflict", status: 409, detail: DELIVERY_FEE_WORDS.feeChanged,
       instance: scope.instance, request_id: scope.requestId, code: DELIVERY_FEE_CHANGED_CODE,
       ...(quote ? { quote } : {}),
+    }),
+  };
+}
+
+/** 094 — 409 `promotions_changed`, with the cart as it stands. Nothing was charged. */
+export function promotionsChanged(scope: RequestScope, cart: unknown | null): APIGatewayProxyStructuredResultV2 {
+  return {
+    statusCode: 409,
+    headers: { "content-type": "application/problem+json", "x-request-id": scope.requestId },
+    body: JSON.stringify({
+      type: ProblemType.Conflict, title: "Conflict", status: 409,
+      detail: "Your offers changed. Check your new total before you pay.",
+      instance: scope.instance, request_id: scope.requestId, code: PROMOTIONS_CHANGED_CODE,
+      ...(cart ? { cart } : {}),
     }),
   };
 }

@@ -5,8 +5,12 @@ import { adminRoute, appIndexRoute, appRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogSchemaRoute } from "./routes/catalog-schema";
 import {
+  createPromotionRoute,
+  editPromotionRoute,
   orderRulesRoute,
   promotionDetailRoute,
+  promotionGroupRoute,
+  promotionGroupsRoute,
   promotionsIndexRoute,
 } from "./routes/promotions";
 import {
@@ -32,6 +36,7 @@ import {
 } from "./routes/orders";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { customerDetailRoute, customersIndexRoute } from "./routes/customers";
+import { StatusPage } from "./components/patterns/StatusPage";
 import { rootRoute } from "./routes/__root";
 
 // Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops',
@@ -65,6 +70,10 @@ const routeTree = rootRoute.addChildren([
     catalogSchemaRoute,
     promotionsIndexRoute,
     orderRulesRoute,
+    createPromotionRoute,
+    promotionGroupsRoute,
+    promotionGroupRoute,
+    editPromotionRoute,
     promotionDetailRoute,
     deliveryIndexRoute,
   ]),
@@ -77,6 +86,8 @@ export function createAppRouter(queryClient: QueryClient) {
     context: { queryClient },
     defaultPreload: "intent",
     scrollRestoration: true,
+    // A path nothing matches (redesign, board "Not found") — inside the shell when signed in.
+    defaultNotFoundComponent: () => <StatusPage kind="notfound" />,
   });
 }
 

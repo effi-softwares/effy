@@ -3,15 +3,9 @@ import { useEffect } from "react";
 import { isDomainError } from "@effy/api-client";
 import { useQuery } from "@tanstack/react-query";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { Panel } from "@/components/patterns/Panel";
 
 import { track } from "@/lib/telemetry";
 
@@ -32,14 +26,7 @@ export function AdminOnlyScreen() {
   }, [denied]);
 
   return (
-    <Card className="max-w-md">
-      <CardHeader>
-        <CardHeading>
-          <CardTitle>Administrator area</CardTitle>
-          <CardDescription>Access is decided by the backend, not the interface.</CardDescription>
-        </CardHeading>
-      </CardHeader>
-      <CardContent>
+    <Panel title="Administrator area" description="Access is decided by the backend, not the interface.">
         {isPending ? (
           <p className="text-sm text-muted-foreground">Checking…</p>
         ) : isError ? (
@@ -53,7 +40,6 @@ export function AdminOnlyScreen() {
             Administrator access confirmed for <span className="font-mono">{data.subject}</span>.
           </p>
         )}
-      </CardContent>
-    </Card>
+    </Panel>
   );
 }

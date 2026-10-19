@@ -17,6 +17,7 @@ export * from "./saved-item";
 // 020-shop-order-fulfillment
 export * from "./shop-order";
 export * from "./promotion";
+export * from "./promotions";
 export * from "./banner";
 // 039-customer-home-redesign
 export * from "./newsletter";

@@ -495,7 +495,8 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       shopSubtotal: fromCents(shopSubtotal),
       itemSubtotal: money(row.item_subtotal_amount),
       discount: money(row.discount_amount),
-      promoCode: row.promo_code,
+      // ⚠ 094 FR-035 — a shop never sees which promotion applied. Kept on the wire for installed apps.
+      promoCode: null,
       total: money(row.grand_total_amount),
       refunded: money(row.refunded),
       refundPending: money(row.refund_pending),

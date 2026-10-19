@@ -17,7 +17,6 @@
 // what would let a stale device wipe lines it had never heard of (027 FR-010).
 import { parseCents, pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 
-import type { PromoCode, PromoUsage } from "../promo/promo";
 
 /**
  * The wire shape of a cart read (cart_item ⋈ product ⋈ primary media). The same shape serves
@@ -47,8 +46,9 @@ export interface CartLineRow {
 
 export interface CartMeta {
   revision: number;
-  /** null when no code is applied. */
-  promoCodeId: string | null;
+  /** 094 — the code the shopper entered; null when none. */
+  promotionCodeId: string | null;
+  customerId: string | null;
 }
 
 export interface ProductStatusRow {
@@ -94,48 +94,6 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) m ON true`;
 
-const PROMO_PROJECTION = `
-SELECT id::text                        AS id,
-       code                            AS code,
-       kind                            AS kind,
-       percent_off                     AS percent_off,
-       amount_off::text                AS amount_off,
-       minimum_subtotal_amount::text   AS minimum_subtotal_amount,
-       starts_at                       AS starts_at,
-       ends_at                         AS ends_at,
-       max_redemptions                 AS max_redemptions,
-       max_per_customer                AS max_per_customer,
-       status                          AS status
-FROM public.promo_code`;
-
-interface PromoRow {
-  id: string;
-  code: string;
-  kind: string;
-  percent_off: number | null;
-  amount_off: string | null;
-  minimum_subtotal_amount: string;
-  starts_at: Date | null;
-  ends_at: Date | null;
-  max_redemptions: number | null;
-  max_per_customer: number | null;
-  status: string;
-}
-
-const toPromo = (row: PromoRow): PromoCode => ({
-  id: row.id,
-  code: row.code,
-  kind: row.kind,
-  percentOff: row.percent_off ?? 0,
-  amountOffCents: row.amount_off === null ? 0 : parseCents(row.amount_off),
-  minimumSubtotalCents: parseCents(row.minimum_subtotal_amount),
-  startsAt: row.starts_at,
-  endsAt: row.ends_at,
-  maxRedemptions: row.max_redemptions,
-  maxPerCustomer: row.max_per_customer,
-  status: row.status,
-});
-
 export interface CartRepository {
   getOrCreateCartId(customerId: string): Promise<string>;
   meta(cartId: string): Promise<CartMeta>;
@@ -158,10 +116,8 @@ export interface CartRepository {
   restoreSaved(cartId: string, productId: string, changeId: string, max: number): Promise<boolean>;
   deleteSaved(cartId: string, productId: string, changeId: string): Promise<boolean>;
 
-  promoByCode(code: string): Promise<PromoCode | null>;
-  promoById(id: string): Promise<PromoCode | null>;
-  promoUsageFor(promoCodeId: string, customerId: string): Promise<PromoUsage>;
-  setCartPromo(cartId: string, promoCodeId: string | null): Promise<boolean>;
+  /** 094 — the code the shopper entered (null clears it). Only the CHOICE is stored. */
+  setCartPromo(cartId: string, promotionCodeId: string | null): Promise<boolean>;
 }
 
 /**
@@ -214,11 +170,6 @@ ORDER BY ci.added_at ASC, ci.id ASC`,
       )
     ).rows;
 
-  const promoBy = async (sql: string, arg: string) => {
-    const row = (await db.query<PromoRow>(sql, [arg])).rows[0];
-    return row ? toPromo(row) : null;
-  };
-
   const repo: CartRepository = {
     /**
      * The customer's cart id, creating the cart on first use (one cart per customer). The no-op
@@ -240,14 +191,14 @@ RETURNING id::text AS id`,
 
     async meta(cartId) {
       const row = (
-        await db.query<{ revision: number; promo_code_id: string | null }>(
+        await db.query<{ revision: number; promotion_code_id: string | null; customer_id: string | null }>(
           `
-SELECT revision::int AS revision, promo_code_id::text AS promo_code_id
+SELECT revision::int AS revision, promotion_code_id::text AS promotion_code_id, customer_id::text AS customer_id
 FROM public.cart WHERE id = $1`,
           [cartId],
         )
       ).rows[0];
-      return { revision: row?.revision ?? 0, promoCodeId: row?.promo_code_id ?? null };
+      return { revision: row?.revision ?? 0, promotionCodeId: row?.promotion_code_id ?? null, customerId: row?.customer_id ?? null };
     },
 
     lines: (cartId) => linesFrom("public.cart_item", cartId),
@@ -393,7 +344,7 @@ WHERE cart_id = $1 AND product_id = $2`,
     deleteAllItems: (cartId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1`, [cartId]);
-        await tx.query(`UPDATE public.cart SET promo_code_id = NULL, promo_applied_at = NULL WHERE id = $1`, [cartId]);
+        await tx.query(`UPDATE public.cart SET promotion_code_id = NULL, promo_code_id = NULL, promo_applied_at = NULL WHERE id = $1`, [cartId]);
       }),
 
     async deleteLines(cartId, productIds) {
@@ -472,38 +423,20 @@ DO UPDATE SET quantity = LEAST(GREATEST(public.cart_item.quantity, EXCLUDED.quan
         await tx.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1 AND product_id = $2`, [cartId, productId]);
       }),
 
-    /** Case-insensitive lookup by the typed code. */
-    promoByCode: (code) => promoBy(`${PROMO_PROJECTION} WHERE upper(code) = upper($1)`, code),
-    promoById: (id) => promoBy(`${PROMO_PROJECTION} WHERE id = $1`, id),
-
-    /** Counted from the redemption rows — the truth — rather than from any stored counter. */
-    async promoUsageFor(promoCodeId, customerId) {
-      const row = (
-        await db.query<{ total: number; by_this_shopper: number }>(
-          `
-SELECT count(*)::int                                              AS total,
-       count(*) FILTER (WHERE customer_id = $2)::int              AS by_this_shopper
-FROM public.promo_redemption WHERE promo_code_id = $1`,
-          [promoCodeId, customerId],
-        )
-      ).rows[0];
-      return { total: row?.total ?? 0, byThisShopper: row?.by_this_shopper ?? 0 };
-    },
-
     /**
      * Record which code is applied (null clears it). Only the CHOICE is stored; the amount it is
      * worth is derived on every read. Setting the same code twice is a no-op in effect, so it
      * carries no change id.
      */
-    setCartPromo: (cartId, promoCodeId) =>
+    setCartPromo: (cartId, promotionCodeId) =>
       inTx(cartId, "", async (tx) => {
         await tx.query(
           `
 UPDATE public.cart
-   SET promo_code_id = $2::uuid,
+   SET promotion_code_id = $2::uuid, promo_code_id = NULL,
        promo_applied_at = CASE WHEN $2::uuid IS NULL THEN NULL ELSE now() END
  WHERE id = $1`,
-          [cartId, promoCodeId],
+          [cartId, promotionCodeId],
         );
       }),
   };

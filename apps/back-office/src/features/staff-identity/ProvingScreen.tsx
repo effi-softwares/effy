@@ -1,16 +1,8 @@
-import type { ReactNode } from "react";
-
 import { useQuery } from "@tanstack/react-query";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-} from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { DetailRows, Panel } from "@/components/patterns/Panel";
 
 import { meQuery } from "./queries";
 
@@ -24,16 +16,7 @@ export function ProvingScreen() {
   const { data, error, isPending, isError, refetch } = useQuery(meQuery);
 
   return (
-    <Card className="max-w-md">
-      <CardHeader>
-        <CardHeading>
-          <CardTitle>Your back-office record</CardTitle>
-          <CardDescription>
-          The platform's own record of you — proves this console reaches the backend as you.
-        </CardDescription>
-        </CardHeading>
-      </CardHeader>
-      <CardContent>
+    <Panel title="Your back-office record" description="The platform's own record of you — proves this console reaches the backend as you.">
         {isPending ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : isError ? (
@@ -44,23 +27,16 @@ export function ProvingScreen() {
             grant access.
           </p>
         ) : (
-          <dl className="space-y-2 text-sm">
-            <Row label="Subject" value={<span className="font-mono">{data.subject}</span>} />
-            <Row label="Email" value={data.email} />
-            <Row label="Roles" value={data.roles.join(", ")} />
-            <Row label="Status" value={data.status} />
-          </dl>
+          <DetailRows
+            tight
+            rows={[
+              { label: "Subject", value: <span className="font-mono text-xs">{data.subject}</span> },
+              { label: "Email", value: data.email },
+              { label: "Roles", value: data.roles.join(", ") },
+              { label: "Status", value: data.status },
+            ]}
+          />
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Row({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="w-20 text-muted-foreground">{label}</dt>
-      <dd>{value}</dd>
-    </div>
+    </Panel>
   );
 }

@@ -1,66 +1,106 @@
-import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 import type { ShopLifecycleStatus } from "@effy/shared-types";
-import { SHOP_LIFECYCLE_STATUSES } from "@effy/shared-types";
 import {
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@effy/design-system/ui";
 
 import { track } from "@/lib/telemetry";
 
 import { useChangeShopStatus } from "../queries";
 
-// Lifecycle transition control (POST /admin/v1/shops/{id}/status). The menu offers only the OTHER
-// two statuses — you cannot "transition" to the status you already have. Emits shop_status_changed.
-export interface ShopStatusMenuProps {
-  shopId: string;
-  current: ShopLifecycleStatus;
-}
+// Lifecycle transitions (POST /admin/v1/shops/{id}/status), each confirmed in a dialog that says what
+// happens (redesign, board "Suspend a shop"). Emits shop_status_changed.
 
-const STATUS_LABELS: Record<ShopLifecycleStatus, string> = {
-  active: "Activate",
-  suspended: "Suspend",
-  disabled: "Disable",
+const VERB: Record<ShopLifecycleStatus, string> = { active: "Activate", suspended: "Suspend", disabled: "Disable" };
+
+const CONSEQUENCES: Record<ShopLifecycleStatus, string[]> = {
+  active: ["New orders can be sent here again.", "Operators can sign in and take work."],
+  suspended: [
+    "Packages already packed or being picked still go out on today's runs.",
+    "New orders stop being sent here. Its products stay listed if another shop stocks them.",
+    "Operators keep their sign-in and can finish what they have.",
+  ],
+  disabled: [
+    "Every operator's sign-in stops straight away.",
+    "No work reaches the shop. Its history is kept.",
+  ],
 };
 
-export function ShopStatusMenu({ shopId, current }: ShopStatusMenuProps) {
+export function ShopStatusDialog({
+  shopId,
+  shopName,
+  target,
+  onOpenChange,
+}: {
+  shopId: string;
+  shopName: string;
+  target: ShopLifecycleStatus | null;
+  onOpenChange: (open: boolean) => void;
+}) {
   const changeStatus = useChangeShopStatus(shopId);
-  const options = SHOP_LIFECYCLE_STATUSES.filter((s) => s !== current);
+  const [error, setError] = useState<string | null>(null);
 
-  function transition(status: ShopLifecycleStatus) {
+  function confirm() {
+    if (!target) return;
+    setError(null);
     changeStatus.mutate(
-      { status },
-      { onSuccess: () => track({ name: "shop_status_changed", shopId }) },
+      { status: target },
+      {
+        onSuccess: () => {
+          track({ name: "shop_status_changed", shopId });
+          onOpenChange(false);
+        },
+        onError: () => setError("Couldn't change the shop's status. Try again."),
+      },
     );
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={changeStatus.isPending}>
-          Change status
-          <ChevronDown />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Set status to</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {options.map((status) => (
-          <DropdownMenuItem
-            key={status}
-            variant={status === "disabled" ? "destructive" : "default"}
-            onSelect={() => transition(status)}
-          >
-            {STATUS_LABELS[status]}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Dialog open={target !== null} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {target ? VERB[target] : ""} {shopName}?
+          </DialogTitle>
+          <DialogDescription>
+            {target === "suspended"
+              ? "A suspended shop takes no new work. You can activate it again at any time."
+              : target === "disabled"
+                ? "A disabled shop is closed to its operators. You can activate it again later."
+                : "The shop goes back to taking work."}
+          </DialogDescription>
+        </DialogHeader>
+        {target ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">What happens</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {CONSEQUENCES[target].map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {error ? (
+          <p role="alert" className="text-sm font-medium">
+            {error}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button disabled={changeStatus.isPending} onClick={confirm}>
+            {changeStatus.isPending ? "Working…" : `${target ? VERB[target] : ""} shop`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,8 +1,9 @@
 import { defaultCartPolicy, type CartPolicy } from "@effy/edge-shared/cart-policy";
 import { describe, expect, it } from "vitest";
 
-import type { PromoCode } from "../promo/promo";
-import { PromoRefusedError } from "../promo/promo";
+import { candidateOf, type FixtureCandidate, melbourneContext, pricePromotions, type PromotionRecord, type PromotionWords } from "@effy/edge-shared/promotions";
+
+import { type Pricing, type PricingInput, PromotionCodeRefusedError, type PromotionPort } from "../promotions/pricing";
 import type { CartLineRow, CartRepository, ProductStatusRow, ReorderCandidate } from "./repository";
 import {
   CartFullError, checkoutState, createCartService, dedupe, InsufficientStockError, OrderNotFoundError, payableCents,
@@ -25,8 +26,9 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
   const cart = new Map<string, { qty: number; atAdd: string | null }>();
   const saved = new Map<string, { qty: number; atAdd: string | null }>();
   const applied = new Set<string>();
-  const promos = new Map<string, PromoCode>();
-  const usage = { total: 0, byThisShopper: 0 };
+  /** 094 — the promotions on offer, by code (null = automatic). The REAL engine prices them. */
+  const promos = new Map<string, { code: string | null; candidate: FixtureCandidate; words: PromotionWords }>();
+  const priced: PricingInput[] = [];
   const orders = new Map<string, { owner: string; items: ReorderCandidate[] }>();
   let revision = 0;
   let promoId: string | null = null;
@@ -52,7 +54,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
 
   const repo: CartRepository = {
     getOrCreateCartId: async () => "cart-1",
-    meta: async () => ({ revision, promoCodeId: promoId }),
+    meta: async () => ({ revision, promotionCodeId: promoId, customerId: CUSTOMER }),
     lines: async () => [...cart].map(([pid, e]) => row(pid, e)),
     allLines: async () => ({
       lines: [...cart].map(([pid, e]) => row(pid, e)),
@@ -88,20 +90,45 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
     restoreSaved: async (_c, pid, changeId, max) =>
       guard(changeId, () => { const e = saved.get(pid); if (e) { cart.set(pid, { qty: Math.min(e.qty, max), atAdd: products[pid]!.price }); saved.delete(pid); } }),
     deleteSaved: async (_c, pid, changeId) => guard(changeId, () => void saved.delete(pid)),
-    promoByCode: async (code) => [...promos.values()].find((p) => p.code.toUpperCase() === code.toUpperCase()) ?? null,
-    promoById: async (pid) => promos.get(pid) ?? null,
-    promoUsageFor: async () => usage,
     setCartPromo: async (_c, pid) => guard("", () => { promoId = pid; }),
   };
 
   const p: CartPolicy = { ...defaultCartPolicy(), ...policy };
-  const svc = createCartService({ repo, policy: async () => p, imageAddress: async () => null, now: () => NOW });
-  return { svc, cart, saved, promos, usage, orders, calls, products, setRevision: (n: number) => (revision = n), seedAtAdd: (pid: string, atAdd: string | null, qty = 1) => cart.set(pid, { qty, atAdd }) };
+  /** A stand-in for the database half of promotions; the pricing itself is the shared engine. */
+  const promotions: PromotionPort = {
+    async price(input): Promise<Pricing> {
+      priced.push(input);
+      const live = [...promos.values()].filter((x) => x.code === null || `code-${x.code}` === input.enteredCodeId);
+      const candidates = live.map((x, i) => candidateOf({ ...x.candidate, codeId: x.code ? `code-${x.code}` : null, codeText: x.code }, i));
+      const outcome = pricePromotions(
+        { lines: input.lines.map((l) => ({ lineId: l.productId, productId: l.productId, categoryIds: [], brand: null, unitCents: l.unitCents, quantity: l.quantity })), deliveryType: null, deliveryFeeCents: null },
+        candidates,
+        melbourneContext(input.now),
+      );
+      const records = new Map(live.map((x) => [x.candidate.id, { id: x.candidate.id, name: x.candidate.id, headline: null, words: x.words } as unknown as PromotionRecord]));
+      const entered = live.find((x) => x.code !== null);
+      return { outcome, records, enteredRefusal: null, enteredPromotionId: entered?.candidate.id ?? null, singleUseCodeIds: new Set() };
+    },
+    async vet(input) {
+      const found = [...promos.values()].find((x) => x.code !== null && x.code === input.raw.replace(/\s+/g, "").toUpperCase());
+      if (!found) throw new PromotionCodeRefusedError("promo_unknown", "That code isn't recognised. Check it and try again.");
+      return `code-${found.code}`;
+    },
+  };
+  const svc = createCartService({ repo, policy: async () => p, imageAddress: async () => null, now: () => NOW, promotions });
+  return { svc, cart, saved, promos, priced, orders, calls, products, setRevision: (n: number) => (revision = n), seedAtAdd: (pid: string, atAdd: string | null, qty = 1) => cart.set(pid, { qty, atAdd }) };
 }
 
-const promo = (over: Partial<PromoCode> = {}): PromoCode => ({
-  id: "promo-1", code: "SPRING20", kind: "percentage", percentOff: 20, amountOffCents: 0, minimumSubtotalCents: 0,
-  startsAt: null, endsAt: null, maxRedemptions: null, maxPerCustomer: null, status: "active", ...over,
+const WORDS: PromotionWords = {
+  kind: "cart", valueType: "percent", percentOff: 20, amountOffCents: null, maxDiscountCents: null, bxgy: null, covers: null,
+  deliveryTypes: ["effy", "courier"], audience: "everyone", minSubtotalCents: 0, minQuantity: null, daysOfWeek: null,
+  minuteFrom: null, minuteTo: null, maxUsesPerCustomer: null,
+};
+/** SPRING20 — 20% off the cart, optionally with a minimum (cents). */
+const spring20 = (minSubtotalCents = 0) => ({
+  code: "SPRING20" as string | null,
+  candidate: { id: "promo-1", kind: "cart" as const, valueType: "percent" as const, percentOff: 20, minSubtotalCents },
+  words: { ...WORDS, minSubtotalCents },
 });
 
 const milk: Product = { name: "Oat Milk", price: "4.50" };
@@ -112,7 +139,7 @@ describe("reading the cart", () => {
     const cart = await world({}).svc.get(CUSTOMER);
     expect(cart).toEqual({
       revision: 0, lines: [], savedLines: [], itemSubtotalAmount: "0.00", discountAmount: "0.00",
-      grandTotalAmount: "0.00", currency: "AUD", notices: [], discount: null,
+      grandTotalAmount: "0.00", currency: "AUD", notices: [], discount: null, promotions: [], promotionsNotApplied: [],
       checkout: { allowed: false, blockedReason: "empty", minimumSubtotalAmount: null, remainingAmount: null },
       limits: { maxLineQuantity: 99, maxDistinctItems: 100 },
     });
@@ -368,76 +395,65 @@ describe("reorder", () => {
   });
 });
 
-describe("promotional codes", () => {
-  it("applies a valid code, case-insensitively, and the discount reaches the total", async () => {
+describe("promotions (094 — priced by the shared engine)", () => {
+  it("applies a valid code and the discount reaches the lines and the total", async () => {
     const w = world({ [A]: { ...milk, price: "50.00" } });
-    w.promos.set("promo-1", promo());
+    w.promos.set("promo-1", spring20());
     await w.svc.add(CUSTOMER, A, "c1", 1);
     const cart = await w.svc.applyPromo(CUSTOMER, " spring20 ");
     expect(cart.discount).toEqual({ code: "SPRING20", kind: "percentage", amount: "10.00", label: "20% off" });
+    expect(cart.promotions).toEqual([{ promotionId: "promo-1", headline: "20% off", code: "SPRING20", goodsAmount: "10.00", deliveryAmount: "0.00" }]);
+    expect(cart.lines[0]?.discountAmount).toBe("10.00");
     expect(cart).toMatchObject({ itemSubtotalAmount: "50.00", discountAmount: "10.00", grandTotalAmount: "40.00" });
   });
 
-  it.each([
-    ["an unknown code", {}, "NOPE", "promo_unknown"],
-    ["an expired code", { endsAt: new Date("2026-07-01T00:00:00Z") }, "SPRING20", "promo_expired"],
-    ["a code below its minimum", { minimumSubtotalCents: 10_000 }, "SPRING20", "promo_below_minimum"],
-  ])("refuses %s with its own reason and stores nothing", async (_name, over, typed, reason) => {
+  it("refuses a code it cannot use with its reason, and stores nothing", async () => {
     const w = world({ [A]: { ...milk, price: "50.00" } });
-    w.promos.set("promo-1", promo(over));
     await w.svc.add(CUSTOMER, A, "c1", 1);
-    const err = await w.svc.applyPromo(CUSTOMER, typed).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(PromoRefusedError);
-    expect((err as PromoRefusedError).reason).toBe(reason);
+    const err = await w.svc.applyPromo(CUSTOMER, "NOPE").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(PromotionCodeRefusedError);
+    expect((err as PromotionCodeRefusedError).reason).toBe("promo_unknown");
     expect((await w.svc.get(CUSTOMER)).discount).toBeNull();
-  });
-
-  it("refuses a code this shopper has already used", async () => {
-    const w = world({ [A]: { ...milk, price: "50.00" } });
-    w.promos.set("promo-1", promo({ maxPerCustomer: 1 }));
-    w.usage.byThisShopper = 1;
-    await w.svc.add(CUSTOMER, A, "c1", 1);
-    await expect(w.svc.applyPromo(CUSTOMER, "SPRING20")).rejects.toMatchObject({ reason: "promo_already_used" });
   });
 
   it("an applied code that stops qualifying stays on the cart, discounts nothing, and says why", async () => {
     const w = world({ [A]: { ...milk, price: "50.00" } });
-    w.promos.set("promo-1", promo({ minimumSubtotalCents: 4000 }));
+    w.promos.set("promo-1", spring20(4000));
     await w.svc.add(CUSTOMER, A, "c1", 1);
     await w.svc.applyPromo(CUSTOMER, "SPRING20");
     w.products[A] = { ...milk, price: "30.00" };
     const cart = await w.svc.get(CUSTOMER);
     expect(cart.discount).toBeNull();
     expect(cart.discountAmount).toBe("0.00");
-    expect(cart.notices).toContainEqual({
-      productId: null, kind: "promo_no_longer_applies", detail: "Your cart is now below the 40.00 minimum for this code.",
-    });
+    expect(cart.notices).toContainEqual({ productId: null, kind: "promo_no_longer_applies", detail: "Add $10.00 more to get 20% off." });
+    expect(cart.promotionsNotApplied).toEqual([
+      { promotionId: "promo-1", headline: "20% off", reason: "below_minimum", detail: "Add $10.00 more to get 20% off." },
+    ]);
     // …and it applies again by itself once the cart recovers.
     w.products[A] = { ...milk, price: "50.00" };
     expect((await w.svc.get(CUSTOMER)).discount?.amount).toBe("10.00");
   });
 
-  it("the discount is judged on the PAYABLE subtotal — an unavailable line earns nothing", async () => {
+  it("an automatic promotion applies with no code", async () => {
+    const w = world({ [A]: { ...milk, price: "40.00" } });
+    w.promos.set("auto", { code: null, candidate: { id: "auto", kind: "cart", valueType: "amount", amountOffCents: 500 }, words: { ...WORDS, valueType: "amount", percentOff: null, amountOffCents: 500 } });
+    const cart = await w.svc.add(CUSTOMER, A, "c1", 1);
+    expect(cart).toMatchObject({ discountAmount: "5.00", grandTotalAmount: "35.00", discount: null });
+    expect(cart.promotions?.map((x) => x.code)).toEqual([null]);
+  });
+
+  it("prices the PAYABLE lines only — an unavailable line earns nothing", async () => {
     const w = world({ [A]: { ...milk, price: "50.00" }, [B]: { ...bread, price: "50.00", status: "unavailable" } });
-    w.promos.set("promo-1", promo());
+    w.promos.set("promo-1", spring20());
     w.seedAtAdd(A, null);
     w.seedAtAdd(B, null);
     expect((await w.svc.applyPromo(CUSTOMER, "SPRING20")).discountAmount).toBe("10.00"); // 20% of 50, not of 100
+    expect(w.priced.at(-1)?.lines.map((l) => l.productId)).toEqual([A]);
   });
 
   it("removing a code is idempotent", async () => {
     const w = world({ [A]: milk });
     await expect(w.svc.removePromo(CUSTOMER)).resolves.toMatchObject({ discount: null });
-  });
-
-  it("checkout's discount uses the same rule and DOES count usage", async () => {
-    const w = world({ [A]: { ...milk, price: "50.00" } });
-    w.promos.set("promo-1", promo({ maxRedemptions: 1 }));
-    await w.svc.add(CUSTOMER, A, "c1", 1);
-    await w.svc.applyPromo(CUSTOMER, "SPRING20");
-    expect(await w.svc.discountForCustomer(CUSTOMER, 5000)).toEqual({ cents: 1000, promo: { id: "promo-1", code: "SPRING20" } });
-    w.usage.total = 1; // exhausted by someone else since
-    expect(await w.svc.discountForCustomer(CUSTOMER, 5000)).toEqual({ cents: 0, promo: null }); // charges full price; not an error
   });
 });
 

@@ -250,6 +250,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
             return {
               orderItemId: it.order_item_id, productId: it.product_id, productName: it.product_name,
               unitPriceAmount: it.unit_price_amount, quantity: it.quantity, lineSubtotalAmount: it.line_subtotal_amount,
+              discountAmount: it.discount_amount,
               // Absent, not null or "", when there is no image.
               ...(imageUrl ? { imageUrl, ...imageWidthsField(it.image_widths) } : {}),
             };
@@ -268,6 +269,13 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
         // the single amount above; never an empty array standing in for "unknown".
         ...(row.delivery_fee_lines ? { deliveryFee: { lines: row.delivery_fee_lines, totalAmount: row.delivery_fee_amount } } : {}),
         promoCode: row.promo_code,
+        // 094 — each promotion as sold; an order from before 094 shows its one code.
+        promotions: row.promotions
+          ? row.promotions.map((p) => ({ headline: p.headline ?? p.name, code: p.code, goodsAmount: p.goods, deliveryAmount: p.delivery }))
+          : row.promo_code && row.discount_amount !== "0.00"
+            ? [{ headline: row.promo_code, code: row.promo_code, goodsAmount: row.discount_amount, deliveryAmount: "0.00" }]
+            : [],
+        deliveryDiscountAmount: row.delivery_discount_amount,
         grandTotalAmount: row.grand_total_amount,
         currency: row.currency,
         paymentStatus: row.payment_status ?? "requires_payment",

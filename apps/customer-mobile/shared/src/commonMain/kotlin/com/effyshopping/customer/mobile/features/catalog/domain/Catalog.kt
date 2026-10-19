@@ -18,6 +18,8 @@ data class ProductCard(
     val compareAtAmount: String?,
     val badges: List<ProductBadge>,
     val available: Boolean,
+    /** 094 — an offer covering the product ("15% off", "Buy 2 get 1 free"), or null. */
+    val offerLabel: String? = null,
     /**
      * OPAQUE package grouping token (021 FR-005a), carried onto a guest-cart line at add-time so the cart
      * can show the anonymous per-package split. NOT a shop id/name/location (SC-006). Blank until the

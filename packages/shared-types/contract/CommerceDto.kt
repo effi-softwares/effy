@@ -142,14 +142,6 @@ data class AttributeGroupItem (
     val value: String
 )
 
-/**
- * A promotional banner on Home — the shopper-facing face of an advertised promotion (028).
- *
- * ⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps
- * typechecking without an edit. What is NOT backward compatible is the LIST: this used to
- * always contain one derived "welcome" stub and is now empty whenever no promotion is
- * advertised. Any layout that assumed at least one banner has to handle `[]`.
- */
 @Serializable
 data class BannerDTO (
     /**
@@ -200,7 +192,7 @@ data class BannerDTO (
     val position: Long? = null,
 
     val subtitle: String? = null,
-    val target: BannerTarget? = null,
+    val target: TargetClass? = null,
 
     /**
      * The condition sentence, e.g. `"On orders over $30"` — COMPOSED SERVER-SIDE from the
@@ -237,7 +229,7 @@ enum class BannerPlacement(val value: String) {
 }
 
 @Serializable
-data class BannerTarget (
+data class TargetClass (
     val kind: TargetKind,
     val categoryKey: String? = null,
 
@@ -307,6 +299,11 @@ data class CancelOrderBody (
 data class CartDTO (
     val checkout: CartCheckoutStateDTO,
     val currency: String,
+
+    /**
+     * The entered code's line, as before 094 — kept for installed apps. `promotions` lists
+     * every one.
+     */
     val discount: CartDiscountDTO? = null,
 
     /**
@@ -327,6 +324,16 @@ data class CartDTO (
     val limits: CartLimitsDTO,
     val lines: List<CartLineDTO>,
     val notices: List<CartNoticeDTO>,
+
+    /**
+     * 094 — every promotion applying, automatic and by code.
+     */
+    val promotions: List<CartPromotionLineDTO>? = null,
+
+    /**
+     * 094 — promotions the shopper might expect that do not apply, each with its sentence.
+     */
+    val promotionsNotApplied: List<CartNotAppliedDTO>? = null,
 
     /**
      * Monotonic, bumped by every mutation. The client mirror adopts a response only when this
@@ -422,6 +429,12 @@ data class CartLimitsDTO (
 @Serializable
 data class CartLineDTO (
     val available: Boolean,
+
+    /**
+     * 094 — what promotions take off this line, in cents exactly as allocated; "0.00" when none.
+     */
+    val discountAmount: String? = null,
+
     val id: String,
 
     @SerialName("imageUrl")
@@ -487,6 +500,61 @@ enum class CartNoticeKind(val value: String) {
     @SerialName("quantity_clamped") QuantityClamped("quantity_clamped"),
     @SerialName("removed") Removed("removed"),
     @SerialName("unavailable") Unavailable("unavailable");
+}
+
+/**
+ * 094 — one promotion that applies to this cart, and what it takes off.
+ */
+@Serializable
+data class CartPromotionLineDTO (
+    /**
+     * The code the shopper entered for it; null for an automatic promotion.
+     */
+    val code: String? = null,
+
+    /**
+     * Known once a delivery quote exists (checkout); "0.00" in the cart.
+     */
+    val deliveryAmount: String,
+
+    val goodsAmount: String,
+
+    /**
+     * The shopper words (the promotion's headline, or its offer label when it has none).
+     */
+    val headline: String,
+
+    @SerialName("promotionId")
+    val promotionID: String
+)
+
+@Serializable
+data class CartNotAppliedDTO (
+    /**
+     * The sentence to show, composed server-side.
+     */
+    val detail: String,
+
+    val headline: String,
+
+    @SerialName("promotionId")
+    val promotionID: String,
+
+    val reason: CartPromotionNotAppliedReason
+)
+
+/**
+ * 094 — why a promotion the shopper could expect does not apply. A NAMED union (Kotlin
+ * generator).
+ */
+@Serializable
+enum class CartPromotionNotAppliedReason(val value: String) {
+    @SerialName("below_minimum") BelowMinimum("below_minimum"),
+    @SerialName("below_quantity") BelowQuantity("below_quantity"),
+    @SerialName("not_combined") NotCombined("not_combined"),
+    @SerialName("sign_in") SignIn("sign_in"),
+    @SerialName("wrong_delivery") WrongDelivery("wrong_delivery"),
+    @SerialName("wrong_time") WrongTime("wrong_time");
 }
 
 /**
@@ -646,6 +714,15 @@ data class CreateCheckoutIntentRequest (
     val deliveryWindow: DeliveryWindow? = null,
 
     /**
+     * 094 — the promotions total (goods + delivery) the client is SHOWING. If the server now
+     * works out a different one — a promotion ended, its budget ran out, the cart changed — it
+     * writes nothing and refuses with 409 `promotions_changed` and the cart as it stands, so
+     * the shopper sees the new total before paying (FR-037). Absent from a client built before
+     * 094, which is priced without the check.
+     */
+    val expectedDiscount: String? = null,
+
+    /**
      * 074 — how many points the customer chose to pay with (a whole number, absent = 0). The
      * server refuses rather than clamps: more than is usable → 409 `points_balance_changed`;
      * more than the order total → 422 `points_exceed_total`; a card remainder under the
@@ -763,6 +840,11 @@ data class CreateCheckoutIntentResponse (
     val customerSessionSecret: String? = null,
 
     /**
+     * 094 — what delivery promotions took off the delivery fee; absent or "0.00" when none.
+     */
+    val deliveryDiscountAmount: String? = null,
+
+    /**
      * 077 — the delivery charge inside `grandTotalAmount`, as lines.
      */
     val deliveryFee: DeliveryFeeDTO? = null,
@@ -841,6 +923,14 @@ data class CreateCheckoutIntentResponse (
 @Serializable
 data class DeliveryFeeDTO (
     val lines: List<DeliveryFeeLineDTO>,
+
+    /**
+     * 094 — what this shopper's delivery promotions take off THIS option's fee, when any do.
+     * The fee itself (`totalAmount`) is unchanged, so `shownDeliveryAmount` still compares the
+     * fee; the promotions total is compared separately (`expectedDiscount`).
+     */
+    val promotionAmount: String? = null,
+
     val totalAmount: String
 )
 
@@ -1284,6 +1374,12 @@ data class StorefrontProductCardDTO (
     val imageWidths: List<Double>? = null,
 
     val name: String,
+
+    /**
+     * 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11).
+     */
+    val offer: ProductOfferDTO? = null,
+
     val priceAmount: String
 )
 
@@ -1296,6 +1392,20 @@ enum class ProductBadge(val value: String) {
     @SerialName("new") New("new"),
     @SerialName("on_sale") OnSale("on_sale");
 }
+
+/**
+ * A product's offer badge on listings and its page (R11).
+ */
+@Serializable
+data class ProductOfferDTO (
+    /**
+     * "15% off", "Buy 2 get 1 free", "$2 off".
+     */
+    val label: String,
+
+    @SerialName("promotionId")
+    val promotionID: String
+)
 
 /**
  * GET /v1/payment-methods — the shopper's kept cards.
@@ -1500,6 +1610,11 @@ data class OrderDTO (
     val deliveryAddress: OrderAddressDTO,
 
     /**
+     * 094 — what delivery promotions took off the fee.
+     */
+    val deliveryDiscountAmount: String? = null,
+
+    /**
      * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
      * delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single
      * `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads
@@ -1569,6 +1684,12 @@ data class OrderDTO (
      * "SPRING20" independently of the promotion record. Null/absent when no code was used.
      */
     val promoCode: String? = null,
+
+    /**
+     * 094 — each promotion applied and what it took off; an order from before 094 shows its one
+     * code.
+     */
+    val promotions: List<OrderPromotionDTO>? = null,
 
     /**
      * What has actually been returned or is on its way. Absent when there are no refunds.
@@ -1829,6 +1950,11 @@ data class OrderShortfallDTO (
 @Serializable
 data class OrderItemDTO (
     /**
+     * 094 — what promotions took off this line, as sold. Absent or "0.00" when none.
+     */
+    val discountAmount: String? = null,
+
+    /**
      * 052 — a short-lived presigned URL for the product's primary image, or null.
      *
      * ⚠ DECORATION ONLY, and never a carrier of meaning (FR-003). A line renders complete
@@ -1934,6 +2060,17 @@ enum class PaymentStatus(val value: String) {
     @SerialName("requires_payment") RequiresPayment("requires_payment"),
     @SerialName("succeeded") Succeeded("succeeded");
 }
+
+/**
+ * 094 — one promotion applied to an order, as it was sold (never re-derived).
+ */
+@Serializable
+data class OrderPromotionDTO (
+    val code: String? = null,
+    val deliveryAmount: String,
+    val goodsAmount: String,
+    val headline: String
+)
 
 /**
  * 052 — the customer-facing progress stage (FR-008).
@@ -2072,6 +2209,12 @@ data class StorefrontProductDetailDTO (
 
     val longDescription: String? = null,
     val name: String,
+
+    /**
+     * 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11).
+     */
+    val offer: ProductOfferDTO? = null,
+
     val priceAmount: String
 )
 
@@ -2144,6 +2287,105 @@ data class PromotionDTO (
      * could not be rendered there.
      */
     val validity: String? = null
+)
+
+/**
+ * 094 — display groups by key (storefront public / commerce personal).
+ *
+ * `GET /storefront/v1/promotion-groups?keys=` and `GET /commerce/v1/promotion-groups?keys=`.
+ */
+@Serializable
+data class PromotionGroupsDTO (
+    val groups: List<PromotionGroupDTO>
+)
+
+@Serializable
+data class PromotionGroupDTO (
+    val key: String,
+    val promotions: List<ShopperPromotionDTO>
+)
+
+/**
+ * One promotion as both customer clients show it, from either group read.
+ */
+@Serializable
+data class ShopperPromotionDTO (
+    /**
+     * The shared code; null for an automatic promotion or one with single-use codes only
+     * (FR-032).
+     */
+    val code: String? = null,
+
+    /**
+     * "Ends in 3 days" / "Ends tomorrow" / "Ends today" / null.
+     */
+    val endsIn: String? = null,
+
+    val headline: String,
+    val id: String,
+    val kind: PromotionKind,
+    val label: String? = null,
+    val supportingLine: String? = null,
+
+    /**
+     * Where a tap goes.
+     */
+    val target: BannerTarget,
+
+    /**
+     * The one conditions sentence, composed server-side ("On orders over $30.00 · Effy delivery
+     * only").
+     */
+    val terms: String? = null
+)
+
+/**
+ * Promotions (094) — the model that replaced 027's one-code promotion.
+ *
+ * A promotion is an OFFER of one of four kinds, applied automatically or by a code, limited
+ * by who, when and how much, and shown in display groups the customer clients ask for by
+ * key. Its state is never stored: the database works it out (`public.promotion_state`) from
+ * its switch, dates, uses and budget, and every reader asks for it.
+ *
+ * ⚠ ONE EVALUATOR: `@effy/edge-shared/promotions` (engine.ts). Nothing else computes a
+ * discount.
+ */
+@Serializable
+enum class PromotionKind(val value: String) {
+    @SerialName("bxgy") Bxgy("bxgy"),
+    @SerialName("cart") Cart("cart"),
+    @SerialName("delivery") Delivery("delivery"),
+    @SerialName("item") Item("item");
+}
+
+/**
+ * Where a promotional banner leads (028).
+ *
+ * ⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL
+ * router — inventing one to serve a banner would be the tail wagging the dog. A closed set
+ * the server promises and each client maps exhaustively means a new target shows up as a
+ * gap in a `when`/`switch` at compile time, and at runtime an unrecognised value renders
+ * the banner NON-TAPPABLE. A tap that does nothing is worse than no tap.
+ *
+ * ⚠ `promotion` was ADDED after every banner shipped targeting `search`, which sent every
+ * tap to the unfiltered store — the Search tab by another name, carrying none of the
+ * promotion's facts. FR-034 (no banner-only destinations) was read as forbidding a
+ * promotion screen; it does not. That rule protects shoppers from CONTENT reachable only
+ * via a carousel slide, and a promotion detail contains nothing the banner face does not
+ * already announce — it is the banner's own message, stated in full. See `PromotionDTO`.
+ *
+ * Where a tap goes.
+ */
+@Serializable
+data class BannerTarget (
+    val kind: TargetKind,
+    val categoryKey: String? = null,
+
+    @SerialName("productId")
+    val productID: String? = null,
+
+    @SerialName("promotionId")
+    val promotionID: String? = null
 )
 
 /**

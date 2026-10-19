@@ -4,6 +4,7 @@
 // ⚠ THE AMOUNT IS DECIDED HERE AND NOWHERE ELSE (070 FR-014). Prices come from the catalogue, the
 // discount from the cart's applied code re-evaluated now, the fee from the delivery engine. No
 // figure a client sends is ever used.
+import { PromotionsChangedError } from "@effy/edge-shared/promotions";
 import {
   CURRENCY, emitMetric, formatCents, metricNamespace, operatingStamp, parseCents, withTransaction, type RequestScope, type Transactor,
 } from "@effy/edge-shared";
@@ -100,9 +101,25 @@ export interface IntentInput {
    * built before 077). Validated by the handler.
    */
   shownDeliveryAmount: string;
+  /**
+   * 094 — the promotions total (goods + delivery) the client is showing, as a 2-dp amount; "" when it
+   * sent none (a client built before 094, priced without the check). Validated by the handler.
+   */
+  expectedDiscount?: string;
 }
 
 export type { PromoSource };
+
+/**
+ * 094 — the promotions total is not the one the client showed (a promotion ended, its budget ran out,
+ * another shopper took the last use, or the cart changed). NOTHING the shopper pays for has been
+ * taken: they are shown the cart as it stands and decide again (FR-037).
+ */
+export class PromotionsChangedRefusal extends Error {
+  constructor(readonly shownCents: number | null, readonly nowCents: number | null) {
+    super(`checkout: promotions changed (shown ${shownCents}, now ${nowCents})`);
+  }
+}
 
 /**
  * 077 — the delivery total is not the one the client showed (a new fee plan went live, or the
@@ -282,11 +299,12 @@ export function createCheckoutService(deps: {
         throw new BelowMinimumError(policy.minimumSubtotalCents, remainingToMinimum(policy, itemSubtotalCents));
       }
 
-      // The discount is RECOMPUTED from the cart's applied code — never carried from the cart
-      // response and never taken from the request (027 FR-027/FR-042).
-      const discount = await deps.promos(customerId, itemSubtotalCents);
-      // A discount larger than the basket cannot produce a negative charge.
-      let grandTotalCents = Math.max(0, itemSubtotalCents - discount.cents);
+      // 094 — promotions are RECOMPUTED here through the one engine — never carried from the cart
+      // response and never taken from the request. First on the goods alone (the fee's basket rules
+      // judge goods after promotions), then again below once who delivers and the fee are known.
+      const pendingBefore = await store.pendingOrderIntent(customerId);
+      const goodsPriced = await deps.promos({ customerId, lines, deliveryType: null, deliveryFeeCents: null, now, excludeOrderId: pendingBefore?.orderId ?? null });
+      const discount = { cents: goodsPriced.outcome.goodsDiscountCents };
 
       // The delivery fee: from the destination postcode and the cart's per-shop weights.
       const postcode = destinationPostcode(address);
@@ -344,6 +362,22 @@ export function createCheckoutService(deps: {
       // ONE fee for the order (077) — never a sum over packages.
       const deliveryFeeCents = fee.totalCents;
 
+      // 094 — the final price: every promotion judged with who delivers and the fee known (R3).
+      const priced = await deps.promos({
+        customerId, lines, deliveryType: soldType.type, deliveryFeeCents, now, excludeOrderId: pendingBefore?.orderId ?? null,
+      });
+      const goodsDiscountCents = priced.outcome.goodsDiscountCents;
+      const deliveryDiscountCents = priced.outcome.deliveryDiscountCents;
+      // ⚠ Refused HERE, before anything is written (FR-037): the client says what promotions total it
+      // is showing; a different one is shown to the shopper first. A client built before 094 sends none.
+      const expected = input.expectedDiscount ?? "";
+      if (expected !== "" && parseCents(expected) !== goodsDiscountCents + deliveryDiscountCents) {
+        emitMetric(ns(), "PromotionsChanged");
+        throw new PromotionsChangedRefusal(parseCents(expected), goodsDiscountCents + deliveryDiscountCents);
+      }
+      // A discount larger than the basket cannot produce a negative charge.
+      let grandTotalCents = Math.max(0, itemSubtotalCents - goodsDiscountCents);
+
       // ⚠ Refused HERE, before anything is written (077 FR-031): the client says what delivery total
       // it is showing, and if that is not what the order would be charged, the shopper sees the new
       // one first. A client built before 077 sends nothing and is priced without the check.
@@ -352,7 +386,7 @@ export function createCheckoutService(deps: {
         throw new DeliveryFeeChangedError(parseCents(input.shownDeliveryAmount), deliveryFeeCents);
       }
       if (fee.breakdown.freeApplied) emitMetric(ns(), "FreeDeliveryOrders");
-      grandTotalCents += deliveryFeeCents;
+      grandTotalCents += deliveryFeeCents - deliveryDiscountCents;
 
       // 074 — points are a WAY OF PAYING (FR-018): the order total above is final, and the card pays
       // what the points do not. Refused, never clamped, so the shopper is shown the real figures.
@@ -372,18 +406,33 @@ export function createCheckoutService(deps: {
       const pointsValueCents = pointsUsed * centsPerPoint;
       const cardCents = grandTotalCents - pointsValueCents;
 
-      const pendingBefore = await store.pendingOrderIntent(customerId);
       const reusePending = await mayReusePendingOrder(customerId);
+      const entered = priced.outcome.applied.find((a) => a.codeId !== null);
       const { orderId, orderNumber } = await store.upsertPendingOrder(
         customerId,
         {
-          itemSubtotalCents, deliveryFeeCents, deliveryFeeBreakdown: storedBreakdown(fee), discountCents: discount.cents,
-          promoCodeId: discount.promo?.id ?? null, promoCode: discount.promo?.code ?? null,
+          itemSubtotalCents, deliveryFeeCents, deliveryFeeBreakdown: storedBreakdown(fee), discountCents: goodsDiscountCents,
+          // 094 — `promo_code_id` points at the 027 table and is no longer written; the text stays for
+          // the readers that name the code until they read `order_promotion`.
+          promoCodeId: null, promoCode: entered?.codeText ?? null,
           grandTotalCents, currency: CURRENCY,
           pointsUsed, pointsCentsPerPoint: pointsUsed > 0 ? centsPerPoint : null, pointsValueCents,
         },
         address, lines, reusePending,
       );
+
+      // 094 — what each promotion took off each line and the fee is kept on the order, and its uses
+      // are HELD — under a lock on each promotion, so the last use or the last of a budget goes to one
+      // shopper (R5). A promotion that no longer fits refuses the intent with the cart as it stands.
+      try {
+        await store.recordPromotions(orderId, customerId, priced, now);
+      } catch (err) {
+        if (err instanceof PromotionsChangedError) {
+          emitMetric(ns(), "PromotionsChanged");
+          throw new PromotionsChangedRefusal(null, null);
+        }
+        throw err;
+      }
 
       // 074 — the points are SET ASIDE here, before the delivery place and long before any charge, at
       // the same "last moment the server can refuse" as the slot (research R3). Zero releases any hold

@@ -1,4 +1,5 @@
 import type {
+  ExceptionOutcome,
   DeliveryExceptionListDTO,
   ResolveExceptionResponse,
   StaffActionResponse,
@@ -15,9 +16,10 @@ export async function listExceptions(includeResolved: boolean): Promise<Delivery
   return api.get<DeliveryExceptionListDTO>(`/fleet/v1/exceptions${q}`);
 }
 
-export async function resolveException(id: string, note: string | null): Promise<ResolveExceptionResponse> {
+export async function resolveException(id: string, note: string | null, outcome: ExceptionOutcome | null = null): Promise<ResolveExceptionResponse> {
   return api.post<ResolveExceptionResponse>(`/fleet/v1/exceptions/${id}/resolve`, {
     note: note ?? undefined,
+    outcome: outcome ?? undefined,
     changeId: crypto.randomUUID(),
   });
 }

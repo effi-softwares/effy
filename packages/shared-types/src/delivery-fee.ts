@@ -52,6 +52,12 @@ export interface DeliveryFeeLineDTO {
 export interface DeliveryFeeDTO {
   lines: DeliveryFeeLineDTO[];
   totalAmount: string;
+  /**
+   * 094 — what this shopper's delivery promotions take off THIS option's fee, when any do. The fee
+   * itself (`totalAmount`) is unchanged, so `shownDeliveryAmount` still compares the fee; the
+   * promotions total is compared separately (`expectedDiscount`).
+   */
+  promotionAmount?: string;
 }
 
 /**

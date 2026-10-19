@@ -5,6 +5,8 @@ import type {
   CourierCollectionInput,
   CourierView,
   AdminOrderDetailDTO,
+  AdminOrdersTodayDTO,
+  AdminOrderViewCountsDTO,
   DeliveryMovePreviewDTO,
   DeliveryMoveRequest,
   DeliveryMoveResponse,
@@ -25,7 +27,7 @@ import type { OrderListParams } from "./model";
 // directly (Principle VI). Every endpoint lives on the orders cold-path service behind the shared
 // gateway — see specs/053-order-lifecycle-completion/contracts/back-office-orders.contract.md.
 
-function encodeListQuery({ q, status, awaiting, needsDriver, deliveryType, stillOpen, promise, cursor }: OrderListParams): string {
+function encodeListQuery({ q, status, awaiting, needsDriver, deliveryType, stillOpen, promise, cursor, limit }: OrderListParams): string {
   const params = new URLSearchParams();
   if (needsDriver) params.set("needsDriver", "true");
   if (q && q.trim()) params.set("q", q.trim());
@@ -36,12 +38,25 @@ function encodeListQuery({ q, status, awaiting, needsDriver, deliveryType, still
   // 083 — the service refuses `open` anywhere but with the old-order filter, so it is sent only there.
   if (stillOpen && deliveryType === "legacy") params.set("open", "true");
   if (cursor) params.set("cursor", cursor);
+  if (limit) params.set("limit", String(limit));
   return params.toString();
+}
+
+/** The count on each saved view, under the same search and delivery filters as the list. */
+export async function getOrderViewCounts(params: OrderListParams): Promise<AdminOrderViewCountsDTO> {
+  const { q, deliveryType, stillOpen, promise } = params;
+  const qs = encodeListQuery({ q, deliveryType, stillOpen, promise });
+  return api.get<AdminOrderViewCountsDTO>(`/orders/v1/summary/views${qs ? `?${qs}` : ""}`);
 }
 
 export async function listOrders(params: OrderListParams): Promise<AdminOrderListResponse> {
   const qs = encodeListQuery(params);
   return api.get<AdminOrderListResponse>(`/orders/v1/orders${qs ? `?${qs}` : ""}`);
+}
+
+/** Overview — orders placed today by who delivers them, and refunded today. */
+export async function getOrdersToday(): Promise<AdminOrdersTodayDTO> {
+  return api.get<AdminOrdersTodayDTO>("/orders/v1/summary/today");
 }
 
 export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO> {

@@ -20,7 +20,7 @@ import { StatusFilter, type StatusFilterValue } from "./StatusFilter";
 // authoritative). Status filtering is client-side (the list endpoint is an unpaginated array).
 export function ProductTypesTab({ canManage }: { canManage: boolean }) {
   const { data, error, isPending, isError, refetch } = useQuery(productTypesQuery());
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("active");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ProductType | null>(null);
   const [managing, setManaging] = useState<ProductType | null>(null);

@@ -230,9 +230,13 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         subtotal: money(order.item_subtotal_amount, currency),
         // ⚠ A zero component is OMITTED, never printed as "$0.00" or a dash: on a financial record
         // "nothing" and "unknown" are different claims (FR-004).
-        hasDiscount: isPositive(order.discount_amount),
-        discountLabel: order.promo_code ? `Discount ${order.promo_code}` : "Discount",
-        discountAmount: money(order.discount_amount, currency),
+        // 094 — one line for every promotion (goods and delivery), named by what the shopper read, so the
+        // receipt's lines still add up to its total.
+        hasDiscount: isPositive(discountTotal(order)),
+        discountLabel: order.promotion_names?.length
+          ? `Discount · ${order.promotion_names.join(", ")}`
+          : order.promo_code ? `Discount ${order.promo_code}` : "Discount",
+        discountAmount: money(discountTotal(order), currency),
         hasDeliveryFee: isPositive(order.delivery_fee_amount),
         deliveryFee: money(order.delivery_fee_amount, currency),
         // 077 — the lines the customer was sold, in the words the checkout used. Printed in place of
@@ -266,4 +270,10 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         : { ok: false, error: "send_failed" };
     },
   };
+}
+
+/** 094 — goods and delivery promotions together, as one amount (2 dp). */
+function discountTotal(order: { discount_amount: string | null; delivery_discount_amount?: string | null }): string {
+  const cents = (v: string | null | undefined) => Math.round(Number(v ?? "0") * 100);
+  return ((cents(order.discount_amount) + cents(order.delivery_discount_amount)) / 100).toFixed(2);
 }

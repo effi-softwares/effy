@@ -17,6 +17,9 @@ export type AnalyticsEvent =
   | { name: "shop_created"; shopId: string }
   | { name: "shop_updated"; shopId: string }
   | { name: "shop_status_changed"; shopId: string }
+  // 094 — a promotion's lifecycle move, and a display group's members changed. Ids and words only.
+  | { name: "promotion_action"; promotionId: string; action: "publish" | "pause" | "resume" | "end" | "archive" }
+  | { name: "promotion_group_changed"; groupId: string }
   | { name: "shop_deleted"; shopId: string }
   | { name: "shop_user_provisioned"; shopId: string }
   | { name: "shop_user_role_changed"; shopId: string }

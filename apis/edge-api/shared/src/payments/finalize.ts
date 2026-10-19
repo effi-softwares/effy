@@ -8,7 +8,7 @@
  *   1. the order becomes `paid`                       7. the shopper is notified
  *   2. each fulfilling shop gets its portion          8. a receipt is queued
  *   3. the same-day place is confirmed                9. the payment is marked succeeded
- *   4. lines the shop cannot fully supply are flagged 10. the promo redemption is recorded
+ *   4. lines the shop cannot fully supply are flagged 10. the promotion uses are confirmed (094)
  *   5. stock is reduced, with a movement record       11. the cart is emptied
  *   6. shop staff are notified; order.placed is recorded
  *   3′. (074) the points held at checkout are spent
@@ -32,6 +32,7 @@ import { slotLoad } from "../delivery/slots";
 import { emitMetric } from "../lib/metrics";
 import { announce, type LiveChange } from "../live";
 import { release as releasePoints, spendHeld } from "../points/ledger";
+import { confirmUses, releaseUses } from "../promotions/uses";
 import { appendEvent, appendNotification } from "./outbox";
 
 export interface FinalizeOutcome {
@@ -327,24 +328,23 @@ ON CONFLICT DO NOTHING`,
   // 9. Payment succeeded.
   await tx.query(`UPDATE public.payment SET status='succeeded', updated_at=now() WHERE order_id=$1`, [orderId]);
 
-  // 10. The promotional redemption (027 FR-048). `promo_redemption.order_id` is UNIQUE as a second,
-  //     independent guarantee: the database refuses a double count.
-  await tx.query(
-    `
-INSERT INTO public.promo_redemption (promo_code_id, customer_id, order_id, amount)
-SELECT o.promo_code_id, o.customer_id, o.id, o.discount_amount
-FROM public."order" o
-WHERE o.id = $1 AND o.promo_code_id IS NOT NULL
-ON CONFLICT (order_id) DO NOTHING`,
-    [orderId],
-  );
+  // 10. 094 — the promotion uses held at the intent are CONFIRMED (R5). This replaces 027's
+  //     `promo_redemption` insert: uses are counted from `promotion_use`, which the intent wrote under a
+  //     lock. A hold that lapsed is still confirmed — the shopper was charged the discounted price.
+  //     Idempotent: a second delivery finds nothing still held.
+  await confirmUses(tx, orderId);
 
-  // 11. Empty the customer's cart.
+  // 11. Empty the customer's cart — and the code they entered, which this order has used.
   await tx.query(
     `
 DELETE FROM public.cart_item WHERE cart_id = (
     SELECT c.id FROM public.cart c JOIN public."order" o ON o.customer_id = c.customer_id WHERE o.id = $1
 )`,
+    [orderId],
+  );
+  await tx.query(
+    `UPDATE public.cart SET promotion_code_id = NULL, promo_code_id = NULL, promo_applied_at = NULL
+      WHERE customer_id = (SELECT customer_id FROM public."order" WHERE id = $1)`,
     [orderId],
   );
 
@@ -370,6 +370,8 @@ export async function finalizeFailed(tx: Queryable, orderId: string): Promise<vo
   await tx.query(`UPDATE public.payment SET status='failed', updated_at=now() WHERE order_id=$1`, [orderId]);
   // 074 — points set aside for this checkout are usable again at once (they would lapse anyway).
   await releasePoints(tx, orderId);
+  // 094 — and so are the promotion uses it held.
+  await releaseUses(tx, orderId, "payment_failed");
 }
 
 /**

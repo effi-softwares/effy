@@ -8,17 +8,17 @@
 //     but EXCLUDED from every total (FR-006, FR-017);
 //   - the two ceilings and the minimum come from public.order_policy;
 //   - every mutation is idempotent or carries a change id — see repository.ts;
-//   - the applied promotion is re-evaluated on every read and never stored as an amount.
+//   - promotions are re-evaluated on every read through the one engine (094) and never stored as an amount.
 import {
-  CURRENCY, emitMetric, formatCents, imageWidthsField, metricNamespace, outOfStock, parseCents, publicImageAddress, purchasable,
+  CURRENCY, emitMetric, formatCents, imageWidthsField, metricNamespace, outOfStock, parseCents, pooled, publicImageAddress, purchasable,
 } from "@effy/edge-shared";
 import { hasMinimum, meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
 import type {
-  CartCheckoutStateDTO, CartDiscountDTO, CartDTO, CartLineDTO, CartNoticeDTO, ReorderResultDTO, ReorderSkippedDTO,
+  CartCheckoutStateDTO, CartDTO, CartLineDTO, CartNoticeDTO, ReorderResultDTO, ReorderSkippedDTO,
 } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
-import { evaluatePromo, lapsedDetail, normalisePromoCode, promoLabel, PromoRefusedError, type PromoCode } from "../promo/promo";
+import { cartPromotionView, promotionPort, type PromotionPort } from "../promotions/pricing";
 import { packageKey } from "./package-key";
 import type { CartLineRow, CartRepository } from "./repository";
 
@@ -125,11 +125,14 @@ export function checkoutState(lineCount: number, payableLines: number, payable: 
 
 export function createCartService(deps: {
   repo: CartRepository;
+  /** 094 — how promotions are priced and a typed code vetted; the real engine over `pooled` by default. */
+  promotions?: PromotionPort;
   policy: PolicyReader;
   imageAddress?: ImageAddress;
   now?: () => Date;
 }) {
   const { repo, policy } = deps;
+  const promotions: PromotionPort = deps.promotions ?? promotionPort(pooled);
   const imageAddress = deps.imageAddress ?? publicImageAddress;
   const now = deps.now ?? (() => new Date());
 
@@ -195,32 +198,21 @@ export function createCartService(deps: {
   }
 
   /**
-   * The applied promotion's current worth, or a notice that it stopped applying.
-   *
-   * Usage is not re-counted here: the caps were checked when the code was applied, and a read is
-   * not the moment to prove a cap the shopper cannot have moved by looking at their cart. The
-   * authoritative check happens again at checkout, where it matters.
+   * 094 — every promotion that applies to these lines for this shopper, through the ONE engine. The
+   * entered code is re-judged on every read; a code that stops applying stays on the cart (it starts
+   * applying again by itself if the cart recovers) and the cart says why.
    */
-  async function discountOf(cartId: string, payable: number) {
-    const meta = await repo.meta(cartId);
-    if (!meta.promoCodeId) return { discount: null, cents: 0, notices: [] as CartNoticeDTO[] };
-    const code = await repo.promoById(meta.promoCodeId);
-    if (!code) return { discount: null, cents: 0, notices: [] as CartNoticeDTO[] };
-
-    const result = evaluatePromo(code, { total: 0, byThisShopper: 0 }, payable, now());
-    if (!result.ok) {
-      // Cart-level: productId is null. The code stays on the cart, so it starts applying again by
-      // itself if the cart recovers.
-      return {
-        discount: null, cents: 0,
-        notices: [{ productId: null, kind: "promo_no_longer_applies", detail: lapsedDetail(result.reason, code) }] as CartNoticeDTO[],
-      };
-    }
-    const discount: CartDiscountDTO = {
-      code: code.code, kind: code.kind as CartDiscountDTO["kind"],
-      amount: formatCents(result.discountCents), label: promoLabel(code),
-    };
-    return { discount, cents: result.discountCents, notices: [] as CartNoticeDTO[] };
+  async function promotionsOf(cartId: string | null, lines: readonly CartLineDTO[]) {
+    const meta = cartId !== null ? await repo.meta(cartId) : null;
+    const pricing = await promotions.price({
+      customerId: meta?.customerId ?? null,
+      enteredCodeId: meta?.promotionCodeId ?? null,
+      lines: lines.filter((l) => l.available).map((l) => ({ productId: l.productId, unitCents: parseCents(l.unitPriceAmount), quantity: l.quantity })),
+      deliveryType: null,
+      deliveryFeeCents: null,
+      now: now(),
+    });
+    return { pricing, view: cartPromotionView(pricing) };
   }
 
   /** Turn line rows into the wire cart. The one place cart totals are computed. */
@@ -261,26 +253,25 @@ export function createCartService(deps: {
     // A sweep mutates, so it advances the revision by exactly one — cheaper than another read.
     const revision = (input.revision ?? 0) + (swept ? 1 : 0);
 
-    let discount: CartDiscountDTO | null = null;
-    let discountCents = 0;
-    if (input.cartId !== null) {
-      const d = await discountOf(input.cartId, payable.subtotalCents);
-      discount = d.discount;
-      discountCents = d.cents;
-      notices.push(...d.notices);
-    }
+    const { pricing, view } = await promotionsOf(input.cartId, payable.lines);
+    const discountCents = pricing.outcome.goodsDiscountCents;
+    // Cart-level: productId is null. Kept for installed apps, which read notices, not the new lists.
+    if (view.enteredLapsed) notices.push({ productId: null, kind: "promo_no_longer_applies", detail: view.enteredLapsed });
     const grandCents = payable.subtotalCents - discountCents;
+    const lineDiscount = (productId: string) => formatCents(pricing.outcome.lineDiscounts[productId] ?? 0);
 
     return {
       revision,
-      lines: payable.lines,
+      lines: payable.lines.map((l) => ({ ...l, discountAmount: lineDiscount(l.productId) })),
       savedLines: saved.lines,
       itemSubtotalAmount: formatCents(payable.subtotalCents),
       discountAmount: formatCents(discountCents),
       grandTotalAmount: formatCents(grandCents),
       currency: CURRENCY,
       notices,
-      discount,
+      discount: view.discount,
+      promotions: view.promotions,
+      promotionsNotApplied: view.notApplied,
       checkout: checkoutState(payable.lines.length, payable.lines.filter((l) => l.available).length, grandCents, input.policy),
       limits: { maxLineQuantity: input.policy.maxLineQuantity, maxDistinctItems: input.policy.maxDistinctItems },
     };
@@ -524,26 +515,22 @@ export function createCartService(deps: {
     },
 
     /**
-     * Apply a promotional code (027 US5; routed for the first time by 070 FR-022).
-     *
-     * A code that does not currently qualify is REFUSED with its reason, not stored: applying one
-     * that silently does nothing would be the "code is invalid" experience with no explanation.
-     * (A code that qualified and LATER stops qualifying is different — it stays, and the cart read
-     * reports it.) Applying while another is applied REPLACES it.
+     * Apply a promotional code (027 US5; 094). A code the shopper cannot use is REFUSED with its
+     * reason, not stored (`vetCode`); one that is valid but does not apply right now — it loses to a
+     * better offer, or is for another time — is stored, and the cart says why. Applying while another
+     * is applied REPLACES it (one code per order).
      */
     async applyPromo(customerId: string, rawCode: string): Promise<CartDTO> {
       const p = await policy();
-      const code = await repo.promoByCode(normalisePromoCode(rawCode));
-      if (!code) throw new PromoRefusedError("promo_unknown");
-
       const cartId = await repo.getOrCreateCartId(customerId);
-      const usage = await repo.promoUsageFor(code.id, customerId);
-
-      // Evaluated against the CURRENT payable subtotal — the figure the shopper is looking at.
-      const result = evaluatePromo(code, usage, payableCents((await repo.allLines(cartId)).lines), now());
-      if (!result.ok) throw new PromoRefusedError(result.reason, code);
-
-      await repo.setCartPromo(cartId, code.id);
+      const rows = (await repo.allLines(cartId)).lines.filter(isPurchasable);
+      const codeId = await promotions.vet({
+        customerId,
+        raw: rawCode,
+        lines: rows.map((r) => ({ productId: r.product_id, unitCents: parseCents(r.unit_price_amount), quantity: suppliableQuantity(r) })),
+        now: now(),
+      });
+      await repo.setCartPromo(cartId, codeId);
       return build(cartId, p);
     },
 
@@ -554,25 +541,10 @@ export function createCartService(deps: {
       return build(cartId);
     },
 
-    /**
-     * What checkout must use to price a discount — the SAME rule the cart read uses, so the cart
-     * and the charge cannot disagree. Usage IS counted here: this is the authoritative moment.
-     *
-     * A code that no longer qualifies simply does not discount. It is NOT an error: refusing the
-     * whole checkout because a promotion lapsed would be worse than charging the honest full
-     * price, and the cart already told the shopper it stopped applying.
-     */
-    async discountForCustomer(
-      customerId: string,
-      payable: number,
-    ): Promise<{ cents: number; promo: Pick<PromoCode, "id" | "code"> | null }> {
+    /** 094 — the code the shopper entered on their cart, for checkout to price with. */
+    async enteredCodeFor(customerId: string): Promise<string | null> {
       const cartId = await repo.getOrCreateCartId(customerId);
-      const meta = await repo.meta(cartId);
-      if (!meta.promoCodeId) return { cents: 0, promo: null };
-      const code = await repo.promoById(meta.promoCodeId);
-      if (!code) return { cents: 0, promo: null };
-      const result = evaluatePromo(code, await repo.promoUsageFor(code.id, customerId), payable, now());
-      return result.ok ? { cents: result.discountCents, promo: { id: code.id, code: code.code } } : { cents: 0, promo: null };
+      return (await repo.meta(cartId)).promotionCodeId;
     },
   };
 }

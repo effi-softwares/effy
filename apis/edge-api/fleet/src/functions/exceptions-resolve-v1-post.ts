@@ -5,7 +5,7 @@ import type { AuthedEvent } from "@effy/edge-shared";
 import { json, preamble, problem } from "@effy/edge-shared";
 import type { ResolveExceptionRequest } from "@effy/shared-types";
 
-import { ExceptionNotFoundError, resolveException } from "../exceptions/service";
+import { ExceptionNotFoundError, ExceptionOutcomeError, resolveException } from "../exceptions/service";
 import { mapDispatchError } from "../shared/dispatch-handler-support";
 import { denied, guard } from "../shared/handler-support";
 
@@ -34,10 +34,13 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
 
   try {
-    const result = await resolveException(exceptionId, g.sub, body.note?.trim() || null);
+    const result = await resolveException(exceptionId, g.sub, body.note?.trim() || null, body.outcome ?? null);
     await announceDispatch(); // 071 — committed; the exceptions list is shorter
     return json(200, result, scope);
   } catch (err) {
+    if (err instanceof ExceptionOutcomeError) {
+      return problem(400, "invalid_request", "Can't record that outcome", err.message, scope);
+    }
     if (err instanceof ExceptionNotFoundError) {
       return problem(404, "not_found", "Not available", "That exception is not available.", scope);
     }

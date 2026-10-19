@@ -10,14 +10,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
   Textarea,
   toast,
 } from "@effy/design-system/ui";
+
+import { ResponsiveSheet } from "@/components/patterns/ResponsiveSheet";
 
 import { pointsActionError } from "../errorText";
 import { useCreditPoints } from "../queries";
@@ -84,12 +81,12 @@ export function CreditPointsSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Credit points</SheetTitle>
-          <SheetDescription>{customerName}</SheetDescription>
-        </SheetHeader>
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Credit points"
+      description={<>{customerName}</>}
+    >
 
         <form
           className="space-y-4 px-4"
@@ -157,7 +154,6 @@ export function CreditPointsSheet({
             {credit.isPending ? "Crediting…" : n !== null ? `Credit ${n.toLocaleString("en-AU")} points` : "Credit points"}
           </Button>
         </form>
-      </SheetContent>
-    </Sheet>
+    </ResponsiveSheet>
   );
 }

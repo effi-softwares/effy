@@ -1,3 +1,5 @@
+import type { ProductOfferDTO } from "./promotions";
+
 /**
  * Customer storefront (public read) contracts — 019-customer-commerce-flow.
  *
@@ -50,6 +52,8 @@ export interface StorefrontProductCardDTO {
   compareAtAmount: string | null;
   badges: ProductBadge[];
   available: boolean;
+  /** 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11). */
+  offer?: ProductOfferDTO | null;
 }
 
 /** A labelled group of attribute rows on the product detail page (never laid out as cards). */
@@ -106,6 +110,10 @@ export type BannerTarget =
  * without an edit. What is NOT backward compatible is the LIST: this used to always contain one
  * derived "welcome" stub and is now empty whenever no promotion is advertised. Any layout that
  * assumed at least one banner has to handle `[]`.
+ */
+/**
+ * @deprecated — compatibility (094). Installed apps read `home.banners`; new clients read display
+ * groups (`PromotionGroupsDTO`). Built by the storefront from the `home-hero` and `home-between` groups.
  */
 export interface BannerDTO {
   /** The promotion id. Stable across reads — clients use it as a list key. */

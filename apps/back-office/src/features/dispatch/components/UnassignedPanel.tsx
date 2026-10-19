@@ -1,76 +1,96 @@
+import { Clock, UserX } from "lucide-react";
+
 import type { UnassignedWorkDTO } from "@effy/shared-types";
+
+import { Panel } from "@/components/patterns/Panel";
+import { EmptyState } from "@/components/patterns/States";
 
 import { describeReasons, waitingFor } from "../model";
 
 /**
- * Work nobody could take, and why (FR-028, SC-003).
+ * "Needs a driver" (redesign, board "Dispatch — today"): every package ready at a shop or waiting at
+ * the hub that nobody has, and why auto-assign could not place it.
  *
- * ⚠ THIS SECTION COMES FIRST ON THE PAGE, ABOVE EVERYTHING PROCEEDING NORMALLY. The whole premise of
- * the engine is that it may fail to assign but may never fail QUIETLY — 056's finding was two tables
- * written for a reader that did not exist, and this is that reader. A dispatcher who has to scroll
- * past healthy rounds to find the stuck package is being asked to do the engine's job.
- *
- * ⚠ It is a LIST, not cards (Principle V). Each row is a package with a reason; a card grid would
- * make eight stuck packages look like a dashboard rather than a queue of things to fix.
+ * ⚠ THE READER THAT MAKES AN UNASSIGNED PACKAGE EXPLAINABLE (FR-028). Every reason is shown, in words
+ * (`describeReasons`), never a code — a person fixes a licence, not `licence_expired`.
  */
 export function UnassignedPanel({
   items,
   renderAssign,
 }: {
   items: UnassignedWorkDTO[];
-  /** 073 — "Assign to…" for a manager or admin; absent for a CSA. */
   renderAssign?: (item: UnassignedWorkDTO) => React.ReactNode;
 }) {
   if (items.length === 0) {
-    // ⚠ A STATED FACT, not blank space. "Nothing is stuck" is information; an empty region is
-    // indistinguishable from a screen that failed to load.
     return (
-      <section aria-labelledby="unassigned-heading" className="border-b border-border pb-6">
-        <h2 id="unassigned-heading" className="text-base font-medium">
-          Nothing needs a driver
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every package ready at a shop or waiting at the hub has been given to a driver.
-        </p>
-      </section>
+      <EmptyState
+        icon={UserX}
+        title={<span id="unassigned-heading">Nothing needs a driver</span>}
+        description="Every package ready at a shop or waiting at the hub has been given to a driver."
+      />
     );
   }
 
   return (
-    <section aria-labelledby="unassigned-heading" className="border-b border-border pb-6">
-      <h2 id="unassigned-heading" className="text-base font-medium">
-        Needs a driver
-        <span className="ml-2 text-sm font-normal text-muted-foreground">
-          {items.length} {items.length === 1 ? "package" : "packages"} with no driver
+    <Panel
+      title={
+        <span id="unassigned-heading">
+          Needs a driver{" "}
+          <span className="font-normal text-muted-foreground">
+            · {items.length} {items.length === 1 ? "package" : "packages"} with no driver
+          </span>
         </span>
-      </h2>
-
-      <ul className="mt-3 divide-y divide-border">
-        {items.map((item) => (
-          <li key={item.packageId} className="flex items-baseline justify-between gap-4 py-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {item.orderNumber}
-                <span className="ml-2 font-normal text-muted-foreground">{item.shopName}</span>
-              </p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {describeReasons(item.reasons)}
-              </p>
-              {/* 072 — where it is and what it is waiting for. A package readied in the evening for
-                  tomorrow's run is not the same problem as one whose run opens in ten minutes. */}
-              <p className="mt-0.5 text-sm text-muted-foreground">{waitingFor(item, new Date())}</p>
-            </div>
-            <div className="flex shrink-0 items-start gap-4">
-              <div className="text-right text-sm text-muted-foreground">
-                <p>{item.zoneName ?? "No area"}</p>
-                {/* 082 — still at its supplier after the run that would have made its window. */}
-                {item.collectLate ? <p className="font-medium text-foreground">Late for its run</p> : null}
-              </div>
-              {renderAssign?.(item)}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
+      }
+      icon={<UserX aria-hidden="true" />}
+      description="Ready at a shop or waiting at the hub. Each says why auto-assign couldn't place it."
+      flush
+    >
+      <div className="bo-table-scroll">
+        <table className="bo-table bo-rtable bo-table--plain">
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Why nobody has it</th>
+              <th>Where it is</th>
+              <th>Area</th>
+              <th className="is-actions">
+                <span className="sr-only">Assign</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.packageId}>
+                <td data-m="primary">
+                  <span className="bo-code font-medium">{item.orderNumber}</span>
+                  <span className="bo-sub">{item.shopName}</span>
+                </td>
+                <td data-m="meta">
+                  <span className="font-medium">{describeReasons(item.reasons)}</span>
+                </td>
+                <td data-m="meta">
+                  {/* 072 — where it is and what it is waiting for. A package readied in the evening for
+                      tomorrow's run is not the same problem as one whose run opens in ten minutes. */}
+                  <span>{waitingFor(item, new Date())}</span>
+                  {/* 082 — still at its supplier after the run that would have made its window. */}
+                  {item.collectLate ? (
+                    <span className="bo-late ml-2">
+                      <Clock aria-hidden="true" />
+                      Late for its run
+                    </span>
+                  ) : null}
+                </td>
+                <td data-m="hide" className="is-muted">
+                  {item.zoneName ?? "No area"}
+                </td>
+                <td data-m="trail" className="is-actions w-auto!">
+                  {renderAssign?.(item)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }

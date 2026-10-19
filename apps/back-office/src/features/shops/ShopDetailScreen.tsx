@@ -2,31 +2,35 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, ArrowLeft, Pencil, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, Pencil, ScanLine, UserPlus, Users } from "lucide-react";
 
-import type { ShopRole, ShopStaffStatus } from "@effy/shared-types";
+import type { ShopLifecycleStatus, ShopRole, ShopStaffStatus } from "@effy/shared-types";
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
+import { PageHeader } from "@/components/patterns/Page";
+import { DetailRows, Panel } from "@/components/patterns/Panel";
+import { initialsOf } from "@/components/shell/identity";
+import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { sessionQuery } from "@/features/auth/queries";
 import { track } from "@/lib/telemetry";
 
@@ -34,13 +38,19 @@ import { canManageShops } from "./access";
 import { AddShopUserDialog } from "./components/AddShopUserDialog";
 import { EditShopDialog } from "./components/EditShopDialog";
 import { RemoveShopDialog } from "./components/RemoveShopDialog";
-import { ShopStatusMenu } from "./components/ShopStatusMenu";
+import { ShopHistory } from "./components/ShopHistory";
+import { ShopStatusDialog } from "./components/ShopStatusMenu";
 import { ShopStatusBadge, StaffStatusBadge } from "./components/StatusBadge";
 import type { ShopDetail, ShopUser } from "./model";
 import { shopDetailQuery, useUpdateShopUser } from "./queries";
-import { ShopHistory } from "./components/ShopHistory";
 import { ShopStockPanel } from "./ShopStockPanel";
+import { shopLowStockQuery } from "./stockQueries";
 
+/**
+ * A shop (009; redesign, boards "Shop — overview / team / stock / activity"): Overview · Team · Stock ·
+ * Activity in tabs, "At a glance" on the right. Status changes and removal live in a danger zone, each
+ * confirmed in a dialog that says what happens.
+ */
 const ROLE_LABELS: Record<ShopRole, string> = {
   shop_manager: "Shop manager",
   shop_staff: "Shop staff",
@@ -53,106 +63,230 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
 
   const navigate = useNavigate();
   const { data, error, isPending, isError, refetch } = useQuery(shopDetailQuery(shopId));
+  const lowStock = useQuery(shopLowStockQuery(shopId));
+  useHeaderDetail(data?.name ?? null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<ShopLifecycleStatus | null>(null);
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
-  if (isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isPending) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-60" />
+      </div>
+    );
+  }
 
   const shop = data;
+  const active = shop.users.filter((u) => u.status === "active");
+  const managers = active.filter((u) => u.roles.includes("shop_manager")).length;
+  const scanning = shop.labelScanning;
+  const scanTotal = scanning ? scanning.scanned + scanning.notScanned : 0;
+  const low = (lowStock.data ?? []).filter((r) => r.severity !== "out").length;
+  const out = (lowStock.data ?? []).filter((r) => r.severity === "out").length;
+  // ⚠ 061 — where a driver is told to collect from. A MISSING address is a NAMED GAP (FR-030).
+  const address = shop.address?.addressLine1
+    ? [shop.address.addressLine1, shop.address.addressLine2, shop.address.suburb, shop.address.state, shop.address.postcode].filter(Boolean).join(", ")
+    : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/shops" })}>
-          <ArrowLeft />
-          All shops
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{shop.name}</h1>
+    <>
+      <PageHeader
+        back={{ label: "Shops", link: { to: "/shops" } }}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            {shop.name}
             <ShopStatusBadge status={shop.status} />
-          </div>
-          <p className="font-mono text-sm text-muted-foreground">{shop.code}</p>
-        </div>
-        {canManage ? (
-          <div className="flex flex-wrap gap-2">
-            <ShopStatusMenu shopId={shop.id} current={shop.status} />
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil />
-              Edit
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setAddUserOpen(true)}>
-              <UserPlus />
-              Add user
-            </Button>
-            <Button variant="destructive" size="sm" onClick={() => setRemoveOpen(true)}>
-              <Trash2 />
-              Remove
-            </Button>
-          </div>
-        ) : null}
-      </div>
+          </span>
+        }
+        meta={
+          <>
+            <span className="bo-code">{shop.code}</span>
+            <span>
+              <Users aria-hidden="true" />
+              {shop.users.length} {shop.users.length === 1 ? "operator" : "operators"}
+            </span>
+            {scanning && scanTotal > 0 ? (
+              <span>
+                <ScanLine aria-hidden="true" />
+                {Math.round((scanning.scanned / scanTotal) * 100)}% of labels scanned · last {scanning.sinceDays} days
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          canManage ? (
+            <>
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil aria-hidden="true" />
+                Edit details
+              </Button>
+              <Button onClick={() => setAddUserOpen(true)}>
+                <UserPlus aria-hidden="true" />
+                Add user
+              </Button>
+            </>
+          ) : null
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardHeading>
-            <CardTitle>Details</CardTitle>
-          </CardHeading>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <Field label="Contact phone" value={shop.contactPhone ?? "—"} />
-            {/* ⚠ 061 — where a driver is told to collect from. A MISSING address is rendered as a
-                NAMED GAP, not as an em dash (FR-030): "—" reads as "nothing to say here", and this
-                is a gap somebody has to fill before the shop can be collected from at all. */}
-            <Field
-              label="Address"
-              value={
-                shop.address?.addressLine1
-                  ? [
-                      shop.address.addressLine1,
-                      shop.address.addressLine2,
-                      shop.address.suburb,
-                      shop.address.state,
-                      shop.address.postcode,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")
-                  : "No address recorded — a driver cannot be sent here"
-              }
+      <div className="bo-detail">
+        <div className="bo-detail__main">
+          <Tabs defaultValue="overview">
+            <div className="bo-tabsbar">
+              <div className="bo-tabsbar__list">
+                <TabsList aria-label="Shop sections">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="team">
+                    Team
+                    <TabsCount>{shop.users.length}</TabsCount>
+                  </TabsTrigger>
+                  <TabsTrigger value="stock">
+                    Stock
+                    {lowStock.data && lowStock.data.length > 0 ? <TabsCount>{lowStock.data.length}</TabsCount> : null}
+                  </TabsTrigger>
+                  <TabsTrigger value="activity">Activity</TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+
+            <TabsContent value="overview" className="bo-tabpanel">
+              <Panel
+                title="Details"
+                description="The address is for drivers only and is never shown to customers."
+                actions={
+                  canManage ? (
+                    <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}>
+                      Edit
+                    </Button>
+                  ) : null
+                }
+              >
+                <DetailRows
+                  rows={[
+                    { label: "Code", value: <span className="bo-code">{shop.code}</span> },
+                    { label: "Address", value: address ?? <span className="font-medium">No address recorded — a driver cannot be sent here</span> },
+                    { label: "Contact phone", value: shop.contactPhone ?? "—" },
+                    { label: "Notes", value: shop.notes ?? "—" },
+                    { label: "Created", value: formatTime(shop.createdAt) },
+                    { label: "Updated", value: formatTime(shop.updatedAt) },
+                  ]}
+                />
+              </Panel>
+
+              {/* 091 — a shop whose labels often fail to scan is printing them badly. */}
+              {scanning ? (
+                <Panel
+                  title="Label scanning"
+                  description="How packages left this shop — scanned at collection, or recorded without a scan."
+                  actions={<span className="bo-sub">Last {scanning.sinceDays} days</span>}
+                >
+                  <div className="space-y-3">
+                    {scanTotal === 0 ? (
+                      <p className="text-sm text-muted-foreground">{labelScanningText(scanning)}</p>
+                    ) : (
+                      <>
+                        <div className="bo-progress-label">
+                          <span>
+                            {scanning.scanned} scanned · {scanning.notScanned} not scanned
+                          </span>
+                          <span className="font-semibold text-foreground">{Math.round((scanning.scanned / scanTotal) * 100)}%</span>
+                        </div>
+                        <div className="bo-meter">
+                          <i className="bo-meter__booked" style={{ width: `${(scanning.scanned / scanTotal) * 100}%` }} />
+                        </div>
+                      </>
+                    )}
+                    <p className="bo-sub">
+                      Not scanned means the driver typed the code or recorded the hand-over by hand. A falling rate usually means labels
+                      aren't being printed.
+                    </p>
+                  </div>
+                </Panel>
+              ) : null}
+
+              {canManage ? (
+                <Panel title="Danger zone" flush>
+                  <ul className="divide-y divide-border">
+                    {shop.status !== "suspended" ? (
+                      <DangerRow
+                        title="Suspend this shop"
+                        body="Operators keep their sign-in but can't take new work. Packages already packed still go out. You can activate it again."
+                        action="Suspend…"
+                        onClick={() => setStatusTarget("suspended")}
+                      />
+                    ) : null}
+                    {shop.status !== "active" ? (
+                      <DangerRow
+                        title="Activate this shop"
+                        body="New work reaches the shop again and its operators can sign in."
+                        action="Activate…"
+                        onClick={() => setStatusTarget("active")}
+                      />
+                    ) : null}
+                    {shop.status !== "disabled" ? (
+                      <DangerRow
+                        title="Disable this shop"
+                        body="Every operator's sign-in stops and no work reaches the shop. History is kept."
+                        action="Disable…"
+                        onClick={() => setStatusTarget("disabled")}
+                      />
+                    ) : null}
+                    <DangerRow
+                      title="Remove this shop"
+                      body="This removes the shop and its roster. This action cannot be undone."
+                      action="Remove…"
+                      onClick={() => setRemoveOpen(true)}
+                    />
+                  </ul>
+                </Panel>
+              ) : null}
+            </TabsContent>
+
+            <TabsContent value="team" className="bo-tabpanel">
+              <Roster shop={shop} canManage={canManage} onAdd={() => setAddUserOpen(true)} />
+            </TabsContent>
+
+            {/* 054 US4: the assisted stock path. Reading is open to any active staff incl. csa. */}
+            <TabsContent value="stock" className="bo-tabpanel">
+              <Panel title="Stock" description="Products at or below their low-stock threshold, out of stock first.">
+                <ShopStockPanel shopId={shop.id} canManage={canManage} />
+              </Panel>
+            </TabsContent>
+
+            <TabsContent value="activity" className="bo-tabpanel">
+              <ShopHistory shopId={shop.id} />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <aside className="bo-detail__aside">
+          <Panel title="At a glance">
+            <DetailRows
+              tight
+              rows={[
+                { label: "Managers", value: `${managers} active` },
+                { label: "Staff", value: `${active.length - managers} active` },
+                {
+                  label: "Low stock",
+                  value: lowStock.data ? (low + out === 0 ? "Nothing low" : `${low} low · ${out} out of stock`) : "—",
+                },
+                { label: "Address", value: address ? "Recorded" : <span className="font-medium">Not recorded</span> },
+              ]}
             />
-            <Field label="Notes" value={shop.notes ?? "—"} />
-            <Field label="Created" value={formatTime(shop.createdAt)} />
-            <Field label="Updated" value={formatTime(shop.updatedAt)} />
-            {/* 091 — a shop whose labels often fail to scan is printing them badly. */}
-            {shop.labelScanning ? <Field label="Label scanning" value={labelScanningText(shop.labelScanning)} /> : null}
-          </dl>
-        </CardContent>
-      </Card>
-
-      <Roster shop={shop} canManage={canManage} />
-
-      {/* 054 US4: the assisted stock path. Reading is open to any active staff incl. csa — a support
-          agent who cannot see the number a shop is ringing up about cannot help them. */}
-      <section className="space-y-3">
-        <div className="border-b pb-2">
-          <h2 className="text-sm font-semibold">Stock</h2>
-        </div>
-        <ShopStockPanel shopId={shop.id} canManage={canManage} />
-      </section>
-
-      <ShopHistory shopId={shop.id} />
+          </Panel>
+        </aside>
+      </div>
 
       {canManage ? (
         <>
           <EditShopDialog shop={shop} open={editOpen} onOpenChange={setEditOpen} />
           <AddShopUserDialog shopId={shop.id} open={addUserOpen} onOpenChange={setAddUserOpen} />
+          <ShopStatusDialog shopId={shop.id} shopName={shop.name} target={statusTarget} onOpenChange={(o) => (o ? null : setStatusTarget(null))} />
           <RemoveShopDialog
             shopId={shop.id}
             shopName={shop.name}
@@ -162,65 +296,79 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
           />
         </>
       ) : null}
-    </div>
+    </>
   );
 }
 
-function Roster({ shop, canManage }: { shop: ShopDetail; canManage: boolean }) {
-  const activeManagerCount = shop.users.filter(
-    (u) => u.status === "active" && u.roles.includes("shop_manager"),
-  ).length;
+function DangerRow({ title, body, action, onClick }: { title: string; body: string; action: string; onClick: () => void }) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium">{title}</div>
+        <p className="bo-sub">{body}</p>
+      </div>
+      <Button variant="outline" size="sm" onClick={onClick}>
+        {action}
+      </Button>
+    </li>
+  );
+}
+
+function Roster({ shop, canManage, onAdd }: { shop: ShopDetail; canManage: boolean; onAdd: () => void }) {
+  const activeManagerCount = shop.users.filter((u) => u.status === "active" && u.roles.includes("shop_manager")).length;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardHeading>
-          <CardTitle>Roster</CardTitle>
-          <CardDescription>Operators provisioned for this shop.</CardDescription>
-        </CardHeading>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
+    <Panel
+      title="Team"
+      description="Operators provisioned for this shop. They sign in to the shop console with a six-digit code."
+      actions={
+        canManage ? (
+          <Button variant="outline" size="sm" onClick={onAdd}>
+            <UserPlus aria-hidden="true" />
+            Add user
+          </Button>
+        ) : null
+      }
+      footer={
+        <span className="bo-sub">
+          A role or status change applies straight away and is written to Activity. The last active manager can't be demoted or disabled.
+        </span>
+      }
+      flush
+    >
+      <div className="bo-table-scroll">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Operator</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Last seen</TableHead>
+              {canManage ? <TableHead className="text-right">Manage</TableHead> : null}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {shop.users.length === 0 ? (
               <TableRow>
-                <TableHead>Operator</TableHead>
-                <TableHead>Roles</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last seen</TableHead>
-                {canManage ? <TableHead className="text-right">Manage</TableHead> : null}
+                <TableCell colSpan={canManage ? 5 : 4} className="h-20 text-center text-muted-foreground">
+                  No operators yet.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {shop.users.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={canManage ? 5 : 4}
-                    className="h-20 text-center text-muted-foreground"
-                  >
-                    No operators yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                shop.users.map((user) => (
-                  <RosterRow
-                    key={user.id}
-                    shopId={shop.id}
-                    user={user}
-                    canManage={canManage}
-                    isLastActiveManager={
-                      activeManagerCount === 1 &&
-                      user.status === "active" &&
-                      user.roles.includes("shop_manager")
-                    }
-                  />
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+            ) : (
+              shop.users.map((user) => (
+                <RosterRow
+                  key={user.id}
+                  shopId={shop.id}
+                  user={user}
+                  canManage={canManage}
+                  isLastActiveManager={activeManagerCount === 1 && user.status === "active" && user.roles.includes("shop_manager")}
+                />
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </Panel>
   );
 }
 
@@ -242,9 +390,14 @@ function RosterRow({
   return (
     <TableRow>
       <TableCell>
-        <div className="flex flex-col">
-          <span className="font-medium">{user.name ?? "—"}</span>
-          <span className="text-xs text-muted-foreground">{user.email ?? "—"}</span>
+        <div className="flex items-center gap-3">
+          <span className="bo-avatar bo-avatar--sq" aria-hidden="true">
+            {initialsOf(user.name ?? user.email ?? "?")}
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <span className="font-medium">{user.name ?? "—"}</span>
+            <span className="text-xs text-muted-foreground">{user.email ?? "—"}</span>
+          </div>
         </div>
       </TableCell>
       <TableCell>{user.roles.map((r) => ROLE_LABELS[r]).join(", ") || "—"}</TableCell>
@@ -327,15 +480,6 @@ function RosterControls({
           Only active manager — changing this leaves the shop without one.
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>{value}</dd>
     </div>
   );
 }

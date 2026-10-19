@@ -1,96 +1,59 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type {
-  CreatePromoCodeRequest,
-  SetPromoStatusRequest,
-  UpdateOrderPolicyRequest,
-  UpdatePromoCodeRequest,
-} from "@effy/shared-types";
+import type { AdminPromotionWriteDTO, PromotionAction } from "@effy/shared-types";
 
-import type { PromoListParams } from "./model";
+import type { PromotionListParams, UpdateOrderPolicyRequest } from "./model";
 import {
-  createPromo,
-  deletePromo,
+  actOnPromotion,
+  createPromotion,
+  deletePromotion,
   getOrderPolicy,
-  getPromo,
-  getPromoHistory,
-  listPromos,
+  getPromotion,
+  getPromotionHistory,
+  listPromotions,
   putOrderPolicy,
-  setPromoStatus,
-  updatePromo,
+  updatePromotion,
+  addChosenCustomers,
+  generateCodes,
+  getPerformance,
+  listChosenCustomers,
+  listCodes,
+  removeChosenCustomer,
 } from "./repo";
 
-// Server state lives ONLY in the TanStack Query cache (Principle VI). List queries are keyed on their
-// params so each page/filter combination caches independently; mutations invalidate the affected root
-// rather than hand-patching cached data — a code's redemption count moves without us touching it, so
-// patching the cache would show a number the platform never said.
+// Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
+// rather than patch the cache — a promotion's state and uses move without us touching them.
 
-const PROMO_ROOT = ["back-office", "promotions"] as const;
+export const PROMO_ROOT = ["back-office", "promotions"] as const;
 
-export const promoListQuery = (params: PromoListParams) =>
-  queryOptions({
-    queryKey: [...PROMO_ROOT, "list", params] as const,
-    queryFn: () => listPromos(params),
-  });
+export const promotionListQuery = (params: PromotionListParams) =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "list", params] as const, queryFn: () => listPromotions(params) });
 
-export const promoDetailQuery = (id: string) =>
-  queryOptions({
-    queryKey: [...PROMO_ROOT, "detail", id] as const,
-    queryFn: () => getPromo(id),
-  });
+export const promotionQuery = (id: string) =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "detail", id] as const, queryFn: () => getPromotion(id) });
 
-export const promoHistoryQuery = (id: string) =>
-  queryOptions({
-    queryKey: [...PROMO_ROOT, "history", id] as const,
-    queryFn: () => getPromoHistory(id),
-  });
+export const promotionHistoryQuery = (id: string) =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "history", id] as const, queryFn: () => getPromotionHistory(id) });
 
-export const orderPolicyQuery = () =>
-  queryOptions({
-    queryKey: [...PROMO_ROOT, "order-policy"] as const,
-    queryFn: () => getOrderPolicy(),
-  });
+export const orderPolicyQuery = () => queryOptions({ queryKey: [...PROMO_ROOT, "order-policy"] as const, queryFn: () => getOrderPolicy() });
 
-function invalidatePromotions(queryClient: ReturnType<typeof useQueryClient>) {
-  void queryClient.invalidateQueries({ queryKey: PROMO_ROOT });
-}
-
-export function useCreatePromo() {
+function useInvalidating<A, R>(fn: (a: A) => Promise<R>) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: CreatePromoCodeRequest) => createPromo(body),
-    onSuccess: () => invalidatePromotions(queryClient),
-  });
+  return useMutation({ mutationFn: fn, onSuccess: () => void queryClient.invalidateQueries({ queryKey: PROMO_ROOT }) });
 }
 
-export function useUpdatePromo(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: UpdatePromoCodeRequest) => updatePromo(id, body),
-    onSuccess: () => invalidatePromotions(queryClient),
-  });
-}
+export const useCreatePromotion = () => useInvalidating((body: AdminPromotionWriteDTO) => createPromotion(body));
+export const useUpdatePromotion = (id: string) => useInvalidating((body: Partial<AdminPromotionWriteDTO>) => updatePromotion(id, body));
+export const usePromotionAction = (id: string) => useInvalidating((action: PromotionAction) => actOnPromotion(id, { action }));
+export const useDeletePromotion = () => useInvalidating((id: string) => deletePromotion(id));
+export const useUpdateOrderPolicy = () => useInvalidating((body: UpdateOrderPolicyRequest) => putOrderPolicy(body));
 
-export function useSetPromoStatus(id: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: SetPromoStatusRequest) => setPromoStatus(id, body),
-    onSuccess: () => invalidatePromotions(queryClient),
-  });
-}
+export const chosenCustomersQuery = (id: string, page: number) =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "customers", id, page] as const, queryFn: () => listChosenCustomers(id, page) });
+export const codesQuery = (id: string, page: number, state?: string) =>
+  queryOptions({ queryKey: [...PROMO_ROOT, "codes", id, page, state ?? ""] as const, queryFn: () => listCodes(id, page, state) });
+export const performanceQuery = (id: string) => queryOptions({ queryKey: [...PROMO_ROOT, "performance", id] as const, queryFn: () => getPerformance(id) });
 
-export function useDeletePromo() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => deletePromo(id),
-    onSuccess: () => invalidatePromotions(queryClient),
-  });
-}
-
-export function useUpdateOrderPolicy() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: UpdateOrderPolicyRequest) => putOrderPolicy(body),
-    onSuccess: () => invalidatePromotions(queryClient),
-  });
-}
+export const useAddChosenCustomers = (id: string) => useInvalidating((body: { emails?: string[]; customerIds?: string[] }) => addChosenCustomers(id, body));
+export const useRemoveChosenCustomer = (id: string) => useInvalidating((customerId: string) => removeChosenCustomer(id, customerId));
+export const useGenerateCodes = (id: string) => useInvalidating((body: { count: number; prefix?: string | null }) => generateCodes(id, body));

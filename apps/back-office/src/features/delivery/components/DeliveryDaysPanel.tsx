@@ -32,7 +32,7 @@ export function DeliveryDaysPanel({ canManage }: { canManage: boolean }) {
   if (days.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
   return (
-    <div className="max-w-2xl space-y-10">
+    <div className="flex max-w-3xl flex-col gap-6">
       <SettingsForm value={days.data} canManage={canManage} />
       <ClosedDates value={days.data} canManage={canManage} />
     </div>

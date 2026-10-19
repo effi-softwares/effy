@@ -14,6 +14,7 @@ import com.effyshopping.customer.mobile.features.addresses.presentation.validate
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefused
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryFeeChanged
+import com.effyshopping.customer.mobile.features.checkout.domain.PromotionsChanged
 import com.effyshopping.customer.mobile.features.checkout.domain.ChosenWindow
 import com.effyshopping.customer.mobile.features.checkout.domain.EffyWindows
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
@@ -424,6 +425,13 @@ class CheckoutViewModel(
                     },
                 )
                 if (refused.reason == PointsRefusal.BalanceChanged) refreshQuote(addressId)
+                return@launch
+            } catch (changed: PromotionsChanged) {
+                // 094 — an offer changed or its last use went. Nothing was charged; the shopper checks
+                // the new total and pays again.
+                val cur = ready() ?: return@launch
+                _state.value = cur.copy(paying = false, error = "One of your offers changed or is no longer available. Check your new total before you pay.")
+                refreshQuote(addressId)
                 return@launch
             } catch (changed: DeliveryFeeChanged) {
                 // 077 — the delivery total moved between the quote and the pay button. Nothing was

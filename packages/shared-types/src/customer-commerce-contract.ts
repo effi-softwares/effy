@@ -35,6 +35,7 @@ import type {
   FacetSetDTO,
   PromotionDTO,
 } from "./storefront";
+import type { PromotionGroupsDTO, PromotionGroupDTO, ShopperPromotionDTO } from "./promotions";
 import type {
   CartLineDTO,
   CartNoticeDTO,
@@ -122,6 +123,9 @@ export type {
   FacetDTO,
   FacetSetDTO,
   PromotionDTO,
+  PromotionGroupsDTO,
+  PromotionGroupDTO,
+  ShopperPromotionDTO,
   CartLineDTO,
   CartNoticeDTO,
   CartNoticeKind,
@@ -207,6 +211,8 @@ export interface CustomerCommerceContract {
   facetOption: FacetOptionDTO;
   facetType: FacetType;
   promotion: PromotionDTO;
+  /** 094 — display groups by key (storefront public / commerce personal). */
+  promotionGroups: PromotionGroupsDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;
   cartNotice: CartNoticeDTO;

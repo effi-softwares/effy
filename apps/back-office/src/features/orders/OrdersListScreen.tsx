@@ -1,310 +1,339 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Badge } from "@effy/design-system/ui";
-import { OrdersTabs } from "./OrdersTabs";
-import { PackageStatusPill } from "@effy/web-kit/console";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearch } from "@tanstack/react-router";
-import { X } from "lucide-react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useHotkey } from "@tanstack/react-hotkeys";
+import { Route, SearchX, Truck, UserX } from "lucide-react";
 
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { cn } from "@effy/design-system";
+import { Button, Skeleton } from "@effy/design-system/ui";
+import { ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types";
+import { ErrorState, PackageStatusPill } from "@effy/web-kit/console";
 
-import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type AdminOrderDeliveryFilter, type DeliveryPromise } from "@effy/shared-types";
+import { Kbd } from "@/components/patterns/Kbd";
+import { PageHeader, ViewTabs } from "@/components/patterns/Page";
+import { EmptyState } from "@/components/patterns/States";
+import { Facet, Pager, ResetFilters, SearchBox, Toolbar, ToolbarSpacer } from "@/components/patterns/Toolbar";
+import { moment, money } from "@/lib/format";
 
-import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderSummary } from "./model";
-import { ordersListQuery } from "./queries";
-
-const ALL = "all";
-/** 085 — prefixes a delivery-filter value that names what an Effy order was sold. */
-const PROMISE = "promise:";
-const NEEDS_DRIVER = "needs_driver";
+import { AWAITING_LABEL, DELIVERY_FILTER_LABEL, deliveryTypeText, PROMISE_LABEL, STAGE_LABEL, type OrderListParams, type OrderSummary } from "./model";
+import { orderViewCountsQuery, ordersListQuery } from "./queries";
 
 /**
- * The back-office order register (053 US1).
+ * The order list (redesign, board "Orders — all orders").
  *
- * ⚠ A TABLE, NOT CARDS, AND NO METRIC ROW AT THE TOP (Principle V). An order list is exactly where
- * the dashboard-summary instinct fires — "orders today", "awaiting handover", "delivered this week"
- * as four tiles. The constitution forbids it, and the filter below does the same job honestly: it
- * takes you to the rows rather than telling you how many there are.
+ * Saved views are tabs with counts and live in the URL, so a view's link opens the same list for
+ * anyone. Search and two facets (who delivers, what an Effy order was sold) narrow every view. A
+ * table on a desktop, two-line rows on a phone; J / K move through the rows and Enter opens one.
+ *
+ * ⚠ A TABLE, NOT CARDS, AND NO METRIC ROW (Principle V). The counts on the tabs take you to the rows
+ * rather than telling you how many there are.
  */
-
-function formatMoney(amount: string, currency: string): string {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return `${currency} ${amount}`;
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: currency || "AUD",
-    currencyDisplay: "narrowSymbol",
-  }).format(n);
+export const ORDER_VIEWS = ["all", "driver", "handover", "arrival", "refund", "courier"] as const;
+export type OrderView = (typeof ORDER_VIEWS)[number];
+export interface OrdersSearch {
+  view?: OrderView;
+  delivery?: "effy" | "courier" | "legacy";
+  sold?: DeliveryPromise;
+  open?: boolean;
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-AU", { dateStyle: "medium" }).format(new Date(iso));
-}
+const VIEW_LABEL: Record<OrderView, string> = {
+  all: "All orders",
+  driver: "Needs a driver",
+  handover: AWAITING_LABEL.handover,
+  arrival: AWAITING_LABEL.arrival,
+  refund: AWAITING_LABEL.refund_decision,
+  courier: AWAITING_LABEL.courier_problem,
+};
 
-const columns: ColumnDef<OrderSummary>[] = [
-  {
-    accessorKey: "orderNumber",
-    header: "Order",
-    cell: ({ row }) => (
-      <Link
-        to="/orders/$orderId"
-        params={{ orderId: row.original.id }}
-        className="font-mono font-medium text-primary hover:underline"
-      >
-        {row.original.orderNumber}
-      </Link>
-    ),
-  },
-  { accessorKey: "customerEmail", header: "Customer" },
-  {
-    accessorKey: "placedAt",
-    header: "Placed",
-    cell: ({ row }) => <span className="tabular-nums">{formatDate(row.original.placedAt)}</span>,
-  },
-  {
-    id: "status",
-    header: "Status",
-    // 073 — where the order really is, in the words every staff screen uses (its least advanced
-    // package; a Problem anywhere wins).
-    cell: ({ row }) =>
-      row.original.statusView ? <PackageStatusPill view={row.original.statusView} showDetail={false} /> : "—",
-  },
-  {
-    id: "delivery",
-    header: "Delivery",
-    // 079 — who delivers the order: Effy, or a courier. A dash for an order placed before orders
-    // had a delivery type — nothing about an old order is guessed.
-    cell: ({ row }) =>
-      row.original.deliveryType ? (
-        <span>
-          {deliveryTypeText(row.original.deliveryType)}
-          {/* 085 — what an Effy order was sold, under who delivers it. */}
-          {row.original.promise && row.original.promise !== "window" ? (
-            <span className="block text-xs text-muted-foreground">{PROMISE_LABEL[row.original.promise]}</span>
-          ) : null}
-        </span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-  {
-    id: "driver",
-    header: "Driver",
-    // 073 — who has it: "Ada → Ben" (collect → deliver), or "Needs a driver".
-    cell: ({ row }) => <DriverCell order={row.original} />,
-  },
-  {
-    accessorKey: "stage",
-    header: "Customer sees",
-    // ⚠ SERVER-DERIVED, and labelled as what the CUSTOMER sees rather than as an internal status.
-    // An operator answering the phone needs the shopper's words, not the fulfilment machine's.
-    cell: ({ row }) => STAGE_LABEL[row.original.stage] ?? row.original.stage,
-  },
-  {
-    accessorKey: "awaiting",
-    header: "Next step",
-    cell: ({ row }) =>
-      row.original.awaiting ? (
-        <span className="font-medium">{AWAITING_LABEL[row.original.awaiting]}</span>
-      ) : (
-        <span className="text-muted-foreground">Complete</span>
-      ),
-  },
-  {
-    accessorKey: "grandTotalAmount",
-    header: "Total",
-    cell: ({ row }) => (
-      <span className="tabular-nums">
-        {formatMoney(row.original.grandTotalAmount, row.original.currency)}
-      </span>
-    ),
-  },
-];
+function viewParams(view: OrderView): Pick<OrderListParams, "awaiting" | "needsDriver"> {
+  switch (view) {
+    case "driver":
+      return { needsDriver: true };
+    case "handover":
+      return { awaiting: "handover" };
+    case "arrival":
+      return { awaiting: "arrival" };
+    case "refund":
+      return { awaiting: "refund_decision" };
+    case "courier":
+      return { awaiting: "courier_problem" };
+    default:
+      return {};
+  }
+}
 
 export function OrdersListScreen() {
-  const [search, setSearch] = useState("");
-  const [awaiting, setAwaiting] = useState<string>(ALL);
-  // 083 — the go-live page links here with `?delivery=legacy&open=true`: the old orders still open.
-  const fromUrl = useSearch({ strict: false }) as { delivery?: "legacy"; open?: boolean };
-  const [delivery, setDelivery] = useState<string>(fromUrl.delivery === "legacy" ? "legacy" : ALL);
-  const [stillOpen, setStillOpen] = useState<boolean>(fromUrl.delivery === "legacy" && fromUrl.open === true);
+  const search = useSearch({ strict: false }) as OrdersSearch;
+  const navigate = useNavigate();
+  const view: OrderView = search.view ?? "all";
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState(25);
   /**
-   * Keyset paging, so a stack rather than a page number.
-   *
-   * ⚠ A cursor list cannot jump to "page 5" — that is the trade for never showing an operator the
-   * same order twice while new ones arrive. The stack is what makes Back possible; its length is the
-   * only page number there is. Changing a filter resets it, because a cursor minted under one filter
-   * means nothing under another.
+   * Keyset paging, so a stack rather than a page number. ⚠ A cursor list cannot jump to "page 5" —
+   * the trade for never showing the same order twice while new ones arrive. Changing a filter resets
+   * it: a cursor minted under one filter means nothing under another.
    */
   const [cursors, setCursors] = useState<string[]>([]);
+  const [focus, setFocus] = useState(-1);
 
-  const params = useMemo(
+  const setSearch = (patch: Partial<OrdersSearch>) => {
+    setCursors([]);
+    setFocus(-1);
+    void navigate({ to: "/orders", search: (prev: OrdersSearch) => clean({ ...prev, ...patch }) });
+  };
+
+  const base = useMemo<OrderListParams>(
     () => ({
-      q: search.trim() || undefined,
-      awaiting: awaiting === ALL || awaiting === NEEDS_DRIVER ? undefined : (awaiting as "handover" | "arrival"),
-      // 073 — orders with a package nobody is collecting or delivering.
-      needsDriver: awaiting === NEEDS_DRIVER ? true : undefined,
-      // 079 — who delivers the order.
-      // 085 — "promise:day" etc. are Effy orders by what they were sold.
-      deliveryType: delivery === ALL || delivery.startsWith(PROMISE) ? undefined : (delivery as AdminOrderDeliveryFilter),
-      promise: delivery.startsWith(PROMISE) ? (delivery.slice(PROMISE.length) as DeliveryPromise) : undefined,
-      stillOpen: delivery === "legacy" && stillOpen ? true : undefined,
-      cursor: cursors[cursors.length - 1],
+      q: q.trim() || undefined,
+      deliveryType: search.sold ? undefined : search.delivery,
+      promise: search.sold,
+      stillOpen: search.delivery === "legacy" && search.open ? true : undefined,
     }),
-    [search, awaiting, delivery, stillOpen, cursors],
+    [q, search.delivery, search.sold, search.open],
+  );
+  const params = useMemo<OrderListParams>(
+    () => ({ ...base, ...viewParams(view), cursor: cursors[cursors.length - 1], limit: rows }),
+    [base, view, cursors, rows],
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params));
+  const counts = useQuery(orderViewCountsQuery(base));
+  const items = data?.items ?? [];
+
+  useEffect(() => setFocus(-1), [data]);
+  useHotkey("J", () => setFocus((i) => Math.min(i + 1, items.length - 1)), { ignoreInputs: true });
+  useHotkey("K", () => setFocus((i) => Math.max(i - 1, 0)), { ignoreInputs: true });
+  useHotkey(
+    "Enter",
+    () => {
+      const o = items[focus];
+      if (o) void navigate({ to: "/orders/$orderId", params: { orderId: o.id } });
+    },
+    { ignoreInputs: true, enabled: focus >= 0 },
+  );
+
+  const c = counts.data;
+  const countOf: Record<OrderView, number | undefined> = {
+    all: c?.all,
+    driver: c?.needsDriver,
+    handover: c?.handover,
+    arrival: c?.arrival,
+    refund: c?.refundDecision,
+    courier: c?.courierProblem,
+  };
+  const filtered = Boolean(q || search.delivery || search.sold);
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold">Orders</h1>
-        <p className="text-muted-foreground">
-          Every paid order, where it is, and who has it.
-        </p>
-      </div>
-      <OrdersTabs />
+    <>
+      <PageHeader
+        title="Orders"
+        description="Every paid order, where it is, and who has it. A view is a saved filter — its link opens the same list for anyone."
+        actions={
+          <>
+            <Button variant="outline" asChild>
+              <Link to="/orders/assignments">
+                <Route aria-hidden="true" />
+                Dispatch
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/orders/handover">
+                <Truck aria-hidden="true" />
+                Courier parcels
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search by order reference or customer email…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCursors([]);
-          }}
-          className="max-w-sm"
+      <div className="space-y-3">
+        <ViewTabs
+          label="Order views"
+          active={view}
+          views={ORDER_VIEWS.map((v) => ({
+            key: v,
+            label: VIEW_LABEL[v],
+            link: { to: "/orders", search: (prev: OrdersSearch) => clean({ ...prev, view: v === "all" ? undefined : v }) } as never,
+            count: countOf[v],
+            attention: v !== "all",
+          }))}
         />
-        <Select
-          value={awaiting}
-          onValueChange={(v) => {
-            setAwaiting(v);
-            setCursors([]);
-          }}
-        >
-          <SelectTrigger className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All orders</SelectItem>
-            <SelectItem value={NEEDS_DRIVER}>Needs a driver</SelectItem>
-            {/* The operator's work queue — derived from what is missing, never a stored state. */}
-            <SelectItem value="handover">Needs handover</SelectItem>
-            <SelectItem value="arrival">Awaiting arrival</SelectItem>
-          </SelectContent>
-        </Select>
-        {/* 079 — who delivers the order. Its own control: it narrows the list, it is not a work queue. */}
-        <Select
-          value={delivery}
-          onValueChange={(v) => {
-            setDelivery(v);
-            // "Still open" narrows the old orders only.
-            if (v !== "legacy") setStillOpen(false);
-            setCursors([]);
-          }}
-        >
-          <SelectTrigger className="w-60" aria-label="Delivery type">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>Any delivery</SelectItem>
-            {ADMIN_ORDER_DELIVERY_FILTERS.map((f) => (
-              <SelectItem key={f} value={f}>
-                {DELIVERY_FILTER_LABEL[f]}
-              </SelectItem>
-            ))}
-            {ADMIN_ORDER_PROMISE_FILTERS.map((p) => (
-              <SelectItem key={p} value={`${PROMISE}${p}`}>
-                {DELIVERY_FILTER_LABEL.effy} — {PROMISE_LABEL[p]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {delivery === "legacy" && stillOpen ? (
-          <Badge variant="secondary" className="gap-1" data-testid="still-open-chip">
-            Still open
-            <button
-              type="button"
-              aria-label="Show closed old orders too"
-              className="rounded-full p-0.5 hover:bg-muted"
-              onClick={() => {
-                setStillOpen(false);
-                setCursors([]);
-              }}
-            >
-              <X className="size-3" aria-hidden />
+        <Toolbar>
+          <SearchBox
+            label="Search orders"
+            placeholder="Order number or customer email…"
+            value={q}
+            onChange={(v) => {
+              setQ(v);
+              setCursors([]);
+            }}
+          />
+          <Facet
+            label="Delivery"
+            value={search.delivery ?? null}
+            onChange={(v) => setSearch({ delivery: v ?? undefined, open: undefined, sold: v === "effy" ? search.sold : undefined })}
+            options={(["effy", "courier", "legacy"] as const).map((f) => ({ value: f, label: DELIVERY_FILTER_LABEL[f] }))}
+          />
+          <Facet
+            label="Sold as"
+            value={search.sold ?? null}
+            onChange={(v) => setSearch({ sold: v ?? undefined, delivery: v ? "effy" : search.delivery })}
+            options={ADMIN_ORDER_PROMISE_FILTERS.map((p) => ({ value: p, label: PROMISE_LABEL[p] }))}
+          />
+          {search.delivery === "legacy" && search.open ? (
+            <button type="button" className="bo-facet is-set" onClick={() => setSearch({ open: undefined })} data-testid="still-open-chip">
+              Still open
+              <span className="bo-facet__sep" aria-hidden="true" />
+              <span className="bo-facet__val">Remove</span>
             </button>
-          </Badge>
-        ) : null}
+          ) : null}
+          {filtered ? (
+            <ResetFilters
+              onReset={() => {
+                setQ("");
+                setSearch({ delivery: undefined, sold: undefined, open: undefined });
+              }}
+            />
+          ) : null}
+          <ToolbarSpacer />
+        </Toolbar>
       </div>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <div className="bo-table-wrap space-y-0 p-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="mb-3 h-10" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={SearchX}
+          title={filtered || view !== "all" ? "No orders match your filter." : "No orders yet."}
+          description={filtered || view !== "all" ? "Try a different view, or clear the filters." : "Paid orders appear here as they arrive."}
+          action={
+            filtered || view !== "all" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setQ("");
+                  setSearch({ view: undefined, delivery: undefined, sold: undefined, open: undefined });
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
-        <>
-          <DataTable
-            columns={columns}
-            data={data.items}
-            emptyMessage="No orders match your filter."
+        <div className="bo-table-wrap">
+          <div className="bo-table-scroll">
+            <table className="bo-table bo-rtable">
+              <thead>
+                <tr>
+                  <th>Order</th>
+                  <th>Placed</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Delivery</th>
+                  <th>Driver</th>
+                  <th>Next step</th>
+                  <th className="is-num">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((o, i) => (
+                  <OrderRow key={o.id} order={o} focused={i === focus} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager
+            summary={`${items.length} order${items.length === 1 ? "" : "s"} · page ${cursors.length + 1}`}
+            canBack={cursors.length > 0}
+            canNext={Boolean(data.nextCursor)}
+            onBack={() => setCursors((s) => s.slice(0, -1))}
+            onNext={() => setCursors((s) => (data.nextCursor ? [...s, data.nextCursor] : s))}
+            rows={rows}
+            onRows={(n) => {
+              setRows(n);
+              setCursors([]);
+            }}
           />
-          {/* Rendered only when there is somewhere to go — no dead controls on a single page. */}
-          {cursors.length > 0 || data.nextCursor ? (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {data.items.length} order{data.items.length === 1 ? "" : "s"}
-                {cursors.length > 0 ? ` · page ${cursors.length + 1}` : ""}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={cursors.length === 0}
-                  onClick={() => setCursors((c) => c.slice(0, -1))}
-                >
-                  Back
-                </Button>
-                <Button
-                  variant="outline"
-                  disabled={!data.nextCursor}
-                  onClick={() =>
-                    setCursors((c) => (data.nextCursor ? [...c, data.nextCursor] : c))
-                  }
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </>
+        </div>
       )}
-    </div>
+
+      <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground max-md:hidden">
+        <Kbd>J</Kbd>
+        <Kbd>K</Kbd> move through rows · <Kbd>↵</Kbd> opens the order · Status is the order's least-advanced package; Problem
+        always wins.
+      </p>
+    </>
   );
 }
 
-/** "Ada → Ben", "Ada", or a warning word when a package has nobody (073). */
+function clean(s: OrdersSearch): OrdersSearch {
+  const out: OrdersSearch = {};
+  if (s.view && s.view !== "all") out.view = s.view;
+  if (s.delivery) out.delivery = s.delivery;
+  if (s.sold) out.sold = s.sold;
+  if (s.open && s.delivery === "legacy") out.open = true;
+  return out;
+}
+
+function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean }) {
+  return (
+    <tr className={cn(focused && "is-selected")} aria-selected={focused || undefined}>
+      <td data-m="primary">
+        <Link to="/orders/$orderId" params={{ orderId: o.id }} className="bo-link bo-code">
+          {o.orderNumber}
+        </Link>
+        <span className="bo-sub md:hidden">{o.customerEmail}</span>
+      </td>
+      <td data-m="hide" className="is-muted whitespace-nowrap">
+        {moment(o.placedAt)}
+      </td>
+      <td data-m="hide">
+        <span className="line-clamp-1">{o.customerEmail}</span>
+      </td>
+      <td data-m="badge">{o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}</td>
+      <td data-m="meta">
+        {/* 079 — who delivers it; a dash for an order from before delivery types — nothing is guessed. */}
+        <span className="whitespace-nowrap">{o.deliveryType ? deliveryTypeText(o.deliveryType) : "—"}</span>
+        {o.promise && o.promise !== "window" ? <span className="bo-sub">{PROMISE_LABEL[o.promise]}</span> : null}
+      </td>
+      <td data-m="hide">
+        <DriverCell order={o} />
+      </td>
+      <td data-m="meta" data-label="Next step">
+        {o.awaiting ? <span className="font-medium">{AWAITING_LABEL[o.awaiting]}</span> : <span className="text-muted-foreground">Complete</span>}
+        {/* ⚠ What the CUSTOMER is being told — staff always see the shopper's words. */}
+        <span className="bo-sub">Customer sees: {STAGE_LABEL[o.stage] ?? o.stage}</span>
+      </td>
+      <td data-m="trail" className="is-num font-medium">
+        {money(o.grandTotalAmount, o.currency)}
+      </td>
+    </tr>
+  );
+}
+
+/** "Ada → Ben" (collect → deliver), and a tag when a package has nobody (073). */
 function DriverCell({ order }: { order: OrderSummary }) {
   const { collect, deliver } = order.drivers;
   const names = [collect.join(", "), deliver.join(", ")].filter((s) => s !== "");
   return (
-    <span className="inline-flex flex-wrap items-center gap-2 text-sm">
-      {names.length > 0 ? <span>{names.join(" → ")}</span> : null}
-      {order.needsDriver ? <Badge variant="warning">Needs a driver</Badge> : null}
-      {names.length === 0 && !order.needsDriver ? <span className="text-muted-foreground">—</span> : null}
+    <span className="flex flex-col items-start gap-1">
+      {names.length > 0 ? <span className="whitespace-nowrap">{names.join(" → ")}</span> : !order.needsDriver ? <span className="text-muted-foreground">—</span> : null}
+      {order.needsDriver ? (
+        <span className="bo-tag">
+          <UserX aria-hidden="true" />
+          Needs a driver
+        </span>
+      ) : null}
     </span>
   );
 }
-

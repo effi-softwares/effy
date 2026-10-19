@@ -1,273 +1,245 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import type { ColumnDef } from "@tanstack/react-table"
+import { useHotkey } from "@tanstack/react-hotkeys"
+import { MessageSquareText, Star } from "lucide-react"
 
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui"
-import { DataTable, ErrorState } from "@effy/web-kit/console"
+import { cn } from "@effy/design-system"
+import { Skeleton } from "@effy/design-system/ui"
+import { ErrorState } from "@effy/web-kit/console"
 
+import { Kbd } from "@/components/patterns/Kbd"
+import { PageHeader } from "@/components/patterns/Page"
+import { EmptyState } from "@/components/patterns/States"
+import { Facet, Pager, SearchBox, Toolbar } from "@/components/patterns/Toolbar"
+import { sessionQuery } from "@/features/auth/queries"
+import { dayWord, moment } from "@/lib/format"
+
+import { canReplyFeedback } from "./access"
+import { FeedbackPanel } from "./FeedbackPanel"
 import {
   FEEDBACK_CATEGORIES,
   FEEDBACK_CATEGORY_LABELS,
-  FEEDBACK_SETTABLE_STATUSES,
   FEEDBACK_STATUS_LABELS,
   type FeedbackCategory,
-  type FeedbackListItemDTO,
   type FeedbackStatus,
 } from "./model"
-import { feedbackListQuery } from "./queries"
+import { feedbackDetailQuery, feedbackListQuery } from "./queries"
+
+const PAGE_SIZE = 25
+
+/** The inbox's status views. "All" leaves spam and archived in; each status is its own view. */
+const VIEWS: readonly (FeedbackStatus | "all")[] = ["new", "in_review", "replied", "resolved", "archived", "spam", "all"]
+const COUNTED: readonly FeedbackStatus[] = ["new", "in_review", "replied", "resolved"]
+
+type Received = "today" | "7d" | "30d"
+function fromFor(r: Received | null): string | undefined {
+  if (!r) return undefined
+  const d = new Date()
+  if (r === "today") d.setHours(0, 0, 0, 0)
+  else d.setDate(d.getDate() - (r === "7d" ? 7 : 30))
+  return d.toISOString()
+}
 
 /**
- * Customer feedback (046 US2).
- *
- * ⚠ NO CARDS, NO METRIC TILES (Principle V). A table + detail rows. A "12 new this week" tile would
- * answer a question nobody asks; the list of WHAT people said is the whole product.
+ * Customer feedback (046; redesign, board "Feedback — inbox"): status views with counts, search and
+ * facets, and a split view — the list beside the open submission. Below 1024px the list alone, each
+ * item opening its own page. J / K move through the list.
  */
-const PAGE_SIZE = 25
-const ANY = "any"
-
-const columns: ColumnDef<FeedbackListItemDTO>[] = [
-  {
-    accessorKey: "referenceCode",
-    header: "Reference",
-    cell: ({ row }) => (
-      <Link
-        to="/feedback/$referenceCode"
-        params={{ referenceCode: row.original.referenceCode }}
-        className="font-mono text-sm text-primary hover:underline"
-      >
-        {row.original.referenceCode}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "category",
-    header: "Category",
-    cell: ({ row }) => <span className="text-sm">{FEEDBACK_CATEGORY_LABELS[row.original.category]}</span>,
-  },
-  {
-    accessorKey: "status",
-    // ⚠ A TEXT LABEL, never colour alone (Principle V).
-    header: "Status",
-    cell: ({ row }) => <span className="text-sm">{FEEDBACK_STATUS_LABELS[row.original.status]}</span>,
-  },
-  {
-    accessorKey: "rating",
-    header: "Rating",
-    cell: ({ row }) =>
-      row.original.rating ? (
-        <span className="text-sm">{row.original.rating}/5</span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-  {
-    id: "submitter",
-    header: "From",
-    cell: ({ row }) => {
-      const s = row.original.submitter
-      return (
-        <span className="text-sm">
-          {s.name ?? s.email ?? <span className="text-muted-foreground">Guest</span>}{" "}
-          <span className="text-xs text-muted-foreground">({s.kind})</span>
-        </span>
-      )
-    },
-  },
-  {
-    accessorKey: "preview",
-    header: "Message",
-    cell: ({ row }) => (
-      <span className="line-clamp-2 max-w-md text-sm text-muted-foreground">{row.original.preview}</span>
-    ),
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Received",
-    cell: ({ row }) => (
-      <span className="whitespace-nowrap text-sm text-muted-foreground">
-        {new Date(row.original.createdAt).toLocaleDateString()}
-      </span>
-    ),
-  },
-]
-
 export function FeedbackListScreen() {
+  const [view, setView] = useState<FeedbackStatus | "all">("new")
   const [q, setQ] = useState("")
-  const [category, setCategory] = useState<string>(ANY)
-  const [status, setStatus] = useState<string>(ANY)
-  const [rating, setRating] = useState<string>(ANY)
-  const [from, setFrom] = useState("")
-  const [to, setTo] = useState("")
+  const [category, setCategory] = useState<FeedbackCategory | null>(null)
+  const [rating, setRating] = useState<string | null>(null)
+  const [received, setReceived] = useState<Received | null>(null)
   const [page, setPage] = useState(0)
+  const [open, setOpen] = useState<string | null>(null)
 
   const params = useMemo(
     () => ({
       q: q.trim() || undefined,
-      category: category === ANY ? undefined : (category as FeedbackCategory),
-      status: status === ANY ? undefined : (status as FeedbackStatus),
-      rating: rating === ANY ? undefined : Number(rating),
-      from: from || undefined,
-      to: to || undefined,
+      category: category ?? undefined,
+      status: view === "all" ? undefined : view,
+      rating: rating ? Number(rating) : undefined,
+      from: fromFor(received),
       cursor: page > 0 ? String(page * PAGE_SIZE) : undefined,
       limit: PAGE_SIZE,
     }),
-    [q, category, status, rating, from, to, page],
+    [q, category, view, rating, received, page],
   )
-
   const { data, isPending, isError, error, refetch } = useQuery(feedbackListQuery(params))
+  const items = data?.items ?? []
+  const selected = open ?? items[0]?.referenceCode ?? null
+  const index = items.findIndex((i) => i.referenceCode === selected)
+
+  useEffect(() => setOpen(null), [view, q, category, rating, received, page])
+  useHotkey("J", () => items[index + 1] && setOpen(items[index + 1]!.referenceCode), { ignoreInputs: true })
+  useHotkey("K", () => index > 0 && setOpen(items[index - 1]!.referenceCode), { ignoreInputs: true })
 
   const reset = () => setPage(0)
 
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Customer feedback</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          What shoppers have told us — bugs, ideas, complaints and compliments. Open one to read it in
-          full, add an internal note, change its status, or reply.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title="Customer feedback"
+        description="What shoppers have told us — bugs, ideas, complaints and compliments. Open one to read it in full, add an internal note, change its status, or reply."
+      />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <Input
-          placeholder="Search message or email…"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value)
-            reset()
-          }}
-          className="max-w-xs"
-        />
-
-        <FilterSelect
-          value={category}
-          onChange={(v) => {
-            setCategory(v)
-            reset()
-          }}
-          anyLabel="Any category"
-          options={FEEDBACK_CATEGORIES.map((c) => ({ value: c, label: FEEDBACK_CATEGORY_LABELS[c] }))}
-        />
-        <FilterSelect
-          value={status}
-          onChange={(v) => {
-            setStatus(v)
-            reset()
-          }}
-          anyLabel="Any status"
-          options={[...FEEDBACK_SETTABLE_STATUSES, "replied" as FeedbackStatus].map((s) => ({
-            value: s,
-            label: FEEDBACK_STATUS_LABELS[s],
-          }))}
-        />
-        <FilterSelect
-          value={rating}
-          onChange={(v) => {
-            setRating(v)
-            reset()
-          }}
-          anyLabel="Any rating"
-          options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n}/5` }))}
-        />
-
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          From
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value)
+      <div className="space-y-3">
+        <nav className="bo-tabs" aria-label="Status">
+          {VIEWS.map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-current={v === view ? "page" : undefined}
+              className={cn("bo-tabs__tab", v === view && "is-active")}
+              onClick={() => {
+                setView(v)
+                reset()
+              }}
+            >
+              {v === "all" ? "All" : FEEDBACK_STATUS_LABELS[v]}
+              {v !== "all" && COUNTED.includes(v) ? <StatusCount status={v} /> : null}
+            </button>
+          ))}
+        </nav>
+        <Toolbar>
+          <SearchBox
+            label="Search feedback"
+            placeholder="Search message or email…"
+            value={q}
+            onChange={(v) => {
+              setQ(v)
               reset()
             }}
-            className="w-40"
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-          To
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value)
+          <Facet
+            label="Category"
+            value={category}
+            onChange={(v) => {
+              setCategory(v)
               reset()
             }}
-            className="w-40"
+            options={FEEDBACK_CATEGORIES.map((c) => ({ value: c, label: FEEDBACK_CATEGORY_LABELS[c] }))}
           />
-        </label>
+          <Facet
+            label="Rating"
+            value={rating}
+            onChange={(v) => {
+              setRating(v)
+              reset()
+            }}
+            options={["1", "2", "3", "4", "5"].map((r) => ({ value: r, label: `${r}/5` }))}
+          />
+          <Facet
+            label="Received"
+            value={received}
+            onChange={(v) => {
+              setReceived(v)
+              reset()
+            }}
+            options={[
+              { value: "today" as const, label: "Today" },
+              { value: "7d" as const, label: "Last 7 days" },
+              { value: "30d" as const, label: "Last 30 days" },
+            ]}
+          />
+        </Toolbar>
       </div>
 
-      {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+      {isError ? (
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <Skeleton className="h-[480px]" />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={MessageSquareText}
+          title={view === "new" ? "Nothing new" : "No feedback matches"}
+          description={view === "new" ? "Every submission has been looked at." : "Try another status, or clear the filters."}
+        />
       ) : (
-        <>
-          <DataTable
-            columns={columns}
-            data={data.items}
-            emptyMessage="No feedback matches these filters yet."
-          />
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{data.total} total</span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 0}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={(page + 1) * PAGE_SIZE >= data.total}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
+        <div className="bo-split">
+          <div className="bo-split__list">
+            <div className="flex items-center justify-between border-b border-border px-4 py-2 text-xs text-muted-foreground">
+              <span>{data.total} total</span>
+              <span className="flex items-center gap-1 max-lg:hidden">
+                <Kbd>J</Kbd>
+                <Kbd>K</Kbd> to move
+              </span>
+            </div>
+            {items.map((i) => (
+              <InboxItem key={i.referenceCode} item={i} active={i.referenceCode === selected} onOpen={() => setOpen(i.referenceCode)} />
+            ))}
+            <div className="mt-auto">
+              <Pager
+                summary={`Page ${page + 1}`}
+                canBack={page > 0}
+                canNext={(page + 1) * PAGE_SIZE < data.total}
+                onBack={() => setPage((p) => Math.max(0, p - 1))}
+                onNext={() => setPage((p) => p + 1)}
+              />
             </div>
           </div>
-        </>
+          <div className="bo-split__detail">{selected ? <OpenSubmission referenceCode={selected} /> : null}</div>
+        </div>
       )}
-    </div>
+    </>
   )
 }
 
-function FilterSelect({
-  value,
-  onChange,
-  anyLabel,
-  options,
+function StatusCount({ status }: { status: FeedbackStatus }) {
+  const { data } = useQuery(feedbackListQuery({ status, limit: 1 }))
+  return typeof data?.total === "number" ? <span className="bo-tabs__count">{data.total}</span> : null
+}
+
+function InboxItem({
+  item: i,
+  active,
+  onOpen,
 }: {
-  value: string
-  onChange: (v: string) => void
-  anyLabel: string
-  options: { value: string; label: string }[]
+  item: { referenceCode: string; category: FeedbackCategory; status: FeedbackStatus; rating: number | null; submitter: { name: string | null; email: string | null }; preview: string; createdAt: string }
+  active: boolean
+  onOpen: () => void
 }) {
-  return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-44">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="any">{anyLabel}</SelectItem>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+  const body = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <span className="bo-inbox-item__who truncate text-sm">{i.submitter.name ?? i.submitter.email ?? "Guest"}</span>
+        <span className="text-xs whitespace-nowrap text-muted-foreground">{dayWord(i.createdAt) === "Today" ? moment(i.createdAt).replace("Today, ", "") : dayWord(i.createdAt)}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="bo-tag">{FEEDBACK_CATEGORY_LABELS[i.category]}</span>
+        {i.rating ? (
+          <span className="bo-tag">
+            <Star aria-hidden="true" />
+            {i.rating}
+          </span>
+        ) : null}
+        <span className="bo-code text-2xs text-muted-foreground">{i.referenceCode}</span>
+      </div>
+      <p className="line-clamp-2 text-sm text-muted-foreground">{i.preview}</p>
+    </>
   )
+  const cls = cn("bo-inbox-item w-full text-left", active && "is-active", i.status === "new" && "is-unread")
+  return (
+    <>
+      {/* Wide: opens beside the list. Narrow: the detail column is hidden, so it opens its own page. */}
+      <button type="button" className={cn(cls, "max-lg:hidden")} aria-current={active || undefined} onClick={onOpen}>
+        {body}
+      </button>
+      <Link to="/feedback/$referenceCode" params={{ referenceCode: i.referenceCode }} className={cn(cls, "lg:hidden")}>
+        {body}
+      </Link>
+    </>
+  )
+}
+
+function OpenSubmission({ referenceCode }: { referenceCode: string }) {
+  const detail = useQuery(feedbackDetailQuery(referenceCode))
+  const { data: session } = useQuery(sessionQuery)
+  const roles = session?.status === "signed-in" ? session.identity.roles : []
+  if (detail.isError) return <div className="p-6"><ErrorState error={detail.error} onRetry={() => void detail.refetch()} /></div>
+  if (detail.isPending) return <div className="space-y-3 p-6"><Skeleton className="h-8 w-48" /><Skeleton className="h-32" /></div>
+  return <FeedbackPanel detail={detail.data} mayReply={canReplyFeedback(roles)} showOpenLink />
 }

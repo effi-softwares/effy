@@ -163,6 +163,9 @@ export interface CartMirror {
   currency: string
   notices: CartDTO["notices"]
   discount: CartDTO["discount"]
+  /** 094 — every promotion applying, and the ones that do not yet, with why. */
+  promotions?: CartDTO["promotions"]
+  promotionsNotApplied?: CartDTO["promotionsNotApplied"]
   checkout: CartDTO["checkout"]
   limits: CartDTO["limits"]
 }
@@ -370,6 +373,8 @@ function fromDTO(dto: CartDTO): CartMirror {
     currency: dto.currency,
     notices: dto.notices,
     discount: dto.discount,
+    promotions: dto.promotions ?? [],
+    promotionsNotApplied: dto.promotionsNotApplied ?? [],
     checkout: dto.checkout,
     limits: dto.limits,
   }

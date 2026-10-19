@@ -10,6 +10,7 @@
  * decision that moves money. Same rule, two jobs.
  */
 import { availabilityPredicate, imageWidthsField, publicImageUrl, renditionWidthsSql } from "@effy/edge-shared";
+import { PRODUCT_OFFER_SQL, productOffer, type ProductOfferRow } from "@effy/edge-shared/promotions";
 import type { ProductBadge, StorefrontProductCardDTO } from "@effy/shared-types";
 
 export const CARD_COLUMNS = `p.id::text                 AS id,
@@ -28,7 +29,9 @@ export const CARD_COLUMNS = `p.id::text                 AS id,
        -- microsecond would be silently skipped at the page boundary.
        to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS created_at_key,
        -- ⚠ 054: availability is PROJECTED here, never used to filter this read.
-       (${availabilityPredicate("p")}) AS available`;
+       (${availabilityPredicate("p")}) AS available,
+       -- 094 — an item or buy-X-get-Y offer open to everyone that covers this product (R11).
+       ${PRODUCT_OFFER_SQL("p", "now()")} AS offer`;
 
 export const CARD_FROM = `
 FROM public.product p
@@ -59,6 +62,8 @@ export interface CardRow {
   created_at: Date;
   created_at_key: string;
   available: boolean;
+  /** 094 — the offer covering it, or null. */
+  offer?: ProductOfferRow | null;
 }
 
 const NEW_WITHIN_MS = 14 * 24 * 3600_000;
@@ -98,6 +103,7 @@ export async function toCards(rows: readonly CardRow[], imageAddress: ImageAddre
       compareAtAmount: row.compare_at_amount,
       badges: deriveBadges(row),
       available: row.available,
+      ...(row.offer ? { offer: productOffer(row.offer) } : {}),
     })),
   );
 }

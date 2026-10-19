@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { ArrowLeft, CircleAlert } from "lucide-react";
 
 import { useForm } from "@tanstack/react-form";
 
@@ -50,7 +52,12 @@ export interface OtpSignInCardProps {
    * its heading lives in the page. Omitted (the default) renders exactly as it always has, which is
    * what keeps back-office untouched.
    */
-  chrome?: "card" | "bare";
+  /**
+   * `"page"` (back-office redesign, board "Sign in") — the form as the page's own column: its heading
+   * ("Sign in to …" / "Check your email") is the form's, controls are the large size, the code is six
+   * cells that submit on the sixth digit, and a new code can be asked for after a minute.
+   */
+  chrome?: "card" | "bare" | "page";
   /** Fired when the flow completes and a session exists. The surface navigates. */
   onAuthenticated: () => Promise<void> | void;
   /** Optional analytics hooks — the surface owns its event taxonomy. */
@@ -113,6 +120,160 @@ export function OtpSignInCard({
       }
     },
   });
+
+  // `page` — a new code can be asked for once a minute; the code box submits on the sixth digit.
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+  useEffect(() => {
+    if (step === "otp") setResendIn(60);
+  }, [step]);
+
+  if (chrome === "page") {
+    const error = formError ? (
+      <p className="flex items-center gap-1.5 text-[13px] font-medium text-destructive" role="alert">
+        <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+        {formError}
+      </p>
+    ) : null;
+
+    return step === "email" ? (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void emailForm.handleSubmit();
+        }}
+        className="w-full max-w-[360px] space-y-6"
+        noValidate
+      >
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Sign in to {title}</h1>
+          <p className="text-sm text-muted-foreground">Sign in with your work email — we'll send a one-time code.</p>
+        </div>
+        <emailForm.Field name="email">
+          {(field) => (
+            <div className="space-y-2">
+              <Label htmlFor="email">Work email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                autoFocus
+                required
+                aria-invalid={formError ? true : undefined}
+                className="h-11! text-[15px]"
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+              />
+            </div>
+          )}
+        </emailForm.Field>
+        {error}
+        <emailForm.Subscribe selector={(st) => st.isSubmitting}>
+          {(isSubmitting) => (
+            <Button type="submit" size="xl" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Sending…" : "Send code"}
+            </Button>
+          )}
+        </emailForm.Subscribe>
+        <p className="text-xs text-muted-foreground">
+          There are no passwords for staff. Access is set up by an administrator — ask yours if you can't get in.
+        </p>
+      </form>
+    ) : (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void otpForm.handleSubmit();
+        }}
+        className="w-full max-w-[360px] space-y-6"
+        noValidate
+      >
+        <button
+          type="button"
+          className="inline-flex w-fit items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+          onClick={() => {
+            setFormError(null);
+            otpForm.reset();
+            setStep("email");
+          }}
+        >
+          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          Use a different email
+        </button>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
+          <p className="text-sm text-muted-foreground">
+            Enter the code we sent to <span className="font-medium text-foreground">{email}</span>.
+          </p>
+        </div>
+        <otpForm.Field name="code">
+          {(field) => (
+            <div className="space-y-2">
+              <Label htmlFor="code">One-time code</Label>
+              <OtpInput
+                id="code"
+                variant="cells"
+                autoFocus
+                required
+                aria-invalid={formError ? true : undefined}
+                value={field.state.value}
+                onChange={(e) => {
+                  field.handleChange(e.target.value);
+                  if (/^\d{6}$/.test(e.target.value.trim())) void otpForm.handleSubmit();
+                }}
+                onBlur={field.handleBlur}
+              />
+              {error}
+              <p className="text-[13px] text-muted-foreground">Pasting the code works. It signs you in as soon as the sixth digit is in.</p>
+            </div>
+          )}
+        </otpForm.Field>
+        <otpForm.Subscribe selector={(st) => st.isSubmitting}>
+          {(isSubmitting) => (
+            <Button type="submit" size="xl" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Verifying…" : "Verify & sign in"}
+            </Button>
+          )}
+        </otpForm.Subscribe>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground" aria-live="polite">
+            {resendIn > 0 ? `Send a new code in ${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, "0")}` : "Didn't get it?"}
+          </span>
+          <Button
+            type="button"
+            variant="link"
+            disabled={resendIn > 0}
+            onClick={async () => {
+              setFormError(null);
+              try {
+                await startSignIn(email);
+                otpForm.reset();
+                setResendIn(60);
+              } catch (err) {
+                logSignInFailure("start", err);
+                setFormError(START_SIGN_IN_ERROR);
+              }
+            }}
+          >
+            Resend code
+          </Button>
+        </div>
+        {/* ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a) — shown to everyone, always; see below. */}
+        <p className="text-xs text-muted-foreground" data-testid="stuck-note">
+          Still not arriving? Check your spam folder, or write to{" "}
+          <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
+            hello@effyshopping.com
+          </a>
+        </p>
+      </form>
+    );
+  }
 
   const body = (
     <>

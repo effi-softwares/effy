@@ -24,6 +24,7 @@ const POLICY: Record<string, CachePolicy | null> = {
   "home-v1-get.ts": "listing",
   "categories-v1-get.ts": "listing",
   "promotion-v1-get.ts": null,
+  "promotion-groups-v1-get.ts": "listing",
   "healthz-get.ts": null,
   "readyz-get.ts": null,
 };

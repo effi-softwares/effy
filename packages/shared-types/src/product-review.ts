@@ -35,6 +35,11 @@ export interface ReviewQueueItemDTO {
 export interface ReviewQueueDTO {
   items: ReviewQueueItemDTO[];
   nextCursor: string | null;
+  /**
+   * How many items the filtered queue holds across every page — the back-office rail's count beside
+   * "Product review". Optional only so a client reading an older deploy shows no count, not a wrong one.
+   */
+  total?: number;
 }
 
 /** A live product with no margin set (FR-008). It sells at its shop price until one is. */

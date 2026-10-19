@@ -19,7 +19,7 @@ import { StatusFilter, type StatusFilterValue } from "./StatusFilter";
 // select in the dialog needs every node, so the loaded list is passed straight through.
 export function CategoriesTab({ canManage }: { canManage: boolean }) {
   const { data, error, isPending, isError, refetch } = useQuery(categoriesQuery());
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("active");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
 

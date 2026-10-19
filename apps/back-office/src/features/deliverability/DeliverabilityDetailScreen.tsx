@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 
+import { Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { PageHeader } from "@/components/patterns/Page";
+import { Panel } from "@/components/patterns/Panel";
+import { moment } from "@/lib/format";
 
 import { sessionQuery } from "@/features/auth/queries";
 
@@ -25,19 +29,62 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
   const mayRepair = canRepairDelivery(roles);
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
-  if (isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isPending) return <Skeleton className="h-60" aria-busy="true" />;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <Link to="/deliverability" className="text-sm text-primary hover:underline">
-          ← All delivery problems
-        </Link>
-        <h1 className="mt-2 font-mono text-xl font-semibold tracking-tight">{data.address}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{STATE_MEANING[data.state]}</p>
-      </div>
+    <>
+      <PageHeader
+        back={{ label: "All delivery problems", link: { to: "/deliverability" } }}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            <span className="break-all">{data.address}</span>
+            <StateLabel state={data.state} />
+          </span>
+        }
+        description={STATE_MEANING[data.state]}
+        actions={mayRepair && data.state !== "reachable" ? <RepairDialog address={data.address} state={data.state} /> : undefined}
+      />
 
-      <dl className="divide-y divide-border border-y border-border">
+      <div className="bo-detail">
+      <div className="bo-detail__main">
+      <Panel title="History" description="Every send to this address the platform heard back about, newest first." flush>
+        <div className="bo-table-scroll">
+        <table className="bo-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Outcome</th>
+              <th>Detail</th>
+              <th>Template</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.events.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-muted-foreground">
+                  No events recorded.
+                </td>
+              </tr>
+            )}
+            {data.events.map((e) => (
+              <tr key={`${e.messageId}-${e.eventType}`}>
+                <td className="whitespace-nowrap">{moment(e.occurredAt)}</td>
+                <td>{e.eventType.replace("_", " ")}</td>
+                <td className="font-mono text-xs">{e.subType ?? "—"}</td>
+                {/* ⚠ A null template is an ANSWER, not a gap: Cognito sends cannot be tagged. */}
+                <td className="font-mono text-xs">{e.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}</td>
+                <td className="font-mono text-xs text-muted-foreground">{e.messageId}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      </Panel>
+      </div>
+      <aside className="bo-detail__aside is-first">
+      <Panel title="Address">
+      <dl className="bo-dl bo-dl--tight">
         <Row label="State">
           <StateLabel state={data.state} />
         </Row>
@@ -70,7 +117,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
           {data.suppressedInSes === null ? (
             <span className="text-muted-foreground">Couldn&apos;t check just now</span>
           ) : data.suppressedInSes ? (
-            <span className="font-medium text-destructive">
+            <span className="font-medium">
               Yes — sends to this address are accepted and silently dropped
             </span>
           ) : (
@@ -81,7 +128,7 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
           {data.bounceCount} bounced · {data.complaintCount} reported as spam
         </Row>
         <Row label="Last event">
-          {new Date(data.lastEventAt).toLocaleString()}
+          {moment(data.lastEventAt)}
           {data.lastMessageId && (
             <span className="ml-2 font-mono text-xs text-muted-foreground">
               {data.lastMessageId}
@@ -90,61 +137,23 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
         </Row>
         {data.repairedAt && (
           <Row label="Last repaired">
-            {new Date(data.repairedAt).toLocaleString()}{" "}
+            {moment(data.repairedAt)}{" "}
             <span className="font-mono text-xs text-muted-foreground">{data.repairedBy}</span>
           </Row>
         )}
       </dl>
-
-      {mayRepair && data.state !== "reachable" && (
-        <RepairDialog address={data.address} state={data.state} />
-      )}
-
-      <section>
-        <h2 className="text-lg font-semibold">History</h2>
-        <table className="mt-3 w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="py-2 font-medium">When</th>
-              <th className="py-2 font-medium">Outcome</th>
-              <th className="py-2 font-medium">Detail</th>
-              <th className="py-2 font-medium">Template</th>
-              <th className="py-2 font-medium">Message</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.events.length === 0 && (
-              <tr>
-                <td colSpan={5} className="py-3 text-muted-foreground">
-                  No events recorded.
-                </td>
-              </tr>
-            )}
-            {data.events.map((e) => (
-              <tr key={`${e.messageId}-${e.eventType}`} className="border-b border-border">
-                <td className="py-2">{new Date(e.occurredAt).toLocaleString()}</td>
-                <td className="py-2">{e.eventType.replace("_", " ")}</td>
-                <td className="py-2 font-mono text-xs">{e.subType ?? "—"}</td>
-                {/* ⚠ A null template is an ANSWER, not a gap: Cognito sends cannot be tagged. Say so
-                    plainly rather than rendering blank, which would read as missing data. */}
-                <td className="py-2 font-mono text-xs">
-                  {e.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}
-                </td>
-                <td className="py-2 font-mono text-xs text-muted-foreground">{e.messageId}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </div>
+      </Panel>
+      </aside>
+      </div>
+    </>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-3 gap-4 py-3">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="col-span-2 text-sm">{children}</dd>
+    <div className="bo-dl__row">
+      <dt>{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }

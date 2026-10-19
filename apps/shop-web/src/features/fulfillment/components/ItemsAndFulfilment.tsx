@@ -115,11 +115,8 @@ export function ItemsAndFulfilment({ detail }: { detail: OrderDetail }) {
           ) : null}
           {Number(m.discount) > 0 ? (
             <TotalRow
-              label={
-                <>
-                  Discount {m.promoCode ? <span className="font-mono">{m.promoCode}</span> : null}
-                </>
-              }
+              // 094 FR-035 — the total only; a shop is never told which promotion it was.
+              label="Discount"
               value={`−${formatMoney(m.discount, m.currency)}`}
             />
           ) : null}

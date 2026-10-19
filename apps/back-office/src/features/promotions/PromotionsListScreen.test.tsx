@@ -3,15 +3,13 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { BackOfficeRole } from "@effy/shared-types";
+import type { AdminPromotionListItemDTO, BackOfficeRole } from "@effy/shared-types";
 
-// The code column links to the detail route; without a RouterProvider a real <Link> throws. This is a
-// column/controls-render test, so a plain anchor stand-in is enough.
+// Rows link to the promotion's page; without a RouterProvider a real <Link> throws.
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
 }));
 
-// A mutable role set drives the session mock so a single suite can exercise manager vs csa.
 const roleState = vi.hoisted(() => ({ roles: ["manager"] as BackOfficeRole[] }));
 vi.mock("@/features/auth/queries", () => ({
   sessionQuery: {
@@ -20,31 +18,30 @@ vi.mock("@/features/auth/queries", () => ({
   },
 }));
 
-const listPromos = vi.hoisted(() => vi.fn());
-vi.mock("./repo", () => ({ listPromos }));
+const listPromotions = vi.hoisted(() => vi.fn());
+vi.mock("./repo", () => ({ listPromotions }));
+vi.mock("@/features/promotion-groups/repo", () => ({ listGroups: async () => [] }));
 
 import { PromotionsListScreen } from "./PromotionsListScreen";
 
-const CODE = {
+const ROW: AdminPromotionListItemDTO = {
   id: "p1",
-  code: "SPRING20",
-  kind: "percentage" as const,
-  percentOff: 20,
-  amountOff: null,
-  currency: "AUD",
-  minimumSubtotalAmount: "50.00",
+  name: "Spring sale",
+  kind: "cart",
+  trigger: "code",
+  state: "active",
+  gives: "20% off your order, up to $15",
+  who: "Everyone",
+  codeSummary: "SPRING20",
   startsAt: null,
   endsAt: null,
-  maxRedemptions: 500,
-  maxPerCustomer: 1,
-  status: "active" as const,
-  redemptionCount: 3,
-  createdBy: "actor",
-  updatedBy: null,
-  createdAt: "2026-07-01T00:00:00Z",
-  updatedAt: "2026-07-01T00:00:00Z",
+  uses: 3,
+  maxUses: 500,
+  groups: ["Home hero"],
+  updatedAt: "2026-10-01T00:00:00Z",
 };
-const ONE_PAGE = { items: [CODE], total: 1, page: 1, pageSize: 20 };
+const COUNTS = { draft: 1, scheduled: 0, active: 1, paused: 0, used_up: 0, out_of_budget: 0, ended: 0, archived: 2 };
+const page = (items: AdminPromotionListItemDTO[]) => ({ items, counts: COUNTS, total: items.length, page: 1, pageSize: 25 });
 
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -56,48 +53,45 @@ afterEach(() => {
   roleState.roles = ["manager"];
 });
 
-describe("PromotionsListScreen", () => {
-  it("renders a code's value, minimum and usage against its cap", async () => {
-    listPromos.mockResolvedValue(ONE_PAGE);
+describe("PromotionsListScreen (094)", () => {
+  it("shows what a promotion gives, its code, who it is for, its uses against the cap and where it is shown", async () => {
+    listPromotions.mockResolvedValue(page([ROW]));
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText("SPRING20")).toBeInTheDocument();
-    expect(screen.getByText("20% off")).toBeInTheDocument();
-    expect(screen.getByText("$50.00")).toBeInTheDocument();
+    expect(await screen.findByText("Spring sale")).toBeInTheDocument();
+    expect(screen.getByText("20% off your order, up to $15")).toBeInTheDocument();
+    expect(screen.getByText("SPRING20")).toBeInTheDocument();
     expect(screen.getByText("3 of 500")).toBeInTheDocument();
+    expect(screen.getByText("Home hero")).toBeInTheDocument();
   });
 
-  it("reads a scheduled code's window as Scheduled, not as running", async () => {
-    const future = new Date(Date.now() + 86_400_000).toISOString();
-    listPromos.mockResolvedValue({ ...ONE_PAGE, items: [{ ...CODE, startsAt: future }] });
+  it("counts every state on its tab, and keeps archived ones out of All", async () => {
+    listPromotions.mockResolvedValue(page([ROW]));
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText("Scheduled")).toBeInTheDocument();
+    await screen.findByText("Spring sale");
+    expect(screen.getByRole("button", { name: /^All\s*2$/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Archived\s*2$/ })).toBeInTheDocument();
   });
 
-  it("reads a closed window as Ended even while the code's status is active", async () => {
-    const past = new Date(Date.now() - 86_400_000).toISOString();
-    listPromos.mockResolvedValue({ ...ONE_PAGE, items: [{ ...CODE, endsAt: past }] });
+  it("says an automatic promotion has no code", async () => {
+    listPromotions.mockResolvedValue(page([{ ...ROW, trigger: "automatic", codeSummary: null }]));
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText("Ended")).toBeInTheDocument();
-    expect(screen.getByText("active")).toBeInTheDocument();
+    expect(await screen.findByText("Automatic")).toBeInTheDocument();
   });
 
-  it("shows the empty message when no code matches", async () => {
-    listPromos.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+  it("shows the empty state when nothing exists yet", async () => {
+    listPromotions.mockResolvedValue({ ...page([]), counts: { ...COUNTS, draft: 0, active: 0, archived: 0 } });
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText(/no codes match your filter/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no promotions yet/i)).toBeInTheDocument();
   });
 
-  it("offers Create code to a manager", async () => {
-    listPromos.mockResolvedValue(ONE_PAGE);
-    wrap(<PromotionsListScreen />);
-    expect(await screen.findByRole("button", { name: /create code/i })).toBeInTheDocument();
-  });
-
-  it("hides Create code from a csa — support reads the register, it does not write it", async () => {
+  it("offers Create promotion to a manager, and not to customer service", async () => {
+    listPromotions.mockResolvedValue(page([ROW]));
+    const { unmount } = wrap(<PromotionsListScreen />);
+    expect(await screen.findByText(/create promotion/i)).toBeInTheDocument();
+    unmount();
     roleState.roles = ["csa"];
-    listPromos.mockResolvedValue(ONE_PAGE);
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText("SPRING20")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /create code/i })).not.toBeInTheDocument();
+    await screen.findByText("Spring sale");
+    expect(screen.queryByText(/create promotion/i)).not.toBeInTheDocument();
   });
 });

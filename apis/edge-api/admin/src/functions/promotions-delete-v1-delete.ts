@@ -1,24 +1,19 @@
-// DELETE /admin/v1/promotions/{id} — only a code that has NEVER been redeemed (027 FR-070). Disabling is
-// the removal path for anything used, so every paid order keeps a code that still explains it.
+// DELETE /admin/v1/promotions/{id} — delete a promotion nobody has used (094; a used one is archived).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { preamble } from "@effy/edge-shared";
+import { noContent, preamble } from "@effy/edge-shared";
 
 import { guard, mapPromoError } from "../promotions/handler-support";
-import { deletePromo } from "../promotions/service";
+import { deletePromotion } from "../promotions/promotion-service";
 
-export const handler = async (
-  event: AuthedEvent,
-  context: Context,
-): Promise<APIGatewayProxyStructuredResultV2> => {
+export const handler = async (event: AuthedEvent, context: Context): Promise<APIGatewayProxyStructuredResultV2> => {
   const scope = preamble(event, context);
   const g = await guard(event, scope, "mutate");
   if ("deny" in g) return g.deny;
-
   try {
-    await deletePromo(event.pathParameters?.id ?? "", g.sub);
-    return { statusCode: 204, headers: { "x-request-id": scope.requestId }, body: "" };
+    await deletePromotion(event.pathParameters?.id ?? "", g.sub);
+    return noContent(scope);
   } catch (err) {
     return mapPromoError(err, scope);
   }

@@ -34,11 +34,11 @@ import { MoreFromBrand, RelatedProducts } from "../../_components/RelatedProduct
  */
 type ProductContent = Omit<
   StorefrontProductDetailDTO,
-  "priceAmount" | "compareAtAmount" | "currency" | "available" | "badges"
+  "priceAmount" | "compareAtAmount" | "currency" | "available" | "badges" | "offer"
 >
 
 /** The part of a product page that must be current: read live on every view (054 FR-015a). */
-type ProductLive = Pick<StorefrontProductCardDTO, "priceAmount" | "compareAtAmount" | "currency" | "available">
+type ProductLive = Pick<StorefrontProductCardDTO, "priceAmount" | "compareAtAmount" | "currency" | "available" | "offer">
 
 /**
  * The product's content — SHARED between requests for minutes (PERF-07, 054 FR-015a as amended).
@@ -60,7 +60,8 @@ async function readProductContent(id: string): Promise<ProductContent | null> {
     cacheLife(CACHE_LIFE.listing)
     return null
   }
-  const { priceAmount, compareAtAmount, currency, available, badges, ...content } = detail
+  // 094 — the offer changes with promotions, so it is live, never kept with the content.
+  const { priceAmount, compareAtAmount, currency, available, badges, offer, ...content } = detail
   const signed = [content.imageUrl, ...content.gallery.map((m) => m.imageUrl)].some((u) => u?.includes("X-Amz-"))
   cacheLife(signed ? CACHE_LIFE.listing : CACHE_LIFE.catalogue)
   return content
@@ -215,6 +216,8 @@ async function LivePrice({ id }: { id: string }) {
     <>
       <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="text-3xl font-bold tabular-nums">{formatMoney(live.priceAmount, live.currency)}</span>
+        {/* 094 — the offer the cart will apply to this product. */}
+        {live.offer && live.available ? <Badge variant="brand">{live.offer.label}</Badge> : null}
         {discounted && live.compareAtAmount && (
           <>
             <span className="text-sm text-muted-foreground tabular-nums line-through">

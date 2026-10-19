@@ -48,6 +48,9 @@ export interface OrderRow {
   item_subtotal_amount: string;
   discount_amount: string;
   promo_code: string | null;
+  /** 094 — what delivery promotions took off, and each promotion as sold (null before 094). */
+  delivery_discount_amount: string;
+  promotions: { headline: string | null; name: string; code: string | null; goods: string; delivery: string }[] | null;
   delivery_fee_amount: string;
   /**
    * 077 — the delivery charge as the lines the customer was sold, or null on an order placed before
@@ -97,6 +100,8 @@ export interface ItemRow {
   unit_price_amount: string;
   quantity: number;
   line_subtotal_amount: string;
+  /** 094 — what promotions took off this line, as sold. */
+  discount_amount: string;
   image_key: string | null;
   /** 086 — the line picture's ready copies; NULL for none. */
   image_widths: number[] | null;
@@ -202,6 +207,10 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.delivery_handover AS delivery_handover, o.delivery_note AS delivery_note,
        o.item_subtotal_amount::text AS item_subtotal_amount,
        o.discount_amount::text AS discount_amount, o.promo_code AS promo_code,
+       o.delivery_discount_amount::text AS delivery_discount_amount,
+       (SELECT json_agg(json_build_object('headline', op.headline, 'name', op.name, 'code', op.code_text,
+                                          'goods', op.goods_amount::text, 'delivery', op.delivery_amount::text) ORDER BY op.name)
+          FROM public.order_promotion op WHERE op.order_id = o.id) AS promotions,
        o.delivery_fee_amount::text AS delivery_fee_amount,
        o.delivery_fee_breakdown -> 'lines' AS delivery_fee_lines,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
@@ -253,6 +262,7 @@ SELECT oi.id::text AS order_item_id,
        oi.product_id::text AS product_id, oi.product_name AS product_name,
        oi.unit_price_amount::text AS unit_price_amount, oi.quantity AS quantity,
        oi.line_subtotal_amount::text AS line_subtotal_amount,
+       oi.discount_amount::text AS discount_amount,
        pm.storage_key AS image_key,
        ${renditionWidthsSql("pm.storage_key")} AS image_widths
 FROM public.order_item oi

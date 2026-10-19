@@ -1,7 +1,9 @@
 // Reading and closing delivery exceptions (064, US3).
 
 import { query, withTransaction } from "@effy/edge-shared";
+import { EXCEPTION_OUTCOMES } from "@effy/shared-types";
 import type {
+  ExceptionOutcome,
   DeliveryExceptionDTO,
   DeliveryExceptionListDTO,
   DeliveryFailureReason,
@@ -26,6 +28,8 @@ interface ExceptionRow {
   note: string | null;
   failed_at: Date | string;
   resolved_at: Date | string | null;
+  resolution_outcome: ExceptionOutcome | null;
+  resolution_note: string | null;
   driver_id: string;
   driver_name: string;
   order_number: string;
@@ -60,6 +64,7 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
     packageLocation: r.package_location,
     roundId: r.round_id,
     returnedAt: r.returned_at ? iso(r.returned_at) : null,
+    resolution: r.resolved_at ? { outcome: r.resolution_outcome, note: r.resolution_note } : null,
   }));
 
   // 093 — what else needs a dispatcher: packages declared missing, steps overdue, vehicles found unsafe.
@@ -85,13 +90,25 @@ export async function listExceptions(includeResolved = false): Promise<DeliveryE
  * ⚠ The audit write shares the transaction with the change, and goes through the SHARED helper. 063
  * nearly added a second audit writer and would have skipped the PII redaction with it (Principle II).
  */
+export class ExceptionOutcomeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExceptionOutcomeError";
+  }
+}
+
 export async function resolveException(
   exceptionId: string,
   actorSub: string,
   note: string | null,
+  outcome: ExceptionOutcome | null = null,
 ): Promise<ResolveExceptionResponse> {
+  if (outcome !== null && !EXCEPTION_OUTCOMES.includes(outcome)) throw new ExceptionOutcomeError("outcome is redelivered, refunded, collected or other");
+  // "Other" is only useful with words: the next person reads it instead of asking.
+  if (outcome === "other" && !note) throw new ExceptionOutcomeError("Say what happened when the outcome is Other.");
+  if (note !== null && note.length > 500) throw new ExceptionOutcomeError("Keep the note to 500 characters.");
   return withTransaction(async (tx: any) => {
-    const updated = await tx.query(RESOLVE_EXCEPTION, [exceptionId]);
+    const updated = await tx.query(RESOLVE_EXCEPTION, [exceptionId, outcome, note]);
 
     if (updated.rowCount === 0) {
       // Either it does not exist, or somebody already closed it. Both are answered the same way: the
@@ -114,7 +131,7 @@ export async function resolveException(
         // ⚠ The operator's note is recorded; the DRIVER'S note is not. That one is free text typed at
         // a doorstep and may name a person or a property (FR-028, 050's no-PII rule). The reason is
         // a closed-set value and is safe.
-        detail: { noteProvided: note !== null },
+        detail: { noteProvided: note !== null, outcome },
       },
       tx,
     );

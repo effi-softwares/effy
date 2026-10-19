@@ -10,6 +10,10 @@ export const PROMO_KINDS: readonly PromoKind[] = ["percentage", "fixed"];
 export type PromoStatus = "active" | "disabled";
 export const PROMO_STATUSES: readonly PromoStatus[] = ["active", "disabled"];
 
+/** What a code is doing now — derived in the list query, never stored (redesign). */
+export type PromoState = "active" | "scheduled" | "used_up" | "ended" | "disabled";
+export const PROMO_STATES: readonly PromoState[] = ["active", "scheduled", "used_up", "ended", "disabled"];
+
 export interface PromoCode {
   id: string;
   code: string;

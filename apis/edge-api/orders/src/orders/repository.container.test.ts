@@ -30,7 +30,7 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
 
 import { migrationSql } from "@effy/edge-shared";
 
-import { history, list, packages } from "./repository";
+import { history, list, packages, viewCounts } from "./repository";
 import { listOrders } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -313,6 +313,24 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       expect(await list({ awaiting: "arrival", limit: 10 })).toHaveLength(0);
       const all = await list({ limit: 10 });
       expect(all[0]!.awaiting_arrival).toBe(0);
+    });
+
+    // The back-office view tabs (redesign): each count is exactly the rows its view lists.
+    it("counts every view with the list's own filters", async () => {
+      const { fulfillmentId } = await seed("standard");
+      await seed("standard");
+      await pool.query(
+        `INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 's')`,
+        [fulfillmentId],
+      );
+      const counts = await viewCounts({ stillOpen: false });
+      expect(Number(counts.total)).toBe((await list({ limit: 50 })).length);
+      expect(Number(counts.handover)).toBe((await list({ awaiting: "handover", limit: 50 })).length);
+      expect(Number(counts.arrival)).toBe((await list({ awaiting: "arrival", limit: 50 })).length);
+      expect(Number(counts.needs_driver)).toBe((await list({ needsDriver: true, limit: 50 })).length);
+      expect(Number(counts.refund_decision)).toBe((await list({ awaiting: "refund_decision", limit: 50 })).length);
+      expect(Number(counts.courier_problem)).toBe((await list({ awaiting: "courier_problem", limit: 50 })).length);
+      expect(Number(counts.handover)).toBe(1);
     });
   });
 

@@ -9,6 +9,11 @@ import {
 import { credit, debit, usable } from "@effy/edge-shared/points";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createRefundRepository } from "@effy/edge-shared/payments";
+import { createCartRepository } from "../cart/repository";
+import { createCartService } from "../cart/service";
+import { pricePromotionsFor, promotionPort } from "../promotions/pricing";
+import { flatPricing, NO_PROMOTIONS } from "../promotions/testing";
 
 import { createOrdersRepository } from "../orders/repository";
 import { createOrdersService, OrderNotFoundError as ReceiptNotFoundError } from "../orders/service";
@@ -16,7 +21,7 @@ import { createWebhookHandler } from "../webhook/handler";
 import { DeliveryChoiceError } from "./delivery-choice";
 import { defaultQuoter, quoteForCheckout, type PromoSource } from "./quote";
 import {
-  createCheckoutService, DeliveryFeeChangedError, EmptyCartError, NotServiceableError, OrderNotFoundError, PointsExceedTotalError,
+  createCheckoutService, DeliveryFeeChangedError, EmptyCartError, NotServiceableError, OrderNotFoundError, PointsExceedTotalError, PromotionsChangedRefusal,
   type CheckoutService, type IntentInput,
 } from "./service";
 import { createCheckoutStore, SlotUnavailableError, type CheckoutStore } from "./store";
@@ -206,7 +211,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   beforeEach(async () => {
     gateway = fakeGateway();
     svc = createCheckoutService({
-      store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos: async () => ({ cents: 0, promo: null }),
+      store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos: async () => NO_PROMOTIONS,
       quoter: defaultQuoter(pool), publishableKey: "pk_test_x", transact,
     });
     await pool.query(`DELETE FROM public.delivery_slot_booking`);
@@ -735,7 +740,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
          FROM public."order" WHERE id = $1`,
       [orderId],
     );
-  const noPromo: PromoSource = async () => ({ cents: 0, promo: null });
+  const noPromo: PromoSource = async () => NO_PROMOTIONS;
   const quoteFor = (s: { customerId: string; addressId: string }, promos: PromoSource = noPromo) =>
     quoteForCheckout({ store, quoter: defaultQuoter(pool), promos }, s.customerId, s.addressId, new Date());
 
@@ -826,7 +831,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect((await quoteFor(await shopper({ P8000: 1 }))).freeDeliveryRemainingAmount).toBeNull();
 
       // A promotion counts: $85 less $10 is a $75 basket, which is not free — in the quote and the charge alike.
-      const tenOff: PromoSource = async () => ({ cents: 1000, promo: { id: "00000000-0000-0000-0000-0000000000aa", code: "TEN" } });
+      const tenOff: PromoSource = async () => flatPricing(1000);
       const discounted = await shopper({ P8500: 1 });
       const q = await quoteFor(discounted, tenOff);
       expect(q.effyWindows!.days[1]!.windows[0]!.fee).toEqual({ lines: [{ kind: "delivery", amount: "6.00" }], totalAmount: "6.00" });
@@ -1570,5 +1575,56 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(q).not.toHaveProperty("courier");
       expect(await refusal(svc.createIntent(t.customerId, windowOn(t.addressId, days[1]!), new Date()))).toBe("no_windows_available");
     }));
+  });
+
+  it("094 — the cart's promotions are the charge's: lines, records, a held use confirmed by payment, a paid-share refund, and a changed promotion refused", async () => {
+    const cartSvc = createCartService({ repo: createCartRepository(pool, transact), policy: () => loadCartPolicy(pool), imageAddress: async () => null, promotions: promotionPort(pool) });
+    const promos: PromoSource = async (i) =>
+      pricePromotionsFor(pool, {
+        customerId: i.customerId, enteredCodeId: await cartSvc.enteredCodeFor(i.customerId),
+        lines: i.lines.map((l) => ({ productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
+        deliveryType: i.deliveryType, deliveryFeeCents: i.deliveryFeeCents, now: i.now, excludeOrderId: i.excludeOrderId ?? null,
+      });
+    const real = createCheckoutService({ store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos, quoter: defaultQuoter(pool), publishableKey: "pk_test_x", transact });
+    const code = `TENPC${++seq}`;
+    const promo = await one<{ id: string }>(
+      `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, published_at, headline, created_by)
+       VALUES ('Ten', 'cart', 'code', 'percent', 10, 'cart', now() - interval '1 minute', '10% off', 'seed') RETURNING id::text AS id`,
+    );
+    await pool.query(`INSERT INTO public.promotion_code (promotion_id, code) VALUES ($1, $2)`, [promo.id, code]);
+
+    const s = await shopper({ Milk: 3 });
+    const cart = await cartSvc.applyPromo(s.customerId, code.toLowerCase());
+    expect(Number(cart.discountAmount)).toBeGreaterThan(0);
+    const r = await real.createIntent(s.customerId, input(s.addressId, { expectedDiscount: cart.discountAmount }), new Date());
+
+    // SC-003 — the cart's discount is exactly the order's, on its lines and in its record.
+    const o = await one<{ discount: string; lines: string; recorded: string; use: string }>(
+      `SELECT o.discount_amount::text AS discount,
+              (SELECT sum(discount_amount)::text FROM public.order_item WHERE order_id = o.id) AS lines,
+              (SELECT goods_amount::text FROM public.order_promotion WHERE order_id = o.id) AS recorded,
+              (SELECT status FROM public.promotion_use WHERE order_id = o.id) AS use
+         FROM public."order" o WHERE o.id = $1`,
+      [r.orderId],
+    );
+    expect(o).toEqual({ discount: cart.discountAmount, lines: cart.discountAmount, recorded: cart.discountAmount, use: "held" });
+
+    // A client built before 094 sends no total and is priced without the check — same order, re-held.
+    await expect(real.createIntent(s.customerId, input(s.addressId), new Date())).resolves.toMatchObject({ orderId: r.orderId });
+
+    // Payment confirms the use; a refund of one unit returns what was paid for it, not its shelf price.
+    await pay(r.orderId);
+    expect((await one<{ status: string }>(`SELECT status FROM public.promotion_use WHERE order_id = $1`, [r.orderId])).status).toBe("confirmed");
+    const item = await one<{ id: string; unit: string; disc: string }>(
+      `SELECT id::text, unit_price_amount::text AS unit, discount_amount::text AS disc FROM public.order_item WHERE order_id = $1`, [r.orderId],
+    );
+    const priced = await createRefundRepository(pool, transact).priceLines(r.orderId, [{ orderItemId: item.id, quantity: 3 }]);
+    expect(priced.totalCents).toBe(Math.round(Number(item.unit) * 300 - Number(item.disc) * 100));
+
+    // FR-037 — a promotion that ends between the cart and the pay button is refused, nothing charged.
+    const t = await shopper({ Milk: 3 });
+    const tCart = await cartSvc.applyPromo(t.customerId, code);
+    await pool.query(`UPDATE public.promotion SET ended_at = now() WHERE id = $1`, [promo.id]);
+    await expect(real.createIntent(t.customerId, input(t.addressId, { expectedDiscount: tCart.discountAmount }), new Date())).rejects.toBeInstanceOf(PromotionsChangedRefusal);
   });
 });

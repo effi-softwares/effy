@@ -31,6 +31,8 @@ const root = resolve(import.meta.dirname, "..")
 const ALLOWED: Record<string, readonly (keyof typeof CACHE_LIFE)[]> = {
   "lib/categories.ts": ["listing"],
   "app/(shop)/home-data.ts": ["listing"],
+  // 094 — display groups for a signed-out shopper: the same listing tier as the banners they replaced.
+  "app/(shop)/promotion-groups-public.ts": ["listing"],
   // `listing` for a 404, and for content still carrying a presigned (15-minute) picture address.
   "app/(shop)/product/[id]/page.tsx": ["catalogue", "listing"],
 }

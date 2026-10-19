@@ -7,9 +7,12 @@ import {
   judgeWindow, loadSlotSettings, lockSlot, collectionSchedule, slotLoad, type SlotVerdict,
 } from "@effy/edge-shared/delivery";
 import type { PaymentMethodSummary } from "@effy/edge-shared/payments";
+import { holdUses } from "@effy/edge-shared/promotions";
 import type { DeliveryPromise } from "@effy/shared-types";
 import { hold as holdLedgerPoints, loadSettings as loadPointsSettings, usable as usablePoints } from "@effy/edge-shared/points";
 import { randomBytes } from "node:crypto";
+
+import type { Pricing } from "../promotions/pricing";
 
 export interface CheckoutLine {
   productId: string;
@@ -144,6 +147,12 @@ export interface CheckoutStore {
   placePointsOnly(orderId: string): Promise<void>;
   orderIntentForCustomer(customerId: string, orderId: string): Promise<string | null>;
   pendingOrderIntent(customerId: string): Promise<{ orderId: string; intentId: string } | null>;
+  /**
+   * 094 — write what each promotion took off each line and the fee, the order's promotion records,
+   * and HOLD their uses (R5, R7) — one transaction. Throws `PromotionsChangedError` when one no longer
+   * fits; nothing of it is then written.
+   */
+  recordPromotions(orderId: string, customerId: string, priced: Pricing, now: Date): Promise<void>;
   savePaymentMethod(orderId: string, m: PaymentMethodSummary): Promise<void>;
 }
 
@@ -492,6 +501,44 @@ WHERE o.id = $1 AND o.customer_id = $2 AND pay.stripe_payment_intent_id IS NOT N
      * The customer's lingering `pending_payment` order and the intent recorded against it. null
      * when there is no such order, or it never got as far as an intent.
      */
+    recordPromotions: (orderId, customerId, priced, now) =>
+      transact(async (tx) => {
+        const o = priced.outcome;
+        await tx.query(`UPDATE public."order" SET delivery_discount_amount = $2::numeric, updated_at = now() WHERE id = $1`, [
+          orderId,
+          formatCents(o.deliveryDiscountCents),
+        ]);
+        await tx.query(`UPDATE public.order_item SET discount_amount = 0 WHERE order_id = $1`, [orderId]);
+        // The cart has one line per product, and the order's lines were written from it (pricing.ts).
+        for (const [productId, cents] of Object.entries(o.lineDiscounts)) {
+          await tx.query(`UPDATE public.order_item SET discount_amount = $3::numeric WHERE order_id = $1 AND product_id = $2`, [
+            orderId,
+            productId,
+            formatCents(cents),
+          ]);
+        }
+        await tx.query(`DELETE FROM public.order_promotion WHERE order_id = $1`, [orderId]);
+        for (const a of o.applied) {
+          const rec = priced.records.get(a.promotionId);
+          await tx.query(
+            `INSERT INTO public.order_promotion (order_id, promotion_id, code_id, code_text, name, headline, kind, goods_amount, delivery_amount)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::numeric, $9::numeric)`,
+            [orderId, a.promotionId, a.codeId, a.codeText, rec?.name ?? "Promotion", rec?.headline ?? null, a.kind, formatCents(a.goodsCents), formatCents(a.deliveryCents)],
+          );
+        }
+        const holdMin = (
+          await tx.query<{ m: number }>(`SELECT coalesce((SELECT slot_hold_min FROM public.delivery_settings WHERE id = 1), 10)::int AS m`)
+        ).rows[0]!.m;
+        await holdUses(tx, {
+          orderId,
+          customerId,
+          applied: o.applied.filter((a) => !a.awaitingDeliveryFee),
+          singleUseCodeIds: priced.singleUseCodeIds,
+          expiresAt: new Date(now.getTime() + holdMin * 60_000),
+          now,
+        });
+      }),
+
     async pendingOrderIntent(customerId) {
       const row = (
         await db.query<{ order_id: string; intent: string }>(

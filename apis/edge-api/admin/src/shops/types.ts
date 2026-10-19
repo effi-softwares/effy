@@ -51,6 +51,8 @@ export interface ShopListItem {
   name: string;
   status: ShopLifecycleStatus;
   userCount: number;
+  /** 091 — the same count the shop page reads, so the register shows which shops print badly. */
+  labelScanning: { scanned: number; notScanned: number; sinceDays: number };
 }
 
 export interface Paged<T> {

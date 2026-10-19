@@ -201,7 +201,9 @@ private fun AddressAndPay(
 ) {
     var pickingAddress by remember { mutableStateOf(false) }
     val selected = s.addresses.firstOrNull { it.id == s.selectedId }
-    val pay = checkoutAmounts(cart.grandTotalAmount, s.deliveryFee?.totalAmount, s.points?.takeIf { s.usePoints })
+    // 094 — delivery as charged: the fee less this option's delivery offer.
+    val deliveryCharged = s.deliveryFee?.let { f -> f.promotionAmount?.let { fromCents(toCents(f.totalAmount) - toCents(it)) } ?: f.totalAmount }
+    val pay = checkoutAmounts(cart.grandTotalAmount, deliveryCharged, s.points?.takeIf { s.usePoints })
 
     Column(modifier = Modifier.fillMaxSize()) {
     Column(
@@ -428,8 +430,9 @@ private fun OrderSummaryCard(cart: CartSnapshot, s: CheckoutUiState.Ready, pay: 
             }
         }
         EffyDetailRow("Items (${cart.itemCount})", money(cart.itemSubtotalAmount, cart.currency))
-        cart.discount?.let { d ->
-            EffyDetailRow("${d.label} (${d.code})", "−" + money(d.amount.removePrefix("-"), cart.currency), valueColor = EffyRoles.brand)
+        // 094 — one row per promotion applying, automatic and by code.
+        cart.promotions.filter { it.goodsAmount != "0.00" }.forEach { p ->
+            EffyDetailRow(if (p.code != null) "${p.headline} (${p.code})" else p.headline, "−" + money(p.goodsAmount, cart.currency), valueColor = EffyRoles.brand)
         }
         val fee = s.deliveryFee
         when {
@@ -443,6 +446,9 @@ private fun OrderSummaryCard(cart: CartSnapshot, s: CheckoutUiState.Ready, pay: 
                 )
             }
             s.serviced -> EffyDetailRow("Delivery", "Choose a delivery option")
+        }
+        fee?.promotionAmount?.let { off ->
+            EffyDetailRow("Delivery offer", "−" + money(off, cart.currency), valueColor = EffyRoles.brand)
         }
         val freeRemaining = s.quote?.freeDeliveryRemainingAmount?.takeIf { s.serviced }
         when {

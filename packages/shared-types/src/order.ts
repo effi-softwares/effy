@@ -117,6 +117,16 @@ export interface OrderItemDTO {
   imageUrl?: string | null;
   /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
   imageWidths?: number[];
+  /** 094 — what promotions took off this line, as sold. Absent or "0.00" when none. */
+  discountAmount?: string;
+}
+
+/** 094 — one promotion applied to an order, as it was sold (never re-derived). */
+export interface OrderPromotionDTO {
+  headline: string;
+  code: string | null;
+  goodsAmount: string;
+  deliveryAmount: string;
 }
 
 /** The snapshotted delivery address on the receipt. */
@@ -190,6 +200,10 @@ export interface OrderDTO {
    * Invariant: grandTotal = itemSubtotal − discount. (There is no delivery fee on this platform.)
    */
   discountAmount?: string;
+  /** 094 — each promotion applied and what it took off; an order from before 094 shows its one code. */
+  promotions?: OrderPromotionDTO[];
+  /** 094 — what delivery promotions took off the fee. */
+  deliveryDiscountAmount?: string;
   /**
    * 051 FR-043 — the delivery fee as charged.
    *

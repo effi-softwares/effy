@@ -2,201 +2,238 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Plus, SlidersHorizontal } from "lucide-react";
+import { LayoutList, Plus, SlidersHorizontal, TicketPercent } from "lucide-react";
 
-import type { PromoStatus } from "@effy/shared-types";
-import { PROMO_STATUSES } from "@effy/shared-types";
-import {
-  Badge,
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types";
+import { cn } from "@effy/design-system";
+import { Button, Skeleton } from "@effy/design-system/ui";
+import { ErrorState } from "@effy/web-kit/console";
 
+import { PageHeader } from "@/components/patterns/Page";
+import { EmptyState } from "@/components/patterns/States";
+import { StatusWord } from "@/components/patterns/StatusWord";
+import { Facet, Pager, ResetFilters, SearchBox, Toolbar } from "@/components/patterns/Toolbar";
 import { sessionQuery } from "@/features/auth/queries";
+import { promotionGroupsQuery } from "@/features/promotion-groups/queries";
 
 import { canManagePromotions } from "./access";
-import { PromoCodeDialog } from "./components/PromoCodeDialog";
-import { promoValueLabel, redemptionLabel, type PromoCode } from "./model";
-import { promoListQuery } from "./queries";
+import { KIND_WORD, STATE_TONE, STATE_WORD, usesLabel } from "./model";
+import { promotionListQuery } from "./queries";
 
-// The promotional-code register (027 US10). A table, not cards — Principle V, and the operator's
-// question here is comparative ("which codes are live, which are nearly exhausted"), which is what a
-// table answers and a grid of cards does not.
+const PAGE_SIZE = 25;
+type View = "all" | PromotionState;
 
-const PAGE_SIZE = 20;
-const ALL_STATUSES = "all";
+const dateFmt = new Intl.DateTimeFormat("en-AU", { day: "numeric", month: "short", year: "numeric", timeZone: "Australia/Melbourne" });
 
-function StatusBadge({ status }: { status: PromoStatus }) {
-  return <Badge variant={status === "active" ? "success" : "muted"}>{status}</Badge>;
+/** "1 Oct – 31 Oct 2026" / "From 12 Sep 2026" / "Always". */
+export function activeDates(startsAt: string | null, endsAt: string | null): string {
+  if (!startsAt && !endsAt) return "Always";
+  if (!endsAt) return `From ${dateFmt.format(new Date(startsAt!))}`;
+  if (!startsAt) return `Until ${dateFmt.format(new Date(endsAt))}`;
+  return `${dateFmt.format(new Date(startsAt))} – ${dateFmt.format(new Date(endsAt))}`;
 }
 
-/** Live / Scheduled / Ended — derived from the window, so "active" never reads as "running now"
- *  for a code whose window has closed. Display only; the platform decides at apply time. */
-function windowLabel(promo: PromoCode): string {
-  const now = Date.now();
-  if (promo.startsAt && new Date(promo.startsAt).getTime() > now) return "Scheduled";
-  if (promo.endsAt && new Date(promo.endsAt).getTime() <= now) return "Ended";
-  return "Open";
+export function PromotionStateWord({ state }: { state: PromotionState }) {
+  return <StatusWord tone={STATE_TONE[state]}>{STATE_WORD[state]}</StatusWord>;
 }
 
-const columns: ColumnDef<PromoCode>[] = [
-  {
-    accessorKey: "code",
-    header: "Code",
-    cell: ({ row }) => (
-      <Link
-        to="/promotions/$promoId"
-        params={{ promoId: row.original.id }}
-        className="font-mono font-medium text-primary hover:underline"
-      >
-        {row.original.code}
-      </Link>
-    ),
-  },
-  { id: "value", header: "Value", cell: ({ row }) => promoValueLabel(row.original) },
-  {
-    accessorKey: "minimumSubtotalAmount",
-    header: "Minimum",
-    cell: ({ row }) =>
-      Number(row.original.minimumSubtotalAmount) > 0 ? (
-        <span className="tabular-nums">${row.original.minimumSubtotalAmount}</span>
-      ) : (
-        <span className="text-muted-foreground">—</span>
-      ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
-  },
-  { id: "window", header: "Window", cell: ({ row }) => windowLabel(row.original) },
-  {
-    accessorKey: "redemptionCount",
-    header: "Redeemed",
-    cell: ({ row }) => <span className="tabular-nums">{redemptionLabel(row.original)}</span>,
-  },
-];
-
+/**
+ * Promotions (094; redesign, board "Promotion codes"): every offer, automatic or by code, in one
+ * table — what it gives, who it is for, when, how much it has been used, and where it is shown. State
+ * is worked out by the server from the switch, dates, uses and budget; it is never stored.
+ */
 export function PromotionsListScreen() {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
   const canManage = canManagePromotions(roles);
 
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<PromoStatus | typeof ALL_STATUSES>(ALL_STATUSES);
+  const [view, setView] = useState<View>("all");
   const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [kind, setKind] = useState<PromotionKind | null>(null);
+  const [trigger, setTrigger] = useState<PromotionTrigger | null>(null);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const groups = useQuery(promotionGroupsQuery());
 
   const params = useMemo(
     () => ({
       page,
       pageSize: PAGE_SIZE,
-      status: status === ALL_STATUSES ? undefined : status,
       q: search.trim() || undefined,
+      state: view === "all" ? undefined : view,
+      kind: kind ?? undefined,
+      trigger: trigger ?? undefined,
+      groupId: groupId ?? undefined,
     }),
-    [page, status, search],
+    [page, view, search, kind, trigger, groupId],
   );
-
-  const { data, error, isPending, isError, refetch } = useQuery(promoListQuery(params));
+  const { data, error, isPending, isError, refetch } = useQuery(promotionListQuery(params));
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+  const filtered = Boolean(search || kind || trigger || groupId);
+  const reset = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setPage(1);
+  };
+  const countOf = (v: View) =>
+    data ? (v === "all" ? Object.entries(data.counts).filter(([s]) => s !== "archived").reduce((a, [, n]) => a + n, 0) : data.counts[v]) : undefined;
+  // Archived ones are kept out of "All" (and of the tabs) unless asked for.
+  const views: View[] = ["all", ...PROMOTION_STATES];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Promotions</h1>
-          <p className="text-muted-foreground">
-            Promotional codes and the order rules every cart is checked against.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/promotions/order-rules">
-              <SlidersHorizontal />
-              Order rules
-            </Link>
-          </Button>
-          {canManage ? (
-            <Button onClick={() => setCreateOpen(true)}>
-              <Plus />
-              Create code
+    <>
+      <PageHeader
+        title="Promotions"
+        description="Every offer Effy runs — automatic or by code — who it is for, when it runs, and where shoppers see it."
+        actions={
+          <>
+            <Button variant="outline" asChild>
+              <Link to="/promotions/groups">
+                <LayoutList aria-hidden="true" />
+                Display groups
+              </Link>
             </Button>
-          ) : null}
-        </div>
-      </div>
+            <Button variant="outline" asChild>
+              <Link to="/promotions/order-rules">
+                <SlidersHorizontal aria-hidden="true" />
+                Order rules
+              </Link>
+            </Button>
+            {canManage ? (
+              <Button asChild>
+                <Link to="/promotions/new">
+                  <Plus aria-hidden="true" />
+                  Create promotion
+                </Link>
+              </Button>
+            ) : null}
+          </>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search by code…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="max-w-xs"
-        />
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v as PromoStatus | typeof ALL_STATUSES);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_STATUSES}>All statuses</SelectItem>
-            {PROMO_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="space-y-3">
+        <nav className="bo-tabs" aria-label="Promotion views">
+          {views.map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-current={v === view ? "page" : undefined}
+              className={cn("bo-tabs__tab", v === view && "is-active")}
+              onClick={() => reset(setView)(v)}
+            >
+              {v === "all" ? "All" : STATE_WORD[v]}
+              {countOf(v) !== undefined ? <span className="bo-tabs__count">{countOf(v)}</span> : null}
+            </button>
+          ))}
+        </nav>
+        <Toolbar>
+          <SearchBox label="Search promotions" placeholder="Name or code…" value={search} onChange={reset(setSearch)} />
+          <Facet
+            label="Kind"
+            value={kind}
+            onChange={reset(setKind)}
+            options={(Object.keys(KIND_WORD) as PromotionKind[]).map((k) => ({ value: k, label: KIND_WORD[k] }))}
+          />
+          <Facet
+            label="Applies"
+            value={trigger}
+            onChange={reset(setTrigger)}
+            options={[
+              { value: "automatic", label: "Automatically" },
+              { value: "code", label: "With a code" },
+            ]}
+          />
+          <Facet
+            label="Group"
+            anyLabel="Any group"
+            value={groupId}
+            onChange={reset(setGroupId)}
+            options={(groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))}
+          />
+          {filtered ? (
+            <ResetFilters
+              onReset={() => {
+                setSearch("");
+                setKind(null);
+                setTrigger(null);
+                setGroupId(null);
+                setPage(1);
+              }}
+            />
+          ) : null}
+        </Toolbar>
       </div>
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <div className="bo-table-wrap p-4" aria-busy="true">
+          <Skeleton className="mb-3 h-10" />
+          <Skeleton className="h-10" />
+        </div>
+      ) : data.items.length === 0 ? (
+        <EmptyState
+          icon={TicketPercent}
+          title={filtered || view !== "all" ? "No promotions match your filter." : "No promotions yet."}
+          description={filtered || view !== "all" ? undefined : "Create a promotion to give shoppers money off — automatically or with a code."}
+        />
       ) : (
-        <>
-          <DataTable columns={columns} data={data.items} emptyMessage="No codes match your filter." />
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              {data.total} code{data.total === 1 ? "" : "s"} · page {data.page} of {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
+        <div className="bo-table-wrap">
+          <div className="bo-table-scroll">
+            <table className="bo-table bo-rtable">
+              <thead>
+                <tr>
+                  <th>Promotion</th>
+                  <th>Gives</th>
+                  <th>Who</th>
+                  <th>Status</th>
+                  <th>Active dates</th>
+                  <th className="text-right">Used</th>
+                  <th>Shown in</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((p) => (
+                  <tr key={p.id}>
+                    <td data-m="primary">
+                      <Link to="/promotions/$promoId" params={{ promoId: p.id }} className="bo-link">
+                        {p.name}
+                      </Link>
+                      <div className="bo-sub">{p.codeSummary ? <span className="bo-code">{p.codeSummary}</span> : "Automatic"}</div>
+                    </td>
+                    <td data-m="meta">{p.gives}</td>
+                    <td data-m="meta" className="is-muted">
+                      {p.who}
+                    </td>
+                    <td data-m="badge">
+                      <PromotionStateWord state={p.state} />
+                    </td>
+                    <td data-m="meta" className="is-muted">
+                      {activeDates(p.startsAt, p.endsAt)}
+                    </td>
+                    <td data-m="trail" className="text-right tabular-nums">
+                      {usesLabel(p)}
+                    </td>
+                    <td data-m="meta" data-label="Shown in" className="is-muted">
+                      {p.groups.length ? p.groups.join(", ") : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </>
+          <Pager
+            summary={`${data.total} promotion${data.total === 1 ? "" : "s"} · page ${data.page} of ${totalPages}`}
+            canBack={page > 1}
+            canNext={page < totalPages}
+            onBack={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => p + 1)}
+          />
+        </div>
       )}
-
-      {canManage ? <PromoCodeDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
-    </div>
+      <p className="bo-sub">
+        Status is worked out from a promotion's dates, uses, budget and whether it is paused — it is never stored. Customer service can read
+        every promotion; changing one needs a manager or an administrator.
+      </p>
+    </>
   );
 }

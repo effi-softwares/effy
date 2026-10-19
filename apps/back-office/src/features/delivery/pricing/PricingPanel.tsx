@@ -82,7 +82,7 @@ export function PricingPanel({ canManage }: { canManage: boolean }) {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-6">
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs value={kind} onValueChange={(v) => setKind(v as FeePlanKind)}>

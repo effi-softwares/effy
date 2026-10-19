@@ -106,7 +106,7 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
       <div className="flex flex-wrap gap-2">
         {options.map((s) => (
           <Button key={s} variant="outline" onClick={() => setTarget(s)}>
-            {VERB[s]}
+            {VERB[s]}…
           </Button>
         ))}
       </div>

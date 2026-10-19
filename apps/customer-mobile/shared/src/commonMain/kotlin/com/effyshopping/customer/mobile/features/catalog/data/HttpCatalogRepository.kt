@@ -3,12 +3,15 @@ package com.effyshopping.customer.mobile.features.catalog.data
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductSearchResultDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
+import com.effyshopping.customer.mobile.commerce.contract.PromotionGroupsDTO
+import com.effyshopping.customer.mobile.commerce.contract.ShopperPromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontCategoryDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontProductDetailDTO
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.FacetSet
@@ -22,6 +25,7 @@ import io.ktor.client.request.parameter
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.http.isSuccess
 import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
@@ -35,10 +39,35 @@ import kotlinx.io.IOException
  * ⚠ Until 070 these were `v1/storefront/…` on a second, always-on backend, since retired. The paths
  * moved under the service prefix and the second base URL is gone; the wire shapes did not change.
  */
+private const val HOME_HERO = "home-hero"
+private const val HOME_BETWEEN = "home-between"
+
 class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
 
+    /**
+     * 094 — Home's rails from the storefront, and its promotions from the display groups (`home-hero`
+     * for the carousel, `home-between` between sections), so back-office decides what appears where.
+     * A failed group read keeps the rails and the server's own banners: promotions never take Home down.
+     */
     override suspend fun home(): HomeContent = request {
-        edge.get("storefront/v1/home").ensureSuccess().body<StorefrontHomeDTO>().toDomain()
+        val home = edge.get("storefront/v1/home").ensureSuccess().body<StorefrontHomeDTO>().toDomain()
+        val groups = runCatching { promotionGroups(listOf(HOME_HERO, HOME_BETWEEN)) }.getOrNull() ?: return@request home
+        home.copy(
+            banners = groups[HOME_HERO].orEmpty().mapIndexed { i, p -> p.toBanner(BannerPlacement.CAROUSEL, i) } +
+                groups[HOME_BETWEEN].orEmpty().mapIndexed { i, p -> p.toBanner(BannerPlacement.INLINE, i) },
+        )
+    }
+
+    /**
+     * Display groups by key. Signed in, commerce answers with the shopper's personal offers (first
+     * order, chosen customers); signed out — or when commerce refuses — the storefront's public answer.
+     */
+    private suspend fun promotionGroups(keys: List<String>): Map<String, List<ShopperPromotionDTO>> {
+        val joined = keys.joinToString(",")
+        val personal = edge.get("commerce/v1/promotion-groups") { parameter("keys", joined) }
+        val response = if (personal.status.isSuccess()) personal
+        else edge.get("storefront/v1/promotion-groups") { parameter("keys", joined) }.ensureSuccess()
+        return response.body<PromotionGroupsDTO>().groups.associate { it.key to it.promotions }
     }
 
     override suspend fun categories(): List<Category> = request {

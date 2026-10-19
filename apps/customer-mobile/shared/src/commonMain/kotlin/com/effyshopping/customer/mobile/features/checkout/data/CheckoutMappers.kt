@@ -15,6 +15,7 @@ import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalC
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryType as ContractDeliveryType
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryChoiceRefusalDTO
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
+import com.effyshopping.customer.mobile.features.checkout.domain.ReceiptPromotion
 import com.effyshopping.customer.mobile.features.checkout.domain.CourierDelivery
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryChoiceRefusal
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
@@ -148,6 +149,7 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO.t
         )
     },
     totalAmount = totalAmount,
+    promotionAmount = promotionAmount,
 )
 
 /** 069 — the server's refusal, as the domain exception the ViewModel acts on. */
@@ -313,6 +315,8 @@ internal fun OrderDTO.toReceipt(): Receipt {
         deliveryInstructions = deliveryInstructions.toDomain(),
         discountAmount = discountAmount,
         promoCode = promoCode,
+        promotions = promotions.orEmpty().map { ReceiptPromotion(headline = it.headline, code = it.code, goodsAmount = it.goodsAmount) },
+        deliveryDiscountAmount = deliveryDiscountAmount,
         itemSubtotalAmount = itemSubtotalAmount,
         // ⚠ 052 — previously UNMAPPED, so the receipt's lines did not add up whenever delivery was
         // charged (051 FR-043 fixed this on web and never here).

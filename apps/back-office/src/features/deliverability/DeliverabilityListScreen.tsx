@@ -2,20 +2,19 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
+import { MailCheck } from "lucide-react";
 
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { cn } from "@effy/design-system";
+import { Skeleton } from "@effy/design-system/ui";
+import { ErrorState } from "@effy/web-kit/console";
 
-import { STATE_LABEL, type DeliveryListItem, type EmailDeliveryState } from "./model";
+import { PageHeader } from "@/components/patterns/Page";
+import { EmptyState } from "@/components/patterns/States";
+import { StatusWord } from "@/components/patterns/StatusWord";
+import { Pager, SearchBox, Toolbar } from "@/components/patterns/Toolbar";
+import { moment } from "@/lib/format";
+
+import { STATE_LABEL, type EmailDeliveryState } from "./model";
 import { deliverabilityListQuery } from "./queries";
 
 /**
@@ -31,60 +30,14 @@ import { deliverabilityListQuery } from "./queries";
 const PAGE_SIZE = 25;
 const PROBLEMS = "problems";
 
-const columns: ColumnDef<DeliveryListItem>[] = [
-  {
-    accessorKey: "address",
-    header: "Address",
-    cell: ({ row }) => (
-      <Link
-        to="/deliverability/$address"
-        params={{ address: row.original.address }}
-        className="font-mono text-sm text-primary hover:underline"
-      >
-        {row.original.address}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "state",
-    header: "State",
-    // ⚠ A TEXT LABEL, never colour alone (Principle V). Colour carries no meaning to a screen reader
-    // and no meaning to about 1 in 12 men.
-    cell: ({ row }) => <StateLabel state={row.original.state} />,
-  },
-  {
-    id: "subject",
-    header: "Account",
-    cell: ({ row }) => {
-      const s = row.original.subject;
-      // ⚠ "—" IS THE HONEST ANSWER, not a defect. An address can fail before its account exists,
-      // after it is deleted, or for the DRIVER audience, which has a Cognito pool and still has no
-      // platform table at all. Inventing an owner would be worse than showing none.
-      if (!s) return <span className="text-muted-foreground">—</span>;
-      return (
-        <span>
-          {s.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}
-          <span className="text-xs text-muted-foreground">({s.kind.replace("_", " ")})</span>
-        </span>
-      );
-    },
-  },
-  {
-    accessorKey: "reason",
-    header: "Reason",
-    cell: ({ row }) => (
-      <span className="font-mono text-xs text-muted-foreground">{row.original.reason ?? "—"}</span>
-    ),
-  },
-  {
-    accessorKey: "lastEventAt",
-    header: "Last event",
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {new Date(row.original.lastEventAt).toLocaleString()}
-      </span>
-    ),
-  },
+const VIEWS: readonly { key: string; label: string }[] = [
+  // ⚠ Defaults to problems only. A list of every address ever delivered to answers no question
+  // anyone has, and would bury the handful that matter.
+  { key: PROBLEMS, label: "Needs attention" },
+  { key: "undeliverable", label: STATE_LABEL.undeliverable },
+  { key: "soft_failing", label: STATE_LABEL.soft_failing },
+  { key: "complained", label: STATE_LABEL.complained },
+  { key: "all", label: "All addresses" },
 ];
 
 export function DeliverabilityListScreen() {
@@ -103,99 +56,118 @@ export function DeliverabilityListScreen() {
   );
 
   const { data, isPending, isError, error, refetch } = useQuery(deliverabilityListQuery(params));
-
-  if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Email deliverability</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Addresses the platform cannot reach. Someone listed as undeliverable receives no sign-in
-          codes — and for driver, shop and back-office staff an emailed code is the only credential.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title="Email deliverability"
+        description="Addresses the platform cannot reach. Someone listed as undeliverable receives no sign-in codes — and for driver, shop and back-office staff an emailed code is the only credential."
+      />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search address…"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(0);
-          }}
-          className="max-w-xs"
-        />
-        <Select
-          value={state}
-          onValueChange={(v) => {
-            setState(v);
-            setPage(0);
-          }}
-        >
-          <SelectTrigger className="w-56">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {/* ⚠ Defaults to problems only. A list of every address ever delivered to answers no
-                question anyone has, and would bury the handful that matter. */}
-            <SelectItem value={PROBLEMS}>Needs attention</SelectItem>
-            <SelectItem value="undeliverable">{STATE_LABEL.undeliverable}</SelectItem>
-            <SelectItem value="soft_failing">{STATE_LABEL.soft_failing}</SelectItem>
-            <SelectItem value="complained">{STATE_LABEL.complained}</SelectItem>
-            <SelectItem value="all">All addresses</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : (
-        <>
-          <DataTable
-            columns={columns}
-            data={data.items}
-            emptyMessage="No delivery problems. Every address the platform has emailed is reachable."
+      <div className="space-y-3">
+        <nav className="bo-tabs" aria-label="Deliverability views">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              aria-current={v.key === state ? "page" : undefined}
+              className={cn("bo-tabs__tab", v.key === state && "is-active")}
+              onClick={() => {
+                setState(v.key);
+                setPage(0);
+              }}
+            >
+              {v.label}
+              {v.key === state && data ? <span className="bo-tabs__count">{data.total}</span> : null}
+            </button>
+          ))}
+        </nav>
+        <Toolbar>
+          <SearchBox
+            label="Search address"
+            placeholder="Search address…"
+            value={q}
+            onChange={(v) => {
+              setQ(v);
+              setPage(0);
+            }}
           />
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">{data.total} total</span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 0}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={(page + 1) * PAGE_SIZE >= data.total}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
+        </Toolbar>
+      </div>
+
+      {isError ? (
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <div className="bo-table-wrap p-4" aria-busy="true">
+          <Skeleton className="mb-3 h-10" />
+          <Skeleton className="h-10" />
+        </div>
+      ) : data.items.length === 0 ? (
+        <EmptyState icon={MailCheck} title="No delivery problems." description="Every address the platform has emailed is reachable." />
+      ) : (
+        <div className="bo-table-wrap">
+          <div className="bo-table-scroll">
+            <table className="bo-table bo-rtable">
+              <thead>
+                <tr>
+                  <th>Address</th>
+                  <th>State</th>
+                  <th>Account</th>
+                  <th>Reason</th>
+                  <th>Last event</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((r) => (
+                  <tr key={r.address}>
+                    <td data-m="primary">
+                      <Link to="/deliverability/$address" params={{ address: r.address }} className="bo-link">
+                        {r.address}
+                      </Link>
+                    </td>
+                    {/* ⚠ A TEXT LABEL, never colour alone (Principle V). */}
+                    <td data-m="badge">
+                      <StateLabel state={r.state} />
+                    </td>
+                    <td data-m="meta">
+                      {/* ⚠ "—" IS THE HONEST ANSWER: an address can fail before its account exists,
+                          after it is deleted, or for the DRIVER audience, which has no platform table. */}
+                      {r.subject ? (
+                        <>
+                          {r.subject.name ?? <span className="text-muted-foreground">unnamed</span>}{" "}
+                          <span className="bo-sub">({r.subject.kind.replace("_", " ")})</span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td data-m="meta" className="is-muted">
+                      <span className="font-mono text-xs">{r.reason ?? "—"}</span>
+                    </td>
+                    <td data-m="trail" className="is-muted whitespace-nowrap">
+                      {moment(r.lastEventAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </>
+          <Pager
+            summary={`${data.total} address${data.total === 1 ? "" : "es"} · page ${page + 1} of ${totalPages}`}
+            canBack={page > 0}
+            canNext={(page + 1) * PAGE_SIZE < data.total}
+            onBack={() => setPage((p) => Math.max(0, p - 1))}
+            onNext={() => setPage((p) => p + 1)}
+          />
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
+const STATE_TONE = { undeliverable: "problem", soft_failing: "waiting", complained: "waiting", reachable: "quiet" } as const;
+
 export function StateLabel({ state }: { state: EmailDeliveryState }) {
-  return (
-    <span
-      className={
-        state === "undeliverable"
-          ? "font-medium text-destructive"
-          : state === "reachable"
-            ? "text-muted-foreground"
-            : "font-medium"
-      }
-    >
-      {STATE_LABEL[state]}
-    </span>
-  );
+  return <StatusWord tone={STATE_TONE[state as keyof typeof STATE_TONE] ?? "quiet"}>{STATE_LABEL[state]}</StatusWord>;
 }

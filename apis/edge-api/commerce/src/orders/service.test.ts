@@ -17,11 +17,11 @@ function repoWith(over: Partial<OrdersRepository> = {}): OrdersRepository {
       id: ORDER, order_number: "EFY-ABC123", status: "paid", placed_at: "2026-10-05 04:00:00+00",
       delivery_address: { recipientName: "A Customer", line1: "1 Test St", postalCode: "3121" }, billing_address: null,
       delivery_handover: null, delivery_note: null,
-      item_subtotal_amount: "20.00", discount_amount: "0.00", promo_code: null, delivery_fee_amount: "6.00",
+      item_subtotal_amount: "20.00", discount_amount: "0.00", promo_code: null, delivery_discount_amount: "0.00", promotions: null, delivery_fee_amount: "6.00",
       grand_total_amount: "26.00", currency: "AUD", payment_status: "succeeded",
     }),
     items: async () => [
-      { order_item_id: "i1", product_id: "p1", product_name: "Milk", unit_price_amount: "10.00", quantity: 2, line_subtotal_amount: "20.00", image_key: null, image_widths: null },
+      { order_item_id: "i1", product_id: "p1", product_name: "Milk", unit_price_amount: "10.00", quantity: 2, line_subtotal_amount: "20.00", discount_amount: "0.00", image_key: null, image_widths: null },
     ],
     fulfillments: async () => [{ id: "f1", status: "pending", item_count: 2, subtotal_amount: "20.00" }],
     shortfalls: async () => [],
@@ -44,9 +44,9 @@ describe("the receipt", () => {
   it("carries exactly the contract's keys for an ordinary order — and none of the optional ones", async () => {
     const o = await read();
     expect(Object.keys(o).sort()).toEqual([
-      "arrivalEstimates", "cancellable", "currency", "deliveryAddress", "deliveryFeeAmount", "deliveryInstructions", "discountAmount",
+      "arrivalEstimates", "cancellable", "currency", "deliveryAddress", "deliveryDiscountAmount", "deliveryFeeAmount", "deliveryInstructions", "discountAmount",
       "fulfillments", "grandTotalAmount", "id", "itemSubtotalAmount", "items", "orderNumber", "paymentMethod", "paymentStatus",
-      "placedAt", "promoCode", "stage", "status",
+      "placedAt", "promoCode", "promotions", "stage", "status",
     ]);
     // Present and null / empty, so a client has no undefined branch.
     expect(o.deliveryInstructions).toBeNull();

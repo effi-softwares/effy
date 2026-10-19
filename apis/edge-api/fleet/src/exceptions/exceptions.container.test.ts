@@ -40,7 +40,7 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { migrationSql } from "@effy/edge-shared";
 
-import { ExceptionNotFoundError, listExceptions, resolveException } from "./service";
+import { ExceptionNotFoundError, ExceptionOutcomeError, listExceptions, resolveException } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 const d = RUN ? describe : describe.skip;
@@ -220,6 +220,21 @@ d("064 — delivery exceptions", () => {
       const audit = await pool.query(`SELECT actor_sub FROM admin.audit_log`);
       expect(audit.rowCount, "the second resolve is a no-op, not a second audit row").toBe(1);
       expect(audit.rows[0].actor_sub).toBe("staff-first");
+    });
+
+    // Redesign — "Mark dealt with — outcome": how it ended is kept on the failure, for the next person.
+    it("keeps the outcome and the operator's note on the failure", async () => {
+      const id = (await addFailure()).rows[0]!.id;
+      await resolveException(id, "staff-sub-1", "Picked up from the hub at 5", "collected");
+      const [row] = (await listExceptions(true)).exceptions;
+      expect(row!.resolution).toEqual({ outcome: "collected", note: "Picked up from the hub at 5" });
+    });
+
+    it("refuses Other without words, and an outcome it does not know", async () => {
+      const id = (await addFailure()).rows[0]!.id;
+      await expect(resolveException(id, "staff-sub-1", null, "other")).rejects.toBeInstanceOf(ExceptionOutcomeError);
+      await expect(resolveException(id, "staff-sub-1", null, "teleported" as never)).rejects.toBeInstanceOf(ExceptionOutcomeError);
+      expect((await listExceptions()).exceptions).toHaveLength(1);
     });
 
     it("refuses an exception that does not exist", async () => {

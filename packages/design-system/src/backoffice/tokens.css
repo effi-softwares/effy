@@ -1,0 +1,321 @@
+/* Effy BACK-OFFICE identity — the one file (design canvas "Effy Back-Office Redesign", board
+ * "Foundations — colour, type, status words"; reference export in
+ * docs/reference-screens/Effy Back-Office Redesign/01 Foundations and shell/).
+ *
+ * The back-office now wears the storefront and driver apps' identity, used for a dense work tool:
+ * black, white, zinc greys, Effy blue (the one action colour) and Effy green (done). There is no red
+ * and no orange — a problem is black (white in dark) with an icon and its words.
+ *
+ * ⚠ THIS FILE DECLARES EVERY NAME THE CONSOLE FILE (`../tokens.css`) DECLARES, WITH THE SAME MEANING.
+ * The back-office still renders the platform's shared primitives (@effy/design-system/ui) and the
+ * console kit (@effy/web-kit/console), and those read the console vocabulary — `bg-brand-soft`,
+ * `text-success`, `bg-warning-soft`, `bg-accent2`… Tailwind emits NO RULE for a token this file does
+ * not declare, so a missing name renders as nothing. scripts/check-backoffice-tokens.mjs holds the
+ * key set to the console's, plus the redesign's own roles (primary-muted, rows, sidebar-muted).
+ *
+ * The console names keep their CONSOLE meaning, mapped onto five colours:
+ *   --primary = --brand   the action colour (blue). Unlike the storefront file, where --brand is green,
+ *                         here --brand is the console's "action colour" name and stays blue — every
+ *                         existing `text-brand` in the back-office means "in progress / do this".
+ *   --success             green: done, delivered, paid, active.
+ *   --warning, --destructive, --accent2 (attention)
+ *                         no hue of their own: waiting/at-risk and failed are the foreground with an
+ *                         icon; attention dots are blue.
+ *   --violet, --teal      the second and third chart series only — zinc and green.
+ *
+ * A surface imports ONE identity file. Both declare `--primary`, `--border`…; the second would win.
+ *
+ * ⚠ KEEP EACH BLOCK A PLAIN LIST OF VALUES — the guard parses them. Ratios below are re-derived by
+ * scripts/check-backoffice-tokens.mjs, which is the authority. */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #09090b; /* 19.90:1 on white */
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --muted: #f4f4f5;
+  --muted-foreground: #68686f; /* 5.53:1 on white */
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+
+  --primary: #1d4ed8; /* 6.70:1 on white */
+  --primary-foreground: #ffffff;
+  --primary-muted: #eff4ff;
+  --brand: #1d4ed8;
+  --brand-soft: #eff4ff;
+  --brand-mid: #c7d7fb;
+  --brand-ink: #1d4ed8;
+
+  --accent2: #1d4ed8;
+  --accent2-soft: #eff4ff;
+  --violet: #3f3f46;
+  --violet-soft: #f4f4f5;
+  --violet-mid: #d4d4d8;
+  --teal: #0d7a40;
+  --teal-soft: #ebf6ef;
+
+  --destructive: #09090b;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #f4f4f5;
+  --success: #0d7a40; /* 5.42:1 on white */
+  --success-soft: #ebf6ef;
+  --warning: #09090b;
+  --warning-soft: #f4f4f5;
+
+  --disabled: #f4f4f5;
+  --disabled-foreground: #68686f;
+  --placeholder: #68686f;
+  --ring: #1d4ed8;
+
+  --chart-1: #1d4ed8;
+  --chart-2: #0d7a40;
+  --chart-3: #09090b;
+  --chart-4: #68686f;
+  --chart-5: #c7d7fb;
+
+  /* The rail — one step recessed from the content ground. */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #1d4ed8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #09090b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #1d4ed8;
+  --sidebar-muted: #68686f;
+
+  --row-hover: #fafafa;
+  --row-selected: #eff4ff;
+  --scrim: rgba(9, 9, 11, 0.5);
+}
+
+/* Dark — the customer and driver apps' dark palette: near-black ground, recessed sidebar, lifted blue
+   for actions, green for done, white for problems. Chosen in the account menu: Light / Dark / System. */
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #111113;
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa; /* 7.76:1 on #09090b */
+  --border: #27272a;
+  --input: #3f3f46;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+
+  --primary: #60a5fa;
+  --primary-foreground: #09090b;
+  --primary-muted: #172554;
+  --brand: #60a5fa;
+  --brand-soft: #172554;
+  --brand-mid: #1e3a8a;
+  --brand-ink: #60a5fa;
+
+  --accent2: #60a5fa;
+  --accent2-soft: #172554;
+  --violet: #d4d4d8;
+  --violet-soft: #27272a;
+  --violet-mid: #3f3f46;
+  --teal: #4cd97b;
+  --teal-soft: #052e16;
+
+  --destructive: #fafafa;
+  --destructive-foreground: #09090b;
+  --destructive-soft: #27272a;
+  --success: #4cd97b;
+  --success-soft: #052e16;
+  --warning: #fafafa;
+  --warning-soft: #27272a;
+
+  --disabled: #27272a;
+  --disabled-foreground: #a1a1aa;
+  --placeholder: #a1a1aa;
+  --ring: #60a5fa;
+
+  --chart-1: #60a5fa;
+  --chart-2: #4cd97b;
+  --chart-3: #fafafa;
+  --chart-4: #a1a1aa;
+  --chart-5: #1e3a8a;
+
+  --sidebar: #111113;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #60a5fa;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1f1f23;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #60a5fa;
+  --sidebar-muted: #a1a1aa;
+
+  --row-hover: #141416;
+  --row-selected: #111a33;
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
+/* Shape, depth, density and motion — not colours, so outside the two parsed blocks. */
+:root {
+  --radius: 0.5rem;
+  --pad: 32px;
+  --rowpad: 10px;
+  --header-h: 56px;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* Motion board: fast 150 · standard 200 · emphasised 220 · sheet 300 · highlight 600. */
+  --ease-move: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms;
+  --dur-standard: 200ms;
+  --dur-emphasised: 220ms;
+  --dur-sheet: 300ms;
+  --dur-highlight: 600ms;
+}
+.dark {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+@media (max-width: 1023px) {
+  :root {
+    --pad: 24px;
+  }
+}
+@media (max-width: 767px) {
+  :root {
+    --pad: 16px;
+  }
+}
+
+@theme inline {
+  /* Corners: 4 checkbox · 6 control · 8 panel · 12 sheet. */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* ⚠ --font-mono must stay MONOSPACE: one-time codes and references are compared digit by digit. */
+  --font-sans: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-2xs: 11px;
+  --text-2xs--line-height: 14px;
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  --ease-move: var(--ease-move);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-muted: var(--primary-muted);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-mid: var(--brand-mid);
+  --color-brand-ink: var(--brand-ink);
+  --color-accent2: var(--accent2);
+  --color-accent2-soft: var(--accent2-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-violet-mid: var(--violet-mid);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-disabled: var(--disabled);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-placeholder: var(--placeholder);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-row-hover: var(--row-hover);
+  --color-row-selected: var(--row-selected);
+  --color-scrim: var(--scrim);
+}
+
+/* The shared primitives animate with these (the console file declares them too). */
+@keyframes effy-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes effy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Reduced motion turns every animation into an instant change; the state change still happens. The
+   spinner and the region loader keep turning, slowly — they ARE the signal that work is in flight. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  [data-effy-spinner] {
+    animation-duration: 1.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+  [data-effy-loader] {
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+  }
+  [data-effy-loader] > [data-effy-loader-moon] {
+    animation-duration: 1s !important;
+  }
+}

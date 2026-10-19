@@ -19,14 +19,14 @@ export function GoLivePanel({ canSwitch, onGoToTab }: { canSwitch: boolean; onGo
   const { readiness, switch: sw, legacy, history } = q.data;
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-6">
       <ReadinessTable readiness={readiness} onGoToTab={onGoToTab} />
       <SwitchControl sw={sw} ready={readiness.ready} canSwitch={canSwitch} />
       {legacy ? <LegacyOrders legacy={legacy} /> : null}
       {history.length > 0 ? (
         <section className="space-y-2" aria-labelledby="golive-history">
           <h2 id="golive-history" className="text-base font-semibold">History</h2>
-          <ul className="max-w-2xl divide-y rounded-md border text-sm" data-testid="golive-history-list">
+          <ul className="divide-y divide-border text-sm" data-testid="golive-history-list">
             {history.map((h, i) => (
               <li key={`${h.at}-${i}`} className="space-y-0.5 px-3 py-2">
                 <p>

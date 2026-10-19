@@ -26,6 +26,10 @@ data class CartSnapshot(
     val currency: String = "AUD",
     val notices: List<CartNotice> = emptyList(),
     val discount: CartDiscount? = null,
+    /** 094 — every promotion applying, automatic and by code. */
+    val promotions: List<CartPromotionLine> = emptyList(),
+    /** 094 — offers the shopper might expect that do not apply yet, each with its sentence. */
+    val promotionsNotApplied: List<CartPromotionNotApplied> = emptyList(),
     val checkout: CartCheckout = CartCheckout(),
     val limits: CartLimits = CartLimits(),
     /** How many changes are still on their way to the platform. Not persisted — derived from the queue. */
@@ -66,6 +70,23 @@ enum class CartNoticeKind {
     /** A kind this build does not know — a newer platform. Rendered as nothing rather than crashing. */
     Unknown,
 }
+
+/** 094 — one promotion and what it takes off. */
+@Serializable
+data class CartPromotionLine(
+    val promotionId: String,
+    val headline: String,
+    val code: String? = null,
+    val goodsAmount: String,
+)
+
+/** 094 — an offer that does not apply yet, and the one thing to do about it (server-composed). */
+@Serializable
+data class CartPromotionNotApplied(
+    val promotionId: String,
+    val headline: String,
+    val detail: String,
+)
 
 @Serializable
 data class CartDiscount(

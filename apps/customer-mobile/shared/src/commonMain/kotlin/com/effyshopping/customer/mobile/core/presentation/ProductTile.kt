@@ -102,7 +102,10 @@ fun EffyProductCard(
         ) {
             ProductImage(product.imageUrl, product.name, modifier = Modifier.fillMaxSize())
 
-            if (product.badges.contains(ProductBadge.ON_SALE) || percentOff != null) {
+            // 094 — an offer on the product leads: it is what the cart will apply.
+            if (product.offerLabel != null && product.available) {
+                EffySaleBadge(modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.s), text = product.offerLabel)
+            } else if (product.badges.contains(ProductBadge.ON_SALE) || percentOff != null) {
                 EffySaleBadge(modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.s))
             } else if (product.badges.contains(ProductBadge.NEW)) {
                 EffySaleBadge(modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.s), text = "New")

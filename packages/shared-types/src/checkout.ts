@@ -92,7 +92,17 @@ export interface CreateCheckoutIntentRequest {
    * priced without the check.
    */
   shownDeliveryAmount?: string | null;
+  /**
+   * 094 — the promotions total (goods + delivery) the client is SHOWING. If the server now works out a
+   * different one — a promotion ended, its budget ran out, the cart changed — it writes nothing and
+   * refuses with 409 `promotions_changed` and the cart as it stands, so the shopper sees the new total
+   * before paying (FR-037). Absent from a client built before 094, which is priced without the check.
+   */
+  expectedDiscount?: string | null;
 }
+
+/** 094 — the problem `code` when the promotions total differs from the one the client showed. */
+export const PROMOTIONS_CHANGED_CODE = "promotions_changed";
 
 /** 077 — the problem `code` when the delivery total differs from the one the client showed. */
 export const DELIVERY_FEE_CHANGED_CODE = "delivery_fee_changed";
@@ -111,6 +121,8 @@ export interface CreateCheckoutIntentResponse {
   publishableKey: string;
   grandTotalAmount: string;
   currency: string;
+  /** 094 — what delivery promotions took off the delivery fee; absent or "0.00" when none. */
+  deliveryDiscountAmount?: string;
   /**
    * 069 — until when the customer's place in their same-day slot is held. Absent when no package is
    * same-day. ⚠ A client MUST call intent again before confirming payment once this has passed: the

@@ -208,6 +208,8 @@ class CartStore(
             // A discount the platform has not re-approved against THIS cart is a number we would be
             // inventing. Drop it and let the next platform response restore it (FR-042/FR-047).
             discount = null,
+            promotions = emptyList(),
+            promotionsNotApplied = emptyList(),
             discountAmount = "0.00",
             grandTotalAmount = subtotal,
             checkout = cart.checkout.copy(

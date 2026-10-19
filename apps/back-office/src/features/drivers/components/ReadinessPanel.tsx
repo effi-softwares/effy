@@ -1,102 +1,100 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { CircleAlert, IdCard, MapPinned, UserX } from "lucide-react";
+
+import { Skeleton } from "@effy/design-system/ui";
+
+import { Panel } from "@/components/patterns/Panel";
+import { EmptyState } from "@/components/patterns/States";
+import { StatusWord } from "@/components/patterns/StatusWord";
+import { initialsOf } from "@/components/shell/identity";
 
 import { BLOCKED_LABEL, formatDate } from "../model";
 import { readinessQuery } from "../queries";
 import { CoveragePanel } from "./CoveragePanel";
 
 /**
- * The gaps, before an order is affected (US6, FR-044…FR-046).
+ * Readiness (redesign, Drivers board, Readiness view — "readiness panel built but never shown"):
+ * drivers who cannot be given work and why, licences and registrations to renew, and work nobody
+ * can cover. Each says where to fix it; the next assignment pass picks the change up.
  *
- * ⚠ SC-009 IS THE WHOLE POINT. A driver with no delivery zone is inert for assignment TODAY — the
- * assignment round will never pick them — and nothing anywhere said so. The symptom was an order
- * that did not move, hours later, in a place nobody was looking. Here it is a line on a list.
- *
- * ⚠ THREE LISTS, NOT THREE METRIC CARDS (Principle V). This is the single most card-shaped screen in
- * the feature and it takes no exception: each section states the gap and names who or what it is
- * about, which is what an operator needs to act.
+ * ⚠ "Work nobody can cover" lives HERE rather than on its own page (062 FR-020): two screens
+ * answering "can this driver work?" would eventually disagree. On the server both read one rule.
  */
 export function ReadinessPanel() {
   const { data, isPending } = useQuery(readinessQuery());
 
-  if (isPending) return <p className="text-sm text-muted-foreground">Loading readiness…</p>;
+  if (isPending) return <Skeleton className="h-64" />;
   if (!data) return null;
 
   const uncovered = data.uncoveredZones.filter((z) => z.activeDrivers === 0);
-  const nothingWrong =
-    data.blocked.length === 0 && uncovered.length === 0 && data.expiring.length === 0;
-
-  if (nothingWrong) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Every driver can be given work, every zone has someone in it, and no licence or registration
-        is close to expiring.
-      </p>
-    );
-  }
+  const nothingWrong = data.blocked.length === 0 && uncovered.length === 0 && data.expiring.length === 0;
 
   return (
-    <div className="space-y-6">
-      {data.blocked.length > 0 ? (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Drivers who cannot be given work</h3>
-          <ul className="divide-y border-y">
+    <div className="grid items-start gap-6 xl:grid-cols-2">
+      {nothingWrong ? (
+        <div className="xl:col-span-2">
+          <EmptyState
+            icon={UserX}
+            title="Everyone can work"
+            description="Every driver can be given work, every zone has someone in it, and no licence or registration is close to expiring."
+          />
+        </div>
+      ) : null}
+
+      <Panel title="Drivers who cannot be given work" icon={<UserX aria-hidden="true" />} description="Fix the cause on their record — the next assignment pass picks them up." flush>
+        {data.blocked.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted-foreground">Every driver can be given work.</p>
+        ) : (
+          <ul className="divide-y divide-border">
             {data.blocked.map((b) => (
-              <li key={b.driverId} className="flex flex-wrap items-baseline gap-x-3 py-2 text-sm">
-                <Link
-                  to="/drivers/$driverId"
-                  params={{ driverId: b.driverId }}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {b.driverName}
-                </Link>
-                <span className="text-muted-foreground">
-                  {b.reasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}
+              <li key={b.driverId} className="flex items-center gap-3 px-5 py-3">
+                <span className="bo-avatar bo-avatar--sq" aria-hidden="true">
+                  {initialsOf(b.driverName)}
                 </span>
+                <div className="min-w-0 flex-1">
+                  <Link to="/drivers/$driverId" params={{ driverId: b.driverId }} className="bo-link">
+                    {b.driverName}
+                  </Link>
+                  <span className="bo-sub">{b.reasons.map((r) => BLOCKED_LABEL[r]).join(" · ")}</span>
+                </div>
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
+        )}
+      </Panel>
 
-      {/* ⚠ 062 REPLACED "zones with nobody in them" WITH THIS, and the replacement says more.
-          The old list counted drivers ASSIGNED to a zone by a single-zone column — it could never
-          see a driver who covered several zones and never saw an every-zone driver at all, so a
-          fully covered zone could report nobody in it.
-
-          ⚠ It lives HERE rather than on its own page (FR-020). Two screens answering "can this
-          driver work?" would eventually disagree, and an operator would have no way to tell which
-          one was right. On the server both read a single availability rule, for the same reason. */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Work nobody can cover</h3>
-        <CoveragePanel />
-      </div>
-
-      {data.expiring.length > 0 ? (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Licences and registrations to renew</h3>
-          <ul className="divide-y border-y">
+      <Panel title="Licences and registrations to renew" icon={<IdCard aria-hidden="true" />} description="Once a date passes, the driver cannot be given work." flush>
+        {data.expiring.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted-foreground">Nothing is close to expiring.</p>
+        ) : (
+          <ul className="divide-y divide-border">
             {data.expiring.map((e) => (
-              <li
-                key={`${e.driverId}:${e.kind}`}
-                className="flex flex-wrap items-baseline gap-x-3 py-2 text-sm"
-              >
-                <Link
-                  to="/drivers/$driverId"
-                  params={{ driverId: e.driverId }}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {e.driverName}
-                </Link>
-                <span>{e.kind === "licence" ? "Driving licence" : "Vehicle registration"}</span>
-                <span className={e.expired ? "font-medium" : "text-muted-foreground"}>
-                  {e.expired ? "expired" : "expires"} {formatDate(e.expiresOn)}
-                </span>
+              <li key={`${e.driverId}:${e.kind}`} className="flex items-center gap-3 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <Link to="/drivers/$driverId" params={{ driverId: e.driverId }} className="bo-link">
+                    {e.driverName}
+                  </Link>
+                  <span className="bo-sub">{e.kind === "licence" ? "Driving licence" : "Vehicle registration"}</span>
+                </div>
+                {e.expired ? (
+                  <StatusWord tone="problem" icon={CircleAlert}>
+                    expired {formatDate(e.expiresOn)}
+                  </StatusWord>
+                ) : (
+                  <StatusWord tone="waiting">expires {formatDate(e.expiresOn)}</StatusWord>
+                )}
               </li>
             ))}
           </ul>
-        </div>
-      ) : null}
+        )}
+      </Panel>
+
+      <div className="xl:col-span-2">
+        <Panel title="Work nobody can cover" icon={<MapPinned aria-hidden="true" />} description="Grant a clearance on any driver's record.">
+          <CoveragePanel />
+        </Panel>
+      </div>
     </div>
   );
 }
