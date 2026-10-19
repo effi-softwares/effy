@@ -1,4 +1,4 @@
-// GET /admin/v1/promotions — the code register (paged; filter by status, search by code). Read access:
+// GET /admin/v1/promotions — the code register (paged; filter by status, state, kind and storefront, search by code; counts per state). Read access:
 // any active back-office staff, including csa — answering "is this code still live?" is support work.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
@@ -22,6 +22,9 @@ export const handler = async (
       page: qp.page ? Number(qp.page) : undefined,
       pageSize: qp.pageSize ? Number(qp.pageSize) : undefined,
       status: qp.status ?? undefined,
+      state: qp.state ?? undefined,
+      kind: qp.kind ?? undefined,
+      advertised: qp.advertised ?? undefined,
       q: qp.q ?? undefined,
     });
     return json(200, toPromoListDTO(page), scope);

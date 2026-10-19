@@ -1,5 +1,6 @@
 import { createRoute } from "@tanstack/react-router";
 
+import { CreatePromoScreen } from "@/features/promotions/CreatePromoScreen";
 import { OrderRulesScreen } from "@/features/promotions/OrderRulesScreen";
 import { PromotionDetailScreen } from "@/features/promotions/PromotionDetailScreen";
 import { PromotionsListScreen } from "@/features/promotions/PromotionsListScreen";
@@ -20,6 +21,13 @@ export const orderRulesRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "promotions/order-rules",
   component: OrderRulesScreen,
+});
+
+// Create a code is a page of its own (redesign, board "Create a code"), declared before /$promoId.
+export const createPromotionRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "promotions/new",
+  component: CreatePromoScreen,
 });
 
 export const promotionDetailRoute = createRoute({

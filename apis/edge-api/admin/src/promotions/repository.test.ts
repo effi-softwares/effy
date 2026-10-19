@@ -60,7 +60,7 @@ beforeEach(() => {
 describe("mapping", () => {
   it("counts redemptions from the rows and never from a stored counter", async () => {
     query.mockResolvedValue({ rows: [{ ...PROMO_ROW, total: "1" }] });
-    const page = await listPromos({ page: 1, pageSize: 25, status: null, q: null });
+    const page = await listPromos({ page: 1, pageSize: 25, status: null, state: null, kind: null, advertised: null, q: null });
     expect(page.items[0]!.redemptionCount).toBe(3);
     // The count comes from a subquery over promo_redemption, not a column on promo_code.
     expect(query.mock.calls[0]![0]).toContain("FROM public.promo_redemption r");
@@ -69,8 +69,8 @@ describe("mapping", () => {
 
   it("reports the unfiltered total from the window function, not the page length", async () => {
     query.mockResolvedValue({ rows: [{ ...PROMO_ROW, total: "42" }] });
-    expect((await listPromos({ page: 2, pageSize: 10, status: null, q: null })).total).toBe(42);
-    expect(query.mock.calls[0]![1]).toEqual([null, null, 10, 10]); // OFFSET = (page-1) * pageSize
+    expect((await listPromos({ page: 2, pageSize: 10, status: null, state: null, kind: null, advertised: null, q: null })).total).toBe(42);
+    expect(query.mock.calls[0]![1]).toEqual([null, null, null, null, null, 10, 10]); // OFFSET = (page-1) * pageSize
   });
 });
 

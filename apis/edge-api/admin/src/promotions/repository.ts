@@ -11,7 +11,7 @@ import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
 
-import { type OrderPolicy, type Paged, type PromoCode, PromoError, type PromoStatus } from "./types";
+import { type OrderPolicy, type Paged, type PromoCode, PromoError, PROMO_STATES, type PromoState, type PromoStatus } from "./types";
 
 interface PromoRow {
   id: string;
@@ -101,24 +101,62 @@ function asDuplicate(err: unknown): PromoError {
 
 // ── Reads ────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * What a code is doing now (redesign): switched off → disabled; not started → scheduled; every use
+ * taken → used up; past its end → ended; otherwise active. "Used up" wins over "ended" — a code that
+ * ran out is the more useful fact. Over the `x` row of `PROMO_SELECT`.
+ */
+const STATE_SQL = `
+  CASE WHEN x.status <> 'active' THEN 'disabled'
+       WHEN x.starts_at IS NOT NULL AND x.starts_at > now() THEN 'scheduled'
+       WHEN x.max_redemptions IS NOT NULL AND x.redemption_count >= x.max_redemptions THEN 'used_up'
+       WHEN x.ends_at IS NOT NULL AND x.ends_at <= now() THEN 'ended'
+       ELSE 'active' END`;
+
+/** The filters every view shares — search, kind, on the storefront. */
+const LIST_FILTERS = `
+      WHERE ($1::text IS NULL OR p.code ILIKE '%' || $1 || '%')
+        AND ($2::text IS NULL OR p.kind = $2)
+        AND ($3::boolean IS NULL OR p.is_advertised = $3)`;
+
 export async function listPromos(params: {
   page: number;
   pageSize: number;
   status: PromoStatus | null;
+  state: PromoState | null;
+  kind: PromoCode["kind"] | null;
+  advertised: boolean | null;
   q: string | null;
-}): Promise<Paged<PromoCode>> {
-  const { page, pageSize, status, q } = params;
-  const res = await query<PromoRow>(
-    `${PROMO_SELECT}, count(*) OVER() AS total
-       FROM public.promo_code p
-      WHERE ($1::text IS NULL OR p.status = $1)
-        AND ($2::text IS NULL OR p.code ILIKE '%' || $2 || '%')
-      ORDER BY p.created_at DESC
-      LIMIT $3 OFFSET $4`,
-    [status, q, pageSize, (page - 1) * pageSize],
-  );
-  const total = res.rows[0] ? Number(res.rows[0].total) : 0;
-  return { items: res.rows.map(mapPromo), total, page, pageSize };
+}): Promise<Paged<PromoCode & { state: PromoState }> & { counts: Record<PromoState, number> }> {
+  const { page, pageSize, status, state, kind, advertised, q } = params;
+  const [rows, counts] = await Promise.all([
+    query<PromoRow & { state: PromoState; total: string }>(
+      `SELECT y.*, count(*) OVER() AS total
+         FROM (SELECT x.*, ${STATE_SQL} AS state
+                 FROM (${PROMO_SELECT} FROM public.promo_code p ${LIST_FILTERS}) x) y
+        WHERE ($4::text IS NULL OR y.status = $4)
+          AND ($5::text IS NULL OR y.state = $5)
+        ORDER BY y.created_at DESC
+        LIMIT $6 OFFSET $7`,
+      [q, kind, advertised, status, state, pageSize, (page - 1) * pageSize],
+    ),
+    query<{ state: PromoState; n: number }>(
+      `SELECT ${STATE_SQL} AS state, count(*)::int AS n
+         FROM (${PROMO_SELECT} FROM public.promo_code p ${LIST_FILTERS}) x
+        GROUP BY 1`,
+      [q, kind, advertised],
+    ),
+  ]);
+  const byState = Object.fromEntries(PROMO_STATES.map((s) => [s, 0])) as Record<PromoState, number>;
+  for (const r of counts.rows) byState[r.state] = Number(r.n);
+  const total = rows.rows[0] ? Number(rows.rows[0].total) : 0;
+  return {
+    items: rows.rows.map((r) => ({ ...mapPromo(r), state: r.state })),
+    total,
+    page,
+    pageSize,
+    counts: byState,
+  };
 }
 
 export async function readPromo(id: string): Promise<PromoCode | null> {

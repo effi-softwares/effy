@@ -85,7 +85,18 @@ export interface PromoCodeDTO {
 }
 
 
-export type PromoCodeListDTO = PagedDTO<PromoCodeDTO>;
+/**
+ * What a code is doing NOW, worked out from its switch, its dates and its caps — never stored
+ * (redesign, board "Promotion codes"). One rule, in the admin list query; the console only reads it.
+ */
+export type PromoState = "active" | "scheduled" | "used_up" | "ended" | "disabled";
+export const PROMO_STATES: readonly PromoState[] = ["active", "scheduled", "used_up", "ended", "disabled"];
+
+/** The register: a page of codes, each with its state, and how many codes are in each state
+ *  (search, kind and storefront filters applied; the state filter not). */
+export interface PromoCodeListDTO extends PagedDTO<PromoCodeDTO & { state?: PromoState }> {
+  counts?: Record<PromoState, number>;
+}
 
 /** POST /admin/v1/promotions. */
 export interface CreatePromoCodeRequest {

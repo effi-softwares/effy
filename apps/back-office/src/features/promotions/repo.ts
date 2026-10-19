@@ -5,6 +5,7 @@ import type {
   OrderPolicyDTO,
   PagedDTO,
   PromoCodeDTO,
+  PromoCodeListDTO,
   SetPromoStatusRequest,
   UpdateOrderPolicyRequest,
   UpdatePromoCodeRequest,
@@ -19,19 +20,22 @@ import type { AuditEntry, OrderPolicy, Paged, PromoCode, PromoListParams } from 
 // directly (Principle VI). All endpoints live under the admin cold-path service behind the shared
 // gateway (contracts/promotions-admin-api.contract.md).
 
-function encodeQuery({ page, pageSize, status, q }: PromoListParams): string {
+function encodeQuery({ page, pageSize, status, state, kind, advertised, q }: PromoListParams): string {
   const params = new URLSearchParams();
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
   if (status) params.set("status", status);
+  if (state) params.set("state", state);
+  if (kind) params.set("kind", kind);
+  if (advertised !== undefined) params.set("advertised", String(advertised));
   if (q && q.trim()) params.set("q", q.trim());
   return params.toString();
 }
 
 // ── Codes ──────────────────────────────────────────────────────────────────────────────────
 
-export async function listPromos(params: PromoListParams): Promise<Paged<PromoCode>> {
-  return api.get<PagedDTO<PromoCodeDTO>>(`/admin/v1/promotions?${encodeQuery(params)}`);
+export async function listPromos(params: PromoListParams): Promise<PromoCodeListDTO> {
+  return api.get<PromoCodeListDTO>(`/admin/v1/promotions?${encodeQuery(params)}`);
 }
 
 export async function getPromo(id: string): Promise<PromoCode> {

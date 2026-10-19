@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Plus, SlidersHorizontal, TicketPercent } from "lucide-react";
 
-import type { PromoStatus } from "@effy/shared-types";
+import type { PromoKind, PromoState } from "@effy/shared-types";
 import { cn } from "@effy/design-system";
 import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
@@ -12,12 +12,11 @@ import { ErrorState } from "@effy/web-kit/console";
 import { PageHeader } from "@/components/patterns/Page";
 import { EmptyState } from "@/components/patterns/States";
 import { StatusWord } from "@/components/patterns/StatusWord";
-import { Pager, SearchBox, Toolbar } from "@/components/patterns/Toolbar";
+import { Facet, Pager, ResetFilters, SearchBox, Toolbar } from "@/components/patterns/Toolbar";
 
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManagePromotions } from "./access";
-import { PromoCodeDialog } from "./components/PromoCodeDialog";
 import { promoValueLabel, redemptionLabel, type PromoCode } from "./model";
 import { promoListQuery } from "./queries";
 
@@ -27,30 +26,33 @@ import { promoListQuery } from "./queries";
 
 const PAGE_SIZE = 20;
 
-type View = "all" | "active" | "scheduled" | "ended" | "disabled";
+type View = "all" | PromoState;
 const VIEWS: readonly { key: View; label: string }[] = [
   { key: "all", label: "All" },
   { key: "active", label: "Active" },
   { key: "scheduled", label: "Scheduled" },
+  { key: "used_up", label: "Used up" },
   { key: "ended", label: "Ended" },
   { key: "disabled", label: "Disabled" },
 ];
 
-/** Active / Scheduled / Ended / Disabled — derived from the status AND the window, so "active" never
- *  reads as "running now" for a code whose window has closed. Display only; the platform decides at
- *  apply time. */
-export function promoState(promo: PromoCode): Exclude<View, "all"> {
+/** Active / Scheduled / Used up / Ended / Disabled — the server's word when it sent one (the list);
+ *  otherwise the same rule worked out here (a code's own page). Never stored. */
+export function promoState(promo: PromoCode & { state?: PromoState }): PromoState {
+  if (promo.state) return promo.state;
   if (promo.status !== "active") return "disabled";
   const now = Date.now();
   if (promo.startsAt && new Date(promo.startsAt).getTime() > now) return "scheduled";
+  if (promo.maxRedemptions != null && promo.redemptionCount >= promo.maxRedemptions) return "used_up";
   if (promo.endsAt && new Date(promo.endsAt).getTime() <= now) return "ended";
   return "active";
 }
 
-const STATE_WORD = { active: "Active", scheduled: "Scheduled", ended: "Ended", disabled: "Disabled" } as const;
-const STATE_TONE = { active: "done", scheduled: "info", ended: "quiet", disabled: "muted" } as const;
+const STATE_WORD = { active: "Active", scheduled: "Scheduled", used_up: "Used up", ended: "Ended", disabled: "Disabled" } as const;
+const STATE_TONE = { active: "done", scheduled: "info", used_up: "quiet", ended: "quiet", disabled: "muted" } as const;
+const PLACEMENT_WORD: Record<PromoCode["bannerPlacement"], string> = { carousel: "Offers carousel", inline: "Between sections" };
 
-export function PromoStateWord({ promo }: { promo: PromoCode }) {
+export function PromoStateWord({ promo }: { promo: PromoCode & { state?: PromoState } }) {
   const st = promoState(promo);
   return <StatusWord tone={STATE_TONE[st]}>{STATE_WORD[st]}</StatusWord>;
 }
@@ -72,16 +74,33 @@ export function PromotionsListScreen() {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<View>("all");
   const [search, setSearch] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [kind, setKind] = useState<PromoKind | null>(null);
+  const [onStorefront, setOnStorefront] = useState<"yes" | "no" | null>(null);
 
-  // Scheduled and Ended are active codes whose window is not open; the server filters by status and
-  // the page narrows by window.
-  const status: PromoStatus | undefined = view === "all" ? undefined : view === "disabled" ? "disabled" : "active";
-  const params = useMemo(() => ({ page, pageSize: PAGE_SIZE, status, q: search.trim() || undefined }), [page, status, search]);
+  const params = useMemo(
+    () => ({
+      page,
+      pageSize: PAGE_SIZE,
+      state: view === "all" ? undefined : view,
+      kind: kind ?? undefined,
+      advertised: onStorefront === null ? undefined : onStorefront === "yes",
+      q: search.trim() || undefined,
+    }),
+    [page, view, kind, onStorefront, search],
+  );
 
   const { data, error, isPending, isError, refetch } = useQuery(promoListQuery(params));
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
-  const items = (data?.items ?? []).filter((p) => view === "all" || view === "disabled" || promoState(p) === view);
+  const items = data?.items ?? [];
+  const counts = data?.counts;
+  const countOf = (v: View) => (counts ? (v === "all" ? Object.values(counts).reduce((a, b) => a + b, 0) : counts[v]) : undefined);
+  const filtered = Boolean(search || kind || onStorefront);
+  function reset<T>(set: (v: T) => void) {
+    return (v: T) => {
+      set(v);
+      setPage(1);
+    };
+  }
 
   return (
     <>
@@ -97,9 +116,11 @@ export function PromotionsListScreen() {
               </Link>
             </Button>
             {canManage ? (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus aria-hidden="true" />
-                Create code
+              <Button asChild>
+                <Link to="/promotions/new">
+                  <Plus aria-hidden="true" />
+                  Create code
+                </Link>
               </Button>
             ) : null}
           </>
@@ -120,7 +141,7 @@ export function PromotionsListScreen() {
               }}
             >
               {v.label}
-              {v.key === view && data ? <span className="bo-tabs__count">{view === "all" || view === "disabled" ? data.total : items.length}</span> : null}
+              {countOf(v.key) !== undefined ? <span className="bo-tabs__count">{countOf(v.key)}</span> : null}
             </button>
           ))}
         </nav>
@@ -129,11 +150,36 @@ export function PromotionsListScreen() {
             label="Search codes"
             placeholder="Search by code…"
             value={search}
-            onChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
+            onChange={reset(setSearch)}
           />
+          <Facet
+            label="Takes off"
+            value={kind}
+            onChange={reset(setKind)}
+            options={[
+              { value: "percentage", label: "A percentage" },
+              { value: "fixed", label: "A fixed amount" },
+            ]}
+          />
+          <Facet
+            label="On the storefront"
+            value={onStorefront}
+            onChange={reset(setOnStorefront)}
+            options={[
+              { value: "yes", label: "Advertised" },
+              { value: "no", label: "Not advertised" },
+            ]}
+          />
+          {filtered ? (
+            <ResetFilters
+              onReset={() => {
+                setSearch("");
+                setKind(null);
+                setOnStorefront(null);
+                setPage(1);
+              }}
+            />
+          ) : null}
         </Toolbar>
       </div>
 
@@ -162,6 +208,7 @@ export function PromotionsListScreen() {
                   <th>Status</th>
                   <th>Active dates</th>
                   <th className="text-right">Redeemed</th>
+                  <th>Storefront</th>
                 </tr>
               </thead>
               <tbody>
@@ -185,6 +232,9 @@ export function PromotionsListScreen() {
                     <td data-m="trail" className="text-right tabular-nums">
                       {redemptionLabel(p)}
                     </td>
+                    <td data-m="meta" data-label="Storefront" className="is-muted">
+                      {p.isAdvertised ? PLACEMENT_WORD[p.bannerPlacement] : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -200,7 +250,10 @@ export function PromotionsListScreen() {
         </div>
       )}
 
-      {canManage ? <PromoCodeDialog open={createOpen} onOpenChange={setCreateOpen} /> : null}
+      <p className="bo-sub">
+        Status is worked out from the code's dates, its caps and whether it is switched on — it is never stored. Customer service can
+        read every code; changing one needs a manager or an administrator.
+      </p>
     </>
   );
 }

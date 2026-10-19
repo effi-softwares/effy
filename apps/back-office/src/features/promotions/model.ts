@@ -4,6 +4,8 @@ import type {
   OrderPolicyDTO,
   PagedDTO,
   PromoCodeDTO,
+  PromoKind,
+  PromoState,
   PromoStatus,
   SetPromoStatusRequest,
   UpdateOrderPolicyRequest,
@@ -34,6 +36,11 @@ export interface PromoListParams {
   page: number;
   pageSize: number;
   status?: PromoStatus;
+  /** What the code is doing now — worked out by the server (redesign). */
+  state?: PromoState;
+  kind?: PromoKind;
+  /** On the storefront or not. */
+  advertised?: boolean;
   q?: string;
 }
 

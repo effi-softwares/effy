@@ -23,9 +23,11 @@ import {
   type OrderPolicy,
   type Paged,
   PROMO_KINDS,
+  PROMO_STATES,
   PROMO_STATUSES,
   type PromoCode,
   PromoError,
+  type PromoState,
   type PromoStatus,
 } from "./types";
 
@@ -42,14 +44,21 @@ export async function listPromos(params: {
   page?: number;
   pageSize?: number;
   status?: string;
+  state?: string;
+  kind?: string;
+  advertised?: string;
   q?: string;
-}): Promise<Paged<PromoCode>> {
+}) {
   const status =
     params.status && (PROMO_STATUSES as readonly string[]).includes(params.status)
       ? (params.status as PromoStatus)
       : null;
+  // Unknown values are ignored rather than refused — a filter that names nothing filters nothing.
+  const state = params.state && (PROMO_STATES as readonly string[]).includes(params.state) ? (params.state as PromoState) : null;
+  const kind = params.kind === "percentage" || params.kind === "fixed" ? params.kind : null;
+  const advertised = params.advertised === "true" ? true : params.advertised === "false" ? false : null;
   const q = params.q && params.q.trim().length > 0 ? params.q.trim() : null;
-  return repo.listPromos({ page: coercePage(params.page), pageSize: coercePageSize(params.pageSize), status, q });
+  return repo.listPromos({ page: coercePage(params.page), pageSize: coercePageSize(params.pageSize), status, state, kind, advertised, q });
 }
 
 export async function readPromo(id: string): Promise<PromoCode> {

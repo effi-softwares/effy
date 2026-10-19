@@ -5,10 +5,10 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
-import type { AuditEntryDTO, OrderPolicyDTO, PagedDTO, PromoCodeDTO } from "@effy/shared-types";
+import type { AuditEntryDTO, OrderPolicyDTO, PromoCodeDTO, PromoCodeListDTO } from "@effy/shared-types";
 
 import { canManagePromotions, isActiveStaff } from "./authz";
-import { type AuditEntry, type OrderPolicy, type Paged, type PromoCode, isPromoError } from "./types";
+import { type AuditEntry, type OrderPolicy, type Paged, type PromoCode, type PromoState, isPromoError } from "./types";
 
 /**
  * Authenticate (401) + authorize from the platform record (403), fail-closed to 503 on an infra error.
@@ -91,8 +91,16 @@ export function toPromoDTO(p: PromoCode): PromoCodeDTO {
   };
 }
 
-export function toPromoListDTO(p: Paged<PromoCode>): PagedDTO<PromoCodeDTO> {
-  return { items: p.items.map(toPromoDTO), total: p.total, page: p.page, pageSize: p.pageSize };
+export function toPromoListDTO(
+  p: Paged<PromoCode & { state?: PromoState }> & { counts?: Record<PromoState, number> },
+): PromoCodeListDTO {
+  return {
+    items: p.items.map((i) => ({ ...toPromoDTO(i), ...(i.state ? { state: i.state } : {}) })),
+    total: p.total,
+    page: p.page,
+    pageSize: p.pageSize,
+    ...(p.counts ? { counts: p.counts } : {}),
+  };
 }
 
 export function toOrderPolicyDTO(p: OrderPolicy): OrderPolicyDTO {

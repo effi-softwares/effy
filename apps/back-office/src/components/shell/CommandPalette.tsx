@@ -75,7 +75,7 @@ const ACTIONS: readonly { id: string; label: string; icon: LucideIcon; to: strin
   { id: "credit", label: "Credit points to a customer…", icon: Coins, to: "/customers", roles: ["admin", "manager", "csa"] },
   { id: "add-driver", label: "Add a driver", icon: UserPlus, to: "/drivers", roles: ["admin", "manager"] },
   { id: "add-vehicle", label: "Add a vehicle", icon: Car, to: "/vehicles", roles: ["admin", "manager"] },
-  { id: "add-code", label: "Create a promotion code", icon: BadgePercent, to: "/promotions", roles: ["admin", "manager"] },
+  { id: "add-code", label: "Create a promotion code", icon: BadgePercent, to: "/promotions/new", roles: ["admin", "manager"] },
   { id: "add-places", label: "Add places Effy delivers to", icon: MapPinned, to: "/delivery", tab: "coverage", roles: ["admin", "manager"] },
 ];
 

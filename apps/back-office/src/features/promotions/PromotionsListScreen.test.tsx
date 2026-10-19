@@ -77,20 +77,22 @@ describe("PromotionsListScreen", () => {
     const past = new Date(Date.now() - 86_400_000).toISOString();
     listPromos.mockResolvedValue({ ...ONE_PAGE, items: [{ ...CODE, endsAt: past }] });
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText("Ended")).toBeInTheDocument();
-    expect(screen.getByText("active")).toBeInTheDocument();
+    // "Ended" is also a view tab, so read the row itself.
+    await screen.findByText("SPRING20");
+    expect(screen.getByRole("table")).toHaveTextContent("Ended");
   });
 
   it("shows the empty message when no code matches", async () => {
     listPromos.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByText(/no codes match your filter/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no codes yet/i)).toBeInTheDocument();
   });
 
   it("offers Create code to a manager", async () => {
     listPromos.mockResolvedValue(ONE_PAGE);
     wrap(<PromotionsListScreen />);
-    expect(await screen.findByRole("button", { name: /create code/i })).toBeInTheDocument();
+    // A page now (redesign), reached by a link rather than a dialog's button.
+    expect(await screen.findByText(/create code/i)).toBeInTheDocument();
   });
 
   it("hides Create code from a csa — support reads the register, it does not write it", async () => {
@@ -98,6 +100,6 @@ describe("PromotionsListScreen", () => {
     listPromos.mockResolvedValue(ONE_PAGE);
     wrap(<PromotionsListScreen />);
     expect(await screen.findByText("SPRING20")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /create code/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/create code/i)).not.toBeInTheDocument();
   });
 });
