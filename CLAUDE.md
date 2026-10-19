@@ -555,7 +555,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — built; NOT migrated, deployed or walked
+- **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — complete in dev (migrated, deployed, walked); stage C table removal open
 - **093-driver-work-sequence** — Driver Work in One Order (server-enforced steps; collector delivers; missing packages held; run stage; vehicle check off by default) — built; NOT migrated, deployed or walked
 - **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — built, `driver` deployed to dev; app not walked
 - **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — built; NOT deployed

@@ -4,8 +4,9 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**094-promotions-rebuild — Promotions Rebuilt: a Full Promotion System, Grouped for Display.** 🚧 **BUILT
-(2026-10-20); NOT MIGRATED, DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/094-promotions-rebuild/](specs/094-promotions-rebuild/tasks.md).
+**094-promotions-rebuild — Promotions Rebuilt: a Full Promotion System, Grouped for Display.** ✅ **COMPLETE IN
+DEV** — built 2026-10-20; migrated, every service and client deployed, the customer app built, and the
+quickstart walked by the operator. Only stage C (removing the old tables) is open. Spec, plan, tasks: [specs/094-promotions-rebuild/](specs/094-promotions-rebuild/tasks.md).
 
 - **The 027/028/029 one-code model is replaced.** A promotion is one of four kinds:
   - **cart**: a percentage with an optional cap, or an amount;
