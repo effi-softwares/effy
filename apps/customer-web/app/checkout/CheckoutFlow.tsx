@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   COVERAGE_REFUSAL_SENTENCE,
   DELIVERY_FEE_CHANGED_CODE,
+  PROMOTIONS_CHANGED_CODE,
   DELIVERY_FEE_WORDS,
   DELIVERY_WINDOW_WORDS,
   type AddressDTO,
@@ -28,7 +29,7 @@ import {
   sameInstructions,
   type InstructionsDraft,
 } from "@/lib/delivery-instructions"
-import { useCart } from "@/lib/cart-store"
+import { useCart, useCartMirror } from "@/lib/cart-store"
 import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import {
   carryWindow,
@@ -196,6 +197,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // chosen — there is nothing to show yet.
   const deliveryFee = useMemo(() => chosenFee(quote, chosenWindow), [quote, chosenWindow])
   const deliveryCents = deliveryFee ? parseCents(deliveryFee.totalAmount) : 0
+  // 094 — what promotions take off: the goods (from the server cart) and this option's delivery offer.
+  const mirror = useCartMirror()
+  const goodsDiscountCents = parseCents(mirror.discountAmount || "0")
+  const deliveryOfferCents = deliveryFee?.promotionAmount ? parseCents(deliveryFee.promotionAmount) : 0
 
   // 077 — once per fee the shopper is shown: whether it was free, had a small-order fee, or a
   // surcharge. Booleans only (lib/telemetry.ts).
@@ -209,7 +214,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   }, [feeShape])
 
   const serviced = quote?.serviced === true
-  const totalCents = parseCents(estimate.itemSubtotal) + deliveryCents
+  const totalCents = Math.max(0, parseCents(estimate.itemSubtotal) - goodsDiscountCents) + deliveryCents - deliveryOfferCents
 
   // 074 — points. ON by default at the most they can use (FR-012); `chosenPoints` null = "the most".
   const [usePoints, setUsePoints] = useState(true)
@@ -344,6 +349,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       // 077 — the delivery total this page is SHOWING. If the server would now charge another (a new
       // fee plan, a basket that crossed a threshold), it refuses and nothing is written or charged.
       if (deliveryFee) body.shownDeliveryAmount = deliveryFee.totalAmount
+      // 094 — the promotions total this page shows; a different one is refused before anything is charged.
+      body.expectedDiscount = formatCents(goodsDiscountCents + deliveryOfferCents)
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -387,6 +394,15 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         setIntent(null)
         setStep("review")
         setError(DELIVERY_FEE_WORDS.feeChanged)
+        setQuoteEpoch((n) => n + 1)
+        return false
+      }
+      // 094 — an offer changed or its last use went (FR-037). Nothing was charged; the new total is shown.
+      if (res.status === 409 && data.code === PROMOTIONS_CHANGED_CODE) {
+        capture({ name: "checkout_promotions_changed", props: {} })
+        setIntent(null)
+        setStep("review")
+        setError("One of your offers changed or is no longer available. Check your new total before you pay.")
         setQuoteEpoch((n) => n + 1)
         return false
       }
@@ -601,6 +617,21 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             <dt>Items</dt>
             <dd className="tabular-nums">{formatMoney(estimate.itemSubtotal, currency)}</dd>
           </div>
+          {(mirror.promotions ?? []).filter((p) => p.goodsAmount !== "0.00").map((p) => (
+            <div key={p.promotionId} className="flex items-center justify-between text-brand">
+              <dt>
+                {p.headline}
+                {p.code ? ` (${p.code})` : ""}
+              </dt>
+              <dd className="tabular-nums">−{formatMoney(p.goodsAmount, currency)}</dd>
+            </div>
+          ))}
+          {deliveryOfferCents > 0 ? (
+            <div className="flex items-center justify-between text-brand">
+              <dt>Delivery offer</dt>
+              <dd className="tabular-nums">−{formatMoney(formatCents(deliveryOfferCents), currency)}</dd>
+            </div>
+          ) : null}
           {serviced && !quoting && deliveryFee && deliveryFee.lines.length > 0 ? (
             <DeliveryFeeLines fee={deliveryFee} currency={currency} />
           ) : (

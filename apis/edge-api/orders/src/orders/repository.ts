@@ -310,6 +310,9 @@ export interface OrderDetailRow {
   delivery_fee_breakdown?: DeliveryFeeBreakdownDTO | null;
   discount_amount: string;
   promo_code: string | null;
+  /** 094 — delivery promotions' share, and each promotion as sold (null before 094). */
+  delivery_discount_amount: string;
+  promotions: { headline: string | null; name: string; code: string | null; goods: string; delivery: string }[] | null;
   grand_total_amount: string;
   currency: string;
   delivery_address: Record<string, unknown>;
@@ -348,7 +351,12 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.delivery_fee_amount::text,
             o.delivery_fee_breakdown,
             o.discount_amount::text,
-            pc.code AS promo_code,
+            -- 094 — new orders keep the code's text on the order; old ones name it through 027's table.
+            COALESCE(o.promo_code, pc.code) AS promo_code,
+            o.delivery_discount_amount::text,
+            (SELECT json_agg(json_build_object('headline', op.headline, 'name', op.name, 'code', op.code_text,
+                                               'goods', op.goods_amount::text, 'delivery', op.delivery_amount::text) ORDER BY op.name)
+               FROM public.order_promotion op WHERE op.order_id = o.id) AS promotions,
             o.grand_total_amount::text,
             o.currency,
             o.delivery_address,

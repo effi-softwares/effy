@@ -141,7 +141,21 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
     // 077 — `shownDeliveryAmount` is what the client says it is DISPLAYING. It is read, and it is
     // an amount; the next test holds that it can only ever refuse a charge, never set one.
     expect(code).toMatch(/body\.shownDeliveryAmount/);
-    expect(code.replaceAll("body.shownDeliveryAmount", "")).not.toMatch(/body\??\.\w*(amount|total|price|discount|fee)\w*/i);
+    // 094 — `expectedDiscount` likewise: the promotions total the client is DISPLAYING, only compared.
+    expect(code).toMatch(/body\.expectedDiscount/);
+    expect(code.replaceAll("body.shownDeliveryAmount", "").replaceAll("body.expectedDiscount", "")).not.toMatch(/body\??\.\w*(amount|total|price|discount|fee)\w*/i);
+  });
+
+  it("094 — the shown promotions total is compared with the platform's and used for nothing else", () => {
+    const service = readFileSync(resolve(src, "checkout/service.ts"), "utf8")
+      .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    const uses = service.split("\n").filter((l) => /\bexpected(Discount)?\b/.test(l));
+    expect(uses.map((l) => l.trim())).toEqual([
+      "expectedDiscount?: string;",
+      'const expected = input.expectedDiscount ?? "";',
+      'if (expected !== "" && parseCents(expected) !== goodsDiscountCents + deliveryDiscountCents) {',
+      "throw new PromotionsChangedRefusal(parseCents(expected), goodsDiscountCents + deliveryDiscountCents);",
+    ]);
   });
 
   it("the shown delivery amount is compared with the platform's and used for nothing else", () => {
@@ -172,7 +186,7 @@ describe("the amount is the platform's, and a card is kept only by the shopper's
  */
 describe("stripe_event has one writer, and it is inside the transaction", () => {
   it("only the webhook handler touches the table", () => {
-    const writers = ["cart", "checkout", "functions", "lib", "orders", "promo", "saved", "webhook"]
+    const writers = ["cart", "checkout", "functions", "lib", "orders", "promotions", "saved", "webhook"]
       .flatMap(sources)
       .filter(({ body }) => /INSERT INTO public\.stripe_event/.test(body))
       .map(({ file }) => file);

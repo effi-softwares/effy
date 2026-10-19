@@ -281,6 +281,8 @@ export type StorefrontEvent =
   // says how far from the hub someone lives.
   | { name: "delivery_fee_viewed"; props: { free: boolean; small_order: boolean; surcharge: boolean } }
   | { name: "checkout_delivery_fee_changed"; props: Record<string, never> }
+  // 094 — an offer changed between the cart and the pay button.
+  | { name: "checkout_promotions_changed"; props: Record<string, never> }
   // 051 payment experience.
   //
   // ⚠ WHAT THESE MAY NEVER CARRY, and the type is what enforces it: no card number (not even the last

@@ -4,6 +4,74 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**094-promotions-rebuild — Promotions Rebuilt: a Full Promotion System, Grouped for Display.** 🚧 **BUILT
+(2026-10-20); NOT MIGRATED, DEPLOYED OR WALKED.** Spec, plan, tasks: [specs/094-promotions-rebuild/](specs/094-promotions-rebuild/tasks.md).
+
+- **The 027/028/029 one-code model is replaced.** A promotion is one of four kinds:
+  - **cart**: a percentage with an optional cap, or an amount;
+  - **item**: chosen products, categories or brands;
+  - **buy X get Y**;
+  - **delivery**: free, a percentage or an amount, for Effy delivery, courier or both.
+
+  It is **automatic** or applies with a **code** (one shared code, or batches of single-use codes). It can
+  be limited to everyone, a first order, new customers or chosen customers, and by minimum spend or
+  quantity, dates, days and hours. It can be capped by total uses, uses per customer and a budget. It
+  either **combines** with other promotions or not.
+- **State is never stored.** `public.promotion_state()` is the one definition: draft, scheduled, active,
+  paused, used up, out of budget, ended or archived.
+- **One evaluator.** `@effy/edge-shared/promotions/engine.ts` works out every discount:
+  - reductions in the order item → buy X get Y → cart → delivery;
+  - rounding down per line, and largest-remainder allocation across lines;
+  - when promotions don't combine, the shopper gets the larger discount, then the one ending soonest, then the oldest.
+
+  The cart read, the payment intent, the quote and the back-office preview all call it.
+  `promotions.guard.test.ts` fails a second reader, a second writer of `promotion_use`, or any shop read of a promotion.
+- ⚠ **Uses are held at the payment intent under a row lock and confirmed at payment.** 027 counted only
+  paid orders, so the last use could be sold twice. Payment failure, an expired hold, a newer intent or
+  cancellation before fulfilment releases a use. A late payer is still confirmed.
+- **An order keeps what it was sold.** `order_promotion` keeps a snapshot of each promotion;
+  `order_item.discount_amount` keeps the cents each line lost; `order.delivery_discount_amount` keeps the
+  delivery discount. `order.discount_amount` stays the goods total, so its existing readers work unchanged.
+- **Refunds.** A part refund returns the line's *paid* share (R8); before this it returned the shelf price.
+- **The price the shopper saw is the price charged.** The intent compares `expectedDiscount` and answers 409
+  `promotions_changed` with the cart. Clients built before 094 send nothing and are not checked.
+- **Display groups** replace the advertise switch, the placements and the artwork editor.
+  - The starting groups are `home-hero`, `home-side`, `home-between`, `offers` and `cart`. Advertised codes were copied into them.
+  - `GET /storefront/v1/promotion-groups?keys=` is public and listing-cached; `GET /commerce/v1/promotion-groups?keys=` is the signed-in, personal answer.
+  - `home.banners` is kept for installed apps and built from the groups.
+  - Customer-web and the app read groups. Products show offer badges.
+- **Back-office.** Promotions has state tabs with counts, filters, and one editor page for every kind with a
+  live summary. Each promotion's page has lifecycle actions, Shown in, Customers, Codes (with CSV export),
+  Performance and History. Display groups have their own pages for ordering and a preview of what a
+  shopper sees, with why each hidden promotion is hidden.
+- **Shops.** The shop money panel keeps the order's discount total. `promoCode` is now always null
+  (deprecated — compatibility), and shop-web no longer names the code.
+- ⚠ **Triggers were written and then removed.** The shop trigger guard forbids triggers that can abort a
+  write. FR-020 (fixed once used), the fixed group key and the headline rule are enforced in the admin
+  service inside the write, under the promotion row lock.
+- **Verified.** Container tests (Docker) covered:
+  - the migration copy and every state;
+  - ten concurrent holds on the last use, budget overspend and a single-use code race;
+  - cart total = charge = order records, held → confirmed, a paid-share refund, and 409 when a promotion ends;
+  - admin lifecycle, frozen fields, stale edits, groups and preview, chosen customers, code batches and performance;
+  - storefront groups, the public promotion page and product offer badges.
+
+  Unit suites pass in every service, customer-web (700), back-office promotions and the customer app's host tests.
+- **Not done.** The Stage C migration is authored at
+  [specs/094-promotions-rebuild/stage-c/remove_promo_code.sql](specs/094-promotions-rebuild/stage-c/remove_promo_code.sql).
+  ⚠ It is deliberately NOT in `db/migrations`, so `make db-up` cannot apply it early. First remove the
+  remaining old reads in a release: `commerce` cart/checkout `promo_code_id`, `orders` `LEFT JOIN
+  promo_code`, `finalize` clearing `promo_code_id`, and admin's legacy audit lookup. Then move it in under a
+  new timestamp. The app does not send
+  `expectedDiscount` yet; it is optional.
+- **Operator steps (dev)**, in order:
+  1. `make db-up ENV=dev` (or `db-up-one`) for `20261020090000_promotions_rebuild.sql`.
+  2. `make edge-deploy SERVICE=admin ENV=dev`.
+  3. `storefront` and `commerce`, together.
+  4. `orders`, `notifications` and `shop`.
+  5. Back-office, customer-web, then the app.
+  6. Walk `specs/094-promotions-rebuild/quickstart.md`.
+
 **093-driver-work-sequence — Driver Work in One Order, and Trips That Join Up.** 🚧 **BUILT (2026-10-17); NOT
 MIGRATED, DEPLOYED OR WALKED.** Research: [research-07](docs/research/logistics/research-07-driver-task-sequencing.md)
 (Onfleet Route Load, Bringg linked tasks, Track-POD load check, Amazon Flex/DSP, Shipsy hub exceptions). Spec,

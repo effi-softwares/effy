@@ -1,34 +1,36 @@
 import { isDomainError } from "@effy/api-client";
 
 /**
- * Uniform, non-leaking mutation-failure copy for the promotions screens.
- *
- * ⚠ Two conflicts matter enough to name (FR-068/FR-070), because the operator's next move differs:
- * a redeemed code's value cannot be rewritten (edit the window instead), and a redeemed code cannot
- * be deleted (disable it instead). "That conflicts with existing data" would leave them re-trying the
- * thing that will never work. Everything else keys off `DomainError.kind` and the status only — never
- * a raw `detail` (the ErrorState contract's rule, applied to inline form errors).
+ * Non-leaking copy for promotion refusals (094). The admin service names each refusal by its problem
+ * `type`; we map it to our OWN words (never the server's `detail`), because the operator's next move
+ * differs: a used promotion keeps what it gives (archive or start a new one), a taken code needs another
+ * code, a stale edit needs a reload.
  */
-export function promotionMutationError(err: unknown, conflictMessage?: string): string {
+const BY_TYPE: Record<string, string> = {
+  "promotion-used": "This promotion has been used, so what it gives and who it is for can no longer change. Its dates, limits, words and groups still can.",
+  "code-taken": "That code is already used by another promotion. Choose a different code.",
+  stale: "Someone else changed this promotion. Reload it to see their change, then try again.",
+  "headline-required": "Add a headline before showing this promotion in a group.",
+  "action-not-allowed": "That can't be done to a promotion in its current state.",
+  "key-taken": "That key is already used by another group.",
+};
+
+export function promotionMutationError(err: unknown): string {
   if (isDomainError(err)) {
-    if (err.kind === "forbidden") return "You don't have permission to perform this action.";
-    if (err.kind === "not-found") return "That code no longer exists.";
-    if (err.kind === "unavailable")
-      return "The service is waking up or unreachable. Try again in a moment.";
-    if (err.status === 409) return conflictMessage ?? "That change conflicts with existing data.";
-    if (err.status === 400 || err.status === 422)
-      return "Please check the fields and try again.";
+    const slug = err.type?.split("/").pop() ?? "";
+    if (BY_TYPE[slug]) return BY_TYPE[slug];
+    if (err.kind === "forbidden") return "You don't have permission to do this.";
+    if (err.kind === "not-found") return "That promotion no longer exists.";
+    if (err.kind === "unavailable") return "The service is waking up or unreachable. Try again in a moment.";
+    if (err.status === 400 || err.status === 422) {
+      const fields = (err.fields ?? []).map((f) => f.field).filter(Boolean);
+      return fields.length ? `Check ${fields.join(", ")} and try again.` : "Please check the fields and try again.";
+    }
   }
   return "Something went wrong. Please try again.";
 }
 
-/** The conflict copy for editing a code that has already been redeemed. */
-export const USED_CODE_CONFLICT =
-  "This code has already been redeemed. Its window, caps and status can change — its value cannot.";
-
-/** The conflict copy for deleting a code that has already been redeemed. */
-export const DELETE_BLOCKED_CONFLICT =
-  "This code has already been redeemed, so it can't be deleted. Disable it instead.";
-
-/** The conflict copy for a code name that is already taken. */
-export const DUPLICATE_CODE_CONFLICT = "A code with that name already exists.";
+/** The fields the server refused, for marking them in the form. */
+export function refusedFields(err: unknown): Set<string> {
+  return new Set(isDomainError(err) ? (err.fields ?? []).map((f) => f.field) : []);
+}

@@ -20,6 +20,8 @@ import com.effyshopping.customer.mobile.core.http.ensureSuccess
 import com.effyshopping.customer.mobile.features.cart.domain.CartBlockedReason as DomainBlockedReason
 import com.effyshopping.customer.mobile.features.cart.domain.CartCheckout
 import com.effyshopping.customer.mobile.features.cart.domain.CartDiscount
+import com.effyshopping.customer.mobile.features.cart.domain.CartPromotionLine
+import com.effyshopping.customer.mobile.features.cart.domain.CartPromotionNotApplied
 import com.effyshopping.customer.mobile.features.cart.domain.CartLimits
 import com.effyshopping.customer.mobile.features.cart.domain.CartNotice
 import com.effyshopping.customer.mobile.features.cart.domain.CartNoticeKind as DomainNoticeKind
@@ -186,6 +188,12 @@ private fun CartDTO.toDomain() = CartSnapshot(
     },
     discount = discount?.let {
         CartDiscount(code = it.code, kind = it.kind.value, amount = it.amount, label = it.label)
+    },
+    promotions = promotions.orEmpty().map {
+        CartPromotionLine(promotionId = it.promotionID, headline = it.headline, code = it.code, goodsAmount = it.goodsAmount)
+    },
+    promotionsNotApplied = promotionsNotApplied.orEmpty().map {
+        CartPromotionNotApplied(promotionId = it.promotionID, headline = it.headline, detail = it.detail)
     },
     checkout = CartCheckout(
         allowed = checkout.allowed,

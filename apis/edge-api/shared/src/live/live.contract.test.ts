@@ -89,7 +89,9 @@ describe("071 — the channel's infrastructure", () => {
   });
 
   it("watches send failures for every kind the code can publish", () => {
-    expect(list("live_kinds")).toEqual([...LIVE_KINDS]);
+    // ⚠ 094's `promotions` is deliberately NOT watched: a CloudWatch alarm holds at most 10 metrics, and
+    // a missed promotions update only leaves a back-office screen stale until it is reloaded.
+    expect(list("live_kinds")).toEqual(LIVE_KINDS.filter((k) => k !== "promotions"));
   });
 
   it("publishes the three parameters the services read", () => {

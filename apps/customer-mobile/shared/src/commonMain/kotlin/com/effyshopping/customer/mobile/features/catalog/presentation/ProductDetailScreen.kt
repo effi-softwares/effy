@@ -285,6 +285,8 @@ private fun ProductBody(
                 )
                 EffySaleBadge(text = "−$percentOff%")
             }
+            // 094 — the offer the cart will apply to this product.
+            if (card.offerLabel != null && card.available) EffySaleBadge(text = card.offerLabel)
         }
         Text(
             buildAnnotatedString {

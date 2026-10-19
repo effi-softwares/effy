@@ -381,6 +381,10 @@ export interface AdminOrderDetailDTO {
   deliveryFeeBreakdown?: DeliveryFeeBreakdownDTO;
   discountAmount: string;
   promoCode: string | null;
+  /** 094 — each promotion applied, as sold; staff also see its internal name. */
+  promotions?: { name: string; headline: string; code: string | null; goodsAmount: string; deliveryAmount: string }[];
+  /** 094 — what delivery promotions took off the fee. */
+  deliveryDiscountAmount?: string;
   grandTotalAmount: string;
   currency: string;
 

@@ -10,6 +10,7 @@
  */
 import { pooled, withTransaction, type Queryable, type Transactor } from "../../lib/db";
 import { returnForRefund } from "../../points/ledger";
+import { releaseUses } from "../../promotions/uses";
 import { splitRefund, type Split } from "../../points/split";
 import type { WebhookEvent } from "../gateway";
 import {
@@ -269,10 +270,11 @@ export function createRefundRepository(
       for (const w of want) {
         if (!Number.isInteger(w.quantity) || w.quantity <= 0) throw new AmountInvalidError();
         const row = (
-          await db.query<{ unit: string; ordered: number; refunded: string }>(
+          await db.query<{ unit: string; ordered: number; refunded: string; discount: string }>(
             `
 SELECT round(oi.unit_price_amount * 100)::bigint AS unit,
        oi.quantity AS ordered,
+       round(oi.discount_amount * 100)::bigint AS discount,
        COALESCE((SELECT SUM(rl.quantity)
                    FROM public.refund_line rl
                    JOIN public.refund rf ON rf.id = rl.refund_id
@@ -285,7 +287,12 @@ SELECT round(oi.unit_price_amount * 100)::bigint AS unit,
         ).rows[0];
         if (!row) throw new RefundOrderNotFoundError();
         if (cents(row.refunded) + w.quantity > row.ordered) throw new LineOverRefundedError();
-        const amountCents = cents(row.unit) * w.quantity;
+        // 094 R8 — what the shopper PAID for these units: the line's price less its share of the
+        // discount, so a part refund of a discounted line never returns more than was charged for it.
+        // The last units of a line take any remainder, so a fully refunded line returns exactly its paid amount.
+        const paidLine = cents(row.unit) * row.ordered - cents(row.discount ?? "0");
+        const before = cents(row.refunded);
+        const amountCents = Math.floor((paidLine * (before + w.quantity)) / row.ordered) - Math.floor((paidLine * before) / row.ordered);
         totalCents += amountCents;
         lines.push({ orderItemId: w.orderItemId, quantity: w.quantity, amountCents });
       }
@@ -560,6 +567,9 @@ UPDATE public.delivery_slot_booking
  WHERE order_id = $1 AND state <> 'released'`,
           [input.orderId],
         );
+
+        // 094 — cancelled before it left: its promotion uses, single-use code and budget go back (FR-040).
+        await releaseUses(tx, input.orderId, "cancelled");
 
         const cardPaidCents = cents(o.paid);
         const pointsValueCents = cents(o.points_value);

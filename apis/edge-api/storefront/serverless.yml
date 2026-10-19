@@ -158,11 +158,19 @@ functions:
 
   promotionV1:
     handler: src/functions/promotion-v1-get.handler
-    description: One advertised promotion in full, re-checked as live at the moment it is read. Public.
+    description: One promotion open to everyone, re-checked as live at the moment it is read (094). Public.
     events:
       - httpApi:
           method: GET
           path: /storefront/v1/promotions/{id}
+
+  promotionGroupsV1:
+    handler: src/functions/promotion-groups-v1-get.handler
+    description: Display groups by key — everyone-audience promotions in group order (094). Public, listing cache.
+    events:
+      - httpApi:
+          method: GET
+          path: /storefront/v1/promotion-groups
 
   serviceabilityV1:
     handler: src/functions/serviceability-v1-get.handler

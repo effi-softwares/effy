@@ -8,11 +8,11 @@ import { normaliseDeliveryInstructions } from "@effy/shared-types";
 
 import { DeliveryChoiceError } from "../checkout/delivery-choice";
 import { quoteForCheckout } from "../checkout/quote";
-import { checkoutError, deliveryChoiceRefused, deliveryFeeChanged } from "../checkout/respond";
-import { DeliveryFeeChangedError } from "../checkout/service";
+import { checkoutError, deliveryChoiceRefused, deliveryFeeChanged, promotionsChanged } from "../checkout/respond";
+import { DeliveryFeeChangedError, PromotionsChangedRefusal } from "../checkout/service";
 import { isUuid } from "../lib/ids";
 import { customerRoute, jsonBody, stringField } from "../lib/route";
-import { checkoutService, quoteDeps } from "../lib/wiring";
+import { cartService, checkoutService, quoteDeps } from "../lib/wiring";
 
 /** A non-negative amount with exactly two decimal places — how every amount crosses the wire. */
 const AMOUNT = /^\d{1,7}\.\d{2}$/;
@@ -41,6 +41,13 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     return validationFailed(scope, "shownDeliveryAmount must be an amount like 6.00");
   }
   const shownDeliveryAmount = typeof rawShown === "string" ? rawShown : "";
+
+  // 094 — the promotions total the client is showing. Absent from a client built before 094.
+  const rawExpected: unknown = body.expectedDiscount;
+  if (rawExpected !== undefined && rawExpected !== null && (typeof rawExpected !== "string" || !/^\d{1,7}\.\d{2}$/.test(rawExpected))) {
+    return validationFailed(scope, "expectedDiscount must be an amount like 5.00");
+  }
+  const expectedDiscount = typeof rawExpected === "string" ? rawExpected : "";
 
   // 078 — the one window chosen for the order. Absent or null means none was sent (a client built
   // before 078, or the new delivery model is off and the three fields above apply).
@@ -84,12 +91,17 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
       {
         addressId, billingAddressId, deliveryWindow, deliveryType, deliveryPromise,
         deliveryInstructions: instructions.value, wantsProviderMethodList: wantsList === true, pointsToUse,
-        shownDeliveryAmount,
+        shownDeliveryAmount, expectedDiscount,
       },
       new Date(),
     );
     return json(200, result, scope);
   } catch (err) {
+    if (err instanceof PromotionsChangedRefusal) {
+      // The cart as it stands now, so the shopper sees the new total before paying (094 FR-037).
+      const cart = await cartService.get(customer.id).catch(() => null);
+      return promotionsChanged(scope, cart);
+    }
     if (err instanceof DeliveryChoiceError || err instanceof DeliveryFeeChangedError) {
       // Best-effort: the refusal is still correct without the quote.
       const fresh = await quoteForCheckout(quoteDeps, customer.id, addressId, new Date()).catch((qerr: unknown) => {

@@ -379,13 +379,18 @@ one use, end it, archive it; confirm each status and that the value change is re
   promotions with only single-use codes MUST NOT show any code.
 - **FR-033**: Every condition that can stop a promotion applying MUST be said where it is shown and in
   the cart — never first at payment.
-- **FR-034**: When a shown or applied promotion stops being available, clients that show it MUST learn of
-  it the same way they learn of other changes (no screen refreshes on a timer).
+- **FR-034**: When a shown or applied promotion stops being available, a client MUST stop showing it the
+  next time it shows that place, and within one minute (SC-005); the cart and checkout re-check it on
+  every read. No screen refreshes on a timer. Back-office screens are told of changes as they are today.
+  *(Amended at planning: the live channel has no scope that reaches every shopper at once, and adding one
+  is out of scope.)*
 
 **Money and history**
 
-- **FR-035**: All promotions MUST be funded by Effy. A shop MUST NOT see any promotion, any discount, or
-  any amount that depends on one; what a shop is paid for an item is unchanged by promotions.
+- **FR-035**: All promotions MUST be funded by Effy. What a shop is paid for an item MUST be unchanged by
+  promotions, and a shop MUST NOT see which promotion applied, its name, its code or its terms. *(Amended
+  at planning: a shop's order money panel already shows the order's total discount, which its refund
+  arithmetic balances against; that one total stays, the code name it showed beside it does not.)*
 - **FR-036**: Points MUST remain a way of paying, applied after all discounts; promotions MUST NOT change
   a points balance.
 - **FR-037**: The final price MUST be re-checked when payment is taken; if it differs from what the
@@ -456,7 +461,7 @@ one use, end it, archive it; confirm each status and that the value change is re
   across every acceptance scenario on both clients).
 - **SC-007**: Placing a promotion in a group, or reordering a group, changes what both clients show
   without a client release.
-- **SC-008**: No shop-facing screen, document or payment amount mentions or depends on a promotion.
+- **SC-008**: No shop-facing screen or document names a promotion or its code, and no amount a shop is paid depends on one.
 
 ## Assumptions
 

@@ -210,9 +210,14 @@ fun CartScreen(
                                 )
                             }
                             EffyDetailRow("Items (${cart.itemCount})", money(cart.itemSubtotalAmount, currency))
-                            cart.discount?.let { d ->
-                                // FR-045: shown as its OWN entry, in Effy green — a saving.
-                                EffyDetailRow("${d.label} (${d.code})", "−" + money(d.amount, currency), valueColor = com.effyshopping.customer.mobile.core.theme.EffyRoles.brand)
+                            // 094 — one entry per promotion applying (FR-045: its OWN entry, in Effy green).
+                            cart.promotions.filter { it.goodsAmount != "0.00" }.forEach { p ->
+                                val label = if (p.code != null) "${p.headline} (${p.code})" else p.headline
+                                EffyDetailRow(label, "−" + money(p.goodsAmount, currency), valueColor = com.effyshopping.customer.mobile.core.theme.EffyRoles.brand)
+                            }
+                            // 094 — offers not applying yet, each with the one thing to do about it.
+                            cart.promotionsNotApplied.forEach { n ->
+                                Text("${n.headline}: ${n.detail}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             EffyDetailRow("Delivery", "Calculated at checkout")
                             EffyHairline(inset = false, modifier = Modifier.padding(vertical = EffySpacing.xs))

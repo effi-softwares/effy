@@ -360,7 +360,7 @@ functions:
   #    this surface only defines them. Two paths, one capability, exactly Principle III. ──
   promotionsListV1:
     handler: src/functions/promotions-list-v1-get.handler
-    description: List promotional codes (paged, filter by status, search by code) — 027
+    description: List promotions (paged; state, kind, trigger, group; counts per state) — 094
     events:
       - httpApi:
           method: GET
@@ -371,7 +371,7 @@ functions:
 
   promotionsCreateV1:
     handler: src/functions/promotions-create-v1-post.handler
-    description: Create a promotional code — 027 FR-050
+    description: Create a promotion (draft unless published) — 094
     events:
       - httpApi:
           method: POST
@@ -380,9 +380,20 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  promotionsProductsV1:
+    handler: src/functions/promotions-products-v1-get.handler
+    description: Products a promotion can target, by name, SKU or brand — 094
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/products
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   promotionsDetailV1:
     handler: src/functions/promotions-detail-v1-get.handler
-    description: A code's definition, usage against its caps, and attribution — 027 FR-067
+    description: A promotion in full — 094
     events:
       - httpApi:
           method: GET
@@ -393,7 +404,7 @@ functions:
 
   promotionsUpdateV1:
     handler: src/functions/promotions-update-v1-patch.handler
-    description: Edit window/caps always; value only while unredeemed — 027 FR-068
+    description: Edit a promotion; what it gives and who it is for are fixed once used — 094
     events:
       - httpApi:
           method: PATCH
@@ -402,20 +413,20 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  promotionsStatusV1:
-    handler: src/functions/promotions-status-v1-post.handler
-    description: Enable or disable a code — 027 FR-069
+  promotionsActionsV1:
+    handler: src/functions/promotions-actions-v1-post.handler
+    description: Publish, pause, resume, end or archive a promotion — 094
     events:
       - httpApi:
           method: POST
-          path: /admin/v1/promotions/{id}/status
+          path: /admin/v1/promotions/{id}/actions
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
   promotionsDeleteV1:
     handler: src/functions/promotions-delete-v1-delete.handler
-    description: Delete a never-redeemed code (used codes disable, never delete) — 027 FR-070
+    description: Delete a promotion nobody has used (used ones are archived) — 094
     events:
       - httpApi:
           method: DELETE
@@ -424,24 +435,167 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  promotionsBannerImageV1:
-    handler: src/functions/promotions-banner-image-v1-post.handler
-    description: Presign a PUT for promotional banner artwork — 028 FR-037b
-    events:
-      - httpApi:
-          method: POST
-          path: /admin/v1/promotions/{id}/banner-image/presign
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
   promotionsAuditV1:
     handler: src/functions/promotions-audit-v1-get.handler
-    description: A code's change history — 027 FR-071
+    description: A promotion's change history — 094
     events:
       - httpApi:
           method: GET
           path: /admin/v1/promotions/{id}/audit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsListV1:
+    handler: src/functions/promotion-groups-list-v1-get.handler
+    description: Display groups — list (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-groups
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsCreateV1:
+    handler: src/functions/promotion-groups-create-v1-post.handler
+    description: Display groups — create (094)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotion-groups
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsDetailV1:
+    handler: src/functions/promotion-groups-detail-v1-get.handler
+    description: Display groups — detail (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-groups/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsUpdateV1:
+    handler: src/functions/promotion-groups-update-v1-patch.handler
+    description: Display groups — update (094)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/promotion-groups/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsDeleteV1:
+    handler: src/functions/promotion-groups-delete-v1-delete.handler
+    description: Display groups — delete (094)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotion-groups/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsMembersV1:
+    handler: src/functions/promotion-groups-members-v1-put.handler
+    description: Display groups — members (094)
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/promotion-groups/{id}/members
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsPreviewV1:
+    handler: src/functions/promotion-groups-preview-v1-get.handler
+    description: Display groups — preview (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-groups/{id}/preview
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCustomersListV1:
+    handler: src/functions/promotions-customers-list-v1-get.handler
+    description: Promotions — customers-list (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/customers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCustomersAddV1:
+    handler: src/functions/promotions-customers-add-v1-post.handler
+    description: Promotions — customers-add (094)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/customers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCustomersRemoveV1:
+    handler: src/functions/promotions-customers-remove-v1-delete.handler
+    description: Promotions — customers-remove (094)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotions/{id}/customers/{customerId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCodesGenerateV1:
+    handler: src/functions/promotions-codes-generate-v1-post.handler
+    description: Promotions — codes-generate (094)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/codes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCodesListV1:
+    handler: src/functions/promotions-codes-list-v1-get.handler
+    description: Promotions — codes-list (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/codes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCodesExportV1:
+    handler: src/functions/promotions-codes-export-v1-get.handler
+    description: Promotions — codes-export (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/codes/export
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsPerformanceV1:
+    handler: src/functions/promotions-performance-v1-get.handler
+    description: Promotions — performance (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/performance
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

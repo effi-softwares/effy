@@ -146,6 +146,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  promotionGroupsV1:
+    handler: src/functions/promotion-groups-v1-get.handler
+    description: Display groups for the signed-in shopper — their personal offers included (094).
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/promotion-groups
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   cartClearV1:
     handler: src/functions/cart-v1-delete.handler
     description: Empty the payable cart; set-aside lines survive.

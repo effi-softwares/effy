@@ -11,7 +11,8 @@
     "./payments": "./src/payments/index.ts",
     "./points": "./src/points/index.ts",
     "./live": "./src/live/index.ts",
-    "./testing": "./src/testing/kotlin-fixture.ts"
+    "./testing": "./src/testing/kotlin-fixture.ts",
+    "./promotions": "./src/promotions/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

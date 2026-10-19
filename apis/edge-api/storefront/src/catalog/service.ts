@@ -1,6 +1,7 @@
 // Category and product-detail shaping. No HTTP, no SQL. The customer projection never exposes
 // which shop fulfils a product (019 FR-038).
 import { imageWidthsField } from "@effy/edge-shared";
+import { productOffer } from "@effy/edge-shared/promotions";
 import type {
   MediaDTO,
   ProductAttributeGroupDTO,
@@ -93,6 +94,7 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
         priceAmount: row.price_amount,
         currency: row.currency,
         compareAtAmount: row.compare_at_amount,
+        ...(row.offer ? { offer: productOffer(row.offer) } : {}),
         badges,
         // ⚠ 054: computed, not assumed. The page renders for an out-of-stock product and says so.
         available: row.available,

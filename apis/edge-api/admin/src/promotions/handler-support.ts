@@ -5,10 +5,10 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
 import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
-import type { AuditEntryDTO, OrderPolicyDTO, PromoCodeDTO, PromoCodeListDTO } from "@effy/shared-types";
+import type { AuditEntryDTO, OrderPolicyDTO } from "@effy/shared-types";
 
 import { canManagePromotions, isActiveStaff } from "./authz";
-import { type AuditEntry, type OrderPolicy, type Paged, type PromoCode, type PromoState, isPromoError } from "./types";
+import { type AuditEntry, type OrderPolicy, isPromoError } from "./types";
 
 /**
  * Authenticate (401) + authorize from the platform record (403), fail-closed to 503 on an infra error.
@@ -60,48 +60,6 @@ export function mapPromoError(err: unknown, scope: RequestScope): APIGatewayProx
 }
 
 // ── domain → wire DTO (never leak domain shapes past the handler) ──────────────────────────────
-
-export function toPromoDTO(p: PromoCode): PromoCodeDTO {
-  return {
-    id: p.id,
-    code: p.code,
-    kind: p.kind,
-    percentOff: p.percentOff,
-    amountOff: p.amountOff,
-    currency: p.currency,
-    minimumSubtotalAmount: p.minimumSubtotalAmount,
-    startsAt: p.startsAt,
-    endsAt: p.endsAt,
-    maxRedemptions: p.maxRedemptions,
-    maxPerCustomer: p.maxPerCustomer,
-    status: p.status,
-    redemptionCount: p.redemptionCount,
-    createdBy: p.createdBy,
-    updatedBy: p.updatedBy,
-    createdAt: p.createdAt,
-    updatedAt: p.updatedAt,
-    isAdvertised: p.isAdvertised,
-    bannerTitle: p.bannerTitle,
-    bannerSubtitle: p.bannerSubtitle,
-    // ⚠ The KEY, not a presigned URL. The console needs it to send back on save, and a signed URL
-    // would expire in the operator's form. Rendering a preview is a separate presigned read.
-    bannerImageKey: p.bannerImageKey,
-    bannerPosition: p.bannerPosition,
-    bannerPlacement: p.bannerPlacement,
-  };
-}
-
-export function toPromoListDTO(
-  p: Paged<PromoCode & { state?: PromoState }> & { counts?: Record<PromoState, number> },
-): PromoCodeListDTO {
-  return {
-    items: p.items.map((i) => ({ ...toPromoDTO(i), ...(i.state ? { state: i.state } : {}) })),
-    total: p.total,
-    page: p.page,
-    pageSize: p.pageSize,
-    ...(p.counts ? { counts: p.counts } : {}),
-  };
-}
 
 export function toOrderPolicyDTO(p: OrderPolicy): OrderPolicyDTO {
   return {

@@ -34,6 +34,8 @@ describe("repository reads", () => {
       id: "1",
       code: "CMB-01",
       name: "Colombo 01",
+      hasAddress: undefined,
+      labelScanning: { scanned: 0, notScanned: 0, sinceDays: 30 },
       status: "active",
       userCount: 3,
     });

@@ -82,6 +82,9 @@ export interface ReceiptOrderRow {
   item_subtotal_amount: string;
   discount_amount: string | null;
   promo_code: string | null;
+  /** 094 — delivery promotions' share, and the headlines of every promotion as sold. */
+  delivery_discount_amount?: string | null;
+  promotion_names?: string[] | null;
   delivery_fee_amount: string | null;
   /**
    * 077 — the delivery charge as the lines the customer was sold; null before 077. ⚠ Only the
@@ -142,6 +145,8 @@ export async function loadReceipt(orderId: string): Promise<{
             o.item_subtotal_amount::text AS item_subtotal_amount,
             o.discount_amount::text      AS discount_amount,
             o.promo_code,
+            o.delivery_discount_amount::text AS delivery_discount_amount,
+            (SELECT array_agg(COALESCE(op.headline, op.name) ORDER BY op.name) FROM public.order_promotion op WHERE op.order_id = o.id) AS promotion_names,
             o.delivery_fee_amount::text  AS delivery_fee_amount,
             o.delivery_fee_breakdown -> 'lines' AS delivery_fee_lines,
             o.delivery_type, o.courier_estimate, o.delivery_promise, o.asap_estimate,

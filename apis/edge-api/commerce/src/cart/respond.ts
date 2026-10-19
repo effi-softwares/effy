@@ -5,7 +5,7 @@ import {
 } from "@effy/edge-shared";
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
-import { PromoRefusedError, refusalDetail } from "../promo/promo";
+import { PromotionCodeRefusedError } from "../promotions/pricing";
 import {
   CartFullError, InsufficientStockError, OrderNotFoundError, ProductNotFoundError, ProductUnavailableError,
 } from "./service";
@@ -38,7 +38,7 @@ export function cartError(scope: RequestScope, err: unknown): APIGatewayProxyStr
   }
   if (err instanceof CartFullError) return validationFailed(scope, "your cart is full — remove an item to add another");
   // Each promo refusal is its own problem type, so the client can say WHICH (027 FR-043).
-  if (err instanceof PromoRefusedError) return refused(scope, 400, err.reason, refusalDetail(err.reason, err.code));
+  if (err instanceof PromotionCodeRefusedError) return refused(scope, 400, err.reason, err.detail);
 
   scope.log.error({ err }, "cart: operation failed");
   return internal(scope);

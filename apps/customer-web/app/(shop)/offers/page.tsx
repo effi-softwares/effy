@@ -1,14 +1,14 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { Tag } from "lucide-react"
-import type { BannerDTO } from "@effy/shared-types"
+import { PROMOTION_GROUP_KEYS, type BannerDTO } from "@effy/shared-types"
 
 import { EmptyState } from "@/components/storefront/kit"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Breadcrumb, Skeleton } from "@/components/ui/misc"
 
-import { getHome } from "../home-data"
+import { getPromotionGroups } from "../promotion-groups"
 import { CopyCodeButton } from "../_components/CopyCodeButton"
 import { OfferCard } from "../_components/OffersPanels"
 
@@ -58,7 +58,8 @@ export default function OffersPage() {
 async function OfferList() {
   let offers: BannerDTO[]
   try {
-    offers = (await getHome()).banners
+    // 094 — the Offers page is its own display group.
+    offers = (await getPromotionGroups(PROMOTION_GROUP_KEYS.offers))[PROMOTION_GROUP_KEYS.offers] ?? []
   } catch {
     return (
       <EmptyState

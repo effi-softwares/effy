@@ -54,12 +54,11 @@ const eyebrow = "text-xs font-semibold uppercase opacity-85"
  * ⚠ The side cards: one promotion WITHOUT a code (the whole card is its link) above promotions WITH
  * one (the code and a copy button), two at most. The first slide is not repeated beside itself.
  */
-export function PromoHero({ banners }: { banners: BannerDTO[] }) {
-  const slides = banners
+export function PromoHero({ slides, side }: { slides: (BannerDTO & { label?: string | null })[]; side: BannerDTO[] }) {
   if (slides.length === 0) return null
 
-  const linked = banners.find((b) => !b.code && b !== slides[0] && offerHref(b) !== null)
-  const tiles = [...(linked ? [linked] : []), ...banners.filter((b) => Boolean(b.code))].slice(0, 2)
+  // 094 — the cards beside the band are their own display group (`home-side`), two at most.
+  const tiles = side.filter((b) => b.key !== slides[0]?.key).slice(0, 2)
 
   return (
     <section aria-roledescription="carousel" aria-label="Promotions" className="container pt-6">
@@ -85,7 +84,7 @@ export function PromoHero({ banners }: { banners: BannerDTO[] }) {
                   slides.length > 1 && "pb-14",
                 )}
               >
-                <p className={cn(eyebrow, "tracking-[0.06em]")}>This week&rsquo;s offer</p>
+                <p className={cn(eyebrow, "tracking-[0.06em]")}>{banner.label ?? "This week\u2019s offer"}</p>
                 <h2 className="mt-3 line-clamp-3 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
                   {banner.title}
                 </h2>

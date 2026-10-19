@@ -1,5 +1,5 @@
 // The delivery quote a shopper sees before paying, and its wire form (077–079).
-import { emitMetric, formatCents, metricNamespace, operatingStamp, pooled, type Queryable } from "@effy/edge-shared";
+import { emitMetric, formatCents, metricNamespace, operatingStamp, parseCents, pooled, type Queryable } from "@effy/edge-shared";
 import {
   basketValueCents, feeDTO, normalizePostcode, quote as deliveryQuote,
   storedBreakdown, windowKey, type EffyWindowsQuote, type PackageInput, type PricedFee, type QuoteResult,
@@ -7,6 +7,7 @@ import {
 import type { DeliveryQuoteDTO, EffyWindowsDTO } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
+import type { Pricing } from "../promotions/pricing";
 import type { CheckoutLine, CheckoutStore } from "./store";
 
 /**
@@ -30,12 +31,19 @@ export const defaultQuoter = (db: Queryable = pooled): DeliveryQuoter => (custom
   deliveryQuote(db, customerId, postcode, pkgs, now, basketCents);
 
 /**
- * The cart's promotional discount for a subtotal — the SAME rule the cart read applies, with usage
- * counted. The quote needs it for the same reason the intent does: free delivery and the small-order
- * fee are judged on the basket AFTER a promotion (077 FR-005), and a quote that judged it before
- * would promise a free delivery the intent then charges for.
+ * 094 — the cart's promotions priced through the ONE engine, for a set of checkout lines. The quote
+ * needs it for the same reason the intent does: free delivery and the small-order fee are judged on
+ * the basket AFTER promotions (077 FR-005), and a quote that judged it before would promise a free
+ * delivery the intent then charges for.
  */
-export type PromoSource = (customerId: string, payableCents: number) => Promise<{ cents: number; promo: { id: string; code: string } | null }>;
+export type PromoSource = (input: {
+  customerId: string;
+  lines: readonly CheckoutLine[];
+  deliveryType: "effy" | "courier" | null;
+  deliveryFeeCents: number | null;
+  now: Date;
+  excludeOrderId?: string | null;
+}) => Promise<Pricing>;
 
 /** The destination postcode from an address snapshot; null when it is missing or malformed. */
 export function destinationPostcode(address: Record<string, unknown>): string | null {
@@ -147,16 +155,16 @@ export async function quoteForCheckout(
   // The basket as the fee judges it: goods after the cart's promotion — the same two figures the
   // intent uses, so the quote and the charge cannot disagree about free delivery.
   const itemSubtotalCents = lines.reduce((sum, l) => sum + l.unitCents * l.quantity, 0);
-  const discount = await deps.promos(customerId, itemSubtotalCents);
+  const priced = await deps.promos({ customerId, lines, deliveryType: null, deliveryFeeCents: null, now });
   const [delivery, points] = await Promise.all([
-    deps.quoter(customerId, postcode, packagesFromLines(lines), now, basketValueCents(itemSubtotalCents, discount.cents)),
+    deps.quoter(customerId, postcode, packagesFromLines(lines), now, basketValueCents(itemSubtotalCents, priced.outcome.goodsDiscountCents)),
     deps.store.pointsFor(customerId, now),
   ]);
   // ⚠ A page, not a number to watch (078 FR-020): a covered address and not one window switched on.
   // Emitted HERE, on the read — a shopper who is shown "no windows" never reaches the intent call.
   if (delivery.serviced && delivery.coverage === "effy" && delivery.effyWindows.unavailable === "none_defined") emitMetric(metricNamespace(), "EffyWindowsNoneDefined");
   return {
-    ...toQuoteDTO(postcode, delivery, now),
+    ...withDeliveryPromotions(toQuoteDTO(postcode, delivery, now), priced),
     // 074 — what the shopper can spend. ABSENT when they have none, so the control is not shown.
     // ⚠ The order total depends on the delivery choice still to be made, so the CLIENT works out the
     // most for this order; the intent call re-decides it and refuses what it cannot honour.
@@ -164,4 +172,25 @@ export async function quoteForCheckout(
       ? { points: { usable: points.usable, centsPerPoint: points.centsPerPoint, cardMinimumAmount: formatCents(CARD_MINIMUM_CENTS) } }
       : {}),
   };
+}
+
+/**
+ * 094 — every fee in a quote says what this shopper's delivery promotions take off it, so a client
+ * shows "Free delivery" on the option it applies to and the total it will be charged. The courier
+ * option is priced as courier, every other as Effy. A quote with no delivery promotion is unchanged.
+ */
+export function withDeliveryPromotions<T>(dto: T, priced: Pricing): T {
+  const reprice = priced.reprice;
+  if (!reprice) return dto;
+  const walk = (node: unknown, courier: boolean): unknown => {
+    if (Array.isArray(node)) return node.map((n) => walk(n, courier));
+    if (!node || typeof node !== "object") return node;
+    const o = node as Record<string, unknown>;
+    if (Array.isArray(o.lines) && typeof o.totalAmount === "string") {
+      const off = reprice(courier ? "courier" : "effy", parseCents(o.totalAmount)).deliveryDiscountCents;
+      return off > 0 ? { ...o, promotionAmount: formatCents(off) } : o;
+    }
+    return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, walk(v, courier || k === "courier")]));
+  };
+  return walk(dto, false) as T;
 }

@@ -369,12 +369,25 @@ private fun ReceiptBody(
         // ⚠ EVERY LINE MUST ADD UP (FR-004): items − discount + delivery = total = what was charged.
         SummaryRow("Items subtotal", money(receipt.itemSubtotalAmount, receipt.currency))
         // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order.
-        if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {
+        // 094 — one row per promotion as sold; an order from before 094 has one code.
+        val sold = receipt.promotions.filter { it.goodsAmount != "0.00" }
+        if (sold.isNotEmpty()) {
+            sold.forEach { p ->
+                SummaryRow(
+                    if (p.code != null) "${p.headline} (${p.code})" else p.headline,
+                    "−" + money(p.goodsAmount, receipt.currency),
+                    valueColor = EffyRoles.brand,
+                )
+            }
+        } else if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {
             SummaryRow(
                 ReceiptText.discountLabel(receipt.promoCode),
                 "−" + money(receipt.discountAmount, receipt.currency),
                 valueColor = EffyRoles.brand,
             )
+        }
+        receipt.deliveryDiscountAmount?.takeIf { it != "0.00" }?.let {
+            SummaryRow("Delivery offer", "−" + money(it, receipt.currency), valueColor = EffyRoles.brand)
         }
         // ⚠ 052 — a zero fee stays omitted: on a financial record "nothing" and "unknown" differ.
         // 077 — an order placed since the fee engine shows the lines it was SOLD with, in the shared

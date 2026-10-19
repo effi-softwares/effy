@@ -10,6 +10,7 @@ import { defaultQuoter, type PromoSource } from "../checkout/quote";
 import { createCheckoutService } from "../checkout/service";
 import { createCheckoutStore } from "../checkout/store";
 import { createOrdersRepository } from "../orders/repository";
+import { pricePromotionsFor } from "../promotions/pricing";
 import { createOrdersService } from "../orders/service";
 import { createSavedRepository } from "../saved/repository";
 import { createSavedService } from "../saved/service";
@@ -29,8 +30,18 @@ export const savedService = createSavedService({
 export const checkoutStore = createCheckoutStore();
 export const deliveryQuoter = defaultQuoter();
 
-// The SAME rule the cart read applies, with usage counted: the cart and the charge cannot disagree.
-const promos: PromoSource = (customerId, payableCents) => cartService.discountForCustomer(customerId, payableCents);
+// 094 — the SAME engine the cart read prices with: the cart and the charge cannot disagree. The code
+// is the one the shopper entered on their cart.
+const promos: PromoSource = async ({ customerId, lines, deliveryType, deliveryFeeCents, now, excludeOrderId }) =>
+  pricePromotionsFor(pooled, {
+    customerId,
+    enteredCodeId: await cartService.enteredCodeFor(customerId),
+    lines: lines.map((l) => ({ productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
+    deliveryType,
+    deliveryFeeCents,
+    now,
+    excludeOrderId: excludeOrderId ?? null,
+  });
 
 /**
  * What a delivery quote is built from. ⚠ It takes the promotion too (077): free delivery and the

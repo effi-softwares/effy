@@ -59,6 +59,8 @@ function railSection(rail: StorefrontRailDTO | undefined): HomeSection | null {
 export function composeSections(
   home: StorefrontHomeDTO,
   categories: StorefrontCategoryDTO[],
+  /** 094 — the `home-between` display group; absent → the deprecated `inline` banners. */
+  between?: BannerDTO[],
 ): HomeSection[] {
   const sections: HomeSection[] = []
   const used = new Set<string>()
@@ -86,7 +88,7 @@ export function composeSections(
   // ⚠ `inline` is the DEDICATED OFFERS placement (029 FR-027), exclusive with `carousel`. Block A
   // takes the first three and block B takes what is left — so FR-020's "MUST NOT duplicate a promotion
   // already shown above" is structural: there is one list and each block consumes from it.
-  const offers = home.banners.filter((b) => b.placement === "inline")
+  const offers = between ?? home.banners.filter((b) => b.placement === "inline")
   const blockA = offers.slice(0, OFFERS_PER_BLOCK)
   const blockB = offers.slice(OFFERS_PER_BLOCK, OFFERS_PER_BLOCK * 2)
 

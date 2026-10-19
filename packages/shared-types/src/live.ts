@@ -22,6 +22,9 @@ export const LIVE_KINDS = [
   // 077 — a delivery fee plan was saved or made active. Back-office (ops) only: a customer's next
   // quote reads the new plan, and a quote already on screen is caught at the intent call.
   "pricing",
+  // 094 — a promotion or a display group changed. Back-office (ops) only: customers re-read a group
+  // whenever they show it (no channel reaches every shopper at once).
+  "promotions",
 ] as const;
 
 export type LiveKind = (typeof LIVE_KINDS)[number];

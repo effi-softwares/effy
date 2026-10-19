@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import type { StorefrontCategoryDTO, StorefrontHomeDTO } from "@effy/shared-types"
+import { PROMOTION_GROUP_KEYS, type StorefrontCategoryDTO, type StorefrontHomeDTO } from "@effy/shared-types"
 
 import { CloudOff, PackageOpen } from "lucide-react"
 
@@ -12,6 +12,7 @@ import { JsonLd, organizationLd } from "@/lib/json-ld"
 
 import { type HomeSection, composeSections, isEmptyStore } from "./home-composition"
 import { getHome } from "./home-data"
+import { getPromotionGroups, type GroupBanner } from "./promotion-groups"
 
 import { AppPromo } from "./_components/AppPromo"
 import { CategoryStrip } from "./_components/CategoryStrip"
@@ -120,22 +121,26 @@ export default function HomePage() {
  * A hero is the wrong place to deliver that news.
  */
 async function PromoHeroSection() {
-  let home: StorefrontHomeDTO
+  let groups: Record<string, GroupBanner[]>
   try {
-    home = await getHome()
+    groups = await getPromotionGroups(PROMOTION_GROUP_KEYS.homeHero, PROMOTION_GROUP_KEYS.homeSide)
   } catch {
     return null
   }
-  return <PromoHero banners={home.banners} />
+  return <PromoHero slides={groups[PROMOTION_GROUP_KEYS.homeHero] ?? []} side={groups[PROMOTION_GROUP_KEYS.homeSide] ?? []} />
 }
 
 async function HomeContent() {
   let home: StorefrontHomeDTO
   let categories: StorefrontCategoryDTO[]
+  let between: GroupBanner[] | undefined
   try {
-    ;[home, categories] = await Promise.all([
+    ;[home, categories, between] = await Promise.all([
       getHome(),
       getCategories(),
+      // 094 — the offers between Home's sections are their own display group. A failed read leaves
+      // them out; it never takes the page down.
+      getPromotionGroups(PROMOTION_GROUP_KEYS.homeBetween).then((g) => g[PROMOTION_GROUP_KEYS.homeBetween] ?? [], () => undefined),
     ])
   } catch {
     return <StoreUnavailable />
@@ -148,7 +153,7 @@ async function HomeContent() {
     return <EmptyStore />
   }
 
-  const sections = composeSections(home, categories)
+  const sections = composeSections(home, categories, between)
   if (sections.length === 0) {
     return <EmptyStore />
   }

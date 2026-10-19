@@ -9,7 +9,6 @@ import { createFacetRepository } from "./facets/repository";
 import { createFacetService } from "./facets/service";
 import { createHomeRepository } from "./home/repository";
 import { createHomeService } from "./home/service";
-import { createPromotionRepository } from "./promotions/repository";
 import { createPromotionService } from "./promotions/service";
 import { createSearchRepository } from "./search/repository";
 import { createSearchService } from "./search/service";
@@ -178,7 +177,7 @@ d("070 — storefront reads against the real schema", () => {
   });
 
   it("home rails carry only purchasable products; an empty category gets no rail", async () => {
-    const promotions = createPromotionService(createPromotionRepository(pool), noImage);
+    const promotions = createPromotionService(pool);
     const home = await createHomeService(createHomeRepository(pool), promotions, noImage).home();
     const all = home.rails.flatMap((r) => r.products.map((p) => p.name));
     expect(all).not.toContain("Sold Out Milk");
@@ -202,10 +201,39 @@ d("070 — storefront reads against the real schema", () => {
     expect(await catalog.productDetail("00000000-0000-0000-0000-000000000000")).toBeNull();
   });
 
-  it("an advertised promotion is a banner and a detail; a malformed id is simply not found", async () => {
-    const promotions = createPromotionService(createPromotionRepository(pool), noImage);
+  it("094 — a product covered by an item offer open to everyone shows its label; others show none", async () => {
+    const promo = (await pool.query<{ id: string }>(
+      `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, created_by, published_at)
+       VALUES ('Dairy 15', 'item', 'automatic', 'percent', 15, 'products', 'seed', now() - interval '1 minute') RETURNING id::text AS id`,
+    )).rows[0]!.id;
+    await pool.query(`INSERT INTO public.promotion_target (promotion_id, target_type, product_id) VALUES ($1, 'product', $2)`, [promo, ids["Oat Milk"]]);
+    const cards = await createSearchService(createSearchRepository(pool), noImage).cardsByIds([ids["Oat Milk"]!, ids["Sourdough"]!]);
+    const byName = new Map(cards.map((c) => [c.name, c]));
+    expect(byName.get("Oat Milk")?.offer).toEqual({ promotionId: promo, label: "15% off" });
+    expect(byName.get("Sourdough")?.offer).toBeUndefined();
+    await pool.query(`UPDATE public.promotion SET paused = true WHERE id = $1`, [promo]);
+  });
+
+  it("094 — a group answers its live, everyone-audience promotions in order; a promotion page is public only while live", async () => {
+    const promotions = createPromotionService(pool);
     expect(await promotions.promotion("not-a-uuid")).toBeNull();
     expect(await promotions.promotion("00000000-0000-0000-0000-000000000000")).toBeNull();
+    const ins = async (name: string, extra = "") =>
+      (await pool.query<{ id: string }>(
+        `INSERT INTO public.promotion (name, kind, trigger, value_type, amount_off, applies_to, headline, created_by, published_at${extra ? ", audience" : ""})
+         VALUES ($1, 'cart', 'automatic', 'amount', 5, 'cart', $1, 'seed', now() - interval '1 minute'${extra ? `, '${extra}'` : ""}) RETURNING id::text AS id`,
+        [name],
+      )).rows[0]!.id;
+    const a = await ins("Five off");
+    const b = await ins("Welcome", "first_order");
+    const g = (await pool.query<{ id: string }>(`SELECT id::text FROM public.promotion_group WHERE key = 'home-hero'`)).rows[0]!.id;
+    await pool.query(`INSERT INTO public.promotion_group_member (group_id, promotion_id, position) VALUES ($1, $2, 0), ($1, $3, 1)`, [g, b, a]);
+    const [hero, unknown] = await promotions.groups(["home-hero", "nope"]);
+    expect(hero!.promotions.map((p) => p.headline)).toEqual(["Five off"]);
+    expect(unknown).toEqual({ key: "nope", promotions: [] });
+    expect((await promotions.banners()).map((x) => [x.title, x.placement])).toEqual([["Five off", "carousel"]]);
+    expect(await promotions.promotion(a)).toMatchObject({ title: "Five off", code: "" });
+    expect(await promotions.promotion(b)).toBeNull();
   });
 
   /**
@@ -279,7 +307,7 @@ d("070 — storefront reads against the real schema", () => {
         `INSERT INTO public.media_rendition (storage_key, status, widths) VALUES ('products/oat/0.jpg', 'ready', '{160,320}')`,
       );
 
-      const promotions = createPromotionService(createPromotionRepository(pool));
+      const promotions = createPromotionService(pool);
       const answers: unknown[] = [
         await createSearchService(createSearchRepository(pool)).search(q({ categoryKey: "sft-dairy" })),
         await createSearchService(createSearchRepository(pool)).cardsByIds([ids["Oat Milk"]!, ids["Sourdough"]!]),

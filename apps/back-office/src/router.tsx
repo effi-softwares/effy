@@ -6,8 +6,11 @@ import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogSchemaRoute } from "./routes/catalog-schema";
 import {
   createPromotionRoute,
+  editPromotionRoute,
   orderRulesRoute,
   promotionDetailRoute,
+  promotionGroupRoute,
+  promotionGroupsRoute,
   promotionsIndexRoute,
 } from "./routes/promotions";
 import {
@@ -68,6 +71,9 @@ const routeTree = rootRoute.addChildren([
     promotionsIndexRoute,
     orderRulesRoute,
     createPromotionRoute,
+    promotionGroupsRoute,
+    promotionGroupRoute,
+    editPromotionRoute,
     promotionDetailRoute,
     deliveryIndexRoute,
   ]),

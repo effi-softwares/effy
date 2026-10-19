@@ -189,6 +189,9 @@ data class Receipt(
      */
     val discountAmount: String? = null,
     val promoCode: String? = null,
+    /** 094 — each promotion as sold: its headline, code and what it took off goods. */
+    val promotions: List<ReceiptPromotion> = emptyList(),
+    val deliveryDiscountAmount: String? = null,
     /**
      * 066 — what the shopper told the driver when the order was placed. Null when they said nothing,
      * which includes every order placed before 066 — and the receipt then shows NOTHING: no heading,
@@ -317,7 +320,12 @@ data class DeliveryFeeLine(val kind: DeliveryFeeLineKind, val amount: String)
  * 077 — what the shopper pays for delivery, in lines that sum to [totalAmount]. ⚠ Nothing else: no
  * distance, weight or plan ever reaches the app (FR-032).
  */
-data class DeliveryFee(val lines: List<DeliveryFeeLine>, val totalAmount: String) {
+data class DeliveryFee(
+    val lines: List<DeliveryFeeLine>,
+    val totalAmount: String,
+    /** 094 — what this shopper's delivery promotions take off this fee; null when none. */
+    val promotionAmount: String? = null,
+) {
     val free: Boolean get() = lines.any { it.kind == DeliveryFeeLineKind.FreeDelivery }
 }
 
@@ -326,6 +334,9 @@ data class DeliveryFee(val lines: List<DeliveryFeeLine>, val totalAmount: String
  * or the basket crossed a threshold). Nothing was charged. [quote] is what is on offer NOW.
  */
 class DeliveryFeeChanged(val quote: DeliveryQuote?) : Exception("delivery fee changed")
+
+/** 094 — an offer changed, or its last use went, between the cart and the pay button. Nothing was charged. */
+class PromotionsChanged : Exception("promotions changed")
 
 /** 074 — points as a way of paying, on a receipt: never a discount line. */
 data class PaymentSplit(val pointsUsed: Long, val pointsAmount: String, val cardAmount: String)
@@ -687,3 +698,6 @@ sealed interface RefundRequestResult {
     data object NotAllowed : RefundRequestResult
     data object Failed : RefundRequestResult
 }
+
+/** 094 — one promotion on a receipt, as sold. */
+data class ReceiptPromotion(val headline: String, val code: String?, val goodsAmount: String)

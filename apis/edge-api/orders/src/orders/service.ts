@@ -375,6 +375,13 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     ...(order.delivery_fee_breakdown ? { deliveryFeeBreakdown: order.delivery_fee_breakdown } : {}),
     discountAmount: order.discount_amount,
     promoCode: order.promo_code,
+    // 094 — each promotion as sold, with its internal name for staff; old orders show their one code.
+    promotions: order.promotions
+      ? order.promotions.map((p) => ({ name: p.name, headline: p.headline ?? p.name, code: p.code, goodsAmount: p.goods, deliveryAmount: p.delivery }))
+      : order.promo_code && order.discount_amount !== "0.00"
+        ? [{ name: order.promo_code, headline: order.promo_code, code: order.promo_code, goodsAmount: order.discount_amount, deliveryAmount: "0.00" }]
+        : [],
+    deliveryDiscountAmount: order.delivery_discount_amount,
     grandTotalAmount: order.grand_total_amount,
     currency: order.currency,
 

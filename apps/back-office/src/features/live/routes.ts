@@ -38,4 +38,6 @@ export const LIVE_ROUTES: Partial<Record<LiveKind, readonly QueryKey[]>> = {
   // 077 — a fee plan was saved or made active: an open Pricing tab re-reads, so two managers see
   // each other's drafts and nobody activates a plan that has already been replaced.
   pricing: [PRICING],
+  // 094 — a promotion or a display group changed: open promotion screens re-read.
+  promotions: [["back-office", "promotions"], ["back-office", "promotion-groups"]],
 };

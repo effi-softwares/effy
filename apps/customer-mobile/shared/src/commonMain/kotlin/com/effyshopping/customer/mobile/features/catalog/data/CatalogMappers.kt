@@ -2,6 +2,7 @@ package com.effyshopping.customer.mobile.features.catalog.data
 
 import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as BannerTargetDTO
+import com.effyshopping.customer.mobile.commerce.contract.ShopperPromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as BannerPlacementDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
@@ -50,6 +51,7 @@ internal fun StorefrontProductCardDTO.toDomain(): ProductCard = ProductCard(
     compareAtAmount = compareAtAmount,
     badges = badges.map { it.toDomain() },
     available = available,
+    offerLabel = offer?.label,
 )
 
 internal fun ProductBadgeDTO.toDomain(): ProductBadge = when (this) {
@@ -113,6 +115,23 @@ internal fun StorefrontRailDTO.toDomain(): Rail = Rail(
     products = products.map { it.toDomain() },
 )
 
+/**
+ * 094 — a display group's promotion as a Home banner: the hero group fills the carousel, the
+ * between-sections group fills the inline slots in order. Drawn, never artwork.
+ */
+internal fun ShopperPromotionDTO.toBanner(placement: BannerPlacement, position: Int): Banner = Banner(
+    key = id,
+    title = headline,
+    subtitle = supportingLine,
+    imageUrl = null,
+    href = "/promotions/$id",
+    position = position,
+    code = code,
+    terms = terms,
+    target = target.toDomain(),
+    placement = placement,
+)
+
 internal fun StorefrontHomeDTO.toDomain(): HomeContent = HomeContent(
     banners = banners.map { it.toDomain() },
     rails = rails.map { it.toDomain() },
@@ -144,6 +163,7 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
         compareAtAmount = compareAtAmount,
         badges = badges.map { it.toDomain() },
         available = available,
+        offerLabel = offer?.label,
     ),
     longDescription = longDescription,
     gallery = gallery.map { it.toDomain() },

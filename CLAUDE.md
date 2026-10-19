@@ -202,6 +202,11 @@ native web build).
     clients name a copy only via `renditionUrl` and only when `imageWidths` lists it.
   - ⚠ **Money logic lives once** — `@effy/edge-shared/payments`. Three services move money
     (`commerce`, `orders`, `shop`); none re-implements a refund.
+  - ⚠ **Promotions live once** (094) — `@effy/edge-shared/promotions`: ONE evaluator (`engine.ts`), ONE
+    reader of the promotion tables (`candidates.ts`, plus the admin service), ONE writer of `promotion_use`
+    (`uses.ts`, held at the intent under a row lock, confirmed at payment). A promotion's state is never
+    stored (`public.promotion_state`). Where promotions are shown is a **display group** asked for by key;
+    a shop never sees which promotion applied. `promotions.guard.test.ts` holds all of it.
   - ⚠ **Points logic lives once** (074) — `@effy/edge-shared/points` is the only writer of the
     append-only points ledger; the balance is `public.points_usable`, never stored, never recomputed
     elsewhere. Points are a **way of paying**, not a discount: `order.grand_total_amount` is unchanged
@@ -550,6 +555,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — built; NOT migrated, deployed or walked
 - **093-driver-work-sequence** — Driver Work in One Order (server-enforced steps; collector delivers; missing packages held; run stage; vehicle check off by default) — built; NOT migrated, deployed or walked
 - **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — built, `driver` deployed to dev; app not walked
 - **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — built; NOT deployed
@@ -621,5 +627,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/093-driver-work-sequence/plan.md
+at specs/094-promotions-rebuild/plan.md
 <!-- SPECKIT END -->

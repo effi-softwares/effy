@@ -10,12 +10,14 @@ import { toBanner } from "./promotions/service";
  */
 describe("a Home banner", () => {
   it("byte for byte — `position` an integer, the target its own promotion, the terms composed here", async () => {
-    const banner = await toBanner(
+    // 094 — banners are built from a display group's promotions; the wire is unchanged for installed apps.
+    const banner = toBanner(
       {
-        id: "3f2a", code: "FIRST20", banner_title: "20% off your first order", banner_subtitle: "Stock up", banner_image_key: null, banner_image_widths: null,
-        banner_position: 2, minimum_subtotal_amount: "30.00", currency: "AUD", banner_placement: "carousel", ends_at: null,
+        id: "3f2a", kind: "cart", headline: "20% off your first order", supportingLine: "Stock up", label: null, code: "FIRST20",
+        terms: "On orders over $30.00", endsIn: null, target: { kind: "promotion", promotionId: "3f2a" },
       },
-      async () => null,
+      "carousel",
+      2,
     );
     expect(JSON.stringify(banner)).toBe(kotlinFixture("features/catalog/BannerWireContractTest.kt", "BANNER_WIRE_JSON"));
   });

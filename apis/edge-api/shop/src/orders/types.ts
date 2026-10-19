@@ -168,6 +168,7 @@ export interface OrderDetail {
     shopSubtotal: string;
     itemSubtotal: string;
     discount: string;
+    /** @deprecated — compatibility (094). Always null: a shop never sees which promotion applied. */
     promoCode: string | null;
     total: string;
     refunded: string;

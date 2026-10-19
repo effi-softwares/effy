@@ -114,14 +114,16 @@ export default function CartPage() {
                   <dt>Items ({count})</dt>
                   <dd className="tabular-nums">{formatMoney(cart.itemSubtotalAmount, currency)}</dd>
                 </div>
-                {cart.discount ? (
-                  <div className="flex items-center justify-between text-brand">
+                {/* 094 — one line per promotion that applies, automatic or by code. */}
+                {(cart.promotions ?? []).filter((p) => Number(p.goodsAmount) > 0).map((p) => (
+                  <div key={p.promotionId} className="flex items-center justify-between text-brand">
                     <dt>
-                      {cart.discount.label} ({cart.discount.code})
+                      {p.headline}
+                      {p.code ? ` (${p.code})` : ""}
                     </dt>
-                    <dd className="tabular-nums">−{formatMoney(cart.discount.amount, currency)}</dd>
+                    <dd className="tabular-nums">−{formatMoney(p.goodsAmount, currency)}</dd>
                   </div>
-                ) : null}
+                ))}
                 <div className="flex items-center justify-between">
                   <dt>Delivery</dt>
                   <dd className="text-muted-foreground">Calculated at checkout</dd>
@@ -134,6 +136,17 @@ export default function CartPage() {
                   </dd>
                 </div>
               </dl>
+
+              {/* 094 — offers that do not apply yet, each with the one thing to do about it. */}
+              {(cart.promotionsNotApplied ?? []).length > 0 ? (
+                <ul className="mt-4 space-y-1.5 text-sm text-muted-foreground">
+                  {cart.promotionsNotApplied!.map((n) => (
+                    <li key={n.promotionId}>
+                      <span className="font-medium text-foreground">{n.headline}:</span> {n.detail}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
 
               <div className="mt-4">
                 <PromoField applied={cart.discount} />

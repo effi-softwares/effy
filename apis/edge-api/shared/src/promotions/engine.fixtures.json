@@ -1,0 +1,152 @@
+{
+  "$comment": "094 — promotion engine fixtures. Shared by engine.test.ts and the cart/intent tests so the three places price identically (SC-003). Candidate fields not given take engine.test.ts's defaults; money is in cents; ctx defaults to Wednesday 12:00 Melbourne.",
+  "fixtures": [
+    {
+      "name": "US1-1 — 20% off, up to $15, minimum $40, on a $100 cart",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 6000, "quantity": 1 }, { "lineId": "b", "unitCents": 4000, "quantity": 1 }] },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "percent", "percentOff": 20, "maxDiscountCents": 1500, "minSubtotalCents": 4000, "codeId": "c1", "codeText": "SPRING20" }],
+      "expect": { "goods": 1500, "delivery": 0, "applied": ["p1"], "lines": { "a": 900, "b": 600 } }
+    },
+    {
+      "name": "US1-2 — automatic $5 off carts over $30",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 1200, "quantity": 3 }] },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "amount", "amountOffCents": 500, "minSubtotalCents": 3000 }],
+      "expect": { "goods": 500, "applied": ["p1"], "lines": { "a": 500 } }
+    },
+    {
+      "name": "US1-2b — the same promotion below its minimum says how much more",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 1200, "quantity": 2 }] },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "amount", "amountOffCents": 500, "minSubtotalCents": 3000 }],
+      "expect": { "goods": 0, "applied": [], "notApplied": [{ "promotionId": "p1", "reason": "below_minimum", "shortfallCents": 600 }] }
+    },
+    {
+      "name": "US3-1 — 15% off Dairy & eggs takes 60c off the milk only",
+      "basket": { "lines": [
+        { "lineId": "milk", "unitCents": 400, "quantity": 1, "categoryIds": ["dairy", "fresh"] },
+        { "lineId": "bread", "unitCents": 500, "quantity": 1, "categoryIds": ["bakery"] }
+      ] },
+      "candidates": [{ "id": "p1", "kind": "item", "valueType": "percent", "percentOff": 15, "appliesTo": "categories", "targets": { "categoryIds": ["dairy"] } }],
+      "expect": { "goods": 60, "applied": ["p1"], "lines": { "milk": 60 } }
+    },
+    {
+      "name": "US3-3 — a minimum quantity of 2 with 1 says how many more",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 300, "quantity": 1, "productId": "x" }] },
+      "candidates": [{ "id": "p1", "kind": "item", "valueType": "amount", "amountOffCents": 50, "appliesTo": "products", "targets": { "productIds": ["x"] }, "minQuantity": 2 }],
+      "expect": { "goods": 0, "applied": [], "notApplied": [{ "promotionId": "p1", "reason": "below_quantity", "missingQuantity": 1 }] }
+    },
+    {
+      "name": "US4-1 — buy 2 get 1 free makes the $3 item free",
+      "basket": { "lines": [
+        { "lineId": "a", "unitCents": 300, "quantity": 1, "brand": "brandx" },
+        { "lineId": "b", "unitCents": 400, "quantity": 1, "brand": "brandx" },
+        { "lineId": "c", "unitCents": 500, "quantity": 1, "brand": "brandx" }
+      ] },
+      "candidates": [{ "id": "p1", "kind": "bxgy", "valueType": "free", "bxgy": { "buy": 2, "get": 1, "maxPerOrder": null }, "appliesTo": "brands", "targets": { "brands": ["brandx"] } }],
+      "expect": { "goods": 300, "applied": ["p1"], "lines": { "a": 300 } }
+    },
+    {
+      "name": "US4-2 — limited to once per order, six items give one free",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 300, "quantity": 6, "brand": "brandx" }] },
+      "candidates": [{ "id": "p1", "kind": "bxgy", "valueType": "free", "bxgy": { "buy": 2, "get": 1, "maxPerOrder": 1 }, "appliesTo": "brands", "targets": { "brands": ["brandx"] } }],
+      "expect": { "goods": 300, "applied": ["p1"], "lines": { "a": 300 } }
+    },
+    {
+      "name": "US5-1 — free Effy delivery over $60",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 7000, "quantity": 1 }], "deliveryType": "effy", "deliveryFeeCents": 899 },
+      "candidates": [{ "id": "p1", "kind": "delivery", "valueType": "free", "deliveryTypes": ["effy"], "minSubtotalCents": 6000 }],
+      "expect": { "goods": 0, "delivery": 899, "applied": ["p1"] }
+    },
+    {
+      "name": "US5-2 — the same promotion for a courier order",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 7000, "quantity": 1 }], "deliveryType": "courier", "deliveryFeeCents": 1299 },
+      "candidates": [{ "id": "p1", "kind": "delivery", "valueType": "free", "deliveryTypes": ["effy"], "minSubtotalCents": 6000 }],
+      "expect": { "goods": 0, "delivery": 0, "applied": [], "notApplied": [{ "promotionId": "p1", "reason": "wrong_delivery" }] }
+    },
+    {
+      "name": "US5-3 — a delivery and a cart promotion that both combine both apply",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 7000, "quantity": 1 }], "deliveryType": "effy", "deliveryFeeCents": 899 },
+      "candidates": [
+        { "id": "p1", "kind": "delivery", "valueType": "free", "combinable": true },
+        { "id": "p2", "kind": "cart", "valueType": "amount", "amountOffCents": 500, "combinable": true }
+      ],
+      "expect": { "goods": 500, "delivery": 899, "applied": ["p2", "p1"], "lines": { "a": 500 } }
+    },
+    {
+      "name": "US5 — in the cart, before a quote, a delivery promotion waits for the fee",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 7000, "quantity": 1 }] },
+      "candidates": [{ "id": "p1", "kind": "delivery", "valueType": "free" }],
+      "expect": { "goods": 0, "delivery": 0, "applied": ["p1"], "awaiting": ["p1"] }
+    },
+    {
+      "name": "US6-1 — a weekday lunch promotion at 3 pm does not apply",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 2000, "quantity": 1 }] },
+      "ctx": { "isoDay": 3, "minuteOfDay": 900 },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "amount", "amountOffCents": 500, "daysOfWeek": [1, 2, 3, 4, 5], "minuteFrom": 660, "minuteTo": 840 }],
+      "expect": { "goods": 0, "applied": [], "notApplied": [{ "promotionId": "p1", "reason": "wrong_time" }] }
+    },
+    {
+      "name": "US6-2 — a $10 discount does not fit $3 of budget left",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 5000, "quantity": 1 }] },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "amount", "amountOffCents": 1000, "budgetLeftCents": 300 }],
+      "expect": { "goods": 0, "applied": [], "notApplied": [{ "promotionId": "p1", "reason": "over_budget" }] }
+    },
+    {
+      "name": "US8-1 — two that do not combine: the larger ($15) wins, the other is not combined",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 10000, "quantity": 1 }] },
+      "candidates": [
+        { "id": "auto10", "kind": "cart", "valueType": "percent", "percentOff": 10 },
+        { "id": "code15", "kind": "cart", "valueType": "amount", "amountOffCents": 1500, "codeId": "c", "codeText": "SAVE15" }
+      ],
+      "expect": { "goods": 1500, "applied": ["code15"], "notApplied": [{ "promotionId": "auto10", "reason": "not_combined" }] }
+    },
+    {
+      "name": "US8-2 — combinable ones together beat a smaller non-combinable one",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 10000, "quantity": 1 }] },
+      "candidates": [
+        { "id": "c1", "kind": "cart", "valueType": "amount", "amountOffCents": 600, "combinable": true },
+        { "id": "c2", "kind": "cart", "valueType": "amount", "amountOffCents": 600, "combinable": true },
+        { "id": "solo", "kind": "cart", "valueType": "amount", "amountOffCents": 1000 }
+      ],
+      "expect": { "goods": 1200, "applied": ["c1", "c2"], "notApplied": [{ "promotionId": "solo", "reason": "not_combined" }] }
+    },
+    {
+      "name": "Edge — an exact tie goes to the one ending soonest",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 5000, "quantity": 1 }] },
+      "candidates": [
+        { "id": "later", "kind": "cart", "valueType": "amount", "amountOffCents": 500, "endsAt": "2026-12-31T00:00:00Z" },
+        { "id": "sooner", "kind": "cart", "valueType": "amount", "amountOffCents": 500, "endsAt": "2026-11-30T00:00:00Z" }
+      ],
+      "expect": { "goods": 500, "applied": ["sooner"] }
+    },
+    {
+      "name": "Edge — a percentage rounds down per line, and a cart discount splits by largest remainder",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 333, "quantity": 1 }, { "lineId": "b", "unitCents": 333, "quantity": 1 }, { "lineId": "c", "unitCents": 334, "quantity": 1 }] },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "amount", "amountOffCents": 100 }],
+      "expect": { "goods": 100, "applied": ["p1"], "lines": { "a": 33, "b": 33, "c": 34 } }
+    },
+    {
+      "name": "Edge — item percent rounds down per line",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 199, "quantity": 1, "productId": "x" }] },
+      "candidates": [{ "id": "p1", "kind": "item", "valueType": "percent", "percentOff": 15, "appliesTo": "products", "targets": { "productIds": ["x"] } }],
+      "expect": { "goods": 29, "applied": ["p1"], "lines": { "a": 29 } }
+    },
+    {
+      "name": "Edge — an amount larger than the cart takes it to zero, never below",
+      "basket": { "lines": [{ "lineId": "a", "unitCents": 800, "quantity": 1 }] },
+      "candidates": [{ "id": "p1", "kind": "cart", "valueType": "amount", "amountOffCents": 2000 }],
+      "expect": { "goods": 800, "applied": ["p1"], "lines": { "a": 800 } }
+    },
+    {
+      "name": "Edge — an item offer then a cart offer on what is left",
+      "basket": { "lines": [
+        { "lineId": "milk", "unitCents": 1000, "quantity": 1, "categoryIds": ["dairy"] },
+        { "lineId": "bread", "unitCents": 1000, "quantity": 1, "categoryIds": ["bakery"] }
+      ] },
+      "candidates": [
+        { "id": "item", "kind": "item", "valueType": "percent", "percentOff": 50, "appliesTo": "categories", "targets": { "categoryIds": ["dairy"] }, "combinable": true },
+        { "id": "cart", "kind": "cart", "valueType": "percent", "percentOff": 10, "combinable": true }
+      ],
+      "expect": { "goods": 650, "applied": ["item", "cart"], "lines": { "milk": 550, "bread": 100 } }
+    }
+  ]
+}

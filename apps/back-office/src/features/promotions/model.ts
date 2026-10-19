@@ -1,69 +1,65 @@
 import type {
+  AdminPromotionDTO,
+  AdminPromotionListItemDTO,
   AuditEntryDTO,
-  CreatePromoCodeRequest,
   OrderPolicyDTO,
-  PagedDTO,
-  PromoCodeDTO,
-  PromoKind,
-  PromoState,
-  PromoStatus,
-  SetPromoStatusRequest,
+  PromotionKind,
+  PromotionState,
+  PromotionTrigger,
   UpdateOrderPolicyRequest,
-  UpdatePromoCodeRequest,
 } from "@effy/shared-types";
 
 /**
- * Domain shapes for back-office promotional-code & order-rules management (027 US10).
- *
- * The wire DTOs (specs/027 contracts, already in @effy/shared-types) are the domain shapes here — they
- * carry no wire-only encoding to strip. Every read/write still routes through the repo layer
- * (Principle VI), so if a DTO and its domain model ever diverge, only the repo changes. Mirrors 021.
+ * Domain shapes for back-office promotions (094). The wire DTOs are the domain shapes here; every
+ * read and write still goes through the repo layer (Principle VI).
  */
-export type PromoCode = PromoCodeDTO;
+export type Promotion = AdminPromotionDTO;
+export type PromotionRow = AdminPromotionListItemDTO;
 export type OrderPolicy = OrderPolicyDTO;
 export type AuditEntry = AuditEntryDTO;
-export type Paged<T> = PagedDTO<T>;
+export type { UpdateOrderPolicyRequest };
 
-export type {
-  CreatePromoCodeRequest,
-  SetPromoStatusRequest,
-  UpdateOrderPolicyRequest,
-  UpdatePromoCodeRequest,
-};
-
-/** Query params for the code register (server-side pagination + filter + search). */
-export interface PromoListParams {
+export interface PromotionListParams {
   page: number;
   pageSize: number;
-  status?: PromoStatus;
-  /** What the code is doing now — worked out by the server (redesign). */
-  state?: PromoState;
-  kind?: PromoKind;
-  /** On the storefront or not. */
-  advertised?: boolean;
   q?: string;
+  state?: PromotionState;
+  kind?: PromotionKind;
+  trigger?: PromotionTrigger;
+  groupId?: string;
 }
 
-/**
- * Whether this code's VALUE can still be edited (FR-068).
- *
- * ⚠ The UI asks this to decide which fields to disable; it is NOT the enforcement. The platform
- * re-counts redemptions inside the transaction that writes, because a code can be redeemed between the
- * screen rendering and the operator pressing Save.
- */
-export function isValueEditable(promo: PromoCode): boolean {
-  return promo.redemptionCount === 0;
-}
+/** Each state as a word and its tone — one place, so the list and the page agree. */
+export const STATE_WORD: Record<PromotionState, string> = {
+  draft: "Draft",
+  scheduled: "Scheduled",
+  active: "Active",
+  paused: "Paused",
+  used_up: "Used up",
+  out_of_budget: "Out of budget",
+  ended: "Ended",
+  archived: "Archived",
+};
 
-/** How a code reads in a list: "20% off" / "$10.00 off". Display only. */
-export function promoValueLabel(promo: PromoCode): string {
-  if (promo.kind === "percentage") return `${promo.percentOff ?? 0}% off`;
-  return `${promo.currency === "AUD" ? "$" : ""}${promo.amountOff ?? "0.00"} off`;
-}
+export const STATE_TONE = {
+  draft: "muted",
+  scheduled: "info",
+  active: "done",
+  paused: "waiting",
+  used_up: "quiet",
+  out_of_budget: "quiet",
+  ended: "quiet",
+  archived: "muted",
+} as const;
 
-/** "3 of 500" / "3 used" when the code is uncapped. */
-export function redemptionLabel(promo: PromoCode): string {
-  return promo.maxRedemptions == null
-    ? `${promo.redemptionCount} used`
-    : `${promo.redemptionCount} of ${promo.maxRedemptions}`;
+export const KIND_WORD: Record<PromotionKind, string> = {
+  cart: "Money off the cart",
+  item: "Money off items",
+  bxgy: "Buy X get Y",
+  delivery: "Delivery",
+};
+
+/** "312 of 500" / "7 used" — against the cap when there is one. */
+export function usesLabel(p: { uses: number; maxUses: number | null }): string {
+  return p.maxUses ? `${p.uses.toLocaleString("en-AU")} of ${p.maxUses.toLocaleString("en-AU")}` : `${p.uses.toLocaleString("en-AU")} used`;
 }

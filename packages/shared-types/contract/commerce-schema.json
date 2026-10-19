@@ -180,7 +180,7 @@
     },
     "BannerDTO": {
       "additionalProperties": false,
-      "description": "A promotional banner on Home — the shopper-facing face of an advertised promotion (028).\n\n⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps typechecking without an edit. What is NOT backward compatible is the LIST: this used to always contain one derived \"welcome\" stub and is now empty whenever no promotion is advertised. Any layout that assumed at least one banner has to handle `[]`.",
+      "deprecated": "— compatibility (094). Installed apps read `home.banners`; new clients read display\ngroups (`PromotionGroupsDTO`). Built by the storefront from the `home-hero` and `home-between` groups.",
       "properties": {
         "code": {
           "description": "The code a shopper types in the cart. Shown so the banner is actionable, not just decorative.",
@@ -486,7 +486,8 @@
             {
               "type": "null"
             }
-          ]
+          ],
+          "description": "The entered code's line, as before 094 — kept for installed apps. `promotions` lists every one."
         },
         "discountAmount": {
           "description": "\"0.00\" when no code applies.",
@@ -512,6 +513,20 @@
         "notices": {
           "items": {
             "$ref": "#/definitions/CartNoticeDTO"
+          },
+          "type": "array"
+        },
+        "promotions": {
+          "description": "094 — every promotion applying, automatic and by code.",
+          "items": {
+            "$ref": "#/definitions/CartPromotionLineDTO"
+          },
+          "type": "array"
+        },
+        "promotionsNotApplied": {
+          "description": "094 — promotions the shopper might expect that do not apply, each with its sentence.",
+          "items": {
+            "$ref": "#/definitions/CartNotAppliedDTO"
           },
           "type": "array"
         },
@@ -601,6 +616,10 @@
         "available": {
           "type": "boolean"
         },
+        "discountAmount": {
+          "description": "094 — what promotions take off this line, in cents exactly as allocated; \"0.00\" when none.",
+          "type": "string"
+        },
         "id": {
           "type": "string"
         },
@@ -671,6 +690,31 @@
       "required": [
         "productId",
         "quantity"
+      ],
+      "type": "object"
+    },
+    "CartNotAppliedDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "description": "The sentence to show, composed server-side.",
+          "type": "string"
+        },
+        "headline": {
+          "type": "string"
+        },
+        "promotionId": {
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/definitions/CartPromotionNotAppliedReason"
+        }
+      },
+      "required": [
+        "promotionId",
+        "headline",
+        "reason",
+        "detail"
       ],
       "type": "object"
     },
@@ -753,6 +797,53 @@
         "lines"
       ],
       "type": "object"
+    },
+    "CartPromotionLineDTO": {
+      "additionalProperties": false,
+      "description": "094 — one promotion that applies to this cart, and what it takes off.",
+      "properties": {
+        "code": {
+          "description": "The code the shopper entered for it; null for an automatic promotion.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deliveryAmount": {
+          "description": "Known once a delivery quote exists (checkout); \"0.00\" in the cart.",
+          "type": "string"
+        },
+        "goodsAmount": {
+          "type": "string"
+        },
+        "headline": {
+          "description": "The shopper words (the promotion's headline, or its offer label when it has none).",
+          "type": "string"
+        },
+        "promotionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "promotionId",
+        "headline",
+        "code",
+        "goodsAmount",
+        "deliveryAmount"
+      ],
+      "type": "object"
+    },
+    "CartPromotionNotAppliedReason": {
+      "description": "094 — why a promotion the shopper could expect does not apply. A NAMED union (Kotlin generator).",
+      "enum": [
+        "not_combined",
+        "below_minimum",
+        "below_quantity",
+        "wrong_time",
+        "wrong_delivery",
+        "sign_in"
+      ],
+      "type": "string"
     },
     "CheckoutPointsDTO": {
       "additionalProperties": false,
@@ -958,6 +1049,13 @@
           ],
           "description": "078 — the window the customer chose: ONE for the whole order (`EffyWindowDTO.slotId` + `date`). REQUIRED when the quote carried `effyWindows` (refused with `slot_required` without it); the server derives same-day vs standard from the date. ⚠ The server holds a place in the window when it accepts it — see `slotHeldUntil` on the response."
         },
+        "expectedDiscount": {
+          "description": "094 — the promotions total (goods + delivery) the client is SHOWING. If the server now works out a different one — a promotion ended, its budget ran out, the cart changed — it writes nothing and refuses with 409 `promotions_changed` and the cart as it stands, so the shopper sees the new total before paying (FR-037). Absent from a client built before 094, which is priced without the check.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "pointsToUse": {
           "$ref": "#/definitions/WireInt",
           "description": "074 — how many points the customer chose to pay with (a whole number, absent = 0). The server refuses rather than clamps: more than is usable → 409 `points_balance_changed`; more than the order total → 422 `points_exceed_total`; a card remainder under the provider minimum → 422 `points_card_remainder_too_small`. Each refusal carries what IS possible."
@@ -1016,6 +1114,10 @@
             "string",
             "null"
           ]
+        },
+        "deliveryDiscountAmount": {
+          "description": "094 — what delivery promotions took off the delivery fee; absent or \"0.00\" when none.",
+          "type": "string"
         },
         "deliveryFee": {
           "$ref": "#/definitions/DeliveryFeeDTO",
@@ -1223,6 +1325,10 @@
             "$ref": "#/definitions/DeliveryFeeLineDTO"
           },
           "type": "array"
+        },
+        "promotionAmount": {
+          "description": "094 — what this shopper's delivery promotions take off THIS option's fee, when any do. The fee itself (`totalAmount`) is unchanged, so `shownDeliveryAmount` still compares the fee; the promotions total is compared separately (`expectedDiscount`).",
+          "type": "string"
         },
         "totalAmount": {
           "type": "string"
@@ -1852,6 +1958,10 @@
           "$ref": "#/definitions/OrderAddressDTO",
           "description": "The SHIPPING address snapshot (the main one — where the order is delivered)."
         },
+        "deliveryDiscountAmount": {
+          "description": "094 — what delivery promotions took off the fee.",
+          "type": "string"
+        },
         "deliveryFee": {
           "$ref": "#/definitions/DeliveryFeeDTO",
           "description": "077 — the same charge as lines (delivery, window surcharge, small-order fee, free delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads the same after the business changes its prices."
@@ -1933,6 +2043,13 @@
             "string",
             "null"
           ]
+        },
+        "promotions": {
+          "description": "094 — each promotion applied and what it took off; an order from before 094 shows its one code.",
+          "items": {
+            "$ref": "#/definitions/OrderPromotionDTO"
+          },
+          "type": "array"
         },
         "refundedTotal": {
           "description": "What has actually been returned or is on its way. Absent when there are no refunds.",
@@ -2111,6 +2228,10 @@
       "additionalProperties": false,
       "description": "A line on the receipt (product snapshot — never a shop).",
       "properties": {
+        "discountAmount": {
+          "description": "094 — what promotions took off this line, as sold. Absent or \"0.00\" when none.",
+          "type": "string"
+        },
         "imageUrl": {
           "description": "052 — a short-lived presigned URL for the product's primary image, or null.\n\n⚠ DECORATION ONLY, and never a carrier of meaning (FR-003). A line renders complete without it, and a client MUST NOT gate any fact on its presence. It is resolved by a LEFT JOIN to the live `product_media`; every other field on this line comes from the order's own immutable snapshot, which is why a renamed or re-photographed product still shows what was actually bought (FR-011).",
           "type": [
@@ -2181,6 +2302,34 @@
         "cardAmount",
         "pointsReturned",
         "cardReturned"
+      ],
+      "type": "object"
+    },
+    "OrderPromotionDTO": {
+      "additionalProperties": false,
+      "description": "094 — one promotion applied to an order, as it was sold (never re-derived).",
+      "properties": {
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deliveryAmount": {
+          "type": "string"
+        },
+        "goodsAmount": {
+          "type": "string"
+        },
+        "headline": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "headline",
+        "code",
+        "goodsAmount",
+        "deliveryAmount"
       ],
       "type": "object"
     },
@@ -2455,6 +2604,24 @@
       ],
       "type": "string"
     },
+    "ProductOfferDTO": {
+      "additionalProperties": false,
+      "description": "A product's offer badge on listings and its page (R11).",
+      "properties": {
+        "label": {
+          "description": "\"15% off\", \"Buy 2 get 1 free\", \"$2 off\".",
+          "type": "string"
+        },
+        "promotionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "promotionId",
+        "label"
+      ],
+      "type": "object"
+    },
     "ProductSearchResultDTO": {
       "additionalProperties": false,
       "description": "A page of search results with a keyset cursor for infinite scroll.\n\n⚠ `cursor` is OPAQUE and sort-tagged. Do not construct one, and do not carry one across a sort change — the server rejects a cursor issued under a different ordering with 400 `cursor_sort_mismatch`, because honouring it would silently drop and repeat products (FR-016b).",
@@ -2556,6 +2723,51 @@
         "validity"
       ],
       "type": "object"
+    },
+    "PromotionGroupDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "promotions": {
+          "items": {
+            "$ref": "#/definitions/ShopperPromotionDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "promotions"
+      ],
+      "type": "object"
+    },
+    "PromotionGroupsDTO": {
+      "additionalProperties": false,
+      "description": "`GET /storefront/v1/promotion-groups?keys=` and `GET /commerce/v1/promotion-groups?keys=`.",
+      "properties": {
+        "groups": {
+          "items": {
+            "$ref": "#/definitions/PromotionGroupDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "groups"
+      ],
+      "type": "object"
+    },
+    "PromotionKind": {
+      "description": "Promotions (094) — the model that replaced 027's one-code promotion.\n\nA promotion is an OFFER of one of four kinds, applied automatically or by a code, limited by who, when and how much, and shown in display groups the customer clients ask for by key. Its state is never stored: the database works it out (`public.promotion_state`) from its switch, dates, uses and budget, and every reader asks for it.\n\n⚠ ONE EVALUATOR: `@effy/edge-shared/promotions` (engine.ts). Nothing else computes a discount.",
+      "enum": [
+        "cart",
+        "item",
+        "bxgy",
+        "delivery"
+      ],
+      "type": "string"
     },
     "RefundRequestDTO": {
       "additionalProperties": false,
@@ -3056,6 +3268,70 @@
       ],
       "type": "object"
     },
+    "ShopperPromotionDTO": {
+      "additionalProperties": false,
+      "description": "One promotion as both customer clients show it, from either group read.",
+      "properties": {
+        "code": {
+          "description": "The shared code; null for an automatic promotion or one with single-use codes only (FR-032).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "endsIn": {
+          "description": "\"Ends in 3 days\" / \"Ends tomorrow\" / \"Ends today\" / null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headline": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/PromotionKind"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "supportingLine": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "$ref": "#/definitions/BannerTarget",
+          "description": "Where a tap goes."
+        },
+        "terms": {
+          "description": "The one conditions sentence, composed server-side (\"On orders over $30.00 · Effy delivery only\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "headline",
+        "supportingLine",
+        "label",
+        "code",
+        "terms",
+        "endsIn",
+        "target"
+      ],
+      "type": "object"
+    },
     "StorefrontCategoryDTO": {
       "additionalProperties": false,
       "description": "A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the admin/shop `CategoryDTO` in catalog.ts — this carries no internal id/status/order.",
@@ -3170,6 +3446,17 @@
         "name": {
           "type": "string"
         },
+        "offer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProductOfferDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11)."
+        },
         "priceAmount": {
           "type": "string"
         }
@@ -3261,6 +3548,17 @@
         },
         "name": {
           "type": "string"
+        },
+        "offer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProductOfferDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11)."
         },
         "priceAmount": {
           "type": "string"
@@ -3537,6 +3835,10 @@
     "promotion": {
       "$ref": "#/definitions/PromotionDTO"
     },
+    "promotionGroups": {
+      "$ref": "#/definitions/PromotionGroupsDTO",
+      "description": "094 — display groups by key (storefront public / commerce personal)."
+    },
     "rail": {
       "$ref": "#/definitions/StorefrontRailDTO"
     },
@@ -3617,6 +3919,7 @@
     "facetOption",
     "facetType",
     "promotion",
+    "promotionGroups",
     "cart",
     "cartLine",
     "cartNotice",
