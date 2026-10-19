@@ -2,11 +2,12 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, problem, unavailable } from "@effy/edge-shared";
-import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, ORDER_AWAITING } from "@effy/shared-types";
-import type { AdminOrderDeliveryFilter, AdminOrderListResponse, OrderAwaiting } from "@effy/shared-types";
+import { ORDER_AWAITING } from "@effy/shared-types";
+import type { AdminOrderListResponse, OrderAwaiting } from "@effy/shared-types";
 
 import { requireStaff } from "../lib/guard";
 import { VALIDATION_FAILED } from "../lib/problems";
+import { parseBaseFilters } from "../orders/filters";
 import { DEFAULT_LIMIT, listOrders, MAX_LIMIT } from "../orders/service";
 
 /**
@@ -31,22 +32,8 @@ export const handler = async (
       ? (qs.awaiting as OrderAwaiting)
       : undefined;
 
-  // 079 — who delivers the order. Validated against the shared const, like `awaiting` above; an
-  // unknown value is refused rather than quietly listing everything.
-  if (qs.deliveryType !== undefined && !(ADMIN_ORDER_DELIVERY_FILTERS as readonly string[]).includes(qs.deliveryType)) {
-    return problem(400, VALIDATION_FAILED, "Bad delivery type", "deliveryType is effy, courier or legacy", guard.scope);
-  }
-  const deliveryType = qs.deliveryType as AdminOrderDeliveryFilter | undefined;
-  // 083 — "still open" narrows the old-kind orders only; anywhere else it would quietly mean nothing.
-  if (qs.open !== undefined && (qs.open !== "true" || deliveryType !== "legacy")) {
-    return problem(400, VALIDATION_FAILED, "Bad filter", "open=true is used with deliveryType=legacy", guard.scope);
-  }
-
-  // 085 — what an Effy order was sold.
-  if (qs.promise !== undefined && !(ADMIN_ORDER_PROMISE_FILTERS as readonly string[]).includes(qs.promise)) {
-    return problem(400, VALIDATION_FAILED, "Bad promise", "promise is window, day or asap", guard.scope);
-  }
-  const promise = qs.promise as (typeof ADMIN_ORDER_PROMISE_FILTERS)[number] | undefined;
+  const base = parseBaseFilters(qs);
+  if (!base.ok) return problem(400, VALIDATION_FAILED, base.title, base.detail, guard.scope);
 
   const parsed = Number(qs.limit);
   const limit = Number.isFinite(parsed)
@@ -55,14 +42,10 @@ export const handler = async (
 
   try {
     const result = await listOrders({
-      q: qs.q?.trim() || undefined,
-      status: qs.status || undefined,
+      ...base.filters,
       awaiting,
       // 073 — "Needs a driver".
       needsDriver: qs.needsDriver === "true",
-      deliveryType,
-      stillOpen: qs.open === "true",
-      promise,
       cursor: qs.cursor || undefined,
       limit,
     });

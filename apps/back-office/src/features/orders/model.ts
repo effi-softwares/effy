@@ -30,6 +30,8 @@ export interface OrderListParams {
   /** 085 — what an Effy order was sold. */
   promise?: DeliveryPromise;
   cursor?: string;
+  /** Rows per page; the service's default when omitted. */
+  limit?: number;
 }
 
 /** 085 — what an Effy order was sold, in staff words. */

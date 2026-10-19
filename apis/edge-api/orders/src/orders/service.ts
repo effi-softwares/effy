@@ -105,6 +105,32 @@ export function toSummary(
   };
 }
 
+/** Every saved view of the order list, counted under the operator's other filters — see `repo.viewCounts`. */
+export async function orderViewCounts(
+  filters: import("./filters").BaseFilters,
+): Promise<import("@effy/shared-types").AdminOrderViewCountsDTO> {
+  const r = await repo.viewCounts(filters);
+  return {
+    all: Number(r.total),
+    needsDriver: Number(r.needs_driver),
+    handover: Number(r.handover),
+    arrival: Number(r.arrival),
+    refundDecision: Number(r.refund_decision),
+    courierProblem: Number(r.courier_problem),
+  };
+}
+
+/** The Overview's "Orders today" — see `repo.today`. */
+export async function ordersToday(): Promise<import("@effy/shared-types").AdminOrdersTodayDTO> {
+  const r = await repo.today(COUNTED_REFUND_STATUSES);
+  return {
+    date: r.date,
+    effy: Number(r.effy),
+    courier: Number(r.courier),
+    refunded: { orders: Number(r.refunded_orders), amount: Number(r.refunded_amount).toFixed(2), currency: "AUD" },
+  };
+}
+
 export async function listOrders(params: repo.ListParams): Promise<{
   items: AdminOrderSummaryDTO[];
   nextCursor: string | null;

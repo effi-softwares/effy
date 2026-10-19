@@ -1,99 +1,114 @@
+import { useState } from "react";
+
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { canDispatch } from "./access";
-import { useSessionRoles } from "@/features/auth/useSessionRoles";
-import { AssignmentActions } from "@/features/assign/AssignmentActions";
-import { OrdersTabs } from "@/features/orders/OrdersTabs";
+import { CalendarClock, PackageX, Truck, UserX } from "lucide-react";
 
+import { Skeleton, Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@effy/design-system/ui";
+import { ErrorState } from "@effy/web-kit/console";
+
+import { PageHeader } from "@/components/patterns/Page";
+import { AssignmentActions } from "@/features/assign/AssignmentActions";
+import { useSessionRoles } from "@/features/auth/useSessionRoles";
+
+import { canDispatch } from "./access";
 import { RoundTable } from "./components/RoundTable";
 import { UnassignedPanel } from "./components/UnassignedPanel";
 import { WindowsByDay } from "./components/WindowsByDay";
 import { dispatchDayQuery } from "./queries";
 
 /**
- * The dispatcher's day (063, US4 — FR-027/FR-028, SC-008).
+ * Dispatch (073; redesign, board "Dispatch — today"): who has what, when each round opens, and
+ * anything that needs a driver. Three independent sections, one at a time — Needs a driver ·
+ * Delivery windows · Rounds. Auto-assign runs every 5 minutes; a person steps in only where it can't.
  *
- * ⚠ THE PAGE IS ORDERED BY WHAT NEEDS DOING, NOT BY WHAT EXISTS. "Needs attention" is first; the
- * rounds proceeding normally are below it. D15's manage-by-exception is the whole design premise:
- * the engine earns its place by making the common case automatic and the exceptional case VISIBLE.
- *
- * ⚠ NO METRIC CARDS AT THE TOP (Principle V). The counts that matter are said in words inside the
- * section they describe, so a dispatcher reads one thing and acts, rather than scanning a row of
- * tiles that each need a second look to interpret.
+ * Live: re-read when a driver or auto-assign moves work (071) — nothing here polls.
  */
+type Section = "driver" | "windows" | "rounds";
+
 export function DispatchDayScreen() {
-  const { data, isPending, isError, refetch } = useQuery(dispatchDayQuery());
+  const { data, error, isPending, isError, refetch } = useQuery(dispatchDayQuery());
   const mayAssign = canDispatch(useSessionRoles());
-
-  if (isPending) {
-    return <p className="p-6 text-sm text-muted-foreground">Loading today's work…</p>;
-  }
-
-  if (isError) {
-    // ⚠ "We could not ask" must never look like "nothing is stuck" — an empty screen would tell a
-    // dispatcher the opposite of the truth.
-    return (
-      <div className="p-6">
-        <p className="text-sm text-destructive">Today's work could not be loaded.</p>
-        <button type="button" onClick={() => void refetch()} className="mt-2 text-sm underline">
-          Try again
-        </button>
-      </div>
-    );
-  }
+  const [section, setSection] = useState<Section>("driver");
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold">Orders</h1>
-        <p className="text-muted-foreground">
-          Who has what, when each round opens, and anything that needs a driver. Auto-assign runs every
-          5 minutes.
-        </p>
-      </header>
-      <OrdersTabs />
-
-      {/* 088 — FR-009: parcels from failed deliveries, in a van or waiting at the hub for a decision. */}
-      {data.failedParcels && (data.failedParcels.withDrivers > 0 || data.failedParcels.returnedAwaitingDecision > 0) ? (
-        <p className="text-sm">
-          <span className="font-medium">Failed deliveries:</span>{" "}
-          <span className="tabular-nums">{data.failedParcels.withDrivers}</span> still with drivers ·{" "}
-          <span className="tabular-nums">{data.failedParcels.returnedAwaitingDecision}</span> back at the hub,
-          waiting for a decision.{" "}
-          <Link to="/exceptions" className="underline">
-            See exceptions
-          </Link>
-        </p>
-      ) : null}
-
-      <UnassignedPanel
-        items={data.unassigned}
-        renderAssign={
-          mayAssign
-            ? (item) => (
-                <AssignmentActions
-                  packageId={item.packageId}
-                  stage={item.stage}
-                  assignment={{ assignmentId: null, driver: null, opensAt: null, dueAt: null, roundId: null, how: null, unassignedReason: null, movable: true }}
-                  title={`${item.orderNumber} · ${item.shopName}`}
-                />
-              )
-            : undefined
-        }
+    <>
+      <PageHeader
+        title="Dispatch"
+        description="Who has what, when each round opens, and anything that needs a driver. Auto-assign runs every 5 minutes — you step in only where it can't."
       />
 
-      {/* 082 — every day on sale: each window's parcels and who has its round. */}
-      <WindowsByDay />
-
-      <section aria-labelledby="rounds-heading">
-        <h2 id="rounds-heading" className="text-base font-medium">
-          Rounds
-        </h2>
-        <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-          <RoundTable rounds={data.rounds} />
+      {isError ? (
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className="h-9 w-96 max-w-full" />
+          <Skeleton className="h-64" />
         </div>
-      </section>
+      ) : (
+        <>
+          {/* 088 — FR-009: parcels from failed deliveries, in a van or waiting at the hub for a decision. */}
+          {data.failedParcels && (Number(data.failedParcels.withDrivers) > 0 || Number(data.failedParcels.returnedAwaitingDecision) > 0) ? (
+            <Link to="/exceptions" className="bo-alert bo-alert--destructive no-underline">
+              <PackageX aria-hidden="true" />
+              <div className="bo-alert__title">
+                Failed deliveries: {data.failedParcels.withDrivers} still with drivers · {data.failedParcels.returnedAwaitingDecision} back at the hub, waiting
+                for a decision.
+              </div>
+              <div className="bo-alert__description">See exceptions — each one has a customer still waiting.</div>
+            </Link>
+          ) : null}
 
-    </div>
+          <Tabs value={section} onValueChange={(v) => setSection(v as Section)}>
+            <div className="bo-tabsbar">
+              <div className="bo-tabsbar__list">
+                <TabsList aria-label="Dispatch sections">
+                  <TabsTrigger value="driver">
+                    <UserX aria-hidden="true" />
+                    Needs a driver
+                    {data.unassigned.length > 0 ? <TabsCount>{data.unassigned.length}</TabsCount> : null}
+                  </TabsTrigger>
+                  <TabsTrigger value="windows">
+                    <CalendarClock aria-hidden="true" />
+                    Delivery windows
+                  </TabsTrigger>
+                  <TabsTrigger value="rounds">
+                    <Truck aria-hidden="true" />
+                    Rounds
+                    <TabsCount>{data.rounds.length}</TabsCount>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <span className="text-xs text-muted-foreground max-md:hidden">Live — re-reads when a driver or auto-assign moves work</span>
+            </div>
+
+            <TabsContent value="driver" className="bo-tabpanel">
+              <UnassignedPanel
+                items={data.unassigned}
+                renderAssign={
+                  mayAssign
+                    ? (item) => (
+                        <AssignmentActions
+                          packageId={item.packageId}
+                          stage={item.stage}
+                          assignment={{ assignmentId: null, driver: null, opensAt: null, dueAt: null, roundId: null, how: null, unassignedReason: null, movable: true }}
+                          title={`${item.orderNumber} · ${item.shopName}`}
+                        />
+                      )
+                    : undefined
+                }
+              />
+            </TabsContent>
+            {/* 082 — every day on sale: each window's parcels and who has its round. */}
+            <TabsContent value="windows" className="bo-tabpanel">
+              <WindowsByDay />
+            </TabsContent>
+            <TabsContent value="rounds" className="bo-tabpanel">
+              <RoundTable rounds={data.rounds} />
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
+    </>
   );
 }

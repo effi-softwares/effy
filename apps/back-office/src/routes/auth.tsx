@@ -8,11 +8,8 @@ import { rootRoute } from "./__root";
 export const authLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/auth",
-  component: () => (
-    <div className="grid min-h-dvh place-items-center bg-background p-6">
-      <Outlet />
-    </div>
-  ),
+  // The sign-in page draws its own two-column frame (redesign, board "Sign in — work email").
+  component: () => <Outlet />,
 });
 
 export const signInRoute = createRoute({

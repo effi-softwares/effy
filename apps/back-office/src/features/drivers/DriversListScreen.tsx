@@ -2,29 +2,28 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { CircleAlert, UserX } from "lucide-react";
+
+import { cn } from "@effy/design-system";
+import { Checkbox, Skeleton } from "@effy/design-system/ui";
+import { ErrorState } from "@effy/web-kit/console";
 import type { AdminDriverListItem, DriverEmploymentStatus } from "@effy/shared-types";
 
+import { PageHeader } from "@/components/patterns/Page";
+import { EmptyState } from "@/components/patterns/States";
+import { DotWord, StatusWord } from "@/components/patterns/StatusWord";
+import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@/components/patterns/Toolbar";
+import { initialsOf } from "@/components/shell/identity";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { CreateDriverDialog } from "./components/CreateDriverDialog";
 import { DutyPanel } from "./components/DutyPanel";
+import { ReadinessPanel } from "./components/ReadinessPanel";
 import { canManageDrivers } from "./access";
 import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model";
-import { driversListQuery, zonesQuery } from "./queries";
+import { driversListQuery, readinessQuery, zonesQuery } from "./queries";
 
-const ALL = "all";
 
 /**
  * The driver register (056 US1) — the front door of the driver console.
@@ -46,107 +45,47 @@ function blockedSummary(d: AdminDriverListItem): string | null {
   return d.blockedReasons.map((r) => BLOCKED_LABEL[r]).join(" · ");
 }
 
-const columns: ColumnDef<AdminDriverListItem>[] = [
-  {
-    accessorKey: "name",
-    header: "Driver",
-    cell: ({ row }) => (
-      <div className="space-y-0.5">
-        <Link
-          to="/drivers/$driverId"
-          params={{ driverId: row.original.id }}
-          className="font-medium text-primary hover:underline"
-        >
-          {row.original.name}
-        </Link>
-        {/* ⚠ SC-009 — a driver who cannot receive work says so HERE, on the register, before an
-            order is affected. The alternative discovery path is an order that quietly fails to
-            move, hours later, in a place nobody is looking. */}
-        {blockedSummary(row.original) ? (
-          <p className="text-xs font-medium text-muted-foreground">
-            {blockedSummary(row.original)}
-          </p>
-        ) : null}
-      </div>
-    ),
-  },
-  { accessorKey: "workEmail", header: "Work email" },
-  {
-    // ⚠ 062 FR-014/FR-015 — breadth of clearance, summarised. A driver cleared for NOTHING is a
-    // stated fact, not blank space: an empty cell reads as "nothing to say", and this is the one
-    // thing stopping them being given work.
-    id: "clearance",
-    header: "Cleared for",
-    cell: ({ row }) => {
-      const c = row.original.capabilitySummary;
-      if (c.total === 0) {
-        return <span className="font-medium">Nothing yet</span>;
-      }
-      const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`;
-      const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver";
-      return (
-        <span>
-          {what} <span className="text-muted-foreground">· {where}</span>
-        </span>
-      );
-    },
-  },
-  {
-    accessorKey: "dutyState",
-    header: "Duty",
-    cell: ({ row }) =>
-      row.original.dutyState === "on_duty" ? (
-        <span className="font-medium">On duty</span>
-      ) : (
-        <span className="text-muted-foreground">Off duty</span>
-      ),
-  },
-  {
-    accessorKey: "status",
-    header: "Employment",
-    cell: ({ row }) => (
-      <span className={row.original.status === "active" ? "" : "font-medium"}>
-        {STATUS_LABEL[row.original.status]}
-      </span>
-    ),
-  },
+type View = "all" | "active" | "suspended" | "offboarded" | "readiness";
+const VIEWS: readonly { key: View; label: string }[] = [
+  { key: "all", label: "All employed" },
+  { key: "active", label: "Active" },
+  { key: "suspended", label: "Suspended" },
+  { key: "offboarded", label: "Offboarded" },
+  { key: "readiness", label: "Readiness" },
 ];
 
+/**
+ * Drivers (056; redesign, board "Drivers"): who is on duty now, then the register — by employment
+ * status, searchable, filterable by zone — and Readiness: who cannot be given work, what to renew,
+ * and work nobody can cover.
+ */
 export function DriversListScreen() {
   const roles = useSessionRoles();
   const canManage = canManageDrivers(roles);
 
+  const [view, setView] = useState<View>("all");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>(ALL);
-  const [zoneId, setZoneId] = useState<string>(ALL);
+  const [zoneId, setZoneId] = useState<string | null>(null);
   const [includeOffboarded, setIncludeOffboarded] = useState(false);
-  /**
-   * Keyset paging, so a stack rather than a page number.
-   *
-   * ⚠ A cursor list cannot jump to "page 5" — that is the trade for never showing an operator the
-   * same driver twice. Changing a filter resets the stack, because a cursor minted under one filter
-   * means nothing under another.
-   */
   const [cursors, setCursors] = useState<string[]>([]);
 
+  const status = view === "all" || view === "readiness" ? "" : (view as DriverEmploymentStatus);
   const params: DriverListParams = useMemo(
     () => ({
       q: search.trim() || undefined,
-      status: status === ALL ? "" : (status as DriverEmploymentStatus),
-      zoneId: zoneId === ALL ? undefined : zoneId,
-      includeOffboarded,
+      status,
+      zoneId: zoneId ?? undefined,
+      // FR-005 — offboarded drivers are hidden by default; the Offboarded view asks for them.
+      includeOffboarded: includeOffboarded || view === "offboarded",
       cursor: cursors[cursors.length - 1],
     }),
-    [search, status, zoneId, includeOffboarded, cursors],
+    [search, status, zoneId, includeOffboarded, view, cursors],
   );
 
-  const { data, error, isPending, isError, refetch } = useQuery(driversListQuery(params));
-  // ⚠ 062 — the zone FILTER stays, and its meaning improved: it now finds drivers CLEARED for that
-  // zone, which includes every-zone drivers. Matching only zone-specific grants would hide the
-  // people with the broadest clearance — the opposite of what an operator filtering by zone wants.
+  const { data, error, isPending, isError, refetch } = useQuery({ ...driversListQuery(params), enabled: view !== "readiness" });
   const zones = useQuery(zonesQuery());
-  // The outstanding count only — the rows live on the Exceptions section of the profile and the
-  // dedicated filter below.
+  const readiness = useQuery(readinessQuery());
+  const blockedCount = readiness.data?.blocked.length;
 
   function resetPaging<T>(set: (v: T) => void) {
     return (v: T) => {
@@ -156,120 +95,151 @@ export function DriversListScreen() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Drivers</h1>
-          <p className="text-muted-foreground">
-            Everyone Effy employs to move packages — who they are, whether they can work, and what
-            has gone wrong out on the road.
-          </p>
-        </div>
-        {canManage ? <CreateDriverDialog /> : null}
-      </div>
-
-      {/* ⚠ FR-032's outstanding-reports line stood here — a count of failed deliveries and packages
-          missing at shops, as a sentence that led somewhere rather than a metric card. It read
-          `delivery_failure` and `collection_task_issue`, which 063's teardown dropped.
-          ⚠ 064 REBUILT THE CAPABILITY on `delivery_attempt_failure`, and it lives on its own screen
-          (Fleet → Exceptions) rather than as a count here — a list you can triage beats a number you
-          cannot act on. This comment stays as the pointer; it is no longer a gap. */}
+    <>
+      <PageHeader
+        title="Drivers"
+        description="Everyone Effy employs to move packages — who they are, whether they can work, and what has gone wrong out on the road."
+        actions={canManage ? <CreateDriverDialog /> : undefined}
+      />
 
       <DutyPanel />
 
-      <section className="space-y-4">
-        <h2 className="text-base font-semibold">Register</h2>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Input
-            placeholder="Search by name or work email…"
-            value={search}
-            onChange={(e) => resetPaging(setSearch)(e.target.value)}
-            className="max-w-sm"
-          />
-          <Select value={status} onValueChange={resetPaging(setStatus)}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All employed</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-              <SelectItem value="offboarded">Offboarded</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={zoneId} onValueChange={resetPaging(setZoneId)}>
-            <SelectTrigger className="w-52">
-              <SelectValue placeholder="Any zone" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Any zone</SelectItem>
-              {(zones.data ?? []).map((z) => (
-                <SelectItem key={z.id} value={z.id}>
-                  {z.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {/* FR-005 — offboarded drivers are hidden by default; a register full of people who left
-              is a register nobody reads. */}
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={includeOffboarded}
-              onChange={(e) => resetPaging(setIncludeOffboarded)(e.target.checked)}
-              className="size-4 accent-foreground"
+      <div className="space-y-3">
+        <nav className="bo-tabs" aria-label="Driver views">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              aria-current={v.key === view ? "page" : undefined}
+              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              onClick={() => resetPaging(setView)(v.key)}
+            >
+              {v.label}
+              {v.key === "readiness" && blockedCount ? (
+                <span className={cn("bo-tabs__count", view !== "readiness" && "bo-tabs__count--primary")}>{blockedCount}</span>
+              ) : null}
+            </button>
+          ))}
+        </nav>
+        {view !== "readiness" ? (
+          <Toolbar>
+            <SearchBox label="Search drivers" placeholder="Search by name or work email…" value={search} onChange={resetPaging(setSearch)} />
+            <Facet
+              label="Zone"
+              anyLabel="Any zone"
+              value={zoneId}
+              onChange={resetPaging(setZoneId)}
+              options={(zones.data ?? []).map((z) => ({ value: z.id, label: z.name }))}
             />
-            Include people who have left
-          </label>
-        </div>
+            <ToolbarSpacer />
+            {view === "all" ? (
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={includeOffboarded} onCheckedChange={(v) => resetPaging(setIncludeOffboarded)(v === true)} />
+                Include people who have left
+              </label>
+            ) : null}
+          </Toolbar>
+        ) : null}
+      </div>
 
-        {isError ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
-        ) : isPending ? (
-          <p className="text-sm text-muted-foreground">Loading drivers…</p>
+      {view === "readiness" ? (
+        <ReadinessPanel />
+      ) : isError ? (
+        <ErrorState error={error} onRetry={() => void refetch()} />
+      ) : isPending ? (
+        <div className="bo-table-wrap p-4" aria-busy="true">
+          <Skeleton className="mb-3 h-10" />
+          <Skeleton className="mb-3 h-10" />
+          <Skeleton className="h-10" />
+        </div>
+      ) : data.items.length === 0 ? (
+        <EmptyState
+          icon={UserX}
+          title={search || zoneId || view !== "all" ? "No drivers match your filter." : "No drivers yet."}
+          description={search || zoneId || view !== "all" ? undefined : "Add the first one to give them a sign-in for the driver app."}
+        />
+      ) : (
+        <div className="bo-table-wrap">
+          <div className="bo-table-scroll">
+            <table className="bo-table bo-rtable">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>Work email</th>
+                  <th>Cleared for</th>
+                  <th>Duty</th>
+                  <th>Employment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((d) => (
+                  <DriverRow key={d.id} driver={d} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* ⚠ nextCursor IS CONSUMED. 053 shipped a console that ignored its own, silently capping it
+              at the newest 25 rows. Rendered only when there is somewhere to go. */}
+          {cursors.length > 0 || data.nextCursor ? (
+            <Pager
+              summary={`${data.items.length} driver${data.items.length === 1 ? "" : "s"} · page ${cursors.length + 1}`}
+              canBack={cursors.length > 0}
+              canNext={Boolean(data.nextCursor)}
+              onBack={() => setCursors((c) => c.slice(0, -1))}
+              onNext={() => setCursors((c) => (data.nextCursor ? [...c, data.nextCursor] : c))}
+            />
+          ) : null}
+        </div>
+      )}
+    </>
+  );
+}
+
+function DriverRow({ driver: d }: { driver: AdminDriverListItem }) {
+  const blocked = blockedSummary(d);
+  const c = d.capabilitySummary;
+  const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver";
+  const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`;
+  return (
+    <tr>
+      <td data-m="primary">
+        <div className="flex items-center gap-3">
+          <span className="bo-avatar bo-avatar--sq max-md:hidden" aria-hidden="true">
+            {initialsOf(d.name)}
+          </span>
+          <div className="min-w-0">
+            <Link to="/drivers/$driverId" params={{ driverId: d.id }} className="bo-link">
+              {d.name}
+            </Link>
+            {/* ⚠ SC-009 — a driver who cannot receive work says so HERE, on the register, before an
+                order is affected. */}
+            {blocked ? (
+              <span className="bo-sub flex items-center gap-1 font-medium text-foreground">
+                <CircleAlert aria-hidden="true" className="size-3 shrink-0" />
+                {blocked}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </td>
+      <td data-m="meta" className="is-muted">
+        {d.workEmail}
+      </td>
+      <td data-m="meta" data-label="Cleared for">
+        {c.total === 0 ? (
+          <span className="font-medium">Nothing yet</span>
         ) : (
           <>
-            <DataTable
-              columns={columns}
-              data={data.items}
-              emptyMessage={
-                search || status !== ALL || zoneId !== ALL
-                  ? "No drivers match your filter."
-                  : "No drivers yet. Add the first one to give them a sign-in for the driver app."
-              }
-            />
-            {/* ⚠ nextCursor IS CONSUMED. 053 shipped a console that ignored its own, silently
-                capping it at the newest 25 rows. Rendered only when there is somewhere to go. */}
-            {cursors.length > 0 || data.nextCursor ? (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {data.items.length} driver{data.items.length === 1 ? "" : "s"}
-                  {cursors.length > 0 ? ` · page ${cursors.length + 1}` : ""}
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={cursors.length === 0}
-                    onClick={() => setCursors((c) => c.slice(0, -1))}
-                  >
-                    Back
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={!data.nextCursor}
-                    onClick={() =>
-                      setCursors((c) => (data.nextCursor ? [...c, data.nextCursor] : c))
-                    }
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            ) : null}
+            {what} <span className="text-muted-foreground">· {where}</span>
           </>
         )}
-      </section>
-    </div>
+      </td>
+      <td data-m="trail">
+        {d.dutyState === "on_duty" ? <DotWord tone="busy">On duty</DotWord> : <DotWord tone="off">Off duty</DotWord>}
+      </td>
+      <td data-m="badge">
+        <StatusWord tone={d.status === "active" ? "done" : d.status === "suspended" ? "problem" : "quiet"}>{STATUS_LABEL[d.status]}</StatusWord>
+      </td>
+    </tr>
   );
 }

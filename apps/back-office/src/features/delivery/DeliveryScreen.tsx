@@ -2,14 +2,12 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { Plus } from "lucide-react";
 
-import {
-  Badge, Button, Input, Label,
-  Tabs, TabsContent, TabsList, TabsTrigger,
-} from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { Button, Input, Label } from "@effy/design-system/ui";
+import { ErrorState } from "@effy/web-kit/console";
+
+import { PageHeader } from "@/components/patterns/Page";
+import { Panel } from "@/components/patterns/Panel";
 
 import { sessionQuery } from "@/features/auth/queries";
 
@@ -17,7 +15,7 @@ import { canManageDelivery, canSwitchDeliveryModel } from "./access";
 import { deliveryMutationError } from "./errorText";
 import { DeliveryDaysPanel } from "./components/DeliveryDaysPanel";
 import { SlotsPanel } from "./components/SlotsPanel";
-import { CoveragePanel } from "./coverage/CoveragePanel";
+import { CoveragePanel, CourierPage } from "./coverage/CoveragePanel";
 import { GoLivePanel } from "./golive/GoLivePanel";
 import { PricingPanel } from "./pricing/PricingPanel";
 import {
@@ -25,47 +23,68 @@ import {
   useDeleteCollectionRun, usePutSettings,
 } from "./queries";
 
-const TABS: readonly string[] = ["coverage", "pricing", "schedule", "slots", "days", "settings", "go-live"];
+const TABS: readonly string[] = ["coverage", "courier", "pricing", "slots", "days", "schedule", "settings", "go-live"];
+
+/** The page each sidebar entry opens (redesign, folder "Delivery settings"): its title and its one line. */
+const PAGES: Record<string, { title: string; description: string }> = {
+  pricing: {
+    title: "Pricing",
+    description: "What delivery costs. One fee per order, worked out from one plan — base, distance, weight, and a surcharge for a window today.",
+  },
+  slots: {
+    title: "Delivery windows",
+    description: "The daily windows a customer chooses from: their hours, their cut-off, and how many orders each can take.",
+  },
+  days: {
+    title: "Days, runs and closures",
+    description: "Which days Effy delivers, the collection runs that bring parcels to the hub, and the dates it is closed.",
+  },
+  settings: {
+    title: "Hub and timings",
+    description: "Where every distance is measured from, and how long a shop needs before a collection run.",
+  },
+  "go-live": {
+    title: "Go-live history",
+    description: "When the delivery model began and when the old arrangement was removed.",
+  },
+};
 
 export function DeliveryScreen() {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
   const canManage = canManageDelivery(roles);
-  // 083 — the tab is in the URL, so the go-live checklist can link to the tab that fixes each item.
+  // 083 — the page is in the URL, so the go-live checklist can link to the page that fixes each item.
   const search = useSearch({ strict: false }) as { tab?: string };
   const navigate = useNavigate();
-  const tab = TABS.includes(search.tab ?? "") ? search.tab! : "coverage";
+  const raw = TABS.includes(search.tab ?? "") ? search.tab! : "coverage";
+  // Collection runs live on the Days page now.
+  const tab = raw === "schedule" ? "days" : raw;
   const goTo = (next: string) => void navigate({ to: "/delivery", search: { tab: next } });
 
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold">Delivery</h1>
-        <p className="text-muted-foreground">
-          Where Effy delivers, what delivery costs, delivery times and the hub. All of it is the
-          platform's — no shop can set it.
-        </p>
-      </div>
+  if (tab === "coverage") return <CoveragePanel canManage={canManage} />;
+  if (tab === "courier") return <CourierPage canManage={canManage} />;
 
-      <Tabs value={tab} onValueChange={goTo}>
-        <TabsList>
-          <TabsTrigger value="coverage">Coverage</TabsTrigger>
-          <TabsTrigger value="pricing">Pricing</TabsTrigger>
-          <TabsTrigger value="schedule">Collection runs</TabsTrigger>
-          <TabsTrigger value="slots">Delivery windows</TabsTrigger>
-          <TabsTrigger value="days">Delivery days</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="go-live">Go-live</TabsTrigger>
-        </TabsList>
-        <TabsContent value="coverage" className="mt-4"><CoveragePanel canManage={canManage} /></TabsContent>
-        <TabsContent value="pricing" className="mt-4"><PricingPanel canManage={canManage} /></TabsContent>
-        <TabsContent value="schedule" className="mt-4"><SchedulePanel canManage={canManage} /></TabsContent>
-        <TabsContent value="slots" className="mt-4"><SlotsPanel canManage={canManage} /></TabsContent>
-        <TabsContent value="days" className="mt-4"><DeliveryDaysPanel canManage={canManage} /></TabsContent>
-        <TabsContent value="settings" className="mt-4"><SettingsPanel canManage={canManage} /></TabsContent>
-        <TabsContent value="go-live" className="mt-4"><GoLivePanel canSwitch={canSwitchDeliveryModel(roles)} onGoToTab={goTo} /></TabsContent>
-      </Tabs>
-    </div>
+  const page = PAGES[tab]!;
+  return (
+    <>
+      <PageHeader title={page.title} description={page.description} />
+      <div className="bo-settings">
+      {tab === "pricing" ? (
+        <PricingPanel canManage={canManage} />
+      ) : tab === "slots" ? (
+        <SlotsPanel canManage={canManage} />
+      ) : tab === "days" ? (
+        <>
+          <DeliveryDaysPanel canManage={canManage} />
+          <SchedulePanel canManage={canManage} />
+        </>
+      ) : tab === "settings" ? (
+        <SettingsPanel canManage={canManage} />
+      ) : (
+        <GoLivePanel canSwitch={canSwitchDeliveryModel(roles)} onGoToTab={goTo} />
+      )}
+      </div>
+    </>
   );
 }
 
@@ -89,12 +108,12 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
   }
 
   return (
-    <div className="max-w-xl space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Effy's drivers collect from shops on these runs (Australia/Melbourne). A delivery window today is
-        offered while a run can still be made and reaches the hub before the window starts, allowing the
-        prep buffer set in Settings. Several runs extend what can be offered through the day.
-      </p>
+    <Panel
+      title="Collection runs"
+      description="Effy's drivers collect from shops on these runs (Melbourne time). A window today is offered while a run can still be made and reaches the hub before the window starts, allowing the prep buffer set in Hub and timings."
+      flush
+    >
+      <div className="space-y-4 px-5 py-4">
       {runs.isError ? (
         <ErrorState error={runs.error} onRetry={() => void runs.refetch()} />
       ) : runs.isPending ? (
@@ -102,7 +121,7 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
       ) : runs.data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No runs yet — no delivery window today can be offered until one is added.</p>
       ) : (
-        <ul className="divide-y rounded-md border">
+        <ul className="divide-y divide-border rounded-md border border-border">
           {runs.data.map((r) => (
             <li key={r.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
               <span className="font-mono font-medium tabular-nums">{r.runTime}</span>
@@ -115,7 +134,7 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
         </ul>
       )}
       {canManage ? (
-        <form onSubmit={add} className="flex items-end gap-2 border-t pt-4">
+        <form onSubmit={add} className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
           <div className="space-y-2">
             <Label htmlFor="run-time">Run time (HH:MM)</Label>
             <Input id="run-time" className="w-32" placeholder="14:00" value={runTime} onChange={(e) => setRunTime(e.target.value)} />
@@ -127,8 +146,9 @@ function SchedulePanel({ canManage }: { canManage: boolean }) {
           <Button type="submit" disabled={create.isPending || !runTime.trim()}>Add run</Button>
         </form>
       ) : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-    </div>
+      {error ? <p role="alert" className="text-sm font-medium">{error}</p> : null}
+      </div>
+    </Panel>
   );
 }
 
@@ -170,12 +190,19 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
   if (settings.isError) return <ErrorState error={settings.error} onRetry={() => void settings.refetch()} />;
 
   return (
-    <form onSubmit={submit} className="max-w-md space-y-4">
-      <p className="text-sm text-muted-foreground">
-        The hub is where every postcode's distance is measured from. Moving it recalculates the
-        distances the platform worked out, and flags the ones entered by hand for another look. The prep
-        buffer is how long a shop needs before a collection run.
-      </p>
+    <form onSubmit={submit} className="max-w-2xl">
+      <Panel
+        title="The hub"
+        description="Every postcode's distance is measured from here. Moving it recalculates the distances the platform worked out, and flags the ones entered by hand for another look."
+        footerBetween
+        footer={
+          <>
+            <span className="bo-sub" role="status">{note ?? "The prep buffer is how long a shop needs before a collection run."}</span>
+            {canManage ? <Button type="submit" disabled={put.isPending}>Save settings</Button> : null}
+          </>
+        }
+      >
+      <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label htmlFor="hub-lat">Hub latitude</Label>
@@ -190,8 +217,8 @@ function SettingsPanel({ canManage }: { canManage: boolean }) {
         <Label htmlFor="buffer">Shop prep buffer (minutes)</Label>
         <Input id="buffer" inputMode="numeric" value={buffer} onChange={(e) => setBuffer(e.target.value)} placeholder="60" disabled={!canManage} />
       </div>
-      {note ? <p className="text-sm">{note}</p> : null}
-      {canManage ? <Button type="submit" disabled={put.isPending}>Save settings</Button> : null}
+      </div>
+      </Panel>
     </form>
   );
 }

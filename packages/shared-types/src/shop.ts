@@ -123,6 +123,9 @@ export interface ShopListItemDTO {
    *  without opening every shop. The address itself is not here: a list does not need a street, and
    *  a shop's location must never travel further than it has to. */
   hasAddress: boolean;
+  /** 091 — how this shop's labels scanned over the last [sinceDays] days (redesign: the register's
+   *  "Label scanning" column). Optional so an older deploy still reads. */
+  labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
 }
 
 /** A shop user in the roster (embedded in ShopDetailDTO). */

@@ -32,7 +32,7 @@ export function Panel({
     <section className={cn("bo-panel", className)}>
       {title ? (
         <div className="bo-panel__head">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="bo-panel__title">
               {icon}
               {title}

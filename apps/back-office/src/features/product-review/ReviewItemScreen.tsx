@@ -2,10 +2,35 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { useHotkey } from "@tanstack/react-hotkeys";
+import { ArrowLeft, Store } from "lucide-react";
+
 import type { ReviewImageDTO, ReviewItemDetailDTO } from "@effy/shared-types";
-import { Badge, Button, Label, Textarea } from "@effy/design-system/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Label,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+} from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
+import { Kbd } from "@/components/patterns/Kbd";
+import { PageHeader } from "@/components/patterns/Page";
+import { DetailRows, Panel } from "@/components/patterns/Panel";
+import { StatusWord } from "@/components/patterns/StatusWord";
+
+import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { track } from "@/lib/telemetry";
 
@@ -36,21 +61,30 @@ export function ReviewItemScreen({ productId }: { productId: string }) {
       </div>
     );
   }
-  if (item.isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (item.isPending) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-60" />
+      </div>
+    );
+  }
   // Keyed on the version: a reload after a conflict resets the form to what is now true.
   return <ReviewItem key={item.data.version} item={item.data} onChanged={() => void item.refetch()} />;
 }
 
 function BackLink() {
   return (
-    <Link to="/product-review" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-      ← Product review
+    <Link to="/product-review" className="bo-back">
+      <ArrowLeft aria-hidden="true" />
+      Product review
     </Link>
   );
 }
 
 function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged: () => void }) {
   const navigate = useNavigate();
+  useHeaderDetail(item.productName);
   const canDecide = canDecideReview(useSessionRoles());
   const approve = useApprove(item.productId);
   const sendBack = useSendBack(item.productId);
@@ -84,163 +118,211 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
     }
   }
 
+  useHotkey("A", () => {
+    if (canDecide && !busy && !(item.marginRequired && !margin)) void doApprove();
+  }, { ignoreInputs: true });
+  useHotkey("R", () => {
+    if (canDecide && !busy) setSendingBack(true);
+  }, { ignoreInputs: true });
+
+  function doApprove() {
+    return run("approved", () => approve.mutateAsync({ version: item.version, ...(margin ? { margin } : {}) }));
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <BackLink />
-        <header className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-semibold">{item.productName}</h1>
-          <Badge variant="outline">{KIND_LABEL[item.kind]}</Badge>
-        </header>
-        <p className="text-sm text-muted-foreground">
-          {item.shop.name}
-          {item.shop.status !== "active" ? ` · this shop is ${item.shop.status}` : ""}
-        </p>
-      </div>
+    <>
+      <PageHeader
+        back={{ label: "Product review", link: { to: "/product-review" } }}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            {item.productName}
+            <StatusWord tone={item.kind === "new_product" ? "info" : "waiting"}>{KIND_LABEL[item.kind]}</StatusWord>
+          </span>
+        }
+        meta={
+          <span>
+            <Store aria-hidden="true" />
+            {item.shop.name}
+            {item.shop.status !== "active" ? ` · this shop is ${item.shop.status}` : ""}
+          </span>
+        }
+      />
 
-      {item.kind === "change" ? (
-        <section className="space-y-3">
-          <h2 className="text-sm font-medium">What the shop is changing</h2>
-          {item.changes.length === 0 && !item.images.proposed ? (
-            <p className="text-sm text-muted-foreground">No details differ from the live product.</p>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted text-left">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Detail</th>
-                    <th className="px-3 py-2 font-medium">Now</th>
-                    <th className="px-3 py-2 font-medium">Proposed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {item.changes.map((c) => (
-                    <tr key={c.field} className="border-t border-border align-top">
-                      <th scope="row" className="px-3 py-2 text-left font-medium">
-                        {c.label}
-                      </th>
-                      {/* Read aloud as "Name — was X — proposed Y": the column headers alone are
-                          announced once, three rows up, which is not where a listener needs them. */}
-                      <td className="whitespace-pre-line break-words px-3 py-2 text-muted-foreground">
-                        <span className="sr-only">was </span>
-                        {c.before ?? "nothing"}
-                      </td>
-                      <td className="whitespace-pre-line break-words px-3 py-2">
-                        <span className="sr-only">proposed </span>
-                        {c.after ?? "nothing"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <div className="bo-detail">
+        <div className="bo-detail__main">
+          <Tabs defaultValue={item.kind === "change" ? "changes" : "details"}>
+            <div className="bo-tabsbar">
+              <div className="bo-tabsbar__list">
+                <TabsList aria-label="Review sections">
+                  {item.kind === "change" ? (
+                    <TabsTrigger value="changes">
+                      Changes
+                      <TabsCount>{item.changes.length + (item.images.proposed ? 1 : 0)}</TabsCount>
+                    </TabsTrigger>
+                  ) : null}
+                  <TabsTrigger value="details">{item.kind === "change" ? "Live product" : "Details"}</TabsTrigger>
+                  <TabsTrigger value="images">
+                    Images
+                    <TabsCount>{(item.images.proposed ?? item.images.current).length}</TabsCount>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
             </div>
-          )}
-          {item.images.proposed ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Images title="Images now" images={item.images.current} />
-              <Images title="Images proposed" images={item.images.proposed} />
-            </div>
-          ) : null}
-        </section>
-      ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">
-          {item.kind === "change" ? "The product as it is live" : "What the shop submitted"}
-        </h2>
-        <dl className="grid grid-cols-[minmax(8rem,14rem)_1fr] gap-x-6 gap-y-2 text-sm">
-          {item.details.map((row) => (
-            <div key={row.label} className="contents">
-              <dt className="text-muted-foreground">{row.label}</dt>
-              <dd className="whitespace-pre-line break-words">{row.value ?? "—"}</dd>
-            </div>
-          ))}
-        </dl>
-        {item.kind === "new_product" ? <Images title="Images" images={item.images.current} /> : null}
-      </section>
-
-      <section className="space-y-4 border-t border-border pt-6">
-        <h2 className="text-sm font-medium">Decision</h2>
-        {!canDecide ? (
-          <p className="text-sm text-muted-foreground">
-            You can read this. Approving or sending it back needs a manager or an administrator.
-          </p>
-        ) : (
-          <>
-            <MarginField
-              id="review-margin"
-              shopPriceAmount={item.shopPriceAmount}
-              value={entry}
-              onChange={setEntry}
-              disabled={busy}
-            />
-            <p className="text-sm text-muted-foreground">
-              {item.currentMargin
-                ? `Current margin: ${marginLabel(item.currentMargin)}.`
-                : "No margin has been set for this product."}
-              {item.marginRequired ? " A margin must be confirmed to approve this." : ""}
-            </p>
-
-            {message ? (
-              <p role="alert" className="text-sm text-destructive">
-                {message}
-              </p>
+            {item.kind === "change" ? (
+              <TabsContent value="changes" className="bo-tabpanel">
+                <Panel
+                  title="What the shop is changing"
+                  description={
+                    item.changes.length === 0
+                      ? undefined
+                      : `${item.changes.length} ${item.changes.length === 1 ? "detail differs" : "details differ"} from the live product.`
+                  }
+                  flush
+                >
+                  {item.changes.length === 0 && !item.images.proposed ? (
+                    <p className="px-5 py-4 text-sm text-muted-foreground">No details differ from the live product.</p>
+                  ) : (
+                    <div className="bo-table-scroll">
+                      <table className="bo-table">
+                        <thead>
+                          <tr>
+                            <th>Detail</th>
+                            <th>Now</th>
+                            <th>Proposed</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {item.changes.map((c) => (
+                            <tr key={c.field} className="align-top">
+                              <th scope="row" className="text-left font-medium">
+                                {c.label}
+                              </th>
+                              {/* Read aloud as "Name — was X — proposed Y". */}
+                              <td className="whitespace-pre-line break-words text-muted-foreground line-through decoration-muted-foreground/40">
+                                <span className="sr-only">was </span>
+                                {c.before ?? "nothing"}
+                              </td>
+                              <td className="whitespace-pre-line break-words font-medium">
+                                <span className="sr-only">proposed </span>
+                                {c.after ?? "nothing"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Panel>
+              </TabsContent>
             ) : null}
 
-            {!sendingBack ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  disabled={busy || (item.marginRequired && !margin)}
-                  onClick={() =>
-                    void run("approved", () =>
-                      approve.mutateAsync({ version: item.version, ...(margin ? { margin } : {}) }),
-                    )
-                  }
-                >
-                  {item.kind === "change" ? "Approve change" : "Approve and put on sale"}
-                </Button>
-                <Button variant="outline" disabled={busy} onClick={() => setSendingBack(true)}>
-                  Send back…
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="send-back-reason">Why is this being sent back?</Label>
-                <Textarea
-                  id="send-back-reason"
-                  rows={3}
-                  maxLength={500}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="The shop sees this, from Effy — not from you by name."
+            <TabsContent value="details" className="bo-tabpanel">
+              <Panel title={item.kind === "change" ? "The product as it is live" : "What the shop submitted"}>
+                <DetailRows
+                  rows={item.details.map((row) => ({
+                    key: row.label,
+                    label: row.label,
+                    value: <span className="whitespace-pre-line break-words">{row.value ?? "—"}</span>,
+                  }))}
                 />
-                <div className="flex gap-2">
-                  <Button
-                    variant="destructive"
-                    disabled={busy || reason.trim() === ""}
-                    onClick={() =>
-                      void run("sent_back", () => sendBack.mutateAsync({ version: item.version, reason: reason.trim() }))
-                    }
-                  >
-                    Send back to shop
+              </Panel>
+            </TabsContent>
+
+            <TabsContent value="images" className="bo-tabpanel">
+              <Panel title="Images">
+                {item.images.proposed ? (
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <Images title="Now" images={item.images.current} />
+                    <Images title="Proposed" images={item.images.proposed} />
+                  </div>
+                ) : (
+                  <Images title="Submitted" images={item.images.current} />
+                )}
+              </Panel>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <aside className="bo-detail__aside is-first">
+          <Panel title="Decision">
+            {!canDecide ? (
+              <p className="text-sm text-muted-foreground">You can read this. Approving or sending it back needs a manager or an administrator.</p>
+            ) : (
+              <div className="space-y-4">
+                <MarginField id="review-margin" shopPriceAmount={item.shopPriceAmount} value={entry} onChange={setEntry} disabled={busy} />
+                <p className="bo-sub">
+                  {item.currentMargin ? `Current margin: ${marginLabel(item.currentMargin)}.` : "No margin has been set for this product."}
+                  {item.marginRequired ? " A margin must be confirmed to approve this." : ""}
+                </p>
+                {message ? (
+                  <p role="alert" className="text-sm font-medium">
+                    {message}
+                  </p>
+                ) : null}
+                <div className="grid gap-2">
+                  <Button disabled={busy || (item.marginRequired && !margin)} onClick={() => void doApprove()}>
+                    {item.kind === "change" ? "Approve change" : "Approve and put on sale"}
+                    <Kbd className="ml-auto max-md:hidden">A</Kbd>
                   </Button>
-                  <Button variant="ghost" disabled={busy} onClick={() => setSendingBack(false)}>
-                    Cancel
+                  <Button variant="outline" disabled={busy} onClick={() => setSendingBack(true)}>
+                    Send back…
+                    <Kbd className="ml-auto max-md:hidden">R</Kbd>
                   </Button>
                 </div>
+                <p className="bo-sub">Approving publishes {item.kind === "change" ? "the change" : "the product"} to customers at once.</p>
               </div>
             )}
-          </>
-        )}
-      </section>
-    </div>
+          </Panel>
+        </aside>
+      </div>
+
+      <Dialog open={sendingBack} onOpenChange={(o) => (busy ? null : setSendingBack(o))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send back to {item.shop.name}?</DialogTitle>
+            <DialogDescription>
+              {item.kind === "change" ? "The live product stays as it is." : "The product stays off sale."} The shop can fix it and submit again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="send-back-reason">Why is this being sent back?</Label>
+            <Textarea
+              id="send-back-reason"
+              rows={3}
+              maxLength={500}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. The main image is a stock photo — use a photo of the product itself."
+            />
+            <p className="bo-sub">The shop sees this, from Effy — not from you by name.</p>
+          </div>
+          {message ? (
+            <p role="alert" className="text-sm font-medium">
+              {message}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setSendingBack(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={busy || reason.trim() === ""}
+              onClick={() => void run("sent_back", () => sendBack.mutateAsync({ version: item.version, reason: reason.trim() }))}
+            >
+              Send back to shop
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 function Images({ title, images }: { title: string; images: ReviewImageDTO[] }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm text-muted-foreground">{title}</h3>
+      <h3 className="bo-sub font-medium">{title}</h3>
       {images.length === 0 ? (
         <p className="text-sm text-muted-foreground">No images.</p>
       ) : (

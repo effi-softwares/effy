@@ -171,7 +171,7 @@
 .bo-composer--note { background: var(--muted); }
 
 /* ---------- Small parts ---------- */
-.bo-code { font-family: var(--font-mono); font-size: 13px; letter-spacing: -0.01em; }
+.bo-code { font-family: var(--font-mono); font-size: 13px; letter-spacing: -0.01em; white-space: nowrap; }
 .bo-copy { display: inline-flex; align-items: center; gap: 6px; }
 .bo-copy svg { width: 13px; height: 13px; color: var(--muted-foreground); }
 .bo-meter { display: flex; height: 6px; border-radius: 999px; background: var(--muted); overflow: hidden; min-width: 64px; }
@@ -281,4 +281,34 @@
 @keyframes bo-flash { 0% { background: var(--primary-muted); } 100% { background: transparent; } }
 .bo-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: effy-pulse 2s ease-in-out infinite; }
 
+
+/* ---------- A command row (palette, Overview's shortcuts) ---------- */
+.bo-cmd-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 8px; border-radius: var(--radius-sm); border: 0; background: none; font: inherit; font-size: 14px; color: inherit; cursor: pointer; text-align: left; text-decoration: none; }
+.bo-cmd-item:hover, .bo-cmd-item.is-focus { background: var(--accent); }
+.bo-cmd-item > svg { width: 16px; height: 16px; flex: none; color: var(--muted-foreground); }
+}
+
+/* ---------- Settings pages built from older sections ----------
+   The delivery settings panels predate the redesign and are plain <section>s headed by an <h2>. Inside
+   `.bo-settings` each outermost section is dressed as a Panel (hairline, 8px radius, card ground) and
+   its heading as a panel title. ⚠ UNLAYERED on purpose: it must beat the `border-t pt-6` utilities those
+   sections still carry. */
+.bo-settings { display: flex; flex-direction: column; gap: 24px; }
+.bo-settings section:not(section section):not(.bo-panel) {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  padding: 16px 20px 20px;
+  margin: 0;
+}
+.bo-settings section:not(section section):not(.bo-panel) > h2,
+.bo-settings section:not(section section):not(.bo-panel) > div:first-child > h2 {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.bo-settings section section > h3 { font-size: 13px; font-weight: 600; }
+@media (max-width: 767px) {
+  .bo-settings { gap: 16px; }
+  .bo-settings section:not(section section):not(.bo-panel) { padding: 14px 16px 16px; }
 }

@@ -116,7 +116,11 @@ export interface ListParams {
  * Keyset pagination on (placed_at, id), not OFFSET: an operator paging through while orders arrive
  * must not see a row twice or miss one.
  */
-export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
+/**
+ * The filters an operator sets that are NOT a view (search, who delivers, what was sold, legacy).
+ * Shared by the list and by `viewCounts`, so a view's count is exactly the rows its list shows.
+ */
+function baseWhere(params: Omit<ListParams, "limit" | "cursor" | "awaiting" | "needsDriver">): { where: string[]; args: unknown[] } {
   const where: string[] = ["o.status <> 'pending_payment'"];
   const args: unknown[] = [];
 
@@ -147,17 +151,16 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
     args.push(params.promise);
     where.push(`o.delivery_type = 'effy' AND COALESCE(o.delivery_promise, 'window') = $${args.length}`);
   }
-  if (params.cursor) {
-    args.push(params.cursor);
-    where.push(`o.created_at < $${args.length}::timestamptz`);
-  }
+  return { where, args };
+}
 
-  // 073 — "Needs a driver": a package ready at a shop with no collection driver, or a parcel Effy
-  // delivers, at the hub, whose round has opened, with no delivery driver. The same two conditions the
-  // assignment read shows as "Unassigned", so the filter and the column cannot disagree.
-  // ⚠ 082 — the second is `DELIVERY_DUE_SQL`, shared with that read: any day's window, once it is due.
-  if (params.needsDriver) {
-    where.push(`EXISTS (
+/**
+ * 073 — "Needs a driver": a package ready at a shop with no collection driver, or a parcel Effy
+ * delivers, at the hub, whose round has opened, with no delivery driver. The same two conditions the
+ * assignment read shows as "Unassigned", so the filter and the column cannot disagree.
+ * ⚠ 082 — the second is `DELIVERY_DUE_SQL`, shared with that read: any day's window, once it is due.
+ */
+const NEEDS_DRIVER_SQL = `EXISTS (
       SELECT 1 FROM public.shop_fulfillment sf
         LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
        WHERE sf.order_id = o.id
@@ -169,13 +172,14 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
                                 JOIN public.round_stop crs ON crs.id = crp.stop_id
                                 JOIN public.hub_checkin hc ON hc.round_id = crs.round_id
                                WHERE crp.shop_fulfillment_id = sf.id AND crp.state = 'picked_up')))
-    )`);
-  }
+    )`;
 
-  // The awaiting filter, expressed against the same derived counts the projection reports, so the
-  // filter and the badge can never disagree about one order.
-  if (params.awaiting === "handover") {
-    where.push(`EXISTS (
+/**
+ * The work queues — each expressed against the same derived counts the projection reports, so the
+ * filter and the badge can never disagree about one order.
+ */
+const AWAITING_SQL: Record<OrderAwaiting, string> = {
+  handover: `EXISTS (
       SELECT 1 FROM public.shop_fulfillment sf
         LEFT JOIN public.order_package_delivery opd
                ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
@@ -186,23 +190,60 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
          -- delivers itself — same-day, or sold a window on a later day — awaits no handover.
          AND ${COURIER_PACKAGE} = 'courier'
          AND h.id IS NULL
-    )`);
-  } else if (params.awaiting === "refund_decision") {
-    // ⚠ 055 US6 — a portion the shop said it cannot supply. Expressed against the same fact the
-    // projection reports, so the filter and the badge can never disagree about one order.
-    where.push(`EXISTS (
+    )`,
+  // ⚠ 055 US6 — a portion the shop said it cannot supply.
+  refund_decision: `EXISTS (
       SELECT 1 FROM public.shop_fulfillment sf
        WHERE sf.order_id = o.id AND sf.status = 'unfulfillable'
-    )`);
-  } else if (params.awaiting === "courier_problem") {
-    where.push(`EXISTS (SELECT 1 FROM public.shop_fulfillment sf WHERE sf.order_id = o.id AND ${OPEN_COURIER_PROBLEM})`);
-  } else if (params.awaiting === "arrival") {
-    where.push(`EXISTS (
+    )`,
+  courier_problem: `EXISTS (SELECT 1 FROM public.shop_fulfillment sf WHERE sf.order_id = o.id AND ${OPEN_COURIER_PROBLEM})`,
+  arrival: `EXISTS (
       SELECT 1 FROM public.shop_fulfillment sf
         LEFT JOIN public.package_arrival pa ON pa.shop_fulfillment_id = sf.id
        WHERE sf.order_id = o.id AND pa.id IS NULL
-    )`);
+    )`,
+};
+
+/**
+ * The back-office's saved views of the list, counted (redesign, board "Orders — all orders"): every
+ * view's count under the operator's other filters. The SAME fragments the list filters by, so a tab's
+ * number is exactly the rows its list shows.
+ */
+export interface ViewCountsRow {
+  total: string;
+  needs_driver: string;
+  handover: string;
+  arrival: string;
+  refund_decision: string;
+  courier_problem: string;
+}
+
+export async function viewCounts(params: Omit<ListParams, "limit" | "cursor" | "awaiting" | "needsDriver">): Promise<ViewCountsRow> {
+  const { where, args } = baseWhere(params);
+  const res = await query<ViewCountsRow>(
+    `SELECT count(*)::text AS total,
+            count(*) FILTER (WHERE ${NEEDS_DRIVER_SQL})::text AS needs_driver,
+            count(*) FILTER (WHERE ${AWAITING_SQL.handover})::text AS handover,
+            count(*) FILTER (WHERE ${AWAITING_SQL.arrival})::text AS arrival,
+            count(*) FILTER (WHERE ${AWAITING_SQL.refund_decision})::text AS refund_decision,
+            count(*) FILTER (WHERE ${AWAITING_SQL.courier_problem})::text AS courier_problem
+       FROM public."order" o
+       JOIN public.customer c ON c.id = o.customer_id
+      WHERE ${where.join("\n        AND ")}`,
+    args,
+  );
+  return res.rows[0]!;
+}
+
+export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
+  const { where, args } = baseWhere(params);
+
+  if (params.cursor) {
+    args.push(params.cursor);
+    where.push(`o.created_at < $${args.length}::timestamptz`);
   }
+  if (params.needsDriver) where.push(NEEDS_DRIVER_SQL);
+  if (params.awaiting) where.push(AWAITING_SQL[params.awaiting]);
 
   args.push(params.limit);
 
@@ -641,4 +682,43 @@ export async function handovers(packageIds: string[]): Promise<HandoverRow[]> {
     [packageIds],
   );
   return res.rows;
+}
+
+/**
+ * The back-office Overview's "Orders today" (redesign, board "Overview — needs attention").
+ *
+ * ⚠ ONE CLOCK: "today" is the Melbourne date, as on every other screen. Orders count from their
+ * `placed_at` (payment confirmed); a pending-payment row was never an order. A refund counts on the day
+ * it was issued, in the statuses the order screen already counts as refunded (`COUNTED_REFUND_STATUSES`).
+ */
+export interface TodayRow {
+  date: string;
+  effy: string;
+  courier: string;
+  refunded_orders: string;
+  refunded_amount: string;
+}
+
+export async function today(countedRefundStatuses: readonly string[]): Promise<TodayRow> {
+  const res = await query<TodayRow>(
+    `WITH day AS (SELECT (now() AT TIME ZONE 'Australia/Melbourne')::date AS d)
+     SELECT day.d::text AS date,
+            (SELECT count(*) FROM public."order" o
+              WHERE o.placed_at IS NOT NULL AND o.status <> 'pending_payment'
+                AND o.delivery_type = 'effy'
+                AND (o.placed_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS effy,
+            (SELECT count(*) FROM public."order" o
+              WHERE o.placed_at IS NOT NULL AND o.status <> 'pending_payment'
+                AND o.delivery_type = 'courier'
+                AND (o.placed_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS courier,
+            (SELECT count(DISTINCT r.order_id) FROM public.refund r
+              WHERE r.status = ANY($1::text[])
+                AND (r.created_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS refunded_orders,
+            (SELECT COALESCE(sum(r.amount), 0) FROM public.refund r
+              WHERE r.status = ANY($1::text[])
+                AND (r.created_at AT TIME ZONE 'Australia/Melbourne')::date = day.d)::text AS refunded_amount
+       FROM day`,
+    [countedRefundStatuses],
+  );
+  return res.rows[0]!;
 }

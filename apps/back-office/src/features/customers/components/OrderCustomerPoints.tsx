@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
+import { Coins } from "lucide-react";
+
 import { Button } from "@effy/design-system/ui";
 
 import { sessionQuery } from "@/features/auth/queries";
@@ -21,11 +23,14 @@ export function OrderCustomerPoints({
   customerName,
   orderId,
   orderNumber,
+  layout = "row",
 }: {
   customerId: string;
   customerName: string;
   orderId: string;
   orderNumber: string;
+  /** `block` — the order page's Customer panel: one full-width button; the panel links the customer. */
+  layout?: "row" | "block";
 }) {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
@@ -33,13 +38,16 @@ export function OrderCustomerPoints({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+    <div className={layout === "block" ? "grid" : "flex flex-wrap items-center gap-3"}>
+      <Button size={layout === "block" ? "default" : "sm"} variant="outline" onClick={() => setOpen(true)}>
+        {layout === "block" ? <Coins aria-hidden="true" /> : null}
         Credit points…
       </Button>
-      <Link to="/customers/$customerId" params={{ customerId }} className="text-sm text-primary hover:underline">
-        View customer
-      </Link>
+      {layout === "row" ? (
+        <Link to="/customers/$customerId" params={{ customerId }} className="text-sm text-primary hover:underline">
+          View customer
+        </Link>
+      ) : null}
       <CreditPointsSheet
         open={open}
         onOpenChange={setOpen}

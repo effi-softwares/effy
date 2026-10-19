@@ -45,6 +45,8 @@ interface ShopListRow {
   status: ShopLifecycleStatus;
   user_count: string; // pg bigint → string
   has_address: boolean;
+  scanned: number;
+  not_scanned: number;
   total: string;
 }
 
@@ -168,6 +170,15 @@ export async function listShops(params: {
             -- further than it has to.
             (s.address_line1 IS NOT NULL) AS has_address,
             count(ss.id) AS user_count,
+            -- 091 — the register shows each shop's label-scanning rate, the same count the shop page reads.
+            (SELECT count(*) FILTER (WHERE ph.handover_method = 'scan')::int
+               FROM public.package_handover ph
+               JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
+              WHERE sf.shop_id = s.id AND ph.recorded_at >= now() - make_interval(days => $5)) AS scanned,
+            (SELECT count(*) FILTER (WHERE ph.handover_method <> 'scan')::int
+               FROM public.package_handover ph
+               JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
+              WHERE sf.shop_id = s.id AND ph.recorded_at >= now() - make_interval(days => $5)) AS not_scanned,
             count(*) OVER() AS total
        FROM public.shop s
        LEFT JOIN public.shop_staff ss ON ss.shop_id = s.id
@@ -176,7 +187,7 @@ export async function listShops(params: {
       GROUP BY s.id
       ORDER BY s.code
       LIMIT $3 OFFSET $4`,
-    [status, q, pageSize, (page - 1) * pageSize],
+    [status, q, pageSize, (page - 1) * pageSize, LABEL_SCAN_DAYS],
   );
   const total = res.rows[0] ? Number(res.rows[0].total) : 0;
   return {
@@ -187,6 +198,7 @@ export async function listShops(params: {
       status: r.status,
       userCount: Number(r.user_count),
       hasAddress: r.has_address,
+      labelScanning: { scanned: Number(r.scanned ?? 0), notScanned: Number(r.not_scanned ?? 0), sinceDays: LABEL_SCAN_DAYS },
     })),
     total,
     page,

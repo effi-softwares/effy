@@ -27,6 +27,8 @@ export const LIST_EXCEPTIONS = `
          f.note                  AS note,
          f.failed_at             AS failed_at,
          f.resolved_at           AS resolved_at,
+         f.resolution_outcome    AS resolution_outcome,
+         f.resolution_note       AS resolution_note,
          d.id                    AS driver_id,
          d.name                  AS driver_name,
          o.order_number          AS order_number,
@@ -67,7 +69,9 @@ export const LIST_EXCEPTIONS = `
  */
 export const RESOLVE_EXCEPTION = `
   UPDATE public.delivery_attempt_failure
-     SET resolved_at = now()
+     SET resolved_at = now(),
+         resolution_outcome = $2,
+         resolution_note = $3
    WHERE id = $1
      AND resolved_at IS NULL
   RETURNING id, resolved_at

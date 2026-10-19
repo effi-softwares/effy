@@ -28,7 +28,7 @@ export function AssignmentActions({
 
   return (
     <div className="flex flex-wrap justify-end gap-2">
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button size="sm" variant={assignment.driver ? "outline" : "default"} onClick={() => setOpen(true)}>
         {assignment.driver ? "Change driver" : "Assign to…"}
       </Button>
       {assignment.assignmentId ? (

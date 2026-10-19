@@ -286,6 +286,11 @@ export interface DeliveryExceptionDTO {
   roundId: string;
   /** 088 — when the parcel was checked back in at the hub; null while it is still with the driver. */
   returnedAt: string | null;
+  /**
+   * How it ended, once dealt with. Absent from an older server; `outcome` null for one closed before
+   * outcomes were recorded.
+   */
+  resolution?: DeliveryExceptionResolutionDTO | null;
 }
 
 /** POST /fleet/v1/dispatch/rounds/{roundId}/return — 088, a staff member returns on a driver's behalf. */
@@ -298,6 +303,11 @@ export interface StaffParcelReturnResponse {
 }
 
 /** GET /fleet/v1/exceptions */
+export interface DeliveryExceptionResolutionDTO {
+  outcome: ExceptionOutcome | null;
+  note: string | null;
+}
+
 export interface DeliveryExceptionListDTO {
   exceptions: DeliveryExceptionDTO[];
   openCount: WireInt;
@@ -368,8 +378,14 @@ export interface ClearVehicleCheckRequest {
 }
 
 /** POST /fleet/v1/exceptions/{id}/resolve */
+/** How a failed delivery ended (redesign, "Mark dealt with — outcome"). `other` needs a note. */
+export type ExceptionOutcome = "redelivered" | "refunded" | "collected" | "other";
+export const EXCEPTION_OUTCOMES: readonly ExceptionOutcome[] = ["redelivered", "refunded", "collected", "other"];
+
 export interface ResolveExceptionRequest {
   note?: string;
+  /** Optional so an older client still closes one; the back-office always sends it. */
+  outcome?: ExceptionOutcome;
   changeId: string;
 }
 export interface ResolveExceptionResponse {

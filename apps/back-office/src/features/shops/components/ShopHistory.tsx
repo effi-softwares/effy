@@ -2,119 +2,66 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardHeading,
-  CardTitle,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Button } from "@effy/design-system/ui";
+import { Panel } from "@/components/patterns/Panel";
+import { Pager } from "@/components/patterns/Toolbar";
+import { moment } from "@/lib/format";
 
 import { shopHistoryQuery } from "../queries";
 
 const PAGE_SIZE = 10;
 
-// Viewable shop/user history (FR-016 / SC-010), backed by the audit log. Server-paged like the
-// register; renders actor, action, target, and time per entry.
+/** "shop.user.role_changed" → "User role changed" — the audit action as a sentence. */
+function actionWords(action: string): string {
+  const words = action.replace(/^shop\./, "").replace(/[._]/g, " ").trim();
+  return words ? words[0]!.toUpperCase() + words.slice(1) : action;
+}
+
+// Viewable shop/user history (FR-016 / SC-010; redesign, board "Shop — activity"), backed by the audit
+// log. Server-paged; newest first, Melbourne time.
 export function ShopHistory({ shopId }: { shopId: string }) {
   const [page, setPage] = useState(1);
-  const { data, error, isPending, isError, refetch } = useQuery(
-    shopHistoryQuery(shopId, page, PAGE_SIZE),
-  );
-
+  const { data, error, isPending, isError, refetch } = useQuery(shopHistoryQuery(shopId, page, PAGE_SIZE));
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardHeading>
-          <CardTitle>History</CardTitle>
-          <CardDescription>Audit trail of changes to this shop and its roster.</CardDescription>
-        </CardHeading>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isError ? (
+    <Panel title="Activity" description="Every change to this shop and its roster, Melbourne time." flush>
+      {isError ? (
+        <div className="p-5">
           <ErrorState error={error} onRetry={() => void refetch()} />
-        ) : isPending ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Actor</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Target</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
-                        No history yet.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    data.items.map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="text-muted-foreground">
-                          {formatTime(entry.createdAt)}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{entry.actorSub}</TableCell>
-                        <TableCell>{entry.action}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {entry.targetType}
-                          {entry.targetId ? ` · ${entry.targetId}` : ""}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {data.total} entr{data.total === 1 ? "y" : "ies"} · page {data.page} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : isPending ? (
+        <p className="px-5 py-4 text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <>
+          {data.items.length === 0 ? (
+            <p className="px-5 py-4 text-sm text-muted-foreground">No history yet.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {data.items.map((entry) => (
+                <li key={entry.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{actionWords(entry.action)}</div>
+                    <div className="bo-sub">
+                      {entry.targetType}
+                      {entry.targetId ? ` · ${entry.targetId}` : ""} · by <span className="font-mono">{entry.actorSub}</span>
+                    </div>
+                  </div>
+                  <span className="bo-sub whitespace-nowrap">{moment(entry.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Pager
+            summary={`${data.total} entr${data.total === 1 ? "y" : "ies"} · page ${data.page} of ${totalPages}`}
+            canBack={page > 1}
+            canNext={page < totalPages}
+            onBack={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => p + 1)}
+          />
+        </>
+      )}
+    </Panel>
   );
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }

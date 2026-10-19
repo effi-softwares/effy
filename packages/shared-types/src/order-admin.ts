@@ -525,6 +525,31 @@ export interface RecordArrivalRequest {
 }
 
 /** The list response. */
+/**
+ * GET /orders/v1/summary/today — the back-office Overview's "Orders today": what was placed since
+ * midnight Melbourne time, by who delivers it, and what was refunded today.
+ */
+export interface AdminOrdersTodayDTO {
+  /** The Melbourne date the figures are for, `YYYY-MM-DD`. */
+  date: string;
+  effy: WireInt;
+  courier: WireInt;
+  refunded: { orders: WireInt; amount: string; currency: string };
+}
+
+/**
+ * GET /orders/v1/summary/views — how many orders each saved view of the list holds, under the same
+ * search and delivery filters (`q`, `deliveryType`, `open`, `promise`) the list takes.
+ */
+export interface AdminOrderViewCountsDTO {
+  all: WireInt;
+  needsDriver: WireInt;
+  handover: WireInt;
+  arrival: WireInt;
+  refundDecision: WireInt;
+  courierProblem: WireInt;
+}
+
 export interface AdminOrderListResponse {
   items: AdminOrderSummaryDTO[];
   nextCursor: string | null;

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { CalendarDays, Pencil, TicketPercent, Trash2 } from "lucide-react";
 
 import type { PromoStatus } from "@effy/shared-types";
 import {
@@ -14,16 +14,19 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Badge,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { PageHeader } from "@/components/patterns/Page";
+import { DetailRows, Panel } from "@/components/patterns/Panel";
+import { Callout } from "@/components/patterns/States";
+import { useHeaderDetail } from "@/components/shell/SiteHeader";
 
 import { sessionQuery } from "@/features/auth/queries";
 
@@ -32,6 +35,7 @@ import { AdvertisingSection } from "./components/AdvertisingSection";
 import { PromoCodeDialog } from "./components/PromoCodeDialog";
 import { DELETE_BLOCKED_CONFLICT, promotionMutationError } from "./errorText";
 import { isValueEditable, promoValueLabel, redemptionLabel } from "./model";
+import { activeDates, PromoStateWord } from "./PromotionsListScreen";
 import { promoDetailQuery, promoHistoryQuery, useDeletePromo, useSetPromoStatus } from "./queries";
 
 // A code's definition, its usage against its caps, and who changed it (027 FR-067/FR-071). Sectioned
@@ -51,112 +55,175 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
   const setStatus = useSetPromoStatus(promoId);
   const deletePromo = useDeletePromo();
 
+  useHeaderDetail(promo?.code ?? null);
+  const [disableOpen, setDisableOpen] = useState(false);
+
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
-  if (isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isPending) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-60" />
+      </div>
+    );
+  }
 
   const nextStatus: PromoStatus = promo.status === "active" ? "disabled" : "active";
   const used = !isValueEditable(promo);
 
+  function changeStatus() {
+    setActionError(null);
+    setStatus.mutate(
+      { status: nextStatus },
+      { onSuccess: () => setDisableOpen(false), onError: (err) => setActionError(promotionMutationError(err)) },
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <div>
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/promotions" })}>
-          <ArrowLeft />
-          All codes
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="font-mono text-xl font-semibold">{promo.code}</h1>
-            <Badge variant={promo.status === "active" ? "success" : "muted"}>{promo.status}</Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">{promoValueLabel(promo)}</p>
-        </div>
-        {canManage ? (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil />
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={setStatus.isPending}
-              onClick={() => {
-                setActionError(null);
-                setStatus.mutate(
-                  { status: nextStatus },
-                  { onError: (err) => setActionError(promotionMutationError(err)) },
-                );
-              }}
-            >
-              {promo.status === "active" ? "Disable" : "Enable"}
-            </Button>
-            {/* Delete is offered only for a code that has never been used — for anything else the
-                platform refuses it (FR-070) and disabling is the removal path. */}
-            {used ? null : (
-              <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)}>
-                <Trash2 />
-                Delete
+    <>
+      <PageHeader
+        back={{ label: "All codes", link: { to: "/promotions" } }}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            <span className="bo-code">{promo.code}</span>
+            <PromoStateWord promo={promo} />
+          </span>
+        }
+        meta={
+          <>
+            <span>
+              <TicketPercent aria-hidden="true" />
+              {promoValueLabel(promo)}
+              {Number(promo.minimumSubtotalAmount) > 0 ? ` orders over $${promo.minimumSubtotalAmount}` : ""}
+            </span>
+            <span>
+              <CalendarDays aria-hidden="true" />
+              {activeDates(promo)} (Melbourne)
+            </span>
+            <span>{redemptionLabel(promo)} used</span>
+          </>
+        }
+        actions={
+          canManage ? (
+            <>
+              <Button variant="outline" onClick={() => setEditOpen(true)}>
+                <Pencil aria-hidden="true" />
+                Edit
               </Button>
-            )}
-          </div>
-        ) : null}
-      </div>
+              <Button
+                variant="outline"
+                disabled={setStatus.isPending}
+                onClick={() => (promo.status === "active" ? setDisableOpen(true) : changeStatus())}
+              >
+                {promo.status === "active" ? "Disable" : "Enable"}
+              </Button>
+              {/* Delete is offered only for a code that has never been used (FR-070). */}
+              {used ? null : (
+                <Button variant="outline" onClick={() => setDeleteOpen(true)}>
+                  <Trash2 aria-hidden="true" />
+                  Delete
+                </Button>
+              )}
+            </>
+          ) : null
+        }
+      />
 
-      {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
-
-      {used ? (
-        <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-          This code has been redeemed {promo.redemptionCount} time{promo.redemptionCount === 1 ? "" : "s"}.
-          Its window, caps and status can still change — its value cannot, because paid orders were
-          discounted using the definition as it stood.
-        </p>
+      {actionError ? (
+        <Callout tone="destructive" title="That didn't work">
+          {actionError}
+        </Callout>
       ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Definition</h2>
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
-          <Field label="Takes off" value={promoValueLabel(promo)} />
-          <Field
-            label="Minimum spend"
-            value={Number(promo.minimumSubtotalAmount) > 0 ? `$${promo.minimumSubtotalAmount}` : "None"}
-          />
-          <Field label="Redeemed" value={redemptionLabel(promo)} />
-          <Field label="Starts" value={promo.startsAt ? formatTime(promo.startsAt) : "No lower bound"} />
-          <Field label="Ends" value={promo.endsAt ? formatTime(promo.endsAt) : "No upper bound"} />
-          <Field
-            label="Per shopper"
-            value={promo.maxPerCustomer == null ? "Uncapped" : `${promo.maxPerCustomer} use${promo.maxPerCustomer === 1 ? "" : "s"}`}
-          />
-        </dl>
-      </section>
+      {used ? (
+        <Callout tone="info" title={`This code has been redeemed ${promo.redemptionCount} time${promo.redemptionCount === 1 ? "" : "s"}.`}>
+          Its window, caps and status can still change — its value cannot, because paid orders were discounted using the definition as it stood.
+        </Callout>
+      ) : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Attribution</h2>
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
-          <Field label="Created by" value={promo.createdBy} mono />
-          <Field label="Created" value={formatTime(promo.createdAt)} />
-          <Field label="Last updated" value={formatTime(promo.updatedAt)} />
-        </dl>
-      </section>
-
-      <AdvertisingSection promo={promo} canManage={canManage} />
-
-      <HistorySection promoId={promoId} />
+      <div className="bo-detail">
+        <div className="bo-detail__main">
+          <Tabs defaultValue="storefront">
+            <div className="bo-tabsbar">
+              <div className="bo-tabsbar__list">
+                <TabsList aria-label="Code sections">
+                  <TabsTrigger value="storefront">Storefront</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+            <TabsContent value="storefront" className="bo-tabpanel">
+              <AdvertisingSection promo={promo} canManage={canManage} />
+            </TabsContent>
+            <TabsContent value="history" className="bo-tabpanel">
+              <HistorySection promoId={promoId} />
+            </TabsContent>
+          </Tabs>
+        </div>
+        <aside className="bo-detail__aside is-first">
+          <Panel
+            title="Definition"
+            actions={
+              canManage ? (
+                <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}>
+                  Edit
+                </Button>
+              ) : null
+            }
+          >
+            <DetailRows
+              tight
+              rows={[
+                { label: "Takes off", value: promoValueLabel(promo) },
+                { label: "Minimum spend", value: Number(promo.minimumSubtotalAmount) > 0 ? `$${promo.minimumSubtotalAmount}` : "None" },
+                { label: "Redeemed", value: redemptionLabel(promo) },
+                { label: "Starts", value: promo.startsAt ? formatTime(promo.startsAt) : "No lower bound" },
+                { label: "Ends", value: promo.endsAt ? formatTime(promo.endsAt) : "No upper bound" },
+                {
+                  label: "Per shopper",
+                  value: promo.maxPerCustomer == null ? "Uncapped" : `${promo.maxPerCustomer} use${promo.maxPerCustomer === 1 ? "" : "s"}`,
+                },
+              ]}
+            />
+            <p className="bo-sub mt-3">Times are Melbourne time.</p>
+          </Panel>
+          <Panel title="Attribution">
+            <DetailRows
+              tight
+              rows={[
+                { label: "Created by", value: <span className="font-mono text-xs">{promo.createdBy}</span> },
+                { label: "Created", value: formatTime(promo.createdAt) },
+                { label: "Last updated", value: formatTime(promo.updatedAt) },
+              ]}
+            />
+          </Panel>
+        </aside>
+      </div>
 
       {canManage ? (
         <>
           <PromoCodeDialog open={editOpen} onOpenChange={setEditOpen} promo={promo} />
+          <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Disable {promo.code}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Shoppers can't use it from now on. Orders already discounted keep their discount. Its storefront banner stops showing.
+                  You can enable it again at any time — its dates and caps still apply.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep it on</AlertDialogCancel>
+                <AlertDialogAction onClick={changeStatus}>Disable</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete {promo.code}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This code has never been redeemed, so removing it changes no order. This cannot be
-                  undone.
+                  This code has never been redeemed, so removing it changes no order. This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -165,19 +232,18 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                   onClick={() =>
                     deletePromo.mutate(promoId, {
                       onSuccess: () => void navigate({ to: "/promotions" }),
-                      onError: (err) =>
-                        setActionError(promotionMutationError(err, DELETE_BLOCKED_CONFLICT)),
+                      onError: (err) => setActionError(promotionMutationError(err, DELETE_BLOCKED_CONFLICT)),
                     })
                   }
                 >
-                  Delete
+                  Delete code
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </>
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -185,59 +251,43 @@ function HistorySection({ promoId }: { promoId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(promoHistoryQuery(promoId));
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold">History</h2>
-        <p className="text-sm text-muted-foreground">Audit trail of changes to this code.</p>
-      </div>
+    <Panel title="History" description="Every change to this code, newest first." flush>
       {isError ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Actor</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="h-20 text-center text-muted-foreground">
-                    No history yet.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="text-muted-foreground">{formatTime(entry.createdAt)}</TableCell>
-                    <TableCell className="font-mono text-xs">{entry.actorSub}</TableCell>
-                    <TableCell>{entry.action}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+        <div className="p-5">
+          <ErrorState error={error} onRetry={() => void refetch()} />
         </div>
+      ) : isPending ? (
+        <p className="px-5 py-4 text-sm text-muted-foreground">Loading…</p>
+      ) : data.length === 0 ? (
+        <p className="px-5 py-4 text-sm text-muted-foreground">No history yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {data.map((entry) => (
+            <li key={entry.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">{entry.action}</div>
+                <div className="bo-sub font-mono">{entry.actorSub}</div>
+              </div>
+              <span className="bo-sub whitespace-nowrap">{formatTime(entry.createdAt)}</span>
+            </li>
+          ))}
+        </ul>
       )}
-    </section>
+    </Panel>
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex flex-col">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={mono ? "font-mono text-xs" : undefined}>{value}</dd>
-    </div>
-  );
-}
+const timeFmt = new Intl.DateTimeFormat("en-AU", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Australia/Melbourne",
+});
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? iso : timeFmt.format(d);
 }

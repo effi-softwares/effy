@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { Coins, History } from "lucide-react";
 
 import type { PointsSettingsDTO } from "@effy/shared-types";
 import { Button, Input, Label, toast } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
+import { Panel } from "@/components/patterns/Panel";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canEditPointsSettings } from "../access";
@@ -55,9 +57,8 @@ export function PointsSettingsPanel() {
   const dirty = Object.keys(patch).length > 0;
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="space-y-6">
       <form
-        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           save.mutate(patch, {
@@ -69,46 +70,62 @@ export function PointsSettingsPanel() {
           });
         }}
       >
-        {FIELDS.map((f) => (
-          <div key={f.key} className="space-y-1.5">
-            <Label htmlFor={`ps-${f.key}`}>{f.label}</Label>
-            <Input
-              id={`ps-${f.key}`}
-              inputMode="numeric"
-              className="w-40"
-              value={draft[f.key]}
-              disabled={!editable}
-              onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
-            />
-            <p className="text-sm text-muted-foreground">{f.help}</p>
+        <Panel
+          title="Rules"
+          icon={<Coins aria-hidden="true" />}
+          description={editable ? "Changes apply to points earned or spent from now on." : "Only an administrator can change these."}
+          footer={
+            editable ? (
+              <>
+                {dirty ? <span className="mr-auto text-sm text-muted-foreground">You have unsaved changes</span> : null}
+                <Button type="submit" size="sm" disabled={!dirty || !valid || save.isPending}>
+                  {save.isPending ? "Saving…" : "Save"}
+                </Button>
+              </>
+            ) : undefined
+          }
+        >
+          <div>
+            {FIELDS.map((f) => (
+              <div key={f.key} className="bo-switch-row">
+                <div className="min-w-0">
+                  <Label htmlFor={`ps-${f.key}`}>{f.label}</Label>
+                  <p className="mt-1 text-sm text-muted-foreground">{f.help}</p>
+                </div>
+                <Input
+                  id={`ps-${f.key}`}
+                  inputMode="numeric"
+                  className="w-32 shrink-0 text-right tabular-nums"
+                  value={draft[f.key]}
+                  disabled={!editable}
+                  onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}
+                />
+              </div>
+            ))}
           </div>
-        ))}
-        {editable ? (
-          <Button type="submit" disabled={!dirty || !valid || save.isPending}>
-            {save.isPending ? "Saving…" : "Save"}
-          </Button>
-        ) : (
-          <p className="text-sm text-muted-foreground">Only an administrator can change these.</p>
-        )}
+        </Panel>
       </form>
 
-      <section className="space-y-2">
-        <h2 className="border-b pb-2 text-sm font-semibold">Changes</h2>
+      <Panel title="Changes" icon={<History aria-hidden="true" />} description="Every change to these rules, newest first.">
         {(s.history ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">No changes yet.</p>
         ) : (
-          <ul className="divide-y divide-border text-sm">
+          <ol className="bo-tl">
             {(s.history ?? []).map((h, i) => (
-              <li key={i} className="flex justify-between gap-4 py-2">
-                <span>
-                  {FIELDS.find((f) => f.key === h.field)?.label ?? h.field}: {h.oldValue} → {h.newValue}
-                </span>
-                <span className="text-muted-foreground tabular-nums">{when(h.changedAt)}</span>
+              <li key={i} className="bo-tl__item">
+                <span className="bo-tl__mark" aria-hidden="true" />
+                <div>
+                  <div className="bo-tl__title">{FIELDS.find((f) => f.key === h.field)?.label ?? h.field}</div>
+                  <div className="bo-tl__body tabular-nums">
+                    {h.oldValue} → {h.newValue}
+                  </div>
+                </div>
+                <span className="bo-tl__time">{when(h.changedAt)}</span>
               </li>
             ))}
-          </ul>
+          </ol>
         )}
-      </section>
+      </Panel>
     </div>
   );
 }

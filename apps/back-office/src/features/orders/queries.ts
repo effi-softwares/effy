@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type {
   ConsignmentEventInput, ConsignmentInput, CourierCollectionInput, CourierView, DeliveryMoveRequest, DeliveryType, HandoverDueFilter,
@@ -7,7 +7,7 @@ import type {
 
 import type { OrderListParams } from "./model";
 import {
-  changeCourierCollection, getOrder, listCourierParcels, listHandovers, listOrders, changeDeliveryWindow,
+  changeCourierCollection, getOrder, getOrdersToday, getOrderViewCounts, listCourierParcels, listHandovers, listOrders, changeDeliveryWindow,
   moveDelivery, previewDeliveryMove, recordArrival,
   recordConsignmentStep, recordHandoff, saveConsignment,
 } from "./repo";
@@ -67,6 +67,18 @@ export const useCourierCollection = (orderId: string) =>
 
 export const handoversQuery = (due: HandoverDueFilter) =>
   queryOptions({ queryKey: ordersKeys.handovers(due), queryFn: () => listHandovers(due) });
+
+/** The count on each saved view of the list — under "orders", so it refreshes with the list. */
+export const orderViewCountsQuery = (params: OrderListParams) =>
+  queryOptions({
+    queryKey: [...ordersKeys.all, "views", params] as const,
+    queryFn: () => getOrderViewCounts(params),
+    placeholderData: keepPreviousData,
+  });
+
+/** Overview's "Orders today" — under the "orders" root, so a live `orders` update re-reads it. */
+export const ordersTodayQuery = () =>
+  queryOptions({ queryKey: [...ordersKeys.all, "today"] as const, queryFn: getOrdersToday });
 
 export const ordersListQuery = (params: OrderListParams) =>
   queryOptions({

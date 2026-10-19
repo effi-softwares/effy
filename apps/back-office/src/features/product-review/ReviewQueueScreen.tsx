@@ -2,25 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { CircleCheck } from "lucide-react";
+
 import type { MarginNotSetItemDTO, ReviewKind } from "@effy/shared-types";
-import {
-  Badge,
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui";
+import { cn } from "@effy/design-system";
+import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { PageHeader } from "@/components/patterns/Page";
+import { EmptyState } from "@/components/patterns/States";
+import { StatusWord } from "@/components/patterns/StatusWord";
+import { Facet, Pager, SearchBox, Toolbar, ToolbarSpacer } from "@/components/patterns/Toolbar";
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 import { shopListQuery } from "@/features/shops/queries";
+import { money } from "@/lib/format";
 import { track } from "@/lib/telemetry";
 
 import { canDecideReview } from "./access";
@@ -28,8 +24,6 @@ import { reviewActionError } from "./errorText";
 import { MarginField } from "./MarginField";
 import { KIND_LABEL, toMargin, waitingLabel, type MarginEntry } from "./model";
 import { marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries";
-
-const ALL_SHOPS = "all";
 
 /**
  * Product review (067) — what is waiting on Effy.
@@ -43,18 +37,18 @@ const ALL_SHOPS = "all";
  * ⚠ A TABLE, NOT CARDS (Principle V): these are things to work through, not figures to admire.
  */
 export function ReviewQueueScreen() {
+  const [view, setView] = useState<"waiting" | "margin">("waiting");
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<ReviewKind | null>(null);
-  const [shopId, setShopId] = useState<string>(ALL_SHOPS);
+  const [shopId, setShopId] = useState<string | null>(null);
   // Keyset paging (FR-006): the cursors of the pages walked so far. Empty = the first page, which
   // is where the longest-waiting items are.
   const [cursors, setCursors] = useState<string[]>([]);
   const cursor = cursors[cursors.length - 1] ?? null;
-  const queue = useQuery(
-    reviewQueueQuery({ q, kind, shopId: shopId === ALL_SHOPS ? null : shopId, cursor }),
-  );
-  // The filter's options. ⚠ A failed or slow shop list must not take the queue down with it: the
-  // select simply offers "All shops" until it lands.
+  const queue = useQuery(reviewQueueQuery({ q, kind, shopId, cursor }));
+  const oldest = useQuery(reviewQueueQuery({ q: "", kind: null, shopId: null, cursor: null }));
+  const marginFirst = useQuery(marginNotSetQuery(null));
+  // The filter's options. ⚠ A failed or slow shop list must not take the queue down with it.
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }));
 
   /** Any filter change starts again from the oldest item. */
@@ -63,129 +57,144 @@ export function ReviewQueueScreen() {
     setCursors([]);
   }
 
+  const first = oldest.data?.items[0];
+  const marginCount = marginFirst.data ? marginFirst.data.items.length + (marginFirst.data.nextCursor ? "+" : "") : undefined;
+
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold">Product review</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          New products and changes from shops. A product is not on sale, and a change is not visible to
-          customers, until it is approved here.
-        </p>
-      </header>
+    <>
+      <PageHeader
+        title="Product review"
+        description="New products and changes from shops. A product is not on sale, and a change is not visible to customers, until it is approved here."
+        actions={
+          first ? (
+            <Button asChild>
+              <Link to="/product-review/$productId" params={{ productId: first.productId }}>
+                Review the oldest
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <Tabs defaultValue="waiting">
-        <TabsList>
-          <TabsTrigger value="waiting">Waiting for review</TabsTrigger>
-          <TabsTrigger value="margin">Margin not set</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="waiting" className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              className="w-64"
-              placeholder="Search by product name"
-              aria-label="Search by product name"
-              value={q}
-              onChange={(e) => filter(setQ, e.target.value)}
+      <div className="space-y-3">
+        <nav className="bo-tabs" aria-label="Review views">
+          {(
+            [
+              { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
+              { key: "margin", label: "Margin not set", count: marginCount },
+            ] as const
+          ).map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              aria-current={v.key === view ? "page" : undefined}
+              className={cn("bo-tabs__tab", v.key === view && "is-active")}
+              onClick={() => setView(v.key)}
+            >
+              {v.label}
+              {v.count !== undefined ? (
+                <span className={cn("bo-tabs__count", v.key !== view && "bo-tabs__count--primary")}>{v.count}</span>
+              ) : null}
+            </button>
+          ))}
+        </nav>
+        {view === "waiting" ? (
+          <Toolbar>
+            <SearchBox label="Search by product name" placeholder="Search by product name" value={q} onChange={(v) => filter(setQ, v)} />
+            <Facet
+              label="Shop"
+              anyLabel="All shops"
+              value={shopId}
+              onChange={(v) => filter(setShopId, v)}
+              options={(shops.data?.items ?? []).map((s) => ({ value: s.id, label: s.name }))}
             />
-            <Select value={shopId} onValueChange={(v) => filter(setShopId, v)}>
-              <SelectTrigger className="w-56" aria-label="Shop">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_SHOPS}>All shops</SelectItem>
-                {(shops.data?.items ?? []).map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div role="group" aria-label="Kind" className="flex gap-1">
+            <ToolbarSpacer />
+            <div role="group" aria-label="Kind" className="bo-seg">
               {([null, "new_product", "change"] as const).map((k) => (
-                <Button
+                <button
                   key={k ?? "all"}
-                  size="sm"
-                  variant={kind === k ? "default" : "outline"}
+                  type="button"
+                  className={cn(kind === k && "is-active")}
                   aria-pressed={kind === k}
                   onClick={() => filter(setKind, k)}
                 >
                   {k ? KIND_LABEL[k] : "All"}
-                </Button>
+                </button>
               ))}
             </div>
-          </div>
+          </Toolbar>
+        ) : null}
+      </div>
 
-          {queue.isError ? (
-            <ErrorState error={queue.error} onRetry={() => void queue.refetch()} />
-          ) : queue.isPending ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : queue.data.items.length === 0 ? (
-            /* ⚠ A STATED FACT, not blank space: an empty region is indistinguishable from a screen
-               that did not load. */
-            <section className="rounded-lg border border-border p-6">
-              <h2 className="text-base font-medium">Nothing is waiting</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Every product and change a shop has submitted has been decided.
-              </p>
-            </section>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-muted text-left">
-                  <tr>
-                    <th className="px-3 py-2 font-medium">Product</th>
-                    <th className="px-3 py-2 font-medium">Shop</th>
-                    <th className="px-3 py-2 font-medium">Kind</th>
-                    <th className="px-3 py-2 font-medium">Waiting</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {queue.data.items.map((i) => (
-                    <tr key={`${i.kind}-${i.productId}`} className="border-t border-border">
-                      <td className="px-3 py-2">
-                        <Link
-                          to="/product-review/$productId"
-                          params={{ productId: i.productId }}
-                          className="font-medium underline-offset-4 hover:underline"
-                        >
-                          {i.productName}
+      {view === "margin" ? (
+        <MarginNotSet />
+      ) : queue.isError ? (
+        <ErrorState error={queue.error} onRetry={() => void queue.refetch()} />
+      ) : queue.isPending ? (
+        <div className="bo-table-wrap p-4" aria-busy="true">
+          <Skeleton className="mb-3 h-10" />
+          <Skeleton className="h-10" />
+        </div>
+      ) : queue.data.items.length === 0 ? (
+        /* ⚠ A STATED FACT, not blank space: an empty region is indistinguishable from a screen that
+           did not load. */
+        <EmptyState icon={CircleCheck} title="Nothing is waiting" description="Every product and change a shop has submitted has been decided." />
+      ) : (
+        <div className="bo-table-wrap">
+          <div className="bo-table-scroll">
+            <table className="bo-table bo-rtable">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Shop</th>
+                  <th>Kind</th>
+                  <th>Waiting</th>
+                  <th className="text-right">Open</th>
+                </tr>
+              </thead>
+              <tbody>
+                {queue.data.items.map((i) => (
+                  <tr key={`${i.kind}-${i.productId}`}>
+                    <td data-m="primary">
+                      <Link to="/product-review/$productId" params={{ productId: i.productId }} className="bo-link">
+                        {i.productName}
+                      </Link>
+                      <div className="bo-sub md:hidden">{i.shopName}</div>
+                    </td>
+                    <td data-m="meta" className="is-muted max-md:hidden">
+                      {i.shopName}
+                    </td>
+                    <td data-m="badge">
+                      <StatusWord tone={i.kind === "new_product" ? "info" : "waiting"}>{KIND_LABEL[i.kind]}</StatusWord>
+                    </td>
+                    <td data-m="trail" className="tabular-nums">
+                      {waitingLabel(i.waitingHours)}
+                      {i.waitingHours >= 24 ? <span className="bo-sub ml-2 font-medium text-foreground">Over a day</span> : null}
+                    </td>
+                    <td className="text-right max-md:hidden">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to="/product-review/$productId" params={{ productId: i.productId }}>
+                          Review
                         </Link>
-                      </td>
-                      <td className="px-3 py-2">{i.shopName}</td>
-                      <td className="px-3 py-2">
-                        <Badge variant="outline">{KIND_LABEL[i.kind]}</Badge>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">{waitingLabel(i.waitingHours)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {queue.data && (cursors.length > 0 || queue.data.nextCursor) ? (
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={cursors.length === 0} onClick={() => setCursors([])}>
-                Back to the oldest
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={!queue.data.nextCursor}
-                onClick={() => queue.data.nextCursor && setCursors([...cursors, queue.data.nextCursor])}
-              >
-                Next page
-              </Button>
-            </div>
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {cursors.length > 0 || queue.data.nextCursor ? (
+            <Pager
+              summary={`${queue.data.items.length} shown · page ${cursors.length + 1}`}
+              canBack={cursors.length > 0}
+              canNext={Boolean(queue.data.nextCursor)}
+              onBack={() => setCursors((c) => c.slice(0, -1))}
+              onNext={() => queue.data.nextCursor && setCursors([...cursors, queue.data.nextCursor])}
+            />
           ) : null}
-        </TabsContent>
-
-        <TabsContent value="margin">
-          <MarginNotSet />
-        </TabsContent>
-      </Tabs>
-    </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -212,10 +221,7 @@ function MarginNotSet() {
   }
   if (list.data.items.length === 0) {
     return (
-      <section className="rounded-lg border border-border p-6">
-        <h2 className="text-base font-medium">Every product has a margin</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Nothing on sale is selling at the shop's own price.</p>
-      </section>
+      <EmptyState icon={CircleCheck} title="Every product has a margin" description="Nothing on sale is selling at the shop's own price." />
     );
   }
   return (
@@ -223,14 +229,15 @@ function MarginNotSet() {
       <p className="text-sm text-muted-foreground">
         These are on sale at the shop's own price. Setting a margin changes what customers pay straight away.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted text-left">
+      <div className="bo-table-wrap">
+        <div className="bo-table-scroll">
+        <table className="bo-table">
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">Product</th>
-              <th className="px-3 py-2 font-medium">Shop</th>
-              <th className="px-3 py-2 font-medium">Shop price</th>
-              <th className="px-3 py-2 font-medium">{canDecide ? "Set margin" : ""}</th>
+              <th>Product</th>
+              <th>Shop</th>
+              <th className="text-right">Shop price</th>
+              <th>{canDecide ? "Set margin" : ""}</th>
             </tr>
           </thead>
           <tbody>
@@ -239,6 +246,7 @@ function MarginNotSet() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       {cursors.length > 0 || list.data.nextCursor ? (
         <div className="flex gap-2">
@@ -278,11 +286,11 @@ function MarginNotSetRow({ product, canDecide }: { product: MarginNotSetItemDTO;
   }
 
   return (
-    <tr className="border-t border-border align-top">
-      <td className="px-3 py-2 font-medium">{product.productName}</td>
-      <td className="px-3 py-2">{product.shopName}</td>
-      <td className="px-3 py-2 tabular-nums">{product.shopPriceAmount}</td>
-      <td className="px-3 py-2">
+    <tr className="align-top">
+      <td className="font-medium">{product.productName}</td>
+      <td className="is-muted">{product.shopName}</td>
+      <td className="text-right tabular-nums">{money(product.shopPriceAmount)}</td>
+      <td>
         {!canDecide ? null : !open ? (
           <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
             Set margin
@@ -304,7 +312,7 @@ function MarginNotSetRow({ product, canDecide }: { product: MarginNotSetItemDTO;
                 Cancel
               </Button>
             </div>
-            {message ? <p className="text-sm text-destructive">{message}</p> : null}
+            {message ? <p role="alert" className="text-sm font-medium">{message}</p> : null}
           </div>
         )}
       </td>

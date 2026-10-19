@@ -232,6 +232,7 @@
   transition: background-color var(--dur-fast) ease;
 }
 .bo-iconbtn:hover { background: var(--accent); }
+.bo-iconbtn:disabled { opacity: 0.4; cursor: not-allowed; background: none; }
 .bo-iconbtn > svg { width: 16px; height: 16px; }
 .bo-topbar-search {
   display: inline-flex;

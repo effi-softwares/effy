@@ -5,6 +5,9 @@ import { AssignmentLine } from "./AssignmentLine";
 import { ConsignmentBlock } from "./ConsignmentBlock";
 import { PackageStatusPill } from "@effy/web-kit/console";
 import { Button, Input } from "@effy/design-system/ui";
+import { CircleCheck, Package, Store, Truck, Undo2, Warehouse } from "lucide-react";
+
+import { clockAt } from "@/lib/format";
 
 import type { OrderPackage } from "../model";
 import {
@@ -48,7 +51,7 @@ interface Props {
 
 export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions, orderId, courierCollection = null }: Props) {
   return (
-    <div className="divide-y rounded-lg border">
+    <div className="divide-y divide-border">
       {packages.map((pkg) => (
         <PackageRow
           key={pkg.fulfillmentId}
@@ -63,7 +66,7 @@ export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, r
         />
       ))}
       {packages.length === 0 ? (
-        <p className="p-4 text-sm text-muted-foreground">
+        <p className="px-5 py-4 text-sm text-muted-foreground">
           This order has no packages yet.
         </p>
       ) : null}
@@ -97,41 +100,36 @@ function PackageRow({
   const flags = promiseFlagsFor(pkg);
 
   return (
-    <div className="space-y-3 p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="space-y-0.5">
-          <p className="font-medium">{pkg.shopName}</p>
-          {/* 089 — the code on the package's label; what a driver will scan. */}
-          {pkg.packageCode ? (
-            <p className="font-mono text-xs text-muted-foreground" aria-label="Package code">
-              {pkg.packageCode}
-            </p>
-          ) : null}
-          {/* 091 — how it was handed over at each step, as recorded. Nothing is shown — never "by
-              hand" by assumption — when nothing was recorded. */}
-          {pkg.handovers && pkg.handovers.length > 0 ? (
-            <ul className="text-xs text-muted-foreground" aria-label="Hand-overs">
-              {pkg.handovers.map((h, i) => (
-                <li key={i}>
-                  {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {h.driverName} ·{" "}
-                  <span className="tabular-nums">{new Date(h.at).toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <p className="text-sm text-muted-foreground">
-            {pkg.itemCount} item{pkg.itemCount === 1 ? "" : "s"} ·{" "}
-            {packageDeliveryText(pkg)}
-          </p>
+    <div className="space-y-4 px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="bo-icon-tile" aria-hidden="true">
+            <Store />
+          </span>
+          <div className="min-w-0">
+            <div className="font-semibold">{pkg.shopName}</div>
+            <div className="bo-sub">
+              {/* 089 — the code on the package's label; what a driver will scan. */}
+              {pkg.packageCode ? (
+                <>
+                  <span className="bo-code" aria-label="Package code">
+                    {pkg.packageCode}
+                  </span>{" "}
+                  ·{" "}
+                </>
+              ) : null}
+              {pkg.itemCount} item{pkg.itemCount === 1 ? "" : "s"} · {packageDeliveryText(pkg)}
+            </div>
+          </div>
         </div>
         {/* 073 — where it REALLY is, from the shared derivation; the old guess from the shop's status
             said "At hub" the moment a driver picked a package up. */}
         {pkg.statusView ? <PackageStatusPill view={pkg.statusView} icons /> : null}
       </div>
 
-      {/* 073 — who has it. One line per stage; nothing when the stage has nothing to say yet. */}
+      {/* 073 — who has it. One row per stage; nothing when the stage has nothing to say yet. */}
       {pkg.collect || pkg.deliver ? (
-        <div className="space-y-2 rounded-md bg-muted/40 p-3">
+        <div className="divide-y divide-border rounded-lg border border-border">
           {pkg.collect ? (
             <AssignmentLine label="Collect" assignment={pkg.collect} actions={renderActions?.(pkg, "collection", pkg.collect)} />
           ) : null}
@@ -141,35 +139,70 @@ function PackageRow({
         </div>
       ) : null}
 
-      {/*
-        069 — what the customer was promised. ⚠ Rendered ONLY when there is a promise: an order placed
-        before 069 was promised no day, and a "Promised: —" row would read as data that went missing
-        rather than data that never existed (the same rule as the consignment reference below).
-      */}
-      {promise ? (
-        <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
-          <dt className="text-muted-foreground">Promised</dt>
-          <dd className="tabular-nums">{promise}</dd>
-          {pkg.handoverDueOn && !pkg.handoff ? (
-            <>
-              <dt className="text-muted-foreground">Hand over by</dt>
-              <dd className="tabular-nums">{formatDeliveryDay(pkg.handoverDueOn)}</dd>
-            </>
-          ) : null}
-          {flags.length > 0 ? (
-            <>
-              <dt className="text-muted-foreground">Note</dt>
-              {/* ⚠ WORDS, never colour alone. The tint reinforces; the sentence carries it. */}
-              <dd className="flex flex-wrap gap-x-3">
-                {flags.map((f) => (
-                  <span key={f} className={f === "on_time" ? "text-muted-foreground" : "text-warning"}>
-                    {PROMISE_FLAG_LABEL[f]}
-                  </span>
+      {promise || (pkg.handovers && pkg.handovers.length > 0) ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {/*
+            069 — what the customer was promised. ⚠ Rendered ONLY when there is a promise: an order
+            placed before 069 was promised no day, and a "Promised: —" row would read as data that went
+            missing rather than data that never existed.
+          */}
+          {promise ? (
+            <dl className="bo-dl bo-dl--tight">
+              <div className="bo-dl__row">
+                <dt>Promised</dt>
+                <dd className="tabular-nums">{promise}</dd>
+              </div>
+              {pkg.handoverDueOn && !pkg.handoff ? (
+                <div className="bo-dl__row">
+                  <dt>Hand over by</dt>
+                  <dd className="tabular-nums">{formatDeliveryDay(pkg.handoverDueOn)}</dd>
+                </div>
+              ) : null}
+              {flags.length > 0 ? (
+                <div className="bo-dl__row">
+                  <dt>Note</dt>
+                  {/* ⚠ WORDS, never colour alone. */}
+                  <dd className="flex flex-wrap gap-x-3">
+                    {flags.map((f) => (
+                      <span key={f} className={f === "on_time" ? "text-muted-foreground" : "font-medium"}>
+                        {PROMISE_FLAG_LABEL[f]}
+                      </span>
+                    ))}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : (
+            <div />
+          )}
+          {/* 091 — how it was handed over at each step, as recorded. Nothing is shown — never "by hand"
+              by assumption — when nothing was recorded. */}
+          {pkg.handovers && pkg.handovers.length > 0 ? (
+            <div>
+              <div className="bo-eyebrow mb-2">Hand-overs</div>
+              <ol className="bo-tl" aria-label="Hand-overs">
+                {pkg.handovers.map((h, i) => (
+                  <li key={i} className="bo-tl__item pb-2.5">
+                    <span className={`bo-tl__mark ${h.step === "deliver" ? "bo-tl__mark--done" : "bo-tl__mark--primary"}`} aria-hidden="true">
+                      <StepIcon step={h.step} />
+                    </span>
+                    <div>
+                      <div className="text-sm font-medium">{HANDOVER_STEP_WORDS[h.step]}</div>
+                      <div className="bo-tl__body">
+                        {h.driverName} · <span className="bo-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
+                        <span className="sr-only">
+                          {" "}
+                          {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {h.driverName}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="bo-tl__time">{clockAt(h.at)}</span>
+                  </li>
                 ))}
-              </dd>
-            </>
+              </ol>
+            </div>
           ) : null}
-        </dl>
+        </div>
       ) : null}
 
       {pkg.handoff ? (
@@ -273,6 +306,11 @@ function PackageRow({
 }
 
 /** 091 — the hand-over's step and method, in staff words. */
+function StepIcon({ step }: { step: HandoverStep }) {
+  const Icon = step === "deliver" ? CircleCheck : step === "checkin" ? Warehouse : step === "load" ? Truck : step === "return" ? Undo2 : Package;
+  return <Icon />;
+}
+
 const HANDOVER_STEP_WORDS: Record<HandoverStep, string> = {
   collect: "Collected",
   checkin: "Checked in at hub",

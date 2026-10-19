@@ -1,13 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
+import { CalendarClock, ChevronDown, ChevronUp, Clock, Route, Undo2, UserRound } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+  Button,
+  Skeleton,
+} from "@effy/design-system/ui";
+import type { DeliveryWindow } from "@effy/shared-types";
+
+import { PageHeader } from "@/components/patterns/Page";
+import { Panel } from "@/components/patterns/Panel";
+import { Callout, EmptyState } from "@/components/patterns/States";
+import { StatusWord } from "@/components/patterns/StatusWord";
+import { useHeaderDetail } from "@/components/shell/SiteHeader";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { canDispatch } from "./access";
 import { ReassignDialog } from "./components/ReassignDialog";
-import { ReorderControl } from "./components/ReorderControl";
+import { useRoundEditing } from "./components/ReorderControl";
 import { WaiveSequenceButton } from "./components/WaiveSequenceButton";
-import type { DeliveryWindow } from "@effy/shared-types";
-
 import { WINDOW_STATE_LABEL, momentText, roundOpenState, windowNoteFor } from "./model";
 import { dispatchDayQuery, dispatchRoundQuery } from "./queries";
 
@@ -17,16 +36,11 @@ interface RoundDetail {
   status: string;
   driverId: string;
   updatedAt: string;
-  /** 072 — when the round must be finished. */
   deadlineAt: string;
-  /** 072 — when it opens to its driver; null = no opening time (a delivery with no window). */
   opensAt: string | null;
-  /** 093 — where the run is, worded as the driver's app words it. */
   stage?: string;
   stageLabel?: string;
-  /** 093 — stops finished in a different order from the one shown. */
   outOfOrder?: boolean;
-  /** 093 — a dispatcher let this run skip the order of work. */
   waiver?: { reason: string; staffName: string; at: string } | null;
   stops: Array<{
     stopId: string;
@@ -36,146 +50,207 @@ interface RoundDetail {
     zoneName: string | null;
     label: string;
     orderNumber: string | null;
-    /** 069 — the customer's delivery window; null for a pickup, the hub, or an order before 069. */
     deliveryWindow?: DeliveryWindow | null;
-    /** 091 — how this stop's hand-overs were done; absent when none was recorded. */
     handovers?: { scan: number; typed: number; manual: number };
   }>;
 }
 
 /**
- * One round: its stops, their order, and who holds it (FR-027, FR-031, FR-032).
- *
- * ⚠ A LIST OF DETAIL ROWS, NOT CARDS (Principle V). The stops are a sequence — the dispatcher reads
- * them in order and moves one — which is exactly what a card grid destroys.
+ * One round (063; redesign, board "Round detail"): who holds it, where it is, and its stops in the
+ * order the driver sees them — which a dispatcher can change, and save, or take the round back.
  */
 export function RoundDetailScreen({ roundId }: { roundId: string }) {
   const { data, isPending, isError } = useQuery(dispatchRoundQuery(roundId));
-  // The day view already carries every driver and their name — reusing its cache entry avoids a
-  // second endpoint whose only job would be "list drivers for a picker".
   const day = useQuery(dispatchDayQuery());
   const roles = useSessionRoles();
+  const round = data as RoundDetail | undefined;
+  const editing = useRoundEditing(roundId, round?.stops.map((s) => s.stopId) ?? [], round?.updatedAt ?? "");
+  useHeaderDetail(round ? (round.kind === "collection" ? "Collection run" : "Delivery round") : null);
 
-  if (isPending) return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
-  if (isError) return <p className="p-6 text-sm text-destructive">That round could not be loaded.</p>;
+  if (isPending) {
+    return (
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
+  if (isError || !round) return <Callout tone="destructive" title="That round could not be loaded." />;
 
-  const round = data as RoundDetail;
-  // ⚠ ABSENT, NOT DISABLED. A csa never sees a control it cannot use — and this is a COURTESY: the
-  // gate that decides is in edge-fleet, per route, and is independently enforced.
   const mayChange = canDispatch(roles);
   const drivers = (day.data?.rounds ?? []).map((r) => ({ driverId: r.driverId, driverName: r.driverName }));
   const holder = drivers.find((d) => d.driverId === round.driverId)?.driverName ?? "This driver";
   const now = new Date();
   const opening = roundOpenState(round, now);
+  const late = day.data?.rounds.find((r) => r.round.id === round.id)?.isLate ?? false;
+  const finished = round.status === "completed" || round.status === "cancelled";
+  const byId = new Map(round.stops.map((s) => [s.stopId, s]));
+  const done = round.stops.filter((s) => s.status === "completed" || s.status === "done").length;
 
   return (
-    <div className="space-y-6 p-6">
-      <header>
-        <h1 className="text-lg font-medium">
-          {round.kind === "collection" ? "Collection round" : "Delivery round"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {round.stageLabel ?? round.status.replace("_", " ")}
-          {round.outOfOrder ? <span className="ml-2">· Worked out of order</span> : null}
-        </p>
-        {round.waiver ? (
-          <p className="mt-1 text-sm">
-            Allowed to go ahead by {round.waiver.staffName}: {round.waiver.reason}
-          </p>
-        ) : null}
-        {/* 072 — a round is assigned hours before it can be worked. Its driver can read it and
-            cannot act on it until it opens; every control below works either way. */}
-        {opening.text ? (
-          <p className="mt-1 text-sm tabular-nums">
-            {opening.text}
-            <span className="ml-2 text-muted-foreground">· due {momentText(round.deadlineAt, now)}</span>
-            {opening.open ? null : (
-              <span className="ml-2 text-muted-foreground">· the driver can see it but cannot start it yet</span>
-            )}
-          </p>
-        ) : null}
-
-        {mayChange ? (
-          <div className="mt-4 flex flex-wrap items-start gap-3">
-            <ReassignDialog
-              roundId={round.id}
-              currentDriverName={holder}
-              expectedUpdatedAt={round.updatedAt}
-              drivers={drivers.filter((d) => d.driverId !== round.driverId)}
-            />
-            {/* 093 — the driver's phone failed at the hub and the order of work is stuck: let this run
-                go ahead (load while still holding parcels, or collect with deliveries open). */}
-            {!round.waiver && round.status !== "completed" && round.status !== "cancelled" ? (
-              <WaiveSequenceButton roundId={round.id} driverName={holder} />
+    <>
+      <PageHeader
+        back={{ label: "Dispatch", link: { to: "/orders/assignments" } }}
+        title={
+          <>
+            {round.kind === "collection" ? "Collection run" : "Delivery round"}
+            <StatusWord tone={round.status === "completed" ? "done" : round.status === "cancelled" ? "quiet" : "waiting"}>
+              {round.stageLabel ?? round.status.replace("_", " ")}
+            </StatusWord>
+            {late ? (
+              <span className="bo-late">
+                <Clock aria-hidden="true" />
+                Late
+              </span>
             ) : null}
-          </div>
-        ) : null}
-      </header>
+          </>
+        }
+        meta={
+          <>
+            <span>
+              <UserRound aria-hidden="true" />
+              {holder}
+            </span>
+            {/* 072 — a round is assigned hours before it can be worked; its driver can read it and
+                cannot act on it until it opens. */}
+            <span>
+              <CalendarClock aria-hidden="true" />
+              {opening.text ? `${opening.text} · ` : ""}due {momentText(round.deadlineAt, now)}
+              {opening.open ? "" : " · the driver can see it but cannot start it yet"}
+            </span>
+            {round.outOfOrder ? <span>Worked out of order</span> : null}
+          </>
+        }
+        actions={
+          mayChange && !finished ? (
+            <>
+              <ReassignDialog
+                roundId={round.id}
+                currentDriverName={holder}
+                expectedUpdatedAt={round.updatedAt}
+                drivers={drivers.filter((d) => d.driverId !== round.driverId)}
+              />
+              {/* 093 — the driver's phone failed at the hub and the order of work is stuck. */}
+              {!round.waiver ? <WaiveSequenceButton roundId={round.id} driverName={holder} /> : null}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={editing.takingBack}>
+                    <Undo2 aria-hidden="true" />
+                    {editing.takingBack ? "Taking back…" : "Take this round back"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Take this round back from {holder}?</AlertDialogTitle>
+                    <AlertDialogDescription>The whole round leaves their work at once. Nothing is cancelled for the customer.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <ul className="list-disc space-y-1.5 pl-5 text-sm">
+                    <li>
+                      Packages not yet loaded go back to <span className="font-medium">Needs a driver</span>, and auto-assign tries again on its
+                      next pass.
+                    </li>
+                    <li>Anything already in the van stays with the driver until it is returned or delivered.</li>
+                    <li>The driver's app tells them “This round was moved”.</li>
+                  </ul>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep it with {holder.split(" ")[0]}</AlertDialogCancel>
+                    <AlertDialogAction onClick={editing.takeBack}>Take this round back</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : undefined
+        }
+      />
 
-      <section aria-labelledby="stops-heading">
-        <h2 id="stops-heading" className="text-base font-medium">
-          Stops
-        </h2>
+      {round.waiver ? (
+        <Callout tone="muted" title={`Allowed to go ahead by ${round.waiver.staffName}`}>
+          {round.waiver.reason}
+        </Callout>
+      ) : null}
+      {editing.error ? <Callout tone="destructive" title={editing.error} /> : null}
 
-        {mayChange ? (
-          <div className="mt-3 rounded-lg border border-border p-3">
-            <ReorderControl
-              roundId={round.id}
-              stopIds={round.stops.map((s) => s.stopId)}
-              expectedUpdatedAt={round.updatedAt}
-            />
+      <Panel
+        title={
+          <span id="stops-heading">
+            Stops{" "}
+            <span className="font-normal text-muted-foreground">
+              · {done} of {round.stops.length} done
+            </span>
+          </span>
+        }
+        icon={<Route aria-hidden="true" />}
+        description={mayChange ? "Use a stop's arrows to change the order the driver sees. Nothing changes until you save." : undefined}
+        actions={
+          mayChange && editing.dirty ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={editing.discard}>
+                Discard
+              </Button>
+              <Button size="sm" onClick={editing.save} disabled={editing.saving}>
+                {editing.saving ? "Saving…" : "Save this order"}
+              </Button>
+            </>
+          ) : undefined
+        }
+        flush
+      >
+        {round.stops.length === 0 ? (
+          <div className="p-5">
+            <EmptyState icon={Route} title="No stops on this round." />
           </div>
-        ) : null}
-        <ol className="mt-3 divide-y divide-border">
-          {round.stops.map((s, i) => {
-            // 069 — the window the customer was sold. The stops arrive already ordered earliest
-            // window first, by the same shared rule the driver's app uses.
-            const note = windowNoteFor(s, new Date());
-            return (
-            <li key={s.stopId} className="flex items-baseline justify-between gap-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  <span className="mr-2 text-muted-foreground">{i + 1}.</span>
-                  {s.label}
-                </p>
-                {s.orderNumber ? (
-                  <p className="mt-0.5 text-sm text-muted-foreground">{s.orderNumber}</p>
-                ) : null}
-                {s.handovers ? (
-                  <p className="mt-0.5 text-sm text-muted-foreground tabular-nums" aria-label="Scanning">
-                    {handoverCounts(s.handovers)}
-                  </p>
-                ) : null}
-                {note ? (
-                  <p className="mt-0.5 text-sm tabular-nums">
-                    {note.text}
-                    {/* ⚠ A WORD, never colour alone. */}
-                    {WINDOW_STATE_LABEL[note.state] ? (
-                      <span className={note.state === "late" ? "ml-2 text-destructive" : "ml-2 text-warning"}>
-                        {WINDOW_STATE_LABEL[note.state]}
-                      </span>
-                    ) : null}
-                  </p>
-                ) : null}
-              </div>
-              <div className="shrink-0 text-right text-sm text-muted-foreground">
-                <p>{s.zoneName ?? "No zone"}</p>
-                <p>{s.status}</p>
-              </div>
-            </li>
-            );
-          })}
-        </ol>
-      </section>
-    </div>
+        ) : (
+          <ol>
+            {editing.order.map((id, i) => {
+              const s = byId.get(id);
+              if (!s) return null;
+              const moved = s.seq !== null && s.seq !== i + 1 && editing.dirty;
+              const note = windowNoteFor(s, now);
+              return (
+                <li key={id} className="flex items-center gap-3 border-b border-border px-5 py-3 last:border-b-0">
+                  <span className="bo-avatar bo-avatar--sq size-[26px]! text-[11px]!" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{s.label}</span>
+                      {s.orderNumber ? <span className="bo-code text-xs text-muted-foreground">{s.orderNumber}</span> : null}
+                      {moved ? <span className="bo-tag">Moved</span> : null}
+                    </div>
+                    <div className="bo-sub">
+                      {[note?.text, s.zoneName ?? "No area", s.handovers ? handoverCounts(s.handovers) : null].filter(Boolean).join(" · ")}
+                      {note && WINDOW_STATE_LABEL[note.state] ? <span className="ml-1 font-medium text-foreground">· {WINDOW_STATE_LABEL[note.state]}</span> : null}
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground max-md:hidden">{s.status.replace("_", " ")}</span>
+                  {mayChange && !finished ? (
+                    <div className="flex gap-1">
+                      <button type="button" className="bo-iconbtn" aria-label={`Move stop ${i + 1} earlier`} disabled={i === 0} onClick={() => editing.move(i, -1)}>
+                        <ChevronUp aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="bo-iconbtn"
+                        aria-label={`Move stop ${i + 1} later`}
+                        disabled={i === editing.order.length - 1}
+                        onClick={() => editing.move(i, 1)}
+                      >
+                        <ChevronDown aria-hidden="true" />
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </Panel>
+    </>
   );
 }
 
-/** 091 — "2 scanned · 1 typed · 1 by hand", leaving out what is zero. */
 export function handoverCounts(h: { scan: number; typed: number; manual: number }): string {
-  return [
-    h.scan ? `${h.scan} scanned` : null,
-    h.typed ? `${h.typed} typed` : null,
-    h.manual ? `${h.manual} by hand` : null,
-  ].filter(Boolean).join(" · ");
+  return [h.scan ? `${h.scan} scanned` : null, h.typed ? `${h.typed} typed` : null, h.manual ? `${h.manual} by hand` : null]
+    .filter(Boolean)
+    .join(" · ");
 }

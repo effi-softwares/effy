@@ -84,10 +84,15 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
   }
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Storefront</h2>
-
-      <div className="flex items-start justify-between gap-4 border-t border-border pt-3">
+    <section className="bo-panel">
+      <div className="bo-panel__head">
+        <div className="min-w-0 flex-1">
+          <h2 className="bo-panel__title">Storefront</h2>
+          <p className="bo-panel__desc">Editable even on a redeemed code — it does not change the value.</p>
+        </div>
+      </div>
+      <div className="bo-panel__body space-y-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <Label htmlFor="advertise">Advertise on storefront</Label>
           {/* The sentence that stops someone reaching past the default without meaning to. */}
@@ -208,6 +213,7 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
           {update.isPending ? "Saving…" : "Save storefront settings"}
         </Button>
       ) : null}
+      </div>
     </section>
   );
 }

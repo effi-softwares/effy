@@ -18,7 +18,7 @@ import { StatusFilter, type StatusFilterValue } from "./StatusFilter";
 // edit and retire/activate gated by `canManage`.
 export function AttributesTab({ canManage }: { canManage: boolean }) {
   const { data, error, isPending, isError, refetch } = useQuery(attributesQuery());
-  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>("active");
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<AttributeDefinition | null>(null);
 

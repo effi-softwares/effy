@@ -1,5 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
+import type { ExceptionOutcome } from "@effy/shared-types";
+
 import { dispatchKeys } from "@/features/dispatch/queries";
 
 import * as repo from "./repo";
@@ -25,7 +27,8 @@ export const exceptionsQuery = (includeResolved: boolean) =>
 export function useResolveException() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, note }: { id: string; note: string | null }) => repo.resolveException(id, note),
+    mutationFn: ({ id, note, outcome = null }: { id: string; note: string | null; outcome?: ExceptionOutcome | null }) =>
+      repo.resolveException(id, note, outcome),
     onSuccess: () => void qc.invalidateQueries({ queryKey: exceptionKeys.all }),
   });
 }

@@ -132,14 +132,13 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: "Delivery",
         to: "/delivery",
         icon: MapPinned,
-        // The Delivery page's tabs, each now reachable from the rail. Courier delivery and its services
-        // are part of Coverage today, so they are not a separate entry here.
+        // The Delivery settings pages, one per entry (redesign, folder "Delivery settings").
         subs: [
           { key: "coverage", label: "Coverage", to: "/delivery", tab: "coverage" },
+          { key: "courier", label: "Courier delivery", to: "/delivery", tab: "courier" },
           { key: "pricing", label: "Pricing", to: "/delivery", tab: "pricing" },
           { key: "windows", label: "Delivery windows", to: "/delivery", tab: "slots" },
-          { key: "days", label: "Delivery days", to: "/delivery", tab: "days" },
-          { key: "runs", label: "Collection runs", to: "/delivery", tab: "schedule" },
+          { key: "days", label: "Days and runs", to: "/delivery", tab: "days" },
           { key: "hub", label: "Hub and timings", to: "/delivery", tab: "settings" },
           { key: "golive", label: "Go-live history", to: "/delivery", tab: "go-live" },
         ],

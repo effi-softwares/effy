@@ -311,3 +311,18 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ---------- One-time code: six cells (board "Sign in — one-time code") ----------
+   The empty boundary is the muted foreground, not the ring: here the ring IS the action blue, and six
+   blue boxes read as six focused fields. #68686f still clears the 3:1 bar a cell boundary needs. */
+[data-slot="otp-cell"] {
+  width: 52px;
+  height: 56px;
+  font-size: 20px;
+  border-width: 1px;
+  box-shadow: var(--shadow-xs);
+}
+[data-slot="otp-cell"]:not([data-filled]) { border-color: var(--muted-foreground); }
+@media (max-width: 400px) {
+  [data-slot="otp-cell"] { width: 44px; height: 48px; }
+}
