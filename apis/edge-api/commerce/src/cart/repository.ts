@@ -344,7 +344,7 @@ WHERE cart_id = $1 AND product_id = $2`,
     deleteAllItems: (cartId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1`, [cartId]);
-        await tx.query(`UPDATE public.cart SET promotion_code_id = NULL, promo_code_id = NULL, promo_applied_at = NULL WHERE id = $1`, [cartId]);
+        await tx.query(`UPDATE public.cart SET promotion_code_id = NULL, promo_applied_at = NULL WHERE id = $1`, [cartId]);
       }),
 
     async deleteLines(cartId, productIds) {
@@ -433,7 +433,7 @@ DO UPDATE SET quantity = LEAST(GREATEST(public.cart_item.quantity, EXCLUDED.quan
         await tx.query(
           `
 UPDATE public.cart
-   SET promotion_code_id = $2::uuid, promo_code_id = NULL,
+   SET promotion_code_id = $2::uuid,
        promo_applied_at = CASE WHEN $2::uuid IS NULL THEN NULL ELSE now() END
  WHERE id = $1`,
           [cartId, promotionCodeId],

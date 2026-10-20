@@ -343,7 +343,7 @@ DELETE FROM public.cart_item WHERE cart_id = (
     [orderId],
   );
   await tx.query(
-    `UPDATE public.cart SET promotion_code_id = NULL, promo_code_id = NULL, promo_applied_at = NULL
+    `UPDATE public.cart SET promotion_code_id = NULL, promo_applied_at = NULL
       WHERE customer_id = (SELECT customer_id FROM public."order" WHERE id = $1)`,
     [orderId],
   );

@@ -23,6 +23,16 @@ END
 $$;
 -- +goose StatementEnd
 
+-- An old order names its code from `promo_code` (text) alone from now on; fill any that relied on the join.
+UPDATE public."order" o SET promo_code = pc.code
+  FROM public.promo_code pc
+ WHERE pc.id = o.promo_code_id AND o.promo_code IS NULL;
+
+-- A promotion's history is read by its own id from now on; move 027's entries onto the promotion they became.
+UPDATE admin.audit_log a SET target_type = 'promotion', target_id = p.id
+  FROM public.promotion p
+ WHERE a.target_type = 'promo_code' AND a.target_id = p.legacy_promo_code_id;
+
 ALTER TABLE public.cart DROP COLUMN promo_code_id;
 ALTER TABLE public."order" DROP COLUMN promo_code_id;
 ALTER TABLE public.promotion DROP COLUMN legacy_promo_code_id;

@@ -86,7 +86,6 @@ export interface OrderAmounts {
   deliveryFeeBreakdown: unknown;
   /** The platform's own discount computation at the moment of payment (027). */
   discountCents: number;
-  promoCodeId: string | null;
   /** The literal text, denormalised so the receipt can still name it. */
   promoCode: string | null;
   grandTotalCents: number;
@@ -297,15 +296,15 @@ FOR UPDATE`,
               `
 INSERT INTO public."order"
     (customer_id, order_number, status, currency, item_subtotal_amount,
-     discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address, delivery_fee_amount,
+     discount_amount, promo_code, grand_total_amount, delivery_address, delivery_fee_amount,
      points_used, points_cents_per_point, points_value_amount, delivery_fee_breakdown)
 VALUES ($1, $2, 'pending_payment', $3, $4::numeric,
-        $7::numeric, $8::uuid, $9, $5::numeric, $6::jsonb, $10::numeric,
-        $11, $12, $13::numeric, $14::jsonb)
+        $7::numeric, $8, $5::numeric, $6::jsonb, $9::numeric,
+        $10, $11, $12::numeric, $13::jsonb)
 RETURNING id::text AS id`,
               [
                 customerId, orderNumber, a.currency, formatCents(a.itemSubtotalCents), formatCents(a.grandTotalCents),
-                JSON.stringify(address), formatCents(a.discountCents), a.promoCodeId, a.promoCode, formatCents(a.deliveryFeeCents),
+                JSON.stringify(address), formatCents(a.discountCents), a.promoCode, formatCents(a.deliveryFeeCents),
                 a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents), JSON.stringify(a.deliveryFeeBreakdown),
               ],
             )
@@ -317,14 +316,14 @@ RETURNING id::text AS id`,
             `
 UPDATE public."order" SET item_subtotal_amount=$2::numeric,
     grand_total_amount=$3::numeric, delivery_address=$4::jsonb,
-    discount_amount=$5::numeric, promo_code_id=$6::uuid, promo_code=$7,
-    delivery_fee_amount=$8::numeric,
-    points_used=$9, points_cents_per_point=$10, points_value_amount=$11::numeric,
-    delivery_fee_breakdown=$12::jsonb,
+    discount_amount=$5::numeric, promo_code=$6,
+    delivery_fee_amount=$7::numeric,
+    points_used=$8, points_cents_per_point=$9, points_value_amount=$10::numeric,
+    delivery_fee_breakdown=$11::jsonb,
     updated_at=now() WHERE id=$1`,
             [
               orderId, formatCents(a.itemSubtotalCents), formatCents(a.grandTotalCents), JSON.stringify(address),
-              formatCents(a.discountCents), a.promoCodeId, a.promoCode, formatCents(a.deliveryFeeCents),
+              formatCents(a.discountCents), a.promoCode, formatCents(a.deliveryFeeCents),
               a.pointsUsed, a.pointsCentsPerPoint, formatCents(a.pointsValueCents), JSON.stringify(a.deliveryFeeBreakdown),
             ],
           );

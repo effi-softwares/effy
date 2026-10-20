@@ -71,7 +71,7 @@ d("070 — cart repository against the real schema", () => {
   beforeEach(async () => {
     await pool.query(`DELETE FROM public.cart_item WHERE cart_id = $1`, [cartId]);
     await pool.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1`, [cartId]);
-    await pool.query(`UPDATE public.cart SET promo_code_id = NULL WHERE id = $1`, [cartId]);
+    await pool.query(`UPDATE public.cart SET promotion_code_id = NULL WHERE id = $1`, [cartId]);
   });
 
   afterAll(async () => {

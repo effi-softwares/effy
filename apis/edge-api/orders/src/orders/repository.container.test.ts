@@ -72,12 +72,11 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         delivery_handover text,
         delivery_note text,
         billing_address jsonb,
-        promo_code_id uuid,
+        promo_code text,
         delivery_type text, delivery_type_reason text, courier_estimate text,
         courier_service_id uuid, courier_collection text,
         placed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()
       );
-      CREATE TABLE public.promo_code (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), code text NOT NULL);
       CREATE TABLE public.payment (
         order_id uuid PRIMARY KEY, status text NOT NULL DEFAULT 'succeeded',
         method_type text, method_brand text, method_last4 text
@@ -154,7 +153,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       TRUNCATE public.package_arrival, public.carrier_handoff, public.fulfillment_event,
                public.order_package_delivery, public.order_item,
                public.shop_fulfillment, public.payment, public."order", public.customer,
-               public.shop, public.promo_code RESTART IDENTITY CASCADE`);
+               public.shop RESTART IDENTITY CASCADE`);
   });
 
   async function seed(method: "standard" | "same_day" = "standard") {

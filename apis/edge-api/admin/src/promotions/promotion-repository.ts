@@ -334,8 +334,7 @@ export async function promotionAudit(id: string, limit: number): Promise<AuditEn
   const res = await query<{ id: string; actor_sub: string; action: string; target_type: string; target_id: string | null; detail: Record<string, unknown>; created_at: Date }>(
     `SELECT a.id::text, a.actor_sub, a.action, a.target_type, a.target_id, a.detail, a.created_at
        FROM admin.audit_log a
-      WHERE (a.target_type = 'promotion' AND a.target_id = $1::uuid)
-         OR (a.target_type = 'promo_code' AND a.target_id = (SELECT legacy_promo_code_id FROM public.promotion WHERE id = $1::uuid))
+      WHERE a.target_type = 'promotion' AND a.target_id = $1::uuid
       ORDER BY a.created_at DESC LIMIT $2`,
     [id, limit],
   );

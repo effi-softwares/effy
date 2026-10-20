@@ -351,8 +351,7 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.delivery_fee_amount::text,
             o.delivery_fee_breakdown,
             o.discount_amount::text,
-            -- 094 — new orders keep the code's text on the order; old ones name it through 027's table.
-            COALESCE(o.promo_code, pc.code) AS promo_code,
+            o.promo_code,
             o.delivery_discount_amount::text,
             (SELECT json_agg(json_build_object('headline', op.headline, 'name', op.name, 'code', op.code_text,
                                                'goods', op.goods_amount::text, 'delivery', op.delivery_amount::text) ORDER BY op.name)
@@ -370,7 +369,6 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.points_used, o.points_value_amount::text AS points_value_amount, pay.amount::text AS card_paid_amount
        FROM public."order" o
        JOIN public.customer c ON c.id = o.customer_id
-  LEFT JOIN public.promo_code pc ON pc.id = o.promo_code_id
   LEFT JOIN public.payment pay ON pay.order_id = o.id
       WHERE o.id = $1`,
     [orderId],

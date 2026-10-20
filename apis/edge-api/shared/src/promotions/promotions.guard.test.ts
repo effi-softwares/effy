@@ -16,6 +16,8 @@ import { describe, expect, it } from "vitest";
  *      intent and both group reads come through `candidates.ts`, so "what applies now" has one answer.
  *   4. No shop service reads a promotion or what an order's promotions were (FR-035).
  *   5. Nothing outside `engine.ts` works out a discount: the 027 evaluator is gone.
+ *   6. Nothing names 027's tables or their keys (`promo_code`, `promo_redemption`, `promo_code_id`,
+ *      `legacy_promo_code_id`) — stage C drops them. `order.promo_code`, the code's TEXT, stays.
  */
 const here = dirname(fileURLToPath(import.meta.url));
 const services = resolve(here, "../../..");
@@ -75,5 +77,12 @@ describe("094 — promotions live once", () => {
       .map((s) => s.file)
       .filter((f) => f !== "shared/src/promotions/uses.ts");
     expect(reDerived).toEqual([]);
+  });
+
+  it("nothing names 027's promotion tables (stage C removes them)", () => {
+    const old = sources
+      .filter((s) => /\bpublic\.promo_(code|redemption)\b|\bpromo_redemption\b|\b(legacy_)?promo_code_id\b/.test(s.src))
+      .map((s) => s.file);
+    expect(old).toEqual([]);
   });
 });

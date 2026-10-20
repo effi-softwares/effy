@@ -412,9 +412,8 @@ export function createCheckoutService(deps: {
         customerId,
         {
           itemSubtotalCents, deliveryFeeCents, deliveryFeeBreakdown: storedBreakdown(fee), discountCents: goodsDiscountCents,
-          // 094 — `promo_code_id` points at the 027 table and is no longer written; the text stays for
-          // the readers that name the code until they read `order_promotion`.
-          promoCodeId: null, promoCode: entered?.codeText ?? null,
+          // 094 — the code's text stays on the order for the readers that name it; `order_promotion` has the rest.
+          promoCode: entered?.codeText ?? null,
           grandTotalCents, currency: CURRENCY,
           pointsUsed, pointsCentsPerPoint: pointsUsed > 0 ? centsPerPoint : null, pointsValueCents,
         },
