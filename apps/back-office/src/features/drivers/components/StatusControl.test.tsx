@@ -59,19 +59,19 @@ beforeEach(() => {
 describe("StatusControl — the employment lifecycle", () => {
   it("offers suspend and offboard for an active driver, and no restore", async () => {
     renderControl();
-    expect(screen.getByRole("button", { name: "Suspend" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Offboard" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Restore" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Suspend…" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Offboard…" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Restore…" })).not.toBeInTheDocument();
   });
 
   it("offers restore for a suspended driver (FR-018)", () => {
     renderControl({ ...DRIVER, status: "suspended" });
-    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore…" })).toBeInTheDocument();
   });
 
   it("⚠ offboarded is TERMINAL — no control brings them back, and the screen says why", () => {
     renderControl({ ...DRIVER, status: "offboarded" });
-    expect(screen.queryByRole("button", { name: "Restore" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Restore/ })).not.toBeInTheDocument();
     expect(screen.getByText(/permanently closed/)).toBeInTheDocument();
   });
 
@@ -81,7 +81,7 @@ describe("StatusControl — the employment lifecycle", () => {
     // exists to prevent.
     const user = userEvent.setup();
     renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend" }));
+    await user.click(screen.getByRole("button", { name: "Suspend…" }));
     expect(await screen.findByText(/lose access straight away/)).toBeInTheDocument();
     expect(screen.getByText(/goes back to the pool on the next assignment round/)).toBeInTheDocument();
     expect(screen.getByText(/already picked up stays with them/)).toBeInTheDocument();
@@ -90,9 +90,9 @@ describe("StatusControl — the employment lifecycle", () => {
   it("requires a reason before the confirm button becomes usable (FR-016)", async () => {
     const user = userEvent.setup();
     renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend" }));
-    const confirm = await screen.findByRole("button", { name: "Suspend" , hidden: false});
-    // The dialog's confirm is the LAST "Suspend" — the trigger is still in the document.
+    await user.click(screen.getByRole("button", { name: "Suspend…" }));
+    // The trigger reads "Suspend…"; the dialog's confirm reads "Suspend".
+    const confirm = await screen.findByRole("button", { name: "Suspend" });
     const buttons = screen.getAllByRole("button", { name: "Suspend" });
     expect(buttons[buttons.length - 1]).toBeDisabled();
     await user.type(screen.getByLabelText("Reason"), "on leave");
@@ -116,7 +116,7 @@ describe("StatusControl — the employment lifecycle", () => {
     const user = userEvent.setup();
     setDriverStatus.mockResolvedValue({ ...DRIVER, status: "suspended" });
     renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend" }));
+    await user.click(screen.getByRole("button", { name: "Suspend…" }));
     await user.type(screen.getByLabelText("Reason"), "on leave");
     await user.click(screen.getAllByRole("button", { name: "Suspend" }).at(-1)!);
     await waitFor(() =>

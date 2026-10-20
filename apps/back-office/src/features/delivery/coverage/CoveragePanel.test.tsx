@@ -25,7 +25,7 @@ const repo = vi.hoisted(() => ({
 }));
 vi.mock("../repo", async () => ({ ...(await vi.importActual<object>("../repo")), ...repo }));
 
-const { CoveragePanel } = await import("./CoveragePanel");
+const { CoveragePanel, CourierPage } = await import("./CoveragePanel");
 
 const courier = (over: Partial<CourierReachDTO> = {}): CourierReachDTO => ({
   offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
@@ -66,6 +66,18 @@ function renderPanel(canManage = true) {
   return render(<CoveragePanel canManage={canManage} />, { wrapper });
 }
 
+/** Courier delivery has its own page since the redesign. */
+function renderCourier(canManage = true) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>;
+  return render(<CourierPage canManage={canManage} />, { wrapper });
+}
+
+/** Groups sit on their own tab of the coverage page. */
+async function openGroups() {
+  await userEvent.click(await screen.findByRole("tab", { name: /groups/i }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   repo.listCoverage.mockResolvedValue(list());
@@ -76,7 +88,7 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
   it("shows each postcode with its places, group, distance and how the distance was obtained", async () => {
     renderPanel();
     const row = (await screen.findByText("3121")).closest("tr")!;
-    expect(within(row).getByText(/RICHMOND, BURNLEY, CREMORNE/)).toBeInTheDocument();
+    expect(within(row).getAllByText(/RICHMOND, BURNLEY, CREMORNE/).length).toBeGreaterThan(0);
     expect(within(row).getByText("Inner East")).toBeInTheDocument();
     expect(within(row).getByText("3.40 km")).toBeInTheDocument();
     expect(within(row).getByText("worked out")).toBeInTheDocument();
@@ -99,25 +111,37 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
   it("a customer-service agent reads everything and can change nothing (FR-026)", async () => {
     renderPanel(false);
     await screen.findByText("3121");
-    for (const name of [/add places/i, /^remove$/i, /^distance$/i, /add group/i, /^rename$/i, /^exclude$/i]) {
-      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
-    }
+    expect(screen.queryByRole("button", { name: /add places/i })).not.toBeInTheDocument();
+    // "Distance" is also a filter, so the row's own actions are asked of the row.
+    const row = screen.getByText("3121").closest("tr")!;
+    expect(within(row).queryByRole("button")).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: /offer courier delivery/i })).toBeDisabled();
     // The checker is for everyone.
     expect(screen.getByRole("button", { name: /^check$/i })).toBeInTheDocument();
+    await openGroups();
+    for (const name of [/add group/i, /^rename$/i, /^remove$/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
+  });
+
+  it("a customer-service agent cannot change courier delivery (FR-026)", async () => {
+    renderCourier(false);
+    expect(await screen.findByRole("switch", { name: /offer courier delivery/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /^exclude$/i })).not.toBeInTheDocument();
   });
 
   it("filters ask the service, not the page", async () => {
     const user = userEvent.setup();
     renderPanel();
     await screen.findByText("3121");
-    await user.selectOptions(screen.getByLabelText("Group"), "none");
+    await user.click(screen.getByRole("button", { name: "Group" }));
+    await user.click(await screen.findByRole("menuitem", { name: "No group" }));
     await waitFor(() => expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ group: "none" }), undefined));
-    await user.selectOptions(screen.getByLabelText("Distance"), "review");
+    // The filter comes before the rows' own "Distance" buttons.
+    await user.click(screen.getAllByRole("button", { name: "Distance" })[0]!);
+    await user.click(await screen.findByRole("menuitem", { name: "To review" }));
     await waitFor(() => expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ review: true }), undefined));
-    await user.type(screen.getByLabelText("Find in the list"), "rich");
-    await user.click(screen.getByRole("button", { name: "Find" }));
+    await user.type(screen.getByPlaceholderText("Place or postcode"), "rich{Enter}");
     await waitFor(() => expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ q: "rich" }), undefined));
   });
 
@@ -229,6 +253,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
 
   it("each group shows how many drivers can deliver there, and ungrouped postcodes with none are flagged", async () => {
     renderPanel();
+    await openGroups();
     const groups = await screen.findByTestId("coverage-groups-list");
     expect(groups).toHaveTextContent("Inner East");
     expect(groups).toHaveTextContent("2 drivers can deliver here");
@@ -239,6 +264,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     const user = userEvent.setup();
     repo.removeCoverageGroup.mockResolvedValue({ ungrouped: 1 });
     renderPanel();
+    await openGroups();
     const groups = await screen.findByTestId("coverage-groups-list");
     await user.click(within(groups).getByRole("button", { name: "Remove" }));
     const dialog = await screen.findByRole("alertdialog");
@@ -248,7 +274,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
   });
 
   it("⚠ courier delivery cannot be switched on without a price and a default service, and the screen says which; exclusions are listed", async () => {
-    renderPanel();
+    renderCourier();
     expect(await screen.findByRole("switch", { name: /offer courier delivery/i })).toBeDisabled();
     expect(screen.getByTestId("courier-locked")).toHaveTextContent("Make a courier fee table active on the Pricing tab.");
     expect(screen.getByTestId("courier-locked")).toHaveTextContent("Add a courier service below and make it the default.");
@@ -260,7 +286,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
 
   it("080 — the customer's words are the default service's timeframe, as a whole sentence; 079's free-text field is gone", async () => {
     repo.listCoverage.mockResolvedValue(list({ courier: ready }));
-    renderPanel();
+    renderCourier();
     expect(await screen.findByTestId("courier-estimate-preview")).toHaveTextContent(
       "Usually arrives in 2–4 business days — an estimate, not a guaranteed date.",
     );
@@ -270,7 +296,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
 
   it("080 — how parcels reach the courier is a platform default, changed in one click", async () => {
     repo.updateCourier.mockResolvedValue({ offered: false, whenNoWindows: false, collectionDefault: "supplier" });
-    renderPanel();
+    renderCourier();
     const hub = await screen.findByRole("radio", { name: "Via the hub" });
     expect(hub).toBeChecked();
     await userEvent.click(screen.getByRole("radio", { name: "Pickup from the supplier" }));
@@ -280,7 +306,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
   it("079 — ready: the switch works, and on means offered", async () => {
     repo.listCoverage.mockResolvedValue(list({ courier: ready }));
     repo.updateCourier.mockResolvedValue({ offered: true, whenNoWindows: false });
-    const { unmount } = renderPanel();
+    const { unmount } = renderCourier();
     const sw = await screen.findByRole("switch", { name: /offer courier delivery/i });
     expect(sw).toBeEnabled();
     expect(screen.queryByTestId("courier-locked")).not.toBeInTheDocument();
@@ -290,7 +316,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
 
     // ⚠ 083 — on is offered: there is no "starts with the new delivery model" notice any more.
     repo.listCoverage.mockResolvedValue(list({ courier: { ...ready, offered: true } }));
-    renderPanel();
+    renderCourier();
     await screen.findByRole("switch", { name: "Offer courier delivery" });
     expect(screen.queryByTestId("courier-pending")).not.toBeInTheDocument();
     expect(screen.queryByText(/starts with the new delivery model/)).not.toBeInTheDocument();
@@ -298,7 +324,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
 
   it("079 — the no-window fallback is its own switch, and a refusal is said in words", async () => {
     repo.updateCourier.mockRejectedValueOnce(refusal(409, "courier_service_missing")).mockResolvedValue({ offered: false, whenNoWindows: true });
-    renderPanel();
+    renderCourier();
     const sw = await screen.findByRole("switch", { name: /offer courier when no delivery window is available/i });
     await userEvent.click(sw);
     expect(await screen.findByRole("alert")).toHaveTextContent("Add a courier service and make it the default before switching courier delivery on.");
@@ -309,7 +335,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
   it("080 — courier services: listed with the customer's words and pickups; the first added becomes the default; a refusal names the field", async () => {
     repo.listCourierServices.mockResolvedValue({ items: [service(), service({ id: "s2", serviceName: "Express", isDefault: false, collectsFromSupplier: false, pickupWeekdays: [1, 3, 5] })], collectionDefault: "hub" });
     repo.updateCourierService.mockResolvedValue(service({ id: "s2", isDefault: true }));
-    renderPanel();
+    renderCourier();
     const table = await screen.findByTestId("courier-services");
     const first = within(table).getByText(/Test Courier · Parcel/).closest("tr")!;
     expect(within(first).getByText("Default")).toBeInTheDocument();
@@ -326,7 +352,7 @@ describe("Coverage — the checker, groups and courier reach", () => {
     repo.createCourierService
       .mockRejectedValueOnce({ kind: "unknown", status: 422, title: "Refused", code: "invalid_service", fields: [{ field: "estimateText", message: "x" }] })
       .mockResolvedValue(service());
-    renderPanel();
+    renderCourier();
     await userEvent.click(await screen.findByRole("button", { name: "Add a courier service" }));
     const form = screen.getByRole("form", { name: "New courier service" });
     await userEvent.type(within(form).getByLabelText("Courier"), "Test Courier");
