@@ -127,8 +127,8 @@ describe("storefront reads keep only what FR-015a allows (054)", () => {
 
   it("the product page reads price and availability live", () => {
     const page = readFileSync(join(root, "app", "(shop)", "product", "[id]", "page.tsx"), "utf8")
-    // The kept content has the live fields stripped before it is returned…
-    expect(page).toMatch(/const \{ priceAmount, compareAtAmount, currency, available, badges, \.\.\.content \} = detail/)
+    // The kept content has the live fields stripped before it is returned (094 added the offer)…
+    expect(page).toMatch(/const \{ priceAmount, compareAtAmount, currency, available, badges, offer, \.\.\.content \} = detail/)
     // …and the live read beside it says so.
     expect(page).toMatch(/products\?ids=\$\{encodeURIComponent\(id\)\}`,\s*uncached\(\)/)
   })
