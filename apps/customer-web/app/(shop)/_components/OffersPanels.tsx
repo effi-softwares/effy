@@ -11,7 +11,8 @@ import { OFFER_THEMES, PromoBanner, type PromoTheme } from "@/components/storefr
 
 import type { PlacedBanner } from "../promotion-groups"
 
-import { isDesigned, SkinnedPromotion } from "./SkinnedPromotion"
+import { isDesigned } from "./skin-designed"
+import { SkinnedPromotion } from "./SkinnedPromotion"
 
 /**
  * The promotional offers block (039 US4, FR-017/FR-018/FR-020) — the reference's one-large-plus-two-

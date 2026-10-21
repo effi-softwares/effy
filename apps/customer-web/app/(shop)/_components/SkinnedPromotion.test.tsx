@@ -5,7 +5,8 @@ import { starterSettings, type BannerDTO } from "@effy/shared-types"
 
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 
-const { isDesigned, SkinnedPromotion } = await import("./SkinnedPromotion")
+const { SkinnedPromotion } = await import("./SkinnedPromotion")
+const { isDesigned } = await import("./skin-designed")
 const { PromoHero } = await import("./PromoHero")
 
 /** 095 — a promotion wears its place's skin; Classic (or no skin) keeps the pre-095 drawing. */
@@ -46,5 +47,15 @@ describe("SkinnedPromotion", () => {
     render(<PromoHero slides={[banner({ skin: classic })]} side={[]} />)
     expect(screen.queryByTestId("promo-skin")).toBeNull()
     expect(screen.getByRole("heading", { name: "10% off the winter shop" })).toBeInTheDocument()
+  })
+})
+
+describe("⚠ server components can call what they import (095 dev outage)", () => {
+  it("SkinnedPromotion.tsx (\"use client\") exports components only — a helper a server component calls lives in skin-designed.ts", async () => {
+    const { readFileSync } = await import("node:fs")
+    const src = readFileSync("app/(shop)/_components/SkinnedPromotion.tsx", "utf8")
+    expect(src.startsWith('"use client"')).toBe(true)
+    const exported = [...src.matchAll(/^export (?:async )?(?:function|const) (\w+)/gm)].map((m) => m[1])
+    expect(exported).toEqual(["SkinnedPromotion"])
   })
 })

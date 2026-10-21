@@ -11,7 +11,8 @@ import { Breadcrumb, Skeleton } from "@/components/ui/misc"
 import { getPromotionGroups, type PlacedBanner } from "../promotion-groups"
 import { CopyCodeButton } from "../_components/CopyCodeButton"
 import { OfferCard } from "../_components/OffersPanels"
-import { isDesigned, SkinnedPromotion } from "../_components/SkinnedPromotion"
+import { isDesigned } from "../_components/skin-designed"
+import { SkinnedPromotion } from "../_components/SkinnedPromotion"
 
 export const metadata: Metadata = {
   title: "Offers",

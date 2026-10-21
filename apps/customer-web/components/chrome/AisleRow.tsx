@@ -5,7 +5,8 @@ import { PROMOTION_GROUP_KEYS, type StorefrontCategoryDTO } from "@effy/shared-t
 
 import { toGroupBanner, type PlacedBanner } from "@/app/(shop)/promotion-groups"
 import { readPublicGroups } from "@/app/(shop)/promotion-groups-public"
-import { isDesigned, SkinnedPromotion } from "@/app/(shop)/_components/SkinnedPromotion"
+import { isDesigned } from "@/app/(shop)/_components/skin-designed"
+import { SkinnedPromotion } from "@/app/(shop)/_components/SkinnedPromotion"
 import { chromePrefetch } from "@/lib/account-routes"
 import { offerHref } from "@/app/(shop)/_components/OffersPanels"
 import { MENU_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"

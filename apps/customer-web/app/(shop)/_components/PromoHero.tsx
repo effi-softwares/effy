@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils"
 import type { PlacedBanner } from "../promotion-groups"
 
 import { CopyCodeButton } from "./CopyCodeButton"
-import { isDesigned, SkinnedPromotion } from "./SkinnedPromotion"
+import { isDesigned } from "./skin-designed"
+import { SkinnedPromotion } from "./SkinnedPromotion"
 import { PromoCarousel } from "./PromoCarousel"
 import { offerHref } from "./OffersPanels"
 

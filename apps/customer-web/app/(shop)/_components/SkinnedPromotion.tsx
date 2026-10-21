@@ -2,21 +2,14 @@
 
 import Link from "next/link"
 
-import type { GroupSize, ShopperSkinDTO } from "@effy/shared-types"
+import type { GroupSize } from "@effy/shared-types"
 import { PromoSkin, type PromoSkinLink } from "@effy/web-kit/promo-skin"
 
 import { capture } from "@/lib/telemetry"
 
 import type { PlacedBanner } from "../promotion-groups"
 
-/**
- * 095 — a group's promotion in the skin staff chose for this place (`@effy/web-kit/promo-skin`, the
- * renderer back-office previews with). A promotion wearing Classic — or whose server sent no skin — is
- * drawn by the place's own pre-095 component; `isDesigned` says which.
- */
-export function isDesigned(banner: PlacedBanner): banner is PlacedBanner & { skin: ShopperSkinDTO & { settings: NonNullable<ShopperSkinDTO["settings"]> } } {
-  return Boolean(banner.skin && banner.skin.layout !== "classic" && banner.skin.settings)
-}
+import { isDesigned } from "./skin-designed"
 
 const NextLink: PromoSkinLink = ({ href, children, ...rest }) => (
   <Link href={href} {...rest}>
@@ -24,6 +17,11 @@ const NextLink: PromoSkinLink = ({ href, children, ...rest }) => (
   </Link>
 )
 
+/**
+ * 095 — a group's promotion in the skin staff chose for this place (`@effy/web-kit/promo-skin`, the
+ * renderer back-office previews with). A promotion wearing Classic — or whose server sent no skin — is
+ * drawn by the place's own pre-095 component; `isDesigned` says which.
+ */
 export function SkinnedPromotion({
   banner,
   groupKey,
