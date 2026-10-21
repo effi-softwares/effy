@@ -29,6 +29,7 @@ import type { Queryable } from "../lib/db";
 import { formatCents, parseCents } from "../lib/money";
 import { recordDeliveryType } from "../delivery/delivery-type";
 import { slotLoad } from "../delivery/slots";
+import { createFirstParcels } from "../labels/parcels";
 import { emitMetric } from "../lib/metrics";
 import { announce, type LiveChange } from "../live";
 import { release as releasePoints, spendHeld } from "../points/ledger";
@@ -146,6 +147,10 @@ GROUP BY oi.order_id, oi.shop_id
 ON CONFLICT (order_id, shop_id) DO NOTHING`,
     [orderId],
   );
+
+  // 2a. 096 — every package has bag 1, carrying the package's own 089 code (research R1). Created here,
+  //     in the one writer of shop_fulfillment, rather than by a trigger nobody reviewing this file sees.
+  await createFirstParcels(tx, { orderId });
 
   // 2b. Copy the captured per-package delivery METHOD onto each fulfilment (047).
   //     ⚠ No fee is copied (077): delivery is priced once per order and lives on the order. A

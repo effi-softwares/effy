@@ -220,6 +220,18 @@ class AppContainer(
     fun hasPrimedPermissions(): Boolean = prefs.getBoolean("driver.permissions.primed", false)
     fun markPermissionsPrimed() = prefs.putBoolean("driver.permissions.primed", true)
 
+    /**
+     * 096 — every label read names the install it was made on: an id made once and kept on the phone
+     * (never a hardware id), and the app's version. Set as soon as the container exists.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    private val readLogReady = run {
+        val key = "driver.scan.device_id"
+        val id = prefs.getStringOrNull(key) ?: Uuid.random().toString().also { prefs.putString(key, it) }
+        com.effyshopping.driver.mobile.core.scan.ReadLog.deviceId = id
+        com.effyshopping.driver.mobile.core.scan.ReadLog.appVersion = appVersion
+    }
+
     // ── observability & push (050) ──────────────────────────────────────────────────────────────
     private val devices: DeviceRepository by lazy { HttpDeviceRepository(driverClient) }
 

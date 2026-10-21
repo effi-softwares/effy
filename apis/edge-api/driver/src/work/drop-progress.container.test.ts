@@ -38,6 +38,7 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
+import { createFirstParcels, NothingToHandOver, ParcelsUnaccounted } from "@effy/edge-shared/labels";
 
 import { recordFailure, recordProof } from "../proof/repository";
 import { deliveryDrop, historyDetail, setDropStatus } from "./delivery";
@@ -56,7 +57,11 @@ let roundId: string;
 let dropId: string;
 
 /** 093 — loading the van is what puts a drop out for delivery; nothing on a drop happens before it. */
-const load = () => loadRun(roundId, driverId, crypto.randomUUID());
+/** Load the van with every live bag scanned (096 — a load accounts for every bag). */
+const load = async () => {
+  const codes = (await pool.query(`SELECT parcel_code FROM public.package_parcel WHERE voided_at IS NULL`)).rows.map((r) => r.parcel_code as string);
+  return loadRun(roundId, driverId, crypto.randomUUID(), codes.map((c) => ({ parcelCode: c, method: "scan" as const })));
+};
 
 /** A drop step as the app makes it: `out_for_delivery` is the van being loaded (093), the rest follow it. */
 const dropStatus = async () => (await deliveryDrop(dropId, driverId)).status;
@@ -290,44 +295,48 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(run.drops[0]!.packageCodes).toEqual([code]);
   });
 
-  /** 090 — how each package was handed over is recorded with the hand-over itself (quickstart P4). */
-  it("090 — records each package's hand-over method once, ignoring foreign packages and unknown methods", async () => {
-    const sf = (await pool.query(`SELECT id FROM public.shop_fulfillment LIMIT 1`)).rows[0].id as string;
+  /** 090/096 — how each BAG was handed over is recorded with the hand-over itself (quickstart Q11). */
+  it("096 — records each bag's hand-over once, ignoring foreign bags and unknown methods", async () => {
+    const { id: sf, package_code: code } = (await pool.query(`SELECT id, package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0];
+    await createFirstParcels(pool, { packageIds: [sf] });
     await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
     await step("arrived");
     const changeId = crypto.randomUUID();
     const proof = {
       dropId, driverId, driverSub, method: "photo" as const, mediaKey: "proof/h/1.jpg", note: null, changeId,
-      packages: [
-        { packageId: sf, method: "scan" as const },
-        { packageId: crypto.randomUUID(), method: "scan" as const }, // not at this drop
-        { packageId: sf, method: "telepathy" as never },              // a method this build does not know
+      parcels: [
+        { parcelCode: code, method: "scan" as const },
+        { parcelCode: "ZZZZZZ", method: "scan" as const },        // not at this drop
+        { parcelCode: code, method: "telepathy" as never },        // a method this build does not know
       ],
     };
     await recordProof(proof);
     await recordProof(proof); // a retry
-    const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover`);
+    const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover WHERE step = 'deliver'`);
     expect(rows.rows).toEqual([{ shop_fulfillment_id: sf, step: "deliver", method: "scan" }]);
   });
 
-  /** 092 — the delivery steps hold label codes, not ids: a package may be named by its code. */
-  it("092 — a package named by its label code is recorded; a code from elsewhere names nothing", async () => {
-    const { id: sf, package_code: code } = (await pool.query(`SELECT id, package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0];
+  /** 096 — the door accounts for every bag: one left unaccounted refuses the proof and writes nothing. */
+  it("096 — a proof that leaves a bag unaccounted for is refused, naming it", async () => {
+    const { id: sf } = (await pool.query(`SELECT id FROM public.shop_fulfillment LIMIT 1`)).rows[0];
+    await createFirstParcels(pool, { packageIds: [sf] });
     await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
     await step("arrived");
-    await recordProof({
-      dropId, driverId, driverSub, method: "photo", mediaKey: "proof/h/3.jpg", note: null, changeId: crypto.randomUUID(),
-      packages: [{ packageCode: code, method: "typed" }, { packageCode: "ZZZZZZ", method: "scan" }],
-    });
-    const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover`);
-    expect(rows.rows).toEqual([{ shop_fulfillment_id: sf, step: "deliver", method: "typed" }]);
+    await expect(recordProof({ dropId, driverId, driverSub, method: "photo", mediaKey: "proof/h/2.jpg", note: null, changeId: crypto.randomUUID() }))
+      .rejects.toBeInstanceOf(ParcelsUnaccounted);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM public.package_handover WHERE step = 'deliver'`)).rows[0].n).toBe(0);
+    expect((await pool.query(`SELECT count(*)::int AS n FROM public.proof_of_delivery`).catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n).toBe(0);
   });
 
-  it("090 — a hand-over without methods records nothing (today's app)", async () => {
+  it("096 — every bag declared missing at the door is not a delivery: use Can't deliver", async () => {
+    const { id: sf, package_code: code } = (await pool.query(`SELECT id, package_code FROM public.shop_fulfillment LIMIT 1`)).rows[0];
+    await createFirstParcels(pool, { packageIds: [sf] });
     await pool.query(`UPDATE public.round_package SET state = 'assigned', settled_at = NULL`);
     await step("arrived");
-    await recordProof({ dropId, driverId, driverSub, method: "photo", mediaKey: "proof/h/2.jpg", note: null, changeId: crypto.randomUUID() });
-    expect((await pool.query(`SELECT count(*)::int AS n FROM public.package_handover`)).rows[0].n).toBe(0);
+    await expect(recordProof({
+      dropId, driverId, driverSub, method: "photo", mediaKey: "proof/h/3.jpg", note: null, changeId: crypto.randomUUID(),
+      missingParcels: [{ parcelCode: code, reason: "not_in_van" }],
+    })).rejects.toBeInstanceOf(NothingToHandOver);
   });
 
   /** 090 — "the van is loaded" (quickstart P6). */

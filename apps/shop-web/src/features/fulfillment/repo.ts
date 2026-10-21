@@ -1,4 +1,5 @@
 import type {
+  LabelReadDTO,
   ShopRefundRequest,
   FulfillmentDetailDTO,
   FulfillmentQueueDTO,
@@ -112,4 +113,34 @@ export async function courierHandover(id: string): Promise<FulfillmentDetail> {
 
 export async function setOrderPicks(id: string, body: ShopOrderPicksRequest): Promise<ShopOrderDetailDTO> {
   return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/picks`, body);
+}
+
+// ── 096 — bags ───────────────────────────────────────────────────────────────────────────────────────
+
+/** Set how many bags of each zone were packed. A cold zone the lines need must have a bag (422). */
+export async function declareParcels(
+  id: string,
+  counts: { ambient: number; chilled: number; frozen: number },
+): Promise<ShopOrderDetailDTO> {
+  return api.put<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels`, { changeId: crypto.randomUUID(), ...counts });
+}
+
+/** Remove one bag. Bag 1 never; once labels are printed, only the last (409 otherwise). */
+export async function voidParcel(id: string, parcelId: string): Promise<ShopOrderDetailDTO> {
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/${parcelId}/void`, { changeId: crypto.randomUUID() });
+}
+
+/** Record that these bags' labels were SENT to a printer — called only after they were. */
+export async function recordParcelPrints(body: {
+  changeId: string;
+  parcelIds: string[];
+  layout: "a6" | "a4x4" | "roll62";
+  path: "browser" | "zpl";
+}): Promise<{ recorded: number }> {
+  return api.post<{ recorded: number }>(`/shop/v1/fulfillments/parcels/prints`, body);
+}
+
+/** Confirm bags as they are packed, by their labels' reads. */
+export async function packScanParcels(id: string, reads: LabelReadDTO[]): Promise<ShopOrderDetailDTO> {
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/fulfillments/${id}/parcels/pack-scans`, { changeId: crypto.randomUUID(), reads });
 }

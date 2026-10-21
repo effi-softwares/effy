@@ -1,6 +1,8 @@
 package com.effyshopping.driver.mobile.features.delivery.data
 
+import com.effyshopping.driver.mobile.core.scan.toDomain
 import com.effyshopping.driver.mobile.core.scan.toWire
+import com.effyshopping.driver.mobile.core.scan.toWireMissing
 import com.effyshopping.driver.mobile.core.opening.toOpening
 import com.effyshopping.driver.mobile.core.platform.imageContentType
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryWindow
@@ -43,7 +45,6 @@ import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 import com.effyshopping.driver.mobile.features.delivery.domain.MissingReason
 import com.effyshopping.driver.mobile.features.delivery.domain.NotLoaded
-import com.effyshopping.driver.mobile.contract.NotLoadedPackage
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -178,7 +179,7 @@ class HttpDeliveryRepository(
         }
         request {
             api.post("driver/v1/delivery/drops/$dropId/proof") {
-                setBody(ProofRequest(changeID = changeId, method = dtoMethod, mediaKey = presign.mediaKey, note = note, packages = handed.toWire()))
+                setBody(ProofRequest(changeID = changeId, method = dtoMethod, mediaKey = presign.mediaKey, note = note, parcels = handed.toWire(), reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain()))
             }.ensureSuccess()
         }
     }
@@ -197,7 +198,7 @@ class HttpDeliveryRepository(
     /** 088 — saved and sent later with no signal, like every other driver write. */
     override suspend fun returnToHub(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>): WriteOutcome {
         val path = "driver/v1/delivery/runs/$runId/return"
-        val body = ParcelReturnRequest(changeID = changeId, packages = handed.toWire())
+        val body = ParcelReturnRequest(changeID = changeId, parcels = handed.toWire(), reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain())
         return request {
             offline.withReplay(path, json.encodeToString(ParcelReturnRequest.serializer(), body), changeId, "Return parcels to the hub", queued = { WriteOutcome.QUEUED }) {
                 api.post(path) { setBody(body) }.ensureSuccess()
@@ -209,12 +210,12 @@ class HttpDeliveryRepository(
     /** 090 — saved and sent later with no signal, like every other driver write. */
     override suspend fun load(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, notLoaded: List<NotLoaded>): WriteOutcome {
         val path = "driver/v1/delivery/runs/$runId/load"
+        // 096 — every bag on the run: loaded (and how), or declared not loaded with a reason.
         val body = LoadRequest(
             changeID = changeId,
-            packages = handed.toWire(),
-            notLoaded = notLoaded.takeIf { it.isNotEmpty() }?.map {
-                NotLoadedPackage(packageCode = it.code, reason = it.reason.toWire(), note = it.note?.trim()?.takeIf { n -> n.isNotEmpty() })
-            },
+            parcels = handed.toWire(),
+            missingParcels = notLoaded.map { com.effyshopping.driver.mobile.core.scan.MissingBag(it.code, it.reason.wire, it.note) }.toWireMissing(),
+            reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain(),
         )
         return request {
             offline.withReplay(path, json.encodeToString(LoadRequest.serializer(), body), changeId, "Load the van", queued = { WriteOutcome.QUEUED }) {
@@ -271,6 +272,7 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
             // it was always null. It is real now, and so are the instants beside it.
             window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
             packageCodes = it.packageCodes.orEmpty(),
+            bags = it.parcels.orEmpty().map { b -> b.toDomain() },
             street = it.street?.takeIf { s -> s.isNotBlank() },
             completedAtIso = it.completedAt,
             proofMethod = it.proofMethod?.toDomain(),
@@ -284,17 +286,11 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     stageLabel = stageLabel?.takeIf { it.isNotBlank() },
 )
 
-private fun MissingReason.toWire(): com.effyshopping.driver.mobile.contract.MissingReason = when (this) {
-    MissingReason.NOT_AT_HUB -> com.effyshopping.driver.mobile.contract.MissingReason.NotAtHub
-    MissingReason.DAMAGED -> com.effyshopping.driver.mobile.contract.MissingReason.Damaged
-    MissingReason.WRONG_TEMPERATURE -> com.effyshopping.driver.mobile.contract.MissingReason.WrongTemperature
-    MissingReason.OTHER -> com.effyshopping.driver.mobile.contract.MissingReason.Other
-}
 
 /** 088/092 — the wire's parcels to return → the domain's. Shared with Today's read. */
 internal fun com.effyshopping.driver.mobile.contract.ParcelsToReturn.toParcels() = ParcelsToReturn(
     runID, count.toInt(), orders, packageCodes.orEmpty(),
-    parcels = parcels.orEmpty().map { ReturnParcel(it.ref, it.packageCode, it.place?.takeIf { p -> p.isNotBlank() }, it.reason?.toDomain()) },
+    parcels = parcels.orEmpty().map { ReturnParcel(it.ref, it.packageCode, it.place?.takeIf { p -> p.isNotBlank() }, it.reason?.toDomain(), bags = it.parcels.orEmpty().map { b -> b.toDomain() }) },
 )
 
 internal fun DeliveryFailureReason.toDomain(): FailureReason = when (this) {
@@ -319,7 +315,7 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     customerName = customerName,
     addressFull = addressFull,
     instructions = instructions,
-    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain(), p.packageCode) },
+    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain(), p.packageCode, bags = p.parcels.orEmpty().map { b -> b.toDomain() }) },
     status = dropStatus(status),
     summary = summary.toDomain(),
     // 066 — exhaustive on purpose: a third preference on the wire must fail to compile here.

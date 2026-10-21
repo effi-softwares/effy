@@ -11,7 +11,7 @@
 import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
 
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
-import { STATUS_WORD, type PackageStatusView } from "@effy/shared-types";
+import { STATUS_WORD, type PackageStatusView, type ParcelCustody, type ParcelZone, type ShopLabelCommonDTO } from "@effy/shared-types";
 
 import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
 import {
@@ -451,6 +451,65 @@ const READ_LABEL = `
    WHERE sf.id = $1 AND sf.shop_id = $2
 `;
 
+/**
+ * 096 — this package's live bags for the label and the pack step. "Printed" (`current`) means printed
+ * since the bag's number or zone last changed; `custody` is the latest hand-over, in shop words — never
+ * a driver's name (073).
+ */
+const READ_PARCELS = `
+  SELECT p.id, p.parcel_code, p.seq, p.zone,
+         count(*) OVER ()::int AS of,
+         (SELECT count(*) FROM public.label_print lp WHERE lp.parcel_id = p.id)::int AS print_count,
+         (SELECT min(lp.printed_at) FROM public.label_print lp WHERE lp.parcel_id = p.id) AS first_printed_at,
+         (SELECT max(lp.printed_at) FROM public.label_print lp WHERE lp.parcel_id = p.id) AS last_printed_at,
+         (SELECT ss.name FROM public.label_print lp LEFT JOIN public.shop_staff ss ON ss.id = lp.shop_staff_id
+           WHERE lp.parcel_id = p.id ORDER BY lp.printed_at DESC LIMIT 1) AS last_printed_by,
+         EXISTS (SELECT 1 FROM public.label_print lp WHERE lp.parcel_id = p.id AND lp.printed_at >= p.numbered_at) AS printed_current,
+         p.pack_scanned_at, ps.name AS pack_scanned_by,
+         (SELECT h.step FROM public.package_handover h WHERE h.parcel_id = p.id ORDER BY h.recorded_at DESC LIMIT 1) AS last_step,
+         (SELECT min(lp.printed_at) FROM public.label_print lp
+            JOIN public.package_parcel p2 ON p2.id = lp.parcel_id WHERE p2.shop_fulfillment_id = p.shop_fulfillment_id) AS packed_on
+    FROM public.package_parcel p
+    JOIN public.shop_fulfillment sf ON sf.id = p.shop_fulfillment_id
+    LEFT JOIN public.shop_staff ps ON ps.id = p.pack_scanned_by_staff_id
+   WHERE p.shop_fulfillment_id = $1 AND sf.shop_id = $2 AND p.voided_at IS NULL
+   ORDER BY p.seq
+`;
+
+/** 096 — the cold zones this package's lines need a bag for (065's line snapshot). */
+const READ_ZONES_NEEDED = `
+  SELECT DISTINCT oi.storage_class
+    FROM public.shop_fulfillment sf
+    JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
+   WHERE sf.id = $1 AND sf.shop_id = $2 AND oi.storage_class IN ('chilled', 'frozen')
+   ORDER BY 1
+`;
+
+interface ParcelRecord {
+  id: string;
+  parcel_code: string;
+  seq: number;
+  zone: ParcelZone;
+  of: number;
+  print_count: number;
+  first_printed_at: Date | null;
+  last_printed_at: Date | null;
+  last_printed_by: string | null;
+  printed_current: boolean;
+  pack_scanned_at: Date | null;
+  pack_scanned_by: string | null;
+  last_step: string | null;
+  packed_on: Date | null;
+}
+
+function custodyOf(step: string | null): ParcelCustody {
+  if (step === null) return "at_shop";
+  if (step === "pack") return "packed";
+  if (step === "collect") return "with_driver";
+  if (step === "courier_handover" || step === "shop_pickup") return "with_courier";
+  return "beyond";
+}
+
 export async function readOrder(fulfillmentId: string, shopId: string): Promise<OrderDetail> {
   const head = await query<HeadRecord>(READ_HEAD, [fulfillmentId, shopId]);
   const row = head.rows[0];
@@ -458,12 +517,14 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   if (!row) throw new FulfillmentError("not_found", "order not found");
 
   const args = [fulfillmentId, shopId];
-  const [lines, refunds, tags, notes, label] = await Promise.all([
+  const [lines, refunds, tags, notes, label, bags, zones] = await Promise.all([
     query<LineRecord>(READ_LINES, args),
     query<RefundRecord>(READ_REFUNDS, args),
     query<{ tag: string }>(READ_TAGS, args),
     query<{ id: string; body: string; author_name: string | null; created_at: Date }>(READ_NOTES, args),
     query<{ package_code: string; position: number; package_count: number; cold: "frozen" | "chilled" | null }>(READ_LABEL, args),
+    query<ParcelRecord>(READ_PARCELS, args),
+    query<{ storage_class: ParcelZone }>(READ_ZONES_NEEDED, args),
   ]);
   const lbl = label.rows[0]!;
 
@@ -533,6 +594,23 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       suburb: typeof row.delivery_address?.["city"] === "string" ? (row.delivery_address["city"] as string) : null,
       cold: lbl.cold,
     },
+    parcels: bags.rows.map((b) => ({
+      parcelId: b.id,
+      code: b.parcel_code,
+      seq: Number(b.seq),
+      of: Number(b.of),
+      zone: b.zone,
+      printed: {
+        count: Number(b.print_count),
+        firstAt: b.first_printed_at ? b.first_printed_at.toISOString() : null,
+        lastAt: b.last_printed_at ? b.last_printed_at.toISOString() : null,
+        current: b.printed_current,
+      },
+      packScanned: b.pack_scanned_at ? { at: b.pack_scanned_at.toISOString(), by: b.pack_scanned_by } : null,
+      custody: custodyOf(b.last_step),
+    })),
+    labelCommon: labelCommonOf(row, bags.rows[0]?.packed_on ?? null),
+    zonesNeeded: zones.rows.map((z) => z.storage_class),
     tags: tags.rows.map((t) => t.tag),
     notes: notes.rows.map(
       (n): OrderNote => ({
@@ -575,6 +653,22 @@ export function actorLabel(kind: OrderRefund["actorKind"], shopName: string | nu
     case "system":
       return "Payment provider";
   }
+}
+
+/** 096 — what every bag's label shares. Never a window, day, price, phone or email (FR-011). */
+function labelCommonOf(row: HeadRecord, packedOn: Date | null): ShopLabelCommonDTO {
+  const a = (row.delivery_address ?? {}) as Record<string, unknown>;
+  const s = (k: string) => (typeof a[k] === "string" ? (a[k] as string).trim() : "");
+  return {
+    service: row.delivered_by,
+    orderNumber: row.order_number,
+    packedOn: packedOn ? packedOn.toISOString().slice(0, 10) : null,
+    recipientName: s("recipientName"),
+    street: [s("line1"), s("line2")].filter(Boolean).join(", "),
+    suburb: s("city"),
+    state: s("region"),
+    postcode: s("postalCode"),
+  };
 }
 
 function mapDelivery(raw: Record<string, unknown>) {

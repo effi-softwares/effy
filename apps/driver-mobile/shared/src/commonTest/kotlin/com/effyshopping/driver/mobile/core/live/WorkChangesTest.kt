@@ -31,11 +31,11 @@ class WorkChangesTest {
     private class Collection(var outcome: WriteOutcome = WriteOutcome.SENT, var split: HubSplit? = HubSplit(1, 1, 0), var fail: Boolean = false) : CollectionRepository {
         override suspend fun getRun(runId: String): CollectionRun = error("not read")
         override suspend fun getStop(runId: String, stopId: String): ShopStop = error("not read")
-        override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): com.effyshopping.driver.mobile.features.collection.domain.Collected {
+        override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>, handed: List<HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): com.effyshopping.driver.mobile.features.collection.domain.Collected {
             if (fail) throw AppException(AppError.Unexpected)
             return com.effyshopping.driver.mobile.features.collection.domain.Collected(outcome)
         }
-        override suspend fun checkIn(runId: String, changeId: String, handed: List<HandedOver>, missing: List<String>): HubSplit? = split
+        override suspend fun checkIn(runId: String, changeId: String, handed: List<HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): HubSplit? = split
     }
 
     private class Drivers : DriverRepository {

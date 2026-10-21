@@ -24,3 +24,4 @@ export * from "./fee-wire";
 export * from "./held";
 export * from "./round-stage";
 export * from "./vehicle-check";
+export * from "./hub-checkin";

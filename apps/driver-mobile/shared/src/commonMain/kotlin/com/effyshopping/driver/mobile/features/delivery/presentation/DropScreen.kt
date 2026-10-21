@@ -71,6 +71,7 @@ import com.effyshopping.driver.mobile.resources.lucide_house
 import com.effyshopping.driver.mobile.resources.lucide_scan_line
 import com.effyshopping.driver.mobile.resources.lucide_truck
 import com.effyshopping.driver.mobile.core.scan.HandedOver
+import com.effyshopping.driver.mobile.core.scan.title
 import com.effyshopping.driver.mobile.core.scan.ScanContext
 import com.effyshopping.driver.mobile.core.scan.ScanContexts
 import com.effyshopping.driver.mobile.core.scan.ScanItem
@@ -148,7 +149,7 @@ private fun OpenDrop(
     startScanning: Boolean,
     onBackToRun: () -> Unit,
 ) {
-    val canScan = drop.packages.any { it.packageCode != null }
+    val canScan = drop.packages.any { it.allBags.isNotEmpty() }
     var stage by rememberSaveable(drop.dropId) {
         // 093 — never straight to the door scan for a drop that is still at the hub.
         mutableStateOf(if (startScanning && canScan && drop.loaded && rememberIsOpenNow(drop)) DropStage.Scan else DropStage.Detail)
@@ -165,23 +166,27 @@ private fun OpenDrop(
     when (stage) {
         DropStage.Scan -> {
             val run = state.run
-            val base = if (run != null) ScanContexts.drop(run, drop) else ScanContext(drop.packages.mapNotNull { it.packageCode }.toSet())
+            val bags = drop.packages.flatMap { it.allBags }
+            val base = if (run != null) ScanContexts.drop(run, drop)
+            else ScanContext(bags.map { it.code }.toSet(), bags = bags.associate { it.code to com.effyshopping.driver.mobile.core.scan.BagNumber(it.seq, it.of) })
             val street = splitAddress(drop.addressFull).first
             val n = drop.packages.size
             ScanPanel(
                 title = street, backLabel = "Drop",
                 context = base,
-                items = drop.packages.mapIndexedNotNull { i, p ->
-                    p.packageCode?.let {
+                // 096 — one row per bag: every bag of every package is handed over.
+                items = drop.packages.flatMapIndexed { i, p ->
+                    p.allBags.map { b ->
+                        val words = listOfNotNull("Package ${i + 1} of $n".takeIf { n > 1 }, b.title().takeIf { b.of > 1 }).joinToString(" · ").ifEmpty { "Package 1 of 1" }
                         ScanItem(
-                            it, "Package ${i + 1} of $n",
+                            b.code, words,
                             meta = listOfNotNull(itemWords(p.summary.total.takeIf { it > 0 } ?: p.items.sumOf { it.qty }), "cold".takeIf { p.summary.hasCold }).joinToString(" · "),
-                            bannerTitle = "Package ${i + 1} of $n", bannerSub = "For $street",
+                            bannerTitle = words, bannerSub = "For $street",
                         )
                     }
                 },
-                listTitle = { s, t -> "Packages · $s of $t scanned" },
-                idleSub = "$street · ${packages(n)}",
+                listTitle = { s, t -> "Bags · $s of $t scanned" },
+                idleSub = "$street · ${if (bags.size == 1) "1 bag" else "${bags.size} bags"}",
                 completeVerb = "handing over",
                 working = false,
                 onBack = { stage = DropStage.Detail },

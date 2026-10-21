@@ -101,11 +101,11 @@ describe("the summary bar", () => {
 });
 
 describe("layout", () => {
-  it("puts Items and fulfilment, then Internal notes, in the content column, and Customer and delivery below", async () => {
+  it("puts Items and fulfilment, then Bags & labels (096), then Internal notes, in the content column, and Customer and delivery below", async () => {
     open();
     await screen.findByText("Items and fulfilment");
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(titles).toEqual(["Items and fulfilment", "Internal notes", "Customer and delivery"]);
+    expect(titles).toEqual(["Items and fulfilment", "Bags & labels", "Internal notes", "Customer and delivery"]);
     // ⚠ The Fulfilment section is gone — merged into Items and fulfilment.
     expect(screen.queryByRole("heading", { name: "Fulfilment" })).not.toBeInTheDocument();
     // ⚠ The activity log is a sheet, not a section.

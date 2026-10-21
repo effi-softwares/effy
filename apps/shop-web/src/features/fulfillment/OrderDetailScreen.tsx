@@ -16,7 +16,7 @@ import { OrderActivitySheet } from "./components/OrderActivitySheet";
 import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags";
 import { PackageStatusPill } from "@effy/web-kit/console";
 import { PaymentPill } from "./components/OrderPill";
-import { PrintLabels } from "./components/PrintLabels";
+import { PackBags } from "./components/PackBags";
 import { RefundSheet } from "./components/RefundSheet";
 import { CantSupplyDialog, StateActions } from "./components/StateControl";
 import { canDeclareUnfulfillable } from "./model";
@@ -115,9 +115,9 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
           <div className="text-muted-foreground text-[12.5px]">
             {formatWhen(detail.placedAt)} · Online store ·{" "}
-            {/* 089 — the code on this package's label. */}
+            {/* 089 — the package's code (bag 1's label carries it). */}
             <span className="font-mono" aria-label="Package code">
-              {detail.label.packageCode}
+              {detail.parcels[0]?.code ?? detail.label.packageCode}
             </span>
           </div>
         </div>
@@ -134,6 +134,8 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         {/* ── Content column: 52px between sections ───────────────────────────────────────────── */}
         <div className="grid min-w-0 gap-[52px]">
           <ItemsAndFulfilment detail={detail} />
+
+          <PackBags detail={detail} />
 
           <section>
             <div className="border-border flex items-baseline gap-2.5 border-b pb-3">
@@ -181,7 +183,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             <Button variant="outline" onClick={() => printPickList(detail)}>
               Print pick list
             </Button>
-            <PrintLabels detail={detail} />
             {/* ⚠ `destructive-ghost`, the platform's default destructive affordance — NOT the filled
                 red button. A solid fill here would give the riskiest control on the screen the visual
                 weight of a primary action. The three hand-rolled classes it used to carry were

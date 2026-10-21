@@ -49,6 +49,7 @@ import * as manual from "../assignments/service";
 import { planWave } from "./assign";
 import { enqueueRoundsOpeningSoon } from "../shared/driver-push";
 import { recordParcelReturn, toReturnOnRound } from "@effy/edge-shared/delivery";
+import { createFirstParcels } from "@effy/edge-shared/labels";
 import { staffReturnParcels } from "../dispatch/return";
 import { runPass } from "./service";
 import type { PlannablePackage, PlannerCandidate } from "./types";
@@ -1053,9 +1054,13 @@ describe("069 + 072 — delivery is planned per window, and assigned at once", (
     const sfId = await atHub(driverId, shopId, null);
     const { roundId, stopId } = await failedDrop(driverId, sfId);
     expect((await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId)).not.toHaveProperty("handovers");
+    // 096 — hand-overs are per bag: bag 1 carries the package's code.
+    await createFirstParcels(holder.pool!, { packageIds: [sfId] });
     await q(
-      `INSERT INTO public.package_handover (shop_fulfillment_id, round_id, driver_id, step, handover_method, change_id)
-       VALUES ($1, $2, $3, 'load', 'scan', gen_random_uuid()), ($1, $2, $3, 'deliver', 'typed', gen_random_uuid())`,
+      `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, round_id, actor_kind, driver_id, step, handover_method, change_id)
+       SELECT $1, p.id, $2, 'driver', $3, s.step, s.m, gen_random_uuid()
+         FROM public.package_parcel p, (VALUES ('load', 'scan'), ('deliver', 'typed')) AS s(step, m)
+        WHERE p.shop_fulfillment_id = $1`,
       [sfId, roundId, driverId],
     );
     const stop = (await svc.readRound(roundId)).stops.find((s: any) => s.stopId === stopId) as any;

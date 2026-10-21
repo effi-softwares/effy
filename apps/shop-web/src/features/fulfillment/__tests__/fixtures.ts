@@ -59,6 +59,11 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
     deliveryMethod: "standard",
     atRisk: false,
     label: { packageCode: "7K3Q9M", position: 1, packageCount: 2, suburb: "Fitzroy", cold: null },
+    parcels: [
+      { parcelId: "p-1", code: "7K3Q9M", seq: 1, of: 1, zone: "ambient", printed: { count: 0, firstAt: null, lastAt: null, current: false }, packScanned: null, custody: "at_shop" },
+    ],
+    labelCommon: { service: "effy_driver", orderNumber: "EFY-20481", packedOn: null, recipientName: "Ada Lovelace", street: "27 Rathdowne St", suburb: "Fitzroy", state: "VIC", postcode: "3065" },
+    zonesNeeded: [],
     delivery: {
       recipientName: "Maya Oyelaran",
       phone: "0400 000 000",

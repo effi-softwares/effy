@@ -54,11 +54,18 @@ class SignallingCollectionRepository(
     private val inner: CollectionRepository,
     private val work: WorkChanges,
 ) : CollectionRepository by inner {
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): com.effyshopping.driver.mobile.features.collection.domain.Collected =
-        inner.collect(runId, stopId, changeId, outcomes).also { if (it.outcome.reached()) work.changed() }
+    override suspend fun collect(
+        runId: String,
+        stopId: String,
+        changeId: String,
+        outcomes: List<PackageOutcome>,
+        handed: List<HandedOver>,
+        missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>,
+    ): com.effyshopping.driver.mobile.features.collection.domain.Collected =
+        inner.collect(runId, stopId, changeId, outcomes, handed, missing).also { if (it.outcome.reached()) work.changed() }
 
     // A check-in answers with where the parcels go once the platform has it; null is saved to send.
-    override suspend fun checkIn(runId: String, changeId: String, handed: List<HandedOver>, missing: List<String>): HubSplit? =
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): HubSplit? =
         inner.checkIn(runId, changeId, handed, missing).also { if (it != null) work.changed() }
 }
 

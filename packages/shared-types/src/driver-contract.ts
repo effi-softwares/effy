@@ -63,9 +63,11 @@ import type {
   VehicleCheckRequest,
   VehicleCheckResponse,
   LoadStep,
-  PackageRefOnly,
-  NotLoadedPackage,
+  ParcelsUnaccountedProblem,
+  DriverReadsRequest,
+  DriverReadsResponse,
 } from "./driver";
+import type { LabelReadDTO, ParcelDTO, ParcelHandover, ParcelMissing } from "./parcels";
 import type { ProblemJSON } from "./problem";
 
 /** Aggregator — codegen entry only. Every field forces a type into the schema. */
@@ -123,7 +125,12 @@ export interface DriverContract {
   vehicleCheckRequest: VehicleCheckRequest;
   vehicleCheckResponse: VehicleCheckResponse;
   loadStep: LoadStep;
-  packageRef: PackageRefOnly;
-  notLoadedPackage: NotLoadedPackage;
+  parcel: ParcelDTO;
+  parcelHandover: ParcelHandover;
+  parcelMissing: ParcelMissing;
+  labelRead: LabelReadDTO;
+  readsRequest: DriverReadsRequest;
+  readsResponse: DriverReadsResponse;
+  parcelsUnaccounted: ParcelsUnaccountedProblem;
   problem: ProblemJSON;
 }

@@ -7,6 +7,7 @@ import type { HubCheckinRequest } from "@effy/shared-types";
 
 import { authenticate } from "../driver/guard";
 import { hubCheckin } from "../work/complete";
+import { ParcelsUnaccounted, parcelsUnaccountedProblem } from "@effy/edge-shared/labels";
 import { NotFoundError } from "../work/service";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
@@ -36,7 +37,7 @@ export const handler = async (
   }
 
   try {
-    const checkedIn = await hubCheckin(body.runId, guard.driver.id, { changeId: body.changeId, packages: body.packages, missing: body.missing });
+    const checkedIn = await hubCheckin(body.runId, guard.driver.id, { changeId: body.changeId, parcels: body.parcels, missingParcels: body.missingParcels, reads: body.reads });
     // 071/073 — committed; back-office AND every shop whose packages arrived see them "At hub".
     await announceCheckedIn(body.runId);
     if ((checkedIn.held ?? 0) > 0) await announceHeld();
@@ -45,6 +46,7 @@ export const handler = async (
     // 072 — the round has not opened. Nothing was written; the answer says when it will.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
+    if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);
     if (err instanceof NotFoundError) {
       return problem(404, "not_found", "Not available", "That run is not available.", guard.scope);
     }

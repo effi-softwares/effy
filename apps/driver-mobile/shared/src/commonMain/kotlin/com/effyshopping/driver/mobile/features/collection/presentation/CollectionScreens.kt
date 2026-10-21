@@ -74,6 +74,8 @@ import com.effyshopping.driver.mobile.core.scan.HandMethod
 import com.effyshopping.driver.mobile.core.scan.HandedOver
 import com.effyshopping.driver.mobile.core.scan.Unscanned
 import com.effyshopping.driver.mobile.core.scan.Accounted
+import com.effyshopping.driver.mobile.core.scan.MissingBag
+import com.effyshopping.driver.mobile.core.scan.title
 import com.effyshopping.driver.mobile.core.scan.AccountSheet
 import com.effyshopping.driver.mobile.core.scan.RouteTone
 import com.effyshopping.driver.mobile.core.scan.ScanContext
@@ -272,7 +274,8 @@ fun ShopStopScreen(
     stopCount: Int,
     onBack: () -> Unit,
     onCollect: () -> Unit,
-    onScanCollect: (Map<String, HandMethod>) -> Unit,
+    /** 096 — how each bag was handed over, and the bags declared not at the shop. */
+    onScanCollect: (Map<String, HandMethod>, List<MissingBag>) -> Unit,
     onTogglePackage: (String) -> Unit,
     onReport: (key: String, kind: String, note: String?) -> Unit,
     onWithdrawReport: (String) -> Unit,
@@ -298,33 +301,60 @@ fun ShopStopScreen(
     }
     val open = rememberIsOpen(stop.opening)
     val alreadyCollected = stop.status.done
-    val canScan = open && !alreadyCollected && stop.packages.any { it.packageCode != null }
+    val canScan = open && !alreadyCollected && stop.packages.any { it.allBags.isNotEmpty() }
     var scanning by rememberSaveable(stop.stopId) { mutableStateOf(startScanning && canScan) }
     var reporting by rememberSaveable(stop.stopId) { mutableStateOf<String?>(null) }
     val run = state.run
+    // 096 — a bag not scanned is asked about: it's here (ticked by hand), or it wasn't at the shop.
+    var accounting by remember(stop.stopId) { mutableStateOf<List<HandedOver>?>(null) }
     if (scanning) {
-        val live = stop.packages.filter { it.key !in state.reportedPackages && it.packageCode != null }
+        val live = stop.packages.filter { it.key !in state.reportedPackages && it.allBags.isNotEmpty() }
+        val bags = live.flatMap { p -> p.allBags.map { b -> p to b } }
         val base = if (run != null) ScanContexts.shopStop(run, stop) else ScanContext(emptySet())
+        accounting?.let { scanned ->
+            val done = scanned.map { it.code }.toSet()
+            AccountSheet(
+                title = "Is every bag here?",
+                description = "Say what happened to each bag you didn't scan. A bag that isn't here is held, and dispatch is told.",
+                unscanned = bags.filter { (_, b) -> b.code !in done }.map { (p, b) -> Unscanned(b.code, "${p.ref} · ${b.title()}", b.code) },
+                hereLabel = "It's here",
+                missingLabel = "Not at the shop",
+                reasons = listOf("not_at_shop" to "Not at the shop", "damaged" to "Damaged", "wrong_temperature" to "Wrong temperature", "other" to "Other"),
+                otherKey = "other",
+                confirmLabel = "Collect",
+                working = state.isWorking,
+                onDismiss = { accounting = null },
+                onConfirm = { answers ->
+                    accounting = null
+                    scanning = false
+                    val methods = scanned.associate { it.code to it.method } +
+                        answers.filterValues { it == Accounted.Here }.keys.associateWith { HandMethod.MANUAL }
+                    val missing = answers.mapNotNull { (code, a) -> (a as? Accounted.Missing)?.let { MissingBag(code, it.reason ?: "not_at_shop", it.note) } }
+                    onScanCollect(methods, missing)
+                },
+            )
+        }
         ScanPanel(
             title = stop.shopName,
             backLabel = "Run",
-            context = ScanContext(expected = live.mapNotNull { it.packageCode }.toSet(), elsewhere = base.elsewhere),
-            items = live.map {
+            context = ScanContext(expected = bags.map { it.second.code }.toSet(), elsewhere = base.elsewhere, bags = base.bags),
+            items = bags.map { (p, b) ->
                 ScanItem(
-                    it.packageCode!!, it.ref, mono = true,
-                    meta = coverage(it), tone = if (it.goesToCourier) RouteTone.Courier else RouteTone.Effy,
-                    bannerTitle = it.ref, bannerSub = coverage(it),
+                    b.code, "${p.ref} · ${b.title()}", mono = true,
+                    meta = coverage(p), tone = if (p.goesToCourier) RouteTone.Courier else RouteTone.Effy,
+                    bannerTitle = "${p.ref} · ${b.title()}", bannerSub = coverage(p),
                 )
             },
-            listTitle = { s, t -> "Packages · $s of $t scanned" },
-            idleSub = "${stop.shopName} · ${packages(live.size)}",
+            listTitle = { s, t -> "Bags · $s of $t scanned" },
+            idleSub = "${stop.shopName} · ${bagsWord(bags.size)}",
             completeVerb = "collecting",
             working = state.isWorking,
             message = state.message,
             onBack = onBack,
-            onComplete = { handed -> onScanCollect(handed.associate { it.code to it.method }) },
+            onComplete = { handed -> onScanCollect(handed.associate { it.code to it.method }, emptyList()) },
             fallbackLabel = "Can't scan? Tick by hand",
             onFallback = { scanning = false },
+            onFallbackWith = { scanned -> accounting = scanned },
             secondaryLabel = "Report",
             onSecondary = { scanning = false },
         )
@@ -592,7 +622,7 @@ fun HubCheckinScreen(
     hubName: String?,
     onBack: () -> Unit,
     /** What was handed over, and (093) the label codes of collected packages that are not in the van. */
-    onCheckIn: (List<HandedOver>, List<String>) -> Unit,
+    onCheckIn: (List<HandedOver>, List<MissingBag>) -> Unit,
     onDone: () -> Unit,
     onNavigate: (String) -> Unit,
     /** 092 — the driver's next delivery run, as Today holds it: (title, detail); null when there is none. */
@@ -601,22 +631,25 @@ fun HubCheckinScreen(
     val split = state.hubSplit
     var scanning by rememberSaveable { mutableStateOf(false) }
     val run = state.run
-    // 093 — checking in without scanning asks about every package not scanned; this is what WAS scanned.
+    // 093 — checking in without scanning asks about every BAG not scanned; this is what WAS scanned.
     var accounting by remember { mutableStateOf<List<HandedOver>?>(null) }
+    // 096 — each bag's hub instruction (its package's), and the bags that came off the shelves: a
+    // package left at its shop has no instruction and is not coming.
+    val sortByBag = run?.hubSort.orEmpty().flatMap { hs -> hs.bagCodes.ifEmpty { listOf(hs.packageCode) }.map { it to hs } }.toMap()
+    fun comingBags(s: com.effyshopping.driver.mobile.features.collection.domain.CollectionStop) =
+        bagsOrPackageCodes(s).filter { b -> sortByBag.isEmpty() || b.code in sortByBag }
     if (run != null && split == null && !state.checkInSending) {
         accounting?.let { scanned ->
             val done = scanned.map { it.code }.toSet()
-            // Only what came off the shelves: a package left at its shop has no hub instruction.
-            val coming = run.hubSort.map { it.packageCode }.toSet()
             val unscanned = run.stops.filter { it.status.done }.flatMap { s ->
-                s.packageCodes.filter { c -> c !in done && (coming.isEmpty() || c in coming) }.map { c -> Unscanned(c, "From ${s.shopName}", c) }
+                comingBags(s).filter { b -> b.code !in done }.map { b -> Unscanned(b.code, "From ${s.shopName} · ${b.title()}", b.code) }
             }
             if (unscanned.isEmpty()) {
                 androidx.compose.runtime.LaunchedEffect(scanned) { accounting = null; onCheckIn(scanned, emptyList()) }
             } else {
                 AccountSheet(
-                    title = "Is every package here?",
-                    description = "Say what happened to each package you didn't scan. One that isn't in the van is kept off delivery, and dispatch is told.",
+                    title = "Is every bag here?",
+                    description = "Say what happened to each bag you didn't scan. One that isn't in the van is held, and dispatch is told.",
                     unscanned = unscanned,
                     hereLabel = "It's here",
                     missingLabel = "Not in the van",
@@ -628,21 +661,22 @@ fun HubCheckinScreen(
                     onConfirm = { answers ->
                         accounting = null
                         val here = answers.filterValues { it == Accounted.Here }.keys.map { HandedOver(it, HandMethod.MANUAL) }
-                        onCheckIn(scanned + here, answers.filterValues { it is Accounted.Missing }.keys.toList())
+                        onCheckIn(scanned + here, answers.filterValues { it is Accounted.Missing }.keys.map { MissingBag(it, "not_in_van") })
                     },
                 )
             }
         }
     }
     if (scanning && run != null && split == null && !state.checkInSending) {
-        val sort = run.hubSort.associateBy { it.packageCode }
+        val sort = sortByBag
         val items = run.stops.filter { it.status.done }.flatMap { s ->
-            s.packageCodes.map { c ->
+            comingBags(s).map { b ->
+                val c = b.code
                 val hs = sort[c]
                 val (word, rest) = hs?.let { splitSort(it.label) } ?: ("CHECK IN" to null)
                 ScanItem(
-                    c, "From ${s.shopName}",
-                    bannerTitle = "From ${s.shopName}", bannerSub = "Scanned off the van",
+                    c, "From ${s.shopName} · ${b.title()}",
+                    bannerTitle = "From ${s.shopName} · ${b.title()}", bannerSub = "Scanned off the van",
                     group = hs?.let { ScanGroup(it.label, word.lowercase().replaceFirstChar { ch -> ch.uppercase() }, rest, swatch = swatchOf(it.kind)) },
                     sort = hs?.let { ScanSort(word, rest ?: "", swatchOf(it.kind)) },
                 )
@@ -654,7 +688,7 @@ fun HubCheckinScreen(
             context = ScanContexts.hub(run),
             items = items,
             listTitle = { s, t -> "$s of $t checked in" },
-            idleSub = "${hubName?.takeIf { it.isNotBlank() } ?: "The hub"} · ${packages(items.size)}",
+            idleSub = "${hubName?.takeIf { it.isNotBlank() } ?: "The hub"} · ${bagsWord(items.size)}",
             completeVerb = "checking in",
             working = state.isWorking,
             message = state.message,
@@ -689,8 +723,8 @@ fun HubCheckinScreen(
                 state.checkInSending -> Sending()
                 else -> {
                     Confirm(run, hubName, onNavigate)
-                    if (run != null && run.stops.any { it.packageCodes.isNotEmpty() }) {
-                        DriverButton("Scan packages off the van", onClick = { scanning = true }, icon = Res.drawable.lucide_scan_line, modifier = Modifier.fillMaxWidth())
+                    if (run != null && run.stops.any { it.bagCodes.isNotEmpty() }) {
+                        DriverButton("Scan bags off the van", onClick = { scanning = true }, icon = Res.drawable.lucide_scan_line, modifier = Modifier.fillMaxWidth())
                         DriverAlert(
                             DriverAlertKind.Info, Res.drawable.lucide_info,
                             title = "Each scan tells you where it goes",
@@ -704,7 +738,7 @@ fun HubCheckinScreen(
             if (split != null || state.checkInSending) {
                 DriverButton("Back to Today", onClick = onDone, modifier = Modifier.fillMaxWidth())
             } else {
-                val scannable = run?.stops?.any { it.packageCodes.isNotEmpty() } == true
+                val scannable = run?.stops?.any { it.bagCodes.isNotEmpty() } == true
                 DriverSwipeToConfirm(
                     if (scannable) "Swipe to check in without scanning" else "Swipe to check in",
                     onConfirm = { if (scannable) accounting = emptyList() else onCheckIn(emptyList(), emptyList()) },
@@ -833,3 +867,10 @@ private fun Sending() {
     }
     DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_info, title = "No need to wait here", description = "You can close the app. If the hub's Wi-Fi is available, connect to it to send now.")
 }
+
+/** 096 — a stop's bags, or one per package code from an older server. */
+internal fun bagsOrPackageCodes(s: com.effyshopping.driver.mobile.features.collection.domain.CollectionStop): List<com.effyshopping.driver.mobile.core.scan.Bag> =
+    s.bags.ifEmpty { s.packageCodes.map { com.effyshopping.driver.mobile.core.scan.Bag(it, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) } }
+
+/** "1 bag" / "3 bags". */
+internal fun bagsWord(n: Int): String = if (n == 1) "1 bag" else "$n bags"

@@ -36,6 +36,7 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
+import { createFirstParcels, expectedParcels, ParcelsUnaccounted } from "@effy/edge-shared/labels";
 
 import { gatherDeliveryWork } from "../../../fleet/src/planner/repository";
 import { recordFailure, recordProof } from "../proof/repository";
@@ -53,6 +54,13 @@ let n = 0;
 
 const change = () => crypto.randomUUID();
 const one = async <T,>(sql: string, params: unknown[] = []) => (await pool.query(sql, params as never[])).rows[0] as T;
+
+/** 096 — give these packages their bag 1 (as payment does) and answer each one's bag code. */
+async function bagsOf(packageIds: string[]): Promise<Map<string, string>> {
+  await createFirstParcels(pool, { packageIds });
+  const rows = (await pool.query(`SELECT shop_fulfillment_id, parcel_code FROM public.package_parcel WHERE shop_fulfillment_id = ANY($1::uuid[])`, [packageIds])).rows;
+  return new Map(rows.map((r) => [r.shop_fulfillment_id as string, r.parcel_code as string]));
+}
 
 async function anOrder(shopId: string, status: "ready_for_pickup" | "collected"): Promise<{ sfId: string; orderId: string }> {
   n += 1;
@@ -315,11 +323,14 @@ d("093 — the order of a driver's work", () => {
     expect(await gathered(), "on a run: not gathered again").toEqual([]);
 
     const changeId = change();
+    // 096 — each package is one bag here, so a bag declared missing is its whole package (093's shape).
+    const bag = await bagsOf([lone!, kept!, torn!]);
     const notLoaded = [
-      { packageId: lone!, reason: "damaged" as const },
-      { packageId: torn!, reason: "other" as const, note: "label torn off, cannot identify" },
+      { parcelCode: bag.get(lone!)!, reason: "damaged" as const },
+      { parcelCode: bag.get(torn!)!, reason: "other" as const, note: "label torn off, cannot identify" },
     ];
-    const r = await loadRun(roundId, driverId, changeId, undefined, notLoaded);
+    const loaded = [{ parcelCode: bag.get(kept!)!, method: "scan" as const }];
+    const r = await loadRun(roundId, driverId, changeId, loaded, notLoaded);
     expect(r).toEqual({ loadedDropIds: [pairDrop], held: 2, dropsRemoved: 1 });
     expect((await pool.query(`SELECT 1 FROM public.round_stop WHERE id = $1`, [loneDrop])).rowCount).toBe(0);
     expect((await pool.query(`SELECT shop_fulfillment_id FROM public.round_package WHERE stop_id = $1`, [pairDrop])).rows)
@@ -337,22 +348,28 @@ d("093 — the order of a driver's work", () => {
     await pool.query(`UPDATE public.package_hold SET resolution = 'found', resolved_by_sub = 's', resolved_at = now() WHERE shop_fulfillment_id = $1`, [lone]);
     expect(await gathered()).toEqual([lone]);
 
-    await expect(loadRun(roundId, driverId, changeId, undefined, notLoaded)).resolves.toMatchObject({ loadedDropIds: [], held: 2 });
+    await expect(loadRun(roundId, driverId, changeId, loaded, notLoaded)).resolves.toMatchObject({ loadedDropIds: [], held: 2 });
     expect((await one<{ n: number }>(`SELECT count(*)::int AS n FROM public.package_hold`)).n).toBe(2);
   });
 
   it("every drop declared: the run has nothing left and is cancelled", async () => {
     const { roundId, drops } = await aDeliveryRun([1]);
-    await loadRun(roundId, driverId, change(), undefined, [{ packageId: drops[0]!.sfIds[0]!, reason: "not_at_hub" }]);
+    const bag = await bagsOf([drops[0]!.sfIds[0]!]);
+    await loadRun(roundId, driverId, change(), [], [{ parcelCode: bag.get(drops[0]!.sfIds[0]!)!, reason: "not_at_hub" }]);
     expect((await one<{ status: string }>(`SELECT status FROM public.driver_round WHERE id = $1`, [roundId])).status).toBe("cancelled");
   });
 
   it("a collected package not in the van at check-in is held, and kept off delivery planning", async () => {
     const { roundId, stops } = await aCollectionRun([2]);
     const [here, gone] = stops[0]!.sfIds;
-    await collectStop(roundId, stops[0]!.stopId, driverId, { changeId: change(), packages: all(stops[0]!.sfIds) });
+    const bag = await bagsOf([here!, gone!]);
+    await collectStop(roundId, stops[0]!.stopId, driverId, {
+      changeId: change(), packages: all(stops[0]!.sfIds), parcels: [here!, gone!].map((id) => ({ parcelCode: bag.get(id)!, method: "scan" as const })),
+    });
 
-    const res = await hubCheckin(roundId, driverId, { changeId: change(), missing: [{ packageId: gone! }] });
+    const res = await hubCheckin(roundId, driverId, {
+      changeId: change(), parcels: [{ parcelCode: bag.get(here!)!, method: "scan" }], missingParcels: [{ parcelCode: bag.get(gone!)!, reason: "not_in_van" }],
+    });
     expect(res.held).toBe(1);
     expect(res.scannedTotal).toBe(1);
     expect((await one<{ step: string; reason: string }>(`SELECT step, reason FROM public.package_hold`))).toEqual({ step: "checkin", reason: "not_in_van" });
@@ -360,5 +377,76 @@ d("093 — the order of a driver's work", () => {
     const gathered = (await gatherDeliveryWork(pool, null, new Date("9999-12-31T00:00:00Z"))).map((p) => p.packageId);
     expect(gathered).toContain(here);
     expect(gathered).not.toContain(gone);
+  });
+
+  // ── 096 — every BAG accounted for (spec US3, SC-003) ──────────────────────────────────────────────
+
+  /** A package with `n` bags: bag 1 as payment creates it, the rest as a shop declares them. */
+  async function bags(packageId: string, n: number): Promise<string[]> {
+    await createFirstParcels(pool, { packageIds: [packageId] });
+    for (let seq = 2; seq <= n; seq++) {
+      await pool.query(
+        `INSERT INTO public.package_parcel (shop_fulfillment_id, parcel_code, seq, zone, declared) VALUES ($1, public.new_parcel_code(), $2, 'ambient', true)`,
+        [packageId, seq],
+      );
+    }
+    return (await pool.query(`SELECT parcel_code FROM public.package_parcel WHERE shop_fulfillment_id = $1 ORDER BY seq`, [packageId])).rows.map((r) => r.parcel_code as string);
+  }
+  const scanned = (codes: string[]) => codes.map((parcelCode) => ({ parcelCode, method: "scan" as const }));
+
+  it("096 — a bag left on the counter stops the collect, naming it; declared missing, the package is collected and that bag held", async () => {
+    const { roundId, stops } = await aCollectionRun([1]);
+    const pkg = stops[0]!.sfIds[0]!;
+    const codes = await bags(pkg, 3);
+    const attempt = collectStop(roundId, stops[0]!.stopId, driverId, { changeId: change(), packages: all([pkg]), parcels: scanned(codes.slice(0, 2)) });
+    await expect(attempt).rejects.toBeInstanceOf(ParcelsUnaccounted);
+    await attempt.catch((e: ParcelsUnaccounted) => expect(e.body().parcels).toEqual([{ code: codes[2], seq: 3, of: 3 }]));
+    expect((await one<{ state: string }>(`SELECT state FROM public.round_package WHERE shop_fulfillment_id = $1`, [pkg])).state).toBe("assigned");
+
+    await collectStop(roundId, stops[0]!.stopId, driverId, {
+      changeId: change(), packages: all([pkg]), parcels: scanned(codes.slice(0, 2)),
+      missingParcels: [{ parcelCode: codes[2]!, reason: "not_at_shop" }],
+    });
+    expect((await one<{ state: string }>(`SELECT state FROM public.round_package WHERE shop_fulfillment_id = $1`, [pkg])).state).toBe("picked_up");
+    const holds = (await pool.query(`SELECT parcel_id IS NOT NULL AS one_bag, step, reason FROM public.package_hold`)).rows;
+    expect(holds).toEqual([{ one_bag: true, step: "collect", reason: "not_at_shop" }]);
+    // The hub expects the two bags that came, not the one that did not.
+    const atHub = await expectedParcels(pool, { step: "checkin", packageIds: [pkg], roundId });
+    expect(atHub.map((b) => b.code)).toEqual(codes.slice(0, 2));
+    // …and the package itself is not held: only a whole-package hold keeps it off a van.
+    expect((await pool.query(`SELECT 1 FROM public.package_hold WHERE parcel_id IS NULL`)).rowCount).toBe(0);
+  });
+
+  it("096 — every bag missing at the counter is 'not available', not a collect", async () => {
+    const { roundId, stops } = await aCollectionRun([1]);
+    const pkg = stops[0]!.sfIds[0]!;
+    const codes = await bags(pkg, 2);
+    const r = await collectStop(roundId, stops[0]!.stopId, driverId, {
+      changeId: change(), packages: all([pkg]), missingParcels: codes.map((parcelCode) => ({ parcelCode, reason: "not_at_shop" as const })),
+    });
+    expect(r).toMatchObject({ collected: 0, notAvailable: 1 });
+    expect((await pool.query(`SELECT 1 FROM public.package_hold`)).rowCount).toBe(0);
+  });
+
+  it("096 — one bag missing at loading holds the bag and the package goes out; found, it is expected at the door again", async () => {
+    const { roundId, drops } = await aDeliveryRun([1]);
+    const pkg = drops[0]!.sfIds[0]!;
+    const codes = await bags(pkg, 2);
+    await expect(loadRun(roundId, driverId, change(), scanned([codes[0]!]))).rejects.toBeInstanceOf(ParcelsUnaccounted);
+    const r = await loadRun(roundId, driverId, change(), scanned([codes[0]!]), [{ parcelCode: codes[1]!, reason: "damaged" }]);
+    expect(r).toMatchObject({ loadedDropIds: [drops[0]!.dropId], held: 1, dropsRemoved: 0 });
+    expect((await expectedParcels(pool, { step: "deliver", packageIds: [pkg], roundId })).map((b) => b.code)).toEqual([codes[0]]);
+    await pool.query(`UPDATE public.package_hold SET resolution = 'found', resolved_by_sub = 's', resolved_at = now()`);
+    expect((await expectedParcels(pool, { step: "deliver", packageIds: [pkg], roundId })).map((b) => b.code)).toEqual(codes);
+  });
+
+  it("096 — a voided bag is never expected, and the count is of live bags", async () => {
+    const { roundId, drops } = await aDeliveryRun([1]);
+    const pkg = drops[0]!.sfIds[0]!;
+    const codes = await bags(pkg, 3);
+    await pool.query(`UPDATE public.package_parcel SET voided_at = now() WHERE parcel_code = $1`, [codes[2]]);
+    const expected = await expectedParcels(pool, { step: "load", packageIds: [pkg], roundId });
+    expect(expected.map((b) => [b.code, b.seq, b.of])).toEqual([[codes[0], 1, 2], [codes[1], 2, 2]]);
+    await expect(loadRun(roundId, driverId, change(), scanned(codes.slice(0, 2)))).resolves.toMatchObject({ held: 0 });
   });
 });

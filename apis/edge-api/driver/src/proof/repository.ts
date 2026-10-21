@@ -3,9 +3,9 @@
 
 import { enqueueOrderDeliveredIfComplete, withTransaction } from "@effy/edge-shared";
 import { completeDeliveryRoundIfFinished } from "@effy/edge-shared/delivery";
-import type { PackageHandover } from "@effy/shared-types";
+import { accountFor, countByPackage, expectedParcels, NothingToHandOver, recordHandovers, recordReads, writeParcelHolds } from "@effy/edge-shared/labels";
+import type { LabelReadDTO, ParcelHandover, ParcelMissing } from "@effy/shared-types";
 
-import { recordHandovers } from "../work/handover";
 import { assertRoundOpen } from "../work/open";
 import { assertDropLoaded } from "../work/sequence";
 import * as SQL from "./sql";
@@ -34,8 +34,10 @@ export interface RecordProofInput {
   mediaKey: string | null;
   note: string | null;
   changeId: string;
-  /** 090 — how each package was handed over at the door; optional. */
-  packages?: PackageHandover[];
+  /** 096 — every bag of the drop, handed over or declared missing, and the reads made at the door. */
+  parcels?: ParcelHandover[];
+  missingParcels?: ParcelMissing[];
+  reads?: LabelReadDTO[];
 }
 
 export interface RecordProofResult {
@@ -113,7 +115,18 @@ export async function recordProof(input: RecordProofInput): Promise<RecordProofR
     ]);
 
     const packages = await tx.query(SQL.DROP_PACKAGES, [input.dropId]);
-    for (const p of packages.rows as DropPackageRow[]) {
+    // 096 — every bag at the door is handed over or declared missing. A package whose every bag is
+    // missing is held and NOT delivered; a drop where nothing is left is "Can't deliver", not a proof.
+    const dropPackages = (packages.rows as DropPackageRow[]).map((p) => p.shop_fulfillment_id);
+    const expected = await expectedParcels(tx, { step: "deliver", packageIds: dropPackages, roundId: row.round_id });
+    const accounted = accountFor("deliver", expected, input.parcels, input.missingParcels);
+    const holds = await writeParcelHolds(tx, {
+      step: "deliver", driverId: input.driverId, roundId: row.round_id, changeId: input.changeId,
+      missing: accounted.missing, expectedCount: countByPackage(expected),
+    });
+    const notHere = new Set(holds.packagesHeld);
+    if (dropPackages.length > 0 && dropPackages.every((id) => notHere.has(id))) throw new NothingToHandOver();
+    for (const p of (packages.rows as DropPackageRow[]).filter((x) => !notHere.has(x.shop_fulfillment_id))) {
       await tx.query(SQL.MARK_PACKAGE_DELIVERED, [p.round_package_id]);
       await tx.query(SQL.MARK_FULFILLMENT_DELIVERED, [p.shop_fulfillment_id]);
       // ⚠ See the note above — without this the order never completes and the shopper is never told.
@@ -122,12 +135,16 @@ export async function recordProof(input: RecordProofInput): Promise<RecordProofR
 
     await tx.query(SQL.MARK_STOP_DONE, [input.dropId]);
     await tx.query(SQL.MARK_ROUND_IN_PROGRESS, [row.round_id]);
-    // 090 — how each package was handed over at the door.
+    // 090/096 — how each bag was handed over at the door.
     await recordHandovers(tx, {
-      step: "deliver", roundId: row.round_id, driverId: input.driverId, changeId: input.changeId,
-      packages: input.packages,
-      allowed: new Set((packages.rows as DropPackageRow[]).map((p) => p.shop_fulfillment_id)),
+      step: "deliver",
+      actor: { kind: "driver", driverId: input.driverId },
+      roundId: row.round_id,
+      changeId: input.changeId,
+      parcels: accounted.handed.filter((h) => !notHere.has(h.parcel.packageId)).map((h) => ({ parcelId: h.parcel.parcelId, method: h.method })),
+      allowed: new Map(expected.map((p) => [p.parcelId, p.packageId])),
     });
+    await recordReads(tx, { actor: { kind: "driver", driverId: input.driverId }, surface: "driver_app", step: "deliver", roundId: row.round_id, reads: input.reads });
     await completeRoundIfFinished(tx, row.round_id);
 
     // ⚠ THE SHARED ROLLUP, NEVER A SECOND IMPLEMENTATION (Principle II, research R3). Its own header

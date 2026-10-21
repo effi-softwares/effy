@@ -277,6 +277,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
+  driverReadsV1:
+    handler: src/functions/driver-reads-v1-post.handler
+    description: 096 - label reads with no hand-over (refused scans, lookups), replayed in order offline.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/reads
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
   driverHistoryV1:
     handler: src/functions/driver-history-v1-get.handler
     description: 063 — finished rounds by local day. ⚠ Thin until Slice D captures proof.

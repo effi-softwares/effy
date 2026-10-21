@@ -11,6 +11,9 @@ import { toListQuery, type OrdersSearch } from "./orderConsole";
 import {
   courierHandover,
   addOrderNote,
+  declareParcels,
+  packScanParcels,
+  voidParcel,
   getFulfillment,
   getOrder,
   getOrderActivity,
@@ -205,5 +208,47 @@ export function useCourierHandover(id: string) {
       toast.error(courierHandoverError(err));
       invalidateOrders(queryClient);
     },
+  });
+}
+
+// ── 096 — bags ───────────────────────────────────────────────────────────────────────────────────────
+
+/** Set the bag counts per zone. A refusal (a cold zone with no bag) is shown inline by the caller. */
+export function useDeclareParcels(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (counts: { ambient: number; chilled: number; frozen: number }) => declareParcels(id, counts),
+    onSuccess: (d) => {
+      toast.success(`${d.parcels.length} ${d.parcels.length === 1 ? "bag" : "bags"} ready to label`);
+      track({ name: "parcels_declared", fulfillmentId: id, count: d.parcels.length });
+      invalidateOrders(queryClient);
+    },
+    onError: () => invalidateOrders(queryClient),
+  });
+}
+
+/** Remove one bag. */
+export function useVoidParcel(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (parcelId: string) => voidParcel(id, parcelId),
+    onSuccess: () => {
+      toast.success("Bag removed");
+      invalidateOrders(queryClient);
+    },
+    onError: () => invalidateOrders(queryClient),
+  });
+}
+
+/** Pack-scan reads for this order. */
+export function usePackScan(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reads: Parameters<typeof packScanParcels>[1]) => packScanParcels(id, reads),
+    onSuccess: () => {
+      track({ name: "pack_scanned", fulfillmentId: id });
+      invalidateOrders(queryClient);
+    },
+    onError: () => invalidateOrders(queryClient),
   });
 }

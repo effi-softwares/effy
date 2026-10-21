@@ -23,11 +23,11 @@ enum class ProofMethod { PHOTO, SIGNATURE, CONTACTLESS }
 enum class FailureReason { NOBODY_HOME, WRONG_ADDRESS, CUSTOMER_REFUSED, ACCESS_BLOCKED, OTHER }
 
 /** 093 — why a package did not go in the van. [OTHER] needs a note. */
-enum class MissingReason(val label: String) {
-    NOT_AT_HUB("Not at the hub"),
-    DAMAGED("Damaged"),
-    WRONG_TEMPERATURE("Wrong temperature"),
-    OTHER("Other"),
+enum class MissingReason(val label: String, val wire: String) {
+    NOT_AT_HUB("Not at the hub", "not_at_hub"),
+    DAMAGED("Damaged", "damaged"),
+    WRONG_TEMPERATURE("Wrong temperature", "wrong_temperature"),
+    OTHER("Other", "other"),
 }
 
 /** 093 — one package the driver could not load, by its label code. */
@@ -46,12 +46,17 @@ data class DropSummary(
     val window: DeliveryWindow? = null,
     /** 089 — the codes on this drop's package labels; empty from an older server. */
     val packageCodes: List<String> = emptyList(),
+    /** 096 — every bag of this drop's packages; empty from an older server. */
+    val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
     /** 092 rev 2 — the street line, and how a finished drop ended. */
     val street: String? = null,
     val completedAtIso: String? = null,
     val proofMethod: ProofMethod? = null,
     val failureReason: FailureReason? = null,
-)
+) {
+    /** The bags to count: the server's, or one per package code from an older server. */
+    val bagCodes: List<String> get() = bags.map { it.code }.ifEmpty { packageCodes }
+}
 
 data class DeliveryRun(
     val runId: String,
@@ -87,10 +92,21 @@ data class ParcelsToReturn(
     val packageCodes: List<String> = emptyList(),
     /** 092 rev 2 — each parcel, for the Return to hub screen. */
     val parcels: List<ReturnParcel> = emptyList(),
-)
+) {
+    /** 096 — the bags to bring back (one per package code from an older server). */
+    val bagCodes: List<String> get() = parcels.flatMap { it.allBags }.map { it.code }.ifEmpty { packageCodes }
+}
 
-/** 092 rev 2 — one parcel coming back: its order ref, label code, where it was for, why. */
-data class ReturnParcel(val ref: String, val packageCode: String, val place: String?, val reason: FailureReason?)
+/** 092 rev 2 — one parcel coming back: its order ref, label code, where it was for, why. 096 — and its bags. */
+data class ReturnParcel(
+    val ref: String,
+    val packageCode: String,
+    val place: String?,
+    val reason: FailureReason?,
+    val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
+) {
+    val allBags: List<com.effyshopping.driver.mobile.core.scan.Bag> get() = com.effyshopping.driver.mobile.core.scan.bagsOrPackage(bags, packageCode)
+}
 
 /**
  * One physical package at a drop (065).
@@ -105,7 +121,11 @@ data class DropPackage(
     val summary: ClassSummary = ClassSummary.Empty,
     /** 089 — the code on this package's label; null from an older server. */
     val packageCode: String? = null,
-)
+    /** 096 — this package's bags. */
+    val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
+) {
+    val allBags: List<com.effyshopping.driver.mobile.core.scan.Bag> get() = com.effyshopping.driver.mobile.core.scan.bagsOrPackage(bags, packageCode)
+}
 
 /**
  * How the customer asked for the order to be handed over (066).

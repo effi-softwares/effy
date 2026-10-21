@@ -262,7 +262,9 @@ class DeliveryViewModel(
                     advanceDrop(dropId, "arrived", ids.of(arrive))
                     ids.settled(arrive)
                 }
-                val outcome = completeWithMedia(dropId, method, bytes, note, ids.of(action), handed)
+                // 096 — every bag of the drop goes with the proof: scanned, typed, or handed over by hand.
+                val bags = _state.value.drop?.takeIf { it.dropId == dropId }?.packages.orEmpty().flatMap { it.allBags }.map { it.code }
+                val outcome = completeWithMedia(dropId, method, bytes, note, ids.of(action), withRestByHand(handed, bags))
                 ids.settled(action)
                 // Saved with no signal, the re-read cannot reach the platform; the run's copy is
                 // corrected here so the count of drops left is right.
@@ -304,18 +306,18 @@ class DeliveryViewModel(
                     st.copy(
                         isWorking = false,
                         notice = if (missing.isEmpty()) "Van loaded · every drop is out for delivery"
-                        else "Van loaded · ${missing.size} ${if (missing.size == 1) "package" else "packages"} left for dispatch",
+                        else "Van loaded · ${missing.size} ${if (missing.size == 1) "bag" else "bags"} left for dispatch",
                         run = st.run?.let { run ->
                             run.copy(
                                 drops = run.drops
                                     // A drop with nothing loaded is off the run.
-                                    .filterNot { it.status == DropStatus.STAGED && it.packageCodes.isNotEmpty() && it.packageCodes.all { c -> c in missing } }
+                                    .filterNot { it.status == DropStatus.STAGED && it.bagCodes.isNotEmpty() && it.bagCodes.all { c -> c in missing } }
                                     .map {
                                         if (it.status != DropStatus.STAGED) it
                                         else it.copy(
                                             status = DropStatus.OUT_FOR_DELIVERY,
+                                            bags = it.bags.filterNot { b -> b.code in missing },
                                             packageCodes = it.packageCodes.filterNot { c -> c in missing },
-                                            packageCount = it.packageCount - it.packageCodes.count { c -> c in missing },
                                         )
                                     },
                             )
@@ -338,7 +340,9 @@ class DeliveryViewModel(
         val action = "return:$runId"
         viewModelScope.launch {
             try {
-                val outcome = send(runId, ids.of(action), handed)
+                // 096 — every bag coming back is accounted for: scanned, typed, or checked in by hand.
+                val bags = _state.value.run?.toReturn?.bagCodes.orEmpty()
+                val outcome = send(runId, ids.of(action), withRestByHand(handed, bags))
                 ids.settled(action)
                 _state.update { it.copy(isWorking = false, run = it.run?.copy(toReturn = null), notice = "Parcels checked in at the hub") }
                 if (outcome == WriteOutcome.SENT) refreshRunAfterClose()
@@ -380,3 +384,17 @@ private fun dropStatusFor(to: String): DropStatus = when (to) {
 
 /** 093 — the platform's own sentence for a drop that has not been loaded. */
 internal const val LOAD_FIRST = "Load the van first."
+
+/**
+ * 096 — what a step hands over: every bag scanned or typed, and the rest of [allBags] by hand. A step
+ * must account for every bag (the platform refuses one that does not); a bag the driver did not scan
+ * was handed over all the same — the scan screen's fallback is the driver saying so.
+ */
+internal fun withRestByHand(
+    handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>,
+    allBags: List<String>,
+): List<com.effyshopping.driver.mobile.core.scan.HandedOver> {
+    val done = handed.map { it.code }.toSet()
+    return handed + allBags.filter { it !in done }.distinct()
+        .map { com.effyshopping.driver.mobile.core.scan.HandedOver(it, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL) }
+}

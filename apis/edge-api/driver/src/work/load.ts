@@ -9,9 +9,9 @@
 
 import { withTransaction } from "@effy/edge-shared";
 import { PLANNER_PASS_LOCK, removeAssignment } from "@effy/edge-shared/delivery";
-import type { MissingReason, NotLoadedPackage, PackageHandover } from "@effy/shared-types";
+import { accountFor, countByPackage, expectedParcels, recordHandovers, recordReads, writeParcelHolds } from "@effy/edge-shared/labels";
+import type { LabelReadDTO, MissingReason, ParcelHandover, ParcelMissing } from "@effy/shared-types";
 
-import { recordHandovers } from "./handover";
 import { assertRoundOpen } from "./open";
 import { assertNothingToHandIn } from "./sequence";
 import { NotFoundError } from "./service";
@@ -21,7 +21,7 @@ export const MISSING_REASONS: ReadonlySet<MissingReason> = new Set(["not_at_hub"
 export interface LoadResult {
   /** The drops this call moved to out for delivery — the ones whose shops are told. */
   loadedDropIds: string[];
-  /** 093 — packages taken off the run as not loaded. */
+  /** 093/096 — bags declared not loaded (each held; a package whose every bag is missing comes off the run). */
   held: number;
   /** 093 — drops removed because none of their packages was loaded. */
   dropsRemoved: number;
@@ -36,13 +36,14 @@ export async function loadRun(
   runId: string,
   driverId: string,
   changeId: string,
-  packages?: PackageHandover[],
-  notLoaded: NotLoadedPackage[] = [],
+  parcels?: ParcelHandover[],
+  missingParcels: ParcelMissing[] = [],
+  reads?: LabelReadDTO[],
 ): Promise<LoadResult> {
   return withTransaction(async (tx: any) => {
     // Taking packages off the run changes driver work outside a planning pass: wait for a pass, never
     // race one — the lock comes before any row lock (driver-work.ts).
-    if (notLoaded.length > 0) await tx.query(PLANNER_PASS_LOCK);
+    if (missingParcels.length > 0) await tx.query(PLANNER_PASS_LOCK);
 
     const round = await tx.query(
       `SELECT id, status FROM public.driver_round WHERE id = $1 AND driver_id = $2 AND kind = 'delivery' FOR UPDATE`,
@@ -68,10 +69,9 @@ export async function loadRun(
 
     // The packages still to load, on the staged drops — the states the proof path delivers (proof/sql.ts).
     const staged = await tx.query(
-      `SELECT rp.id AS row_id, rp.stop_id, rp.shop_fulfillment_id, sf.package_code
+      `SELECT rp.id AS row_id, rp.stop_id, rp.shop_fulfillment_id
          FROM public.round_package rp
          JOIN public.round_stop rs ON rs.id = rp.stop_id
-         JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
         WHERE rs.round_id = $1 AND rs.kind = 'customer_drop' AND rs.status = 'pending'
           AND rp.state IN ('assigned', 'picked_up')`,
       [runId],
@@ -80,29 +80,24 @@ export async function loadRun(
     // ── Packages not loaded ──────────────────────────────────────────────────────────────────────
     type Staged = { row_id: string; stop_id: string; shop_fulfillment_id: string };
     const byId = new Map<string, Staged>();
-    const byCode = new Map<string, Staged>();
     const touchedStops = new Set<string>();
-    for (const r of staged.rows) {
-      byId.set(r.shop_fulfillment_id, r);
-      if (r.package_code) byCode.set(String(r.package_code).toUpperCase(), r);
-    }
-    let held = 0;
-    for (const n of notLoaded) {
-      const row = (n.packageId ? byId.get(n.packageId) : undefined)
-        ?? (n.packageCode ? byCode.get(n.packageCode.toUpperCase()) : undefined);
-      if (!row) continue; // not on this run, or already off it
-      await tx.query(
-        `INSERT INTO public.package_hold (shop_fulfillment_id, step, reason, note, driver_id, round_id, change_id)
-         VALUES ($1, 'load', $2, $3, $4, $5, $6)
-         ON CONFLICT DO NOTHING`,
-        [row.shop_fulfillment_id, n.reason, n.note?.trim() || null, driverId, runId, changeId],
-      );
-      // Off the run: it is still at the hub (or nowhere), not in the van. The one writer for taking a
-      // package off a round also removes a drop left empty, and a run left with nothing.
+    for (const r of staged.rows) byId.set(r.shop_fulfillment_id, r);
+
+    // 096 — every bag of every staged package is loaded, or declared missing with a reason. Some bags
+    // missing: each is held and the package goes out. Every bag missing: the package is held and comes
+    // off the run (093's shape), and a drop left with nothing comes off too.
+    const expected = await expectedParcels(tx, { step: "load", packageIds: [...byId.keys()], roundId: runId });
+    const accounted = accountFor("load", expected, parcels, missingParcels);
+    const holds = await writeParcelHolds(tx, {
+      step: "load", driverId, roundId: runId, changeId, missing: accounted.missing, expectedCount: countByPackage(expected),
+    });
+    const held = holds.parcelsHeld;
+    for (const packageId of holds.packagesHeld) {
+      const row = byId.get(packageId);
+      if (!row) continue;
       await removeAssignment(tx, { id: row.row_id, stop_id: row.stop_id, round_id: runId, round_status: round.rows[0].status });
       touchedStops.add(row.stop_id);
-      byId.delete(row.shop_fulfillment_id);
-      held += 1;
+      byId.delete(packageId);
     }
     let dropsRemoved = 0;
     if (touchedStops.size > 0) {
@@ -125,9 +120,14 @@ export async function loadRun(
     }
 
     await recordHandovers(tx, {
-      step: "load", roundId: runId, driverId, changeId, packages,
-      allowed: new Set(byId.keys()),
+      step: "load",
+      actor: { kind: "driver", driverId },
+      roundId: runId,
+      changeId,
+      parcels: accounted.handed.filter((h) => byId.has(h.parcel.packageId)).map((h) => ({ parcelId: h.parcel.parcelId, method: h.method })),
+      allowed: new Map(expected.map((p) => [p.parcelId, p.packageId])),
     });
+    await recordReads(tx, { actor: { kind: "driver", driverId }, surface: "driver_app", step: "load", roundId: runId, reads });
 
     return { loadedDropIds: moved.rows.map((r: any) => r.id as string), held, dropsRemoved };
   });

@@ -6,7 +6,8 @@ import type { LoadRequest, LoadResponse } from "@effy/shared-types";
 
 import { authenticate } from "../driver/guard";
 import { announceHeld, announceStop } from "../work/announce";
-import { MISSING_REASONS, loadRun } from "../work/load";
+import { loadRun } from "../work/load";
+import { ParcelsUnaccounted, parcelsUnaccountedProblem } from "@effy/edge-shared/labels";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 import { NotFoundError } from "../work/service";
@@ -33,27 +34,11 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
       { field: "changeId", message: "A changeId is required." },
     ]);
   }
-  // 093 — a package not loaded needs a reason, and "Other" needs a note.
-  for (const n of body.notLoaded ?? []) {
-    if (!n.packageId && !n.packageCode) {
-      return problem(422, "validation_failed", "Cannot record that", "Say which package was not loaded.", guard.scope, [
-        { field: "notLoaded", message: "A packageId or packageCode is required." },
-      ]);
-    }
-    if (!MISSING_REASONS.has(n.reason)) {
-      return problem(422, "validation_failed", "Cannot record that", "That is not a reason a package can be left behind for.", guard.scope, [
-        { field: "reason", message: "Unknown reason." },
-      ]);
-    }
-    if (n.reason === "other" && !n.note?.trim()) {
-      return problem(422, "validation_failed", "Cannot record that", "Tell us what happened, so someone can follow it up.", guard.scope, [
-        { field: "note", message: "A note is required for Other." },
-      ]);
-    }
-  }
+  // 096 — a bag not loaded needs a reason that can be said at loading, and "Other" a note. A bag left
+  // without one is not accounted for, and the whole load is refused with the bags it names (409).
 
   try {
-    const { loadedDropIds, held, dropsRemoved } = await loadRun(runId, guard.driver.id, body.changeId, body.packages, body.notLoaded ?? []);
+    const { loadedDropIds, held, dropsRemoved } = await loadRun(runId, guard.driver.id, body.changeId, body.parcels, body.missingParcels ?? [], body.reads);
     // 073 — each drop now reads "Out for delivery" on its shops' and back-office's screens.
     for (const dropId of loadedDropIds) await announceStop(dropId);
     if (held > 0) await announceHeld();
@@ -63,6 +48,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   } catch (err) {
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
+    if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);
     if (err instanceof NotFoundError) return problem(404, "not_found", "Not available", "That run is not available.", guard.scope);
     throw err;
   }

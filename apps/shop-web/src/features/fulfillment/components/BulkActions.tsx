@@ -12,7 +12,8 @@ import { fulfillmentMutationError } from "../errorText"
 import type { RequestableTransition } from "../model"
 import type { OrderRow } from "../orderConsole"
 import { invalidateOrders } from "../queries"
-import { setOrderTags, transitionFulfillment } from "../repo"
+import { getOrder, recordParcelPrints, setOrderTags, transitionFulfillment } from "../repo"
+import { printLabels, rememberedLayout, type PrintJob } from "../labels/printer"
 import { CantSupplyDialog } from "./StateControl"
 
 /**
@@ -70,6 +71,38 @@ export function BulkActions({
     if (outcome.failed.length === 0) onClear()
   }
 
+  /**
+   * 096 — print every bag's label for the selected orders in one go (spec US2 AS4). Each order is read
+   * fresh so the labels carry what the server holds now; then one print job, recorded only once sent.
+   */
+  async function printSelected() {
+    setRunning(true)
+    try {
+      const jobs: PrintJob[] = []
+      const failed: string[] = []
+      for (const r of chosen) {
+        try {
+          const d = await getOrder(r.id)
+          jobs.push({ common: d.labelCommon, parcels: d.parcels })
+        } catch {
+          failed.push(r.orderNumber)
+        }
+      }
+      const layout = rememberedLayout()
+      const out = await printLabels(jobs, layout, recordParcelPrints)
+      invalidateOrders(queryClient)
+      if (!out.ok) {
+        toast.error(out.detail)
+        return
+      }
+      track({ name: "labels_printed", orders: jobs.length, count: out.printed, layout, path: out.path })
+      toast.success(`${out.printed} label${out.printed === 1 ? "" : "s"} for ${jobs.length} order${jobs.length === 1 ? "" : "s"} sent to the printer`)
+      if (failed.length > 0) toast.error(`Couldn't read ${failed.join(", ")} — print those from the order.`)
+    } finally {
+      setRunning(false)
+    }
+  }
+
   async function addTag() {
     const writes = withTag(rows, selected, tag)
     setRunning(true)
@@ -103,6 +136,9 @@ export function BulkActions({
         </BarButton>
         <BarButton disabled={running || toReady.length === 0} onClick={() => void advance("ready_for_pickup")}>
           Mark ready
+        </BarButton>
+        <BarButton disabled={running || chosen.length === 0} onClick={() => void printSelected()}>
+          Print labels
         </BarButton>
         <BarButton disabled={running} onClick={() => setTagOpen(true)}>
           Add tag

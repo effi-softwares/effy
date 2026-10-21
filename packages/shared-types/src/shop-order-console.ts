@@ -26,6 +26,7 @@ import type { RefundActorKind, RefundReason, RefundStatus } from "./refund"
 import type { FulfillmentDeliveryDTO, FulfillmentStatus } from "./shop-order"
 import type { PackageStatusView } from "./package-status"
 import type { DeliveredBy } from "./delivery-type"
+import type { ParcelCustody, ParcelZone } from "./parcels"
 
 /**
  * 080 — a courier will collect THIS package from the shop. ⚠ The shop's own parcel only: never a fee,
@@ -262,6 +263,38 @@ export interface ShopPackageLabelDTO {
   cold: "frozen" | "chilled" | null
 }
 
+/**
+ * 096 — one bag of this package, as its label and the shop's pack step need it. ⚠ `custody` never names
+ * a driver (073); "printed" means printed since the bag's number or zone last changed.
+ */
+export interface ShopParcelLabelDTO {
+  parcelId: string
+  code: string
+  seq: WireInt
+  of: WireInt
+  zone: ParcelZone
+  printed: { count: WireInt; firstAt: string | null; lastAt: string | null; current: boolean }
+  packScanned: { at: string; by: string | null } | null
+  custody: ParcelCustody
+}
+
+/**
+ * 096 — what every bag's label shares (spec US10). The recipient and full address are on the label
+ * (spec Clarifications reverse 089): the shop already sees both on this order. ⚠ Never a window, day,
+ * estimate, price, phone or email (079, FR-011).
+ */
+export interface ShopLabelCommonDTO {
+  service: DeliveredBy
+  orderNumber: string
+  /** The day the first label was printed, or null before any print (the label then shows today). */
+  packedOn: string | null
+  recipientName: string
+  street: string
+  suburb: string
+  state: string
+  postcode: string
+}
+
 export interface ShopOrderDetailDTO {
   id: string
   orderId: string
@@ -283,8 +316,17 @@ export interface ShopOrderDetailDTO {
   deliveryMethod: "same_day" | "standard" | null
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO
-  /** 089 — what this package's printed label needs (with `orderNumber` and `deliveredBy`). */
+  /**
+   * @deprecated — compatibility (096): bag 1's 089 label data, kept so installed builds keep working.
+   * Labels are printed per bag from `parcels` + `labelCommon`.
+   */
   label: ShopPackageLabelDTO
+  /** 096 — this package's live bags, each with its own label. */
+  parcels: ShopParcelLabelDTO[]
+  /** 096 — what every bag's label shares (spec US10). */
+  labelCommon: ShopLabelCommonDTO
+  /** 096 — the cold zones this package's lines need a bag for (a declaration without one is refused). */
+  zonesNeeded: ParcelZone[]
   lines: ShopOrderLineDTO[]
   money: ShopOrderMoneyDTO
   payment: ShopOrderPaymentDTO

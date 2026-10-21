@@ -1,4 +1,4 @@
-import { BarChart3, Bell, ClipboardList, LayoutDashboard, Package, Palette, Shield } from "lucide-react";
+import { BarChart3, Bell, ClipboardList, LayoutDashboard, Package, Palette, Printer, Shield } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -38,6 +38,8 @@ export const NAV: NavItem<ShopRole>[] = [
   // (`shop_refund_proposed`) is filtered by the platform record at enqueue time, never by hiding a
   // switch — a preference hidden by CSS is still a preference the server would honour.
   { label: "Notifications", to: "/settings/notifications", icon: Bell, group: "Workspace" },
+  // 096 — this computer's label printer. Ungated: every operator prints labels.
+  { label: "Printing", to: "/settings/printing", icon: Printer, group: "Workspace" },
   // ⚠ DEV BUILDS ONLY, stripped the same way router.tsx strips the route: `import.meta.env.DEV`
   // folds to false in a production build. A production item would link to a route that does not
   // exist, and a page of swatches has no place in the operator's nav.

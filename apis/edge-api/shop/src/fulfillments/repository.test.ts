@@ -8,6 +8,10 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   withTransaction,
 }));
 
+// 096 — the ready gate reads bags and prints; it is proven against real PostgreSQL in
+// parcels/parcels.container.test.ts. Here the transition's own SQL is under test.
+vi.mock("../parcels/repository", () => ({ assertReadyForPickup: vi.fn(async () => undefined) }));
+
 import { collectViaStub, deliverViaStub, listQueue, readDetail, transition, updateItemProgress } from "./repository";
 
 /** Collapse whitespace so SQL assertions are formatting-independent. */

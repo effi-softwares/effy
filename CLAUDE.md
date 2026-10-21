@@ -151,12 +151,17 @@ couriers**. They are Effy employees working typed tasks, not roles:
   are a person's call, the rest are refused.
 
 ## Platform shape (the vision)
-The full platform is **six client surfaces + one backend + DB migrations + infrastructure**. The
-customer and shop audiences each get **two surfaces kept at parity** (a native mobile build and a
-native web build).
+The full platform is **five active client surfaces + one backend + DB migrations + infrastructure**.
+The customer audience gets **two surfaces kept at parity** (a native mobile build and a native web
+build); the shop audience has **one — `shop-web`**.
 
-- **Mobile (3):** `customer` / `driver` / `shop` — Kotlin Multiplatform + Compose Multiplatform
-  (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito).
+⚠ **THE SHOP MOBILE APP IS STOPPED (2026-10-21, operator decision).** `apps/shop-mobile` stays in the
+tree but is no longer developed: no feature plans, tasks or parity work for it, and it is never a "gap".
+Every shop feature is built for `shop-web` only.
+
+- **Mobile (2 active):** `customer` / `driver` — Kotlin Multiplatform + Compose Multiplatform
+  (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito). (`shop` —
+  stopped, above.)
 - **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `shop-web` (Vite SPA, shop
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
@@ -490,8 +495,8 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 `com.effyshopping.<app>.mobile`:
 - `apps/customer-mobile` — `com.effyshopping.customer.mobile` — the customer shopping app.
 - `apps/driver-mobile` — `com.effyshopping.driver.mobile` — the driver delivery app.
-- `apps/shop-mobile` — `com.effyshopping.shop.mobile` — the shop-operator app (the "shop" audience;
-  the mobile app is named `shop`).
+- `apps/shop-mobile` — `com.effyshopping.shop.mobile` — the shop-operator app. ⚠ **STOPPED
+  (2026-10-21)** — kept in the tree, not developed; shop features go to `shop-web` only.
 
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
 compileSdk + targetSdk 36**. ⚠ **ALL THREE APPS MUST PIN THE SAME TRIO — `composeMultiplatform`,
@@ -513,7 +518,8 @@ three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`
 **Two of the three KMP mobile apps are now built** (KMP + Compose, Clean Architecture + MVVM, native
 Amplify auth behind a `commonMain` `AuthDriver`; a formal `ViewModel → UseCase → Driver/Repository`
 domain layer): **`apps/customer-mobile` (013)** and **`apps/shop-mobile` (014 — signed off, EMAIL_OTP
-only, single-token, the RBAC manager gate, tablet-first)**. ⚠ **`apps/driver-mobile` is BUILT TOO** —
+only, single-token, the RBAC manager gate, tablet-first; ⚠ development STOPPED 2026-10-21 — the shop
+audience is `shop-web` only)**. ⚠ **`apps/driver-mobile` is BUILT TOO** —
 049 gave it the full hub-and-spoke operation and **060 gave it its appearance** (all 45 design screens,
 cobalt). ⚠ **MapLibre was ADOPTED AND THEN REMOVED in the same feature** — it aborted the app under
 Xcode's debug build (SIGABRT on its own render thread) and `MapLibreAbsentGuardTest` keeps it out; the
@@ -641,5 +647,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/097-same-day-by-postcode/plan.md
+at specs/096-parcel-labels-scanning/plan.md
 <!-- SPECKIT END -->

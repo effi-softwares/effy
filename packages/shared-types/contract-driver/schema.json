@@ -102,15 +102,17 @@
         "changeId": {
           "type": "string"
         },
+        "missingParcels": {
+          "items": {
+            "$ref": "#/definitions/ParcelMissing"
+          },
+          "type": "array"
+        },
         "packages": {
           "description": "Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one request, so it cannot half-happen).\n\n⚠ 093 — REQUIRED, AND ONLY WHAT IS NAMED IS SETTLED. Until 093 an absent package meant \"collected\", so a package added to the stop while the driver stood at the counter was recorded as in the van without anybody having seen it. A package not named here stays waiting, and the stop stays open (`CollectResponse.remaining`).",
           "items": {
             "additionalProperties": false,
             "properties": {
-              "method": {
-                "$ref": "#/definitions/HandoverMethod",
-                "description": "090 — how it was handed over; omitted by builds that do not scan."
-              },
               "note": {
                 "type": [
                   "string",
@@ -133,6 +135,18 @@
               "outcome"
             ],
             "type": "object"
+          },
+          "type": "array"
+        },
+        "parcels": {
+          "items": {
+            "$ref": "#/definitions/ParcelHandover"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "items": {
+            "$ref": "#/definitions/LabelReadDTO"
           },
           "type": "array"
         }
@@ -226,6 +240,13 @@
         "packageId": {
           "description": "The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was on the wire the app could not say WHICH package a report was about, so it sent none and the whole stop was marked unavailable. Optional only so an app built against it still reads an older server.",
           "type": "string"
+        },
+        "parcels": {
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "items": {
+            "$ref": "#/definitions/ParcelDTO"
+          },
+          "type": "array"
         },
         "ref": {
           "type": "string"
@@ -330,6 +351,13 @@
         },
         "packageCount": {
           "$ref": "#/definitions/WireInt"
+        },
+        "parcels": {
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "items": {
+            "$ref": "#/definitions/ParcelDTO"
+          },
+          "type": "array"
         },
         "sequence": {
           "$ref": "#/definitions/WireInt"
@@ -552,6 +580,13 @@
         },
         "packageCount": {
           "$ref": "#/definitions/WireInt"
+        },
+        "parcels": {
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "items": {
+            "$ref": "#/definitions/ParcelDTO"
+          },
+          "type": "array"
         },
         "proofMethod": {
           "anyOf": [
@@ -856,6 +891,34 @@
       ],
       "type": "string"
     },
+    "DriverReadsRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/reads — 096: reads with no hand-over (a refused scan, a lookup), replayed in order offline.",
+      "properties": {
+        "reads": {
+          "items": {
+            "$ref": "#/definitions/LabelReadDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "reads"
+      ],
+      "type": "object"
+    },
+    "DriverReadsResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "recorded": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "recorded"
+      ],
+      "type": "object"
+    },
     "DriverRunType": {
       "description": "The two kinds of work a driver run can be. Named as a type by 056 because back-office reads it too — it was an inline union used once, and a second consumer is exactly when a concept earns a name (Principle II: one definition per concept, not one per file).\n\n⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and then a same-day round in the same shift; neither is a role they hold.",
       "enum": [
@@ -958,6 +1021,13 @@
         "packageCode": {
           "description": "089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers.",
           "type": "string"
+        },
+        "parcels": {
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "items": {
+            "$ref": "#/definitions/ParcelDTO"
+          },
+          "type": "array"
         },
         "ref": {
           "type": "string"
@@ -1452,17 +1522,21 @@
         "changeId": {
           "type": "string"
         },
-        "missing": {
-          "description": "093 — collected packages that are not in the van. Each is held out of delivery planning and shown to dispatch as a shortage; the rest check in.",
+        "missingParcels": {
           "items": {
-            "$ref": "#/definitions/PackageRefOnly"
+            "$ref": "#/definitions/ParcelMissing"
           },
           "type": "array"
         },
-        "packages": {
-          "description": "090 — how each package was handed over at the hub.",
+        "parcels": {
           "items": {
-            "$ref": "#/definitions/PackageHandover"
+            "$ref": "#/definitions/ParcelHandover"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "items": {
+            "$ref": "#/definitions/LabelReadDTO"
           },
           "type": "array"
         },
@@ -1536,12 +1610,66 @@
         },
         "packageCode": {
           "type": "string"
+        },
+        "parcelCodes": {
+          "description": "096 — the codes of every bag of this package: each bag scanned at the hub gets this instruction.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
         "packageCode",
         "kind",
         "label"
+      ],
+      "type": "object"
+    },
+    "LabelReadDTO": {
+      "additionalProperties": false,
+      "description": "One read as the client made and judged it. `clientReadId` makes an offline replay record once; `deviceAt` is when it happened on the device, kept however late it arrives.",
+      "properties": {
+        "appVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "clientReadId": {
+          "type": "string"
+        },
+        "deviceAt": {
+          "type": "string"
+        },
+        "deviceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method": {
+          "$ref": "#/definitions/ReadMethod"
+        },
+        "outcome": {
+          "$ref": "#/definitions/ReadOutcome"
+        },
+        "parcelCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "raw": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientReadId",
+        "raw",
+        "method",
+        "outcome",
+        "deviceAt"
       ],
       "type": "object"
     },
@@ -1552,16 +1680,21 @@
         "changeId": {
           "type": "string"
         },
-        "notLoaded": {
-          "description": "093 — packages the driver could not load, each with a reason. Each comes off the run and is held at the hub for dispatch; a drop left with nothing comes off the run too.",
+        "missingParcels": {
           "items": {
-            "$ref": "#/definitions/NotLoadedPackage"
+            "$ref": "#/definitions/ParcelMissing"
           },
           "type": "array"
         },
-        "packages": {
+        "parcels": {
           "items": {
-            "$ref": "#/definitions/PackageHandover"
+            "$ref": "#/definitions/ParcelHandover"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "items": {
+            "$ref": "#/definitions/LabelReadDTO"
           },
           "type": "array"
         }
@@ -1642,51 +1775,52 @@
       ],
       "type": "object"
     },
-    "MissingReason": {
-      "description": "093 — why a package did not go in the van. `other` needs a note.",
+    "PackageMethod": {
       "enum": [
-        "not_at_hub",
-        "damaged",
-        "wrong_temperature",
-        "other"
+        "same_day",
+        "standard"
       ],
       "type": "string"
     },
-    "NotLoadedPackage": {
+    "ParcelDTO": {
       "additionalProperties": false,
+      "description": "A live parcel as every surface sees it. `of` = this package's live bags.",
       "properties": {
-        "note": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "packageCode": {
+        "code": {
           "type": "string"
         },
-        "packageId": {
+        "of": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "parcelId": {
           "type": "string"
         },
-        "reason": {
-          "$ref": "#/definitions/MissingReason"
+        "seq": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "zone": {
+          "$ref": "#/definitions/ParcelZone"
         }
       },
       "required": [
-        "reason"
+        "parcelId",
+        "code",
+        "seq",
+        "of",
+        "zone"
       ],
       "type": "object"
     },
-    "PackageHandover": {
+    "ParcelHandover": {
       "additionalProperties": false,
       "properties": {
         "method": {
           "$ref": "#/definitions/HandoverMethod"
         },
-        "packageCode": {
+        "parcelCode": {
           "type": "string"
         },
-        "packageId": {
-          "description": "The package's own id. ⚠ 092 — OR `packageCode` (the label's code): the delivery steps hold only codes on the phone, and a scan reads a code. One of the two names the package; both may be sent.",
+        "parcelId": {
           "type": "string"
         }
       },
@@ -1695,25 +1829,41 @@
       ],
       "type": "object"
     },
-    "PackageMethod": {
-      "enum": [
-        "same_day",
-        "standard"
-      ],
-      "type": "string"
-    },
-    "PackageRefOnly": {
+    "ParcelMissing": {
       "additionalProperties": false,
-      "description": "093 — a package named by its id or its label code.",
       "properties": {
-        "packageCode": {
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "parcelCode": {
           "type": "string"
         },
-        "packageId": {
+        "parcelId": {
           "type": "string"
+        },
+        "reason": {
+          "$ref": "#/definitions/ParcelMissingReason"
         }
       },
+      "required": [
+        "reason"
+      ],
       "type": "object"
+    },
+    "ParcelMissingReason": {
+      "description": "Why a bag was not handed over at a step. `other` needs a note.",
+      "enum": [
+        "not_at_shop",
+        "not_in_van",
+        "not_at_hub",
+        "damaged",
+        "wrong_temperature",
+        "other"
+      ],
+      "type": "string"
     },
     "ParcelReturnRequest": {
       "additionalProperties": false,
@@ -1722,10 +1872,21 @@
         "changeId": {
           "type": "string"
         },
-        "packages": {
-          "description": "090 — how each parcel was handed back.",
+        "missingParcels": {
           "items": {
-            "$ref": "#/definitions/PackageHandover"
+            "$ref": "#/definitions/ParcelMissing"
+          },
+          "type": "array"
+        },
+        "parcels": {
+          "items": {
+            "$ref": "#/definitions/ParcelHandover"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "items": {
+            "$ref": "#/definitions/LabelReadDTO"
           },
           "type": "array"
         }
@@ -1752,6 +1913,14 @@
         "roundComplete"
       ],
       "type": "object"
+    },
+    "ParcelZone": {
+      "enum": [
+        "ambient",
+        "chilled",
+        "frozen"
+      ],
+      "type": "string"
     },
     "ParcelsToReturn": {
       "additionalProperties": false,
@@ -1789,6 +1958,48 @@
         "runId",
         "count",
         "orders"
+      ],
+      "type": "object"
+    },
+    "ParcelsUnaccountedProblem": {
+      "additionalProperties": false,
+      "description": "096 — the 409 a step answers when a live bag was neither handed over nor declared missing.",
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "parcels": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "of": {
+                "$ref": "#/definitions/WireInt"
+              },
+              "seq": {
+                "$ref": "#/definitions/WireInt"
+              }
+            },
+            "required": [
+              "code",
+              "seq",
+              "of"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "type": {
+          "const": "parcels_unaccounted",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "detail",
+        "parcels"
       ],
       "type": "object"
     },
@@ -1916,13 +2127,25 @@
         "method": {
           "$ref": "#/definitions/ProofMethod"
         },
+        "missingParcels": {
+          "items": {
+            "$ref": "#/definitions/ParcelMissing"
+          },
+          "type": "array"
+        },
         "note": {
           "type": "string"
         },
-        "packages": {
-          "description": "090 — how each package was handed over at the door.",
+        "parcels": {
+          "description": "096 — every bag of the drop, handed over or declared missing (`ParcelStepFields`).",
           "items": {
-            "$ref": "#/definitions/PackageHandover"
+            "$ref": "#/definitions/ParcelHandover"
+          },
+          "type": "array"
+        },
+        "reads": {
+          "items": {
+            "$ref": "#/definitions/LabelReadDTO"
           },
           "type": "array"
         }
@@ -1946,11 +2169,40 @@
       ],
       "type": "object"
     },
+    "ReadMethod": {
+      "description": "How a read was made. A bag ticked by hand is not a read: it is a hand-over with method `manual`.",
+      "enum": [
+        "scan",
+        "typed"
+      ],
+      "type": "string"
+    },
+    "ReadOutcome": {
+      "description": "What a read means, everywhere (FR-052). `not_found` is decided by the server only.",
+      "enum": [
+        "accepted",
+        "already_counted",
+        "belongs_elsewhere",
+        "not_on_this_work",
+        "voided",
+        "cancelled",
+        "not_a_label",
+        "not_found"
+      ],
+      "type": "string"
+    },
     "ReturnParcel": {
       "additionalProperties": false,
       "properties": {
         "packageCode": {
           "type": "string"
+        },
+        "parcels": {
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "items": {
+            "$ref": "#/definitions/ParcelDTO"
+          },
+          "type": "array"
         },
         "place": {
           "description": "\"8 Scotchmer St, Fitzroy North\".",
@@ -2588,6 +2840,9 @@
     "hubCheckinResponse": {
       "$ref": "#/definitions/HubCheckinResponse"
     },
+    "labelRead": {
+      "$ref": "#/definitions/LabelReadDTO"
+    },
     "loadRequest": {
       "$ref": "#/definitions/LoadRequest"
     },
@@ -2603,17 +2858,23 @@
     "me": {
       "$ref": "#/definitions/DriverMeDTO"
     },
-    "notLoadedPackage": {
-      "$ref": "#/definitions/NotLoadedPackage"
+    "parcel": {
+      "$ref": "#/definitions/ParcelDTO"
     },
-    "packageRef": {
-      "$ref": "#/definitions/PackageRefOnly"
+    "parcelHandover": {
+      "$ref": "#/definitions/ParcelHandover"
+    },
+    "parcelMissing": {
+      "$ref": "#/definitions/ParcelMissing"
     },
     "parcelReturnRequest": {
       "$ref": "#/definitions/ParcelReturnRequest"
     },
     "parcelReturnResponse": {
       "$ref": "#/definitions/ParcelReturnResponse"
+    },
+    "parcelsUnaccounted": {
+      "$ref": "#/definitions/ParcelsUnaccountedProblem"
     },
     "problem": {
       "$ref": "#/definitions/ProblemJSON"
@@ -2629,6 +2890,12 @@
     },
     "proofResponse": {
       "$ref": "#/definitions/ProofResponse"
+    },
+    "readsRequest": {
+      "$ref": "#/definitions/DriverReadsRequest"
+    },
+    "readsResponse": {
+      "$ref": "#/definitions/DriverReadsResponse"
     },
     "returnParcel": {
       "$ref": "#/definitions/ReturnParcel"
@@ -2727,8 +2994,13 @@
     "vehicleCheckRequest",
     "vehicleCheckResponse",
     "loadStep",
-    "packageRef",
-    "notLoadedPackage",
+    "parcel",
+    "parcelHandover",
+    "parcelMissing",
+    "labelRead",
+    "readsRequest",
+    "readsResponse",
+    "parcelsUnaccounted",
     "problem"
   ],
   "type": "object",

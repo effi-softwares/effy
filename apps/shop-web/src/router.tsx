@@ -9,6 +9,7 @@ import { catalogProductRoute } from "./routes/catalog.$productId";
 import { devTokensRoute } from "./routes/dev.tokens";
 import { insightsRoute } from "./routes/insights";
 import { notificationSettingsRoute } from "./routes/settings.notifications";
+import { printingSettingsRoute } from "./routes/settings.printing";
 import { ordersRoute } from "./routes/orders";
 import { ordersDetailRoute } from "./routes/orders.$fulfillmentId";
 import { rootRoute } from "./routes/__root";
@@ -26,6 +27,7 @@ const routeTree = rootRoute.addChildren([
     ordersRoute,
     ordersDetailRoute,
     notificationSettingsRoute,
+    printingSettingsRoute,
     insightsRoute,
     // ⚠ DEV ONLY. The theme-adoption gallery (`/dev/tokens`) is a build-time-stripped array member,
     // not a runtime guard: `import.meta.env.DEV` folds to `false` in a production build, so both the

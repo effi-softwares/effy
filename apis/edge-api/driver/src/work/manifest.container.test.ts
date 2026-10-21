@@ -37,6 +37,7 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
+import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { deliveryDrop } from "./delivery";
 import { collectStop } from "./complete";
@@ -239,16 +240,19 @@ d("065 — driver item manifest", () => {
   });
 
   /** 090 — collecting at a counter records how each package was handed over (quickstart P4). */
-  it("090 — a collect records each package's method; a package left at the shop records none", async () => {
+  it("090/096 — a collect records each bag's method; a package left at the shop records none", async () => {
     const { driverId, roundId, stopId } = await pickupFixture();
     const stop = await collectionStop(roundId, stopId, driverId);
     const [a, b] = stop.packages.map((p) => p.packageId!);
+    await createFirstParcels(pool, { packageIds: [a!, b!] });
+    const bagOf = (id: string) => pool.query(`SELECT parcel_code FROM public.package_parcel WHERE shop_fulfillment_id = $1`, [id]).then((r) => r.rows[0].parcel_code as string);
     await collectStop(roundId, stopId, driverId, {
       changeId: crypto.randomUUID(),
       packages: [
-        { packageId: a!, outcome: "picked_up", method: "scan" },
-        { packageId: b!, outcome: "not_available", method: "manual" },
+        { packageId: a!, outcome: "picked_up" },
+        { packageId: b!, outcome: "not_available" },
       ],
+      parcels: [{ parcelCode: await bagOf(a!), method: "scan" }, { parcelCode: await bagOf(b!), method: "manual" }],
     });
     const rows = await pool.query(`SELECT shop_fulfillment_id, step, handover_method AS method FROM public.package_handover`);
     expect(rows.rows).toEqual([{ shop_fulfillment_id: a, step: "collect", method: "scan" }]);

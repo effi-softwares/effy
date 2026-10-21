@@ -7,6 +7,7 @@
 
 import { ANY_TIME_LABEL, formatDeliveryWindow, type DeliveryWindow } from "@effy/shared-types";
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
+import { liveParcelsByPackage } from "@effy/edge-shared/labels";
 import type {
   ActivityItem,
   DeliveryDropDTO,
@@ -86,7 +87,11 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
 
   // 065 — one manifest per physical package, in the stable order the app labels by position.
   const packageIds = await stopPackageIds(dropId, driverId);
-  const [items, codes] = await Promise.all([packageItems(packageIds), packageCodes(packageIds)]);
+  const [items, codes, bags] = await Promise.all([
+    packageItems(packageIds),
+    packageCodes(packageIds),
+    liveParcelsByPackage({ query: (t, v) => query(t, v) }, packageIds),
+  ]);
   const manifests = manifestsByPackage(packageIds, items);
 
   const address = [r.line1, r.line2, r.city, r.region, r.postal_code]
@@ -119,7 +124,8 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
       const manifest = manifests.get(id);
       return {
         ref: r.order_number,
-        packageCode: codes.get(id), // 089 — the code on this bag's label
+        packageCode: codes.get(id), // 089 — the code on bag 1's label
+        parcels: bags.get(id) ?? [], // 096 — every bag of this package
         // ⚠ HOW MANY shops contributed, never WHICH. Hidden fulfilment is a product rule, not a UI
         // choice — a driver learning which shops served an order would leak it to the customer. A
         // package is one shop's portion, so this is 1; the drop-wide count is `packages.length`.

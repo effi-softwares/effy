@@ -21,13 +21,24 @@ data class CollectionStop(
     val address: String? = null,
     /** 089 — the codes on this stop's package labels; empty from an older server. */
     val packageCodes: List<String> = emptyList(),
-)
+    /** 096 — every bag of this stop's packages; empty from an older server. */
+    val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
+) {
+    /** The bags to count here: the server's, or one per package code from an older server. */
+    val bagCodes: List<String> get() = bags.map { it.code }.ifEmpty { packageCodes }
+}
 
 /** 090 — where a package goes at the hub. [UNKNOWN] is a kind this build does not know: show the label. */
 enum class HubSortKind { LOAD_NOW, SHELVE, COURIER_BAY, UNKNOWN }
 
 /** 090 — one package's hub instruction, in the platform's words ([label] is the whole line). */
-data class HubSort(val packageCode: String, val kind: HubSortKind, val label: String)
+data class HubSort(
+    val packageCode: String,
+    val kind: HubSortKind,
+    val label: String,
+    /** 096 — every bag of the package; each gets this instruction. */
+    val bagCodes: List<String> = emptyList(),
+)
 
 data class CollectionRun(
     val runId: String,
@@ -67,7 +78,12 @@ data class CollectionPackage(
     val packageId: String? = null,
     /** 089 — the code on this package's label; null from an older server. */
     val packageCode: String? = null,
+    /** 096 — this package's bags, each with its own code. */
+    val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
 ) {
+    /** 096 — the bags to count (one, carrying the package code, from an older server). */
+    val allBags: List<com.effyshopping.driver.mobile.core.scan.Bag> get() = com.effyshopping.driver.mobile.core.scan.bagsOrPackage(bags, packageCode)
+
     /** What the screen keys a package's tick or report by. */
     val key: String get() = packageId ?: ref
     /** Who takes it from the hub, in the two words a driver reads (082). */
@@ -138,8 +154,6 @@ data class PackageOutcome(
     val packageId: String,
     val collected: Boolean,
     val note: String? = null,
-    /** 090 — how it was handed over; null when not known (an older path). */
-    val method: com.effyshopping.driver.mobile.core.scan.HandMethod? = null,
 )
 /**
  * 093 — a collect's answer: sent or saved, and how many packages at the stop it did NOT name (added while
@@ -151,12 +165,21 @@ interface CollectionRepository {
     suspend fun getRun(runId: String): CollectionRun
     suspend fun getStop(runId: String, stopId: String): ShopStop
     /** [outcomes] — every package the driver was shown, each collected or not. 093: only these are settled. */
-    suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList()): Collected
+    suspend fun collect(
+        runId: String,
+        stopId: String,
+        changeId: String,
+        outcomes: List<PackageOutcome> = emptyList(),
+        /** 096 — every bag of every collected package, and how it was handed over. */
+        handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(),
+        /** 096 — bags of collected packages that were not at the shop. */
+        missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList(),
+    ): Collected
     /**
      * Null when there was no signal: the check-in is saved to send, and its answer comes later.
      * 093 — [missing]: label codes of collected packages that are not in the van (held for dispatch).
      */
-    suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<String> = emptyList()): HubSplit?
+    suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()): HubSplit?
 }
 
 class GetCollectionRun(private val repo: CollectionRepository) {
@@ -166,11 +189,17 @@ class GetShopStop(private val repo: CollectionRepository) {
     suspend operator fun invoke(runId: String, stopId: String) = repo.getStop(runId, stopId)
 }
 class CollectStop(private val repo: CollectionRepository) {
-    suspend operator fun invoke(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome> = emptyList()) =
-        repo.collect(runId, stopId, changeId, outcomes)
+    suspend operator fun invoke(
+        runId: String,
+        stopId: String,
+        changeId: String,
+        outcomes: List<PackageOutcome> = emptyList(),
+        handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(),
+        missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList(),
+    ) = repo.collect(runId, stopId, changeId, outcomes, handed, missing)
 }
 class CheckInHub(private val repo: CollectionRepository) {
-    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<String> = emptyList()) =
+    suspend operator fun invoke(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()) =
         repo.checkIn(runId, changeId, handed, missing)
 }
 

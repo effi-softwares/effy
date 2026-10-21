@@ -48,6 +48,10 @@ export type ShopAnalyticsEvent =
   | { name: "shop_refund_initiated"; fulfillmentId: string }
   // 089 — package labels printed. ⚠ No package code or order number: a unit of work, a layout, a count.
   | { name: "shop_labels_printed"; fulfillmentId: string; layout: string; count: number }
+  // 096 — bags. Counts and ids only; never a code, name or address.
+  | { name: "parcels_declared"; fulfillmentId: string; count: number }
+  | { name: "labels_printed"; orders: number; count: number; layout: string; path: string }
+  | { name: "pack_scanned"; fulfillmentId: string }
   // 057 US7 — team management. ⚠ NEVER the invitee's email or name: this is the one event that would
   // otherwise carry a colleague's identity into product analytics.
   | { name: "shop_staff_invited"; role: string }

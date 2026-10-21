@@ -7,6 +7,7 @@ import type { ProofRequest, ProofResponse } from "@effy/shared-types";
 
 import { authenticate } from "../driver/guard";
 import { DropNotFoundError, ProofValidationError, submitProof } from "../proof/service";
+import { NothingToHandOver, ParcelsUnaccounted, parcelsUnaccountedProblem } from "@effy/edge-shared/labels";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { SequenceError, sequenceProblem } from "../work/sequence";
 
@@ -63,6 +64,10 @@ export const handler = async (
     // 072 — the round has not opened. Nothing was written; the answer says when it will.
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
     if (err instanceof SequenceError) return sequenceProblem(err, guard.scope);
+    if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);
+    if (err instanceof NothingToHandOver) {
+      return problem(409, "nothing_to_deliver", "Nothing to hand over", err.message, guard.scope);
+    }
     if (err instanceof ProofValidationError) {
       return problem(422, "validation_failed", "Cannot record proof", err.detail, guard.scope, [
         { field: err.field, message: err.detail },

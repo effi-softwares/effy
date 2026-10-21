@@ -128,7 +128,9 @@ export async function submitProof(
     mediaKey,
     note: body.note?.trim() || null,
     changeId: body.changeId,
-    packages: body.packages,
+    parcels: body.parcels,
+    missingParcels: body.missingParcels,
+    reads: body.reads,
   });
 }
 

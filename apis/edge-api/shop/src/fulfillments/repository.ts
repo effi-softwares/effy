@@ -15,6 +15,7 @@ import { courierPickups, pickupOf } from "../lib/courier-pickup";
 import type pg from "pg";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
+import { assertReadyForPickup } from "../parcels/repository";
 import { promiseFrom, isAtRisk } from "./promise";
 import {
   ACTIVE_STATUSES,
@@ -371,6 +372,13 @@ export async function transition(
   reason?: string,
 ): Promise<boolean> {
   return withTransaction(async (client) => {
+    // ⚠ 096 — THE READY GATE: every live bag printed (and pack-scanned where the shop requires it),
+    // under the package's lock so a print recorded at the same moment is seen. A refusal is named
+    // (`labels_not_printed`, `bags_not_packed`, `zone_bag_required`) and the transition does not happen.
+    if (to === "ready_for_pickup") {
+      const locked = await client.query(`SELECT 1 FROM public.shop_fulfillment WHERE id = $1 AND shop_id = $2 FOR UPDATE`, [fulfillmentId, shopId]);
+      if ((locked.rowCount ?? 0) > 0) await assertReadyForPickup(client, fulfillmentId);
+    }
     const res = await client.query<{ id: string }>(TRANSITION, [
       fulfillmentId, shopId, from, to, reason ?? null,
     ]);

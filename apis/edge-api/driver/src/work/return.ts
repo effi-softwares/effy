@@ -1,13 +1,12 @@
-// Returning a run's failed parcels to the hub (088). The write itself is the shared
-// `recordParcelReturn`; this is the driver's side of it — scoped to the caller, and gated on the
-// round having opened like every other action on a round (072).
+// Returning a run's failed parcels to the hub (088; per bag since 096). The write itself is the shared
+// `recordParcelReturn`; this is the driver's side of it — scoped to the caller, gated on the round
+// having opened like every other action on a round (072), and accounting for every bag (096).
 
 import { withTransaction } from "@effy/edge-shared";
-import { recordParcelReturn, type ParcelReturnResult } from "@effy/edge-shared/delivery";
+import { recordParcelReturn, toReturnOnRound, type ParcelReturnResult } from "@effy/edge-shared/delivery";
+import { accountFor, countByPackage, expectedParcels, recordHandovers, recordReads, writeParcelHolds } from "@effy/edge-shared/labels";
+import type { ParcelReturnRequest } from "@effy/shared-types";
 
-import type { PackageHandover } from "@effy/shared-types";
-
-import { recordHandovers } from "./handover";
 import { assertRoundOpen } from "./open";
 
 export async function returnParcels(
@@ -15,10 +14,14 @@ export async function returnParcels(
   driverId: string,
   driverSub: string,
   changeId: string,
-  /** 090 — how each parcel was handed back; optional. */
-  packages?: PackageHandover[],
+  /** 096 — every bag handed back, or declared missing, and the reads made at the hub. */
+  body: Pick<ParcelReturnRequest, "parcels" | "missingParcels" | "reads"> = {},
 ): Promise<ParcelReturnResult> {
   return withTransaction(async (tx: any) => {
+    // The bags the round has to bring back, read before the return moves them.
+    const due = await toReturnOnRound(tx, runId);
+    const packageIds = due?.packageIds ?? [];
+
     const r = await recordParcelReturn(tx, {
       roundId: runId,
       driverId,
@@ -30,16 +33,20 @@ export async function returnParcels(
     // found"; a replay was answered before this could refuse it. Rolls the return back if refused.
     if (!r.replayed && r.returned > 0) {
       await assertRoundOpen(tx, runId);
-      const back = await tx.query(
-        `SELECT rp.shop_fulfillment_id FROM public.round_package rp
-           JOIN public.parcel_return pr ON pr.id = rp.return_id
-          WHERE pr.change_id = $1`,
-        [changeId],
-      );
-      await recordHandovers(tx, {
-        step: "return", roundId: runId, driverId, changeId, packages,
-        allowed: new Set(back.rows.map((x: any) => x.shop_fulfillment_id as string)),
+      const expected = await expectedParcels(tx, { step: "return", packageIds, roundId: runId });
+      const accounted = accountFor("return", expected, body.parcels, body.missingParcels);
+      await writeParcelHolds(tx, {
+        step: "return", driverId, roundId: runId, changeId, missing: accounted.missing, expectedCount: countByPackage(expected),
       });
+      await recordHandovers(tx, {
+        step: "return",
+        actor: { kind: "driver", driverId },
+        roundId: runId,
+        changeId,
+        parcels: accounted.handed.map((h) => ({ parcelId: h.parcel.parcelId, method: h.method })),
+        allowed: new Map(expected.map((p) => [p.parcelId, p.packageId])),
+      });
+      await recordReads(tx, { actor: { kind: "driver", driverId }, surface: "driver_app", step: "return", roundId: runId, reads: body.reads });
     }
     return r;
   });

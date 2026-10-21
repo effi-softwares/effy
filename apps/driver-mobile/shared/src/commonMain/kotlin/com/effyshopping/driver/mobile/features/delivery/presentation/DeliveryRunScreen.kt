@@ -50,6 +50,7 @@ import com.effyshopping.driver.mobile.core.presentation.rememberIsOpen
 import com.effyshopping.driver.mobile.core.presentation.timeText
 import com.effyshopping.driver.mobile.core.scan.AccountSheet
 import com.effyshopping.driver.mobile.core.scan.Accounted
+import com.effyshopping.driver.mobile.core.scan.title
 import com.effyshopping.driver.mobile.core.scan.HandMethod
 import com.effyshopping.driver.mobile.core.scan.HandedOver
 import com.effyshopping.driver.mobile.core.scan.Unscanned
@@ -115,17 +116,17 @@ fun DeliveryRunScreen(
         accounting?.let { scanned ->
             val done = scanned.map { it.code }.toSet()
             val unscanned = run.drops.filter { it.status == DropStatus.STAGED }.sortedBy { it.sequence }.flatMap { d ->
-                d.packageCodes.mapIndexedNotNull { i, c ->
-                    if (c in done) null
-                    else Unscanned(c, "${d.street ?: d.customerSuburb} · package ${i + 1} of ${d.packageCodes.size}", "Drop ${d.sequence} · $c")
+                dropBags(d).mapNotNull { (b, words) ->
+                    if (b.code in done) null
+                    else Unscanned(b.code, "${d.street ?: d.customerSuburb} · $words", "Drop ${d.sequence} · ${b.code}")
                 }
             }
             if (unscanned.isEmpty()) {
                 androidx.compose.runtime.LaunchedEffect(scanned) { accounting = null; onLoadVan(scanned, emptyList()) }
             } else {
                 AccountSheet(
-                    title = "Is everything in the van?",
-                    description = "Say what happened to each package you didn't scan. One that isn't loaded comes off the run, and dispatch is told.",
+                    title = "Is every bag in the van?",
+                    description = "Say what happened to each bag you didn't scan. A bag that isn't loaded is held, and dispatch is told.",
                     unscanned = unscanned,
                     hereLabel = "It's in the van",
                     missingLabel = "Not loaded",
@@ -154,19 +155,19 @@ fun DeliveryRunScreen(
             context = ScanContexts.load(run),
             // Load the last drops first, so drop 1 ends up nearest the door.
             items = stagedDrops.sortedByDescending { it.sequence }.flatMap { d ->
-                d.packageCodes.mapIndexed { i, c ->
+                dropBags(d).map { (b, words) ->
                     val street = d.street ?: d.customerSuburb
                     ScanItem(
-                        c, "Package ${i + 1} of ${d.packageCodes.size}",
-                        bannerTitle = "$street · package ${i + 1} of ${d.packageCodes.size}",
+                        b.code, words,
+                        bannerTitle = "$street · $words",
                         bannerSub = "Drop ${d.sequence}",
                         group = ScanGroup(d.dropId, street, d.customerSuburb.takeIf { d.street != null }, number = d.sequence),
                     )
                 }
             },
             listTitle = { _, _ -> listOfNotNull("Delivery run", window).joinToString(" · ") },
-            listSub = { s, t -> "$s of $t packages loaded · ${if (stagedDrops.size == 1) "1 drop" else "${stagedDrops.size} drops"}. Load the last drops first, so drop 1 ends up nearest the door." },
-            idleSub = "${stagedDrops.sumOf { it.packageCodes.size }} packages · ${stagedDrops.size} drops",
+            listSub = { s, t -> "$s of $t bags loaded · ${if (stagedDrops.size == 1) "1 drop" else "${stagedDrops.size} drops"}. Load the last drops first, so drop 1 ends up nearest the door." },
+            idleSub = "${stagedDrops.sumOf { it.bagCodes.size }} bags · ${stagedDrops.size} drops",
             completeVerb = "starting the run",
             working = state.isWorking, message = state.message,
             onBack = { loading = false },
@@ -196,7 +197,7 @@ fun DeliveryRunScreen(
                     actionLabel = "Try again", onAction = onRefresh, actionIcon = Res.drawable.lucide_refresh_ccw,
                 )
                 else -> RunBody(run, hubName, open, staged, next, state.isWorking, onOpenDrop, onScanLoad = { loading = true }, onLoadVan = {
-                    if (run.drops.any { it.status == DropStatus.STAGED && it.packageCodes.isNotEmpty() }) accounting = emptyList()
+                    if (run.drops.any { it.status == DropStatus.STAGED && it.bagCodes.isNotEmpty() }) accounting = emptyList()
                     else onLoadVan(emptyList(), emptyList())
                 }, onOpenReturn = onOpenReturn)
             }
@@ -247,7 +248,7 @@ private fun RunBody(
             description = "Look through the run now. Loading and delivering unlock when it opens.",
         )
         staged > 0 -> {
-            val codes = run.drops.any { it.status == DropStatus.STAGED && it.packageCodes.isNotEmpty() }
+            val codes = run.drops.any { it.status == DropStatus.STAGED && it.bagCodes.isNotEmpty() }
             DriverAlert(
                 DriverAlertKind.Info, Res.drawable.lucide_truck,
                 title = "Load the van",
@@ -281,7 +282,7 @@ private fun RunBody(
             DriverAlertKind.Muted, Res.drawable.lucide_warehouse,
             title = "${if (ret.count == 1) "1 parcel" else "${ret.count} parcels"} coming back to the hub",
             description = "Check ${if (ret.count == 1) "it" else "them"} in at the hub before the run is done.",
-            actions = { DriverButton("Return to hub", onClick = { onOpenReturn(ret.packageCodes.isNotEmpty()) }, style = DriverButtonStyle.Outline, tall = false) },
+            actions = { DriverButton("Return to hub", onClick = { onOpenReturn(ret.bagCodes.isNotEmpty()) }, style = DriverButtonStyle.Outline, tall = false) },
         )
     }
     Column {
@@ -370,20 +371,22 @@ fun ReturnHubScreen(
 ) {
     val ret = state.run?.toReturn
     var scanning by rememberSaveable { mutableStateOf(startScanning) }
-    if (ret != null && scanning && ret.packageCodes.isNotEmpty()) {
-        val byCode = ret.parcels.associateBy { it.packageCode }
+    if (ret != null && scanning && ret.bagCodes.isNotEmpty()) {
+        // 096 — one row per bag coming back.
+        val rows = ret.parcels.flatMap { p -> p.allBags.map { b -> p to b } }
+            .ifEmpty { ret.packageCodes.map { c -> null to com.effyshopping.driver.mobile.core.scan.Bag(c, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) } }
         ScanPanel(
             title = "Return to hub", backLabel = backLabel,
             context = ScanContexts.returnToHub(ret),
-            items = ret.packageCodes.map { c ->
-                val p = byCode[c]
+            items = rows.map { (p, b) ->
+                val title = listOfNotNull(p?.ref ?: b.code, b.title().takeIf { b.of > 1 }).joinToString(" · ")
                 ScanItem(
-                    c, p?.ref ?: c, mono = true,
+                    b.code, title, mono = true,
                     meta = listOfNotNull(p?.place, p?.reason?.let(::reasonWords)).joinToString(" · ").ifBlank { null },
-                    bannerTitle = p?.ref ?: c, bannerSub = "Back at the hub",
+                    bannerTitle = title, bannerSub = "Back at the hub",
                 )
             },
-            listTitle = { s, t -> "Parcels · $s of $t checked in" },
+            listTitle = { s, t -> "Bags · $s of $t checked in" },
             idleSub = "${if (ret.count == 1) "1 parcel" else "${ret.count} parcels"} coming back",
             completeVerb = "checking them in",
             working = state.isWorking, message = state.message,
@@ -436,7 +439,7 @@ fun ReturnHubScreen(
             }
         }
         if (ret != null) {
-            val codes = ret.packageCodes.isNotEmpty()
+            val codes = ret.bagCodes.isNotEmpty()
             if (codes) {
                 DriverButton("Scan parcels in", onClick = { scanning = true }, icon = Res.drawable.lucide_scan_line, modifier = Modifier.fillMaxWidth().padding(horizontal = DriverSize.gutter, vertical = 12.dp))
             }
@@ -448,5 +451,21 @@ fun ReturnHubScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * 096 — a drop's bags with the words each row shows. The server sends them package by package, each
+ * numbered from 1, so a drop of two packages reads "Package 2 · Bag 1 of 3". An older server sends no
+ * bags: each package code stands for its one bag.
+ */
+internal fun dropBags(d: com.effyshopping.driver.mobile.features.delivery.domain.DropSummary): List<Pair<com.effyshopping.driver.mobile.core.scan.Bag, String>> {
+    val bags = d.bags.ifEmpty { d.packageCodes.map { com.effyshopping.driver.mobile.core.scan.Bag(it, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) } }
+    val packages = bags.count { it.seq == 1 }
+    var pkg = 0
+    return bags.map { b ->
+        if (b.seq == 1) pkg += 1
+        val bag = if (b.of > 1) b.title() else b.title().removePrefix("Bag 1 of 1").removePrefix(" · ").ifEmpty { "1 bag" }
+        b to listOfNotNull("Package $pkg".takeIf { packages > 1 }, bag).joinToString(" · ")
     }
 }

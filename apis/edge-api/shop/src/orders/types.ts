@@ -1,4 +1,4 @@
-import type { CourierPickupDTO, ShopPackageLabelDTO } from "@effy/shared-types";
+import type { CourierPickupDTO, ParcelZone, ShopLabelCommonDTO, ShopPackageLabelDTO, ShopParcelLabelDTO } from "@effy/shared-types";
 // Domain types for the shop ORDER CONSOLE (057 Amendment A3). Wire DTOs live in @effy/shared-types
 // (`shop-order-console`); nothing wire-shaped escapes the handler (Principle VI).
 //
@@ -160,8 +160,14 @@ export interface OrderDetail {
   deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
   delivery: FulfillmentDelivery;
-  /** 089 — what this package's printed label needs. */
+  /** @deprecated — compatibility (096): bag 1's 089 label data. */
   label: ShopPackageLabelDTO;
+  /** 096 — this package's live bags. */
+  parcels: ShopParcelLabelDTO[];
+  /** 096 — what every bag's label shares. */
+  labelCommon: ShopLabelCommonDTO;
+  /** 096 — the cold zones this package's lines need a bag for. */
+  zonesNeeded: ParcelZone[];
   lines: OrderLine[];
   money: {
     currency: string;

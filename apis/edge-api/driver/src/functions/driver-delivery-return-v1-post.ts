@@ -9,6 +9,7 @@ import { authenticate } from "../driver/guard";
 import { announceReturned } from "../work/announce";
 import { RoundNotOpenError, roundNotOpenProblem } from "../work/open";
 import { returnParcels } from "../work/return";
+import { ParcelsUnaccounted, parcelsUnaccountedProblem } from "@effy/edge-shared/labels";
 
 /**
  * POST /driver/v1/delivery/runs/{runId}/return (088) — the driver checks the parcels from failed drops
@@ -42,7 +43,7 @@ export const handler = async (
   }
 
   try {
-    const result = await returnParcels(runId, guard.driver.id, guard.driver.subject, body.changeId, body.packages);
+    const result = await returnParcels(runId, guard.driver.id, guard.driver.subject, body.changeId, body);
 
     if (!result.replayed && result.returned > 0) {
       emitMetric(metricNamespace(), "ParcelsReturned", result.returned);
@@ -57,6 +58,7 @@ export const handler = async (
     return json(200, response, guard.scope);
   } catch (err) {
     if (err instanceof RoundNotOpenError) return roundNotOpenProblem(err, guard.scope);
+    if (err instanceof ParcelsUnaccounted) return parcelsUnaccountedProblem(err, guard.scope);
     if (err instanceof ParcelReturnRoundNotFoundError) {
       return problem(404, "not_found", "Not available", "That run is not available.", guard.scope);
     }

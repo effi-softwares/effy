@@ -8,7 +8,10 @@
 // because its delivery `round_package` is still `assigned` on a stop that was `skipped`. The return is
 // the only new fact: `state = 'returned'`, and a `parcel_return` row saying who and when.
 
+import type { ParcelDTO } from "@effy/shared-types";
+
 import type { Queryable } from "../lib/db";
+import { liveParcelsByPackage } from "../labels/parcels";
 
 /**
  * Delivery parcels still in a driver's van after a failed drop: `assigned` on a `skipped` stop of a
@@ -36,7 +39,7 @@ export const IN_TRANSIT_SQL = `(
 
 /** The parcels on one round still to return, with their order numbers. */
 const TO_RETURN_ON_ROUND = `
-  SELECT rp.id, o.order_number, sf.package_code,
+  SELECT rp.id, rp.shop_fulfillment_id AS package_id, o.order_number, sf.package_code,
          concat_ws(', ', nullif(btrim(o.delivery_address ->> 'line1'), ''), nullif(btrim(o.delivery_address ->> 'city'), '')) AS place,
          (SELECT f.reason FROM public.delivery_attempt_failure f WHERE f.stop_id = rs.id ORDER BY f.failed_at DESC LIMIT 1) AS reason
     FROM public.round_package rp
@@ -56,21 +59,26 @@ export interface ToReturn {
   orders: string[];
   /** 090 — the parcels' label codes, for the return scan. */
   packageCodes: string[];
+  /** 096 — the packages to return (server-side only; not on the driver wire). */
+  packageIds: string[];
   /** 092 rev 2 — each parcel: its order, label code, where it was for, and why it came back. */
-  parcels: Array<{ ref: string; packageCode: string; place: string | null; reason: ReturnReason | null }>;
+  parcels: Array<{ ref: string; packageCode: string; place: string | null; reason: ReturnReason | null; parcels: ParcelDTO[] }>;
 }
 
 type ReturnReason = "nobody_home" | "wrong_address" | "customer_refused" | "access_blocked" | "other";
 
 export async function toReturnOnRound(db: Queryable, roundId: string): Promise<ToReturn | null> {
-  const res = await db.query<{ id: string; order_number: string; package_code: string; place: string | null; reason: ReturnReason | null }>(TO_RETURN_ON_ROUND, [roundId]);
+  const res = await db.query<{ id: string; package_id: string; order_number: string; package_code: string; place: string | null; reason: ReturnReason | null }>(TO_RETURN_ON_ROUND, [roundId]);
   if (res.rows.length === 0) return null;
+  // 096 — each package's live bags: the return scan accounts for every one.
+  const bags = await liveParcelsByPackage(db, res.rows.map((r) => r.package_id));
   return {
     runId: roundId,
     count: res.rows.length,
     orders: [...new Set(res.rows.map((r) => r.order_number))],
     packageCodes: res.rows.map((r) => r.package_code),
-    parcels: res.rows.map((r) => ({ ref: r.order_number, packageCode: r.package_code, place: r.place || null, reason: r.reason })),
+    packageIds: res.rows.map((r) => r.package_id),
+    parcels: res.rows.map((r) => ({ ref: r.order_number, packageCode: r.package_code, place: r.place || null, reason: r.reason, parcels: bags.get(r.package_id) ?? [] })),
   };
 }
 

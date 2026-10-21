@@ -178,7 +178,7 @@ export interface ItemProgress {
   unavailableQuantity?: number;
 }
 
-export type FulfillmentErrorKind = "validation" | "conflict" | "not_found";
+export type FulfillmentErrorKind = "validation" | "conflict" | "not_found" | "unprocessable";
 
 /** Mirrors ProductError so the handler layer maps both uniformly. */
 export class FulfillmentError extends Error {
@@ -186,6 +186,11 @@ export class FulfillmentError extends Error {
     readonly kind: FulfillmentErrorKind,
     message: string,
     readonly fields?: FieldIssue[],
+    /**
+     * 096 — a machine-readable refusal (`labels_not_printed`, `zone_bag_required`, …), sent as the
+     * problem `type` so a client can act on it; the message is the sentence a person reads.
+     */
+    readonly code?: string,
   ) {
     super(message);
     this.name = "FulfillmentError";

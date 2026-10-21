@@ -6,6 +6,7 @@
 import { ANY_TIME_LABEL, anyTimeDayLabel, formatArrival, formatDeliveryWindow, formatMoment, melbourneDate, type DeliveryWindow } from "@effy/shared-types";
 import { orderRoundStops, query, type Queryable } from "@effy/edge-shared";
 import { readRoundStage, toReturnOnRound } from "@effy/edge-shared/delivery";
+import { liveParcelsByPackage } from "@effy/edge-shared/labels";
 
 import { dropStatusOf } from "./drop-status";
 import { hubSortOf } from "./hub-sort";
@@ -215,7 +216,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
   // 088 — parcels from failed drops still in the van. When they are all that is left on the round,
   // `active` is null and the app shows the "Return to hub" step from this field. ⚠ NOT a new item
   // kind: installed builds decode `kind` as a closed enum and would fail the whole response.
-  const toReturn = round.kind === "delivery" ? await toReturnOnRound(db, round.id) : null;
+  const toReturn = round.kind === "delivery" ? forWire(await toReturnOnRound(db, round.id)) : null;
 
   // 093 — where the round is. A delivery round not yet loaded has ONE next step, loading the van:
   // `active` is null and `loadStep` says what goes in it. Its drops are still listed, as what follows.
@@ -250,6 +251,13 @@ export async function today(driverId: string): Promise<TodayDTO> {
 /** The read-only database handle the shared reads take. */
 const db: Queryable = { query: (text, values) => query(text, values) };
 
+/** 096 — what the driver is sent of the parcels to return: never the package ids the server keeps. */
+function forWire<T extends { packageIds: string[] }>(t: T | null): Omit<T, "packageIds"> | null {
+  if (t === null) return null;
+  const { packageIds: _ids, ...rest } = t;
+  return rest;
+}
+
 /** GET /driver/v1/collection/runs/{runId} */
 export async function collectionRun(runId: string, driverId: string): Promise<DriverCollectionRunDTO> {
   // ⚠ Readable whether or not the round has opened (FR-020) — reading is the point of assigning early.
@@ -258,6 +266,8 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
 
   const [allStops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
+  // 096 — every package's live bags, so the app can count and match bags with no signal.
+  const bags = await liveParcelsByPackage(db, packages.map((p) => p.package_id));
 
   // ⚠ THE HUB STOP IS EXCLUDED HERE, DELIBERATELY (064, research R11).
   //
@@ -285,6 +295,7 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
       .filter((p) => p.state !== "not_available")
       .map((p) => ({
         packageCode: p.package_code,
+        parcelCodes: (bags.get(p.package_id) ?? []).map((b) => b.code), // 096
         ...hubSortOf(
           { deliveredBy: p.delivered_by, windowStart: p.window_start, windowEnd: p.window_end, anyTime: p.any_time },
           new Date(),
@@ -305,6 +316,7 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
         address: addressLine([s.address_line1, s.address_line2, s.suburb, s.state, s.postcode]),
         packageCount: pkgs.length,
         packageCodes: pkgs.map((p) => p.package_code), // 089
+        parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []), // 096
         status: stopStatus(s.stop_status, pkgs.some((p) => p.state === "not_available")),
       } satisfies CollectionStopSummary;
     }),
@@ -326,7 +338,10 @@ export async function collectionStop(
 
   const pkgs = (await roundPackages(runId, driverId)).filter((p) => p.stop_id === stopId);
   const packageIds = pkgs.map((p) => p.package_id);
-  const manifests = manifestsByPackage(packageIds, await packageItems(packageIds));
+  const [manifests, bags] = await Promise.all([
+    packageItems(packageIds).then((items) => manifestsByPackage(packageIds, items)),
+    liveParcelsByPackage(db, packageIds),
+  ]);
 
   return {
     stopId,
@@ -343,6 +358,7 @@ export async function collectionStop(
       return {
         packageId: p.package_id,
         packageCode: p.package_code, // 089
+        parcels: bags.get(p.package_id) ?? [], // 096 — this package's bags
         ref: p.order_number,
         destinationSuburb: p.destination_suburb ?? "",
         method: p.method,
@@ -370,9 +386,10 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
   // ⚠ ONE items read for the whole run, not one per drop (065) — a round is a dozen drops and this
   // list is the screen a driver opens most.
   const allIds = packages.map((p) => p.package_id);
-  const [manifests, outcomes] = await Promise.all([
+  const [manifests, outcomes, bags] = await Promise.all([
     packageItems(allIds).then((items) => manifestsByPackage(allIds, items)),
     stopOutcomes(runId),
+    liveParcelsByPackage(db, allIds),
   ]);
   const sorted = ordered(stops);
 
@@ -384,7 +401,7 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
     stage: stage?.stage ?? null,
     stageLabel: stage?.label ?? null,
     // 088 — parcels from this run's failed drops, still to be returned to the hub.
-    toReturn: await toReturnOnRound(db, runId),
+    toReturn: forWire(await toReturnOnRound(db, runId)),
     opening: times.opening,
     deadlineAt: times.deadlineAt,
     dueLabel: times.dueLabel,
@@ -398,6 +415,7 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         customerSuburb: s.destination_suburb ?? "",
         packageCount: pkgs.length,
         packageCodes: pkgs.map((p) => p.package_code), // 089
+        parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []), // 096
         // 069 — the window the CUSTOMER WAS SOLD, read from the order, never derived. ⚠ This read
         // `window: null` from 049 until 069, under a comment saying there was no window and that
         // inventing one would put a promise on the one screen a driver reads as instructions. That

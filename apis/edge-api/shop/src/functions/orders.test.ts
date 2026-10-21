@@ -59,6 +59,10 @@ const DETAIL = {
   payment: { state: "paid", methodType: null, methodBrand: null, methodLast4: null, amount: "0.00", paidAt: null },
   refunds: [],
   handoff: { collectedAt: null, deliveredAt: null, unfulfillableReason: null },
+  label: { packageCode: "7K3Q9M", position: 1, packageCount: 1, suburb: "M", cold: null },
+  parcels: [{ parcelId: "p-1", code: "7K3Q9M", seq: 1, of: 1, zone: "ambient", printed: { count: 0, firstAt: null, lastAt: null, current: false }, packScanned: null, custody: "at_shop" }],
+  labelCommon: { service: "effy_driver", orderNumber: "EFY-1", packedOn: null, recipientName: "A", street: "1", suburb: "M", state: "", postcode: "3000" },
+  zonesNeeded: [],
   tags: [],
   notes: [],
 };

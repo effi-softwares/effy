@@ -587,6 +587,51 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── 096 — bags: declare, void, print record, pack-scan ──────────────────────────────────────────
+  parcelsPutV1:
+    handler: src/functions/parcels-put-v1.handler
+    description: Set how many bags per zone the shop packed (096)
+    events:
+      - httpApi:
+          method: PUT
+          path: /shop/v1/fulfillments/{id}/parcels
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  parcelVoidV1:
+    handler: src/functions/parcel-void-v1-post.handler
+    description: Remove one bag (bag 1 never; once printed, only the last) (096)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/fulfillments/{id}/parcels/{parcelId}/void
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  parcelPrintsV1:
+    handler: src/functions/parcel-prints-v1-post.handler
+    description: Record bag labels sent to a printer (096)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/fulfillments/parcels/prints
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  parcelPackScansV1:
+    handler: src/functions/parcel-pack-scans-v1-post.handler
+    description: Confirm bags as they are packed by scanning their labels (096)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/fulfillments/{id}/parcels/pack-scans
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   # ⚠ THE DEV-ONLY PICKUP STUB IS DELIBERATELY **NOT REGISTERED HERE** (020 FR-031, SC-013).
   #
   # src/functions/fulfillment-pickup-v1-post.ts exists and is unit-tested, but NO route points at it

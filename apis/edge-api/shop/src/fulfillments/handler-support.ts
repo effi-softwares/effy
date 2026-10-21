@@ -20,6 +20,9 @@ import type { DeliveryPromise, FulfillmentDetail, FulfillmentItem, FulfillmentSu
 
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 
+/** 096 — a named refusal's problem type: `https://effyshopping.com/problems/<code>`. */
+export const problemType = (code: string): string => `https://effyshopping.com/problems/${code}`;
+
 /**
  * Resolve the actor: their shop AND their staff id, in one round trip.
  *
@@ -108,7 +111,9 @@ export function mapFulfillmentError(
       case "not_found":
         return forbidden(scope);
       case "conflict":
-        return problem(409, CONFLICT, "Conflict", err.message, scope);
+        return problem(409, err.code ? problemType(err.code) : CONFLICT, "Conflict", err.message, scope);
+      case "unprocessable":
+        return problem(422, err.code ? problemType(err.code) : CONFLICT, "Cannot be done", err.message, scope, err.fields);
     }
   }
   scope.log.error(

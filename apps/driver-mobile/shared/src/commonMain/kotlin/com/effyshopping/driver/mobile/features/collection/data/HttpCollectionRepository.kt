@@ -1,6 +1,8 @@
 package com.effyshopping.driver.mobile.features.collection.data
 
+import com.effyshopping.driver.mobile.core.scan.toDomain
 import com.effyshopping.driver.mobile.core.scan.toWire
+import com.effyshopping.driver.mobile.core.scan.toWireMissing
 import com.effyshopping.driver.mobile.core.map.toDomain
 import com.effyshopping.driver.mobile.contract.CollectRequest
 import com.effyshopping.driver.mobile.contract.CollectResponse
@@ -64,7 +66,14 @@ class HttpCollectionRepository(
         }
     }
 
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): Collected {
+    override suspend fun collect(
+        runId: String,
+        stopId: String,
+        changeId: String,
+        outcomes: List<PackageOutcome>,
+        handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>,
+        missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>,
+    ): Collected {
         val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
         // ⚠ Each package's outcome travels IN the collect (063 FR-026). The separate `/issue` call
         // this app used to make named no package, and the platform reads "no package" as "every
@@ -73,12 +82,15 @@ class HttpCollectionRepository(
             changeID = changeId,
             packages = outcomes.map {
                 CollectPackage(
-                    method = it.method?.toWire(),
                     note = it.note,
                     outcome = if (it.collected) Outcome.PickedUp else Outcome.NotAvailable,
                     packageID = it.packageId,
                 )
             },
+            // 096 — every bag, handed over or declared missing, and every read made at the counter.
+            parcels = handed.toWire(),
+            missingParcels = missing.toWireMissing(),
+            reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain(),
         )
         return request {
             offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop", queued = { Collected(WriteOutcome.QUEUED) }) {
@@ -88,11 +100,12 @@ class HttpCollectionRepository(
         }
     }
 
-    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<String>): HubSplit? {
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): HubSplit? {
         val path = "driver/v1/hub/checkin"
         val body = HubCheckinRequest(
-            changeID = changeId, runID = runId, packages = handed.toWire(),
-            missing = missing.takeIf { it.isNotEmpty() }?.map { com.effyshopping.driver.mobile.contract.PackageRefOnly(packageCode = it) },
+            changeID = changeId, runID = runId, parcels = handed.toWire(),
+            missingParcels = missing.toWireMissing(),
+            reads = com.effyshopping.driver.mobile.core.scan.ReadLog.drain(),
         )
         return request {
             offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in", queued = { null }) {
@@ -141,11 +154,12 @@ private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
         CollectionStop(
             it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status), it.address,
             packageCodes = it.packageCodes.orEmpty(),
+            bags = it.parcels.orEmpty().map { b -> b.toDomain() },
         )
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
-    hubSort = hubSort.orEmpty().map { HubSort(it.packageCode, hubSortKind(it.kind), it.label) },
+    hubSort = hubSort.orEmpty().map { HubSort(it.packageCode, hubSortKind(it.kind), it.label, bagCodes = it.parcelCodes.orEmpty()) },
     map = map?.toDomain(),
 )
 
@@ -168,6 +182,7 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
             windowLabel = p.windowLabel,
             packageId = p.packageID,
             packageCode = p.packageCode,
+            bags = p.parcels.orEmpty().map { b -> b.toDomain() },
         )
     },
     status = stopStatus(status),

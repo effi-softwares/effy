@@ -182,30 +182,39 @@ class CollectionViewModel(
      * Commit the stop. ⚠ Every package's outcome goes IN this one request (063 FR-026): a package the
      * driver reported is sent as not collected with what was wrong, and the rest as collected.
      */
-    fun collect(stopId: String, onDone: () -> Unit) = collect(stopId, emptyMap(), onDone)
+    fun collect(stopId: String, onDone: () -> Unit) = collect(stopId, emptyMap(), emptyList(), onDone)
 
     /**
-     * [methods] — 092: how each package was handed over, by label code, from the scan screen. A collected
-     * package with no scan was ticked (or swiped) by hand.
+     * [methods] — 092/096: how each BAG was handed over, by label code, from the scan screen. A bag of a
+     * collected package with no scan was ticked (or swiped) by hand; [missing] are bags the driver said
+     * were not at the shop (the package is collected, those bags are held).
      */
-    fun collect(stopId: String, methods: Map<String, com.effyshopping.driver.mobile.core.scan.HandMethod>, onDone: () -> Unit) {
+    fun collect(
+        stopId: String,
+        methods: Map<String, com.effyshopping.driver.mobile.core.scan.HandMethod>,
+        missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>,
+        onDone: () -> Unit,
+    ) {
         if (_state.value.isWorking) return
         val now = _state.value
-        val outcomes = now.stop?.takeIf { it.stopId == stopId }?.packages.orEmpty().mapNotNull { pkg ->
+        val packages = now.stop?.takeIf { it.stopId == stopId }?.packages.orEmpty()
+        val outcomes = packages.mapNotNull { pkg ->
             val id = pkg.packageId ?: return@mapNotNull null
             val problem = now.reportedPackages[pkg.key]
-            PackageOutcome(
-                packageId = id, collected = problem == null, note = problem?.asNote(),
-                method = if (problem != null) null else pkg.packageCode?.let { methods[it] } ?: com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL,
-            )
+            PackageOutcome(packageId = id, collected = problem == null, note = problem?.asNote())
         }
+        val missingCodes = missing.map { it.code }.toSet()
+        // 096 — every bag of every collected package: scanned, typed, ticked by hand, or declared missing.
+        val handed = packages.filter { it.key !in now.reportedPackages }.flatMap { it.allBags }
+            .filter { it.code !in missingCodes }
+            .map { com.effyshopping.driver.mobile.core.scan.HandedOver(it.code, methods[it.code] ?: com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL) }
         _state.update { it.copy(isWorking = true, message = null) }
         val action = "collect:$stopId"
         viewModelScope.launch {
             try {
                 // Sent or saved to send, the stop is collected as far as the driver is concerned
                 // (backlog C1): the queue banner says what is still on the phone.
-                val result = collectStop(runId, stopId, ids.of(action), outcomes)
+                val result = collectStop(runId, stopId, ids.of(action), outcomes, handed, missing)
                 ids.settled(action)
                 if (result.remaining > 0) {
                     // 093 — a package was added while the driver was here. Only what they were shown is
@@ -276,8 +285,8 @@ class CollectionViewModel(
         keepDraft()
     }
 
-    /** 093 — [missing]: label codes of collected packages that are not in the van. */
-    fun checkIn(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<String> = emptyList()) {
+    /** 093/096 — [missing]: bags collected that are not in the van (reason `not_in_van`). */
+    fun checkIn(handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList(), missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()) {
         if (_state.value.isWorking || _state.value.checkInSending) return
         _state.update { it.copy(isWorking = true, message = null) }
         val id = ids.of(CHECK_IN)

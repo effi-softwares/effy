@@ -51,14 +51,17 @@ private class FakeCollectionRepo(
     val changeIds = mutableListOf<String>()
     /** 093 — how many packages the next collect leaves waiting (added while the driver was there). */
     var remaining = 0
-    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>): com.effyshopping.driver.mobile.features.collection.domain.Collected {
-        fail?.let { throw AppException(it) }; collectedStop = stopId; this.outcomes = outcomes
+    /** 096 — the bags a collect handed over, and those declared not at the shop. */
+    var bagsHanded: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()
+    var bagsMissing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()
+    override suspend fun collect(runId: String, stopId: String, changeId: String, outcomes: List<PackageOutcome>, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): com.effyshopping.driver.mobile.features.collection.domain.Collected {
+        fail?.let { throw AppException(it) }; collectedStop = stopId; this.outcomes = outcomes; bagsHanded = handed; bagsMissing = missing
         changeIds += changeId
         return com.effyshopping.driver.mobile.features.collection.domain.Collected(if (offline) WriteOutcome.QUEUED else WriteOutcome.SENT, remaining)
     }
     var handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver> = emptyList()
-    var missing: List<String> = emptyList()
-    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<String>): HubSplit? {
+    var missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag> = emptyList()
+    override suspend fun checkIn(runId: String, changeId: String, handed: List<com.effyshopping.driver.mobile.core.scan.HandedOver>, missing: List<com.effyshopping.driver.mobile.core.scan.MissingBag>): HubSplit? {
         fail?.let { throw AppException(it) }
         this.handed = handed
         this.missing = missing
@@ -205,12 +208,12 @@ class CollectionViewModelTest {
         assertEquals(listOf("a", "b"), v.state.value.stop?.packages?.map { it.packageId })
     }
 
-    /** 093 — packages not in the van ride the check-in. */
-    @Test fun missing_packages_ride_the_check_in() = runTest {
+    /** 093/096 — bags not in the van ride the check-in, each with its reason. */
+    @Test fun missing_bags_ride_the_check_in() = runTest {
         val repo = FakeCollectionRepo(split = HubSplit(1, 1, 0))
         val v = vm(repo)
-        v.checkIn(emptyList(), listOf("ZZZZZZ"))
-        assertEquals(listOf("ZZZZZZ"), repo.missing)
+        v.checkIn(emptyList(), listOf(com.effyshopping.driver.mobile.core.scan.MissingBag("ZZZZZZ", "not_in_van")))
+        assertEquals(listOf(com.effyshopping.driver.mobile.core.scan.MissingBag("ZZZZZZ", "not_in_van")), repo.missing)
     }
 
     private fun pkg(id: String) = CollectionPackage(
@@ -229,22 +232,35 @@ class CollectionViewModelTest {
         v.reportPackage("b", "Damaged", "box crushed")
         v.collect("s1") {}
         assertEquals(
-            listOf(PackageOutcome("a", true, null, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL), PackageOutcome("b", false, "Damaged — box crushed")),
+            listOf(PackageOutcome("a", true, null), PackageOutcome("b", false, "Damaged — box crushed")),
             repo.outcomes,
         )
     }
 
-    /** 092 T026 — a scanned stop says how each package came: scanned, typed, or (unscanned) by hand. */
-    @Test fun a_scanned_collect_sends_each_packages_method() = runTest {
+    /**
+     * 092/096 — a scanned stop says how each BAG came: scanned, typed, or (unscanned) by hand; a bag
+     * declared not at the shop is not handed over, and rides the collect with its reason.
+     */
+    @Test fun a_scanned_collect_sends_each_bags_method() = runTest {
+        val bag = { c: String, seq: Int, of: Int -> com.effyshopping.driver.mobile.core.scan.Bag(c, seq, of, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) }
         val repo = FakeCollectionRepo().apply {
-            packages = listOf(pkg("a").copy(packageCode = "AAAAAA"), pkg("b").copy(packageCode = "BBBBBB"), pkg("c"))
+            packages = listOf(
+                pkg("a").copy(packageCode = "AAAAAA", bags = listOf(bag("AAAAAA", 1, 2), bag("AAAAA2", 2, 2))),
+                pkg("b").copy(packageCode = "BBBBBB"),
+            )
         }
         val v = vm(repo); v.loadStop("s1")
-        v.collect("s1", mapOf("AAAAAA" to com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN, "BBBBBB" to com.effyshopping.driver.mobile.core.scan.HandMethod.TYPED)) {}
-        assertEquals(
-            listOf(com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN, com.effyshopping.driver.mobile.core.scan.HandMethod.TYPED, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL),
-            repo.outcomes?.map { it.method },
-        )
+        v.collect("s1", mapOf("AAAAAA" to com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN, "BBBBBB" to com.effyshopping.driver.mobile.core.scan.HandMethod.TYPED), listOf(com.effyshopping.driver.mobile.core.scan.MissingBag("AAAAA2", "not_at_shop"))) {}
+        assertEquals(listOf(com.effyshopping.driver.mobile.core.scan.HandedOver("AAAAAA", com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN), com.effyshopping.driver.mobile.core.scan.HandedOver("BBBBBB", com.effyshopping.driver.mobile.core.scan.HandMethod.TYPED)), repo.bagsHanded)
+        assertEquals(listOf(com.effyshopping.driver.mobile.core.scan.MissingBag("AAAAA2", "not_at_shop")), repo.bagsMissing)
+    }
+
+    @Test fun a_ticked_collect_hands_over_every_bag_by_hand() = runTest {
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a").copy(packageCode = "AAAAAA"), pkg("b")) }
+        val v = vm(repo); v.loadStop("s1")
+        v.togglePackage("a"); v.togglePackage("b")
+        v.collect("s1") {}
+        assertEquals(listOf(com.effyshopping.driver.mobile.core.scan.HandedOver("AAAAAA", com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL)), repo.bagsHanded)
     }
 
     @Test fun a_scanned_check_in_carries_the_methods() = runTest {
@@ -265,7 +281,7 @@ class CollectionViewModelTest {
         assertEquals(emptySet(), v.state.value.confirmedPackageIds)
         v.togglePackage("a"); v.togglePackage("b")
         v.collect("s1") {}
-        assertEquals(listOf(PackageOutcome("a", true, null, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL), PackageOutcome("b", true, null, com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL)), repo.outcomes)
+        assertEquals(listOf(PackageOutcome("a", true, null), PackageOutcome("b", true, null)), repo.outcomes)
     }
 
     /** Coming back from the problem screen opens the same stop again; the ticks must still be there. */

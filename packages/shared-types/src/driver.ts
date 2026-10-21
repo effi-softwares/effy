@@ -23,6 +23,7 @@
 import type { WireInt } from "./cart";
 import type { HandoverPreference } from "./delivery-instructions";
 import type { DeliveryWindow } from "./delivery-window";
+import type { LabelReadDTO, ParcelDTO, ParcelHandover, ParcelMissing } from "./parcels";
 
 // ── Identity & duty ──────────────────────────────────────────────────────────────────────────────
 
@@ -336,6 +337,11 @@ export interface CollectionStopSummary {
   packageCount: WireInt;
   /** 089 — the codes printed on this stop's package labels, for matching a scan with no signal. */
   packageCodes?: string[];
+  /**
+   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
+   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+   */
+  parcels?: ParcelDTO[];
   status: CollectionStopStatus;
 }
 
@@ -364,6 +370,8 @@ export interface DriverCollectionRunDTO {
 /** 090 — one package's hub instruction. `label` is the whole line: "LOAD NOW · Today 4–6 pm". */
 export interface HubSortInstruction {
   packageCode: string;
+  /** 096 — the codes of every bag of this package: each bag scanned at the hub gets this instruction. */
+  parcelCodes?: string[];
   /**
    * `load_now` | `shelve` | `courier_bay` (`HubSortKind`). ⚠ A STRING ON THE WIRE, NOT AN ENUM: the
    * driver app decodes enums as closed sets, and a fourth kind added later would fail the whole run
@@ -421,6 +429,11 @@ export interface CollectionPackage {
   packageId?: string;
   /** 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers. */
   packageCode?: string;
+  /**
+   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
+   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+   */
+  parcels?: ParcelDTO[];
   ref: string; // the order number the package belongs to
   destinationSuburb: string;
   /** @deprecated 082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9). */
@@ -459,17 +472,34 @@ export type HandoverMethod = "scan" | "typed" | "manual";
 
 /** 090 — which hand-over: shop → driver, driver → hub, hub → van, van → door, failed parcel → hub. */
 export type HandoverStep = "collect" | "checkin" | "load" | "deliver" | "return";
-export interface PackageHandover {
-  /**
-   * The package's own id. ⚠ 092 — OR `packageCode` (the label's code): the delivery steps hold only
-   * codes on the phone, and a scan reads a code. One of the two names the package; both may be sent.
-   */
-  packageId?: string;
-  packageCode?: string;
-  method: HandoverMethod;
+
+/**
+ * 096 — what every driver hand-over sends: each BAG handed over (and how), each bag declared missing
+ * (with a reason), and every read made at the step, refused ones included. The server refuses a step
+ * that leaves a live bag unaccounted for (409 `parcels_unaccounted`, `ParcelsUnaccountedProblem`).
+ */
+export interface ParcelStepFields {
+  parcels?: ParcelHandover[];
+  missingParcels?: ParcelMissing[];
+  reads?: LabelReadDTO[];
 }
 
-export interface CollectRequest {
+/** POST /driver/v1/reads — 096: reads with no hand-over (a refused scan, a lookup), replayed in order offline. */
+export interface DriverReadsRequest {
+  reads: LabelReadDTO[];
+}
+export interface DriverReadsResponse {
+  recorded: WireInt;
+}
+
+/** 096 — the 409 a step answers when a live bag was neither handed over nor declared missing. */
+export interface ParcelsUnaccountedProblem {
+  type: "parcels_unaccounted";
+  detail: string;
+  parcels: Array<{ code: string; seq: WireInt; of: WireInt }>;
+}
+
+export interface CollectRequest extends ParcelStepFields {
   changeId: string;
   /**
    * Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one request,
@@ -484,8 +514,6 @@ export interface CollectRequest {
     packageId: string;
     outcome: "picked_up" | "not_available";
     note?: string | null;
-    /** 090 — how it was handed over; omitted by builds that do not scan. */
-    method?: HandoverMethod;
   }>;
 }
 export interface CollectResponse {
@@ -511,22 +539,9 @@ export interface CollectionIssueRequest {
 // ── The pivot — hub check-in ─────────────────────────────────────────────────────────────────────
 
 /** POST /driver/v1/hub/checkin */
-export interface HubCheckinRequest {
+export interface HubCheckinRequest extends ParcelStepFields {
   runId: string;
   changeId: string;
-  /** 090 — how each package was handed over at the hub. */
-  packages?: PackageHandover[];
-  /**
-   * 093 — collected packages that are not in the van. Each is held out of delivery planning and shown
-   * to dispatch as a shortage; the rest check in.
-   */
-  missing?: PackageRefOnly[];
-}
-
-/** 093 — a package named by its id or its label code. */
-export interface PackageRefOnly {
-  packageId?: string;
-  packageCode?: string;
 }
 export interface HubCheckinResponse {
   scannedTotal: WireInt;
@@ -592,6 +607,11 @@ export interface DeliveryDropSummary {
   /** 089 — the codes printed on this drop's package labels, for matching a scan with no signal. */
   packageCodes?: string[];
   /**
+   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
+   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+   */
+  parcels?: ParcelDTO[];
+  /**
    * The delivery window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time). ⚠ Null from 049
    * until 069 — the field existed and nothing could fill it, because no window was ever sold.
    */
@@ -652,27 +672,25 @@ export interface ParcelsToReturn {
 export interface ReturnParcel {
   ref: string;
   packageCode: string;
+  /**
+   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
+   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+   */
+  parcels?: ParcelDTO[];
+
   /** "8 Scotchmer St, Fitzroy North". */
   place: string | null;
   reason: DeliveryFailureReason | null;
 }
 
 /** POST /driver/v1/delivery/runs/{runId}/return — 088. */
-export interface ParcelReturnRequest {
+export interface ParcelReturnRequest extends ParcelStepFields {
   changeId: string;
-  /** 090 — how each parcel was handed back. */
-  packages?: PackageHandover[];
 }
 
 /** POST /driver/v1/delivery/runs/{runId}/load — 090: the van is loaded; every staged drop goes out. */
-export interface LoadRequest {
+export interface LoadRequest extends ParcelStepFields {
   changeId: string;
-  packages?: PackageHandover[];
-  /**
-   * 093 — packages the driver could not load, each with a reason. Each comes off the run and is held
-   * at the hub for dispatch; a drop left with nothing comes off the run too.
-   */
-  notLoaded?: NotLoadedPackage[];
 }
 
 /** 093 — why a package did not go in the van. `other` needs a note. */
@@ -685,12 +703,6 @@ export const MISSING_REASON_WORDS: Record<MissingReason, string> = {
   other: "Other",
 };
 
-export interface NotLoadedPackage {
-  packageId?: string;
-  packageCode?: string;
-  reason: MissingReason;
-  note?: string | null;
-}
 
 export interface LoadResponse {
   /** How many drops this call moved to out for delivery. */
@@ -717,6 +729,11 @@ export interface DropPackageRef {
   ref: string;
   /** 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers. */
   packageCode?: string;
+  /**
+   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
+   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+   */
+  parcels?: ParcelDTO[];
   fromShopCount: WireInt; // how many shops contributed — never shop identity
   items: ManifestLine[];
   summary: ClassSummary;
@@ -797,8 +814,10 @@ export interface ProofRequest {
   code?: string; // code
   note?: string;
   changeId: string;
-  /** 090 — how each package was handed over at the door. */
-  packages?: PackageHandover[];
+  /** 096 — every bag of the drop, handed over or declared missing (`ParcelStepFields`). */
+  parcels?: ParcelHandover[];
+  missingParcels?: ParcelMissing[];
+  reads?: LabelReadDTO[];
 }
 export interface ProofResponse {
   status: "delivered";

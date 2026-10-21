@@ -178,7 +178,7 @@ class DeliveryViewModelTest {
         assertEquals(listOf("d2"), drops.map { it.dropId })
         assertEquals(listOf("BBBBBB"), drops.single().packageCodes)
         assertEquals(DropStatus.OUT_FOR_DELIVERY, drops.single().status)
-        assertEquals("Van loaded · 2 packages left for dispatch", v.state.value.notice)
+        assertEquals("Van loaded · 2 bags left for dispatch", v.state.value.notice)
     }
 
     /** 090 / 092 — the van is loaded once: every staged drop goes out, a drop further on stays put. */

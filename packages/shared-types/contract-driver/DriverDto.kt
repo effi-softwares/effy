@@ -49,6 +49,8 @@ data class CollectRequest (
     @SerialName("changeId")
     val changeID: String,
 
+    val missingParcels: List<ParcelMissing>? = null,
+
     /**
      * Every package the driver was SHOWN at this stop, each with its outcome (063 FR-026: one
      * request, so it cannot half-happen).
@@ -58,16 +60,38 @@ data class CollectRequest (
      * recorded as in the van without anybody having seen it. A package not named here stays
      * waiting, and the stop stays open (`CollectResponse.remaining`).
      */
-    val packages: List<Package>
+    val packages: List<Package>,
+
+    val parcels: List<ParcelHandover>? = null,
+    val reads: List<LabelReadDTO>? = null
 )
 
 @Serializable
-data class Package (
-    /**
-     * 090 — how it was handed over; omitted by builds that do not scan.
-     */
-    val method: HandoverMethod? = null,
+data class ParcelMissing (
+    val note: String? = null,
+    val parcelCode: String? = null,
 
+    @SerialName("parcelId")
+    val parcelID: String? = null,
+
+    val reason: ParcelMissingReason
+)
+
+/**
+ * Why a bag was not handed over at a step. `other` needs a note.
+ */
+@Serializable
+enum class ParcelMissingReason(val value: String) {
+    @SerialName("damaged") Damaged("damaged"),
+    @SerialName("not_at_hub") NotAtHub("not_at_hub"),
+    @SerialName("not_at_shop") NotAtShop("not_at_shop"),
+    @SerialName("not_in_van") NotInVan("not_in_van"),
+    @SerialName("other") Other("other"),
+    @SerialName("wrong_temperature") WrongTemperature("wrong_temperature");
+}
+
+@Serializable
+data class Package (
     val note: String? = null,
     val outcome: Outcome,
 
@@ -75,9 +99,22 @@ data class Package (
     val packageID: String
 )
 
+@Serializable
+enum class Outcome(val value: String) {
+    @SerialName("not_available") NotAvailable("not_available"),
+    @SerialName("picked_up") PickedUp("picked_up");
+}
+
+@Serializable
+data class ParcelHandover (
+    val method: HandoverMethod,
+    val parcelCode: String? = null,
+
+    @SerialName("parcelId")
+    val parcelID: String? = null
+)
+
 /**
- * 090 — how it was handed over; omitted by builds that do not scan.
- *
  * 090 — how a package was handed over: scanned from its label, its code typed (a torn
  * label), or ticked by hand. Optional on every hand-over; an app that sends none behaves as
  * before.
@@ -89,10 +126,51 @@ enum class HandoverMethod(val value: String) {
     @SerialName("typed") Typed("typed");
 }
 
+/**
+ * One read as the client made and judged it. `clientReadId` makes an offline replay record
+ * once; `deviceAt` is when it happened on the device, kept however late it arrives.
+ */
 @Serializable
-enum class Outcome(val value: String) {
-    @SerialName("not_available") NotAvailable("not_available"),
-    @SerialName("picked_up") PickedUp("picked_up");
+data class LabelReadDTO (
+    val appVersion: String? = null,
+
+    @SerialName("clientReadId")
+    val clientReadID: String,
+
+    val deviceAt: String,
+
+    @SerialName("deviceId")
+    val deviceID: String? = null,
+
+    val method: ReadMethod,
+    val outcome: ReadOutcome,
+    val parcelCode: String? = null,
+    val raw: String
+)
+
+/**
+ * How a read was made. A bag ticked by hand is not a read: it is a hand-over with method
+ * `manual`.
+ */
+@Serializable
+enum class ReadMethod(val value: String) {
+    @SerialName("scan") Scan("scan"),
+    @SerialName("typed") Typed("typed");
+}
+
+/**
+ * What a read means, everywhere (FR-052). `not_found` is decided by the server only.
+ */
+@Serializable
+enum class ReadOutcome(val value: String) {
+    @SerialName("accepted") Accepted("accepted"),
+    @SerialName("already_counted") AlreadyCounted("already_counted"),
+    @SerialName("belongs_elsewhere") BelongsElsewhere("belongs_elsewhere"),
+    @SerialName("cancelled") Cancelled("cancelled"),
+    @SerialName("not_a_label") NotALabel("not_a_label"),
+    @SerialName("not_found") NotFound("not_found"),
+    @SerialName("not_on_this_work") NotOnThisWork("not_on_this_work"),
+    @SerialName("voided") Voided("voided");
 }
 
 @Serializable
@@ -172,6 +250,12 @@ data class CollectionPackage (
     @SerialName("packageId")
     val packageID: String? = null,
 
+    /**
+     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
+     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     */
+    val parcels: List<ParcelDTO>? = null,
+
     val ref: String,
     val summary: ClassSummary,
 
@@ -233,6 +317,28 @@ enum class TemperatureClass(val value: String) {
 enum class PackageMethod(val value: String) {
     @SerialName("same_day") SameDay("same_day"),
     @SerialName("standard") Standard("standard");
+}
+
+/**
+ * A live parcel as every surface sees it. `of` = this package's live bags.
+ */
+@Serializable
+data class ParcelDTO (
+    val code: String,
+    val of: Long,
+
+    @SerialName("parcelId")
+    val parcelID: String,
+
+    val seq: Long,
+    val zone: ParcelZone
+)
+
+@Serializable
+enum class ParcelZone(val value: String) {
+    @SerialName("ambient") Ambient("ambient"),
+    @SerialName("chilled") Chilled("chilled"),
+    @SerialName("frozen") Frozen("frozen");
 }
 
 /**
@@ -308,7 +414,13 @@ data class HubSortInstruction (
     val kind: String,
 
     val label: String,
-    val packageCode: String
+    val packageCode: String,
+
+    /**
+     * 096 — the codes of every bag of this package: each bag scanned at the hub gets this
+     * instruction.
+     */
+    val parcelCodes: List<String>? = null
 )
 
 @Serializable
@@ -405,6 +517,13 @@ data class CollectionStopSummary (
     val packageCodes: List<String>? = null,
 
     val packageCount: Long,
+
+    /**
+     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
+     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     */
+    val parcels: List<ParcelDTO>? = null,
+
     val sequence: Long,
     val shopCode: String,
     val shopName: String,
@@ -595,6 +714,12 @@ data class DropPackageRef (
      */
     val packageCode: String? = null,
 
+    /**
+     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
+     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     */
+    val parcels: List<ParcelDTO>? = null,
+
     val ref: String,
     val summary: ClassSummary
 )
@@ -636,6 +761,13 @@ data class DeliveryDropSummary (
     val packageCodes: List<String>? = null,
 
     val packageCount: Long,
+
+    /**
+     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
+     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     */
+    val parcels: List<ParcelDTO>? = null,
+
     val proofMethod: ProofMethod? = null,
     val sequence: Long,
     val status: DeliveryDropStatus,
@@ -752,6 +884,12 @@ data class ParcelsToReturn (
 @Serializable
 data class ReturnParcel (
     val packageCode: String,
+
+    /**
+     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
+     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     */
+    val parcels: List<ParcelDTO>? = null,
 
     /**
      * "8 Scotchmer St, Fitzroy North".
@@ -1040,44 +1178,12 @@ data class HubCheckinRequest (
     @SerialName("changeId")
     val changeID: String,
 
-    /**
-     * 093 — collected packages that are not in the van. Each is held out of delivery planning
-     * and shown to dispatch as a shortage; the rest check in.
-     */
-    val missing: List<PackageRefOnly>? = null,
-
-    /**
-     * 090 — how each package was handed over at the hub.
-     */
-    val packages: List<PackageHandover>? = null,
+    val missingParcels: List<ParcelMissing>? = null,
+    val parcels: List<ParcelHandover>? = null,
+    val reads: List<LabelReadDTO>? = null,
 
     @SerialName("runId")
     val runID: String
-)
-
-/**
- * 093 — a package named by its id or its label code.
- */
-@Serializable
-data class PackageRefOnly (
-    val packageCode: String? = null,
-
-    @SerialName("packageId")
-    val packageID: String? = null
-)
-
-@Serializable
-data class PackageHandover (
-    val method: HandoverMethod,
-    val packageCode: String? = null,
-
-    /**
-     * The package's own id. ⚠ 092 — OR `packageCode` (the label's code): the delivery steps
-     * hold only codes on the phone, and a scan reads a code. One of the two names the package;
-     * both may be sent.
-     */
-    @SerialName("packageId")
-    val packageID: String? = null
 )
 
 @Serializable
@@ -1154,36 +1260,10 @@ data class LoadRequest (
     @SerialName("changeId")
     val changeID: String,
 
-    /**
-     * 093 — packages the driver could not load, each with a reason. Each comes off the run and
-     * is held at the hub for dispatch; a drop left with nothing comes off the run too.
-     */
-    val notLoaded: List<NotLoadedPackage>? = null,
-
-    val packages: List<PackageHandover>? = null
+    val missingParcels: List<ParcelMissing>? = null,
+    val parcels: List<ParcelHandover>? = null,
+    val reads: List<LabelReadDTO>? = null
 )
-
-@Serializable
-data class NotLoadedPackage (
-    val note: String? = null,
-    val packageCode: String? = null,
-
-    @SerialName("packageId")
-    val packageID: String? = null,
-
-    val reason: MissingReason
-)
-
-/**
- * 093 — why a package did not go in the van. `other` needs a note.
- */
-@Serializable
-enum class MissingReason(val value: String) {
-    @SerialName("damaged") Damaged("damaged"),
-    @SerialName("not_at_hub") NotAtHub("not_at_hub"),
-    @SerialName("other") Other("other"),
-    @SerialName("wrong_temperature") WrongTemperature("wrong_temperature");
-}
 
 @Serializable
 data class LoadResponse (
@@ -1292,10 +1372,9 @@ data class ParcelReturnRequest (
     @SerialName("changeId")
     val changeID: String,
 
-    /**
-     * 090 — how each parcel was handed back.
-     */
-    val packages: List<PackageHandover>? = null
+    val missingParcels: List<ParcelMissing>? = null,
+    val parcels: List<ParcelHandover>? = null,
+    val reads: List<LabelReadDTO>? = null
 )
 
 @Serializable
@@ -1310,6 +1389,28 @@ data class ParcelReturnResponse (
      */
     val roundComplete: Boolean
 )
+
+/**
+ * 096 — the 409 a step answers when a live bag was neither handed over nor declared missing.
+ */
+@Serializable
+data class ParcelsUnaccountedProblem (
+    val detail: String,
+    val parcels: List<Parcel>,
+    val type: Type
+)
+
+@Serializable
+data class Parcel (
+    val code: String,
+    val of: Long,
+    val seq: Long
+)
+
+@Serializable
+enum class Type(val value: String) {
+    @SerialName("parcels_unaccounted") ParcelsUnaccounted("parcels_unaccounted");
+}
 
 @Serializable
 data class ProblemJSON (
@@ -1390,12 +1491,15 @@ data class ProofRequest (
     val code: String? = null,
     val mediaKey: String? = null,
     val method: ProofMethod,
+    val missingParcels: List<ParcelMissing>? = null,
     val note: String? = null,
 
     /**
-     * 090 — how each package was handed over at the door.
+     * 096 — every bag of the drop, handed over or declared missing (`ParcelStepFields`).
      */
-    val packages: List<PackageHandover>? = null
+    val parcels: List<ParcelHandover>? = null,
+
+    val reads: List<LabelReadDTO>? = null
 )
 
 @Serializable
@@ -1407,6 +1511,20 @@ data class ProofResponse (
 enum class ProofResponseStatus(val value: String) {
     @SerialName("delivered") Delivered("delivered");
 }
+
+/**
+ * POST /driver/v1/reads — 096: reads with no hand-over (a refused scan, a lookup), replayed
+ * in order offline.
+ */
+@Serializable
+data class DriverReadsRequest (
+    val reads: List<LabelReadDTO>
+)
+
+@Serializable
+data class DriverReadsResponse (
+    val recorded: Long
+)
 
 /**
  * GET /driver/v1/today

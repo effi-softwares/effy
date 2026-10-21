@@ -231,8 +231,8 @@ fun DriverShell(
                                     tabs.pop()
                                 }
                             },
-                            onScanCollect = { methods ->
-                                vm.collect(route.stopId, methods) {
+                            onScanCollect = { methods, missing ->
+                                vm.collect(route.stopId, methods, missing) {
                                     container.analyticsDriver.capture(AnalyticsEvent.ShopStopCollected(route.runId))
                                     snack = DriverSnack("Collected · ${st.stop?.shopName ?: "shop stop"}")
                                     tabs.pop()

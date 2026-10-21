@@ -196,7 +196,10 @@ fun ScanPanel(
     val byCode = remember(items) { items.associateBy { it.code } }
 
     fun read(raw: String, method: HandMethod) {
-        when (val o = session.judge(raw)) {
+        val o = session.judge(raw, typed = method == HandMethod.TYPED)
+        // 096 — every read is kept and sent with the step, refused ones included.
+        if (o != ScanOutcome.NotALabel || method == HandMethod.TYPED) ReadLog.record(raw, method == HandMethod.TYPED, o)
+        when (o) {
             is ScanOutcome.Accepted -> {
                 methods[o.code] = method
                 order += o.code
@@ -212,6 +215,10 @@ fun ScanPanel(
             }
             is ScanOutcome.NotOnYourWork -> {
                 banner = ScanBanner.NotYours(o.code)
+                tone.hardStop(); haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            }
+            is ScanOutcome.Voided, is ScanOutcome.Cancelled -> {
+                banner = ScanBanner.NotYours(ScanRule.codeOf(o) ?: "")
                 tone.hardStop(); haptics.performHapticFeedback(HapticFeedbackType.Reject)
             }
             ScanOutcome.NotALabel -> if (method == HandMethod.TYPED) banner = ScanBanner.NotACode
@@ -331,13 +338,11 @@ fun ScanPanel(
     if (typing) {
         TypeCodeSheet(
             preview = { code ->
-                val o = ScanRule.judge(code, session.context, session.scanned)
+                val o = ScanRule.judge(code, session.context, session.scanned, typed = true)
                 when (o) {
                     is ScanOutcome.Accepted -> "Matches ${byCode[o.code]?.bannerTitle ?: o.code} · this stop"
-                    is ScanOutcome.AlreadyScanned -> "Already scanned"
-                    is ScanOutcome.BelongsElsewhere -> "For ${o.where} — not here"
-                    is ScanOutcome.NotOnYourWork -> "Not on any of your runs"
                     ScanOutcome.NotALabel -> null
+                    else -> ScanRule.words(o, session.context)
                 } to (o is ScanOutcome.Accepted)
             },
             onDismiss = { typing = false },
