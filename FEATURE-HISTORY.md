@@ -4,8 +4,11 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**095-promotion-skins — Promotion Skins: Designed by Staff, Chosen per Placement.** 🔨 **BUILT 2026-10-21 —
-NOT migrated, deployed or walked.** Spec, plan, tasks: [specs/095-promotion-skins/](specs/095-promotion-skins/tasks.md).
+**095-promotion-skins — Promotion Skins: Designed by Staff, Chosen per Placement.** ✅ **COMPLETE IN DEV 2026-10-21** —
+migrated, deployed and signed off by the operator ([SIGNOFF.md](specs/095-promotion-skins/SIGNOFF.md)). Two defects
+found at deploy, both fixed: the admin stack passed CloudFormation's 500 resources (promotion routes → stack
+`admin-promotions`), and the website's hero/offers/aisles menu failed (React #441: a server component called a
+`"use client"` export — `isDesigned` now lives in `skin-designed.ts`). Spec, plan, tasks: [specs/095-promotion-skins/](specs/095-promotion-skins/tasks.md).
 
 - **A skin is data**: one of six layouts (panel, header card, full picture, picture beside text, tile, strip) plus a
   settings document — background colour or picture with a tint, label, headline, supporting line, button, code chip,

@@ -52,7 +52,7 @@ both are only real if tested.
 
 **Goal**: release changes nothing; usage visible before change. **Independent test**: before/after screenshots identical.
 
-- [ ] T026 [US5] *(operator — needs the deployed site and app)* Compare Home, Offers, cart on web and app at phone and desktop widths against pre-change screenshots; adjust seed values in the T009 migration until identical; record the comparison in `specs/095-promotion-skins/SIGNOFF.md`
+- [X] T026 [US5] *(operator — needs the deployed site and app)* Compare Home, Offers, cart on web and app at phone and desktop widths against pre-change screenshots; adjust seed values in the T009 migration until identical; record the comparison in `specs/095-promotion-skins/SIGNOFF.md`
 
 ## Phase 5: User Story 1 — Pictures on a promotion (P1)
 
