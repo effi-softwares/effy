@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { LayoutList, Plus, SlidersHorizontal, TicketPercent } from "lucide-react";
+import { LayoutList, Palette, Plus, SlidersHorizontal, TicketPercent } from "lucide-react";
 
 import { PROMOTION_STATES, type PromotionKind, type PromotionState, type PromotionTrigger } from "@effy/shared-types";
 import { cn } from "@effy/design-system";
@@ -90,6 +90,12 @@ export function PromotionsListScreen() {
               <Link to="/promotions/groups">
                 <LayoutList aria-hidden="true" />
                 Display groups
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/promotions/skins">
+                <Palette aria-hidden="true" />
+                Skins
               </Link>
             </Button>
             <Button variant="outline" asChild>

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Palette, Plus, Trash2, X } from "lucide-react";
 
 import {
   AlertDialog,
@@ -16,6 +16,7 @@ import {
   Button,
   Skeleton,
 } from "@effy/design-system/ui";
+import { layoutFits } from "@effy/shared-types";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { PageHeader } from "@/components/patterns/Page";
@@ -31,7 +32,11 @@ import { STATE_WORD } from "@/features/promotions/model";
 import { PromotionStateWord } from "@/features/promotions/PromotionsListScreen";
 import { promotionListQuery } from "@/features/promotions/queries";
 
-import { promotionGroupPreviewQuery, promotionGroupQuery, useDeleteGroup, usePutMembers } from "./queries";
+import { promotionSkinsQuery } from "@/features/promotion-skins/queries";
+import { SIZE_WORD, SkinPreviewItem } from "@/features/promotion-skins/SkinPreview";
+
+import { LookPanel, MemberLookDialog } from "./GroupLook";
+import { promotionGroupPreviewQuery, promotionGroupQuery, useDeleteGroup, usePutMembers, type MemberChoice } from "./queries";
 
 /**
  * One display group (094 US2): its promotions in order — reordered with the arrows — and a preview of
@@ -47,22 +52,27 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
   const del = useDeleteGroup();
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [choosing, setChoosing] = useState<string | null>(null);
+  const skins = useQuery(promotionSkinsQuery());
   useHeaderDetail(group.data?.name ?? null);
 
   if (group.isError) return <ErrorState error={group.error} onRetry={() => void group.refetch()} />;
   if (!group.data) return <Skeleton className="h-60" aria-busy="true" />;
   const g = group.data;
   const ids = g.members.map((m) => m.promotionId);
-  const save = (next: string[]) => {
+  const choices: MemberChoice[] = g.members.map((m) => ({ promotionId: m.promotionId, skinId: m.skinId, imageId: m.imageId }));
+  const save = (next: MemberChoice[]) => {
     setError(null);
     put.mutate(next, { onSuccess: () => track({ name: "promotion_group_changed", groupId }), onError: (e) => setError(promotionMutationError(e)) });
   };
   const move = (i: number, by: number) => {
-    const next = [...ids];
+    const next = [...choices];
     const [x] = next.splice(i, 1);
     next.splice(i + by, 0, x!);
     save(next);
   };
+  const skinName = (id: string | null) => (id ? (skins.data?.find((k) => k.id === id)?.name ?? "A skin") : null);
+  const member = choosing ? g.members.find((m) => m.promotionId === choosing) : undefined;
   const addable = (candidates.data?.items ?? []).filter((p) => !ids.includes(p.id) && p.state !== "archived" && p.state !== "ended");
 
   return (
@@ -85,6 +95,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
 
       <div className="bo-detail">
         <div className="bo-detail__main">
+          <LookPanel group={g} skins={skins.data ?? []} canManage={canManage} onError={setError} />
           <Panel title="Promotions, in order" description="Shoppers see them in this order, and only the ones they can use right now." flush>
             {g.members.length === 0 ? (
               <p className="px-5 py-4 text-sm text-muted-foreground">Nothing in this group yet — the place it fills shows nothing.</p>
@@ -97,18 +108,23 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                       <Link to="/promotions/$promoId" params={{ promoId: m.promotionId }} className="bo-link">
                         {m.headline ?? m.name}
                       </Link>
-                      <div className="bo-sub">{m.name}</div>
+                      <div className="bo-sub">
+                        {m.name} · {skinName(m.skinId) ?? `Default (${(m.resolved.code && g.defaultCodeSkin ? g.defaultCodeSkin : g.defaultSkin).name})`}
+                      </div>
                     </div>
                     <PromotionStateWord state={m.state} />
                     {canManage ? (
                       <div className="flex gap-1">
+                        <Button size="icon" variant="ghost" aria-label={`Choose the look of ${m.headline ?? m.name}`} disabled={put.isPending} onClick={() => setChoosing(m.promotionId)}>
+                          <Palette aria-hidden="true" />
+                        </Button>
                         <Button size="icon" variant="ghost" aria-label="Move up" disabled={i === 0 || put.isPending} onClick={() => move(i, -1)}>
                           <ArrowUp aria-hidden="true" />
                         </Button>
                         <Button size="icon" variant="ghost" aria-label="Move down" disabled={i === g.members.length - 1 || put.isPending} onClick={() => move(i, 1)}>
                           <ArrowDown aria-hidden="true" />
                         </Button>
-                        <Button size="icon" variant="ghost" aria-label="Remove from group" disabled={put.isPending} onClick={() => save(ids.filter((x) => x !== m.promotionId))}>
+                        <Button size="icon" variant="ghost" aria-label="Remove from group" disabled={put.isPending} onClick={() => save(choices.filter((x) => x.promotionId !== m.promotionId))}>
                           <X aria-hidden="true" />
                         </Button>
                       </div>
@@ -127,7 +143,7 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
                       <div className="text-sm font-medium">{p.name}</div>
                       <div className="bo-sub">{p.gives}</div>
                     </div>
-                    <Button size="sm" variant="outline" disabled={put.isPending} onClick={() => save([...ids, p.id])}>
+                    <Button size="sm" variant="outline" disabled={put.isPending} onClick={() => save([...choices, { promotionId: p.id, skinId: null, imageId: null }])}>
                       <Plus aria-hidden="true" />
                       Add
                     </Button>
@@ -138,19 +154,16 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
           ) : null}
         </div>
         <aside className="bo-detail__aside">
-          <Panel title="What a shopper sees now" description="Signed out — personal offers appear only to the shoppers they are for.">
+          <Panel title="What a shopper sees now" description={`Signed out, in each promotion's skin (${SIZE_WORD[g.size].toLowerCase()} place). Personal offers appear only to the shoppers they are for.`}>
             {preview.isPending ? (
               <Skeleton className="h-24" />
             ) : preview.data ? (
               <div className="space-y-4">
                 {preview.data.shown.length === 0 ? <p className="bo-sub">Nothing — the place is not shown.</p> : null}
-                <ol className="space-y-2">
+                <ol className="space-y-3" data-testid="group-preview">
                   {preview.data.shown.map((s) => (
-                    <li key={s.id} className="rounded-md border border-border p-3">
-                      {s.label ? <div className="bo-sub font-semibold uppercase">{s.label}</div> : null}
-                      <div className="text-sm font-semibold">{s.headline}</div>
-                      {s.terms ? <div className="bo-sub">{s.terms}</div> : null}
-                      {s.code ? <div className="bo-code mt-1">{s.code}</div> : null}
+                    <li key={s.id}>
+                      <SkinPreviewItem promotion={s} skin={s.skin} />
                     </li>
                   ))}
                 </ol>
@@ -170,6 +183,20 @@ export function PromotionGroupScreen({ groupId }: { groupId: string }) {
           </Panel>
         </aside>
       </div>
+
+      {member ? (
+        <MemberLookDialog
+          group={g}
+          member={member}
+          skins={(skins.data ?? []).filter((k) => layoutFits(k.layout, g.size))}
+          pending={put.isPending}
+          onClose={() => setChoosing(null)}
+          onSave={(skinId, imageId) => {
+            save(choices.map((c) => (c.promotionId === member.promotionId ? { ...c, skinId, imageId } : c)));
+            setChoosing(null);
+          }}
+        />
+      ) : null}
 
       <AlertDialog open={deleting} onOpenChange={setDeleting}>
         <AlertDialogContent>

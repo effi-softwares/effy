@@ -1830,7 +1830,7 @@ data class OrderDeliveryDTO (
      * and each parcel's tracking is emailed. Absent otherwise (not handed over yet, or no link
      * given). ⚠ Never a count, a reference without a link, or anything per parcel.
      */
-    val tracking: Tracking? = null,
+    val tracking: TrackingClass? = null,
 
     val type: DeliveryType
 )
@@ -1886,7 +1886,7 @@ enum class PromiseEnum(val value: String) {
  * given). ⚠ Never a count, a reference without a link, or anything per parcel.
  */
 @Serializable
-data class Tracking (
+data class TrackingClass (
     val courierName: String? = null,
     val kind: TrackingKind,
     val url: String? = null
@@ -2325,6 +2325,14 @@ data class ShopperPromotionDTO (
     val id: String,
     val kind: PromotionKind,
     val label: String? = null,
+
+    /**
+     * 095 — how this promotion looks in THIS place (resolved per group member). Absent from
+     * servers before 095; a client that does not know `skin.layout` draws its built-in look, as
+     * for `classic`.
+     */
+    val skin: ShopperSkinDTO? = null,
+
     val supportingLine: String? = null,
 
     /**
@@ -2356,6 +2364,388 @@ enum class PromotionKind(val value: String) {
     @SerialName("cart") Cart("cart"),
     @SerialName("delivery") Delivery("delivery"),
     @SerialName("item") Item("item");
+}
+
+/**
+ * 095 — how this promotion looks in THIS place (resolved per group member). Absent from
+ * servers before 095; a client that does not know `skin.layout` draws its built-in look, as
+ * for `classic`.
+ *
+ * 095 — the skin a placement wears, with the picture it shows.
+ */
+@Serializable
+data class ShopperSkinDTO (
+    val id: String,
+    val layout: SkinLayout,
+    val picture: ShopperSkinPictureDTO? = null,
+
+    /**
+     * Absent for `classic`.
+     */
+    val settings: SkinSettings? = null,
+
+    /**
+     * The size of the place the group fills.
+     */
+    val size: GroupSize,
+
+    val version: Double
+)
+
+@Serializable
+enum class SkinLayout(val value: String) {
+    @SerialName("classic") Classic("classic"),
+    @SerialName("full_picture") FullPicture("full_picture"),
+    @SerialName("header_card") HeaderCard("header_card"),
+    @SerialName("panel") Panel("panel"),
+    @SerialName("picture_beside") PictureBeside("picture_beside"),
+    @SerialName("strip") Strip("strip"),
+    @SerialName("tile") Tile("tile");
+}
+
+@Serializable
+data class ShopperSkinPictureDTO (
+    val alt: String,
+
+    /**
+     * 0–1 from the left / top: the point every crop keeps in view.
+     */
+    val focusX: Double,
+
+    val focusY: Double,
+    val height: Double,
+
+    /**
+     * 086 — widths of the WebP copies; derive each with `renditionUrl`.
+     */
+    val imageWidths: List<Double>? = null,
+
+    val url: String,
+    val width: Double
+)
+
+/**
+ * Absent for `classic`.
+ *
+ * The settings of a designed skin. Layout-only fields are present on their layout alone.
+ */
+@Serializable
+data class SkinSettings (
+    val align: Align,
+    val background: SkinBackground,
+
+    /**
+     * `header_card`: the body under the header, and the colour of its "Code"/"Offer" tag.
+     */
+    val body: SettingsBody? = null,
+
+    val button: SettingsButton,
+    val chip: SettingsChip,
+
+    /**
+     * The customer app's dark appearance. Absent → the skin looks the same in both.
+     */
+    val dark: Dark? = null,
+
+    val decorations: SettingsDecorations,
+    val headline: TextStyle,
+    val label: SettingsLabel,
+    val pictureFit: PictureFit? = null,
+
+    /**
+     * `picture_beside`: which side the picture is on, and how it fills its half.
+     */
+    val pictureSide: PictureSide? = null,
+
+    val shape: Shape,
+    val supporting: SettingsSupporting,
+
+    /**
+     * `full_picture`: where the words sit.
+     */
+    val textCorner: TextCorner? = null
+)
+
+@Serializable
+enum class Align(val value: String) {
+    @SerialName("center") Center("center"),
+    @SerialName("end") End("end"),
+    @SerialName("start") Start("start");
+}
+
+@Serializable
+data class SkinBackground (
+    val colour: String,
+
+    /**
+     * Show the promotion's picture. Required layouts (`full_picture`, `picture_beside`) always
+     * do.
+     */
+    val picture: Picture,
+
+    /**
+     * Laid over the picture under the words. Strength 0–0.9.
+     */
+    val tint: Tint? = null
+)
+
+/**
+ * Show the promotion's picture. Required layouts (`full_picture`, `picture_beside`) always
+ * do.
+ */
+@Serializable
+enum class Picture(val value: String) {
+    @SerialName("none") None("none"),
+    @SerialName("show") Show("show");
+}
+
+/**
+ * Laid over the picture under the words. Strength 0–0.9.
+ */
+@Serializable
+data class Tint (
+    val colour: String,
+    val strength: Double
+)
+
+/**
+ * `header_card`: the body under the header, and the colour of its "Code"/"Offer" tag.
+ */
+@Serializable
+data class SettingsBody (
+    val colour: String,
+    val tagColour: String
+)
+
+@Serializable
+data class SettingsButton (
+    val fill: String,
+    val icon: Boolean,
+    val style: ButtonStyle,
+    val text: String,
+    val words: String
+)
+
+@Serializable
+enum class ButtonStyle(val value: String) {
+    @SerialName("filled") Filled("filled"),
+    @SerialName("link") Link("link"),
+    @SerialName("none") None("none"),
+    @SerialName("outline") Outline("outline");
+}
+
+@Serializable
+data class SettingsChip (
+    val fill: String,
+    val show: Boolean,
+    val style: ChipStyle,
+    val text: String
+)
+
+@Serializable
+enum class ChipStyle(val value: String) {
+    @SerialName("dashed") Dashed("dashed"),
+    @SerialName("filled") Filled("filled"),
+    @SerialName("solid") Solid("solid");
+}
+
+/**
+ * The customer app's dark appearance. Absent → the skin looks the same in both.
+ */
+@Serializable
+data class Dark (
+    val background: SkinBackground? = null,
+    val body: DarkBody? = null,
+    val button: DarkButton? = null,
+    val chip: DarkChip? = null,
+    val decorations: DarkDecorations? = null,
+    val headline: TextStyle? = null,
+    val label: DarkLabel? = null,
+    val supporting: DarkSupporting? = null
+)
+
+@Serializable
+data class DarkBody (
+    val colour: String,
+    val tagColour: String
+)
+
+@Serializable
+data class DarkButton (
+    val fill: String,
+    val icon: Boolean,
+    val style: ButtonStyle,
+    val text: String,
+    val words: String
+)
+
+@Serializable
+data class DarkChip (
+    val fill: String,
+    val show: Boolean,
+    val style: ChipStyle,
+    val text: String
+)
+
+@Serializable
+data class DarkDecorations (
+    val colour: String,
+    val set: DecorationSet,
+    val show: Boolean,
+    val strength: Double
+)
+
+@Serializable
+enum class DecorationSet(val value: String) {
+    @SerialName("bakery") Bakery("bakery"),
+    @SerialName("celebration") Celebration("celebration"),
+    @SerialName("drinks") Drinks("drinks"),
+    @SerialName("food") Food("food"),
+    @SerialName("produce") Produce("produce"),
+    @SerialName("seasonal-summer") SeasonalSummer("seasonal-summer"),
+    @SerialName("seasonal-winter") SeasonalWinter("seasonal-winter");
+}
+
+@Serializable
+data class TextStyle (
+    val colour: String,
+    val lines: Double,
+    val size: TextSize,
+    val weight: Weight
+)
+
+@Serializable
+enum class TextSize(val value: String) {
+    @SerialName("lg") Lg("lg"),
+    @SerialName("md") Md("md"),
+    @SerialName("sm") Sm("sm"),
+    @SerialName("2xl") The2Xl("2xl"),
+    @SerialName("xl") Xl("xl"),
+    @SerialName("xs") Xs("xs");
+}
+
+@Serializable
+enum class Weight(val value: String) {
+    @SerialName("bold") Bold("bold"),
+    @SerialName("medium") Medium("medium"),
+    @SerialName("regular") Regular("regular"),
+    @SerialName("semibold") Semibold("semibold");
+}
+
+@Serializable
+data class DarkLabel (
+    val colour: String,
+    val show: Boolean,
+    val size: Size,
+    val tracking: TrackingEnum,
+    val words: String
+)
+
+@Serializable
+enum class Size(val value: String) {
+    @SerialName("sm") Sm("sm"),
+    @SerialName("xs") Xs("xs");
+}
+
+@Serializable
+enum class TrackingEnum(val value: String) {
+    @SerialName("normal") Normal("normal"),
+    @SerialName("wide") Wide("wide");
+}
+
+@Serializable
+data class DarkSupporting (
+    val colour: String,
+    val lines: Double,
+    val show: Boolean,
+    val size: TextSize,
+    val weight: Weight
+)
+
+@Serializable
+data class SettingsDecorations (
+    val colour: String,
+    val set: DecorationSet,
+    val show: Boolean,
+    val strength: Double
+)
+
+@Serializable
+data class SettingsLabel (
+    val colour: String,
+    val show: Boolean,
+    val size: Size,
+    val tracking: TrackingEnum,
+    val words: String
+)
+
+@Serializable
+enum class PictureFit(val value: String) {
+    @SerialName("contain") Contain("contain"),
+    @SerialName("cover") Cover("cover");
+}
+
+/**
+ * `picture_beside`: which side the picture is on, and how it fills its half.
+ */
+@Serializable
+enum class PictureSide(val value: String) {
+    @SerialName("end") End("end"),
+    @SerialName("start") Start("start");
+}
+
+@Serializable
+data class Shape (
+    val outline: String? = null,
+    val radius: Radius,
+    val spacing: Spacing
+)
+
+@Serializable
+enum class Radius(val value: String) {
+    @SerialName("lg") Lg("lg"),
+    @SerialName("md") Md("md"),
+    @SerialName("none") None("none"),
+    @SerialName("sm") Sm("sm"),
+    @SerialName("xl") Xl("xl");
+}
+
+@Serializable
+enum class Spacing(val value: String) {
+    @SerialName("compact") Compact("compact"),
+    @SerialName("regular") Regular("regular"),
+    @SerialName("roomy") Roomy("roomy");
+}
+
+@Serializable
+data class SettingsSupporting (
+    val colour: String,
+    val lines: Double,
+    val show: Boolean,
+    val size: TextSize,
+    val weight: Weight
+)
+
+/**
+ * `full_picture`: where the words sit.
+ */
+@Serializable
+enum class TextCorner(val value: String) {
+    @SerialName("bottom-end") BottomEnd("bottom-end"),
+    @SerialName("bottom-start") BottomStart("bottom-start"),
+    @SerialName("center") Center("center"),
+    @SerialName("top-start") TopStart("top-start");
+}
+
+/**
+ * The size of the place the group fills.
+ */
+@Serializable
+enum class GroupSize(val value: String) {
+    @SerialName("large") Large("large"),
+    @SerialName("medium") Medium("medium"),
+    @SerialName("small") Small("small"),
+    @SerialName("strip") Strip("strip");
 }
 
 /**

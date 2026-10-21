@@ -4,6 +4,7 @@ import type { Queryable } from "../lib/db";
 import { parseCents } from "../lib/money";
 
 import type { BasketLine, Candidate } from "./engine";
+import { loadPictures, loadSkins, type PictureRow, type Placement, PLACEMENT_COLUMNS, placementOf, skinIdsOf, type SkinRow, resolveSkin } from "./skins";
 import { type CodeRefusal, endsInOf, offerLabelOf, type PromotionWords, termsOf } from "./terms";
 
 /**
@@ -445,26 +446,43 @@ export async function groupPromotions(
 ): Promise<{ key: string; promotions: ShopperPromotionDTO[] }[]> {
   const wanted = [...new Set(keys.filter((k) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(k)))].slice(0, 12);
   if (wanted.length === 0) return keys.map((key) => ({ key, promotions: [] }));
-  const members = await db.query<{ key: string; promotion_id: string }>(
-    `SELECT g.key, m.promotion_id::text
+  const members = await db.query<{ key: string; promotion_id: string; size: string; member_skin_id: string | null; default_skin_id: string; default_code_skin_id: string | null; image_id: string | null }>(
+    `SELECT g.key, m.promotion_id::text, ${PLACEMENT_COLUMNS}
        FROM public.promotion_group g JOIN public.promotion_group_member m ON m.group_id = g.id
       WHERE g.key = ANY($1::text[])
       ORDER BY g.key, m.position, m.promotion_id`,
     [wanted],
   );
   const ids = [...new Set(members.rows.map((r) => r.promotion_id))];
-  const [recs, facts] = await Promise.all([
+  const placements = members.rows.map(placementOf);
+  const [recs, facts, skins, pictures] = await Promise.all([
     ids.length ? loadPromotions(db, { ids }, input.now) : Promise.resolve([]),
     input.customerId ? shopperFacts(db, input.customerId, input.now) : Promise.resolve(null),
+    loadSkins(db, skinIdsOf(placements)),
+    loadPictures(db, ids),
   ]);
   const byId = new Map(recs.map((r) => [r.id, r]));
   const personal = input.customerId !== null;
   return keys.map((key) => ({
     key,
-    promotions: members.rows
-      .filter((m) => m.key === key)
-      .map((m) => byId.get(m.promotion_id))
-      .filter((r): r is PromotionRecord => r !== undefined && hiddenBecause(r, facts, personal) === null)
-      .map((r) => shopperPromotion(r, input.now)),
+    promotions: members.rows.flatMap((m, i) => {
+      if (m.key !== key) return [];
+      const r = byId.get(m.promotion_id);
+      if (r === undefined || hiddenBecause(r, facts, personal) !== null) return [];
+      return [placedPromotion(r, placements[i]!, skins, pictures.get(r.id) ?? [], input.now)];
+    }),
   }));
+}
+
+/** 095 — a promotion as shown in one place: the shopper's words plus the skin it wears there. */
+export function placedPromotion(
+  rec: PromotionRecord,
+  placement: Placement,
+  skins: ReadonlyMap<string, SkinRow>,
+  pictures: readonly PictureRow[],
+  now: Date,
+): ShopperPromotionDTO {
+  const dto = shopperPromotion(rec, now);
+  const skin = resolveSkin(placement, dto.code !== null, skins, pictures);
+  return skin ? { ...dto, skin } : dto;
 }

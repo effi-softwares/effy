@@ -309,6 +309,18 @@ private fun OffersSection(banners: List<Banner>, onBannerClick: (Banner) -> Unit
         },
     ) { page ->
         val banner = banners[page]
+        // 095 — a skin staff chose for this place; none (or Classic) keeps the hero as it was.
+        val look = banner.look?.takeIf { it.settings != null }
+        if (look != null) {
+            PromoSkinView(
+                look = look,
+                headline = banner.title,
+                supportingLine = banner.subtitle,
+                code = banner.code,
+                onOpen = if (banner.target != null) ({ onBannerClick(banner) }) else null,
+            )
+            return@HorizontalPager
+        }
         EffyHeroBanner(
             eyebrow = if (page == 0) "This week's offer" else "Offer",
             title = banner.title,
@@ -357,6 +369,18 @@ private fun PromoBlock(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
             contentPadding = PaddingValues(horizontal = EffySpacing.lg),
         ) {
             itemsIndexed(banners, key = { _, b -> b.key }) { index, banner ->
+                val look = banner.look?.takeIf { it.settings != null }
+                if (look != null) {
+                    PromoSkinView(
+                        look = look,
+                        headline = banner.title,
+                        supportingLine = banner.subtitle,
+                        code = banner.code,
+                        onOpen = if (banner.target != null) ({ onBannerClick(banner) }) else null,
+                        modifier = Modifier.width(300.dp),
+                    )
+                    return@itemsIndexed
+                }
                 EffyOfferCard(
                     title = banner.title,
                     code = banner.code,

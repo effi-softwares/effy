@@ -107,7 +107,12 @@ describe("who may build a public address (086 FR-014)", () => {
     );
     const offences = services.flatMap((s) => {
       try {
-        return sources(s).filter(({ text }) => /\bpublicImageUrl\b/.test(text)).map(({ file }) => file);
+        return sources(s)
+          .filter(({ text }) => /\bpublicImageUrl\b/.test(text))
+          .map(({ file }) => file)
+          // 095 — back-office shows a promotion's pictures at the address shoppers get (they are under the
+          // public `promotions/` prefix by definition), so the skin previews are what shoppers see.
+          .filter((file) => !file.endsWith("admin/src/promotions/images.ts"));
       } catch {
         return []; // a directory with no src/
       }

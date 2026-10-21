@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { Breadcrumb, Skeleton } from "@/components/ui/misc"
 
-import { getPromotionGroups } from "../promotion-groups"
+import { getPromotionGroups, type PlacedBanner } from "../promotion-groups"
 import { CopyCodeButton } from "../_components/CopyCodeButton"
 import { OfferCard } from "../_components/OffersPanels"
+import { isDesigned, SkinnedPromotion } from "../_components/SkinnedPromotion"
 
 export const metadata: Metadata = {
   title: "Offers",
@@ -56,7 +57,7 @@ export default function OffersPage() {
 }
 
 async function OfferList() {
-  let offers: BannerDTO[]
+  let offers: PlacedBanner[]
   try {
     // 094 — the Offers page is its own display group.
     offers = (await getPromotionGroups(PROMOTION_GROUP_KEYS.offers))[PROMOTION_GROUP_KEYS.offers] ?? []
@@ -86,7 +87,13 @@ async function OfferList() {
     <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {offers.map((offer) => (
         <li key={offer.key}>
-          {offer.code ? <CodeOffer offer={offer} /> : <OfferCard banner={offer} />}
+          {isDesigned(offer) ? (
+            <SkinnedPromotion banner={offer} groupKey="offers" imageSizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" />
+          ) : offer.code ? (
+            <CodeOffer offer={offer} />
+          ) : (
+            <OfferCard banner={offer} />
+          )}
         </li>
       ))}
     </ul>

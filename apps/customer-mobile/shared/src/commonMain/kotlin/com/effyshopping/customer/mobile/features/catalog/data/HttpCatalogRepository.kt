@@ -3,13 +3,13 @@ package com.effyshopping.customer.mobile.features.catalog.data
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductSearchResultDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
-import com.effyshopping.customer.mobile.commerce.contract.PromotionGroupsDTO
 import com.effyshopping.customer.mobile.commerce.contract.ShopperPromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontCategoryDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontProductDetailDTO
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
+import com.effyshopping.customer.mobile.core.http.effyJson
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
@@ -28,6 +28,7 @@ import io.ktor.client.request.get
 import io.ktor.http.isSuccess
 import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.JsonElement
 import kotlinx.io.IOException
 
 /**
@@ -67,7 +68,8 @@ class HttpCatalogRepository(private val edge: HttpClient) : CatalogRepository {
         val personal = edge.get("commerce/v1/promotion-groups") { parameter("keys", joined) }
         val response = if (personal.status.isSuccess()) personal
         else edge.get("storefront/v1/promotion-groups") { parameter("keys", joined) }.ensureSuccess()
-        return response.body<PromotionGroupsDTO>().groups.associate { it.key to it.promotions }
+        // 095 — read leniently: a skin this build does not understand must not cost it the promotion.
+        return decodePromotionGroups(effyJson, response.body<JsonElement>())
     }
 
     override suspend fun categories(): List<Category> = request {

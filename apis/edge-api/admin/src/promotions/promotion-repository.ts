@@ -6,6 +6,9 @@
 import { query, withTransaction, type Queryable } from "@effy/edge-shared";
 import { loadPromotions, type PromotionRecord } from "@effy/edge-shared/promotions";
 
+import type { AdminPromotionImageDTO } from "@effy/shared-types";
+
+import { listImages } from "./images";
 import { type AuditEntry, type Paged, PromoError } from "./types";
 
 export const PROMOTION_STATES = ["draft", "scheduled", "active", "paused", "used_up", "out_of_budget", "ended", "archived"] as const;
@@ -176,6 +179,8 @@ export interface DetailExtras {
   used: boolean;
   groups: { id: string; key: string; name: string; position: number }[];
   targets: { products: { id: string; name: string }[]; categories: { id: string; name: string }[]; brands: string[] };
+  /** 095 */
+  images: AdminPromotionImageDTO[];
 }
 
 export async function readPromotion(id: string, now: Date): Promise<{ record: PromotionRecord; extras: DetailExtras } | null> {
@@ -202,6 +207,7 @@ export async function readPromotion(id: string, now: Date): Promise<{ record: Pr
       [id],
     )
   ).rows[0]!;
+  extras.images = await listImages(id);
   return { record, extras };
 }
 

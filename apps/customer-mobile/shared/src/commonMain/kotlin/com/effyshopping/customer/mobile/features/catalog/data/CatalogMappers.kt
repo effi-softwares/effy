@@ -7,6 +7,7 @@ import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as Ban
 import com.effyshopping.customer.mobile.commerce.contract.FacetDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
 import com.effyshopping.customer.mobile.commerce.contract.TargetKind as Kind
+import com.effyshopping.customer.mobile.commerce.contract.TargetClass
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
@@ -99,6 +100,15 @@ internal fun BannerTargetDTO.toDomain(): BannerTarget? = when (kind) {
     Kind.Promotion -> promotionID?.let { BannerTarget.Promotion(it) }
 }
 
+/** The same target as `BannerDTO` carries it — the generator names the identical shape twice. */
+internal fun TargetClass.toDomain(): BannerTarget? = when (kind) {
+    Kind.Search -> BannerTarget.Search
+    Kind.Sale -> BannerTarget.Sale
+    Kind.Category -> categoryKey?.let { BannerTarget.Category(it) }
+    Kind.Product -> productID?.let { BannerTarget.Product(it) }
+    Kind.Promotion -> promotionID?.let { BannerTarget.Promotion(it) }
+}
+
 internal fun PromotionDTO.toDomain(): Promotion = Promotion(
     id = id,
     title = title,
@@ -130,6 +140,7 @@ internal fun ShopperPromotionDTO.toBanner(placement: BannerPlacement, position: 
     terms = terms,
     target = target.toDomain(),
     placement = placement,
+    look = skin?.toLook(),
 )
 
 internal fun StorefrontHomeDTO.toDomain(): HomeContent = HomeContent(

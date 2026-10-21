@@ -64,6 +64,8 @@ data class Banner(
     val target: BannerTarget? = null,
     /** Which of Home's two banner placements this promotion occupies (029 FR-027). Exclusive. */
     val placement: BannerPlacement = BannerPlacement.CAROUSEL,
+    /** 095 — the skin staff chose for this place. Null or CLASSIC: drawn as before 095. */
+    val look: PromoLook? = null,
 )
 
 /**

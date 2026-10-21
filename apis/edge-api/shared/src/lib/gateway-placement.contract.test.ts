@@ -36,6 +36,7 @@ const PLACEMENT: Record<string, Gateway | null> = {
   notifications: "shared",
   // back-office
   admin: "staff",
+  "admin-promotions": "staff",
   fleet: "staff",
   orders: "staff",
   catalog: "staff",

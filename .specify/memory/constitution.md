@@ -1,6 +1,22 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 3.5.0 → 3.6.0
+Bump rationale: MINOR — a bounded exception added to Principle V; no principle removed, no plan invalidated.
+
+Trigger: feature 095-promotion-skins. On 2026-10-21 the operator asked for full customisation of promotion
+skins with any colour, readability checked (clarified in the spec).
+
+What changed in the text:
+  - Principle V: a second standing exception, beside the third-party sign-in mark: promotion skins are
+    CONTENT. Their colours are data chosen by staff, held to WCAG AA by `skinContrast` on the server, and
+    apply only inside the skin's own frame.
+
+Templates and documents:
+  ✅ .specify/templates/* — unchanged.
+  ⚠ CLAUDE.md (Design system section) — updated by 095.
+
+--- previous report ---
 Version change: 3.4.0 → 3.5.0
 Bump rationale: MINOR — a surface moves between the platform's two existing identities; no principle
 added or removed, no plan invalidated.
@@ -760,6 +776,12 @@ One design-system package drives every surface.
 - **One standing exception, asset-only**: a third-party sign-in mark whose provider's brand guidelines
   require its own colours (Google). It is an asset, never a UI accent, and it grants no licence to use
   those colours anywhere else.
+- **One standing exception, content-only (v3.6.0, feature 095)**: a **promotion skin** is marketing
+  content designed by staff in back-office. Its colours are data, not tokens, and may be any hue; they are
+  held to WCAG AA on every text pair by `skinContrast` (`@effy/shared-types`) **on the server**, text over a
+  picture included (judged against its tint over both black and white). They apply **only inside the
+  skin's own frame** — never to navigation, forms, the cart, checkout or any control outside a promotion —
+  and grant no licence to use those colours anywhere else. Flat fills only: no gradients, no shadows.
 - **WCAG AA on every pair is a ZERO-EXEMPTION invariant**, including each solid against its own `-soft`
   tint, and it **outranks the source design**: where an adopted value fails, the value is tuned and the
   deviation recorded. ⚠ **Borders are the one deliberate exception** — a border is a hairline, and a
@@ -995,4 +1017,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 3.5.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-16
+**Version**: 3.6.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-10-21

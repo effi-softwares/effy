@@ -104,7 +104,8 @@ d("094 — the promotions migration", () => {
     await pool.query(`INSERT INTO public.promo_redemption (promo_code_id, customer_id, order_id, amount) VALUES ($1, $2, $3, 8)`, [advertisedCarousel, redeemingCustomer, redeemedOrder]);
     cartId = (await one<{ id: string }>(`INSERT INTO public.cart (customer_id, promo_code_id) VALUES ($1, $2) RETURNING id::text AS id`, [redeemingCustomer, plain])).id;
 
-    await pool.query(migrationSql({ from: MIGRATION }));
+    // 094 alone: stage C (20261021…) drops the legacy columns this test reads.
+    await pool.query(migrationSql({ from: MIGRATION, before: "20261021090000" }));
   }, 240_000);
 
   afterAll(async () => {

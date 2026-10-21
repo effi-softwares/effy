@@ -18,6 +18,7 @@ export * from "./saved-item";
 export * from "./shop-order";
 export * from "./promotion";
 export * from "./promotions";
+export * from "./promotion-skins";
 export * from "./banner";
 // 039-customer-home-redesign
 export * from "./newsletter";

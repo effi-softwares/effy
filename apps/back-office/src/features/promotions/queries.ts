@@ -1,6 +1,6 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { AdminPromotionWriteDTO, PromotionAction } from "@effy/shared-types";
+import type { AdminPromotionWriteDTO, AdminUpdatePromotionImageRequest, PromotionAction } from "@effy/shared-types";
 
 import type { PromotionListParams, UpdateOrderPolicyRequest } from "./model";
 import {
@@ -19,6 +19,9 @@ import {
   listChosenCustomers,
   listCodes,
   removeChosenCustomer,
+  addPromotionImage,
+  removePromotionImage,
+  updatePromotionImage,
 } from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
@@ -57,3 +60,12 @@ export const performanceQuery = (id: string) => queryOptions({ queryKey: [...PRO
 export const useAddChosenCustomers = (id: string) => useInvalidating((body: { emails?: string[]; customerIds?: string[] }) => addChosenCustomers(id, body));
 export const useRemoveChosenCustomer = (id: string) => useInvalidating((customerId: string) => removeChosenCustomer(id, customerId));
 export const useGenerateCodes = (id: string) => useInvalidating((body: { count: number; prefix?: string | null }) => generateCodes(id, body));
+
+// ── 095 — pictures ──────────────────────────────────────────────────────────────────────────────
+
+export const useAddPromotionImage = (promotionId: string) =>
+  useInvalidating(({ file, alt }: { file: File; alt: string }) => addPromotionImage(promotionId, file, alt));
+export const useUpdatePromotionImage = (promotionId: string) =>
+  useInvalidating(({ imageId, body }: { imageId: string; body: AdminUpdatePromotionImageRequest }) => updatePromotionImage(promotionId, imageId, body));
+export const useRemovePromotionImage = (promotionId: string) =>
+  useInvalidating(({ imageId, confirm }: { imageId: string; confirm: boolean }) => removePromotionImage(promotionId, imageId, confirm));

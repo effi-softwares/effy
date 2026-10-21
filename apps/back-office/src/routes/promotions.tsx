@@ -6,6 +6,8 @@ import { OrderRulesScreen } from "@/features/promotions/OrderRulesScreen";
 import { PromotionDetailScreen } from "@/features/promotions/PromotionDetailScreen";
 import { PromotionEditorScreen } from "@/features/promotions/PromotionEditorScreen";
 import { PromotionsListScreen } from "@/features/promotions/PromotionsListScreen";
+import { SkinEditorScreen } from "@/features/promotion-skins/SkinEditorScreen";
+import { SkinsListScreen } from "@/features/promotion-skins/SkinsListScreen";
 
 import { appRoute } from "./app";
 
@@ -27,6 +29,20 @@ export const promotionGroupRoute = createRoute({
   component: function PromotionGroupRoute() {
     const { groupId } = promotionGroupRoute.useParams();
     return <PromotionGroupScreen groupId={groupId} />;
+  },
+});
+
+// 095 — skins: how promotions look. /skins/new is declared before /skins/$skinId.
+export const promotionSkinsRoute = createRoute({ getParentRoute: () => appRoute, path: "promotions/skins", component: SkinsListScreen });
+
+export const createSkinRoute = createRoute({ getParentRoute: () => appRoute, path: "promotions/skins/new", component: () => <SkinEditorScreen /> });
+
+export const promotionSkinRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "promotions/skins/$skinId",
+  component: function PromotionSkinRoute() {
+    const { skinId } = promotionSkinRoute.useParams();
+    return <SkinEditorScreen skinId={skinId} />;
   },
 });
 

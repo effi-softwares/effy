@@ -8,7 +8,10 @@ import { btnClass } from "@/components/storefront/actions"
 import { HERO_THEME, PromoBanner, PromoBubbles, SIDE_THEMES, type PromoTheme } from "@/components/storefront/PromoBanner"
 import { cn } from "@/lib/utils"
 
+import type { PlacedBanner } from "../promotion-groups"
+
 import { CopyCodeButton } from "./CopyCodeButton"
+import { isDesigned, SkinnedPromotion } from "./SkinnedPromotion"
 import { PromoCarousel } from "./PromoCarousel"
 import { offerHref } from "./OffersPanels"
 
@@ -54,11 +57,51 @@ const eyebrow = "text-xs font-semibold uppercase opacity-85"
  * ⚠ The side cards: one promotion WITHOUT a code (the whole card is its link) above promotions WITH
  * one (the code and a copy button), two at most. The first slide is not repeated beside itself.
  */
-export function PromoHero({ slides, side }: { slides: (BannerDTO & { label?: string | null })[]; side: BannerDTO[] }) {
+export function PromoHero({ slides, side }: { slides: PlacedBanner[]; side: PlacedBanner[] }) {
   if (slides.length === 0) return null
 
   // 094 — the cards beside the band are their own display group (`home-side`), two at most.
   const tiles = side.filter((b) => b.key !== slides[0]?.key).slice(0, 2)
+  const sideList =
+    tiles.length > 0 ? (
+      // Stacked, equal rows, and absent below `md` — a phone gets the hero and then the store.
+      <ul className="hidden auto-rows-fr gap-4 md:grid">
+        {tiles.map((banner, i) => (
+          <li key={banner.key} className="flex">
+            {isDesigned(banner) ? (
+              <SkinnedPromotion banner={banner} groupKey="home-side" imageSizes="(min-width: 1024px) 33vw, 50vw" />
+            ) : (
+              <SideCard banner={banner} theme={SIDE_THEMES[i % SIDE_THEMES.length]!} />
+            )}
+          </li>
+        ))}
+      </ul>
+    ) : null
+
+  // 095 — when staff have put any hero promotion in a skin, every slide draws itself: a designed one in
+  // its skin, a Classic one on the band it always had. All Classic: the hero exactly as before.
+  if (slides.some(isDesigned)) {
+    return (
+      <section aria-roledescription="carousel" aria-label="Promotions" className="container pt-6">
+        <div className={tiles.length > 0 ? "grid gap-4 lg:grid-cols-3" : undefined}>
+          <div className={cn("relative isolate overflow-hidden rounded-xl", tiles.length > 0 && "lg:col-span-2")}>
+            <PromoCarousel backdrop={null}>
+              {slides.map((banner) =>
+                isDesigned(banner) ? (
+                  <SkinnedPromotion key={banner.key} banner={banner} groupKey="home-hero" size="large" imageSizes="(min-width: 1024px) 66vw, 100vw" />
+                ) : (
+                  <PromoBanner key={banner.key} theme={HERO_THEME} className={cn("grid rounded-xl", BAND_HEIGHT)}>
+                    <ClassicSlide banner={banner} controls={slides.length > 1} />
+                  </PromoBanner>
+                ),
+              )}
+            </PromoCarousel>
+          </div>
+          {sideList}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section aria-roledescription="carousel" aria-label="Promotions" className="container pt-6">
@@ -76,48 +119,40 @@ export function PromoHero({ slides, side }: { slides: (BannerDTO & { label?: str
             }
           >
             {slides.map((banner) => (
-              <div
-                key={banner.key}
-                className={cn(
-                  "flex min-w-0 flex-col items-start justify-center p-8 md:w-1/2",
-                  // Room for the controls, which sit over the band's bottom edge.
-                  slides.length > 1 && "pb-14",
-                )}
-              >
-                <p className={cn(eyebrow, "tracking-[0.06em]")}>{banner.label ?? "This week\u2019s offer"}</p>
-                <h2 className="mt-3 line-clamp-3 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
-                  {banner.title}
-                </h2>
-                {banner.subtitle && <p className="mt-3 max-w-md text-sm opacity-95 sm:text-base">{banner.subtitle}</p>}
-                <div className="mt-5 flex flex-wrap items-center gap-2">
-                  <Link href={offerHref(banner) ?? "/search"} className={btnClass("outline", "lg", "border-transparent")}>
-                    Shop now
-                  </Link>
-                  <Link
-                    href="/search?saleOnly=true"
-                    className={btnClass("ghost", "lg", "border-white/60 text-white hover:bg-white/15")}
-                  >
-                    See what&rsquo;s on sale
-                  </Link>
-                </div>
-                {banner.terms && <p className="mt-3 text-xs opacity-80">{banner.terms}</p>}
-              </div>
+              <ClassicSlide key={banner.key} banner={banner} controls={slides.length > 1} />
             ))}
           </PromoCarousel>
         </PromoBanner>
 
-        {tiles.length > 0 && (
-          // Stacked, equal rows, and absent below `md` — a phone gets the hero and then the store.
-          <ul className="hidden auto-rows-fr gap-4 md:grid">
-            {tiles.map((banner, i) => (
-              <li key={banner.key} className="flex">
-                <SideCard banner={banner} theme={SIDE_THEMES[i % SIDE_THEMES.length]!} />
-              </li>
-            ))}
-          </ul>
-        )}
+        {sideList}
       </div>
     </section>
+  )
+}
+
+/** One slide of the hero band, as before 095. */
+function ClassicSlide({ banner, controls }: { banner: PlacedBanner; controls: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col items-start justify-center p-8 md:w-1/2",
+        // Room for the controls, which sit over the band's bottom edge.
+        controls && "pb-14",
+      )}
+    >
+      <p className={cn(eyebrow, "tracking-[0.06em]")}>{banner.label ?? "This week\u2019s offer"}</p>
+      <h2 className="mt-3 line-clamp-3 text-3xl leading-tight font-bold tracking-tight sm:text-4xl">{banner.title}</h2>
+      {banner.subtitle && <p className="mt-3 max-w-md text-sm opacity-95 sm:text-base">{banner.subtitle}</p>}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        <Link href={offerHref(banner) ?? "/search"} className={btnClass("outline", "lg", "border-transparent")}>
+          Shop now
+        </Link>
+        <Link href="/search?saleOnly=true" className={btnClass("ghost", "lg", "border-white/60 text-white hover:bg-white/15")}>
+          See what&rsquo;s on sale
+        </Link>
+      </div>
+      {banner.terms && <p className="mt-3 text-xs opacity-80">{banner.terms}</p>}
+    </div>
   )
 }
 

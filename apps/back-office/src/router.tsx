@@ -12,6 +12,9 @@ import {
   promotionGroupRoute,
   promotionGroupsRoute,
   promotionsIndexRoute,
+  promotionSkinsRoute,
+  createSkinRoute,
+  promotionSkinRoute,
 } from "./routes/promotions";
 import {
   deliverabilityDetailRoute,
@@ -73,6 +76,9 @@ const routeTree = rootRoute.addChildren([
     createPromotionRoute,
     promotionGroupsRoute,
     promotionGroupRoute,
+    promotionSkinsRoute,
+    createSkinRoute,
+    promotionSkinRoute,
     editPromotionRoute,
     promotionDetailRoute,
     deliveryIndexRoute,

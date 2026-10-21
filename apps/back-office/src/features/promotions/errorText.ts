@@ -13,7 +13,34 @@ const BY_TYPE: Record<string, string> = {
   "headline-required": "Add a headline before showing this promotion in a group.",
   "action-not-allowed": "That can't be done to a promotion in its current state.",
   "key-taken": "That key is already used by another group.",
+  // 095 — skins and pictures.
+  "skin-unreadable": "Some words would be hard to read on what they sit on. Fix the pairs marked below, then save.",
+  "invalid-skin": "Some settings aren't valid. Check the fields marked below.",
+  "name-taken": "Another skin already has that name.",
+  "skin-changed": "Someone else saved this skin while you were editing. Reload it to see their change, then make yours again.",
+  "skin-built-in": "Classic is built in: it draws each place as it always looked, and can't be changed or removed.",
+  "skin-does-not-fit": "That skin's layout doesn't fit the size of this place.",
+  "unknown-skin": "That skin no longer exists. Reload and choose another.",
+  "image-not-on-promotion": "That picture belongs to another promotion.",
+  "too-many-images": "A promotion has at most 10 pictures. Remove one first.",
+  "invalid-upload": "That file can't be used: a JPEG, PNG or WebP picture up to 10 MB.",
+  "not-a-picture": "That file isn't a picture we can show.",
+  "picture-too-small": "That picture is too small — at least 320 pixels on its shorter side.",
+  "not-uploaded": "The picture hasn't finished uploading. Try again.",
+  "already-added": "That picture is already on this promotion.",
 };
+
+/** 095 — a refusal that names places (a skin or picture in use) says which, in our words. */
+export function inUseError(err: unknown, what: "skin" | "picture"): string | null {
+  if (!isDomainError(err)) return null;
+  const slug = err.type?.split("/").pop() ?? "";
+  if (slug !== "skin-in-use" && slug !== "image-in-use") return null;
+  const where = (err.fields ?? []).map((f) => f.message).filter(Boolean);
+  const list = where.length ? where.join(", ") : "some places";
+  return what === "skin"
+    ? `This skin is in use: ${list}. Choose another skin in those places first.`
+    : `This picture is shown in ${list}. Removing it shows the next best picture there instead.`;
+}
 
 export function promotionMutationError(err: unknown): string {
   if (isDomainError(err)) {

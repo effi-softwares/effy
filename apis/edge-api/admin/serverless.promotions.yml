@@ -1,0 +1,453 @@
+# edge-admin-promotions — the PROMOTION half of the admin service (094 promotions, 095 skins & pictures).
+#
+# ⚠ THE SAME SERVICE AS `serverless.yml`, DEPLOYED AS A SECOND STACK. Same directory, same `src/`,
+# same handlers and repositories — nothing is copied (constitution Principle III; the shape
+# `inventory` / `inventory-staff` took in 075).
+#
+# WHY. CloudFormation allows 500 resources per stack and that limit is not raised. The admin stack
+# had already spent `versionFunctions: false` (049) and moved driver management to `fleet` (056); 095's
+# ten routes took it to 533 and its deploy was refused. Promotions are the largest self-contained
+# group of its routes, so they live here.
+#
+# ⚠ ONLY ROUTES. No schedule, queue or alarm lives in this stack. The routes keep their paths
+# (/admin/v1/promotions…, /admin/v1/promotion-groups…, /admin/v1/promotion-skins…) and the same
+# back-office authorizer on the STAFF gateway — back-office sees no difference.
+#
+# ⚠ DEPLOY ORDER: `make edge-deploy SERVICE=admin` FIRST (it drops these routes), THEN
+# `SERVICE=admin-promotions`. A route key may exist once per gateway; the other order is refused.
+#
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-admin-promotions
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # Every integration invokes $LATEST; per-deploy Versions would only spend resources (see serverless.yml).
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 095-promotion-skins
+    service: admin-promotions
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/staff/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    LIVE_HTTP_HOST: ${ssm:/effy/${sls:stage}/live/http_host}
+    LIVE_REALTIME_HOST: ${ssm:/effy/${sls:stage}/live/realtime_host}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # Promotion pictures live under the media bucket's public `promotions/` prefix (095).
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    MEDIA_PUBLIC_BASE_URL: ${ssm:/effy/${sls:stage}/media/public_base_url}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Picture uploads: presigned PUTs and reads, the media bucket's objects only — never a wildcard.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
+        # 071 — a promotion change tells an open Promotions screen to re-read.
+        - Effect: Allow
+          Action: appsync:EventPublish
+          Resource: ${ssm:/effy/${sls:stage}/live/api_arn}/channelNamespace/*
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — as serverless.yml (dev posture, infra/envs/README.md).
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  # ── Promotions (094) and how they look (095). Back-office authorizer; read = any active staff
+  #    (support answers "is this code live?"), mutate = admin/manager. Every mutation audits. ──
+  promotionsListV1:
+    handler: src/functions/promotions-list-v1-get.handler
+    description: List promotions (paged; state, kind, trigger, group; counts per state) — 094
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCreateV1:
+    handler: src/functions/promotions-create-v1-post.handler
+    description: Create a promotion (draft unless published) — 094
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsProductsV1:
+    handler: src/functions/promotions-products-v1-get.handler
+    description: Products a promotion can target, by name, SKU or brand — 094
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/products
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsDetailV1:
+    handler: src/functions/promotions-detail-v1-get.handler
+    description: A promotion in full — 094
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsUpdateV1:
+    handler: src/functions/promotions-update-v1-patch.handler
+    description: Edit a promotion; what it gives and who it is for are fixed once used — 094
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsActionsV1:
+    handler: src/functions/promotions-actions-v1-post.handler
+    description: Publish, pause, resume, end or archive a promotion — 094
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/actions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsDeleteV1:
+    handler: src/functions/promotions-delete-v1-delete.handler
+    description: Delete a promotion nobody has used (used ones are archived) — 094
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsAuditV1:
+    handler: src/functions/promotions-audit-v1-get.handler
+    description: A promotion's change history — 094
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/audit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsListV1:
+    handler: src/functions/promotion-groups-list-v1-get.handler
+    description: Display groups — list (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-groups
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsCreateV1:
+    handler: src/functions/promotion-groups-create-v1-post.handler
+    description: Display groups — create (094)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotion-groups
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsDetailV1:
+    handler: src/functions/promotion-groups-detail-v1-get.handler
+    description: Display groups — detail (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-groups/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsUpdateV1:
+    handler: src/functions/promotion-groups-update-v1-patch.handler
+    description: Display groups — update (094)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/promotion-groups/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsDeleteV1:
+    handler: src/functions/promotion-groups-delete-v1-delete.handler
+    description: Display groups — delete (094)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotion-groups/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsMembersV1:
+    handler: src/functions/promotion-groups-members-v1-put.handler
+    description: Display groups — members (094)
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/promotion-groups/{id}/members
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionGroupsPreviewV1:
+    handler: src/functions/promotion-groups-preview-v1-get.handler
+    description: Display groups — preview (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-groups/{id}/preview
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionSkinsListV1:
+    handler: src/functions/promotion-skins-list-v1-get.handler
+    description: Promotion skins — list (095)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-skins
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionSkinsCreateV1:
+    handler: src/functions/promotion-skins-create-v1-post.handler
+    description: Promotion skins — create (095)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotion-skins
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionSkinsDetailV1:
+    handler: src/functions/promotion-skins-detail-v1-get.handler
+    description: Promotion skins — read (095)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotion-skins/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionSkinsUpdateV1:
+    handler: src/functions/promotion-skins-update-v1-put.handler
+    description: Promotion skins — update (095)
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/promotion-skins/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionSkinsDuplicateV1:
+    handler: src/functions/promotion-skins-duplicate-v1-post.handler
+    description: Promotion skins — duplicate (095)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotion-skins/{id}/duplicate
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionSkinsDeleteV1:
+    handler: src/functions/promotion-skins-delete-v1-delete.handler
+    description: Promotion skins — delete (095)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotion-skins/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsImagesUploadsV1:
+    handler: src/functions/promotions-images-uploads-v1-post.handler
+    description: Promotion pictures — upload address (095)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/images/uploads
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsImagesCreateV1:
+    handler: src/functions/promotions-images-create-v1-post.handler
+    description: Promotion pictures — record (095)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/images
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsImagesUpdateV1:
+    handler: src/functions/promotions-images-update-v1-patch.handler
+    description: Promotion pictures — update (095)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/promotions/{id}/images/{imageId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsImagesDeleteV1:
+    handler: src/functions/promotions-images-delete-v1-delete.handler
+    description: Promotion pictures — remove (095)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotions/{id}/images/{imageId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCustomersListV1:
+    handler: src/functions/promotions-customers-list-v1-get.handler
+    description: Promotions — customers-list (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/customers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCustomersAddV1:
+    handler: src/functions/promotions-customers-add-v1-post.handler
+    description: Promotions — customers-add (094)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/customers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCustomersRemoveV1:
+    handler: src/functions/promotions-customers-remove-v1-delete.handler
+    description: Promotions — customers-remove (094)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotions/{id}/customers/{customerId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCodesGenerateV1:
+    handler: src/functions/promotions-codes-generate-v1-post.handler
+    description: Promotions — codes-generate (094)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/codes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCodesListV1:
+    handler: src/functions/promotions-codes-list-v1-get.handler
+    description: Promotions — codes-list (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/codes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsCodesExportV1:
+    handler: src/functions/promotions-codes-export-v1-get.handler
+    description: Promotions — codes-export (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/codes/export
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  promotionsPerformanceV1:
+    handler: src/functions/promotions-performance-v1-get.handler
+    description: Promotions — performance (094)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/performance
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}

@@ -103,6 +103,14 @@
       ],
       "type": "object"
     },
+    "Align": {
+      "enum": [
+        "start",
+        "center",
+        "end"
+      ],
+      "type": "string"
+    },
     "ApplyPromoRequest": {
       "additionalProperties": false,
       "description": "POST /v1/cart/promo — apply a promotional code. Signed-in only (a per-shopper cap needs identity).",
@@ -409,6 +417,15 @@
         "address"
       ],
       "type": "object"
+    },
+    "ButtonStyle": {
+      "enum": [
+        "filled",
+        "outline",
+        "link",
+        "none"
+      ],
+      "type": "string"
     },
     "CancelOrderBody": {
       "additionalProperties": false,
@@ -866,6 +883,18 @@
       ],
       "type": "object"
     },
+    "ChipStyle": {
+      "enum": [
+        "dashed",
+        "solid",
+        "filled"
+      ],
+      "type": "string"
+    },
+    "Colour": {
+      "description": "`#rrggbb`, lowercase once saved.",
+      "type": "string"
+    },
     "ConfirmCheckoutRequest": {
       "additionalProperties": false,
       "description": "POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook).",
@@ -1280,6 +1309,18 @@
         "refundedAt"
       ],
       "type": "object"
+    },
+    "DecorationSet": {
+      "enum": [
+        "food",
+        "produce",
+        "bakery",
+        "drinks",
+        "seasonal-winter",
+        "seasonal-summer",
+        "celebration"
+      ],
+      "type": "string"
     },
     "DeliveryChoiceRefusalCode": {
       "description": "069 — why a checkout intent was refused over the delivery choice. Carried as `code` on a 409 problem, with a fresh `quote` so the client can re-offer without a second request.\n\n⚠ A refusal NEVER substitutes a window or a day (FR-010). The customer chooses again.",
@@ -1756,6 +1797,15 @@
         "single_select",
         "multi_select",
         "toggle"
+      ],
+      "type": "string"
+    },
+    "GroupSize": {
+      "enum": [
+        "large",
+        "medium",
+        "small",
+        "strip"
       ],
       "type": "string"
     },
@@ -2769,6 +2819,16 @@
       ],
       "type": "string"
     },
+    "Radius": {
+      "enum": [
+        "none",
+        "sm",
+        "md",
+        "lg",
+        "xl"
+      ],
+      "type": "string"
+    },
     "RefundRequestDTO": {
       "additionalProperties": false,
       "description": "A customer's ask.\n\n⚠ IT IS NOT A REFUND. It carries no amount and no provider reference, and it moves no money (FR-005r). It replaces \"email support and hope\" — today \"Get help\" opens a generic feedback form with no order reference attached. ⚠ Deliberately NOT a message thread: one statement, one outcome.",
@@ -3301,6 +3361,10 @@
             "null"
           ]
         },
+        "skin": {
+          "$ref": "#/definitions/ShopperSkinDTO",
+          "description": "095 — how this promotion looks in THIS place (resolved per group member). Absent from servers before 095; a client that does not know `skin.layout` draws its built-in look, as for `classic`."
+        },
         "supportingLine": {
           "type": [
             "string",
@@ -3331,6 +3395,546 @@
         "target"
       ],
       "type": "object"
+    },
+    "ShopperSkinDTO": {
+      "additionalProperties": false,
+      "description": "095 — the skin a placement wears, with the picture it shows.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "layout": {
+          "$ref": "#/definitions/SkinLayout"
+        },
+        "picture": {
+          "$ref": "#/definitions/ShopperSkinPictureDTO"
+        },
+        "settings": {
+          "$ref": "#/definitions/SkinSettings",
+          "description": "Absent for `classic`."
+        },
+        "size": {
+          "$ref": "#/definitions/GroupSize",
+          "description": "The size of the place the group fills."
+        },
+        "version": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "layout",
+        "size"
+      ],
+      "type": "object"
+    },
+    "ShopperSkinPictureDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "alt": {
+          "type": "string"
+        },
+        "focusX": {
+          "description": "0–1 from the left / top: the point every crop keeps in view.",
+          "type": "number"
+        },
+        "focusY": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "imageWidths": {
+          "description": "086 — widths of the WebP copies; derive each with `renditionUrl`.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "url": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "url",
+        "width",
+        "height",
+        "alt",
+        "focusX",
+        "focusY"
+      ],
+      "type": "object"
+    },
+    "SkinBackground": {
+      "additionalProperties": false,
+      "properties": {
+        "colour": {
+          "$ref": "#/definitions/Colour"
+        },
+        "picture": {
+          "description": "Show the promotion's picture. Required layouts (`full_picture`, `picture_beside`) always do.",
+          "enum": [
+            "none",
+            "show"
+          ],
+          "type": "string"
+        },
+        "tint": {
+          "additionalProperties": false,
+          "description": "Laid over the picture under the words. Strength 0–0.9.",
+          "properties": {
+            "colour": {
+              "$ref": "#/definitions/Colour"
+            },
+            "strength": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "colour",
+            "strength"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "colour",
+        "picture"
+      ],
+      "type": "object"
+    },
+    "SkinLayout": {
+      "enum": [
+        "classic",
+        "panel",
+        "header_card",
+        "full_picture",
+        "picture_beside",
+        "tile",
+        "strip"
+      ],
+      "type": "string"
+    },
+    "SkinSettings": {
+      "additionalProperties": false,
+      "description": "The settings of a designed skin. Layout-only fields are present on their layout alone.",
+      "properties": {
+        "align": {
+          "$ref": "#/definitions/Align"
+        },
+        "background": {
+          "$ref": "#/definitions/SkinBackground"
+        },
+        "body": {
+          "additionalProperties": false,
+          "description": "`header_card`: the body under the header, and the colour of its \"Code\"/\"Offer\" tag.",
+          "properties": {
+            "colour": {
+              "$ref": "#/definitions/Colour"
+            },
+            "tagColour": {
+              "$ref": "#/definitions/Colour"
+            }
+          },
+          "required": [
+            "colour",
+            "tagColour"
+          ],
+          "type": "object"
+        },
+        "button": {
+          "additionalProperties": false,
+          "properties": {
+            "fill": {
+              "$ref": "#/definitions/Colour"
+            },
+            "icon": {
+              "type": "boolean"
+            },
+            "style": {
+              "$ref": "#/definitions/ButtonStyle"
+            },
+            "text": {
+              "$ref": "#/definitions/Colour"
+            },
+            "words": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "style",
+            "fill",
+            "text",
+            "words",
+            "icon"
+          ],
+          "type": "object"
+        },
+        "chip": {
+          "additionalProperties": false,
+          "properties": {
+            "fill": {
+              "$ref": "#/definitions/Colour"
+            },
+            "show": {
+              "type": "boolean"
+            },
+            "style": {
+              "$ref": "#/definitions/ChipStyle"
+            },
+            "text": {
+              "$ref": "#/definitions/Colour"
+            }
+          },
+          "required": [
+            "show",
+            "style",
+            "fill",
+            "text"
+          ],
+          "type": "object"
+        },
+        "dark": {
+          "additionalProperties": false,
+          "description": "The customer app's dark appearance. Absent → the skin looks the same in both.",
+          "properties": {
+            "background": {
+              "$ref": "#/definitions/SkinBackground"
+            },
+            "body": {
+              "additionalProperties": false,
+              "properties": {
+                "colour": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "tagColour": {
+                  "$ref": "#/definitions/Colour"
+                }
+              },
+              "required": [
+                "colour",
+                "tagColour"
+              ],
+              "type": "object"
+            },
+            "button": {
+              "additionalProperties": false,
+              "properties": {
+                "fill": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "icon": {
+                  "type": "boolean"
+                },
+                "style": {
+                  "$ref": "#/definitions/ButtonStyle"
+                },
+                "text": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "words": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "style",
+                "fill",
+                "text",
+                "words",
+                "icon"
+              ],
+              "type": "object"
+            },
+            "chip": {
+              "additionalProperties": false,
+              "properties": {
+                "fill": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "show": {
+                  "type": "boolean"
+                },
+                "style": {
+                  "$ref": "#/definitions/ChipStyle"
+                },
+                "text": {
+                  "$ref": "#/definitions/Colour"
+                }
+              },
+              "required": [
+                "show",
+                "style",
+                "fill",
+                "text"
+              ],
+              "type": "object"
+            },
+            "decorations": {
+              "additionalProperties": false,
+              "properties": {
+                "colour": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "set": {
+                  "$ref": "#/definitions/DecorationSet"
+                },
+                "show": {
+                  "type": "boolean"
+                },
+                "strength": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "show",
+                "set",
+                "colour",
+                "strength"
+              ],
+              "type": "object"
+            },
+            "headline": {
+              "$ref": "#/definitions/TextStyle"
+            },
+            "label": {
+              "additionalProperties": false,
+              "properties": {
+                "colour": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "show": {
+                  "type": "boolean"
+                },
+                "size": {
+                  "enum": [
+                    "xs",
+                    "sm"
+                  ],
+                  "type": "string"
+                },
+                "tracking": {
+                  "enum": [
+                    "normal",
+                    "wide"
+                  ],
+                  "type": "string"
+                },
+                "words": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "show",
+                "words",
+                "colour",
+                "size",
+                "tracking"
+              ],
+              "type": "object"
+            },
+            "supporting": {
+              "additionalProperties": false,
+              "properties": {
+                "colour": {
+                  "$ref": "#/definitions/Colour"
+                },
+                "lines": {
+                  "enum": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "type": "number"
+                },
+                "show": {
+                  "type": "boolean"
+                },
+                "size": {
+                  "$ref": "#/definitions/TextSize"
+                },
+                "weight": {
+                  "$ref": "#/definitions/Weight"
+                }
+              },
+              "required": [
+                "colour",
+                "lines",
+                "show",
+                "size",
+                "weight"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "decorations": {
+          "additionalProperties": false,
+          "properties": {
+            "colour": {
+              "$ref": "#/definitions/Colour"
+            },
+            "set": {
+              "$ref": "#/definitions/DecorationSet"
+            },
+            "show": {
+              "type": "boolean"
+            },
+            "strength": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "show",
+            "set",
+            "colour",
+            "strength"
+          ],
+          "type": "object"
+        },
+        "headline": {
+          "$ref": "#/definitions/TextStyle"
+        },
+        "label": {
+          "additionalProperties": false,
+          "properties": {
+            "colour": {
+              "$ref": "#/definitions/Colour"
+            },
+            "show": {
+              "type": "boolean"
+            },
+            "size": {
+              "enum": [
+                "xs",
+                "sm"
+              ],
+              "type": "string"
+            },
+            "tracking": {
+              "enum": [
+                "normal",
+                "wide"
+              ],
+              "type": "string"
+            },
+            "words": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "show",
+            "words",
+            "colour",
+            "size",
+            "tracking"
+          ],
+          "type": "object"
+        },
+        "pictureFit": {
+          "enum": [
+            "cover",
+            "contain"
+          ],
+          "type": "string"
+        },
+        "pictureSide": {
+          "description": "`picture_beside`: which side the picture is on, and how it fills its half.",
+          "enum": [
+            "start",
+            "end"
+          ],
+          "type": "string"
+        },
+        "shape": {
+          "additionalProperties": false,
+          "properties": {
+            "outline": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Colour"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "radius": {
+              "$ref": "#/definitions/Radius"
+            },
+            "spacing": {
+              "$ref": "#/definitions/Spacing"
+            }
+          },
+          "required": [
+            "radius",
+            "spacing",
+            "outline"
+          ],
+          "type": "object"
+        },
+        "supporting": {
+          "additionalProperties": false,
+          "properties": {
+            "colour": {
+              "$ref": "#/definitions/Colour"
+            },
+            "lines": {
+              "enum": [
+                1,
+                2,
+                3
+              ],
+              "type": "number"
+            },
+            "show": {
+              "type": "boolean"
+            },
+            "size": {
+              "$ref": "#/definitions/TextSize"
+            },
+            "weight": {
+              "$ref": "#/definitions/Weight"
+            }
+          },
+          "required": [
+            "colour",
+            "lines",
+            "show",
+            "size",
+            "weight"
+          ],
+          "type": "object"
+        },
+        "textCorner": {
+          "$ref": "#/definitions/TextCorner",
+          "description": "`full_picture`: where the words sit."
+        }
+      },
+      "required": [
+        "align",
+        "background",
+        "button",
+        "chip",
+        "decorations",
+        "headline",
+        "label",
+        "shape",
+        "supporting"
+      ],
+      "type": "object"
+    },
+    "Spacing": {
+      "enum": [
+        "compact",
+        "regular",
+        "roomy"
+      ],
+      "type": "string"
     },
     "StorefrontCategoryDTO": {
       "additionalProperties": false,
@@ -3606,6 +4210,55 @@
       ],
       "type": "object"
     },
+    "TextCorner": {
+      "enum": [
+        "top-start",
+        "bottom-start",
+        "center",
+        "bottom-end"
+      ],
+      "type": "string"
+    },
+    "TextSize": {
+      "enum": [
+        "xs",
+        "sm",
+        "md",
+        "lg",
+        "xl",
+        "2xl"
+      ],
+      "type": "string"
+    },
+    "TextStyle": {
+      "additionalProperties": false,
+      "properties": {
+        "colour": {
+          "$ref": "#/definitions/Colour"
+        },
+        "lines": {
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "type": "number"
+        },
+        "size": {
+          "$ref": "#/definitions/TextSize"
+        },
+        "weight": {
+          "$ref": "#/definitions/Weight"
+        }
+      },
+      "required": [
+        "colour",
+        "size",
+        "weight",
+        "lines"
+      ],
+      "type": "object"
+    },
     "UpdateAddressRequest": {
       "additionalProperties": false,
       "description": "PATCH /v1/addresses/{id} — partial update / set default.",
@@ -3681,6 +4334,15 @@
         "quantity"
       ],
       "type": "object"
+    },
+    "Weight": {
+      "enum": [
+        "regular",
+        "medium",
+        "semibold",
+        "bold"
+      ],
+      "type": "string"
     },
     "WireInt": {
       "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",

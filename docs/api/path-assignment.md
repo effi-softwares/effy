@@ -93,7 +93,8 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 | `inventory` | shared | shop | stock — a shop managing its own |
 | `inventory-staff` (same source as `inventory`) | **staff** | back-office | stock — staff managing it on a shop's behalf (`/inventory/v1/admin/…`) |
 | `driver` | shared | driver | driver app |
-| `admin` | **staff** | back-office | staff, shops, catalogue admin, promotions, delivery configuration |
+| `admin` | **staff** | back-office | staff, shops, catalogue admin, delivery configuration |
+| `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) — split out at CloudFormation's 500-resource limit |
 | `catalog` | **staff** | back-office | product review and margin |
 | `fleet` | **staff** | back-office | drivers, wave planning, delivery slots and days |
 | `orders` | **staff** | back-office | order console, handovers, arrivals, refunds, cancellation |

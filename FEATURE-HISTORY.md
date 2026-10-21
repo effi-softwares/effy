@@ -4,6 +4,46 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**095-promotion-skins — Promotion Skins: Designed by Staff, Chosen per Placement.** 🔨 **BUILT 2026-10-21 —
+NOT migrated, deployed or walked.** Spec, plan, tasks: [specs/095-promotion-skins/](specs/095-promotion-skins/tasks.md).
+
+- **A skin is data**: one of six layouts (panel, header card, full picture, picture beside text, tile, strip) plus a
+  settings document — background colour or picture with a tint, label, headline, supporting line, button, code chip,
+  decorations, corners, spacing, outline, optional dark colours for the app. Declared ONCE in
+  `@effy/shared-types/promotion-skins.ts` with `validateSkin`, `skinContrast`, `skinGeometry`, `pickPicture`.
+- ⚠ **Any colour, readability enforced on the server** (constitution **v3.6.0**: skins are CONTENT, their colours
+  stay inside the skin's frame). The admin service refuses an unreadable skin (422 `skin_unreadable`, naming each
+  pair); text over a picture is judged on its tint over pure black AND white, so any picture reads.
+- ⚠ **`classic` is a built-in skin meaning "draw this place as before 095".** Today's looks pick colour and icons by
+  POSITION (hero green; side cards blue/purple; offers orange/rose/red), which one skin per group cannot reproduce, so
+  every group defaults to Classic and nothing changed for shoppers on release. Five starter skins (`starterSettings`)
+  are seeded to pick or duplicate. Classic is never updated or removed.
+- **Placement**: a group has a `size` and `default_skin_id` (+ optional `default_code_skin_id`, as the Offers page
+  draws coded promotions differently); a member may choose `skin_id` and `image_id`. Resolution is in the shared
+  group read (`shared/src/promotions/skins.ts`): member → code default → default; picture: chosen → best fit for the
+  layout → none. A skin whose layout does not fit the group's size is refused (`skin_does_not_fit`).
+- **Pictures**: up to 10 per promotion under the public `promotions/` prefix (presigned upload, size read from the
+  stored file, ≥ 320 px), description required, focus point. The existing `media` worker makes the WebP copies.
+- ⚠ **One web renderer, two apps**: `@effy/web-kit/promo-skin` (`PromoSkin`) draws skins on customer-web AND in
+  back-office's editor and group previews; no Tailwind or token in it (guarded). The app's `PromoSkinView.kt` is held
+  to the same numbers by `promotion-skins.fixtures.json` (embedded in `PromoSkinFixture.kt`).
+- ⚠ **The app reads a skin leniently** (`decodePromotionGroups`): kotlinx fails a whole response on an unknown enum,
+  so the skin is decoded separately and dropped if this build does not know it — the promotion is drawn in the app's
+  own look. 094 builds ignore the field.
+- **`mega-nav`** (size small): the website's All aisles menu now reads it (public read only), seeded with what the
+  menu showed (`home.banners` = home-hero + home-between).
+- **Routes**: admin +10 (skins ×6, pictures ×4); group PATCH/PUT extended (094's `promotionIds` keeps each
+  member's choices). Admin gained `MEDIA_PUBLIC_BASE_URL`; `media-public.guard.test.ts` allows `admin/src/promotions/images.ts`.
+- **Found while building**: regenerating the Kotlin contract swapped two generated names (`BannerDTO.target` is now
+  `TargetClass`); `CatalogMappers.kt` maps both. The 094 migration container test now stops before stage C.
+
+**Operator steps** (in order):
+1. `AWS_PROFILE=ef make db-up-one ENV=dev` — `20261022090000_promotion_skins.sql`.
+2. `make edge-deploy SERVICE=admin ENV=dev`, THEN `SERVICE=admin-promotions` (new stack — the promotion routes split out of `admin`, which hit CloudFormation's 500-resource limit at 533), then `storefront`, then `commerce`.
+3. Build back-office and customer-web (Amplify), then the customer app.
+4. Walk [specs/095-promotion-skins/quickstart.md](specs/095-promotion-skins/quickstart.md); T026 (release-day
+   screenshots identical) is the operator's comparison.
+
 **094-promotions-rebuild — Promotions Rebuilt: a Full Promotion System, Grouped for Display.** ✅ **COMPLETE IN
 DEV** — built 2026-10-20; migrated, every service and client deployed, the customer app built, and the
 quickstart walked by the operator. Only stage C (removing the old tables) is open. Spec, plan, tasks: [specs/094-promotions-rebuild/](specs/094-promotions-rebuild/tasks.md).

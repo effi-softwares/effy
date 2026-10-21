@@ -5,3 +5,4 @@ export * from "./candidates";
 export * from "./uses";
 export * from "./product-offer";
 export * from "./fixtures";
+export * from "./skins";

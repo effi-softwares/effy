@@ -9,6 +9,10 @@ import { Card } from "@/components/ui/card"
 import { SectionShell } from "@/components/storefront/kit"
 import { OFFER_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"
 
+import type { PlacedBanner } from "../promotion-groups"
+
+import { isDesigned, SkinnedPromotion } from "./SkinnedPromotion"
+
 /**
  * The promotional offers block (039 US4, FR-017/FR-018/FR-020) — the reference's one-large-plus-two-
  * stacked composition, driven by advertised promotions.
@@ -40,7 +44,7 @@ export function OffersPanels({
   banners,
   title = "Offers",
 }: {
-  banners: BannerDTO[]
+  banners: PlacedBanner[]
   title?: string
 }) {
   const offers = banners.slice(0, 3)
@@ -50,7 +54,11 @@ export function OffersPanels({
         <ul className="grid gap-4 md:grid-cols-3">
           {offers.map((banner, i) => (
             <li key={banner.key}>
-              <OfferBannerCard banner={banner} theme={OFFER_THEMES[i % OFFER_THEMES.length]!} />
+              {isDesigned(banner) ? (
+                <SkinnedPromotion banner={banner} groupKey="home-between" imageSizes="(min-width: 768px) 33vw, 100vw" />
+              ) : (
+                <OfferBannerCard banner={banner} theme={OFFER_THEMES[i % OFFER_THEMES.length]!} />
+              )}
             </li>
           ))}
         </ul>

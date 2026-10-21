@@ -219,6 +219,9 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 # below maps it to its directory and config file. Every other service is its own directory.
 EDGE_STACK_DIR_inventory-staff    := inventory
 EDGE_STACK_CONFIG_inventory-staff := serverless.staff.yml
+# 095 — admin's promotion routes, split out at CloudFormation's 500-resource limit. Deploy admin first.
+EDGE_STACK_DIR_admin-promotions    := admin
+EDGE_STACK_CONFIG_admin-promotions := serverless.promotions.yml
 EDGE_DIR    := apis/edge-api/$(or $(EDGE_STACK_DIR_$(SERVICE)),$(SERVICE))
 EDGE_CONFIG := $(or $(EDGE_STACK_CONFIG_$(SERVICE)),serverless.yml)
 # Which gateway the stack attaches to, read from the stack file itself — shown in the deploy prompt.
@@ -260,8 +263,8 @@ edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|s
 	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory|storefront|commerce ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --config $(EDGE_CONFIG) --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|admin-promotions|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|admin-promotions|shop|customer|driver|notifications|orders|inventory|inventory-staff|fleet|catalog|storefront|commerce|live ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@test -f "$(EDGE_DIR)/$(EDGE_CONFIG)" || { echo "edge-deploy: no stack file: $(EDGE_DIR)/$(EDGE_CONFIG)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (%s, attaches to %s, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)" "$(EDGE_DIR)/$(EDGE_CONFIG)" "$(EDGE_GATEWAY)"; \

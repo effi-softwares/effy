@@ -34,6 +34,7 @@ import { track } from "@/lib/telemetry";
 import { canManagePromotions } from "./access";
 import { ChosenCustomers } from "./components/ChosenCustomers";
 import { CodesPanel } from "./components/CodesPanel";
+import { PicturesSection } from "./components/PicturesSection";
 import { PerformancePanel } from "./components/PerformancePanel";
 import { promotionMutationError } from "./errorText";
 import { usesLabel, type Promotion } from "./model";
@@ -173,6 +174,10 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                     Shown in
                     <TabsCount>{p.groups.length}</TabsCount>
                   </TabsTrigger>
+                  <TabsTrigger value="pictures">
+                    Pictures
+                    <TabsCount>{p.images.length}</TabsCount>
+                  </TabsTrigger>
                   {p.audience === "chosen" ? (
                     <TabsTrigger value="customers">
                       Customers
@@ -223,6 +228,9 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
                   </ul>
                 )}
               </Panel>
+            </TabsContent>
+            <TabsContent value="pictures" className="bo-tabpanel">
+              <PicturesSection promotion={p} canManage={canManage} />
             </TabsContent>
             <TabsContent value="history" className="bo-tabpanel">
               <History promoId={promoId} />

@@ -8,6 +8,9 @@ import type {
   AdminPromotionDTO,
   AdminPromotionListDTO,
   AdminPromotionWriteDTO,
+  AdminPromotionImageDTO,
+  AdminPromotionImageUploadResponse,
+  AdminUpdatePromotionImageRequest,
   OrderPolicyDTO,
 } from "@effy/shared-types";
 
@@ -53,3 +56,22 @@ export const listCodes = (id: string, page = 1, state?: string) =>
   api.get<AdminPromotionCodeListDTO>(`/admin/v1/promotions/${id}/codes?page=${page}${state ? `&state=${state}` : ""}`);
 export const exportCodes = (id: string) => api.get<{ csv: string }>(`/admin/v1/promotions/${id}/codes/export`);
 export const getPerformance = (id: string) => api.get<AdminPromotionPerformanceDTO>(`/admin/v1/promotions/${id}/performance`);
+
+// ── 095 — pictures ──────────────────────────────────────────────────────────────────────────────
+
+/** Upload a picture straight to storage (presigned), then record it with its description. */
+export async function addPromotionImage(promotionId: string, file: File, alt: string): Promise<AdminPromotionImageDTO> {
+  const target = await api.post<AdminPromotionImageUploadResponse>(`/admin/v1/promotions/${promotionId}/images/uploads`, {
+    contentType: file.type,
+    fileSize: file.size,
+  });
+  const res = await fetch(target.uploadUrl, { method: "PUT", body: file, headers: { "content-type": file.type } });
+  if (!res.ok) throw new Error("the picture could not be uploaded");
+  return api.post<AdminPromotionImageDTO>(`/admin/v1/promotions/${promotionId}/images`, { storageKey: target.storageKey, alt });
+}
+
+export const updatePromotionImage = (promotionId: string, imageId: string, body: AdminUpdatePromotionImageRequest) =>
+  api.patch<AdminPromotionImageDTO>(`/admin/v1/promotions/${promotionId}/images/${imageId}`, body);
+
+export const removePromotionImage = (promotionId: string, imageId: string, confirm: boolean) =>
+  api.delete<void>(`/admin/v1/promotions/${promotionId}/images/${imageId}${confirm ? "?confirm=true" : ""}`);

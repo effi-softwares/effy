@@ -279,6 +279,7 @@ export function toDetailDTO(r: PromotionRecord, x: repo.DetailExtras): AdminProm
     supportingLine: r.supportingLine,
     label: r.label,
     groups: x.groups,
+    images: x.images,
     used: x.used,
     uses: r.uses,
     given: (r.givenCents / 100).toFixed(2),

@@ -1,9 +1,11 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { ArrowRight, ChevronRight, LayoutGrid, Tag } from "lucide-react"
-import type { StorefrontCategoryDTO } from "@effy/shared-types"
+import { PROMOTION_GROUP_KEYS, type StorefrontCategoryDTO } from "@effy/shared-types"
 
-import { getHome } from "@/app/(shop)/home-data"
+import { toGroupBanner, type PlacedBanner } from "@/app/(shop)/promotion-groups"
+import { readPublicGroups } from "@/app/(shop)/promotion-groups-public"
+import { isDesigned, SkinnedPromotion } from "@/app/(shop)/_components/SkinnedPromotion"
 import { chromePrefetch } from "@/lib/account-routes"
 import { offerHref } from "@/app/(shop)/_components/OffersPanels"
 import { MENU_THEMES, PromoBanner, type PromoTheme } from "@/components/storefront/PromoBanner"
@@ -256,26 +258,37 @@ const INFORMATION = [
   />,
 ]
 
-/** The current offers, then the information slides. With no offers — or no answer — just those. */
+/**
+ * The current offers, then the information slides. With no offers — or no answer — just those.
+ *
+ * 095 — the offers are the `mega-nav` display group (it started with what `home.banners` held, so the
+ * menu did not change), read through the PUBLIC group read: the menu is drawn for everyone, so it never
+ * carries a personal offer. A promotion staff put in a skin wears it; a Classic one keeps its slide.
+ */
 async function MenuOffers() {
-  let offers: Awaited<ReturnType<typeof getHome>>["banners"] = []
+  let offers: PlacedBanner[] = []
   try {
-    offers = (await getHome()).banners
+    const dto = await readPublicGroups(PROMOTION_GROUP_KEYS.megaNav)
+    offers = (dto.groups.find((g) => g.key === PROMOTION_GROUP_KEYS.megaNav)?.promotions ?? []).map(toGroupBanner)
   } catch {
     offers = []
   }
   return (
     <MenuCarousel>
-      {offers.slice(0, 4).map((banner, i) => (
-        <OfferSlide
-          key={banner.key}
-          theme={MENU_THEMES[i % MENU_THEMES.length]!}
-          title={banner.title}
-          text={banner.subtitle ?? banner.terms}
-          code={banner.code}
-          href={offerHref(banner) ?? "/offers"}
-        />
-      ))}
+      {offers.slice(0, 4).map((banner, i) =>
+        isDesigned(banner) ? (
+          <SkinnedPromotion key={banner.key} banner={banner} groupKey={PROMOTION_GROUP_KEYS.megaNav} size="small" imageSizes="320px" />
+        ) : (
+          <OfferSlide
+            key={banner.key}
+            theme={MENU_THEMES[i % MENU_THEMES.length]!}
+            title={banner.title}
+            text={banner.subtitle ?? banner.terms}
+            code={banner.code}
+            href={offerHref(banner) ?? "/offers"}
+          />
+        ),
+      )}
       {INFORMATION}
     </MenuCarousel>
   )

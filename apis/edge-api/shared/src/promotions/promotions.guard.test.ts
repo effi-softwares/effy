@@ -16,6 +16,8 @@ import { describe, expect, it } from "vitest";
  *      intent and both group reads come through `candidates.ts`, so "what applies now" has one answer.
  *   4. No shop service reads a promotion or what an order's promotions were (FR-035).
  *   5. Nothing outside `engine.ts` works out a discount: the 027 evaluator is gone.
+ *   7. 095 — skins and pictures (`promotion_skin`, `promotion_image`) are written by the admin service only
+ *      and read here and there; a shop never reads them.
  *   6. Nothing names 027's tables or their keys (`promo_code`, `promo_redemption`, `promo_code_id`,
  *      `legacy_promo_code_id`) — stage C drops them. `order.promo_code`, the code's TEXT, stays.
  */
@@ -36,7 +38,7 @@ const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s
 const sources = files(services).map((f) => ({ file: relative(services, f), src: strip(readFileSync(f, "utf8")) }));
 
 const DEFINITION = "promotion|promotion_code|promotion_target|promotion_customer|promotion_group|promotion_group_member";
-const ADMIN = /^admin\/src\/(promotions|promotion-groups)\//;
+const ADMIN = /^admin\/src\/(promotions|promotion-groups|promotion-skins)\//;
 const SHARED = /^shared\/src\/promotions\//;
 
 describe("094 — promotions live once", () => {
@@ -84,5 +86,18 @@ describe("094 — promotions live once", () => {
       .filter((s) => /\bpublic\.promo_(code|redemption)\b|\bpromo_redemption\b|\b(legacy_)?promo_code_id\b/.test(s.src))
       .map((s) => s.file);
     expect(old).toEqual([]);
+  });
+
+  it("095 — skins and pictures are written by the admin service and read here and there only", () => {
+    const writers = sources
+      .filter((s) => /(INSERT INTO|UPDATE|DELETE FROM)\s+public\.promotion_(skin|image)\b/.test(s.src))
+      .map((s) => s.file)
+      .filter((f) => !ADMIN.test(f));
+    expect(writers).toEqual([]);
+    const readers = sources
+      .filter((s) => /(FROM|JOIN)\s+public\.promotion_(skin|image)\b/.test(s.src))
+      .map((s) => s.file)
+      .filter((f) => !ADMIN.test(f) && !SHARED.test(f));
+    expect(readers).toEqual([]);
   });
 });

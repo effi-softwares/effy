@@ -1,6 +1,6 @@
 import { cache } from "react"
 
-import type { BannerDTO, PromotionGroupsDTO, ShopperPromotionDTO } from "@effy/shared-types"
+import type { BannerDTO, PromotionGroupsDTO, ShopperPromotionDTO, ShopperSkinDTO } from "@effy/shared-types"
 
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession } from "@/lib/session"
@@ -15,7 +15,10 @@ import { readPublicGroups } from "./promotion-groups-public"
  * Signed out: the storefront's public answer, shared for up to a minute (the listing tier). Signed in:
  * commerce's personal answer — first-order and chosen-customer offers included — never cached.
  */
-export type GroupBanner = BannerDTO & { label: string | null }
+export type GroupBanner = BannerDTO & { label: string | null; skin?: ShopperSkinDTO }
+
+/** What a promotion component draws: a banner, perhaps with a label and (095) the skin of its place. */
+export type PlacedBanner = BannerDTO & { label?: string | null; skin?: ShopperSkinDTO }
 
 /** A group's promotion in the shape the existing banner components draw. */
 export function toGroupBanner(p: ShopperPromotionDTO): GroupBanner {
@@ -29,6 +32,8 @@ export function toGroupBanner(p: ShopperPromotionDTO): GroupBanner {
     terms: p.terms,
     target: p.target,
     label: p.label,
+    // 095 — the skin this place wears; absent from a server before 095.
+    ...(p.skin ? { skin: p.skin } : {}),
   }
 }
 

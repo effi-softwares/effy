@@ -337,6 +337,12 @@ export type StorefrontEvent =
   // enumeration oracle FR-032 removes from the response.
   | { name: "newsletter_submitted"; props: { outcome: "ok" | "invalid" | "error" } }
 
+  // ── 095: promotion skins ─────────────────────────────────────────────────────────────────────
+  //
+  // Which place and which skin a promotion was opened or its code copied from, so marketing can compare
+  // skins (FR-027). The promotion and skin ids are platform ids, not about a person.
+  | { name: "promotion_banner_tapped"; props: { promotionId: string; groupKey: string; skinId: string; layout: string; action: "open" | "copy" } }
+
   // ── 068: customer lists ───────────────────────────────────────────────────────────────────────
   //
   // ⚠ NEVER THE LIST'S NAME, AND NOT ITS LENGTH EITHER (FR-040). A name is the shopper's own free
