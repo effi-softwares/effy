@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 import type { CoverageGroupDTO, CoveragePlaceResultDTO } from "@effy/shared-types";
 import {
@@ -6,10 +7,18 @@ import {
 } from "@effy/design-system/ui";
 
 import { coverageError, isNoDriverCovers, NO_DRIVER_GROUP, NO_DRIVER_UNGROUPED } from "../errorText";
-import { useAddCoveragePostcodes } from "../queries";
-import { searchCoveragePlaces } from "../repo";
+import { coveragePlacesQuery, useAddCoveragePostcodes } from "../queries";
 
 const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 text-sm";
+
+function useDebounced(value: string, ms = 250) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
 
 /**
  * Add places to Effy's delivery area (076 US1) — by NAME. Nobody types a postcode or a distance for
@@ -18,35 +27,35 @@ const SELECT = "h-9 w-full rounded-md border border-input bg-background px-3 tex
  * What gets listed is the POSTCODE, so each result shows every place that comes with it (FR-003),
  * and two places of one name are told apart by state and postcode (FR-002). A postcode with no
  * located place asks for its distance; one already listed cannot be picked again.
+ *
+ * ⚠ It searches AS THE PERSON TYPES, and a whole postcode that answers exactly itself is ticked for
+ * them. It used to need a Search press and then a tick, and "type 3108, press Add" did nothing at all
+ * — Add stayed disabled with no word as to why.
  */
 export function AddPlacesDialog({
   open, onOpenChange, groups,
 }: { open: boolean; onOpenChange: (o: boolean) => void; groups: CoverageGroupDTO[] }) {
   const add = useAddCoveragePostcodes();
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<CoveragePlaceResultDTO[] | null>(null);
-  const [searching, setSearching] = useState(false);
+  const term = useDebounced(q.trim());
+  const search = useQuery({ ...coveragePlacesQuery(term), enabled: open && term.length >= 2 });
+  const results = term.length >= 2 ? (search.data?.results ?? null) : null;
   const [picked, setPicked] = useState<Map<string, CoveragePlaceResultDTO>>(new Map());
   const [manual, setManual] = useState<Record<string, string>>({});
   const [groupId, setGroupId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [askNoDrivers, setAskNoDrivers] = useState(false);
 
-  function reset() {
-    setQ(""); setResults(null); setPicked(new Map()); setManual({}); setGroupId(""); setError(null); setAskNoDrivers(false);
-  }
+  // A whole postcode typed, answered by exactly that postcode, not yet listed: tick it. Only ever adds,
+  // and only when the answer changes, so unticking it sticks.
+  const exact = /^[0-9]{4}$/.test(term) ? search.data?.results.find((r) => r.postcode === term && !r.listed) : undefined;
+  useEffect(() => {
+    if (!exact) return;
+    setPicked((m) => (m.has(exact.postcode) ? m : new Map(m).set(exact.postcode, exact)));
+  }, [exact]);
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSearching(true);
-    try {
-      setResults((await searchCoveragePlaces(q.trim())).results);
-    } catch (err) {
-      setError(coverageError(err));
-    } finally {
-      setSearching(false);
-    }
+  function reset() {
+    setQ(""); setPicked(new Map()); setManual({}); setGroupId(""); setError(null); setAskNoDrivers(false);
   }
 
   function toggle(r: CoveragePlaceResultDTO) {
@@ -91,17 +100,18 @@ export function AddPlacesDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <form onSubmit={search} className="flex items-end gap-2">
-            <div className="flex-1 space-y-1.5">
-              <Label htmlFor="add-place">Place or postcode</Label>
-              <Input id="add-place" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Richmond" autoFocus />
-            </div>
-            <Button type="submit" variant="outline" disabled={searching || q.trim().length < 2}>Search</Button>
-          </form>
+          <div className="space-y-1.5">
+            <Label htmlFor="add-place">Place or postcode</Label>
+            <Input id="add-place" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Richmond or 3121" autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }} />
+          </div>
 
+          {search.isError ? <p className="text-sm text-destructive" role="alert">{coverageError(search.error)}</p> : null}
           {results ? (
             results.length === 0 ? (
-              <p className="text-sm text-muted-foreground" data-testid="add-none">No place by that name.</p>
+              <p className="text-sm text-muted-foreground" data-testid="add-none">
+                {/^[0-9]+$/.test(term) ? "No place has that postcode." : "No place by that name."}
+              </p>
             ) : (
               <ul className="max-h-64 divide-y overflow-y-auto rounded-md border text-sm" data-testid="add-results">
                 {results.map((r) => (
@@ -148,6 +158,9 @@ export function AddPlacesDialog({
             </p>
           ) : null}
           {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+          {results && results.length > 0 && chosen.length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="add-hint">Tick the postcodes to add.</p>
+          ) : null}
         </div>
 
         <DialogFooter>

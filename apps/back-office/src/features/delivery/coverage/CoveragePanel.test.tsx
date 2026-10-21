@@ -185,7 +185,6 @@ describe("Coverage — adding places by name", () => {
     renderPanel();
     await user.click(await screen.findByRole("button", { name: /add places/i }));
     await user.type(screen.getByLabelText("Place or postcode"), "richmond");
-    await user.click(screen.getByRole("button", { name: "Search" }));
 
     const results = await screen.findByTestId("add-results");
     expect(results).toHaveTextContent("NSW");
@@ -206,13 +205,38 @@ describe("Coverage — adding places by name", () => {
     renderPanel();
     await user.click(await screen.findByRole("button", { name: /add places/i }));
     await user.type(screen.getByLabelText("Place or postcode"), "new");
-    await user.click(screen.getByRole("button", { name: "Search" }));
     await user.click(await screen.findByRole("checkbox", { name: /NEW ESTATE VIC 3901/ }));
 
     expect(screen.getByRole("button", { name: "Add 1 postcode" })).toBeDisabled();
     await user.type(screen.getByLabelText("Distance from the hub (km)"), "42.5");
     await user.click(screen.getByRole("button", { name: "Add 1 postcode" }));
     await waitFor(() => expect(repo.addCoveragePostcodes).toHaveBeenCalledWith({ postcodes: [{ postcode: "3901", manualDistanceKm: "42.5" }], groupId: null }));
+  });
+
+  it("⚠ a whole postcode typed is searched as it is typed and ticked — 'type 3108, press Add' adds it", async () => {
+    const user = userEvent.setup();
+    repo.searchCoveragePlaces.mockResolvedValue({ results: [place({ postcode: "3108", matched: "DONCASTER", places: ["DONCASTER"], computedDistanceKm: "14.20" })] });
+    repo.addCoveragePostcodes.mockResolvedValue({ added: ["3108"], alreadyListed: [] });
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: /add places/i }));
+    await user.type(screen.getByLabelText("Place or postcode"), "3108");
+
+    expect(await screen.findByRole("checkbox", { name: /DONCASTER VIC 3108/ })).toBeChecked();
+    expect(screen.queryByTestId("add-hint")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Add 1 postcode" }));
+    await waitFor(() => expect(repo.addCoveragePostcodes).toHaveBeenCalledWith({ postcodes: [{ postcode: "3108", manualDistanceKm: null }], groupId: null }));
+  });
+
+  it("a name searched says to tick a result while nothing is ticked", async () => {
+    const user = userEvent.setup();
+    repo.searchCoveragePlaces.mockResolvedValue({ results: [place()] });
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: /add places/i }));
+    await user.type(screen.getByLabelText("Place or postcode"), "south");
+
+    expect(await screen.findByTestId("add-hint")).toHaveTextContent("Tick the postcodes to add.");
+    expect(screen.getByRole("checkbox", { name: /SOUTH YARRA VIC 3141/ })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: /^Add/ })).toBeDisabled();
   });
 
   it("⚠ adding where no driver can deliver is a question, not an error — and 'Add anyway' says so to the service", async () => {
@@ -222,7 +246,6 @@ describe("Coverage — adding places by name", () => {
     renderPanel();
     await user.click(await screen.findByRole("button", { name: /add places/i }));
     await user.type(screen.getByLabelText("Place or postcode"), "south");
-    await user.click(screen.getByRole("button", { name: "Search" }));
     await user.click(await screen.findByRole("checkbox", { name: /SOUTH YARRA VIC 3141/ }));
     await user.click(screen.getByRole("button", { name: "Add 1 postcode" }));
 

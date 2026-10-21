@@ -4,7 +4,7 @@ import {
   activatePlan, createCollectionRun, createPlan, deleteCollectionRun, getSettings, listCollectionRuns, listPlans,
   putSettings, replacePlan, simulateFee,
   addNonDeliveryDate, createSlot, getDeliveryDays, listSlotGrid, listSlots, patchSlot, putDeliveryDays, removeNonDeliveryDate,
-  addCourierExclusion, addCoveragePostcodes, createCoverageGroup, listCoverage, patchCoveragePostcodes,
+  addCourierExclusion, addCoveragePostcodes, createCoverageGroup, listCoverage, patchCoveragePostcodes, searchCoveragePlaces,
   removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, updateCourier,
   type CoverageFilters,
   createCourierService, listCourierServices, updateCourierService,
@@ -127,6 +127,19 @@ export const coverageQuery = (filters: CoverageFilters) =>
     queryFn: ({ pageParam }) => listCoverage(filters, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor,
+    placeholderData: keepPreviousData,
+  });
+
+/**
+ * The add dialog's search, as the person types. Under `COVERAGE_ROOT`, so a postcode just added reads
+ * "Already on the list" without a second search. ⚠ Two characters at least — the service answers
+ * nothing for fewer.
+ */
+export const coveragePlacesQuery = (q: string) =>
+  queryOptions({
+    queryKey: [...COVERAGE_ROOT, "places", q] as const,
+    queryFn: () => searchCoveragePlaces(q),
+    enabled: q.length >= 2,
     placeholderData: keepPreviousData,
   });
 
