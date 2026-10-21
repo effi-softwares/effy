@@ -206,6 +206,8 @@ export interface CoveragePostcodeDTO {
   distanceSource: DistanceSource;
   /** A hand-entered distance someone should look at again (the hub moved, or it came from the 076 backfill). */
   needsReview: boolean;
+  /** 097 — whether a window TODAY may be sold here. Per postcode, never per group. */
+  todayOffered: boolean;
 }
 
 /** A name staff file postcodes under. It changes nothing a customer sees, is offered or pays (FR-014). */
@@ -312,7 +314,8 @@ export interface CoverageListDTO {
   /** Listed postcodes in no group, and the drivers who can deliver to them (those cleared for everywhere). */
   ungrouped: { postcodeCount: number; driverCount: number };
   courier: CourierReachDTO;
-  counts: { listed: number; manualDistance: number; needsReview: number };
+  /** 097 — `todayNotOffered`: listed postcodes where delivery today is not offered (the whole list, not the page). */
+  counts: { listed: number; manualDistance: number; needsReview: number; todayNotOffered: number };
 }
 
 /** One result of the add dialog's place search — a postcode, with the place that matched. */
@@ -338,6 +341,8 @@ export interface AddCoveragePostcodesRequest {
   groupId?: string | null;
   /** Staff have been told no driver can deliver there, and are going ahead. */
   confirmNoDrivers?: boolean;
+  /** 097 — whether delivery today is offered at the postcodes added. Absent = true. */
+  todayOffered?: boolean;
 }
 
 export interface AddCoveragePostcodesResult {
@@ -352,6 +357,8 @@ export interface PatchCoveragePostcodesRequest {
   groupId?: string | null;
   distance?: { source: "manual"; km: string } | { source: "computed" };
   confirmNoDrivers?: boolean;
+  /** 097 — offer (true) or stop offering (false) delivery today at every named postcode. May combine with `groupId`. */
+  todayOffered?: boolean;
 }
 
 /** One answer of the staff checker (FR-025). */
@@ -366,6 +373,8 @@ export interface CoverageCheckDTO {
   distanceSource: DistanceSource | null;
   /** Staff's own words for why couriers do not go there, when `reason` is `courier_excluded`. */
   exclusionReason: string | null;
+  /** 097 — whether delivery today is offered there; null when the postcode is not on the list. */
+  todayOffered: boolean | null;
 }
 
 /** `GET /admin/v1/delivery/coverage/check?q=` — one entry for a postcode, one per postcode for a place name. */

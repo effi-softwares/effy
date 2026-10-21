@@ -4,6 +4,51 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**097-same-day-by-postcode — Delivery Today, Postcode by Postcode.** 🔨 **BUILT 2026-10-21 — NOT MIGRATED, DEPLOYED OR
+WALKED.** Each postcode on Effy's list now says whether a window TODAY may be sold there (default: offered). Staff
+switch far postcodes off in bulk from Delivery → Coverage; customers there get Standard delivery from the next
+delivery day, with no new wording. Spec, plan, tasks: [specs/097-same-day-by-postcode/](specs/097-same-day-by-postcode/tasks.md).
+
+- **The fact**: `delivery_zone_postcode.today_offered boolean NOT NULL DEFAULT true` (migration
+  `20261023090000_coverage_today_offered.sql`). ⚠ **Per postcode, never per group** — a group still decides nothing a
+  customer sees. ⚠ **Read only through `public.coverage_for_postcode`**, which gained a sixth result column (dropped and
+  re-created: its result columns changed); `coverageForPostcode` returns it as `Coverage.todayOffered` (true when not
+  listed, where it restricts nothing). `coverage.guard.test.ts` unchanged — no new reader of the list's table.
+- ⚠ **THE WHOLE RULE IS ONE ABSENCE: `effyDays(now, lookahead, noWeekdays, noDates, todayOffered)` leaves today OUT**
+  for such an address (all five arguments now required — a defaulted flag is how a new caller would sell today
+  everywhere). Every path that sells or changes an Effy window builds its days there, so with no other change:
+  no `same_day` day in the quote → no Same-day section on web or app (both already render "no today" as no section,
+  so installed apps are correct); no "Delivery today" surcharge; "as soon as possible" lands on a later day; a stale
+  choice of today is refused at the intent (`date_unavailable`, which re-quotes); back-office move-to-Effy and
+  re-time neither list nor accept today (`override.ts` `windowsNow` / `bindEffyWindow`, `window_unavailable`). The two
+  staff calendars not about an address (`fleet` dispatch, `fleet` slots) pass `true`.
+- **Rejected** (research R3): a new `judgeWindow` verdict — today would still be listed, so the customer would read
+  "No windows left today." in a Same-day section; marking today `nonDelivery` — they would read "We don't deliver
+  today.", which is false. Both are new customer wording; the absence is none.
+- **A held place and a placed order keep what they bought** — the hold is not re-judged, bookings are not touched.
+- **Staff**: no new route. `GET …/coverage` gains `todayOffered` per row, `counts.todayNotOffered`, filters
+  `today=offered|not_offered` and `minKm` (refused when malformed, never ignored); `PATCH …/coverage/postcodes` takes
+  `todayOffered` for up to 500 postcodes, all-or-nothing (404 `not_listed`), one `coverage.postcode.today` audit row
+  naming only what changed; `POST` takes `todayOffered` (default true, audited in `after`); the checker returns it
+  (null when not listed). Back-office: a Delivery today column, "Farther than" (10/25/50 km) and "Delivery today"
+  facets, select-all-shown, an "Offer / Don't offer" bulk control, an "Offer delivery today" box in Add places, a line
+  in the checker. Customer service reads it all, changes none.
+- **Verified**: whole-repo typecheck (26 packages); edge-shared 1019/1020 with containers (the one failure,
+  `parcel-return` "round not finished", is a 10 s timeout under parallel load and passes alone); edge-commerce 333/334
+  (new: today absent, ASAP later, stale today refused, held place kept); edge-admin coverage 28/28 (new: bulk switch,
+  filters, audit once, all-or-nothing, add, checker); edge-fleet 330/330; override container 14/14 (new: move/re-time
+  refuse today); orders delivery-move 4/4; back-office 378/378; shared-types picker 16/16 incl. a new fixture case,
+  and the customer app's Kotlin picker test against the same fixture (`testAndroidHostTest`); the delivery-word,
+  refresh-timer and token guards.
+- ⚠ **PRE-EXISTING failures met while verifying, NOT caused by 097 and not fixed here**: `commerce`
+  checkout "079 P9" expects an order's `delivery` without 085's `promise` field; `admin` go-live (6) and `orders`
+  `repository.container` (10) build their database from migrations that stop before 085 (`any_time`,
+  `delivery_promise` missing).
+- **⚠ Open — operator**: (1) `make db-up ENV=dev`; (2) `make edge-deploy` `SERVICE=commerce`, `orders`, `admin`, `fleet`
+  (any order, after step 1); back-office deploys on push to `dev`. ⚠ **Switch no postcode off until `commerce` AND
+  `orders` are deployed** — an undeployed one keeps selling today everywhere. (3) The walk in
+  [quickstart.md](specs/097-same-day-by-postcode/quickstart.md) §3.
+
 **095-promotion-skins — Promotion Skins: Designed by Staff, Chosen per Placement.** ✅ **COMPLETE IN DEV 2026-10-21** —
 migrated, deployed and signed off by the operator ([SIGNOFF.md](specs/095-promotion-skins/SIGNOFF.md)). Two defects
 found at deploy, both fixed: the admin stack passed CloudFormation's 500 resources (promotion routes → stack

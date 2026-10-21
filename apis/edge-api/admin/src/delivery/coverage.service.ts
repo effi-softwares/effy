@@ -48,6 +48,12 @@ function kmOf(input: unknown): string {
   return n.toFixed(2);
 }
 
+/** 097 — exactly true or false; anything else is a malformed request, never a guess. */
+function todayOfferedOf(input: unknown): boolean {
+  if (typeof input !== "boolean") throw new CoverageError(400, "invalid_request", "todayOffered is true or false");
+  return input;
+}
+
 function nameOf(input: unknown): string {
   const name = typeof input === "string" ? input.trim().replace(/\s+/g, " ") : "";
   if (name.length < 2 || name.length > 60) throw new CoverageError(400, "invalid_name", "a group name is 2 to 60 characters");
@@ -80,16 +86,36 @@ async function requireDrivers(groupId: string | null, confirmed: boolean | undef
 
 // ── reads ───────────────────────────────────────────────────────────────────────────────────────
 
-export interface ListQuery { group?: string; q?: string; source?: string; review?: string; cursor?: string }
+export interface ListQuery {
+  group?: string; q?: string; source?: string; review?: string; cursor?: string;
+  /** 097 — `offered` | `not_offered`. */
+  today?: string;
+  /** 097 — at least this many km from the hub. */
+  minKm?: string;
+}
+
+/** 097 — a filter staff typed: refused when malformed rather than silently ignored, so "farther than 2x" never lists everything. */
+function todayFilterOf(input: string | undefined): "offered" | "not_offered" | undefined {
+  if (input === undefined || input === "") return undefined;
+  if (input === "offered" || input === "not_offered") return input;
+  throw new CoverageError(400, "invalid_request", "delivery today is offered or not_offered");
+}
+function minKmOf(input: string | undefined): string | undefined {
+  if (input === undefined || input === "") return undefined;
+  if (!/^\d{1,4}(\.\d{1,2})?$/.test(input.trim())) throw new CoverageError(400, "invalid_request", "a distance is a number of km, up to two decimals");
+  return input.trim();
+}
 
 export async function list(input: ListQuery): Promise<CoverageListDTO> {
   const group = input.group === "none" ? "none" : input.group && UUID.test(input.group) ? input.group : undefined;
   const source = input.source === "manual" || input.source === "computed" ? input.source : undefined;
   const q = input.q?.trim() || undefined;
   const after = input.cursor && /^[0-9]{4}$/.test(input.cursor) ? input.cursor : undefined;
+  const today = todayFilterOf(input.today);
+  const minKm = minKmOf(input.minKm);
 
   const [rows, groups, totals, courier, courierPlan, exclusions] = await Promise.all([
-    repo.listPostcodes({ group, q, source, review: input.review === "true", after, limit: PAGE + 1 }),
+    repo.listPostcodes({ group, q, source, review: input.review === "true", today, minKm, after, limit: PAGE + 1 }),
     repo.listGroups(),
     repo.totals(),
     repo.courierSettings(),
@@ -120,7 +146,7 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
       canBeOffered: blockedBy.length === 0,
       exclusions,
     },
-    counts: { listed: totals.listed, manualDistance: totals.manualDistance, needsReview: totals.needsReview },
+    counts: { listed: totals.listed, manualDistance: totals.manualDistance, needsReview: totals.needsReview, todayNotOffered: totals.todayNotOffered },
   };
 }
 
@@ -147,6 +173,8 @@ async function checkOne(postcode: string): Promise<CoverageCheckDTO> {
     distanceKm: coverage.distanceKm === null ? null : coverage.distanceKm.toFixed(2),
     distanceSource: listed?.distanceSource ?? null,
     exclusionReason: coverage.reason === "courier_excluded" ? await repo.exclusionReason(postcode) : null,
+    // 097 — only a listed postcode has the setting.
+    todayOffered: coverage.kind === "effy" ? coverage.todayOffered : null,
   };
 }
 
@@ -176,6 +204,7 @@ export async function addPostcodes(body: AddCoveragePostcodesRequest, sub: strin
     wanted.set(postcodeOf(item?.postcode), manual === null || manual === undefined || manual === "" ? null : kmOf(manual));
   }
   const groupId = await groupOf(body.groupId);
+  const todayOffered = body.todayOffered === undefined ? true : todayOfferedOf(body.todayOffered);
 
   const facts = await repo.postcodeFacts([...wanted.keys()]);
   const unknown = [...wanted.keys()].filter((p) => !facts.get(p)?.known);
@@ -200,7 +229,7 @@ export async function addPostcodes(body: AddCoveragePostcodesRequest, sub: strin
   if (toAdd.length === 0) return { added: [], alreadyListed };
 
   await requireDrivers(groupId, body.confirmNoDrivers);
-  const added = await repo.addPostcodes(toAdd, groupId, sub);
+  const added = await repo.addPostcodes(toAdd, groupId, todayOffered, sub);
   if (added.length > 0) await changed();
   // Someone else may have listed one between the check and the insert: that is "already listed", not an error.
   return { added, alreadyListed: [...alreadyListed, ...toAdd.map((t) => t.postcode).filter((p) => !added.includes(p))] };
@@ -217,7 +246,8 @@ export async function patchPostcodes(body: PatchCoveragePostcodesRequest, sub: s
   }
   const postcodes = [...new Set(body.postcodes.map(postcodeOf))];
   const movesGroup = "groupId" in body;
-  if (!movesGroup && !body.distance) throw new CoverageError(400, "invalid_request", "nothing to change");
+  const setsToday = body.todayOffered !== undefined;
+  if (!movesGroup && !body.distance && !setsToday) throw new CoverageError(400, "invalid_request", "nothing to change");
 
   if (body.distance) {
     if (postcodes.length !== 1) throw new CoverageError(400, "invalid_request", "a distance is set for one postcode at a time");
@@ -227,6 +257,11 @@ export async function patchPostcodes(body: PatchCoveragePostcodesRequest, sub: s
     if (res === "not_computable") {
       throw new CoverageError(409, "distance_not_computable", "no place in this postcode has a known location, so its distance cannot be worked out");
     }
+  }
+  if (setsToday) {
+    // 097 — all or nothing: one postcode not on the list and nothing is written.
+    const res = await repo.setTodayOffered(postcodes, todayOfferedOf(body.todayOffered), sub);
+    if (res === "not_listed") throw new CoverageError(404, "not_listed", "a postcode named is not on the list");
   }
   if (movesGroup) {
     const groupId = await groupOf(body.groupId);

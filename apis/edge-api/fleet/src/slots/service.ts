@@ -73,7 +73,8 @@ export function listSlots(): Promise<DeliverySlotDTO[]> {
  */
 export async function listSlotsWithDays(now: Date = new Date()): Promise<DeliverySlotsResponseDTO> {
   const [slots, calendar] = await Promise.all([repo.listSlots(), repo.calendarSettings()]);
-  const days = effyDays(now, calendar.lookaheadDays, calendar.noWeekdays, calendar.noDates);
+  // 097 — a staff calendar, not an address: today is always shown.
+  const days = effyDays(now, calendar.lookaheadDays, calendar.noWeekdays, calendar.noDates, true);
   const dates = days.map((d) => d.date);
   const load = await repo.loadOnDays(dates);
   const empty = dates.map((date) => ({ date, booked: 0, overCapacity: 0 }));

@@ -54,6 +54,8 @@ export interface PostcodeRow {
   distanceKm: string;
   distanceSource: "computed" | "manual";
   needsReview: boolean;
+  /** 097 */
+  todayOffered: boolean;
 }
 
 export interface ListFilters {
@@ -63,6 +65,10 @@ export interface ListFilters {
   q?: string;
   source?: "computed" | "manual";
   review?: boolean;
+  /** 097 — only postcodes where delivery today is (not) offered. */
+  today?: "offered" | "not_offered";
+  /** 097 — only postcodes at least this far from the hub (a validated decimal string). */
+  minKm?: string;
   /** Keyset: the last postcode of the previous page. */
   after?: string;
   limit: number;
@@ -83,6 +89,8 @@ export async function listPostcodes(f: ListFilters): Promise<PostcodeRow[]> {
   else if (f.group) where.push(`z.id = ${arg(f.group)}::uuid`);
   if (f.source) where.push(`zp.distance_source = ${arg(f.source)}`);
   if (f.review) where.push(`zp.distance_review`);
+  if (f.today) where.push(`zp.today_offered = ${arg(f.today === "offered")}`);
+  if (f.minKm !== undefined) where.push(`zp.distance_km >= ${arg(f.minKm)}::numeric`);
   if (f.after) where.push(`zp.postcode > ${arg(f.after)}`);
   if (f.q) {
     where.push(
@@ -94,10 +102,10 @@ export async function listPostcodes(f: ListFilters): Promise<PostcodeRow[]> {
 
   const res = await query<{
     postcode: string; places: string[] | null; state: string | null; group_id: string | null;
-    distance_km: string; distance_source: "computed" | "manual"; distance_review: boolean;
+    distance_km: string; distance_source: "computed" | "manual"; distance_review: boolean; today_offered: boolean;
   }>(
     `SELECT zp.postcode, ${PLACES} AS places, ${STATE} AS state, z.id::text AS group_id,
-            zp.distance_km::text AS distance_km, zp.distance_source, zp.distance_review
+            zp.distance_km::text AS distance_km, zp.distance_source, zp.distance_review, zp.today_offered
        FROM public.delivery_zone_postcode zp
        -- A removed group ('disabled') is no group: its postcodes read as ungrouped.
        LEFT JOIN public.delivery_zone z ON z.id = zp.zone_id AND z.status = 'active'
@@ -114,6 +122,7 @@ export async function listPostcodes(f: ListFilters): Promise<PostcodeRow[]> {
     distanceKm: r.distance_km,
     distanceSource: r.distance_source,
     needsReview: r.distance_review,
+    todayOffered: r.today_offered,
   }));
 }
 
@@ -134,15 +143,18 @@ export async function listGroups(): Promise<GroupRow[]> {
 export interface Totals {
   listed: number; manualDistance: number; needsReview: number;
   ungrouped: number; ungroupedDrivers: number;
+  /** 097 */
+  todayNotOffered: number;
 }
 
 export async function totals(): Promise<Totals> {
   const r = (
-    await query<{ listed: string; manual: string; review: string; ungrouped: string; drivers: string }>(
+    await query<{ listed: string; manual: string; review: string; ungrouped: string; drivers: string; not_today: string }>(
       `SELECT count(*)::text AS listed,
               count(*) FILTER (WHERE zp.distance_source = 'manual')::text AS manual,
               count(*) FILTER (WHERE zp.distance_review)::text AS review,
               count(*) FILTER (WHERE z.id IS NULL)::text AS ungrouped,
+              count(*) FILTER (WHERE NOT zp.today_offered)::text AS not_today,
               ${DRIVERS_FOR("NULL::uuid")}::text AS drivers
          FROM public.delivery_zone_postcode zp
          LEFT JOIN public.delivery_zone z ON z.id = zp.zone_id AND z.status = 'active'`,
@@ -151,6 +163,7 @@ export async function totals(): Promise<Totals> {
   return {
     listed: Number(r.listed), manualDistance: Number(r.manual), needsReview: Number(r.review),
     ungrouped: Number(r.ungrouped), ungroupedDrivers: Number(r.drivers),
+    todayNotOffered: Number(r.not_today),
   };
 }
 
@@ -312,22 +325,22 @@ export async function groupNameTaken(name: string, exceptId: string | null): Pro
 export interface NewPostcode { postcode: string; distanceKm: string; source: "computed" | "manual" }
 
 /** Adds what is not already listed (one row per postcode, by the UNIQUE constraint) and says which. */
-export async function addPostcodes(items: NewPostcode[], groupId: string | null, actorSub: string): Promise<string[]> {
+export async function addPostcodes(items: NewPostcode[], groupId: string | null, todayOffered: boolean, actorSub: string): Promise<string[]> {
   return withTransaction(async (client) => {
     const added: string[] = [];
     for (const item of items) {
       const res = await client.query(
-        `INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by)
-         VALUES ($1::uuid, $2, $3::numeric, $4, $5)
+        `INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, today_offered, added_by)
+         VALUES ($1::uuid, $2, $3::numeric, $4, $5, $6)
          ON CONFLICT (postcode) DO NOTHING`,
-        [groupId, item.postcode, item.distanceKm, item.source, actorSub],
+        [groupId, item.postcode, item.distanceKm, item.source, todayOffered, actorSub],
       );
       if ((res.rowCount ?? 0) > 0) {
         added.push(item.postcode);
         await audit(client, actorSub, "coverage.postcode.add", {
           postcode: item.postcode,
           before: null,
-          after: { groupId, distanceKm: item.distanceKm, distanceSource: item.source },
+          after: { groupId, distanceKm: item.distanceKm, distanceSource: item.source, todayOffered },
         });
       }
     }
@@ -373,6 +386,34 @@ export async function assignGroup(postcodes: string[], groupId: string | null, a
       }, groupId);
     }
     return res.rowCount ?? 0;
+  });
+}
+
+/**
+ * 097 — offer, or stop offering, delivery today at listed postcodes. All or nothing: a postcode not on
+ * the list writes nothing (`"not_listed"`). Postcodes already at `offered` are left alone and not
+ * audited; ONE audit row records the rest (the same shape a bulk group move uses). Returns how many changed.
+ *
+ * ⚠ Touches only the list: a place already held, and an order already placed, keep what they bought.
+ */
+export async function setTodayOffered(postcodes: string[], offered: boolean, actorSub: string): Promise<"not_listed" | number> {
+  return withTransaction(async (client) => {
+    const before = await client.query<{ postcode: string; today_offered: boolean }>(
+      `SELECT postcode, today_offered FROM public.delivery_zone_postcode WHERE postcode = ANY($1::text[]) FOR UPDATE`,
+      [postcodes],
+    );
+    if (before.rows.length < postcodes.length) return "not_listed";
+    const changing = before.rows.filter((r) => r.today_offered !== offered);
+    if (changing.length === 0) return 0;
+    await client.query(
+      `UPDATE public.delivery_zone_postcode SET today_offered = $2, updated_at = now() WHERE postcode = ANY($1::text[])`,
+      [changing.map((r) => r.postcode), offered],
+    );
+    await audit(client, actorSub, "coverage.postcode.today", {
+      before: Object.fromEntries(changing.map((r) => [r.postcode, r.today_offered])),
+      after: offered,
+    });
+    return changing.length;
   });
 }
 

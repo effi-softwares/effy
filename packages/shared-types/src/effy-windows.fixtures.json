@@ -901,6 +901,171 @@
           "estimate": "usually within 2–3 days"
         }
       }
+    },
+    {
+      "name": "097 — today not offered at this address: no same_day day is sent, so there is no Same-day section; the later days are exactly as before",
+      "now": "2026-10-08T09:00:00+11:00",
+      "input": {
+        "unavailable": null,
+        "days": [
+          {
+            "date": "2026-10-09",
+            "section": "standard",
+            "closedReason": null,
+            "windows": [
+              {
+                "slotId": "morning",
+                "date": "2026-10-09",
+                "startAt": "2026-10-09T10:00:00+11:00",
+                "endAt": "2026-10-09T12:00:00+11:00",
+                "cutoffAt": "2026-10-09T09:00:00+11:00",
+                "surchargeAmount": "0.00",
+                "fee": {
+                  "lines": [
+                    {
+                      "kind": "delivery",
+                      "amount": "6.00"
+                    }
+                  ],
+                  "totalAmount": "6.00"
+                }
+              },
+              {
+                "slotId": "afternoon",
+                "date": "2026-10-09",
+                "startAt": "2026-10-09T16:00:00+11:00",
+                "endAt": "2026-10-09T18:00:00+11:00",
+                "cutoffAt": "2026-10-09T14:00:00+11:00",
+                "surchargeAmount": "0.00",
+                "fee": {
+                  "lines": [
+                    {
+                      "kind": "delivery",
+                      "amount": "6.00"
+                    }
+                  ],
+                  "totalAmount": "6.00"
+                }
+              },
+              {
+                "slotId": "evening",
+                "date": "2026-10-09",
+                "startAt": "2026-10-09T18:30:00+11:00",
+                "endAt": "2026-10-09T20:30:00+11:00",
+                "cutoffAt": "2026-10-09T17:15:00+11:00",
+                "surchargeAmount": "2.00",
+                "fee": {
+                  "lines": [
+                    {
+                      "kind": "delivery",
+                      "amount": "6.00"
+                    },
+                    {
+                      "kind": "window_surcharge",
+                      "amount": "2.00"
+                    }
+                  ],
+                  "totalAmount": "8.00"
+                }
+              }
+            ]
+          },
+          {
+            "date": "2026-10-10",
+            "section": "standard",
+            "closedReason": "full",
+            "windows": []
+          },
+          {
+            "date": "2026-10-12",
+            "section": "standard",
+            "closedReason": null,
+            "windows": [
+              {
+                "slotId": "morning",
+                "date": "2026-10-12",
+                "startAt": "2026-10-12T10:00:00+11:00",
+                "endAt": "2026-10-12T12:00:00+11:00",
+                "cutoffAt": "2026-10-12T09:00:00+11:00",
+                "surchargeAmount": "0.00",
+                "fee": {
+                  "lines": [
+                    {
+                      "kind": "delivery",
+                      "amount": "6.00"
+                    }
+                  ],
+                  "totalAmount": "6.00"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "unavailable": null,
+        "sameDayTitle": "Same-day delivery",
+        "standardTitle": "Standard delivery",
+        "today": null,
+        "later": [
+          {
+            "date": "2026-10-09",
+            "label": "Fri 9 Oct",
+            "sentence": null,
+            "windows": [
+              {
+                "slotId": "morning",
+                "date": "2026-10-09",
+                "label": "10 am – 12 pm",
+                "note": null,
+                "closed": false,
+                "surchargeAmount": null
+              },
+              {
+                "slotId": "afternoon",
+                "date": "2026-10-09",
+                "label": "4 pm – 6 pm",
+                "note": null,
+                "closed": false,
+                "surchargeAmount": null
+              },
+              {
+                "slotId": "evening",
+                "date": "2026-10-09",
+                "label": "6:30 pm – 8:30 pm",
+                "note": null,
+                "closed": false,
+                "surchargeAmount": "2.00"
+              }
+            ],
+            "anyTime": null
+          },
+          {
+            "date": "2026-10-10",
+            "label": "Sat 10 Oct",
+            "sentence": "Every window on this day is taken.",
+            "windows": [],
+            "anyTime": null
+          },
+          {
+            "date": "2026-10-12",
+            "label": "Mon 12 Oct",
+            "sentence": null,
+            "windows": [
+              {
+                "slotId": "morning",
+                "date": "2026-10-12",
+                "label": "10 am – 12 pm",
+                "note": null,
+                "closed": false,
+                "surchargeAmount": null
+              }
+            ],
+            "anyTime": null
+          }
+        ],
+        "asap": null
+      }
     }
   ]
 }

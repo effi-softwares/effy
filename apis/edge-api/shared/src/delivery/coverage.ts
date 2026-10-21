@@ -22,6 +22,12 @@ export interface Coverage {
   /** The group the postcode is filed under, if any — listed postcodes only. */
   groupId: string | null;
   groupName: string | null;
+  /**
+   * 097 — whether a window TODAY may be sold to an address here. Meaningful only when `kind` is
+   * `effy`; `true` otherwise, where it restricts nothing (an Effy order whose postcode has since left
+   * the list keeps today's behaviour). Passed straight to `effyDays`.
+   */
+  todayOffered: boolean;
 }
 
 /**
@@ -40,20 +46,24 @@ export interface Coverage {
  */
 export async function coverageForPostcode(q: Queryable, postcode: string, now: Date = new Date()): Promise<Coverage> {
   const row = (
-    await q.query<{ kind: CoverageKind; reason: CoverageReason; distance_km: string | null; group_id: string | null; group_name: string | null }>(
-      `SELECT kind, reason, distance_km::text AS distance_km, group_id::text AS group_id, group_name
+    await q.query<{
+      kind: CoverageKind; reason: CoverageReason; distance_km: string | null; group_id: string | null; group_name: string | null;
+      today_offered: boolean;
+    }>(
+      `SELECT kind, reason, distance_km::text AS distance_km, group_id::text AS group_id, group_name, today_offered
          FROM public.coverage_for_postcode($1, $2::timestamptz)`,
       [postcode, now],
     )
   ).rows[0];
   // The function always returns exactly one row; this is for a database that predates it.
-  if (!row) return { kind: "none", reason: "unknown_postcode", distanceKm: null, groupId: null, groupName: null };
+  if (!row) return { kind: "none", reason: "unknown_postcode", distanceKm: null, groupId: null, groupName: null, todayOffered: true };
   return {
     kind: row.kind,
     reason: row.reason,
     distanceKm: row.distance_km === null ? null : Number(row.distance_km),
     groupId: row.group_id,
     groupName: row.group_name,
+    todayOffered: row.today_offered,
   };
 }
 

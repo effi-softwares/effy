@@ -358,12 +358,23 @@ async function guardBackToEffy(q: Queryable, f: MoveFacts, now: Date): Promise<D
 
 // ── Windows for a move back ─────────────────────────────────────────────────────────────────────
 
-/** The windows a customer could be sold now — the quote's calendar and rule, never a second one. */
-async function windowsNow(q: Queryable, now: Date): Promise<DeliveryMoveWindowDTO[]> {
+/**
+ * 097 — whether today may be sold to this order's address: its postcode's own setting, from the one
+ * coverage answer. ⚠ An Effy order whose postcode has since left the list (or has no postcode) keeps
+ * today's behaviour — removal from the list never touched an existing order, and this does not start to.
+ */
+async function todayOfferedFor(q: Queryable, f: MoveFacts, now: Date): Promise<boolean> {
+  return f.postcode ? (await coverageForPostcode(q, f.postcode, now)).todayOffered : true;
+}
+
+/** The windows this order's customer could be sold now — the quote's calendar and rule, never a second one. */
+async function windowsNow(q: Queryable, f: MoveFacts, now: Date): Promise<DeliveryMoveWindowDTO[]> {
   const { runs, bufferMin } = await collectionSchedule(q);
   const settings = await loadSlotSettings(q);
   const today = melbourneDate(now);
-  const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today));
+  const calendar = effyDays(
+    now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today), await todayOfferedFor(q, f, now),
+  );
   const slots = await loadSlots(q);
   const load = await slotLoadByDate(q, calendar.map((d) => d.date));
   const days = openWindows(now, calendar, slots, load, runs, bufferMin, settings.turnaroundMin);
@@ -438,7 +449,7 @@ export async function previewMove(q: Queryable, orderId: string, to: DeliveryTyp
   if (to === "courier") return previewOf(f, to, guardMove(f, to), null);
   const refusal = await guardBackToEffy(q, f, now);
   // 085 — an order Effy already delivers cannot be moved, but may be re-timed: list the windows for that.
-  return previewOf(f, to, refusal, refusal && refusal !== "already_effy" ? [] : await windowsNow(q, now));
+  return previewOf(f, to, refusal, refusal && refusal !== "already_effy" ? [] : await windowsNow(q, f, now));
 }
 
 // ── The moves ───────────────────────────────────────────────────────────────────────────────────
@@ -615,7 +626,7 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
   // 088 — this is the next step for any parcel returned after a failed delivery: release it.
   await resolveOpenFailures(tx, input.orderId);
 
-  const w = await bindEffyWindow(tx, input.orderId, input.window, now);
+  const w = await bindEffyWindow(tx, f, input.window, now);
 
   await setCourierRouting(tx, input.orderId, null, input.actorSub);
   const changeId = await recordedChange(tx, input.orderId, input.actorSub, "effy", null, input.reason);
@@ -638,17 +649,21 @@ export async function moveToEffy(tx: Queryable, input: MoveToEffyInput): Promise
  * Bind every package of an order to one window on one day — the window a customer could be sold now.
  *
  * ⚠ THE ONE WINDOW RULE (078), under the slot's lock — the same lock two customers taking the last
- * place are serialised by. A day outside the calendar the customer would be offered is refused too.
+ * place are serialised by. A day outside the calendar the customer would be offered is refused too —
+ * including today, where the address's postcode does not offer it (097).
  */
 async function bindEffyWindow(
   tx: Queryable,
-  orderId: string,
+  f: MoveFacts,
   window: { slotId: string; date: string },
   now: Date,
 ): Promise<OpenSlot & { anyTime: boolean }> {
+  const orderId = f.orderId;
   const settings = await loadSlotSettings(tx);
   const today = melbourneDate(now);
-  const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(tx, today));
+  const calendar = effyDays(
+    now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(tx, today), await todayOfferedFor(tx, f, now),
+  );
   const day = calendar.find((d) => d.date === window.date && !d.nonDelivery);
   const slot = day ? await lockSlot(tx, window.slotId) : null;
   if (!day || !slot) throw new DeliveryMoveError("window_unavailable");
@@ -743,7 +758,7 @@ export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInp
     driverIds.add(a.driver_id);
   }
 
-  const w = await bindEffyWindow(tx, input.orderId, input.window, now);
+  const w = await bindEffyWindow(tx, f, input.window, now);
   const promise = w.anyTime ? "day" : "window";
   await setPromise(tx, input.orderId, promise);
   await tx.query(

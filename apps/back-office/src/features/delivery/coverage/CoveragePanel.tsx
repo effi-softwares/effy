@@ -36,6 +36,9 @@ const SELECT = "h-8 rounded-md border border-input bg-background px-2 text-[13px
  * the per-shop same-day exceptions, none of which has a control any more.
  *
  * A table with a toolbar and three plain sections beneath — no cards (Principle V).
+ *
+ * 097 — each postcode also says whether delivery TODAY is offered there. Switched in bulk from the
+ * selection (filter "Farther than", select all shown, "Don't offer"); never per group.
  */
 export function CoveragePanel({ canManage }: { canManage: boolean }) {
   const [filters, setFilters] = useState<CoverageFilters>({});
@@ -46,6 +49,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
   const [removing, setRemoving] = useState<CoveragePostcodeDTO | null>(null);
   const [moveTo, setMoveTo] = useState("");
   const [confirmMove, setConfirmMove] = useState<string | null | undefined>(undefined);
+  const [todayTo, setTodayTo] = useState<"" | "offer" | "stop">("");
   const [note, setNote] = useState<string | null>(null);
 
   const coverage = useInfiniteQuery(coverageQuery(filters));
@@ -86,6 +90,18 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
     }
   }
 
+  /** 097 — offer, or stop offering, delivery today at the selected postcodes. */
+  async function setToday(offered: boolean) {
+    setNote(null);
+    try {
+      await patch.mutateAsync({ postcodes: [...selected], todayOffered: offered });
+      setSelected(new Set());
+      setTodayTo("");
+    } catch (err) {
+      setNote(coverageError(err));
+    }
+  }
+
   async function confirmRemove() {
     if (!removing) return;
     setNote(null);
@@ -100,7 +116,8 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
   }
 
   const distanceFacet = filters.review ? "review" : (filters.source ?? null);
-  const anyFilter = Boolean(filters.q || filters.group || filters.source || filters.review);
+  const anyFilter = Boolean(filters.q || filters.group || filters.source || filters.review || filters.today || filters.minKm);
+  const allShownSelected = rows.length > 0 && rows.every((r) => selected.has(r.postcode));
 
   return (
     <>
@@ -136,6 +153,7 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
               {first.counts.listed} postcode{first.counts.listed === 1 ? "" : "s"} listed
               {first.counts.manualDistance > 0 ? ` · ${first.counts.manualDistance} with a distance entered by hand` : ""}
               {first.counts.needsReview > 0 ? ` · ${first.counts.needsReview} to review` : ""}
+              {first.counts.todayNotOffered > 0 ? ` · ${first.counts.todayNotOffered} not offered delivery today` : ""}
             </p>
           ) : null}
         </div>
@@ -170,6 +188,25 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                 { value: "review", label: "To review" },
               ]}
             />
+            <Facet
+              label="Farther than"
+              value={filters.minKm ?? null}
+              onChange={(v) => setFilters((f) => ({ ...f, minKm: v ?? undefined }))}
+              options={[
+                { value: "10", label: "10 km" },
+                { value: "25", label: "25 km" },
+                { value: "50", label: "50 km" },
+              ]}
+            />
+            <Facet
+              label="Delivery today"
+              value={filters.today ?? null}
+              onChange={(v) => setFilters((f) => ({ ...f, today: v ?? undefined }))}
+              options={[
+                { value: "offered", label: "Offered" },
+                { value: "not_offered", label: "Not offered" },
+              ]}
+            />
             {anyFilter ? (
               <ResetFilters
                 onReset={() => {
@@ -194,6 +231,19 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
               </select>
               <Button size="sm" variant="outline" disabled={!moveTo || patch.isPending} onClick={() => void move(moveTo === "none" ? null : moveTo)}>
                 Move
+              </Button>
+              <select
+                aria-label="Delivery today"
+                className={SELECT}
+                value={todayTo}
+                onChange={(e) => setTodayTo(e.target.value as "" | "offer" | "stop")}
+              >
+                <option value="">Delivery today…</option>
+                <option value="offer">Offer</option>
+                <option value="stop">Don't offer</option>
+              </select>
+              <Button size="sm" variant="outline" disabled={!todayTo || patch.isPending} onClick={() => void setToday(todayTo === "offer")}>
+                Apply
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
                 Clear
@@ -226,11 +276,20 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                 <table className="bo-table bo-rtable">
                   <thead>
                     <tr>
-                      {canManage ? <th className="w-10"><span className="sr-only">Select</span></th> : null}
+                      {canManage ? (
+                        <th className="w-10">
+                          <Checkbox
+                            aria-label="Select all shown"
+                            checked={allShownSelected}
+                            onCheckedChange={(v) => setSelected(v === true ? new Set(rows.map((r) => r.postcode)) : new Set())}
+                          />
+                        </th>
+                      ) : null}
                       <th>Postcode</th>
                       <th>Places</th>
                       <th>Group</th>
                       <th>Distance from hub</th>
+                      <th>Delivery today</th>
                       {canManage ? <th className="text-right">Actions</th> : null}
                     </tr>
                   </thead>
@@ -264,6 +323,9 @@ export function CoveragePanel({ canManage }: { canManage: boolean }) {
                             <span className="bo-sub">{r.distanceSource === "manual" ? "entered by hand" : "worked out"}</span>
                             {r.needsReview ? <StatusWord tone="waiting">Review</StatusWord> : null}
                           </span>
+                        </td>
+                        <td data-m="meta">
+                          {r.todayOffered ? <span className="bo-sub">Offered</span> : <StatusWord tone="muted">Not offered</StatusWord>}
                         </td>
                         {canManage ? (
                           <td className="text-right whitespace-nowrap">

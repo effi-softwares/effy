@@ -69,6 +69,8 @@ function describe(m: CoverageCheckDTO): string {
   if (m.reason === "listed") {
     parts.push(m.groupName ? `Group: ${m.groupName}.` : "No group.");
     if (m.distanceKm) parts.push(`${m.distanceKm} km from the hub (${m.distanceSource === "manual" ? "entered by hand" : "worked out"}).`);
+    // 097 — whether a window today may be sold there.
+    if (m.todayOffered !== null) parts.push(m.todayOffered ? "Delivery today offered." : "Delivery today not offered.");
   }
   if (m.exclusionReason) parts.push(`Reason: ${m.exclusionReason}.`);
   if (m.places.length > 0) parts.push(`Covers ${m.places.slice(0, 4).join(", ")}${m.places.length > 4 ? ` and ${m.places.length - 4} more` : ""}${m.state ? `, ${m.state}` : ""}.`);

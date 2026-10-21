@@ -19,34 +19,55 @@ const TURNAROUND = 60;
 // Tuesday 6 October 2026.
 const tue = (hour: number, minute = 0) => melbourne(2026, 10, 6, hour, minute);
 const ids = (now: Date, lookahead = 3, noWeekdays: number[] = [], noDates: string[] = [], load = new Map<string, Map<string, number>>()) =>
-  openWindows(now, effyDays(now, lookahead, noWeekdays, new Set(noDates)), slots, load, runs, BUFFER, TURNAROUND)
+  openWindows(now, effyDays(now, lookahead, noWeekdays, new Set(noDates), true), slots, load, runs, BUFFER, TURNAROUND)
     .map((d) => [d.date, d.windows.map((w) => w.id), d.closedReason] as const);
 
 describe("effyDays", () => {
   it("is today and the next three days", () => {
-    expect(effyDays(tue(10), 3).map((d) => d.date)).toEqual(["2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"]);
-    expect(effyDays(tue(10), 3)[0]).toEqual({ date: "2026-10-06", isToday: true, nonDelivery: false });
+    expect(effyDays(tue(10), 3, [], new Set(), true).map((d) => d.date)).toEqual(["2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09"]);
+    expect(effyDays(tue(10), 3, [], new Set(), true)[0]).toEqual({ date: "2026-10-06", isToday: true, nonDelivery: false });
   });
 
   it("P3 — skips a non-delivery weekday and date, and neither counts toward the three", () => {
     // Friday 9 October; no Sundays; Monday 12 October is a public holiday.
-    const days = effyDays(melbourne(2026, 10, 9, 10), 3, [7], new Set(["2026-10-12"]));
+    const days = effyDays(melbourne(2026, 10, 9, 10), 3, [7], new Set(["2026-10-12"]), true);
     expect(days.map((d) => d.date)).toEqual(["2026-10-09", "2026-10-10", "2026-10-13", "2026-10-14"]);
   });
 
   it("P3 — keeps today when Effy does not deliver today, flagged, and still offers three later days", () => {
-    const days = effyDays(tue(10), 3, [2]);
+    const days = effyDays(tue(10), 3, [2], new Set(), true);
     expect(days[0]).toEqual({ date: "2026-10-06", isToday: true, nonDelivery: true });
     expect(days.slice(1).map((d) => d.date)).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]);
   });
 
+  it("097 — today not offered here: today is ABSENT (never listed as closed) and the later days are unchanged", () => {
+    const withToday = effyDays(tue(10), 3, [], new Set(), true);
+    const without = effyDays(tue(10), 3, [], new Set(), false);
+    expect(without.some((d) => d.isToday)).toBe(false);
+    expect(without).toEqual(withToday.slice(1));
+  });
+
+  it("097 — on a non-delivery today, not offering it gives the same later days", () => {
+    expect(effyDays(tue(10), 3, [2], new Set(), false)).toEqual(effyDays(tue(10), 3, [2], new Set(), true).slice(1));
+    expect(effyDays(melbourne(2026, 10, 9, 10), 3, [7], new Set(["2026-10-12"]), false).map((d) => d.date))
+      .toEqual(["2026-10-10", "2026-10-13", "2026-10-14"]);
+  });
+
+  it("097 — with today not offered, an open window today is not offered and no Any-time today exists", () => {
+    const anyTime: Slot = { id: "any", start: c(12), end: c(21), cutoff: c(11), capacity: null, anyTime: true };
+    const days = openWindows(tue(7), effyDays(tue(7), 3, [], new Set(), false), [...slots, anyTime], new Map(), runs, BUFFER, TURNAROUND);
+    expect(days.map((d) => d.date)).toEqual(["2026-10-07", "2026-10-08", "2026-10-09"]);
+    expect(days[0]!.windows.map((w) => w.id)).toEqual(["morning", "afternoon", "evening"]);
+    expect(days[0]!.anyTime?.id).toBe("any");
+  });
+
   it.each([[1, 2], [14, 15]])("look-ahead %i gives %i days", (lookahead, total) => {
-    expect(effyDays(tue(10), lookahead)).toHaveLength(total);
+    expect(effyDays(tue(10), lookahead, [], new Set(), true)).toHaveLength(total);
   });
 
   it("P5 — one minute either side of midnight is two different todays", () => {
-    expect(effyDays(melbourne(2026, 10, 6, 23, 59), 3)[0]!.date).toBe("2026-10-06");
-    expect(effyDays(melbourne(2026, 10, 7, 0, 0), 3)[0]!.date).toBe("2026-10-07");
+    expect(effyDays(melbourne(2026, 10, 6, 23, 59), 3, [], new Set(), true)[0]!.date).toBe("2026-10-06");
+    expect(effyDays(melbourne(2026, 10, 7, 0, 0), 3, [], new Set(), true)[0]!.date).toBe("2026-10-07");
   });
 
   it.each([
@@ -54,7 +75,7 @@ describe("effyDays", () => {
     ["clocks go back on 4 April 2027", melbourne(2027, 4, 3, 23, 30), ["2027-04-03", "2027-04-04", "2027-04-05", "2027-04-06"]],
     ["just after the clocks went back", melbourne(2027, 4, 4, 0, 30), ["2027-04-04", "2027-04-05", "2027-04-06", "2027-04-07"]],
   ])("P5 — no day repeats or goes missing when %s", (_name, now, want) => {
-    expect(effyDays(now, 3).map((d) => d.date)).toEqual(want);
+    expect(effyDays(now, 3, [], new Set(), true).map((d) => d.date)).toEqual(want);
   });
 });
 
@@ -115,7 +136,7 @@ describe("openWindows", () => {
   it("a day whose only open window is full is 'full', not 'closed'", () => {
     const only = [evening];
     const load = new Map([["2026-10-07", new Map([["evening", 5]])]]);
-    const days = openWindows(tue(10), effyDays(tue(10), 1), only, load, runs, BUFFER, TURNAROUND);
+    const days = openWindows(tue(10), effyDays(tue(10), 1, [], new Set(), true), only, load, runs, BUFFER, TURNAROUND);
     expect(days[1]).toMatchObject({ windows: [], closedReason: "full" });
     expect(windowsUnavailable(days, only)).toBeNull(); // today's is still open
   });
@@ -148,7 +169,7 @@ describe("openWindows", () => {
 
 describe("windowsUnavailable", () => {
   it("none_defined when no window is switched on", () => {
-    const days = openWindows(tue(10), effyDays(tue(10), 3), [], new Map(), runs, BUFFER, TURNAROUND);
+    const days = openWindows(tue(10), effyDays(tue(10), 3, [], new Set(), true), [], new Map(), runs, BUFFER, TURNAROUND);
     expect(windowsUnavailable(days, [])).toBe("none_defined");
     expect(days.every((d) => d.closedReason === "closed")).toBe(true);
   });
@@ -156,7 +177,7 @@ describe("windowsUnavailable", () => {
   it("no_windows when every day is closed or taken", () => {
     const only = [evening];
     const full = new Map(["2026-10-07", "2026-10-08", "2026-10-09"].map((d) => [d, new Map([["evening", 2]])]));
-    const days = openWindows(tue(17, 1), effyDays(tue(17, 1), 3), only, full, runs, BUFFER, TURNAROUND);
+    const days = openWindows(tue(17, 1), effyDays(tue(17, 1), 3, [], new Set(), true), only, full, runs, BUFFER, TURNAROUND);
     expect(windowsUnavailable(days, only)).toBe("no_windows");
   });
 });
@@ -166,7 +187,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
   const anyTime: Slot = { id: "anytime", start: c(12), end: c(21), cutoff: c(10), capacity: 2, anyTime: true };
   const withAnyTime = [...slots, anyTime];
   const open = (now: Date, load = new Map<string, Map<string, number>>(), all: readonly Slot[] = withAnyTime) =>
-    openWindows(now, effyDays(now, 3), all, load, runs, BUFFER, TURNAROUND);
+    openWindows(now, effyDays(now, 3, [], new Set(), true), all, load, runs, BUFFER, TURNAROUND);
 
   it("⚠ is never listed among a day's windows — it is filed as the day's anyTime", () => {
     // 07:00 — the 08:00 run can still be made and reaches the hub (09:00) before the window starts.
@@ -228,7 +249,7 @@ describe("085 — the Any-time window: a day sold with no time", () => {
 
   it("a day Effy does not deliver has none", () => {
     const now = tue(8);
-    const days = openWindows(now, effyDays(now, 3, [2]), withAnyTime, new Map(), runs, BUFFER, TURNAROUND);
+    const days = openWindows(now, effyDays(now, 3, [2], new Set(), true), withAnyTime, new Map(), runs, BUFFER, TURNAROUND);
     expect(days[0]).toMatchObject({ closedReason: "not_delivery_day", anyTime: null });
   });
 

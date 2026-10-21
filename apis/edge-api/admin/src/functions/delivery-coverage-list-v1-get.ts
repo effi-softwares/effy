@@ -13,7 +13,7 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   if ("deny" in g) return g.deny;
   try {
     const qs = event.queryStringParameters ?? {};
-    return json(200, await list({ group: qs.group, q: qs.q, source: qs.source, review: qs.review, cursor: qs.cursor }), scope);
+    return json(200, await list({ group: qs.group, q: qs.q, source: qs.source, review: qs.review, cursor: qs.cursor, today: qs.today, minKm: qs.minKm }), scope);
   } catch (err) {
     return mapCoverageError(err, scope);
   }

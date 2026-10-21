@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import type { CoverageGroupDTO, CoveragePlaceResultDTO } from "@effy/shared-types";
 import {
-  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label,
+  Button, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label,
 } from "@effy/design-system/ui";
 
 import { coverageError, isNoDriverCovers, NO_DRIVER_GROUP, NO_DRIVER_UNGROUPED } from "../errorText";
@@ -43,6 +43,7 @@ export function AddPlacesDialog({
   const [picked, setPicked] = useState<Map<string, CoveragePlaceResultDTO>>(new Map());
   const [manual, setManual] = useState<Record<string, string>>({});
   const [groupId, setGroupId] = useState("");
+  const [todayOffered, setTodayOffered] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [askNoDrivers, setAskNoDrivers] = useState(false);
 
@@ -55,7 +56,7 @@ export function AddPlacesDialog({
   }, [exact]);
 
   function reset() {
-    setQ(""); setPicked(new Map()); setManual({}); setGroupId(""); setError(null); setAskNoDrivers(false);
+    setQ(""); setPicked(new Map()); setManual({}); setGroupId(""); setTodayOffered(true); setError(null); setAskNoDrivers(false);
   }
 
   function toggle(r: CoveragePlaceResultDTO) {
@@ -79,6 +80,8 @@ export function AddPlacesDialog({
           manualDistanceKm: r.computedDistanceKm === null ? (manual[r.postcode] ?? "").trim() : null,
         })),
         groupId: groupId || null,
+        // 097 — sent only when it is not the default, so the request reads as it always did otherwise.
+        ...(todayOffered ? {} : { todayOffered: false }),
         ...(confirmNoDrivers ? { confirmNoDrivers: true } : {}),
       });
       reset();
@@ -149,6 +152,10 @@ export function AddPlacesDialog({
                 <option value="">No group</option>
                 {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
+              <label className="flex items-center gap-2 pt-2 text-sm">
+                <Checkbox checked={todayOffered} onCheckedChange={(v) => setTodayOffered(v === true)} />
+                Offer delivery today
+              </label>
             </div>
           ) : null}
 

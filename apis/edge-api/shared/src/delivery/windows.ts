@@ -28,17 +28,24 @@ export interface EffyCalendarDay {
 /**
  * Today, then the next `lookahead` DELIVERY days (FR-002/FR-003).
  *
- *   - Today is always first — even when Effy does not deliver today, so the customer can be told so.
+ *   - Today is first — even when Effy does not deliver today, so the customer can be told so.
+ *   - ⚠ 097 — UNLESS TODAY IS NOT OFFERED FOR THIS ADDRESS (`todayOffered` false, the postcode's own
+ *     setting from `coverageForPostcode`). Then today is ABSENT — never listed as closed, which would
+ *     show the customer a Same-day section saying so. Everything that sells or changes an Effy window
+ *     builds its days here, so that one absence is the whole rule: no Same-day section, no today
+ *     surcharge, "as soon as possible" on a later day, back-office cannot move or re-time into today.
  *   - A non-delivery weekday or date after today is skipped and does NOT count: "three days" means
- *     three days a customer can choose.
+ *     three days a customer can choose — with or without today.
  *
- * `noWeekdays` are ISO (1 = Monday … 7 = Sunday); `noDates` are yyyy-mm-dd.
+ * `noWeekdays` are ISO (1 = Monday … 7 = Sunday); `noDates` are yyyy-mm-dd. ⚠ Every argument is
+ * required: a defaulted `todayOffered` is how a new caller would sell today everywhere.
  */
 export function effyDays(
   now: Date,
   lookahead: number,
-  noWeekdays: readonly number[] = [],
-  noDates: ReadonlySet<string> = new Set(),
+  noWeekdays: readonly number[],
+  noDates: ReadonlySet<string>,
+  todayOffered: boolean,
 ): EffyCalendarDay[] {
   const { year, month, day } = localDateParts(now);
   // ⚠ Calendar arithmetic at NOON UTC, never at Melbourne midnight: on the day the clocks change a
@@ -50,8 +57,11 @@ export function effyDays(
     return blocked.has(isoWeekday(d)) || noDates.has(d.toISOString().slice(0, 10));
   };
 
-  const out: EffyCalendarDay[] = [{ date: new Date(cursor).toISOString().slice(0, 10), isToday: true, nonDelivery: excluded(cursor) }];
-  for (let scanned = 0; scanned < MAX_DAY_SCAN && out.length < lookahead + 1; scanned += 1) {
+  const out: EffyCalendarDay[] = todayOffered
+    ? [{ date: new Date(cursor).toISOString().slice(0, 10), isToday: true, nonDelivery: excluded(cursor) }]
+    : [];
+  const wanted = lookahead + out.length;
+  for (let scanned = 0; scanned < MAX_DAY_SCAN && out.length < wanted; scanned += 1) {
     cursor += DAY_MS;
     if (!excluded(cursor)) out.push({ date: new Date(cursor).toISOString().slice(0, 10), isToday: false, nonDelivery: false });
   }

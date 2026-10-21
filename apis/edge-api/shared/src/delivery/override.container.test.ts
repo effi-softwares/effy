@@ -425,6 +425,47 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(await deliveryMovesFor(pool, o.order)).toEqual([]);
   });
 
+  it("097 — where the postcode does not offer delivery today, staff can neither list nor choose today; later days still work", async () => {
+    // A collection run that makes today's 4–6 pm window at NOW, so "today" is genuinely on offer when allowed.
+    const run = (await one<{ id: string }>(
+      `INSERT INTO public.delivery_collection_run (run_time, label, status, updated_by) VALUES ('11:00', 'Late morning', 'active', 'test') RETURNING id::text AS id`,
+    )).id;
+    const todayIn = (windows: { date: string }[] | null | undefined) => (windows ?? []).some((w) => w.date === TODAY);
+    try {
+      const retime = await effyOrder();
+      const moved = await effyOrder();
+      await toCourier(moved.order, "none", 0, await updatedAt(moved.order), "test");
+      // Offered: today is listed for both a re-time and a move back.
+      expect(todayIn((await previewMove(pool, retime.order, "effy", NOW)).windows)).toBe(true);
+      expect(todayIn((await previewMove(pool, moved.order, "effy", NOW)).windows)).toBe(true);
+
+      await pool.query(`UPDATE public.delivery_zone_postcode SET today_offered = false WHERE postcode = '3121'`);
+      const r = await previewMove(pool, retime.order, "effy", NOW);
+      const m = await previewMove(pool, moved.order, "effy", NOW);
+      expect(todayIn(r.windows)).toBe(false);
+      expect(todayIn(m.windows)).toBe(false);
+      expect(r.windows!.some((w) => w.date === TOMORROW)).toBe(true);
+
+      // Named anyway: refused, nothing changed.
+      expect(await refusal(tx((c) => changeEffyWindow(c, {
+        orderId: retime.order, actorSub: STAFF, reason: "x", window: { slotId: tightSlot, date: TODAY }, expectedUpdatedAt: r.updatedAt, now: NOW,
+      })))).toBe("window_unavailable");
+      expect(await refusal(tx((c) => moveToEffy(c, {
+        orderId: moved.order, actorSub: STAFF, reason: "x", window: { slotId: slot, date: TODAY }, expectedUpdatedAt: m.updatedAt, now: NOW,
+      })))).toBe("window_unavailable");
+      expect(await one(`SELECT delivery_type FROM public."order" WHERE id = $1`, [moved.order])).toEqual({ delivery_type: "courier" });
+
+      // A later day is fine.
+      await tx((c) => moveToEffy(c, {
+        orderId: moved.order, actorSub: STAFF, reason: "Van back", window: { slotId: slot, date: TOMORROW }, expectedUpdatedAt: m.updatedAt, now: NOW,
+      }));
+      expect(await one(`SELECT delivery_date::text AS d FROM public.delivery_slot_booking WHERE order_id = $1`, [moved.order])).toEqual({ d: TOMORROW });
+    } finally {
+      await pool.query(`UPDATE public.delivery_zone_postcode SET today_offered = true WHERE postcode = '3121'`);
+      await pool.query(`DELETE FROM public.delivery_collection_run WHERE id = $1`, [run]);
+    }
+  });
+
   it("085 — re-timing is refused out for delivery, for a courier order, and on a stale order", async () => {
     const out = await effyOrder({ deliveryRound: "in_progress" });
     expect(await refusal(tx((c) => changeEffyWindow(c, {

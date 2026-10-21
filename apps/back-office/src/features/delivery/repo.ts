@@ -128,6 +128,10 @@ export interface CoverageFilters {
   q?: string;
   source?: "computed" | "manual";
   review?: boolean;
+  /** 097 — only postcodes where delivery today is (not) offered. */
+  today?: "offered" | "not_offered";
+  /** 097 — only postcodes at least this many km from the hub. */
+  minKm?: string;
 }
 
 export function listCoverage(f: CoverageFilters = {}, cursor?: string): Promise<CoverageListDTO> {
@@ -136,6 +140,8 @@ export function listCoverage(f: CoverageFilters = {}, cursor?: string): Promise<
   if (f.q) qs.set("q", f.q);
   if (f.source) qs.set("source", f.source);
   if (f.review) qs.set("review", "true");
+  if (f.today) qs.set("today", f.today);
+  if (f.minKm) qs.set("minKm", f.minKm);
   if (cursor) qs.set("cursor", cursor);
   const tail = qs.toString();
   return api.get<CoverageListDTO>(`/admin/v1/delivery/coverage${tail ? `?${tail}` : ""}`);

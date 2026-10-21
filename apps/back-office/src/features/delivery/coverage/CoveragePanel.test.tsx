@@ -40,8 +40,8 @@ const ready = courier({ defaultService: { id: "s1", label: "Test Courier · Parc
 
 const list = (over: Partial<CoverageListDTO> = {}): CoverageListDTO => ({
   postcodes: [
-    { postcode: "3121", places: ["RICHMOND", "BURNLEY", "CREMORNE"], state: "VIC", groupId: "g1", distanceKm: "3.40", distanceSource: "computed", needsReview: false },
-    { postcode: "3900", places: ["BOX ONLY"], state: "VIC", groupId: null, distanceKm: "18.50", distanceSource: "manual", needsReview: true },
+    { postcode: "3121", places: ["RICHMOND", "BURNLEY", "CREMORNE"], state: "VIC", groupId: "g1", distanceKm: "3.40", distanceSource: "computed", needsReview: false, todayOffered: true },
+    { postcode: "3900", places: ["BOX ONLY"], state: "VIC", groupId: null, distanceKm: "18.50", distanceSource: "manual", needsReview: true, todayOffered: false },
   ],
   groups: [{ id: "g1", name: "Inner East", postcodeCount: 1, driverCount: 2 }],
   ungrouped: { postcodeCount: 1, driverCount: 0 },
@@ -49,7 +49,7 @@ const list = (over: Partial<CoverageListDTO> = {}): CoverageListDTO => ({
     blockedBy: ["no_fee_table", "no_service"],
     exclusions: [{ postcode: "7255", places: ["FLINDERS ISLAND"], reason: "No chilled courier service" }],
   }),
-  counts: { listed: 2, manualDistance: 1, needsReview: 1 },
+  counts: { listed: 2, manualDistance: 1, needsReview: 1, todayNotOffered: 1 },
   ...over,
 });
 
@@ -158,6 +158,49 @@ describe("Coverage — the list of postcodes Effy delivers to (076)", () => {
     await waitFor(() => expect(repo.removeCoveragePostcode).toHaveBeenCalledWith("3121"));
   });
 
+  it("097 — each postcode says whether delivery today is offered, and the count says how many are not", async () => {
+    renderPanel();
+    const on = (await screen.findByText("3121")).closest("tr")!;
+    expect(within(on).getByText("Offered")).toBeInTheDocument();
+    const off = screen.getByText("3900").closest("tr")!;
+    expect(within(off).getByText("Not offered")).toBeInTheDocument();
+    expect(screen.getByTestId("coverage-counts")).toHaveTextContent("1 not offered delivery today");
+  });
+
+  it("097 — 'Farther than' and 'Delivery today' filters ask the service", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("3121");
+    await user.click(screen.getByRole("button", { name: "Farther than" }));
+    await user.click(await screen.findByRole("menuitem", { name: "25 km" }));
+    await waitFor(() => expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ minKm: "25" }), undefined));
+    await user.click(screen.getByRole("button", { name: /^Delivery today/ }));
+    await user.click(await screen.findByRole("menuitem", { name: "Not offered" }));
+    await waitFor(() => expect(repo.listCoverage).toHaveBeenLastCalledWith(expect.objectContaining({ minKm: "25", today: "not_offered" }), undefined));
+  });
+
+  it("097 — select all shown, then stop offering delivery today: one request for every selected postcode", async () => {
+    const user = userEvent.setup();
+    repo.patchCoveragePostcodes.mockResolvedValue(undefined);
+    renderPanel();
+    await screen.findByText("3121");
+    await user.click(screen.getByRole("checkbox", { name: "Select all shown" }));
+    expect(screen.getByTestId("coverage-bulk")).toHaveTextContent("2 selected");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Delivery today" }), "stop");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+    await waitFor(() => expect(repo.patchCoveragePostcodes).toHaveBeenCalledWith({ postcodes: ["3121", "3900"], todayOffered: false }));
+    await waitFor(() => expect(screen.queryByTestId("coverage-bulk")).not.toBeInTheDocument());
+  });
+
+  it("097 — a customer-service agent sees the column and the filter, and cannot change it", async () => {
+    renderPanel(false);
+    await screen.findByText("3121");
+    expect(screen.getByText("Not offered")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Delivery today/ })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Delivery today" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
   it("moving postcodes to nowhere a driver reaches asks first, then goes ahead when told to", async () => {
     const user = userEvent.setup();
     repo.patchCoveragePostcodes.mockRejectedValueOnce(refusal(409, "no_driver_covers")).mockResolvedValueOnce(undefined);
@@ -227,6 +270,23 @@ describe("Coverage — adding places by name", () => {
     await waitFor(() => expect(repo.addCoveragePostcodes).toHaveBeenCalledWith({ postcodes: [{ postcode: "3108", manualDistanceKm: null }], groupId: null }));
   });
 
+  it("097 — places can be added with delivery today not offered; offered is the default and is not sent", async () => {
+    const user = userEvent.setup();
+    repo.searchCoveragePlaces.mockResolvedValue({ results: [place({ postcode: "3220", matched: "GEELONG", places: ["GEELONG"], computedDistanceKm: "64.48" })] });
+    repo.addCoveragePostcodes.mockResolvedValue({ added: ["3220"], alreadyListed: [] });
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: /add places/i }));
+    await user.type(screen.getByLabelText("Place or postcode"), "3220");
+    await screen.findByRole("checkbox", { name: /GEELONG VIC 3220/ });
+    const today = screen.getByRole("checkbox", { name: "Offer delivery today" });
+    expect(today).toBeChecked();
+    await user.click(today);
+    await user.click(screen.getByRole("button", { name: "Add 1 postcode" }));
+    await waitFor(() => expect(repo.addCoveragePostcodes).toHaveBeenCalledWith({
+      postcodes: [{ postcode: "3220", manualDistanceKm: null }], groupId: null, todayOffered: false,
+    }));
+  });
+
   it("a name searched says to tick a result while nothing is ticked", async () => {
     const user = userEvent.setup();
     repo.searchCoveragePlaces.mockResolvedValue({ results: [place()] });
@@ -259,16 +319,18 @@ describe("Coverage — the checker, groups and courier reach", () => {
   it("the checker says who delivers and why, in words a person can repeat", async () => {
     const user = userEvent.setup();
     repo.checkCoverage.mockResolvedValue({ matches: [
-      { postcode: "3121", places: ["RICHMOND", "BURNLEY"], state: "VIC", coverage: "effy", reason: "listed", groupName: "Inner East", distanceKm: "3.40", distanceSource: "computed", exclusionReason: null },
-      { postcode: "7255", places: ["FLINDERS ISLAND"], state: "TAS", coverage: "none", reason: "courier_excluded", groupName: null, distanceKm: null, distanceSource: null, exclusionReason: "No chilled courier service" },
-      { postcode: "9999", places: [], state: null, coverage: "none", reason: "unknown_postcode", groupName: null, distanceKm: null, distanceSource: null, exclusionReason: null },
+      { postcode: "3121", places: ["RICHMOND", "BURNLEY"], state: "VIC", coverage: "effy", reason: "listed", groupName: "Inner East", distanceKm: "3.40", distanceSource: "computed", exclusionReason: null, todayOffered: false },
+      { postcode: "7255", places: ["FLINDERS ISLAND"], state: "TAS", coverage: "none", reason: "courier_excluded", groupName: null, distanceKm: null, distanceSource: null, exclusionReason: "No chilled courier service", todayOffered: null },
+      { postcode: "9999", places: [], state: null, coverage: "none", reason: "unknown_postcode", groupName: null, distanceKm: null, distanceSource: null, exclusionReason: null, todayOffered: null },
     ] });
     renderPanel();
     await user.type(await screen.findByLabelText("Check a postcode or place"), "richmond");
     await user.click(screen.getByRole("button", { name: /^check$/i }));
     const items = within(await screen.findByTestId("check-results")).getAllByRole("listitem");
     expect(items[0]).toHaveTextContent("Delivered by Effy");
-    expect(items[0]).toHaveTextContent("On Effy's list. Group: Inner East. 3.40 km from the hub (worked out).");
+    expect(items[0]).toHaveTextContent("On Effy's list. Group: Inner East. 3.40 km from the hub (worked out). Delivery today not offered.");
+    // 097 — said of a listed postcode only.
+    expect(items[1]).not.toHaveTextContent("Delivery today");
     expect(items[1]).toHaveTextContent("Cannot deliver");
     expect(items[1]).toHaveTextContent("excluded from courier delivery. Reason: No chilled courier service.");
     expect(items[2]).toHaveTextContent("Not a known postcode.");

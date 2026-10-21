@@ -45,6 +45,11 @@ window on a later day*. `scripts/check-no-legacy-delivery.sh` fails the old path
 - ⚠ **"COURIER" MEANS A COURIER ORDER CAN BE PLACED THERE NOW (079):** courier delivery on, a courier fee
   table active, a default courier service — `public.courier_reaches_postcode` / `courier_delivery_state`
   are the one definition.
+- ⚠ **DELIVERY TODAY IS OFFERED PER LISTED POSTCODE (097)** — `delivery_zone_postcode.today_offered` (default true,
+  never per group), read only through `coverage_for_postcode` (`Coverage.todayOffered`). Where it is off, the Effy
+  calendar for that address does NOT CONTAIN today (`effyDays`'s fifth, required argument): no Same-day section, no
+  today surcharge, ASAP on a later day, back-office move/re-time refuse today. Never listed as closed — that would be
+  new customer wording.
 - ⚠ **The refusal is ONE sentence in ONE file** — `COVERAGE_REFUSAL_SENTENCE` in
   `packages/shared-types/src/delivery.ts`, mirrored in the customer app's `CoverageWords.kt` and held to it
   by a test. `coverage.guard.test.ts` fails a second wording, a customer contract that carries a
@@ -562,6 +567,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **097-same-day-by-postcode** — Delivery Today, Postcode by Postcode (staff switch "today" off for far postcodes; the calendar leaves today out; no new customer wording) — built; NOT migrated, deployed or walked
 - **095-promotion-skins** — Promotion Skins (staff-designed skins on six layouts, any colour AA-checked on the server, chosen per group placement; pictures on promotions; `mega-nav` in the aisles menu; Classic = as before) — complete in dev, signed off; promotion routes deploy as stack `admin-promotions`
 - **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — complete in dev (migrated, deployed, walked); stage C table removal open
 - **093-driver-work-sequence** — Driver Work in One Order (server-enforced steps; collector delivers; missing packages held; run stage; vehicle check off by default) — built; NOT migrated, deployed or walked
@@ -635,5 +641,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/095-promotion-skins/plan.md
+at specs/097-same-day-by-postcode/plan.md
 <!-- SPECKIT END -->

@@ -172,7 +172,7 @@ d("076 — the coverage migration changes nothing for anyone", () => {
 
     expect(await at("3121")).toMatchObject({ kind: "effy", reason: "listed", groupId: Z_INNER, groupName: "Inner East" });
     expect((await at("3121")).distanceKm).toBeGreaterThan(3);
-    expect(await at("9999")).toEqual({ kind: "none", reason: "unknown_postcode", distanceKm: null, groupId: null, groupName: null });
+    expect(await at("9999")).toEqual({ kind: "none", reason: "unknown_postcode", distanceKm: null, groupId: null, groupName: null, todayOffered: true });
     expect(await at("7000")).toMatchObject({ kind: "none", reason: "courier_off" });
     // ⚠ The one-argument call every pre-079 reader makes (the address book's SQL) still resolves.
     expect((await pool.query(`SELECT kind FROM public.coverage_for_postcode('3121')`)).rows[0]).toEqual({ kind: "effy" });
@@ -229,6 +229,17 @@ d("076 — the coverage migration changes nothing for anyone", () => {
       await pool.query(`DELETE FROM public.delivery_fee_plan WHERE id = '${COURIER_PLAN}'`);
       await pool.query(`DELETE FROM public.courier_service`);
       await settings(`courier_offered = false, delivery_model_v2_from = NULL`);
+    }
+  });
+
+  it("097 — the answer says whether today is offered: the listed row's own setting, true where not listed", async () => {
+    expect((await coverageForPostcode(pool, "3121")).todayOffered).toBe(true);
+    await pool.query(`UPDATE public.delivery_zone_postcode SET today_offered = false WHERE postcode = '3121'`);
+    try {
+      expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", reason: "listed", todayOffered: false });
+      expect((await coverageForPostcode(pool, "9999")).todayOffered).toBe(true);
+    } finally {
+      await pool.query(`UPDATE public.delivery_zone_postcode SET today_offered = true WHERE postcode = '3121'`);
     }
   });
 

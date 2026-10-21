@@ -243,7 +243,10 @@ export async function quote(
   const { runs, bufferMin } = await collectionSchedule(q);
   const settings = await loadSlotSettings(q);
   const today = melbourneDate(now);
-  const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today));
+  // 097 — today is ABSENT for an address whose postcode does not offer it: no Same-day section, no
+  // today surcharge, "as soon as possible" on a later day, and a stale choice of today refused at the
+  // intent (which re-quotes). Nothing below needs to know.
+  const calendar = effyDays(now, settings.effyLookaheadDays, settings.noWeekdays, await nonDeliveryDates(q, today), coverage.todayOffered);
   const dates = calendar.map((d) => d.date);
 
   const slots = await loadSlots(q);

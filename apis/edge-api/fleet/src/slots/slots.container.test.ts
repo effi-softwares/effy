@@ -211,7 +211,7 @@ d("069 — same-day delivery slots", () => {
   });
 
   it("078 — how full each window is on today and each Effy delivery day after it (P15)", async () => {
-    const days = effyDays(new Date(), 3).map((x) => x.date);
+    const days = effyDays(new Date(), 3, [], new Set(), true).map((x) => x.date);
     const evening = await createSlot(EVENING, ACTOR, scope);
     const late = await createSlot({ startTime: "19:00", endTime: "21:00", cutoffTime: "17:00" }, ACTOR, scope);
     await order({ slotId: evening.id });                                        // today, confirmed
@@ -235,7 +235,7 @@ d("069 — same-day delivery slots", () => {
 
   it("078 — the grid's days are the customer's days: a closed date is skipped, the look-ahead is the setting", async () => {
     await pool.query(`INSERT INTO public.delivery_settings (id, hub_latitude, hub_longitude, effy_lookahead_days, updated_by) VALUES (1, -37.8, 144.9, 2, 'seed')`);
-    const plain = effyDays(new Date(), 3).map((x) => x.date);
+    const plain = effyDays(new Date(), 3, [], new Set(), true).map((x) => x.date);
     await pool.query(`INSERT INTO public.delivery_non_delivery_date (day, created_by) VALUES ($1::date, 'seed')`, [plain[1]]);
     await createSlot(EVENING, ACTOR, scope);
     const grid = await listSlotsWithDays();

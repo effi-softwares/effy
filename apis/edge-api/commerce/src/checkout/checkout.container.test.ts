@@ -134,7 +134,7 @@ async function shopper(cart: Record<string, number>) {
 const input = (addressId: string, over: Partial<IntentInput> = {}): IntentInput => ({
   addressId, billingAddressId: "",
   // ⚠ Every Effy order has a window (083). The default is a LATER day: the plain fee, no today premium.
-  deliveryWindow: { slotId, date: effyDays(new Date(), 3)[1]!.date },
+  deliveryWindow: { slotId, date: effyDays(new Date(), 3, [], new Set(), true)[1]!.date },
   deliveryInstructions: { handover: null, note: null }, wantsProviderMethodList: false, pointsToUse: 0, shownDeliveryAmount: "", ...over,
 });
 
@@ -947,7 +947,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
   const quoteOf = (s: { customerId: string; addressId: string }) =>
     quoteForCheckout({ store, quoter: defaultQuoter(pool), promos: noPromo }, s.customerId, s.addressId, new Date());
   /** Today, then the next three days — the fixture has no non-delivery days. */
-  const offered = () => effyDays(new Date(), 3).map((d) => d.date);
+  const offered = () => effyDays(new Date(), 3, [], new Set(), true).map((d) => d.date);
   const windowOn = (addressId: string, date: string, over: Partial<IntentInput> = {}) =>
     input(addressId, { deliveryWindow: { slotId, date }, ...over });
   const bookedOn = async (date: string) => (await slotLoad(pool, date)).get(slotId) ?? 0;
@@ -1045,7 +1045,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       expect(await refusal(svc.createIntent(s.customerId, oldClient, new Date()))).toBe("slot_required");
       expect(await ordersOf(s.customerId)).toBe(0);
       // Beyond the look-ahead, and a day that has gone.
-      const beyond = effyDays(new Date(), 4)[4]!.date;
+      const beyond = effyDays(new Date(), 4, [], new Set(), true)[4]!.date;
       expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, beyond), new Date()))).toBe("date_unavailable");
       expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, "2026-01-01"), new Date()))).toBe("date_unavailable");
       // A window id that is not on offer that day.
@@ -1117,7 +1117,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       await pool.query(`INSERT INTO public.delivery_non_delivery_date (day, label, created_by) VALUES ($1::date, 'Holiday', 'test')`, [plain[1]]);
       const s = await shopper({ Milk: 1 });
       let q = await quoteOf(s);
-      const want = effyDays(new Date(), 3, [], new Set([plain[1]!])).map((d) => d.date);
+      const want = effyDays(new Date(), 3, [], new Set([plain[1]!]), true).map((d) => d.date);
       expect(q.effyWindows!.days.map((d) => d.date)).toEqual(want);
       expect(want).not.toContain(plain[1]);
       expect(want).toHaveLength(4);
@@ -1261,6 +1261,109 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       .then((r) => r.rows);
   const ordersOf = (customerId: string) => count(`SELECT 1 FROM public."order" WHERE customer_id = $1`, [customerId]);
   const courier = (addressId: string, over: Partial<IntentInput> = {}) => input(addressId, { deliveryType: "courier", ...over });
+
+  // ── 097 — delivery today, postcode by postcode ──────────────────────────────────────────────────
+
+  /** 3121 with delivery today switched off for the length of `fn`; 3141 listed beside it, left on. */
+  async function todayOffAt3121<T>(fn: () => Promise<T>): Promise<T> {
+    await pool.query(`INSERT INTO public.delivery_zone_postcode (zone_id, postcode, distance_km, distance_source, added_by)
+                      VALUES (NULL, '3141', 3.80, 'manual', 'test') ON CONFLICT (postcode) DO NOTHING`);
+    await pool.query(`UPDATE public.delivery_zone_postcode SET today_offered = false WHERE postcode = '3121'`);
+    try {
+      return await modelOn(fn);
+    } finally {
+      await pool.query(`UPDATE public.delivery_zone_postcode SET today_offered = true WHERE postcode = '3121'`);
+      await pool.query(`DELETE FROM public.delivery_zone_postcode WHERE postcode = '3141'`);
+    }
+  }
+  const movedTo3141 = (addressId: string) => pool.query(`UPDATE public.customer_address SET postal_code = '3141' WHERE id = $1`, [addressId]);
+
+  it("097 — today not offered: no Same-day day at all, the later days and their fees unchanged; a postcode left on keeps today", async () => {
+    const s = await shopper({ Milk: 2 });
+    const before = await modelOn(() => quoteOf(s));
+    await todayOffAt3121(async () => {
+      const days = offered();
+      const q = await quoteOf(s);
+      // ⚠ ABSENT, not listed as closed: a closed today would show the customer a Same-day section saying so.
+      expect(q.effyWindows!.days.some((d) => d.section === "same_day")).toBe(false);
+      expect(q.effyWindows!.days).toEqual(before.effyWindows!.days.filter((d) => d.section === "standard"));
+      expect(q.effyWindows!.days.map((d) => d.date)).toEqual(days.slice(1));
+
+      // Another listed postcode, at the same moment, is offered today exactly as before.
+      const t = await shopper({ Milk: 2 });
+      await movedTo3141(t.addressId);
+      const other = await quoteOf(t);
+      expect(other.effyWindows!.days[0]).toMatchObject({ date: days[0], section: "same_day" });
+      expect(other.effyWindows!.days[0]!.windows).toHaveLength(1);
+    });
+  });
+
+  it("097 — a choice of today made before the switch-off is refused at the intent, nothing written; a later day is sold", async () => {
+    await todayOffAt3121(async () => {
+      const days = offered();
+      const s = await shopper({ Milk: 1 });
+      expect(await refusal(svc.createIntent(s.customerId, windowOn(s.addressId, days[0]!), new Date()))).toBe("date_unavailable");
+      expect(await ordersOf(s.customerId)).toBe(0);
+      expect(gateway.created()).toBe(0);
+      expect(await count(`SELECT 1 FROM public.delivery_slot_booking`)).toBe(0);
+
+      const r = await svc.createIntent(s.customerId, windowOn(s.addressId, days[1]!), new Date());
+      expect((await packagesOf(r.orderId))[0]).toMatchObject({ method: "standard", day: days[1], slot: slotId });
+      // No "Delivery today" premium can reach an address that is never sold today.
+      expect((await feeOf(r.orderId)).fee).toBe("6.00");
+    });
+  });
+
+  it("097 — 'as soon as possible' lands on the first later day, never today", async () => {
+    const anyTime = (
+      await one<{ id: string }>(
+        `INSERT INTO public.delivery_slot (start_time, end_time, cutoff_time, capacity, status, any_time, updated_by)
+         VALUES ('23:58', '23:59:30', '23:58', NULL, 'active', true, 'test') RETURNING id::text AS id`,
+      )
+    ).id;
+    try {
+      await todayOffAt3121(async () => {
+        const days = offered();
+        const s = await shopper({ Milk: 1 });
+        const q = await quoteOf(s);
+        expect(q.effyWindows!.asap).not.toBeNull();
+        const r = await svc.createIntent(s.customerId, input(s.addressId, { deliveryWindow: null, deliveryPromise: "asap" }), new Date());
+        expect((await packagesOf(r.orderId))[0]).toMatchObject({ method: "standard", day: days[1], slot: anyTime });
+
+        // The same moment at a postcode that offers today: ASAP is today.
+        const t = await shopper({ Milk: 1 });
+        await movedTo3141(t.addressId);
+        const rt = await svc.createIntent(t.customerId, input(t.addressId, { deliveryWindow: null, deliveryPromise: "asap" }), new Date());
+        expect((await packagesOf(rt.orderId))[0]).toMatchObject({ day: days[0], slot: anyTime });
+      });
+    } finally {
+      await pool.query(`DELETE FROM public.delivery_slot_booking WHERE slot_id = $1`, [anyTime]);
+      await pool.query(`DELETE FROM public.order_package_delivery WHERE slot_id = $1`, [anyTime]);
+      await pool.query(`DELETE FROM public.delivery_slot WHERE id = $1`, [anyTime]);
+    }
+  });
+
+  it("097 — a place already held today, and an order already paid for today, keep today after the switch-off", async () => {
+    await modelOn(async () => {
+      const days = offered();
+      const held = await shopper({ Milk: 1 });
+      const h = await svc.createIntent(held.customerId, windowOn(held.addressId, days[0]!), new Date());
+      const paid = await shopper({ Milk: 1 });
+      const p = await svc.createIntent(paid.customerId, windowOn(paid.addressId, days[0]!), new Date());
+      await pay(p.orderId);
+
+      await todayOffAt3121(async () => {
+        // The held place is paid for after the switch-off: confirmed, in today's window, at today's fee.
+        expect(await pay(h.orderId)).toMatchObject({ slotConfirmed: true });
+        for (const orderId of [h.orderId, p.orderId]) {
+          expect(await one(`SELECT state, delivery_date::text AS day FROM public.delivery_slot_booking WHERE order_id = $1`, [orderId]))
+            .toEqual({ state: "confirmed", day: days[0] });
+          expect((await packagesOf(orderId))[0]).toMatchObject({ method: "same_day", day: days[0], slot: slotId });
+          expect((await feeOf(orderId)).fee).toBe("11.00");
+        }
+      });
+    });
+  });
 
   it("079 P4 — outside Effy's area, a courier reaches it: the estimate, the courier fee, and nothing to choose", async () => {
     await modelOn(() => courierArmed(async () => {

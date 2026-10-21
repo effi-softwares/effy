@@ -155,7 +155,9 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     const all = await svc.list({});
     expect(all.postcodes.map((p) => p.postcode)).toEqual(["3121", "3900"]);
     expect(all.postcodes[0]).toMatchObject({ places: ["RICHMOND", "BURNLEY"], state: "VIC", groupId: null, distanceSource: "computed", needsReview: false });
-    expect(all.counts).toEqual({ listed: 2, manualDistance: 1, needsReview: 0 });
+    expect(all.counts).toEqual({ listed: 2, manualDistance: 1, needsReview: 0, todayNotOffered: 0 });
+    // 097 — delivery today is offered wherever nobody has said otherwise.
+    expect(all.postcodes.map((p) => p.todayOffered)).toEqual([true, true]);
     expect(all.ungrouped).toEqual({ postcodeCount: 2, driverCount: 1 });
     // 079 — nothing is set yet, and the screen is told BOTH things that must be done before courier can go on.
     expect(all.courier).toEqual({
@@ -330,6 +332,60 @@ describe.skipIf(!RUN)("076 — the coverage console, against real PostgreSQL", (
     expect(list.groups.find((g) => g.id === inner)!.driverCount).toBe(1);
     expect(list.ungrouped.driverCount).toBe(0);
     expect(await svc.addPostcodes({ postcodes: [{ postcode: "3220" }], groupId: inner }, SUB)).toEqual({ added: ["3220"], alreadyListed: [] });
+  });
+
+  it("097 — delivery today, per postcode: added with it, switched in bulk, filtered, counted, checked, audited once", async () => {
+    const todayAudits = async () => (await audits("coverage.postcode.today")).length;
+    const listed = async (f: svc.ListQuery = {}) => (await svc.list(f)).postcodes.map((p) => p.postcode);
+
+    // Added with it switched off — and the add's audit says so.
+    expect(await svc.addPostcodes({ postcodes: [{ postcode: "3900", manualDistanceKm: "18.5" }], todayOffered: false, confirmNoDrivers: true }, SUB))
+      .toEqual({ added: ["3900"], alreadyListed: [] });
+    expect((await audits("coverage.postcode.add")).at(-1)?.detail).toMatchObject({ postcode: "3900", after: { todayOffered: false } });
+    expect((await q(`SELECT today_offered FROM public.delivery_zone_postcode WHERE postcode = '3141'`))[0]).toEqual({ today_offered: true });
+
+    // Switched off in bulk: one audit row, naming only what changed; announced.
+    holder.announced.length = 0;
+    await svc.patchPostcodes({ postcodes: ["3121", "3220", "3900"], todayOffered: false }, SUB);
+    expect(await todayAudits()).toBe(1);
+    expect((await audits("coverage.postcode.today")).at(-1)?.detail).toEqual({ before: { "3121": true, "3220": true }, after: false });
+    expect(holder.announced).toEqual([{ scope: "ops", kind: "coverage" }]);
+
+    // Again: nothing changes, nothing is audited.
+    await svc.patchPostcodes({ postcodes: ["3121", "3220"], todayOffered: false }, SUB);
+    expect(await todayAudits()).toBe(1);
+
+    // Filters and the count.
+    const all = await svc.list({});
+    expect(all.counts.todayNotOffered).toBe(3);
+    expect(all.postcodes.map((p) => [p.postcode, p.todayOffered])).toEqual([["3121", false], ["3141", true], ["3220", false], ["3900", false]]);
+    expect(await listed({ today: "not_offered" })).toEqual(["3121", "3220", "3900"]);
+    expect(await listed({ today: "offered" })).toEqual(["3141"]);
+    expect(await listed({ minKm: "25" })).toEqual(["3220"]);
+    expect(await listed({ minKm: "18.5", today: "not_offered" })).toEqual(["3220", "3900"]);
+    const inner = all.groups.find((g) => g.name === "Inner East")!.id;
+    expect(await listed({ group: inner, today: "not_offered" })).toEqual(["3121", "3220"]);
+
+    // The checker says it, for a listed postcode only.
+    expect((await svc.check("3121")).matches[0]).toMatchObject({ coverage: "effy", todayOffered: false });
+    expect((await svc.check("3141")).matches[0]).toMatchObject({ coverage: "effy", todayOffered: true });
+    expect((await svc.check("7000")).matches[0]).toMatchObject({ todayOffered: null });
+
+    // All or nothing: one postcode not on the list and nothing is written.
+    expect(await refusal(svc.patchPostcodes({ postcodes: ["3121", "7000"], todayOffered: true }, SUB))).toMatchObject({ status: 404, code: "not_listed" });
+    expect((await q(`SELECT today_offered FROM public.delivery_zone_postcode WHERE postcode = '3121'`))[0]).toEqual({ today_offered: false });
+    expect(await todayAudits()).toBe(1);
+
+    // Malformed is the caller's error, never a guess.
+    expect(await refusal(svc.patchPostcodes({ postcodes: ["3121"], todayOffered: "no" as never }, SUB))).toMatchObject({ status: 400 });
+    expect(await refusal(svc.addPostcodes({ postcodes: [{ postcode: "2753" }], todayOffered: 1 as never }, SUB))).toMatchObject({ status: 400 });
+    expect(await refusal(svc.list({ today: "maybe" }))).toMatchObject({ status: 400 });
+    expect(await refusal(svc.list({ minKm: "2x" }))).toMatchObject({ status: 400 });
+
+    // Back on.
+    await svc.patchPostcodes({ postcodes: ["3121"], todayOffered: true }, SUB);
+    expect((await svc.list({})).counts.todayNotOffered).toBe(2);
+    expect((await audits("coverage.postcode.today")).at(-1)?.detail).toEqual({ before: { "3121": false }, after: true });
   });
 });
 

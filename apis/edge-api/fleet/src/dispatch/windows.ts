@@ -77,7 +77,8 @@ export async function readWindows(dateParam: string | undefined, now = new Date(
   const today = isoDateOf(now);
   const slotSettings = await loadSlotSettings(db);
   const noDates = await nonDeliveryDates(db, isoDateOf(now, -8));
-  const calendar = effyDays(now, slotSettings.effyLookaheadDays, slotSettings.noWeekdays, noDates);
+  // 097 — a staff calendar, not an address: today is always shown.
+  const calendar = effyDays(now, slotSettings.effyLookaheadDays, slotSettings.noWeekdays, noDates, true);
   const days = calendar.map((d) => ({ date: d.date, label: d.isToday ? "Today" : formatDeliveryDay(d.date), isToday: d.isToday }));
 
   const date = dateParam ?? today;
