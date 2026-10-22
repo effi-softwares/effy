@@ -58,6 +58,12 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   `storefront`, `commerce`, `shop`, `catalog`, `inventory`, `inventory-staff`, `orders`, `driver`, `fleet`,
   `notifications`, `admin-promotions` — ALL before dev is used; then shop-web, back-office, customer-web; then a new
   customer app build. Walk [quickstart.md](specs/098-product-variants/quickstart.md).
+- ⚠ **DEPLOY GOTCHA (hit 2026-10-22): an HTTP API cannot rename a path variable in one deploy.** CloudFormation
+  creates `…/cart/items/{variantId}` before deleting `…/cart/items/{productId}`, and API Gateway refuses two
+  variables at one level (409 "conflicting variable on the same hierarchical level"); the `commerce` stack rolled
+  back. Fix used: delete the five old `/commerce/v1/cart/{items,saved}/{productId}…` routes with
+  `aws apigatewayv2 delete-route`, then redeploy `commerce` (CloudFormation's delete of the gone routes succeeds).
+  Inventory's rename changed the literal segment too (`products` → `variants`), so it does not collide.
 
 **096-parcel-labels-scanning — Order Package Labels, Scanning & Printed Documents.** 🔨 **BUILT 2026-10-22 — NOT
 MIGRATED, DEPLOYED OR WALKED** (an earlier deploy of the P1 set may have been run; see the operator steps). Every physical
