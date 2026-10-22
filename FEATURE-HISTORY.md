@@ -76,6 +76,10 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   keyed by product (two sizes collided; Restock opened no size) — now `variantId`, opening `?size=`; (3) stock
   notifications tracked occurrences per PRODUCT, so restocking one size could close another's alert — now per size.
   **Operator**: `make db-up ENV=dev`, deploy `shop`, push; then add stock to the sizes you want to sell.
+- **Stock table (2026-10-22).** shop-web's Inventory tab is now ONE table of every size: type a delivery ("Add
+  received") or a stocktake ("Set count") against any sizes and Save once (`StockTable`, rules in `stockPlan.ts`). It
+  writes through the existing per-size stock routes — no new route — one size after another; a refused size keeps its
+  number, saved sizes clear, so re-saving cannot add a delivery twice. Movements and rules stay per size below it.
 - ⚠ **DEPLOY GOTCHA (hit 2026-10-22): an HTTP API cannot rename a path variable in one deploy.** CloudFormation
   creates `…/cart/items/{variantId}` before deleting `…/cart/items/{productId}`, and API Gateway refuses two
   variables at one level (409 "conflicting variable on the same hierarchical level"); the `commerce` stack rolled

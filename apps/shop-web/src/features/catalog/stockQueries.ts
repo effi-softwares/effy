@@ -87,3 +87,15 @@ export function useSetStockSettings() {
     },
   });
 }
+
+/**
+ * 098 — the stock table saves several sizes in one action. It calls the same routes as the per-size
+ * dialogs, then refreshes everything those dialogs would (every size's stock, the product, the low list).
+ */
+export function useRefreshStock() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: STOCK_ROOT });
+    void qc.invalidateQueries({ queryKey: ["shop", "catalog", "product"] });
+  };
+}

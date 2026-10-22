@@ -88,56 +88,83 @@ beforeEach(() => {
 
 // ── The section states the numbers ───────────────────────────────────────────────────────────────
 
-describe("the Inventory section", () => {
-  it("states the count, and says where the threshold came from", async () => {
-    // ⚠ A shop default and a per-product override produce the same figure and mean different things:
-    // change the shop default and one of them moves. A row that shows only "8" cannot be predicted.
-    getVariantStock.mockResolvedValue(
-      stockDetail({ onHand: 9, threshold: null, effectiveThreshold: 8 }),
-    )
-    wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
+/** 098 — a product in three sizes: counted with stock, counted and empty, and not counted yet. */
+const SIZED = {
+  ...PRODUCT,
+  options: [{ id: "o1", position: 1, name: "Size", values: [] }],
+  variants: [
+    { id: "v1", state: "active", label: "500 g", code: "V2222222", stock: stockDetail({ variantId: "v1", onHand: 12, effectiveThreshold: 5 }).stock },
+    { id: "v2", state: "active", label: "1 kg", code: "V3333333", stock: stockDetail({ variantId: "v2", onHand: 0, outOfStock: true }).stock },
+    { id: "v3", state: "active", label: "5 kg", code: "V4444444", stock: stockDetail({ variantId: "v3", tracked: false, onHand: null }).stock },
+  ],
+} as unknown as ProductDetail
 
-    expect(await screen.findByText("9 units")).toBeInTheDocument()
-    expect(screen.getByText(/8 — the shop default/)).toBeInTheDocument()
+describe("the Inventory section — every size in one table (098)", () => {
+  it("shows each size's count and its state in words", async () => {
+    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    const table = screen.getAllByRole("table")[0]!
+    expect(within(table).getByText("500 g")).toBeInTheDocument()
+    expect(within(table).getByText("In stock")).toBeInTheDocument()
+    expect(within(table).getByText("Out of stock")).toBeInTheDocument()
+    expect(within(table).getByText("Not counted")).toBeInTheDocument()
+    expect(within(table).getByText("V3333333")).toBeInTheDocument()
   })
 
-  it("names a per-product threshold as this product's own", async () => {
-    getVariantStock.mockResolvedValue(
-      stockDetail({ onHand: 9, threshold: 4, effectiveThreshold: 4 }),
-    )
-    wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
-    expect(await screen.findByText(/4 — set for this product/)).toBeInTheDocument()
+  it("adds a delivery to several sizes in one Save, starting the count of an uncounted one", async () => {
+    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "24")
+    await userEvent.type(screen.getByLabelText(/units received for 5 kg/i), "6")
+    // The new totals are shown before anything is written.
+    expect(screen.getByText("36")).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole("button", { name: /save stock for 2 sizes/i }))
+    await waitFor(() => expect(setStockTracking).toHaveBeenCalled())
+    expect(adjustStock).toHaveBeenCalledWith("v1", { delta: 24, reason: "received" })
+    expect(setStockTracking).toHaveBeenCalledWith("v3", { tracked: true, onHand: 6 })
+    expect(setStockCount).not.toHaveBeenCalled()
   })
 
-  // ⚠ REWRITTEN BY THE THEME ADOPTION, NOT DELETED. This used to forbid a hue outright, because the
-  // monochrome constitution had no colour meaning "running low". It now pins the two things that
-  // still matter: the sentence says which state it is (so the line survives greyscale and a screen
-  // reader), and EMPTY and LOW do not render alike — collapsing them is what made "nothing left" and
-  // "a few left" look like the same problem.
-  it("says an empty shelf is unbuyable, in words AND distinguishably from merely low", async () => {
-    getVariantStock.mockResolvedValue(stockDetail({ onHand: 0, outOfStock: true }))
-    const out = wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
-    const outLine = await within(out.container).findByText(
-      /out of stock — shoppers cannot buy this right now/i,
-    )
-    expect(outLine.className).toMatch(/font-semibold/)
-
-    getVariantStock.mockResolvedValue(stockDetail({ onHand: 2, low: true }))
-    const low = wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
-    const lowLine = await within(low.container).findByText(/running low — 2 left/i)
-    expect(lowLine.className).toMatch(/font-semibold/)
-
-    expect(outLine.className).not.toBe(lowLine.className)
+  it("a stocktake replaces counts, and writes nothing for a count that is already right", async () => {
+    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await userEvent.click(screen.getByRole("tab", { name: /set count/i }))
+    await userEvent.type(screen.getByLabelText(/units counted for 500 g/i), "12") // unchanged
+    await userEvent.type(screen.getByLabelText(/units counted for 1 kg/i), "7")
+    await userEvent.click(screen.getByRole("button", { name: /save stock for 1 size/i }))
+    await waitFor(() => expect(setStockCount).toHaveBeenCalledTimes(1))
+    expect(setStockCount).toHaveBeenCalledWith("v2", { onHand: 7, reason: "correction" })
   })
 
-  it("withholds the count and the adjustment when stock is not tracked", async () => {
-    // An untracked product behaves exactly as it did before 054 existed (FR-002) — there is no count
-    // to show, and the server answers a write with a 409.
-    getVariantStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
-    wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
+  it("a size the server refuses keeps its number and says why; the saved ones clear", async () => {
+    adjustStock.mockImplementation(async (id: string) => {
+      if (id === "v2") throw { kind: "conflict", status: 409, title: "Conflict" }
+      return stockDetail()
+    })
+    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "3")
+    await userEvent.type(screen.getByLabelText(/units received for 1 kg/i), "4")
+    await userEvent.click(screen.getByRole("button", { name: /save stock for 2 sizes/i }))
 
-    expect(await screen.findByText(/can be bought without limit/i)).toBeInTheDocument()
-    expect(screen.queryByText(/units on hand/i)).not.toBeInTheDocument()
+    expect(await screen.findByRole("alert")).toBeInTheDocument()
+    expect(screen.getByLabelText(/units received for 500 g/i)).toHaveValue("")
+    expect(screen.getByLabelText(/units received for 1 kg/i)).toHaveValue("4")
+  })
+
+  it("refuses to save while any number is not a whole number", async () => {
+    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    await userEvent.type(screen.getByLabelText(/units received for 500 g/i), "2.5")
+    expect(screen.getByRole("button", { name: /save stock/i })).toBeDisabled()
+  })
+
+  it("names a per-size threshold as this size's own in its rules (history below the table)", async () => {
+    getVariantStock.mockResolvedValue(stockDetail({ onHand: 9, threshold: null, effectiveThreshold: 8 }))
+    wrap(<InventorySection detail={SIZED} variantId="v1" onVariantChange={() => {}} />)
+    expect(await screen.findByText(/stock movements — 500 g/i)).toBeInTheDocument()
+  })
+
+  it("withholds the adjustment when the chosen size is not counted", async () => {
+    getVariantStock.mockResolvedValue(stockDetail({ variantId: "v3", tracked: false, onHand: null }))
+    wrap(<InventorySection detail={SIZED} variantId="v3" onVariantChange={() => {}} />)
+    expect(await screen.findByText(/this size is not counted/i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /adjust stock/i })).toBeDisabled()
   })
 })

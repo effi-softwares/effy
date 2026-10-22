@@ -179,6 +179,10 @@ runs against the new schema. Stories then add the variant behaviour on top.
 - [X] T081 Today's stock rows carry `variantId` (keyed per size; Restock opens `?size=`), and low/out-of-stock notification occurrences are keyed per size (`subjectKeyFor`) + test
 - [X] T082 Printed pick lists (Today, order screen) name the size and its codes; stale "the platform has no variants" comments corrected
 
+## Phase 12: Stock for every size in one table
+
+- [X] T083 shop-web Inventory tab: `StockTable` — one row per size (Effy code, on hand, state in words, low-at), one input per row, "Add received" (adds, reason `received`) or "Set count" (replaces, reason `correction`; an unchanged count writes nothing), an uncounted size starts counting at its number, "Use first row for all", an optional note, ONE Save through the existing per-size routes; a refused size keeps its number and says why, saved ones clear (no double-add on re-save). Pure rules in `stockPlan.ts` + tests; movements and rules stay per size below the table
+
 ## Dependencies & Execution Order
 
 - **Phase 1 → Phase 2 → stories.** Phase 2 is blocking: the dropped columns break every reader until T016–T024 are done.
