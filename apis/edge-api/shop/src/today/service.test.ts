@@ -33,6 +33,7 @@ function snapshot(over: Partial<TodaySnapshot> = {}): TodaySnapshot {
 function stock(over: Partial<StockAttention> = {}): StockAttention {
   return {
     productId: "p1",
+    variantId: "v1",
     name: "Beeswax wrap set",
     onHand: 0,
     soldLast7Days: 14,

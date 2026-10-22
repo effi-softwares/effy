@@ -144,7 +144,8 @@ export function attentionHref(item: ShopAttentionItemDTO): string {
       return "/orders?tab=new"
     case "out_of_stock":
     case "low_stock":
-      return `/catalog/${item.productId}`
+      // 098 — open the product on the size that needs stock.
+      return `/catalog/${item.productId}?size=${item.variantId}`
     case "refund_proposed":
       return `/orders/${item.fulfillmentId}`
   }

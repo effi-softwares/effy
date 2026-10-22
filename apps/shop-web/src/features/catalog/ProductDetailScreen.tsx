@@ -71,17 +71,17 @@ type DetailTab = "details" | "inventory" | "media" | "visibility";
  * ⚠ THE TAB RESETS PER PRODUCT. The body is keyed on `productId`, so moving from one product to
  * another lands on Details — a tab is where you are on THIS product, not a preference to carry over.
  */
-export function ProductDetailScreen({ productId }: { productId: string }) {
-  return <ProductDetailBody key={productId} productId={productId} />;
+export function ProductDetailScreen({ productId, initialSize }: { productId: string; initialSize?: string }) {
+  return <ProductDetailBody key={productId} productId={productId} initialSize={initialSize} />;
 }
 
-function ProductDetailBody({ productId }: { productId: string }) {
+function ProductDetailBody({ productId, initialSize }: { productId: string; initialSize?: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId));
   const [editing, setEditing] = useState<EditTarget>(null);
   const [tab, setTab] = useState<DetailTab>("details");
   const [activityOpen, setActivityOpen] = useState(false);
   // 098 — the size whose stock the Inventory tab, Receive stock and Activity show.
-  const [chosenStockVariant, setStockVariant] = useState<string | null>(null);
+  const [chosenStockVariant, setStockVariant] = useState<string | null>(initialSize ?? null);
   const navigate = useNavigate();
 
   const goCatalog = () => void navigate({ to: "/catalog" });

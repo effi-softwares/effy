@@ -172,6 +172,13 @@ runs against the new schema. Stories then add the variant behaviour on top.
 - [X] T077 shop-web grid: column help, errors after leaving a cell or on Next/Save, "Apply first to all" for price and weight (`applyToAll` + tests)
 - [X] T078 back-office: Effy code in the review sizes table ("On approval" for an added size) and on order lines
 
+## Phase 11: Amendment — sizes are counted; stock always names its size (FR-029)
+
+- [X] T079 `applyVariantSet` creates a variant tracked at 0; migration `20261028090000_variants_counted_by_default.sql` converts existing untracked sizes (with a `tracking_enabled` movement each); the dev seed counts every size
+- [X] T080 shop-web stock dialogs name the size in their title; the header's Receive/Add stock chooses its size (`SizePicker`), never writing to an unchosen one; rules dialog named too
+- [X] T081 Today's stock rows carry `variantId` (keyed per size; Restock opens `?size=`), and low/out-of-stock notification occurrences are keyed per size (`subjectKeyFor`) + test
+- [X] T082 Printed pick lists (Today, order screen) name the size and its codes; stale "the platform has no variants" comments corrected
+
 ## Dependencies & Execution Order
 
 - **Phase 1 → Phase 2 → stories.** Phase 2 is blocking: the dropped columns break every reader until T016–T024 are done.

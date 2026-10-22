@@ -105,6 +105,7 @@ export async function readBacklog(shopId: string): Promise<Backlog> {
  */
 const SELECT_STOCK_ATTENTION = `
 SELECT p.id::text AS product_id,
+       v.id::text AS variant_id,
        -- 098 — one row per VARIANT, named with its label ("Basmati Rice — 1 kg").
        ${lineNameSql("p.name", variantLabelSql("v"))} AS name,
        v.stock_on_hand AS on_hand,
@@ -140,6 +141,7 @@ SELECT p.id::text AS product_id,
 
 interface StockRow {
   product_id: string;
+  variant_id: string;
   name: string;
   on_hand: number;
   severity: "out" | "low";
@@ -152,6 +154,7 @@ export async function readStockAttention(shopId: string, limit: number): Promise
   const res = await query<StockRow>(SELECT_STOCK_ATTENTION, [shopId, limit]);
   return res.rows.map((r) => ({
     productId: r.product_id,
+    variantId: r.variant_id,
     name: r.name,
     onHand: r.on_hand,
     soldLast7Days: r.sold_7d,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type { OperatorStockReason, ProductStockDTO } from "@effy/shared-types";
 import { OPERATOR_STOCK_REASONS } from "@effy/shared-types";
@@ -79,7 +79,14 @@ interface DialogProps {
   stock: ProductStockDTO;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** 098 — the size this count belongs to ("1 kg"), named in the title; null for a product sold one way. */
+  sizeLabel?: string | null;
+  /** 098 — a size chooser, shown first, when the dialog was opened without one (the page header). */
+  sizeControl?: ReactNode;
 }
+
+/** "Receive stock — 1 kg": stock is counted per size, so every stock dialog says which. */
+const titled = (title: string, sizeLabel: string | null | undefined) => (sizeLabel ? `${title} — ${sizeLabel}` : title);
 
 // ── Receive stock ────────────────────────────────────────────────────────────────────────────────
 
@@ -93,7 +100,7 @@ interface DialogProps {
  * believe the delivery had been reconciled against something when nothing had. The note is the honest
  * place for context until purchasing exists.
  */
-export function ReceiveStockDialog({ variantId, stock, open, onOpenChange }: DialogProps) {
+export function ReceiveStockDialog({ variantId, stock, open, onOpenChange, sizeLabel, sizeControl }: DialogProps) {
   const adjust = useAdjustStock(variantId);
   const [units, setUnits] = useState("");
   const [note, setNote] = useState("");
@@ -124,13 +131,14 @@ export function ReceiveStockDialog({ variantId, stock, open, onOpenChange }: Dia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Receive stock</DialogTitle>
+          <DialogTitle>{titled("Receive stock", sizeLabel)}</DialogTitle>
           <DialogDescription>
             Add counted units to the shelf. Nothing else about the product changes.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
+          {sizeControl}
           <div className="grid gap-1.5">
             <Label htmlFor="receive-units">Units received</Label>
             <Input
@@ -206,6 +214,8 @@ export function StartTrackingDialog({
   variantId,
   open,
   onOpenChange,
+  sizeLabel,
+  sizeControl,
 }: Omit<DialogProps, "stock">) {
   const setTracking = useSetStockTracking(variantId);
   const [units, setUnits] = useState("");
@@ -234,14 +244,15 @@ export function StartTrackingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add stock</DialogTitle>
+          <DialogTitle>{titled("Add stock", sizeLabel)}</DialogTitle>
           <DialogDescription>
-            This product isn&apos;t counted yet. Enter how many you have and Effy starts keeping
+            This isn&apos;t counted yet. Enter how many you have and Effy starts keeping
             count from there.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
+          {sizeControl}
           <div className="grid gap-1.5">
             <Label htmlFor="start-units">Units in stock now</Label>
             <Input
@@ -299,7 +310,7 @@ export function StartTrackingDialog({
  * must not require them to know the current count at all — which they may not, if a sale landed while
  * they were walking back from the aisle.
  */
-export function AdjustStockDialog({ variantId, stock, open, onOpenChange }: DialogProps) {
+export function AdjustStockDialog({ variantId, stock, open, onOpenChange, sizeLabel, sizeControl }: DialogProps) {
   const setCount = useSetStockCount(variantId);
   const adjust = useAdjustStock(variantId);
 
@@ -342,13 +353,14 @@ export function AdjustStockDialog({ variantId, stock, open, onOpenChange }: Dial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Adjust stock</DialogTitle>
+          <DialogTitle>{titled("Adjust stock", sizeLabel)}</DialogTitle>
           <DialogDescription>
             Correct the counted quantity. Every change is recorded with who made it and why.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
+          {sizeControl}
           <div className="flex flex-wrap items-end gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="adjust-mode">Change</Label>

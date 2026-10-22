@@ -118,6 +118,7 @@ export function buildAttention(snapshot: TodaySnapshot, limit = ATTENTION_LIMIT)
     items.push({
       kind: "out_of_stock",
       productId: s.productId,
+      variantId: s.variantId,
       name: s.name,
       soldLast7Days: s.soldLast7Days,
       since: s.since,
@@ -136,6 +137,7 @@ export function buildAttention(snapshot: TodaySnapshot, limit = ATTENTION_LIMIT)
     items.push({
       kind: "low_stock",
       productId: s.productId,
+      variantId: s.variantId,
       name: s.name,
       onHand: s.onHand,
       daysOfCover: s.daysOfCover,

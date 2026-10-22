@@ -44,6 +44,8 @@ export type ShopAttentionItemDTO =
   | {
       kind: "out_of_stock"
       productId: string
+      /** 098 — the size that is out; `name` already says which ("Rice — 1 kg"). */
+      variantId: string
       name: string
       /**
        * Units sold in the last 7 days. ⚠ The design said "17 views today"; the platform records no
@@ -56,6 +58,8 @@ export type ShopAttentionItemDTO =
   | {
       kind: "low_stock"
       productId: string
+      /** 098 — the size that is low. */
+      variantId: string
       name: string
       onHand: WireInt
       /** Null when the product has no recorded sales — cover cannot be derived from no demand. */

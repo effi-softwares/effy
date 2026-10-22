@@ -67,6 +67,15 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   errors only after a cell is left or on Next/Save, and "Apply first to all" for price and weight. Defect found:
   printed pick lists (Today and the order screen) dropped the size label — fixed. **Operator**: `make db-up
   ENV=dev`, then deploy `commerce`, `shop`, `catalog`, `storefront`, `orders`, `admin-promotions`, then push.
+- **AMENDMENT 2 (2026-10-22) — sizes are counted; stock always names its size (FR-029).** A new variant now starts
+  **tracked at 0** (`applyVariantSet`), so it cannot be bought until the shop adds stock; migration
+  `20261028090000_variants_counted_by_default.sql` converted every existing untracked size the same way (a
+  `tracking_enabled` movement each) — ⚠ dev sizes are unbuyable until stocked. Defects found reviewing stock after the
+  first walk: (1) the product header's Receive/Add stock wrote to whichever size the Inventory section had selected
+  and never said which — dialogs now name the size and the header chooses it; (2) Today's low/out-of-stock rows were
+  keyed by product (two sizes collided; Restock opened no size) — now `variantId`, opening `?size=`; (3) stock
+  notifications tracked occurrences per PRODUCT, so restocking one size could close another's alert — now per size.
+  **Operator**: `make db-up ENV=dev`, deploy `shop`, push; then add stock to the sizes you want to sell.
 - ⚠ **DEPLOY GOTCHA (hit 2026-10-22): an HTTP API cannot rename a path variable in one deploy.** CloudFormation
   creates `…/cart/items/{variantId}` before deleting `…/cart/items/{productId}`, and API Gateway refuses two
   variables at one level (409 "conflicting variable on the same hierarchical level"); the `commerce` stack rolled

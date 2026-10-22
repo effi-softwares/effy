@@ -14,10 +14,9 @@ import { describe, expect, it } from "vitest"
  *
  * None of them survives contact with this platform:
  *
- *   • VARIANTS — THERE ARE NONE. `public.product` is one row per sellable thing. No variant table, no
- *     variant column, no code path anywhere that groups products under a parent. A per-variant stock
- *     panel needs a data model invented for it, and the storefront, the cart, the picker and the
- *     driver app would all know nothing about the concept.
+ *   • VARIANTS — LIFTED BY 098. Stock is now counted per variant, shown one size at a time. What
+ *     stays refused below is the mockup's own variant MANAGEMENT here: sizes are edited in the
+ *     Sizes and prices section, through Effy's review, never from the stock screen.
  *   • RESERVED UNITS — NOTHING RESERVES STOCK. 054's A6 recorded this as an ACCEPTED residual in
  *     writing: between creating a payment and it succeeding another shopper can take the last unit,
  *     and closing that window needs a reservation table plus an abandoned-checkout sweep the platform

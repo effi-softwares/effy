@@ -39,6 +39,7 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
       {
         kind: "out_of_stock",
         productId: "p5",
+        variantId: "v5",
         name: "Beeswax wrap set",
         soldLast7Days: 17,
         since: "2026-09-14T01:00:00.000Z",
@@ -170,7 +171,7 @@ describe("Today (US1)", () => {
       "href",
       "/orders?tab=new",
     )
-    expect(screen.getByRole("link", { name: "Restock" })).toHaveAttribute("href", "/catalog/p5")
+    expect(screen.getByRole("link", { name: "Restock" })).toHaveAttribute("href", "/catalog/p5?size=v5")
   })
 
   it("opens each live row on the order it displays (FR-009)", async () => {
@@ -279,6 +280,12 @@ describe("⚠ FR-006 — one value, everywhere it appears", () => {
     expect(row.title).toBe("1 order awaiting pick")
     expect(row.detail.startsWith(unitsToPack(1))).toBe(true)
     expect(unitsToPack(1)).toBe("1 unit to pack")
+  })
+
+  it("098 — a stock row opens its product on the size that needs stock", () => {
+    expect(
+      attentionHref({ kind: "low_stock", productId: "p5", variantId: "v5-1kg", name: "Rice — 1 kg", onHand: 2, daysOfCover: null, since: NOW }),
+    ).toBe("/catalog/p5?size=v5-1kg")
   })
 
   it("routes a proposed refund to the order it is about", () => {

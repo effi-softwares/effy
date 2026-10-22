@@ -75,13 +75,15 @@ export function subjectKeyFor(item: AttentionItem): string {
       return "";
     case "out_of_stock":
     case "low_stock":
-      return item.productId;
+      // 098 — stock is per SIZE: two sizes of one product are two situations, and restocking one
+      // must not close the other.
+      return item.variantId;
     case "refund_proposed":
       return item.fulfillmentId;
   }
 }
 
-/** The entity a notification for this kind should open. */
+/** The entity a notification for this kind should open (the product; its page shows the size). */
 function entityIdFor(item: AttentionItem): string {
   switch (item.kind) {
     case "awaiting_pick":

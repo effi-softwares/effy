@@ -72,8 +72,8 @@ const NOW = new Date("2026-09-19T04:00:00Z");
 /** A Today snapshot with whatever attention conditions the test wants true. */
 function snapshot(over: {
   awaitingPick?: { orders: number; units: number };
-  out?: Array<{ productId: string; name: string }>;
-  low?: Array<{ productId: string; name: string }>;
+  out?: Array<{ productId: string; name: string; variantId?: string }>;
+  low?: Array<{ productId: string; name: string; variantId?: string }>;
   proposals?: Array<{ fulfillmentId: string; orderNumber: string }>;
 } = {}) {
   return {
@@ -87,7 +87,9 @@ function snapshot(over: {
       lowStock: { skus: 0, outOfStock: 0 },
     },
     stock: [
+      // 098 — each row is one size; the fixture's sizes are named after their products.
       ...(over.out ?? []).map((p) => ({
+        variantId: `${p.productId}-v`,
         ...p,
         severity: "out" as const,
         onHand: 0,
@@ -96,6 +98,7 @@ function snapshot(over: {
         since: NOW,
       })),
       ...(over.low ?? []).map((p) => ({
+        variantId: `${p.productId}-v`,
         ...p,
         severity: "low" as const,
         onHand: 2,
@@ -125,6 +128,20 @@ describe("A1/A2 — once per occurrence", () => {
     expect(r.appeared).toBe(1);
     expect(db.intents).toHaveLength(1);
     expect(db.intents[0]!.type).toBe("shop_out_of_stock");
+  });
+
+  it("098 — two sizes of one product are two occurrences; restocking one leaves the other open", async () => {
+    readToday.mockResolvedValue(snapshot({
+      out: [
+        { productId: "p1", variantId: "p1-500g", name: "Rice — 500 g" },
+        { productId: "p1", variantId: "p1-1kg", name: "Rice — 1 kg" },
+      ],
+    }));
+    expect((await evaluateShop(SHOP)).appeared).toBe(2);
+
+    readToday.mockResolvedValue(snapshot({ out: [{ productId: "p1", variantId: "p1-1kg", name: "Rice — 1 kg" }] }));
+    const after = await evaluateShop(SHOP);
+    expect(after.appeared).toBe(0); // the 1 kg is the SAME open situation, not a new one
   });
 
   it("⚠ A2: a second run over an unchanged condition enqueues NOTHING", async () => {

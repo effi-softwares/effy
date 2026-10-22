@@ -25,6 +25,7 @@ function toAttentionDTO(i: AttentionView["items"][number]): ShopAttentionItemDTO
       return {
         kind: i.kind,
         productId: i.productId,
+        variantId: i.variantId,
         name: i.name,
         soldLast7Days: i.soldLast7Days,
         since: i.since.toISOString(),
@@ -33,6 +34,7 @@ function toAttentionDTO(i: AttentionView["items"][number]): ShopAttentionItemDTO
       return {
         kind: i.kind,
         productId: i.productId,
+        variantId: i.variantId,
         name: i.name,
         onHand: i.onHand,
         daysOfCover: i.daysOfCover,

@@ -10,10 +10,14 @@ import { appRoute } from "./app";
 export const catalogProductRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "catalog/$productId",
+  // 098 — `?size=` opens the stock section on one size (Today's "Restock" names the size it means).
+  validateSearch: (search: Record<string, unknown>): { size?: string } =>
+    typeof search.size === "string" ? { size: search.size } : {},
   component: CatalogProductScreen,
 });
 
 function CatalogProductScreen() {
   const { productId } = catalogProductRoute.useParams();
-  return <ProductDetailScreen productId={productId} />;
+  const { size } = catalogProductRoute.useSearch();
+  return <ProductDetailScreen productId={productId} initialSize={size} />;
 }

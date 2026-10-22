@@ -13,6 +13,7 @@ import { AdjustStockDialog } from "./StockDialogs";
 import { InventoryRulesDialog } from "./InventoryRulesDialog";
 import { StockHistory } from "./StockHistory";
 import { variantStockQuery } from "./stockQueries";
+import { sizeLabelOf } from "./variants";
 
 /**
  * The Inventory section of the product detail screen, rebuilt to the imported mockup (057).
@@ -30,11 +31,9 @@ import { variantStockQuery } from "./stockQueries";
  * of this directory and fails naming the file, because the next person to read the mockup will find
  * all three perfectly reasonable:
  *
- *   • BY-VARIANT BREAKDOWN + "Manage variants". THE PLATFORM HAS NO VARIANTS. `public.product` is one
- *     row per sellable thing; there is no variant table, no variant column, and no code path anywhere
- *     that groups products under a parent. A per-variant stock table would need a data model invented
- *     for it, and inventing one to satisfy a mockup is how a console grows a concept the storefront,
- *     the cart, the picker and the driver app all know nothing about.
+ *   • (LIFTED BY 098) BY-VARIANT STOCK. Variants now exist and stock is counted per variant: this
+ *     section shows ONE size at a time, chosen with the Size picker (and opened on a size by Today's
+ *     `?size=`); every stock dialog names the size in its title.
  *   • RESERVED UNITS. Nothing reserves stock. 054's A6 recorded this in writing as an ACCEPTED
  *     residual: between creating a payment and it succeeding another shopper can take the last unit,
  *     and closing that window would need a reservation table plus an abandoned-checkout sweep the
@@ -102,7 +101,7 @@ export function InventorySection({
           <Field
             label="Stock tracking"
             size="figure"
-            value={stock.tracked ? "On" : "Off — this product can be bought without limit"}
+            value={stock.tracked ? "On" : "Off — this size can be bought without limit"}
           />
           {stock.tracked ? (
             <>
@@ -142,10 +141,8 @@ export function InventorySection({
         ) : null}
       </DetailSection>
 
-      {/* ⚠ THE MOCKUP'S SECOND INVENTORY SECTION IS "Variants". The platform has no variants (see the
-          docblock), so the slot carries the thing it does have and an operator actually needs beside
-          a count: every movement of it, who caused it, and the one write that corrects it. Like the
-          mockup's variant list it is a genuine data table, so it keeps its own row rules. */}
+      {/* The selected size's movements: every change to its count, who caused it, and the one write
+          that corrects it. (098 — sizes and their prices are the Sizes and prices section.) */}
       <DetailSection
         title="Stock movements"
         subtitle="Every change to the count, with who made it and why."
@@ -183,6 +180,7 @@ export function InventorySection({
           stock={stock}
           open={adjustOpen}
           onOpenChange={setAdjustOpen}
+          sizeLabel={sizeLabelOf(detail, variantId)}
         />
       ) : null}
     </>
@@ -193,14 +191,28 @@ export function InventorySection({
  * 098 — which size's stock the tab shows. Each size is its own shelf with its own count, rules and
  * history; a product sold in one size shows no picker at all.
  */
-function SizePicker({ detail, variantId, onChange }: { detail: ProductDetail; variantId: string; onChange: (id: string) => void }) {
+/**
+ * Which size a count belongs to — on the Inventory section, and inside a stock dialog opened from the
+ * page header. Nothing for a product sold one way.
+ */
+export function SizePicker({
+  detail,
+  variantId,
+  onChange,
+  id = "stock-size",
+}: {
+  detail: ProductDetail;
+  variantId: string;
+  onChange: (id: string) => void;
+  id?: string;
+}) {
   const live = detail.variants.filter((v) => v.state !== "removed");
   if (live.length <= 1) return null;
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Label htmlFor="stock-size">Size</Label>
+      <Label htmlFor={id}>Size</Label>
       <Select value={variantId} onValueChange={onChange}>
-        <SelectTrigger id="stock-size" className="w-[240px]">
+        <SelectTrigger id={id} className="w-[240px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -234,8 +246,8 @@ function thresholdText(own: number | null, effective: number | null): string {
  * not counted yet. It needs the same stock read this section makes and so shares its cache entry
  * rather than issuing a second one.
  *
- * ⚠ IT USED TO BE DISABLED WHENEVER TRACKING WAS OFF, WHICH IS MOST PRODUCTS. Tracking is opt-in per
- * product (054) and defaults to off, so the platform's own default put a dead control in the header
+ * ⚠ IT USED TO BE DISABLED WHENEVER TRACKING WAS OFF, which before 098 was most products (tracking
+ * defaulted to off; since 098 a new size is counted from the start), so the default put a dead control in the header
  * of nearly every product page, explaining itself only in a `title` attribute a touch device never
  * shows. The refusal was TRUE — there is no count to receive into — but it answered a question the
  * operator was not asking. "We just got 24 of these" is the same intent whether or not a count

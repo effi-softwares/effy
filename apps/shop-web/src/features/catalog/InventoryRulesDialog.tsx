@@ -17,6 +17,7 @@ import {
 import type { ProductDetail } from "./model";
 import { stockErrorText } from "./stockErrorText";
 import { useSetStockThreshold, useSetStockTracking } from "./stockQueries";
+import { sizeLabelOf } from "./variants";
 
 /**
  * The mockup's "Edit rules" sheet — the STANDING facts about how this product's stock behaves, as
@@ -51,6 +52,8 @@ export function InventoryRulesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  // 098 — tracking and the threshold are per size; the title says which.
+  const size = sizeLabelOf(detail, variantId);
   const setTracking = useSetStockTracking(variantId);
   const setThreshold = useSetStockThreshold(variantId);
 
@@ -115,7 +118,7 @@ export function InventoryRulesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Inventory rules</DialogTitle>
+          <DialogTitle>{size ? `Inventory rules — ${size}` : "Inventory rules"}</DialogTitle>
           <DialogDescription>
             How this product&apos;s stock behaves. Changing a rule here never moves the count.
           </DialogDescription>

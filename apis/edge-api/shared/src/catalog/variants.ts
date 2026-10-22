@@ -162,16 +162,18 @@ export async function applyVariantSet(tx: Queryable, input: ApplyVariantSetInput
     }
     await tx.query(`SET CONSTRAINTS public.product_option_position_uq, public.product_option_value_position_uq IMMEDIATE`);
 
-    // 4. Variants, upserted by id. Stock and state are never touched here; a new variant starts active
-    //    and untracked, and gets its customer price from `priceVariants`.
+    // 4. Variants, upserted by id. A NEW variant starts active and COUNTED AT ZERO — it cannot be bought
+    //    until the shop adds stock (098: tracked by default; a shop may switch counting off per size,
+    //    for made-to-order items, through the stock writers). An existing variant's stock and state are
+    //    never touched here. Its customer price comes from `priceVariants`.
     for (const v of variants) {
       const weight = v.weightGrams ?? null;
       await tx.query(
         `INSERT INTO public.product_variant (
              id, product_id, shop_id, option1_value_id, option2_value_id, position, sku, gtin,
              shop_price_amount, shop_compare_at_amount, weight_grams, weight_is_assumed,
-             pack_quantity, pack_unit, media_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::int, 500), $11::int IS NULL, $12, $13, $14)
+             pack_quantity, pack_unit, media_id, stock_tracked, stock_on_hand)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11::int, 500), $11::int IS NULL, $12, $13, $14, true, 0)
          ON CONFLICT (id) DO UPDATE SET
              option1_value_id       = EXCLUDED.option1_value_id,
              option2_value_id       = EXCLUDED.option2_value_id,

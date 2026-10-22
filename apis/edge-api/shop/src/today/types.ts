@@ -24,6 +24,8 @@ export interface Backlog {
 /** A product that needs restocking, with the demand behind it. */
 export interface StockAttention {
   productId: string;
+  /** 098 — stock is per size; this row is one size (its name says which). */
+  variantId: string;
   name: string;
   onHand: number;
   /** Units sold in the last 7 days — the real demand fact (the design's "17 views" does not exist). */
@@ -78,10 +80,11 @@ export interface TodaySnapshot {
  */
 export type AttentionItem =
   | { kind: "awaiting_pick"; orders: number; units: number; since: Date }
-  | { kind: "out_of_stock"; productId: string; name: string; soldLast7Days: number; since: Date }
+  | { kind: "out_of_stock"; productId: string; variantId: string; name: string; soldLast7Days: number; since: Date }
   | {
       kind: "low_stock";
       productId: string;
+      variantId: string;
       name: string;
       onHand: number;
       daysOfCover: number | null;

@@ -246,6 +246,13 @@ export function draftFromDetail(detail: ProductDetailDTO): VariantSetDraft {
   };
 }
 
+/** 098 — the size's words for a stock title ("1 kg"); null for a product sold one way. */
+export function sizeLabelOf(detail: Pick<ProductDetailDTO, "variants">, variantId: string): string | null {
+  const live = detail.variants.filter((v) => v.state !== "removed");
+  if (live.length <= 1) return null;
+  return live.find((v) => v.id === variantId)?.label ?? null;
+}
+
 /** The size whose stock a page opens on: the first on sale, else the first not removed. */
 export function defaultStockVariantId(detail: Pick<ProductDetailDTO, "variants">): string | null {
   const live = detail.variants.filter((v) => v.state !== "removed");

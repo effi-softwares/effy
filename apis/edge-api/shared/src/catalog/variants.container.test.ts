@@ -229,7 +229,7 @@ d("098 — product variants against real PostgreSQL", () => {
     expect(await tx((c) => setVariantState(c, { productId: id, shopId: other, variantId: cheap.id, state: "active" }))).toBe("not_found");
   });
 
-  it("a product is available while ANY variant is purchasable; a sold-out or off-sale variant is not", async () => {
+  it("a NEW size is counted at zero and cannot be bought until stocked; a product sells while ANY size can", async () => {
     const id = await newProduct();
     const { options, ids } = sizes("500 g", "1 kg");
     const a = row(0, [ids[0]!, null], "3.00");
@@ -237,7 +237,6 @@ d("098 — product variants against real PostgreSQL", () => {
     await tx((c) => applyVariantSet(c, { productId: id, shopId, options, variants: [a, b], mode: "draft" }));
     await tx((c) => priceVariants(c, id, null));
     await pool.query(`UPDATE public.product SET approved_at = now(), status = 'active' WHERE id = $1`, [id]);
-    await pool.query(`UPDATE public.product_variant SET stock_tracked = true, stock_on_hand = 0 WHERE id = $1`, [a.id]);
 
     const buyable = async () => (await pool.query<{ id: string }>(
       `SELECT v.id::text FROM public.product_variant v JOIN public.product p ON p.id = v.product_id
@@ -245,10 +244,24 @@ d("098 — product variants against real PostgreSQL", () => {
     )).rows.map((r) => r.id);
     const available = async () => (await pool.query(`SELECT 1 FROM public.product p WHERE p.id = $1 AND ${productAvailableSql("p")}`, [id])).rowCount;
 
+    // Created by the one writer: tracked, zero on the shelf — nothing to sell yet.
+    const created = (await pool.query(`SELECT stock_tracked AS t, stock_on_hand AS n FROM public.product_variant WHERE product_id = $1`, [id])).rows;
+    expect(created).toEqual([{ t: true, n: 0 }, { t: true, n: 0 }]);
+    expect(await buyable()).toEqual([]);
+    expect(await available()).toBe(0);
+
+    // Stock one size: the product sells, through that size only.
+    await pool.query(`UPDATE public.product_variant SET stock_on_hand = 5 WHERE id = $1`, [b.id]);
     expect(await buyable()).toEqual([b.id]);
     expect(await available()).toBe(1);
+
+    // A shop may switch counting off (made to order): that size sells without a count.
+    await pool.query(`UPDATE public.product_variant SET stock_tracked = false, stock_on_hand = NULL WHERE id = $1`, [a.id]);
+    expect(await buyable()).toEqual([a.id, b.id]);
+
+    // Off sale, and the other sold out: nothing to buy.
     await tx((c) => setVariantState(c, { productId: id, shopId, variantId: a.id, state: "inactive" }));
-    await pool.query(`UPDATE public.product_variant SET stock_tracked = true, stock_on_hand = 0 WHERE id = $1`, [b.id]);
+    await pool.query(`UPDATE public.product_variant SET stock_on_hand = 0 WHERE id = $1`, [b.id]);
     expect(await buyable()).toEqual([]);
     expect(await available()).toBe(0);
   });

@@ -16,7 +16,8 @@ import {
 import { track } from "@/lib/telemetry";
 
 import { productMutationError } from "./errorText";
-import { ReceiveStockButton } from "./InventorySection";
+import { ReceiveStockButton, SizePicker } from "./InventorySection";
+import { sizeLabelOf } from "./variants";
 import type { ProductDetail } from "./model";
 import { useChangeStatus, useDeleteProduct, useSubmitForReview, useWithdrawReview } from "./queries";
 import { ReceiveStockDialog, StartTrackingDialog } from "./StockDialogs";
@@ -51,8 +52,14 @@ export function ProductHeaderActions({
   onDeleted: () => void;
 }) {
   const changeStatus = useChangeStatus(detail.id);
-  const stock = useQuery(variantStockQuery(stockVariantId));
+  // 098 — stock is per size. The header's dialog opens on the size the Inventory section shows, names
+  // it in its title, and lets the operator pick another — it never writes to a size nobody chose.
+  const [receiveVariantId, setReceiveVariantId] = useState(stockVariantId);
+  const stock = useQuery(variantStockQuery(receiveVariantId));
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const sizeControl = (
+    <SizePicker detail={detail} variantId={receiveVariantId} onChange={setReceiveVariantId} id="receive-size" />
+  );
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,7 +106,13 @@ export function ProductHeaderActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <ReceiveStockButton variantId={stockVariantId} onReceive={() => setReceiveOpen(true)} />
+      <ReceiveStockButton
+        variantId={stockVariantId}
+        onReceive={() => {
+          setReceiveVariantId(stockVariantId);
+          setReceiveOpen(true);
+        }}
+      />
 
       {action ? (
         <Button
@@ -129,8 +142,8 @@ export function ProductHeaderActions({
           about to commit a number.
 
           ⚠ WHICH DIALOG DEPENDS ON THE PRODUCT, and the button's own label already said which one is
-          coming. Tracking is opt-in per product (054) and OFF by default, so an untracked product is
-          the common case, not the edge one: it gets `StartTrackingDialog`, which turns counting on and
+          coming. Since 098 a new size is COUNTED from the start (at zero); a size whose counting a shop
+          switched off (made to order), or one from before that rule, gets `StartTrackingDialog`, which turns counting on and
           records the opening count in a single request. A tracked product gets the additive receive.
           The two are not one dialog with a mode, because the operator is not choosing between them —
           the product's own state decides, and a mode switch would offer a choice with one right
@@ -138,16 +151,20 @@ export function ProductHeaderActions({
       {stock.data ? (
         stock.data.stock.tracked ? (
           <ReceiveStockDialog
-            variantId={stockVariantId}
+            variantId={receiveVariantId}
             stock={stock.data.stock}
             open={receiveOpen}
             onOpenChange={setReceiveOpen}
+            sizeLabel={sizeLabelOf(detail, receiveVariantId)}
+            sizeControl={sizeControl}
           />
         ) : (
           <StartTrackingDialog
-            variantId={stockVariantId}
+            variantId={receiveVariantId}
             open={receiveOpen}
             onOpenChange={setReceiveOpen}
+            sizeLabel={sizeLabelOf(detail, receiveVariantId)}
+            sizeControl={sizeControl}
           />
         )
       ) : null}

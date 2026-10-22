@@ -133,7 +133,8 @@ function keyOf(item: ShopAttentionItemDTO): string {
       return "awaiting_pick"
     case "out_of_stock":
     case "low_stock":
-      return `${item.kind}:${item.productId}`
+      // 098 — one row per SIZE: two sizes of one product can both be low.
+      return `${item.kind}:${item.variantId}`
     case "refund_proposed":
       return `refund:${item.fulfillmentId}`
   }
