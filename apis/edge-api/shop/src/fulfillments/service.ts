@@ -3,6 +3,8 @@
 
 import { withTransaction } from "@effy/edge-shared";
 import { ConsignmentRefusal, handOver } from "@effy/edge-shared/delivery";
+import { liveParcels, recordHandovers } from "@effy/edge-shared/labels";
+import type { ParcelHandover } from "@effy/shared-types";
 import { announceOrder } from "@effy/edge-shared/live";
 import { announceMoves } from "@effy/edge-shared/live";
 import * as repo from "./repository";
@@ -217,14 +219,33 @@ export type { FulfillmentStatus };
  * someone else's) and one nobody has booked yet (`not_booked` → 409): a shop cannot tell the customer
  * a courier has it before staff have arranged one.
  */
-export async function courierHandover(actor: Actor, fulfillmentId: string, reference: string | null): Promise<FulfillmentDetail> {
+export async function courierHandover(
+  actor: Actor,
+  fulfillmentId: string,
+  reference: string | null,
+  parcels?: ReadonlyArray<Partial<ParcelHandover>>,
+): Promise<FulfillmentDetail> {
   const before = await repo.readStatus(fulfillmentId, actor.shopId);
   if (before === null) throw notFound();
   let out;
   try {
-    out = await withTransaction((tx) =>
-      handOver(tx, { packageId: fulfillmentId, actor: { kind: "shop", sub: actor.sub, staffId: actor.staffId }, reference }),
-    );
+    out = await withTransaction(async (tx) => {
+      const done = await handOver(tx, { packageId: fulfillmentId, actor: { kind: "shop", sub: actor.sub, staffId: actor.staffId }, reference });
+      // 096 — one hand-over row per bag, in the same transaction, only the first time (a repeat records
+      // nothing new). A bag the client did not say it scanned went by hand.
+      if (done.created && actor.staffId) {
+        const bags = await liveParcels(tx, [fulfillmentId]);
+        const said = new Map((parcels ?? []).filter((p) => p?.parcelCode || p?.parcelId).map((p) => [String(p.parcelId ?? p.parcelCode).toUpperCase(), p.method]));
+        await recordHandovers(tx, {
+          step: "courier_handover",
+          actor: { kind: "shop_staff", staffId: actor.staffId },
+          changeId: crypto.randomUUID(),
+          parcels: bags.map((b) => ({ parcelId: b.parcelId, method: said.get(b.parcelId.toUpperCase()) ?? said.get(b.code) ?? "manual" })),
+          allowed: new Map(bags.map((b) => [b.parcelId, fulfillmentId])),
+        });
+      }
+      return done;
+    });
   } catch (err) {
     if (err instanceof ConsignmentRefusal) {
       if (err.code === "not_found" || err.code === "not_courier" || err.code === "not_standard") throw notFound();

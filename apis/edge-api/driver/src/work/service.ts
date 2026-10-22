@@ -9,7 +9,7 @@ import { readRoundStage, toReturnOnRound } from "@effy/edge-shared/delivery";
 import { liveParcelsByPackage } from "@effy/edge-shared/labels";
 
 import { dropStatusOf } from "./drop-status";
-import { hubSortOf } from "./hub-sort";
+import { hubSortOf } from "@effy/edge-shared/delivery";
 import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
 import type {
   CollectionStopDTO,

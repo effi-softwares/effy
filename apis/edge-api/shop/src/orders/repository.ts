@@ -11,7 +11,7 @@
 import { packageStatuses, presignRead, query, withTransaction, type Queryable } from "@effy/edge-shared";
 
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
-import { STATUS_WORD, type PackageStatusView, type ParcelCustody, type ParcelZone, type ShopLabelCommonDTO } from "@effy/shared-types";
+import { STATUS_WORD, parcelCustodyOf, type PackageStatusView, type ParcelZone, type ShopLabelCommonDTO } from "@effy/shared-types";
 
 import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
 import {
@@ -502,14 +502,6 @@ interface ParcelRecord {
   packed_on: Date | null;
 }
 
-function custodyOf(step: string | null): ParcelCustody {
-  if (step === null) return "at_shop";
-  if (step === "pack") return "packed";
-  if (step === "collect") return "with_driver";
-  if (step === "courier_handover" || step === "shop_pickup") return "with_courier";
-  return "beyond";
-}
-
 export async function readOrder(fulfillmentId: string, shopId: string): Promise<OrderDetail> {
   const head = await query<HeadRecord>(READ_HEAD, [fulfillmentId, shopId]);
   const row = head.rows[0];
@@ -517,7 +509,7 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   if (!row) throw new FulfillmentError("not_found", "order not found");
 
   const args = [fulfillmentId, shopId];
-  const [lines, refunds, tags, notes, label, bags, zones] = await Promise.all([
+  const [lines, refunds, tags, notes, label, bags, zones, scanRule] = await Promise.all([
     query<LineRecord>(READ_LINES, args),
     query<RefundRecord>(READ_REFUNDS, args),
     query<{ tag: string }>(READ_TAGS, args),
@@ -525,6 +517,8 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
     query<{ package_code: string; position: number; package_count: number; cold: "frozen" | "chilled" | null }>(READ_LABEL, args),
     query<ParcelRecord>(READ_PARCELS, args),
     query<{ storage_class: ParcelZone }>(READ_ZONES_NEEDED, args),
+    // 096 — whether back-office requires every bag scanned as packed (fleet writes it).
+    query<{ pack_scan_required: boolean }>(`SELECT pack_scan_required FROM public.shop WHERE id = $1`, [shopId]),
   ]);
   const lbl = label.rows[0]!;
 
@@ -607,10 +601,11 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
         current: b.printed_current,
       },
       packScanned: b.pack_scanned_at ? { at: b.pack_scanned_at.toISOString(), by: b.pack_scanned_by } : null,
-      custody: custodyOf(b.last_step),
+      custody: parcelCustodyOf(b.last_step),
     })),
     labelCommon: labelCommonOf(row, bags.rows[0]?.packed_on ?? null),
     zonesNeeded: zones.rows.map((z) => z.storage_class),
+    packScanRequired: scanRule.rows[0]?.pack_scan_required ?? false,
     tags: tags.rows.map((t) => t.tag),
     notes: notes.rows.map(
       (n): OrderNote => ({

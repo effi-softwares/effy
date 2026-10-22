@@ -44,15 +44,19 @@ function alarmedMetrics(): { metric: string; dimensions: Record<string, string> 
 describe("the commerce alarms watch what the code emits", () => {
   const alarms = alarmedMetrics();
 
-  it("found the alarms — ten conditions over eleven series", () => {
+  it("found the alarms — twelve conditions over thirteen series", () => {
     expect(alarms.map((a) => a.metric).sort()).toEqual([
       // 074 added the two points alarms: a late payer's shortfall, and a ledger that does not add up.
       // 078 added one: a covered address offered no window because none is switched on.
       "DeliveryQuoteFailures", "EffyWindowsNoneDefined", "PointsHoldShortfall", "PointsInvariantViolations", "RefundOutcomes", "RefundSubmitFailures",
-      "RefundSubmitFailures", "RefundsStuck", "SlotBookings", "StockBlocked", "WebhookFailures",
+      "RefundSubmitFailures", "RefundsStuck", "SlotBookings", "StockBlocked",
+      // 096 added two: a tax invoice asked for while Effy's tax details are unset, and a checkout refused
+      // over an unclassified product while invoices are on.
+      "TaxInvoiceRequestedWhileDisabled", "UnclassifiedProductRefused",
+      "WebhookFailures",
     ]);
-    // Nine in the map and the two-series one: ten alarms.
-    expect((tf.match(/^ {4}[a-z-]+ = \{$/gm) ?? []).length + (tf.match(/resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures"/g) ?? []).length).toBe(10);
+    // Eleven in the map and the two-series one: twelve alarms.
+    expect((tf.match(/^ {4}[a-z-]+ = \{$/gm) ?? []).length + (tf.match(/resource "aws_cloudwatch_metric_alarm" "commerce_refund_submit_failures"/g) ?? []).length).toBe(12);
   });
 
   it.each(alarms)("$metric $dimensions is emitted", ({ metric, dimensions }) => {

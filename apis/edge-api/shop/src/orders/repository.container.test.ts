@@ -50,6 +50,7 @@ import { readPickLists } from "../pick-lists/repository";
 import { readLiveOrders } from "../today/repository";
 import { listQueue, readDetail } from "../fulfillments/repository";
 import { courierHandover } from "../fulfillments/service";
+import { createFirstParcels } from "@effy/edge-shared/labels";
 import { toQueueDTO } from "../fulfillments/handler-support";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -539,6 +540,8 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     expect((await readLiveOrders(SHOP, 50)).find((r) => r.fulfillmentId === o.mine)?.courierPickup?.state).toBe("booked");
     expect((await listQueue(SHOP, "completed")).find((r) => r.id === o.mine)?.promise.courierPickup?.pickupFrom).toBe("13:00");
 
+    // 096 — the parcel's bags (bag 1 is made at payment; this fixture skips payment).
+    await createFirstParcels(pool, { packageIds: [o.mine] });
     const after = await courierHandover(SHOP_ACTOR, o.mine, null);
     expect(after.status).toBe("collected");
     expect(after.promise.courierPickup?.state).toBe("handed_over");
@@ -555,6 +558,13 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
       [o.mine],
     );
     expect(facts.rows[0]).toEqual({ handoffs: 1, driver_work: 0, state: "handed_over" });
+    // 096 — one hand-over row per bag, by shop staff, by hand; the repeat added none.
+    const bags = await pool.query(
+      `SELECT step, actor_kind, shop_staff_id, handover_method, parcel_id IS NOT NULL AS per_bag
+         FROM public.package_handover WHERE shop_fulfillment_id = $1`,
+      [o.mine],
+    );
+    expect(bags.rows).toEqual([{ step: "courier_handover", actor_kind: "shop_staff", shop_staff_id: STAFF, handover_method: "manual", per_bag: true }]);
     // The other shop's parcel is untouched.
     expect((await readOrder(o.theirs, OTHER_SHOP)).courierPickup?.state).toBe("booked");
   });

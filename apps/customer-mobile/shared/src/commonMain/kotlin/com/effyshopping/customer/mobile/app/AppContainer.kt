@@ -358,6 +358,11 @@ class AppContainer(
      */
     val resendReceipt: ResendReceipt by lazy { HttpReceiptResendRepository(edgeClient) }
 
+    /** 096 — the order's documents (the delivery note). */
+    val orderDocuments: com.effyshopping.customer.mobile.features.checkout.domain.OrderDocumentsRepository by lazy {
+        com.effyshopping.customer.mobile.features.checkout.data.HttpOrderDocumentsRepository(edgeClient)
+    }
+
     /**
      * 055 US2 — cancel an order. ⚠ Cancelling MOVES MONEY (it is a full refund); it lives with
      * checkout on the commerce service.

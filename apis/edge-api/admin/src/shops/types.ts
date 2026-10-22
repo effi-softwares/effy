@@ -42,6 +42,8 @@ export interface ShopDetail extends Shop {
   users: ShopUser[];
   /** 091 — how this shop's package labels scanned over the last [sinceDays] days. */
   labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
+  /** 096 — every bag must be scanned as packed before ready. Written only by fleet. */
+  packScanRequired?: boolean;
 }
 
 export interface ShopListItem {

@@ -29,6 +29,8 @@ export interface CheckoutLine {
   storageClass: string;
   /** What the SHOP is owed per unit, beside what the customer pays (067). */
   shopUnitCents: number;
+  /** 096 — false for a product nobody has classified as taxable or GST-free. */
+  gstClassified?: boolean;
 }
 
 /** One package's resolved delivery, as captured on the order. */
@@ -114,6 +116,7 @@ interface LineRow {
   requested_quantity: number;
   weight_grams: number;
   storage_class: string;
+  gst_classified: boolean;
 }
 
 const storageClassOrAmbient = (c: string) => (c === "frozen" || c === "chilled" ? c : "ambient");
@@ -126,6 +129,8 @@ export function generateOrderNumber(): string {
 
 export interface CheckoutStore {
   cartLines(customerId: string): Promise<CheckoutLine[]>;
+  /** 096 — whether tax invoices are on (`business_tax.invoices_enabled`); false while it is unset. */
+  invoicesEnabled(): Promise<boolean>;
   addressSnapshot(customerId: string, addressId: string): Promise<Record<string, unknown> | null>;
   paymentProfile(customerId: string): Promise<PaymentProfile>;
   setProviderCustomerId(customerId: string, providerCustomerId: string): Promise<void>;
@@ -166,6 +171,11 @@ export async function findOrderByIntent(q: Queryable, intentId: string): Promise
 export function createCheckoutStore(db: Queryable = pooled, transact: Transactor = withTransaction): CheckoutStore {
   return {
     /** The customer's PAYABLE cart lines, each already capped at what the shop can supply. */
+    async invoicesEnabled() {
+      const r = await db.query<{ on: boolean }>(`SELECT invoices_enabled AS on FROM public.business_tax LIMIT 1`);
+      return r.rows[0]?.on === true;
+    },
+
     async cartLines(customerId) {
       const rows = (
         await db.query<LineRow>(
@@ -193,7 +203,8 @@ SELECT ci.product_id::text AS product_id,
              FROM public.product_attribute_value pav
              JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
             WHERE pav.product_id = p.id AND ad.key = 'storage'
-            LIMIT 1), 'ambient') AS storage_class
+            LIMIT 1), 'ambient') AS storage_class,
+       p.gst_status IS NOT NULL AS gst_classified
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
@@ -206,7 +217,7 @@ ORDER BY ci.added_at ASC`,
         productId: r.product_id, shopId: r.shop_id, name: r.name,
         unitCents: parseCents(r.unit_price_amount), shopUnitCents: parseCents(r.shop_unit_price_amount),
         quantity: r.quantity, requestedQuantity: r.requested_quantity,
-        weightGrams: r.weight_grams, storageClass: r.storage_class,
+        weightGrams: r.weight_grams, storageClass: r.storage_class, gstClassified: r.gst_classified,
       }));
     },
 
@@ -338,8 +349,11 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
             `
 INSERT INTO public.order_item
     (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount,
-     storage_class, shop_unit_price_amount, shop_line_subtotal_amount)
-VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::numeric)`,
+     storage_class, shop_unit_price_amount, shop_line_subtotal_amount, gst_status)
+VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::numeric,
+        -- 096 — the product's GST status as it is NOW, frozen on the line: a later change to the
+        -- product never alters what this order's tax invoice says.
+        (SELECT p.gst_status FROM public.product p WHERE p.id = $2))`,
             [
               orderId, l.productId, l.shopId, l.name, formatCents(l.unitCents), l.quantity, formatCents(l.unitCents * l.quantity),
               storageClassOrAmbient(l.storageClass), formatCents(l.shopUnitCents), formatCents(l.shopUnitCents * l.quantity),

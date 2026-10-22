@@ -126,6 +126,7 @@ describe("Bags & labels (096)", () => {
     await userEvent.type(screen.getByRole("textbox", { name: "Scan or type a code" }), "wtm zhx");
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Bag 2 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Packed 0 of 3")).toBeInTheDocument();
     await waitFor(() => expect(packScanParcels).toHaveBeenCalled());
     expect(packScanParcels.mock.calls[0]![1]).toEqual([
       expect.objectContaining({ raw: "wtm zhx", method: "typed", outcome: "accepted", parcelCode: "WTMZHX" }),
@@ -139,5 +140,12 @@ describe("Bags & labels (096)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByText("Not expected here")).toBeInTheDocument();
     await waitFor(() => expect(packScanParcels.mock.calls[0]![1][0]).toMatchObject({ outcome: "not_on_this_work" }));
+  });
+
+  it("says when back-office requires pack scanning, and counts the bags packed", () => {
+    const at = { at: "2026-10-22T08:00:00Z", by: "staff" };
+    show(detail({ packScanRequired: true, parcels: [bag(1, { packScanned: at }), bag(2), bag(3, { zone: "frozen" })] }));
+    expect(screen.getByText(/Scan each bag as you pack it · required/)).toBeInTheDocument();
+    expect(screen.getByText("Packed 1 of 3")).toBeInTheDocument();
   });
 });

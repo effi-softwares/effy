@@ -236,8 +236,14 @@ async function readRoster(shopId: string): Promise<ShopUser[]> {
 export async function getShopDetail(shopId: string): Promise<ShopDetail | null> {
   const shop = await readShop(shopId);
   if (!shop) return null;
-  const [users, labelScanning] = await Promise.all([readRoster(shopId), readLabelScanning(shopId)]);
-  return { ...shop, users, labelScanning };
+  const [users, labelScanning, packScanRequired] = await Promise.all([
+    readRoster(shopId),
+    readLabelScanning(shopId),
+    // 096 — read here so the shop page shows it; the one writer is fleet's pack-scanning route.
+    query<{ pack_scan_required: boolean }>(`SELECT pack_scan_required FROM public.shop WHERE id = $1`, [shopId])
+      .then((r) => r.rows[0]?.pack_scan_required ?? false),
+  ]);
+  return { ...shop, users, labelScanning, packScanRequired };
 }
 
 /** 091 — the window the shop page counts label scanning over. */

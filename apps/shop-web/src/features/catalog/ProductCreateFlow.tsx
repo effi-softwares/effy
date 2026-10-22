@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Box, CupSoda, type LucideIcon, Package, SprayCan, UtensilsCrossed } from "lucide-react";
 
-import type { CreateProductRequest } from "@effy/shared-types";
+import type { GstStatus, CreateProductRequest } from "@effy/shared-types";
+import { GST_STATUS_WORDS } from "@effy/shared-types";
 import {
   Button,
   Input,
@@ -185,6 +186,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
         // ⚠ Omitted when blank, NOT sent as 0. An unanswered weight must record the platform's stated
         // assumption; a zero would ship free and nothing downstream would notice (FR-037).
         weightGrams: draft.weightGrams.trim() ? Number(draft.weightGrams.trim()) : null,
+        gstStatus: draft.gstStatus as GstStatus,
         attributes: collectAttributeInputs(selectedType, draft.attributes),
       };
       // 1) create the product row, 2) attach the primary image (see ordering note above).
@@ -580,6 +582,26 @@ function BasicsStep({
         </p>
       </div>
 
+      {/* 096 — every product is taxable or GST-free; it decides what a customer's tax invoice says. */}
+      <div className="space-y-2">
+        <Label htmlFor="p-gst">
+          GST<span className="ml-0.5 text-destructive">*</span>
+        </Label>
+        <Select value={draft.gstStatus} onValueChange={(v) => onField({ gstStatus: v as GstStatus })}>
+          <SelectTrigger id="p-gst" aria-describedby="p-gst-help">
+            <SelectValue placeholder="Choose…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="gst_free">{GST_STATUS_WORDS.gst_free}</SelectItem>
+            <SelectItem value="taxable">{GST_STATUS_WORDS.taxable}</SelectItem>
+          </SelectContent>
+        </Select>
+        <p id="p-gst-help" className="text-sm text-muted-foreground">
+          Most basic food is GST-free; prepared food, drinks other than milk and water, and household goods
+          are usually taxable. If you're not sure, ask your accountant — Effy reviews it.
+        </p>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="p-short">
           Short description<span className="ml-0.5 text-destructive">*</span>
@@ -721,6 +743,8 @@ function ReviewStep({
       ) : null}
       <dt className="text-muted-foreground">Shipping weight</dt>
       <dd>{draft.weightGrams.trim() ? `${draft.weightGrams.trim()} g` : "assumed"}</dd>
+      <dt className="text-muted-foreground">GST</dt>
+      <dd>{draft.gstStatus ? GST_STATUS_WORDS[draft.gstStatus] : "—"}</dd>
       <dt className="text-muted-foreground">Description</dt>
       <dd>{draft.shortDescription || "—"}</dd>
       </dl>

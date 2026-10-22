@@ -210,7 +210,7 @@ d("067 — shop product review against real PostgreSQL", () => {
   it("a draft is still edited in place, and both prices follow what the shop typed", async () => {
     const id = await makeProduct();
     const before = await getProduct(shopId, id);
-    await updateProduct(shopId, id, { expectedUpdatedAt: before.updatedAt, name: "Rye", priceAmount: "12.50" });
+    await updateProduct(shopId, id, { expectedUpdatedAt: before.updatedAt, name: "Rye", priceAmount: "12.50" }, "staff-sub");
     const row = (await pool.query(
       `SELECT name, price_amount::text, shop_price_amount::text FROM public.product WHERE id = $1`, [id],
     )).rows[0];
@@ -268,8 +268,8 @@ d("067 — shop product review against real PostgreSQL", () => {
     );
     const before = await liveSnapshot(id);
 
-    await updateProduct(shopId, id, { name: "Rye", priceAmount: "12.50" });
-    await updateProduct(shopId, id, { brand: "Acme", attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] });
+    await updateProduct(shopId, id, { name: "Rye", priceAmount: "12.50" }, "staff-sub");
+    await updateProduct(shopId, id, { brand: "Acme", attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] }, "staff-sub");
     await registerMedia(shopId, id, { storageKey: "new/three.jpg", isPrimary: true });
 
     expect(await liveSnapshot(id)).toBe(before);
@@ -291,9 +291,9 @@ d("067 — shop product review against real PostgreSQL", () => {
   /** FR-022 — changing it back proposes nothing, and leaves nothing in Effy's queue. */
   it("a proposal that no longer differs from the live product is deleted", async () => {
     const id = await makeProduct({ approved: true });
-    await updateProduct(shopId, id, { name: "Rye" });
+    await updateProduct(shopId, id, { name: "Rye" }, "staff-sub");
     expect(await changeCount(id)).toBe(1);
-    await updateProduct(shopId, id, { name: "Sourdough" });
+    await updateProduct(shopId, id, { name: "Sourdough" }, "staff-sub");
     expect(await changeCount(id)).toBe(0);
     expect((await getProduct(shopId, id)).reviewState).toBe("live");
   });
@@ -325,7 +325,7 @@ d("067 — shop product review against real PostgreSQL", () => {
   it("withdraw discards the pending change and the live product never moved", async () => {
     const id = await makeProduct({ approved: true });
     const before = await liveSnapshot(id);
-    await updateProduct(shopId, id, { name: "Rye" });
+    await updateProduct(shopId, id, { name: "Rye" }, "staff-sub");
     await registerMedia(shopId, id, { storageKey: "new/three.jpg", isPrimary: false, displayOrder: 2 });
     const out = await withdraw(shopId, id);
     expect(out.pendingChange).toBeNull();
@@ -336,7 +336,7 @@ d("067 — shop product review against real PostgreSQL", () => {
 
   it("editing a change Effy sent back returns it to the queue as a fresh submission", async () => {
     const id = await makeProduct({ approved: true });
-    await updateProduct(shopId, id, { name: "Rye" });
+    await updateProduct(shopId, id, { name: "Rye" }, "staff-sub");
     await pool.query(
       `UPDATE public.product_change SET state = 'sent_back', reason = 'Name is misleading',
               submitted_at = now() - interval '2 days' WHERE product_id = $1`, [id],
@@ -345,7 +345,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect(sentBack.reviewState).toBe("live_change_sent_back");
     expect(sentBack.reviewReason).toBe("Name is misleading");
 
-    await updateProduct(shopId, id, { name: "Dark rye" });
+    await updateProduct(shopId, id, { name: "Dark rye" }, "staff-sub");
     const row = (await pool.query(
       `SELECT state, reason, submitted_at > now() - interval '1 minute' AS fresh
          FROM public.product_change WHERE product_id = $1`, [id],
@@ -370,7 +370,7 @@ d("067 — shop product review against real PostgreSQL", () => {
   /** FR-024 / FR-025 / FR-026. */
   it("⚠ off sale and back on sale are immediate and never touch the pending change", async () => {
     const id = await makeProduct({ approved: true });
-    await updateProduct(shopId, id, { name: "Rye" });
+    await updateProduct(shopId, id, { name: "Rye" }, "staff-sub");
     const change = async () =>
       JSON.stringify((await pool.query(`SELECT proposed, state, updated_at::text FROM public.product_change WHERE product_id = $1`, [id])).rows);
     const before = await change();

@@ -88,6 +88,22 @@ locals {
       threshold   = 1
       description = "074 - the points ledger does not add up: a lot allocated beyond its points, a debit whose allocations do not match it, a negative balance, or a hold left on an order that is no longer pending. Something wrote points outside the shared module, or it has a bug. Check the pointsReconcile function's logs for which."
     }
+    tax-invoice-while-disabled = {
+      metric      = "TaxInvoiceRequestedWhileDisabled"
+      dimensions  = {}
+      statistic   = "Sum"
+      period      = 3600
+      threshold   = 1
+      description = "096 - a customer asked for a tax invoice and was told it is not available yet, because Effy's tax details are not set. Set the legal name, ABN and fee treatment in back-office > Settings > Tax, classify every product's GST status, then turn invoices on. (FR-084: nothing is issued until then; a placeholder is never printed.)"
+    }
+    unclassified-product-refused = {
+      metric      = "UnclassifiedProductRefused"
+      dimensions  = {}
+      statistic   = "Sum"
+      period      = 900
+      threshold   = 1
+      description = "096 - a checkout was refused because a product in the cart has no GST status while tax invoices are on. The customer was told only that it is unavailable. Set its status in back-office > Product review > GST missing."
+    }
     webhook-failing = {
       metric      = "WebhookFailures"
       dimensions  = {}

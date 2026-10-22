@@ -23,7 +23,8 @@ import { canDecideReview } from "./access";
 import { reviewActionError } from "./errorText";
 import { MarginField } from "./MarginField";
 import { KIND_LABEL, toMargin, waitingLabel, type MarginEntry } from "./model";
-import { marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries";
+import { GstMissing } from "./GstMissing";
+import { gstMissingQuery, marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries";
 
 /**
  * Product review (067) — what is waiting on Effy.
@@ -37,7 +38,7 @@ import { marginNotSetQuery, reviewQueueQuery, useSetMargin } from "./queries";
  * ⚠ A TABLE, NOT CARDS (Principle V): these are things to work through, not figures to admire.
  */
 export function ReviewQueueScreen() {
-  const [view, setView] = useState<"waiting" | "margin">("waiting");
+  const [view, setView] = useState<"waiting" | "margin" | "gst">("waiting");
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<ReviewKind | null>(null);
   const [shopId, setShopId] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function ReviewQueueScreen() {
   const queue = useQuery(reviewQueueQuery({ q, kind, shopId, cursor }));
   const oldest = useQuery(reviewQueueQuery({ q: "", kind: null, shopId: null, cursor: null }));
   const marginFirst = useQuery(marginNotSetQuery(null));
+  const gstMissing = useQuery(gstMissingQuery());
   // The filter's options. ⚠ A failed or slow shop list must not take the queue down with it.
   const shops = useQuery(shopListQuery({ page: 1, pageSize: 100 }));
 
@@ -82,6 +84,7 @@ export function ReviewQueueScreen() {
             [
               { key: "waiting", label: "Waiting for review", count: oldest.data?.total ?? oldest.data?.items.length },
               { key: "margin", label: "Margin not set", count: marginCount },
+              { key: "gst", label: "GST missing", count: gstMissing.data?.total },
             ] as const
           ).map((v) => (
             <button
@@ -128,6 +131,8 @@ export function ReviewQueueScreen() {
 
       {view === "margin" ? (
         <MarginNotSet />
+      ) : view === "gst" ? (
+        <GstMissing />
       ) : queue.isError ? (
         <ErrorState error={queue.error} onRetry={() => void queue.refetch()} />
       ) : queue.isPending ? (

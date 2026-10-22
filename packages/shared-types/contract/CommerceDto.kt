@@ -286,6 +286,16 @@ data class BillingDetailsDTO (
     val name: String? = null
 )
 
+/**
+ * 096 US8 — `PUT /commerce/v1/orders/{id}/business-identity`: the buyer's own business, for
+ * its invoice.
+ */
+@Serializable
+data class BusinessIdentityRequest (
+    val abn: String? = null,
+    val businessName: String? = null
+)
+
 @Serializable
 data class CancelOrderBody (
     val reason: String? = null
@@ -1265,6 +1275,49 @@ data class CheckoutPointsDTO (
 )
 
 /**
+ * `GET /commerce/v1/orders/{id}/delivery-note` — what was supplied, line by line.
+ */
+@Serializable
+data class DeliveryNoteDTO (
+    /**
+     * Always `DOCUMENT_CONTACT` (the approved customer mailbox).
+     */
+    val contact: String,
+
+    /**
+     * When the last of the order arrived.
+     */
+    val deliveredAt: String,
+
+    /**
+     * Merged by product across the order's packages, so nothing says how many suppliers filled
+     * it.
+     */
+    val lines: List<DeliveryNoteLineDTO>,
+
+    val orderNumber: String,
+    val placedAt: String
+)
+
+/**
+ * One line of the delivery note: a product, merged across the order's packages.
+ */
+@Serializable
+data class DeliveryNoteLineDTO (
+    val name: String,
+    val ordered: Long,
+    val status: DeliveryNoteLineStatus,
+    val supplied: Long
+)
+
+@Serializable
+enum class DeliveryNoteLineStatus(val value: String) {
+    @SerialName("part") Part("part"),
+    @SerialName("supplied") Supplied("supplied"),
+    @SerialName("unavailable") Unavailable("unavailable");
+}
+
+/**
  * One refinable dimension: category, brand, an attribute-definition key, or `offers` (043).
  */
 @Serializable
@@ -2174,6 +2227,91 @@ data class OrderSummaryDTO (
      * 086 — index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`).
      */
     val thumbnailWidths: List<List<Double>>? = null
+)
+
+/**
+ * 096 US8 — `GET /commerce/v1/orders/{id}/tax-documents`.
+ */
+@Serializable
+data class OrderTaxDocumentsDTO (
+    val adjustments: List<TaxDocumentDTO>,
+    val invoice: TaxDocumentDTO? = null
+)
+
+/**
+ * 096 US8 — a tax invoice or an adjustment note, exactly as issued: the frozen snapshot the
+ * PDF renders. Money is a decimal string ("12.34"). An issued document never changes.
+ */
+@Serializable
+data class TaxDocumentDTO (
+    /**
+     * The buyer's identity, printed at $1,000 or more; null below it.
+     */
+    val buyer: Buyer? = null,
+
+    val fees: List<Fee>,
+    val issuedAt: String,
+    val issuer: Issuer,
+    val kind: TaxDocumentDTOKind,
+    val lines: List<Line>,
+    val number: String,
+    val orderNumber: String,
+    val payments: List<Payment>,
+
+    /**
+     * An adjustment's invoice number.
+     */
+    val refersTo: String? = null,
+
+    val totals: Totals
+)
+
+@Serializable
+data class Buyer (
+    val abn: String? = null,
+    val businessName: String? = null,
+    val name: String
+)
+
+@Serializable
+data class Fee (
+    val amount: String,
+    val label: String,
+    val taxable: Boolean
+)
+
+@Serializable
+data class Issuer (
+    val abn: String,
+    val legalName: String
+)
+
+@Serializable
+enum class TaxDocumentDTOKind(val value: String) {
+    @SerialName("adjustment") Adjustment("adjustment"),
+    @SerialName("invoice") Invoice("invoice");
+}
+
+@Serializable
+data class Line (
+    val amount: String,
+    val name: String,
+    val quantity: Long,
+    val taxable: Boolean
+)
+
+@Serializable
+data class Payment (
+    val amount: String,
+    val label: String
+)
+
+@Serializable
+data class Totals (
+    val gst: String,
+    val gstFreeTotal: String,
+    val taxableTotal: String,
+    val total: String
 )
 
 /**

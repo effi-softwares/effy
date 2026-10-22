@@ -5,8 +5,10 @@ barcode and box-label printing, scanning, bills — what are the methods and bes
 Effy compare, and what have we done wrong? Scope: shop-web, the driver app, back-office and the
 customer surfaces. **The shop mobile app is out of scope** (stopped 2026-10-21).
 
-> **Status:** research only. Nothing here is specified or built. §5 proposes the features. Each goes
-> through `/specify` → `/plan` → `/tasks` as usual.
+> **Status:** §5's plan is **built as feature 096** ([specs/096-parcel-labels-scanning](../../../specs/096-parcel-labels-scanning/tasks.md),
+> 2026-10-22): a code and label per bag, per-bag hand-overs and reads, pack scanning, scan-to-find, the hub
+> station, the hand-over report, the delivery note, GST status and the tax invoice. Not yet migrated, deployed
+> or walked — see FEATURE-HISTORY.md (096). The analysis below is kept as written.
 
 **Short answer.** The label *code* is well designed: a permanent code with no look-alike characters, a
 versioned prefix, one definition shared by TypeScript and Kotlin, and no customer details on the label.

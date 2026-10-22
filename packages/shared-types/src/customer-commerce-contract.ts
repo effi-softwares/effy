@@ -71,6 +71,7 @@ import type {
   BillingDetailsDTO,
   BillingAddressDTO,
 } from "./payment";
+import type { BusinessIdentityRequest, DeliveryNoteDTO, OrderTaxDocumentsDTO } from "./documents";
 import type {
   OrderStatus,
   PaymentStatus,
@@ -289,4 +290,8 @@ export interface CustomerCommerceContract {
   refundRequest: RefundRequestDTO;
   createRefundRequest: CreateRefundRequestBody;
   cancelOrder: CancelOrderBody;
+  // ── 096 order documents ──
+  deliveryNote: DeliveryNoteDTO;
+  orderTaxDocuments: OrderTaxDocumentsDTO;
+  businessIdentity: BusinessIdentityRequest;
 }

@@ -15,6 +15,7 @@
  * helper (the `toShopRoles` pattern) so a value the back office adds later maps to nothing here
  * rather than throwing (docs/api/versioning-policy.md rule 4).
  */
+import type { GstStatus } from "./documents";
 import type { PagedDTO } from "./shop";
 
 export type { PagedDTO };
@@ -286,6 +287,8 @@ export interface ProductDetailDTO {
    * diverge, because packaging weighs something. Delivery is priced from this.
    */
   weightGrams: number;
+  /** 096 — taxable or GST-free; null on a product made before 096 and not yet classified. */
+  gstStatus: GstStatus | null;
   /**
    * ⚠ TRUE means nobody has recorded a real weight and the platform default is in use. Without this
    * flag "500 g" would mean both "we weighed it" and "nobody has said", and no operator could tell
@@ -347,6 +350,8 @@ export interface ProductChangeProposalDTO {
   priceAmount?: string;
   compareAtAmount?: string | null;
   weightGrams?: number;
+  /** 096 */
+  gstStatus?: GstStatus;
   attributes?: AttributeValueInputDTO[];
 }
 
@@ -387,6 +392,8 @@ export interface CreateProductRequest {
    * client said so".
    */
   weightGrams?: number | null;
+  /** 096 — required: every product is taxable or GST-free from the moment it exists (FR-091). */
+  gstStatus: GstStatus;
   attributes?: AttributeValueInputDTO[];
   sectionIds?: string[];
   primaryMediaStorageKey?: string | null;
@@ -409,6 +416,8 @@ export interface UpdateProductRequest {
   longDescription?: string | null;
   /** Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands. */
   weightGrams?: number | null;
+  /** 096 — on a live product this is PROPOSED and reviewed, like every other detail (067). */
+  gstStatus?: GstStatus;
   attributes?: AttributeValueInputDTO[];
 }
 

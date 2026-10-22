@@ -34,6 +34,12 @@ export { AddressNotFoundError };
 
 /** The cart has nothing that can be bought. */
 export class EmptyCartError extends Error {}
+/**
+ * 096 FR-093 — while tax invoices are on, a product nobody has classified as taxable or GST-free is
+ * not sold: its invoice could not say how much GST it carried. The customer is told only that it is
+ * unavailable.
+ */
+export class ProductUnavailableError extends Error {}
 /** The destination is in no active delivery zone — the single "not there yet" outcome (047). */
 export class NotServiceableError extends Error {}
 /** Raised for a missing order AND for someone else's. */
@@ -284,6 +290,10 @@ export function createCheckoutService(deps: {
       // ⚠ Refused HERE rather than left to the provider (070): an empty cart used to reach the
       // intent call with a zero amount and come back as an unexplained failure.
       if (lines.length === 0) throw new EmptyCartError();
+      if (lines.some((l) => l.gstClassified === false) && (await store.invoicesEnabled())) {
+        emitMetric(ns(), "UnclassifiedProductRefused");
+        throw new ProductUnavailableError();
+      }
 
       // ⚠ 054: lines that are out of stock have already dropped out of `cartLines`, and a
       // partly-supplied line arrives with its quantity already capped. So the subtotal — and

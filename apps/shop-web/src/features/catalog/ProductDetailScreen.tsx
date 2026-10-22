@@ -12,6 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@effy/design-system/ui";
+import { GST_STATUS_WORDS } from "@effy/shared-types";
 import { ErrorState } from "@effy/web-kit/console";
 
 import {
@@ -199,6 +200,7 @@ function ProductDetailBody({ productId }: { productId: string }) {
                     : `${detail.weightGrams} g`
                 }
               />
+              <Field label="GST" value={detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set"} />
               <Field label="Short description" value={detail.shortDescription} wide />
               <Field label="Long description" value={detail.longDescription ?? "—"} wide />
             </FieldGrid>

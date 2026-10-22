@@ -117,6 +117,7 @@ export async function heldPackages(): Promise<HeldPackageDTO[]> {
     reason: r.reason,
     note: r.note ?? null,
     createdAt: iso(r.created_at),
+    parcel: r.parcel_code ? { code: r.parcel_code, seq: Number(r.parcel_seq), of: Number(r.parcel_of), zone: r.parcel_zone } : null,
   }));
 }
 

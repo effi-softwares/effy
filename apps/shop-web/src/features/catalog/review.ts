@@ -1,3 +1,4 @@
+import { GST_STATUS_WORDS } from "@effy/shared-types";
 import type {
   AttributeDataType,
   ProductAttributeValueDTO,
@@ -153,6 +154,7 @@ export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): Pro
     );
   }
   if (p.weightGrams !== undefined) add("Shipping weight", `${detail.weightGrams} g`, `${p.weightGrams} g`);
+  if (p.gstStatus !== undefined) add("GST", detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set", GST_STATUS_WORDS[p.gstStatus]);
   if (p.productTypeId !== undefined) {
     const type = schema?.productTypes.find((t) => t.id === p.productTypeId);
     add("Type", detail.typeName, type?.name ?? "A different type");

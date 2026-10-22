@@ -50,9 +50,18 @@ const baseBody = {
   name: "Test Product",
   priceAmount: "9.99",
   shortDescription: "A tasty thing",
+  gstStatus: "gst_free",
 };
 
 describe("createProduct (validation, draft-first)", () => {
+  it("096 — refuses a product with no GST status, naming the field", async () => {
+    const { gstStatus: _omit, ...noGst } = baseBody;
+    await expect(createProduct("shop-1", noGst, "u1")).rejects.toMatchObject({
+      kind: "validation",
+      fields: expect.arrayContaining([{ field: "gstStatus", message: "choose Taxable or GST-free" }]),
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     repo.productTypeIsActive.mockResolvedValue(true);

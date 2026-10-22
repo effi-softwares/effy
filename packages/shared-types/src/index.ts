@@ -72,3 +72,5 @@ export * from "./points"
 export * from "./media"
 // 093-driver-work-sequence — one worded stage per run, read by the driver app and dispatch
 export * from "./run-stage"
+export * from "./brand-mark";
+export * from "./documents";

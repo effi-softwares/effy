@@ -327,6 +327,8 @@ export interface ShopOrderDetailDTO {
   labelCommon: ShopLabelCommonDTO
   /** 096 — the cold zones this package's lines need a bag for (a declaration without one is refused). */
   zonesNeeded: ParcelZone[]
+  /** 096 — back-office requires every bag to be scanned as packed before the order can be ready. */
+  packScanRequired: boolean
   lines: ShopOrderLineDTO[]
   money: ShopOrderMoneyDTO
   payment: ShopOrderPaymentDTO

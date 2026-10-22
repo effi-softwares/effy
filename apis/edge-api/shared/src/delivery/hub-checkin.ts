@@ -142,7 +142,7 @@ export async function closeRunCheckin(
 async function courierPickupLabel(tx: Tx, at: Date): Promise<string | null> {
   const svc = await tx.query(
     `SELECT pickup_weekdays::int[] AS weekdays, to_char(pickup_cutoff, 'HH24:MI') AS cutoff
-       FROM public.courier_service WHERE is_default AND status = 'active' LIMIT 1`,
+       FROM public.courier_service WHERE is_default AND status = 'active' LIMIT 1`, // availability-exempt: courier_service — a courier service, not a product
   );
   const row = svc.rows[0] as { weekdays: number[]; cutoff: string } | undefined;
   if (!row || row.weekdays.length === 0) return null;

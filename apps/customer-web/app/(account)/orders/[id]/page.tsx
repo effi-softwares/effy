@@ -3,7 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
-import type { OrderDTO } from "@effy/shared-types"
+import type { DeliveryNoteDTO, OrderDTO } from "@effy/shared-types"
 
 import { CancelOrder } from "./CancelOrder"
 import { RefundBlock } from "./RefundBlock"
@@ -12,6 +12,7 @@ import { RequestRefund } from "./RequestRefund"
 import { OrderAddresses } from "@/components/OrderAddresses"
 import { ArrivalPanel } from "@/components/receipt/ArrivalPanel"
 import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
+import { OrderDocuments } from "@/components/receipt/OrderDocuments"
 import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { LiveRefresh } from "@/components/live/LiveRefresh"
@@ -79,6 +80,15 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   if (!dto) notFound()
 
   const paid = dto.status === "paid"
+  // 096 — the delivery note, once everything has arrived (409 until then: shown as "not yet").
+  let note: DeliveryNoteDTO | null = null
+  if (paid && session?.accessToken) {
+    try {
+      note = await edgeApi(session).get<DeliveryNoteDTO>(`/commerce/v1/orders/${id}/delivery-note`, uncached())
+    } catch {
+      note = null
+    }
+  }
   const shortfalls = paid ? shortfallsFrom(dto.fulfillments) : []
   const itemCount = dto.items.reduce((n, i) => n + i.quantity, 0)
   // The same words the order list uses for this order — one definition (lib/order-summary.ts).
@@ -135,6 +145,8 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
               />
             </div>
           </ReceiptDocument>
+
+          {paid ? <OrderDocuments orderId={dto.id} note={note} /> : null}
 
           <DocumentStatusNote />
         </div>

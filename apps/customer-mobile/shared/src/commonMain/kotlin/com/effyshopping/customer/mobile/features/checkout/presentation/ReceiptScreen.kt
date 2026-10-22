@@ -462,6 +462,11 @@ private fun ReceiptBody(
         }
     }
 
+    // 096 US7 — the delivery note, on a paid order seen from history (not at the end of checkout).
+    if (receipt.paid && !confirmation) {
+        EffyCard(padding = EffySpacing.lg) { OrderDocumentsSection(container, receipt.id) }
+    }
+
     // ⚠ NOTHING AT ALL when there are no refunds (FR-028) — not an empty section.
     if (receipt.refunds.isNotEmpty()) {
         EffyCard(padding = EffySpacing.lg) { RefundSection(receipt) }

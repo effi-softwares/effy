@@ -22,7 +22,10 @@ export const PACKAGE_STATUS_FACTS = `
          -- 080 — an OPEN courier problem on the live consignment: its latest step is failed, lost,
          -- damaged or returned (a later resolved or delivered closes it, and moves the state on).
          (SELECT c.state FROM public.courier_consignment c
-           WHERE c.shop_fulfillment_id = sf.id AND c.state IN ('failed', 'lost', 'damaged', 'returned')) AS courier_problem
+           WHERE c.shop_fulfillment_id = sf.id AND c.state IN ('failed', 'lost', 'damaged', 'returned')) AS courier_problem,
+         -- 096 — bags of this package a driver declared missing that nobody has decided yet.
+         (SELECT count(*) FROM public.package_hold ph
+           WHERE ph.shop_fulfillment_id = sf.id AND ph.parcel_id IS NOT NULL AND ph.resolution IS NULL)::int AS bags_held
     FROM public.shop_fulfillment sf
     LEFT JOIN LATERAL (
       SELECT rp.state, d.name AS driver_name,
@@ -75,4 +78,6 @@ export interface PackageStatusFactsRow {
   arrived: boolean;
   /** 080 */
   courier_problem: string | null;
+  /** 096 */
+  bags_held?: number;
 }

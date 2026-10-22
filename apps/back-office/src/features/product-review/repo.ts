@@ -7,6 +7,8 @@ import type {
   ReviewQueueDTO,
   SendBackReviewRequest,
   SetMarginRequest,
+  GstBulkRequest,
+  GstMissingDTO,
 } from "@effy/shared-types";
 
 import { api } from "@/lib/api";
@@ -36,6 +38,16 @@ export async function listMarginNotSet(cursor?: string | null): Promise<MarginNo
   return api.get<MarginNotSetDTO>(
     `/catalog/v1/review/margin-not-set${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
   );
+}
+
+/** 096 — live products with no GST status yet. */
+export async function listGstMissing(): Promise<GstMissingDTO> {
+  return api.get<GstMissingDTO>("/catalog/v1/gst/missing");
+}
+
+/** 096 — set one GST status on many products; each is recorded. */
+export async function setGstBulk(body: GstBulkRequest): Promise<{ changed: number }> {
+  return api.post<{ changed: number }>("/catalog/v1/gst/bulk", body);
 }
 
 export async function getItem(productId: string): Promise<ReviewItemDetailDTO> {

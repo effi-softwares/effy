@@ -30,6 +30,9 @@ import {
 import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles";
 import { dispatchIndexRoute, dispatchRoundRoute } from "./routes/dispatch";
 import { exceptionsRoute } from "./routes/exceptions";
+import { hubRoute } from "./routes/hub";
+import { handoverReportRoute } from "./routes/reports";
+import { taxSettingsRoute } from "./routes/settings";
 import {
   orderDetailRoute,
   ordersAssignmentRoundRoute,
@@ -63,6 +66,9 @@ const routeTree = rootRoute.addChildren([
     vehicleDetailRoute,
     dispatchIndexRoute,
     exceptionsRoute,
+    hubRoute,
+    handoverReportRoute,
+    taxSettingsRoute,
     dispatchRoundRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,

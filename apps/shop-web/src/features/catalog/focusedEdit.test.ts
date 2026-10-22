@@ -30,6 +30,7 @@ function detail(over: Partial<ProductDetail> = {}): ProductDetail {
     longDescription: null,
     weightGrams: 500,
     weightIsAssumed: true,
+    gstStatus: "gst_free",
     status: "active",
     attributes: [],
     media: [],
@@ -188,5 +189,14 @@ describe("focused edit — shipping weight", () => {
       weightGrams: 780,
     });
     expect(changed).not.toHaveProperty("weightGrams");
+  });
+});
+
+describe("096 — GST status in a focused edit", () => {
+  it("sends a changed GST status and omits an unchanged or unanswered one", () => {
+    expect(diffScalarFields(detail({ gstStatus: "taxable" }), { gstStatus: "gst_free" })).toEqual({ gstStatus: "gst_free" });
+    expect(diffScalarFields(detail({ gstStatus: "gst_free" }), { gstStatus: "gst_free" })).toEqual({});
+    expect(diffScalarFields(detail({ gstStatus: null }), { gstStatus: undefined })).toEqual({});
+    expect(diffScalarFields(detail({ gstStatus: null }), { gstStatus: "taxable" })).toEqual({ gstStatus: "taxable" });
   });
 });

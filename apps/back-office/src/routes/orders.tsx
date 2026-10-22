@@ -61,9 +61,15 @@ export const orderDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders/$orderId",
   component: OrderDetailRouteComponent,
+  // 096 — opened from a scan: the bag (or package) to highlight.
+  validateSearch: (search: Record<string, unknown>): { parcel?: string; package?: string } => ({
+    ...(typeof search.parcel === "string" ? { parcel: search.parcel } : {}),
+    ...(typeof search.package === "string" ? { package: search.package } : {}),
+  }),
 });
 
 function OrderDetailRouteComponent() {
   const { orderId } = orderDetailRoute.useParams();
-  return <OrderDetailScreen orderId={orderId} />;
+  const { parcel, package: pkg } = orderDetailRoute.useSearch();
+  return <OrderDetailScreen orderId={orderId} highlight={parcel || pkg ? { parcelId: parcel, packageId: pkg } : undefined} />;
 }

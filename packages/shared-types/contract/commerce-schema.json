@@ -418,6 +418,25 @@
       ],
       "type": "object"
     },
+    "BusinessIdentityRequest": {
+      "additionalProperties": false,
+      "description": "096 US8 — `PUT /commerce/v1/orders/{id}/business-identity`: the buyer's own business, for its invoice.",
+      "properties": {
+        "abn": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "businessName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "ButtonStyle": {
       "enum": [
         "filled",
@@ -1440,6 +1459,74 @@
       "enum": [
         "same_day",
         "standard"
+      ],
+      "type": "string"
+    },
+    "DeliveryNoteDTO": {
+      "additionalProperties": false,
+      "description": "`GET /commerce/v1/orders/{id}/delivery-note` — what was supplied, line by line.",
+      "properties": {
+        "contact": {
+          "description": "Always `DOCUMENT_CONTACT` (the approved customer mailbox).",
+          "type": "string"
+        },
+        "deliveredAt": {
+          "description": "When the last of the order arrived.",
+          "type": "string"
+        },
+        "lines": {
+          "description": "Merged by product across the order's packages, so nothing says how many suppliers filled it.",
+          "items": {
+            "$ref": "#/definitions/DeliveryNoteLineDTO"
+          },
+          "type": "array"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "placedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "orderNumber",
+        "placedAt",
+        "deliveredAt",
+        "contact",
+        "lines"
+      ],
+      "type": "object"
+    },
+    "DeliveryNoteLineDTO": {
+      "additionalProperties": false,
+      "description": "One line of the delivery note: a product, merged across the order's packages.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "ordered": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "status": {
+          "$ref": "#/definitions/DeliveryNoteLineStatus"
+        },
+        "supplied": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "name",
+        "ordered",
+        "supplied",
+        "status"
+      ],
+      "type": "object"
+    },
+    "DeliveryNoteLineStatus": {
+      "enum": [
+        "supplied",
+        "part",
+        "unavailable"
       ],
       "type": "string"
     },
@@ -2512,6 +2599,33 @@
         "itemCount",
         "grandTotalAmount",
         "currency"
+      ],
+      "type": "object"
+    },
+    "OrderTaxDocumentsDTO": {
+      "additionalProperties": false,
+      "description": "096 US8 — `GET /commerce/v1/orders/{id}/tax-documents`.",
+      "properties": {
+        "adjustments": {
+          "items": {
+            "$ref": "#/definitions/TaxDocumentDTO"
+          },
+          "type": "array"
+        },
+        "invoice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TaxDocumentDTO"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "invoice",
+        "adjustments"
       ],
       "type": "object"
     },
@@ -4210,6 +4324,180 @@
       ],
       "type": "object"
     },
+    "TaxDocumentDTO": {
+      "additionalProperties": false,
+      "description": "096 US8 — a tax invoice or an adjustment note, exactly as issued: the frozen snapshot the PDF renders. Money is a decimal string (\"12.34\"). An issued document never changes.",
+      "properties": {
+        "buyer": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "abn": {
+                  "type": "string"
+                },
+                "businessName": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The buyer's identity, printed at $1,000 or more; null below it."
+        },
+        "fees": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "taxable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "label",
+              "amount",
+              "taxable"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "issuedAt": {
+          "type": "string"
+        },
+        "issuer": {
+          "additionalProperties": false,
+          "properties": {
+            "abn": {
+              "type": "string"
+            },
+            "legalName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "legalName",
+            "abn"
+          ],
+          "type": "object"
+        },
+        "kind": {
+          "enum": [
+            "invoice",
+            "adjustment"
+          ],
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "quantity": {
+                "$ref": "#/definitions/WireInt"
+              },
+              "taxable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "quantity",
+              "amount",
+              "taxable"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "number": {
+          "type": "string"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "payments": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "amount": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "amount"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "refersTo": {
+          "description": "An adjustment's invoice number.",
+          "type": "string"
+        },
+        "totals": {
+          "additionalProperties": false,
+          "properties": {
+            "gst": {
+              "type": "string"
+            },
+            "gstFreeTotal": {
+              "type": "string"
+            },
+            "taxableTotal": {
+              "type": "string"
+            },
+            "total": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "total",
+            "gst",
+            "taxableTotal",
+            "gstFreeTotal"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "number",
+        "issuedAt",
+        "issuer",
+        "buyer",
+        "orderNumber",
+        "lines",
+        "fees",
+        "totals",
+        "payments"
+      ],
+      "type": "object"
+    },
     "TextCorner": {
       "enum": [
         "top-start",
@@ -4371,6 +4659,9 @@
     "billingDetails": {
       "$ref": "#/definitions/BillingDetailsDTO"
     },
+    "businessIdentity": {
+      "$ref": "#/definitions/BusinessIdentityRequest"
+    },
     "cancelOrder": {
       "$ref": "#/definitions/CancelOrderBody"
     },
@@ -4434,6 +4725,9 @@
     "deliveryChoiceRefusal": {
       "$ref": "#/definitions/DeliveryChoiceRefusalDTO"
     },
+    "deliveryNote": {
+      "$ref": "#/definitions/DeliveryNoteDTO"
+    },
     "deliveryQuote": {
       "$ref": "#/definitions/DeliveryQuoteDTO"
     },
@@ -4481,6 +4775,9 @@
     },
     "orderSummary": {
       "$ref": "#/definitions/OrderSummaryDTO"
+    },
+    "orderTaxDocuments": {
+      "$ref": "#/definitions/OrderTaxDocumentsDTO"
     },
     "paymentMethod": {
       "$ref": "#/definitions/PaymentMethodDTO"
@@ -4636,7 +4933,10 @@
     "customerRefund",
     "refundRequest",
     "createRefundRequest",
-    "cancelOrder"
+    "cancelOrder",
+    "deliveryNote",
+    "orderTaxDocuments",
+    "businessIdentity"
   ],
   "type": "object",
   "title": "CustomerCommerceContract"

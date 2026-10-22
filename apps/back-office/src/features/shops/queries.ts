@@ -22,6 +22,7 @@ import {
   listShops,
   updateShop,
   updateShopUser,
+  setPackScanning,
 } from "./repo";
 import type { ShopListParams } from "./model";
 
@@ -76,6 +77,14 @@ export function useChangeShopStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: ChangeShopStatusRequest) => changeShopStatus(id, body),
+    onSuccess: () => invalidateShops(queryClient, id),
+  });
+}
+
+export function useSetPackScanning(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (required: boolean) => setPackScanning(id, required),
     onSuccess: () => invalidateShops(queryClient, id),
   });
 }

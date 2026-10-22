@@ -670,21 +670,58 @@ export async function courierParcels(): Promise<CourierParcelRow[]> {
 /** 091 — recorded hand-overs of these packages (090), oldest first, with the driver's name. Staff only. */
 export interface HandoverRow {
   package_id: string;
-  step: "collect" | "checkin" | "load" | "deliver" | "return";
-  method: "scan" | "typed" | "manual";
+  step: string;
+  method: string;
   recorded_at: Date;
-  driver_name: string;
+  /** Null when shop or hub staff made the hand-over (096). */
+  driver_name: string | null;
+  actor_kind: "driver" | "shop_staff" | "admin_staff";
+  parcel_id: string | null;
+  parcel_code: string | null;
 }
 
 export async function handovers(packageIds: string[]): Promise<HandoverRow[]> {
   if (packageIds.length === 0) return [];
   const res = await query<HandoverRow>(
     `SELECT ph.shop_fulfillment_id::text AS package_id, ph.step, ph.handover_method AS method,
-            ph.recorded_at, d.name AS driver_name
+            ph.recorded_at, d.name AS driver_name, ph.actor_kind, ph.parcel_id::text AS parcel_id, pp.parcel_code
        FROM public.package_handover ph
-       JOIN public.driver d ON d.id = ph.driver_id
+       -- 096 — shop and hub staff record hand-overs too: no driver on those rows.
+       LEFT JOIN public.driver d ON d.id = ph.driver_id
+       LEFT JOIN public.package_parcel pp ON pp.id = ph.parcel_id
       WHERE ph.shop_fulfillment_id = ANY($1::uuid[])
       ORDER BY ph.recorded_at, ph.id`,
+    [packageIds],
+  );
+  return res.rows;
+}
+
+export interface ParcelRow {
+  package_id: string;
+  parcel_id: string;
+  parcel_code: string;
+  seq: number;
+  of: number;
+  zone: string;
+  voided: boolean;
+  print_count: number;
+  last_step: string | null;
+}
+
+/** 096 — every bag of these packages, voided ones included, with its print count and latest step. */
+export async function parcels(packageIds: string[]): Promise<ParcelRow[]> {
+  if (packageIds.length === 0) return [];
+  const res = await query<ParcelRow>(
+    `SELECT p.shop_fulfillment_id::text AS package_id, p.id::text AS parcel_id, p.parcel_code, p.seq, p.zone,
+            p.voided_at IS NOT NULL AS voided,
+            (SELECT count(*) FROM public.package_parcel l
+              WHERE l.shop_fulfillment_id = p.shop_fulfillment_id AND l.voided_at IS NULL)::int AS of,
+            (SELECT count(*) FROM public.label_print lp WHERE lp.parcel_id = p.id)::int AS print_count,
+            (SELECT h.step FROM public.package_handover h WHERE h.parcel_id = p.id
+              ORDER BY h.recorded_at DESC, h.id DESC LIMIT 1) AS last_step
+       FROM public.package_parcel p
+      WHERE p.shop_fulfillment_id = ANY($1::uuid[])
+      ORDER BY p.shop_fulfillment_id, p.voided_at IS NOT NULL, p.seq, p.numbered_at`,
     [packageIds],
   );
   return res.rows;

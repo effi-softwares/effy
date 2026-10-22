@@ -19,6 +19,9 @@ import type {
   RecordHandoffRequest,
 } from "@effy/shared-types";
 
+import { isDomainError } from "@effy/api-client";
+import type { AdminLookupDTO } from "@effy/shared-types";
+
 import { api } from "@/lib/api";
 
 import type { OrderListParams } from "./model";
@@ -57,6 +60,19 @@ export async function listOrders(params: OrderListParams): Promise<AdminOrderLis
 /** Overview — orders placed today by who delivers them, and refunded today. */
 export async function getOrdersToday(): Promise<AdminOrdersTodayDTO> {
   return api.get<AdminOrdersTodayDTO>("/orders/v1/summary/today");
+}
+
+/**
+ * 096 — what a bag label, a typed code or an order number names; null when nothing does. The server
+ * records every lookup as a read, found or not.
+ */
+export async function lookupLabel(q: string, method: "scan" | "typed"): Promise<AdminLookupDTO | null> {
+  try {
+    return await api.get<AdminLookupDTO>(`/orders/v1/admin/lookup?${new URLSearchParams({ q, method })}`);
+  } catch (err) {
+    if (isDomainError(err) && err.status === 404) return null;
+    throw err;
+  }
 }
 
 export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO> {

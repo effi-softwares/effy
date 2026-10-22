@@ -186,6 +186,9 @@ export interface ShopDetailDTO {
    * scanned, and as typed or ticked by hand. A shop whose labels often fail is printing them badly.
    */
   labelScanning?: { scanned: number; notScanned: number; sinceDays: number };
+  /** 096 — every bag must be scanned as packed before the shop can mark it ready. Set through
+   *  `PUT /fleet/v1/shops/{id}/pack-scanning`. Optional so an older deploy still reads. */
+  packScanRequired?: boolean;
 }
 
 /** POST /admin/v1/shops — create a shop + provision its primary manager. */

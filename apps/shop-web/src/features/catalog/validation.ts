@@ -139,6 +139,8 @@ export function basicsComplete(draft: ProductDraft): boolean {
     draft.name.trim().length > 0 &&
     !!draft.primaryCategoryId &&
     isValidPrice(draft.priceAmount) &&
-    draft.shortDescription.trim().length > 0
+    draft.shortDescription.trim().length > 0 &&
+    // 096 — every product is taxable or GST-free from the moment it exists.
+    (draft.gstStatus === "taxable" || draft.gstStatus === "gst_free")
   );
 }

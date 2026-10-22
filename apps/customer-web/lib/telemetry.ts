@@ -213,6 +213,9 @@ export type StorefrontEvent =
    */
   | { name: "receipt_viewed"; props: { surface: "checkout" | "history"; stage: string } }
   | { name: "receipt_resend_requested"; props?: Record<string, never> }
+  /** 096 — the order's documents. Which document, never its contents or number. */
+  | { name: "delivery_note_viewed"; props?: Record<string, never> }
+  | { name: "tax_invoice_downloaded"; props: { kind: "invoice" | "adjustment" } }
   /** Why a resend was refused — Effy's own vocabulary, never the transport's. */
   | {
       name: "receipt_resend_refused"

@@ -1,11 +1,12 @@
 import { useState } from "react";
 
-import type { HandoverMethod, HandoverStep, OrderAssignment } from "@effy/shared-types";
+import { PARCEL_CUSTODY_WORDS, PARCEL_ZONE_WORDS } from "@effy/shared-types";
+import type { AdminPackageHandoverDTO, AdminParcelDTO, HandoverMethod, OrderAssignment, RecordedHandoverStep } from "@effy/shared-types";
 import { AssignmentLine } from "./AssignmentLine";
 import { ConsignmentBlock } from "./ConsignmentBlock";
 import { PackageStatusPill } from "@effy/web-kit/console";
 import { Button, Input } from "@effy/design-system/ui";
-import { CircleCheck, Package, Store, Truck, Undo2, Warehouse } from "lucide-react";
+import { CircleCheck, Package, PackageCheck, Store, Truck, Undo2, Warehouse } from "lucide-react";
 
 import { clockAt } from "@/lib/format";
 
@@ -47,9 +48,11 @@ interface Props {
   busy: boolean;
   onHandoff(fulfillmentId: string, reference: string, carrierName: string): void;
   onArrival(fulfillmentId: string): void;
+  /** 096 — what a scan opened this order for: that bag (or package) is highlighted. */
+  highlight?: { parcelId?: string; packageId?: string };
 }
 
-export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions, orderId, courierCollection = null }: Props) {
+export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, renderActions, orderId, courierCollection = null, highlight }: Props) {
   return (
     <div className="divide-y divide-border">
       {packages.map((pkg) => (
@@ -63,6 +66,7 @@ export function PackageRows({ packages, canRecord, busy, onHandoff, onArrival, r
           renderActions={renderActions}
           orderId={orderId}
           courierCollection={courierCollection}
+          highlight={highlight}
         />
       ))}
       {packages.length === 0 ? (
@@ -83,7 +87,9 @@ function PackageRow({
   renderActions,
   orderId,
   courierCollection,
+  highlight,
 }: {
+  highlight?: { parcelId?: string; packageId?: string };
   orderId?: string;
   courierCollection: "hub" | "supplier" | null;
   renderActions?: AssignmentActions;
@@ -99,8 +105,14 @@ function PackageRow({
   const promise = promiseTextFor(pkg);
   const flags = promiseFlagsFor(pkg);
 
+  const bags = pkg.parcels ?? [];
+  const lit = highlight?.packageId === pkg.fulfillmentId || bags.some((b) => b.parcelId === highlight?.parcelId);
   return (
-    <div className="space-y-4 px-5 py-4">
+    <div
+      id={`package-${pkg.fulfillmentId}`}
+      className={`space-y-4 px-5 py-4 ${lit ? "bg-brand-soft/40 ring-2 ring-inset ring-ring" : ""}`}
+      data-highlighted={lit || undefined}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="bo-icon-tile" aria-hidden="true">
@@ -138,6 +150,9 @@ function PackageRow({
           ) : null}
         </div>
       ) : null}
+
+      {/* 096 — the package's bags: each has its own label, and each is handed over on its own. */}
+      {bags.length > 0 ? <BagTable bags={bags} highlightParcelId={highlight?.parcelId} /> : null}
 
       {promise || (pkg.handovers && pkg.handovers.length > 0) ? (
         <div className="grid gap-4 md:grid-cols-2">
@@ -187,12 +202,15 @@ function PackageRow({
                       <StepIcon step={h.step} />
                     </span>
                     <div>
-                      <div className="text-sm font-medium">{HANDOVER_STEP_WORDS[h.step]}</div>
+                      <div className="text-sm font-medium">
+                        {HANDOVER_STEP_WORDS[h.step]}
+                        {h.parcelCode && bags.length > 1 ? <span className="bo-sub"> · {bagWord(bags, h.parcelCode)}</span> : null}
+                      </div>
                       <div className="bo-tl__body">
-                        {h.driverName} · <span className="bo-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
+                        {byWords(h)} · <span className="bo-tag">{HANDOVER_METHOD_WORDS[h.method]}</span>
                         <span className="sr-only">
                           {" "}
-                          {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {h.driverName}
+                          {HANDOVER_STEP_WORDS[h.step]} · {HANDOVER_METHOD_WORDS[h.method]} · {byWords(h)}
                         </span>
                       </div>
                     </div>
@@ -305,13 +323,65 @@ function PackageRow({
   );
 }
 
+/** 096 — the bags, one row each; a voided bag is listed struck through so a stray label can be explained. */
+function BagTable({ bags, highlightParcelId }: { bags: AdminParcelDTO[]; highlightParcelId?: string }) {
+  return (
+    <div>
+      <div className="bo-eyebrow mb-2">Bags</div>
+      <table className="bo-table bo-table--compact bo-table--plain rounded-lg border border-border" aria-label="Bags">
+        <thead>
+          <tr>
+            <th>Bag</th>
+            <th>Code</th>
+            <th>Zone</th>
+            <th>Label</th>
+            <th>Where</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bags.map((b) => (
+            <tr
+              key={b.parcelId}
+              id={`parcel-${b.parcelId}`}
+              className={b.parcelId === highlightParcelId ? "bg-brand-soft font-medium" : b.voided ? "text-muted-foreground" : ""}
+              aria-current={b.parcelId === highlightParcelId ? "true" : undefined}
+            >
+              <td className="tabular-nums">{b.voided ? <s>Bag {b.seq}</s> : `${b.seq} of ${b.of}`}</td>
+              <td className="font-mono">{b.voided ? <s>{b.code}</s> : b.code}</td>
+              <td>{PARCEL_ZONE_WORDS[b.zone]}</td>
+              <td>{b.voided ? "Removed" : b.printedCount === 0 ? "Not printed" : b.printedCount === 1 ? "Printed" : `Printed ${b.printedCount}×`}</td>
+              <td>{b.voided ? "—" : PARCEL_CUSTODY_WORDS[b.custody]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** "Bag 2" for a hand-over of that bag. */
+function bagWord(bags: AdminParcelDTO[], code: string): string {
+  const b = bags.find((x) => x.code === code);
+  return b ? `Bag ${b.seq}` : code;
+}
+
+/** Who made a hand-over: a driver by name; shop and hub staff by role (096). */
+function byWords(h: AdminPackageHandoverDTO): string {
+  if (h.actor === "shop_staff") return "Shop staff";
+  if (h.actor === "admin_staff") return "Hub staff";
+  return h.driverName ?? "Driver";
+}
+
 /** 091 — the hand-over's step and method, in staff words. */
-function StepIcon({ step }: { step: HandoverStep }) {
-  const Icon = step === "deliver" ? CircleCheck : step === "checkin" ? Warehouse : step === "load" ? Truck : step === "return" ? Undo2 : Package;
+function StepIcon({ step }: { step: RecordedHandoverStep }) {
+  const Icon = step === "deliver" ? CircleCheck : step === "checkin" ? Warehouse : step === "load" ? Truck : step === "return" ? Undo2 : step === "pack" ? PackageCheck : Package;
   return <Icon />;
 }
 
-const HANDOVER_STEP_WORDS: Record<HandoverStep, string> = {
+const HANDOVER_STEP_WORDS: Record<RecordedHandoverStep, string> = {
+  pack: "Packed at the shop",
+  courier_handover: "Handed to the courier",
+  shop_pickup: "Collected from the shop",
   collect: "Collected",
   checkin: "Checked in at hub",
   load: "Loaded",

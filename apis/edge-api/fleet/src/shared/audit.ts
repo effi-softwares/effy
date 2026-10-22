@@ -74,7 +74,11 @@ export type DeliveryConfigAuditAction =
   | "delivery_days.date_added"
   | "delivery_days.date_removed";
 
+/** 096 — a shop's hand-over rules that dispatch owns: whether every bag must be scanned as packed. */
+export type ShopOpsAuditAction = "shop.pack_scanning_changed";
+
 export type FleetAuditAction =
+  | ShopOpsAuditAction
   | DriverAuditAction
   | VehicleAuditAction
   | DispatchAuditAction
@@ -94,7 +98,9 @@ export type AuditTargetType =
   | "delivery_settings"
   // 093
   | "package_hold"
-  | "vehicle_check";
+  | "vehicle_check"
+  // 096
+  | "shop";
 
 /**
  * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.

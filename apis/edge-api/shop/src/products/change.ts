@@ -15,6 +15,7 @@
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
+import type { GstStatus } from "@effy/shared-types";
 
 import type {
   AttributeValueInput,
@@ -39,6 +40,8 @@ export interface TargetValues {
   shortDescription: string;
   longDescription: string | null;
   weightGrams: number | null;
+  /** 096 */
+  gstStatus: GstStatus | null;
 }
 
 /** Money compares as numbers: "10" and "10.00" are one price, not a change. */
@@ -79,6 +82,7 @@ export function diffProposal(
   if (!sameMoney(target.priceAmount, live.priceAmount)) out.priceAmount = target.priceAmount;
   if (!sameMoney(target.compareAtAmount, live.compareAtAmount)) out.compareAtAmount = target.compareAtAmount;
   if (target.weightGrams !== null && target.weightGrams !== live.weightGrams) out.weightGrams = target.weightGrams;
+  if (target.gstStatus !== null && target.gstStatus !== live.gstStatus) out.gstStatus = target.gstStatus;
 
   const liveById = new Map(live.attributes.map((a) => [a.attributeId, a]));
   const changed = attributes.filter((a) => !sameAttribute(liveById.get(a.attributeId), a));
@@ -102,6 +106,7 @@ export function overlay(live: ProductDetail, proposed: ProductChangeProposal | n
     priceAmount: proposed.priceAmount ?? live.priceAmount,
     compareAtAmount: "compareAtAmount" in proposed ? (proposed.compareAtAmount ?? null) : live.compareAtAmount,
     weightGrams: proposed.weightGrams ?? live.weightGrams,
+    gstStatus: proposed.gstStatus ?? live.gstStatus,
   };
 }
 

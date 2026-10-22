@@ -138,18 +138,20 @@ describe("type-level gating", () => {
 });
 
 describe("basicsComplete", () => {
-  it("requires name, category, a valid price, and a short description", () => {
+  it("requires name, category, a valid price, a short description and a GST status", () => {
     const full = {
       ...emptyDraft(),
       name: "Latte",
       primaryCategoryId: "c1",
       priceAmount: "4.50",
       shortDescription: "Hot milk coffee",
+      gstStatus: "taxable" as const,
     };
     expect(basicsComplete(full)).toBe(true);
     expect(basicsComplete({ ...full, name: "  " })).toBe(false);
     expect(basicsComplete({ ...full, primaryCategoryId: null })).toBe(false);
     expect(basicsComplete({ ...full, priceAmount: "0" })).toBe(false);
     expect(basicsComplete({ ...full, shortDescription: "" })).toBe(false);
+    expect(basicsComplete({ ...full, gstStatus: "" })).toBe(false);
   });
 });

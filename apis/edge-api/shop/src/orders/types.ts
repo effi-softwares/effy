@@ -168,6 +168,8 @@ export interface OrderDetail {
   labelCommon: ShopLabelCommonDTO;
   /** 096 — the cold zones this package's lines need a bag for. */
   zonesNeeded: ParcelZone[];
+  /** 096 — every bag must be scanned as packed before ready. */
+  packScanRequired: boolean;
   lines: OrderLine[];
   money: {
     currency: string;

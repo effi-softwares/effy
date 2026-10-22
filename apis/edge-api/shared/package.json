@@ -13,7 +13,8 @@
     "./live": "./src/live/index.ts",
     "./testing": "./src/testing/kotlin-fixture.ts",
     "./promotions": "./src/promotions/index.ts",
-    "./labels": "./src/labels/index.ts"
+    "./labels": "./src/labels/index.ts",
+    "./documents": "./src/documents/index.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

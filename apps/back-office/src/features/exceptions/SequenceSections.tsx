@@ -125,10 +125,12 @@ export function HeldPanel({ data, canAct }: { data: DeliveryExceptionListDTO; ca
                 <tr key={h.holdId}>
                   <td data-m="primary">
                     <span className="bo-code font-medium">{h.orderNumber}</span>
+                    {/* 096 — one bag held, or the whole package. */}
+                    <span className="bo-sub">{h.parcel ? `Bag ${h.parcel.seq} of ${h.parcel.of} · ${h.parcel.code}` : "Whole package"}</span>
                   </td>
                   <td data-m="meta">{h.shopName}</td>
                   <td data-m="meta" data-label="Where">
-                    {h.step === "load" ? "Not loaded at the hub" : "Not in the van at check-in"}
+                    {HOLD_STEP_WORDS[h.step] ?? h.step}
                   </td>
                   <td data-m="meta" data-label="Reason">
                     {HOLD_REASON_WORDS[h.reason] ?? h.reason}
@@ -177,7 +179,9 @@ function LostButton({ hold, disabled, onConfirm }: { hold: HeldPackageDTO; disab
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Record {hold.orderNumber}'s package from {hold.shopName} as lost?
+            {hold.parcel
+              ? `Record bag ${hold.parcel.seq} of ${hold.orderNumber}'s package from ${hold.shopName} as lost?`
+              : `Record ${hold.orderNumber}'s package from ${hold.shopName} as lost?`}
           </AlertDialogTitle>
           <AlertDialogDescription>It will not be planned again.</AlertDialogDescription>
         </AlertDialogHeader>
@@ -282,3 +286,12 @@ export function VehicleChecksPanel({ data, canAct }: { data: DeliveryExceptionLi
     </Panel>
   );
 }
+
+/** 096 — where a driver declared it missing: any step can, now that every bag is accounted for. */
+const HOLD_STEP_WORDS: Record<HeldPackageDTO["step"], string> = {
+  collect: "Not at the shop at collection",
+  checkin: "Not in the van at check-in",
+  load: "Not loaded at the hub",
+  deliver: "Not in the van at the door",
+  return: "Not returned to the hub",
+};

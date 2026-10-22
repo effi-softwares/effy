@@ -11,6 +11,8 @@ import {
   MapPinned,
   Package,
   PackageX,
+  ReceiptText,
+  Warehouse,
   Shield,
   Store,
   Truck,
@@ -41,6 +43,8 @@ export interface NavLeaf {
   tab?: string;
   count?: NavCountKey;
   requiredRole?: BackOfficeRole;
+  /** 096 — shown to any one of these roles (the hub station: admin or manager). */
+  requiredAnyRole?: readonly BackOfficeRole[];
 }
 
 export interface NavEntry extends NavLeaf {
@@ -75,10 +79,14 @@ export const NAV_GROUPS: readonly NavGroup[] = [
           { key: "orders", label: "All orders", to: "/orders" },
           // 073 — the dispatcher's day lives under Orders; it was a tab nobody could find.
           { key: "dispatch", label: "Dispatch", to: "/orders/assignments", count: "dispatch" },
+          // 096 — how bags changed hands, and what went wrong.
+          { key: "handover-report", label: "Hand-over report", to: "/reports/handovers" },
           { key: "courier", label: "Courier parcels", to: "/orders/handover" },
         ],
       },
       { key: "exceptions", label: "Exceptions", to: "/exceptions", icon: PackageX, count: "exceptions", countTone: "strong" },
+      // 096 — hub staff check bags in by scanning.
+      { key: "hub-station", label: "Hub station", to: "/hub", icon: Warehouse, requiredAnyRole: ["admin", "manager"] },
     ],
   },
   {
@@ -145,6 +153,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       },
       { key: "deliverability", label: "Email deliverability", to: "/deliverability", icon: MailWarning, count: "deliverability" },
       { key: "points", label: "Points settings", to: "/customers", tab: "settings", icon: Coins },
+      // 096 — Effy's tax identity and the tax-invoice switch.
+      { key: "tax", label: "Tax", to: "/settings/tax", icon: ReceiptText, requiredRole: "admin" },
       { key: "admin", label: "Admin and access", to: "/admin", icon: Shield, requiredRole: "admin" },
     ],
   },
@@ -155,7 +165,9 @@ export function visibleGroups(
   groups: readonly NavGroup[],
   roles: readonly BackOfficeRole[],
 ): NavGroup[] {
-  const allowed = (leaf: NavLeaf) => leaf.requiredRole === undefined || roles.includes(leaf.requiredRole);
+  const allowed = (leaf: NavLeaf) =>
+    (leaf.requiredRole === undefined || roles.includes(leaf.requiredRole)) &&
+    (leaf.requiredAnyRole === undefined || leaf.requiredAnyRole.some((r) => roles.includes(r)));
   return groups
     .map((g) => ({
       label: g.label,

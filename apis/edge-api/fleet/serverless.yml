@@ -196,6 +196,50 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  reportsHandoversV1:
+    handler: src/functions/reports-handovers-v1-get.handler
+    description: How bags were handed over and what went wrong in a period (096 FR-063). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/reports/handovers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  hubExpectedV1:
+    handler: src/functions/hub-expected-v1-get.handler
+    description: The collection runs on their way in, every bag and where it goes (096 US5). Admin/manager.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/hub/expected
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  hubCheckinsV1:
+    handler: src/functions/hub-checkins-v1-post.handler
+    description: Hub staff check bags in by scanning; the last bag of a run closes it (096 US5). Admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/hub/checkins
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  shopPackScanningV1:
+    handler: src/functions/shop-pack-scanning-v1-put.handler
+    description: Require every bag to be scanned as packed before a shop marks it ready (096 FR-020). Write = admin/manager.
+    events:
+      - httpApi:
+          method: PUT
+          path: /fleet/v1/shops/{shopId}/pack-scanning
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   driverAuditV1:
     handler: src/functions/driver-audit-v1-get.handler
     description: The driver's change history — who changed what, when (056 FR-025). Read = any active staff.

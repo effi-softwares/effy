@@ -37,6 +37,8 @@ export interface ProductDraft {
    * number would make "" collapse to 0, and a zero weight ships free.
    */
   weightGrams: string;
+  /** 096 — taxable or GST-free; "" until the operator chooses (required to create). */
+  gstStatus: "" | "taxable" | "gst_free";
   attributes: Record<string, AttributeDraftValue>;
 }
 
@@ -52,6 +54,7 @@ export function emptyDraft(): ProductDraft {
     sku: "",
     longDescription: "",
     weightGrams: "",
+    gstStatus: "",
     attributes: {},
   };
 }

@@ -45,6 +45,11 @@
           View your order
         </mj-button>
 
+        <!-- 096 US7 — the delivery note is digital only: what was supplied, line by line, on the order. -->
+        <mj-text mj-class="small" css-class="e-muted" padding="16px 0 0 0">
+          Your <a href="{{orderUrl}}#documents">delivery note</a> shows everything you were sent.
+        </mj-text>
+
         <!-- ⚠ The counterweight to a message that asserts a delivery nobody at Effy witnessed. With
              no carrier integration, "arrived" is recorded by a person; if it did not arrive, the
              customer needs somewhere to say so, and it must not read as an apology in advance. -->

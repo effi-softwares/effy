@@ -30,6 +30,7 @@ import type {
 } from "./refund";
 import type { WireInt } from "./cart";
 import type { HandoverMethod, HandoverStep } from "./driver";
+import type { ParcelCustody, ParcelZone } from "./parcels";
 import type { DeliveryFeeLineDTO } from "./delivery-fee";
 import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 import type { DeliveryPromise, DeliveryType, DeliveryTypeReason } from "./delivery-type";
@@ -174,12 +175,41 @@ export interface DeliveryTypeChangeDTO {
 }
 
 /** One shop's portion of an order, as an operator sees it. */
+/**
+ * 096 — every step a hand-over can be recorded at: the driver's five, plus the shop's (pack, hand to a
+ * courier, a collection from the shop). Kept apart from `HandoverStep`, which is the driver wire's.
+ */
+export type RecordedHandoverStep = HandoverStep | "pack" | "courier_handover" | "shop_pickup";
+
+/** 096 — who made a hand-over. A driver is named; shop and hub staff are said by role. */
+export type HandoverActorKind = "driver" | "shop_staff" | "admin_staff";
+
 /** 091 — one recorded hand-over of a package (090's `package_handover`). Staff only. */
 export interface AdminPackageHandoverDTO {
-  step: HandoverStep;
+  step: RecordedHandoverStep;
   method: HandoverMethod;
   at: string;
-  driverName: string;
+  /** The driver's name; null when shop or hub staff made it (096 — see `actor`). */
+  driverName: string | null;
+  /** 096 — optional so an older deploy still reads; absent means a driver. */
+  actor?: HandoverActorKind;
+  /** 096 — the bag it was; absent on a hand-over recorded before bags (one per package). */
+  parcelCode?: string;
+}
+
+/** 096 — one bag of a package as back-office sees it, voided ones included (struck through). */
+export interface AdminParcelDTO {
+  parcelId: string;
+  code: string;
+  seq: number;
+  /** How many live bags the package has now. */
+  of: number;
+  zone: ParcelZone;
+  voided: boolean;
+  printedCount: number;
+  custody: ParcelCustody;
+  /** This bag's hand-overs, oldest first. */
+  handovers: AdminPackageHandoverDTO[];
 }
 
 export interface AdminOrderPackageDTO {
@@ -200,6 +230,8 @@ export interface AdminOrderPackageDTO {
    * when none was recorded — never "by hand" by assumption.
    */
   handovers?: AdminPackageHandoverDTO[];
+  /** 096 — the package's bags, each with its own label and hand-overs. Optional for older deploys. */
+  parcels?: AdminParcelDTO[];
   /** ⚠ Present here and ONLY here. Never on a customer-facing contract (FR-021). */
   shopId: string;
   shopName: string;

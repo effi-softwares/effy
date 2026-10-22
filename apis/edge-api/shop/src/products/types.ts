@@ -2,6 +2,8 @@
 // mapped explicitly in handler-support; these are the internal domain shapes and never leak wire
 // concerns (constitution Principle VI). Mirrors data-model.md §2.6–2.10 + §5.
 
+import type { GstStatus } from "@effy/shared-types";
+
 export type ProductStatus = "draft" | "active" | "unavailable" | "archived";
 export const PRODUCT_STATUSES: readonly ProductStatus[] = ["draft", "active", "unavailable", "archived"];
 
@@ -117,6 +119,8 @@ export interface ProductChangeProposal {
   priceAmount?: string;
   compareAtAmount?: string | null;
   weightGrams?: number;
+  /** 096 */
+  gstStatus?: GstStatus;
   attributes?: AttributeValueInput[];
 }
 
@@ -170,6 +174,8 @@ export interface ProductDetail {
   weightGrams: number;
   /** ⚠ TRUE = the platform default is in use; nobody has measured it (FR-037a). */
   weightIsAssumed: boolean;
+  /** 096 — null for a product made before 096 and not yet classified. */
+  gstStatus: GstStatus | null;
   status: ProductStatus;
   attributes: ProductAttributeValue[];
   media: ProductMedia[];
@@ -216,6 +222,7 @@ export interface CreateProductInput {
    * — a zero-weight product is free-delivery-by-arithmetic, which the CHECK constraint refuses.
    */
   weightGrams: number | null;
+  gstStatus: GstStatus;
   attributes: AttributeValueInput[];
   sectionIds: string[];
   media: { storageKey: string; isPrimary: boolean; altText: string | null; displayOrder: number }[];

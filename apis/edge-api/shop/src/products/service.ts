@@ -2,6 +2,9 @@
 // presign boundary (keys → short-lived urls). No HTTP and no SQL (Principle VI). Dependencies wired
 // by explicit module import (no DI framework); tests mock ./repository and ./media at the module
 // boundary. `shopId` is always the caller-resolved actor shop — never client input.
+import { isGstStatus } from "@effy/edge-shared/documents";
+import type { GstStatus } from "@effy/shared-types";
+
 import * as media from "./media";
 import * as repo from "./repository";
 import * as change from "./change";
@@ -184,6 +187,8 @@ export async function createProduct(
   }
 
   const weightGrams = normaliseWeight(body.weightGrams, fields);
+  // 096 — every product is taxable or GST-free from the moment it exists (FR-091).
+  if (!isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
 
   if (fields.length > 0) throw new ProductError("validation", "invalid product", fields);
 
@@ -199,6 +204,7 @@ export async function createProduct(
     shortDescription: shortDescription!,
     longDescription: optText(body.longDescription),
     weightGrams,
+    gstStatus: body.gstStatus as GstStatus,
     attributes,
     sectionIds: Array.isArray(body.sectionIds) ? (body.sectionIds as unknown[]).filter((s): s is string => typeof s === "string") : [],
     media: mediaInput,
@@ -347,6 +353,8 @@ export async function updateProduct(
   shopId: string,
   id: string,
   body: Record<string, unknown>,
+  /** 096 — who changed it, for the GST status history. */
+  actorSub: string,
 ): Promise<ProductDetail> {
   const live = await repo.getProductDetail(shopId, id);
   if (!live) throw new ProductError("not_found", "product not found");
@@ -399,6 +407,10 @@ export async function updateProduct(
     if (norm) attributes.push(norm);
   }
 
+  // 096 — absent leaves it as it stands; present must be one of the two.
+  if ("gstStatus" in body && !isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
+  const gstStatus = isGstStatus(body.gstStatus) ? body.gstStatus : null;
+
   if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
 
   if (live.approved) {
@@ -414,6 +426,8 @@ export async function updateProduct(
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
       weightGrams: "weightGrams" in body ? normaliseWeight(body.weightGrams, fields) : current.weightGrams,
+      // 096 — on a live product the GST status is PROPOSED and reviewed, like every other detail.
+      gstStatus: gstStatus ?? current.gstStatus,
     };
     if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
     const proposal = change.diffProposal(
@@ -444,8 +458,10 @@ export async function updateProduct(
       // ⚠ Absent means "leave it alone", NOT "reset to the default". Patching a product's name must
       // not silently turn a measured weight back into an assumption.
       weightGrams: "weightGrams" in body ? normaliseWeight(body.weightGrams, fields) : null,
+      gstStatus,
     },
     attributes,
+    actorSub,
   );
   if (outcome === "stale") {
     throw new ProductError("conflict", "product changed since you loaded it — reload and try again");

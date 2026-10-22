@@ -90,6 +90,7 @@ export function toDetailDTO(d: ShopDetail): ShopDetailDTO {
     updatedAt: d.updatedAt,
     users: d.users.map(toUserDTO),
     ...(d.labelScanning ? { labelScanning: d.labelScanning } : {}),
+    ...(d.packScanRequired !== undefined ? { packScanRequired: d.packScanRequired } : {}),
   };
 }
 

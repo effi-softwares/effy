@@ -2,7 +2,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 import type { ApproveReviewRequest, SendBackReviewRequest, SetMarginRequest } from "@effy/shared-types";
 
-import { approve, getItem, listMarginNotSet, listQueue, sendBack, setMargin, type QueueParams } from "./repo";
+import { approve, getItem, listGstMissing, listMarginNotSet, listQueue, sendBack, setGstBulk, setMargin, type QueueParams } from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Every decision INVALIDATES the
 // whole review tree rather than patching it: a decided item leaves the queue, may change the
@@ -12,6 +12,7 @@ export const reviewKeys = {
   all: ["product-review"] as const,
   queue: (params: QueueParams) => ["product-review", "queue", params] as const,
   marginNotSet: ["product-review", "margin-not-set"] as const,
+  gstMissing: ["product-review", "gst-missing"] as const,
   item: (productId: string) => ["product-review", "item", productId] as const,
 };
 
@@ -23,6 +24,17 @@ export const marginNotSetQuery = (cursor: string | null = null) =>
     queryKey: [...reviewKeys.marginNotSet, cursor] as const,
     queryFn: () => listMarginNotSet(cursor),
   });
+
+/** 096 — live products with no GST status. */
+export const gstMissingQuery = () => queryOptions({ queryKey: reviewKeys.gstMissing, queryFn: listGstMissing });
+
+export function useSetGstBulk() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setGstBulk,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: reviewKeys.gstMissing }),
+  });
+}
 
 export const reviewItemQuery = (productId: string) =>
   queryOptions({

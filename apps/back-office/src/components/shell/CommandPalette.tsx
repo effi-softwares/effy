@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useRouter, type LinkProps } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
-import { BadgePercent, Car, Coins, MapPinned, Package, Search, Store, UserPlus, UserRound } from "lucide-react";
+import { BadgePercent, Car, Coins, MapPinned, Package, ScanLine, Search, Store, UserPlus, UserRound } from "lucide-react";
 
-import type { BackOfficeRole } from "@effy/shared-types";
+import { readCode, type BackOfficeRole } from "@effy/shared-types";
 import { cn } from "@effy/design-system";
 import { useIsMobile } from "@effy/design-system/hooks/use-mobile";
 import {
@@ -17,14 +17,17 @@ import {
   DrawerContent,
   DrawerDescription,
   DrawerTitle,
+  toast,
 } from "@effy/design-system/ui";
 
 import { Kbd } from "@/components/patterns/Kbd";
 import { customerSearchQuery } from "@/features/customers/queries";
 import { ordersListQuery } from "@/features/orders/queries";
+import { lookupLabel } from "@/features/orders/repo";
 
 import { CHORDS } from "./chords";
 import { linkOf, type NavGroup } from "./nav";
+import { lookupLink } from "./ScanBox";
 
 /**
  * Search and commands (board "Command palette (⌘K)"): orders, customers and package codes, the
@@ -52,6 +55,8 @@ interface Item {
   link: LinkProps;
   /** A record worth remembering under "Recent". */
   recent?: RecentEntry;
+  /** 096 — an item that looks something up before it knows where to go (a bag code). */
+  run?: () => Promise<void>;
 }
 
 interface Section {
@@ -144,6 +149,34 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
     const matches = (s: string) => !text || s.toLowerCase().includes(text);
     const out: Section[] = [];
 
+    // 096 — a bag's code (bag 2 onwards has no order-search match): look it up, then open its order.
+    const bagCode = readCode(query, "typed");
+    // ⚠ Many words ("search", "drafts") are also the shape of a code: unless it has a digit or the
+    // label's prefix, the bag item goes LAST so Enter still picks the page or command.
+    const bagFirst = bagCode !== null && (/\d/.test(query) || /^\s*efy1:/i.test(query));
+    const bagSection: Section[] = [];
+    if (bagCode) {
+      bagSection.push({
+        label: "Bag label",
+        items: [{
+          id: `bag:${bagCode}`,
+          icon: ScanLine,
+          label: `${bagCode.slice(0, 3)} ${bagCode.slice(3)}`,
+          mono: true,
+          meta: "· Open the bag's order",
+          link: { to: "/orders" } as LinkProps,
+          run: async () => {
+            const found = await lookupLabel(query, "typed").catch(() => undefined);
+            if (found === undefined) return void toast.error("Couldn't look that code up. Try again.");
+            if (!found) return void toast.error("No bag has that code.");
+            void navigate(lookupLink(found) as never);
+          },
+        }],
+      });
+    }
+
+    if (bagFirst) out.push(...bagSection);
+
     if (searching) {
       const orderItems = (orders.data?.items ?? []).slice(0, 5).map<Item>((o) => ({
         id: `order:${o.id}`,
@@ -205,6 +238,7 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
       }));
       if (recent.length) out.push({ label: "Recent", items: recent });
     }
+    if (!bagFirst) out.push(...bagSection);
     return out.filter((s) => s.items.length > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- readRecent is read when the palette re-renders
   }, [query, searching, orders.data, customers.data, groups, roles, open]);
@@ -220,6 +254,11 @@ export function CommandPalette({ open, onOpenChange, groups, roles }: CommandPal
   }, [focus]);
 
   function choose(item: Item, newTab: boolean) {
+    if (item.run) {
+      onOpenChange(false);
+      void item.run();
+      return;
+    }
     if (item.recent) rememberRecent(item.recent);
     if (newTab) {
       window.open(router.buildLocation(item.link as never).href, "_blank", "noopener");

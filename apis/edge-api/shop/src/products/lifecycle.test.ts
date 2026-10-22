@@ -61,23 +61,23 @@ describe("updateProduct — optimistic concurrency (FR-023a)", () => {
   });
 
   it("400s without an expectedUpdatedAt token", async () => {
-    expect(await kindOf(updateProduct("shop-1", "p1", { name: "New" }))).toBe("validation");
+    expect(await kindOf(updateProduct("shop-1", "p1", { name: "New" }, "sub-1"))).toBe("validation");
     expect(repo.updateProduct).not.toHaveBeenCalled();
   });
 
   it("404s a product not in this shop", async () => {
     repo.getProductDetail.mockResolvedValue(null);
-    expect(await kindOf(updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "New" }))).toBe("not_found");
+    expect(await kindOf(updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "New" }, "sub-1"))).toBe("not_found");
   });
 
   it("409s a stale expectedUpdatedAt (product changed elsewhere)", async () => {
     repo.updateProduct.mockResolvedValue("stale");
-    expect(await kindOf(updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "New" }))).toBe("conflict");
+    expect(await kindOf(updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "New" }, "sub-1"))).toBe("conflict");
   });
 
   it("patches only the supplied subset (merges the rest from current)", async () => {
     repo.updateProduct.mockResolvedValue("updated");
-    await updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "Renamed" });
+    await updateProduct("shop-1", "p1", { expectedUpdatedAt: "2026-07-16T00:00:00.000Z", name: "Renamed" }, "sub-1");
     const values = repo.updateProduct.mock.calls[0]![3];
     expect(values.name).toBe("Renamed");
     expect(values.shortDescription).toBe("d"); // untouched field kept from current
@@ -253,13 +253,13 @@ describe("067 — editing an APPROVED product proposes a change", () => {
 
   /** ⚠ FR-015 — the live row is not written. */
   it("⚠ saves a proposal and NEVER writes the live product", async () => {
-    await updateProduct("shop-1", "p1", { name: "Renamed", priceAmount: "2.50" });
+    await updateProduct("shop-1", "p1", { name: "Renamed", priceAmount: "2.50" }, "sub-1");
     expect(repo.updateProduct).not.toHaveBeenCalled();
     expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", { name: "Renamed", priceAmount: "2.50" });
   });
 
   it("needs no concurrency token — a proposal does not touch the live row", async () => {
-    expect(await kindOf(updateProduct("shop-1", "p1", { name: "Renamed" }))).toBe("no-throw");
+    expect(await kindOf(updateProduct("shop-1", "p1", { name: "Renamed" }, "sub-1"))).toBe("no-throw");
   });
 
   /** FR-017 — a second edit builds on the first proposal, it does not replace it. */
@@ -267,7 +267,7 @@ describe("067 — editing an APPROVED product proposes a change", () => {
     changeMod.readChange.mockResolvedValue({
       id: "c1", proposed: { name: "Renamed" }, mediaChanged: false, state: "in_review", reason: null, submittedAt: "t",
     });
-    await updateProduct("shop-1", "p1", { brand: "Acme" });
+    await updateProduct("shop-1", "p1", { brand: "Acme" }, "sub-1");
     expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", { name: "Renamed", brand: "Acme" });
   });
 
@@ -276,12 +276,12 @@ describe("067 — editing an APPROVED product proposes a change", () => {
     changeMod.readChange.mockResolvedValue({
       id: "c1", proposed: { name: "Renamed" }, mediaChanged: false, state: "in_review", reason: null, submittedAt: "t",
     });
-    await updateProduct("shop-1", "p1", { name: "X" });
+    await updateProduct("shop-1", "p1", { name: "X" }, "sub-1");
     expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", {});
   });
 
   it("still validates what is proposed", async () => {
-    expect(await kindOf(updateProduct("shop-1", "p1", { priceAmount: "abc" }))).toBe("validation");
+    expect(await kindOf(updateProduct("shop-1", "p1", { priceAmount: "abc" }, "sub-1"))).toBe("validation");
     expect(changeMod.saveProposal).not.toHaveBeenCalled();
   });
 });
@@ -293,7 +293,7 @@ describe("067 — the proposal diff", () => {
   ] } as never;
   const same = {
     name: "X", productTypeId: "t1", primaryCategoryId: "c1", sku: null, gtin: null, brand: null,
-    priceAmount: "1.00", compareAtAmount: null, shortDescription: "d", longDescription: null, weightGrams: 500,
+    priceAmount: "1.00", compareAtAmount: null, shortDescription: "d", longDescription: null, weightGrams: 500, gstStatus: null,
   };
 
   it("is empty when nothing differs", () => {

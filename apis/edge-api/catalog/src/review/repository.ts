@@ -158,6 +158,8 @@ export interface ProductRow {
   primary_category_id: string;
   category_name: string;
   weight_grams: number;
+  /** 096 */
+  gst_status: "taxable" | "gst_free" | null;
   status: string;
   shop_price_amount: string;
   shop_compare_at_amount: string | null;
@@ -174,7 +176,7 @@ const PRODUCT = `
   SELECT p.id, p.shop_id, s.name AS shop_name, s.status AS shop_status,
          p.name, p.sku, p.gtin, p.brand, p.short_description, p.long_description,
          p.product_type_id, pt.name AS type_name, p.primary_category_id, c.name AS category_name,
-         p.weight_grams, p.status,
+         p.weight_grams, p.gst_status, p.status,
          COALESCE(p.shop_price_amount, p.price_amount)::text AS shop_price_amount,
          CASE WHEN p.shop_price_amount IS NULL THEN p.compare_at_amount
               ELSE p.shop_compare_at_amount END::text AS shop_compare_at_amount,

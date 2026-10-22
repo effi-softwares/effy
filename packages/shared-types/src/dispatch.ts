@@ -327,14 +327,18 @@ export interface HeldPackageDTO {
   shopName: string;
   driverName: string;
   roundId: string;
-  step: "load" | "checkin";
-  /** `not_at_hub` | `damaged` | `wrong_temperature` | `not_in_van` | `other`. */
+  /** 096 — every driver step can declare a bag missing now (collect, check-in, load, door, return). */
+  step: "collect" | "checkin" | "load" | "deliver" | "return";
+  /** `not_at_shop` | `not_at_hub` | `damaged` | `wrong_temperature` | `not_in_van` | `other`. */
   reason: string;
   note: string | null;
   createdAt: string;
+  /** 096 — the one bag held; null when the whole package is (every bag of it missing). Optional for older deploys. */
+  parcel?: { code: string; seq: number; of: number; zone: "ambient" | "chilled" | "frozen" } | null;
 }
 
 export const HOLD_REASON_WORDS: Record<string, string> = {
+  not_at_shop: "Not at the shop",
   not_at_hub: "Not at the hub",
   damaged: "Damaged",
   wrong_temperature: "Wrong temperature",

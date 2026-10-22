@@ -26,6 +26,8 @@ export interface ScalarFieldPatch {
   primaryCategoryId?: string;
   /** Shipping weight in grams (032). Sending one marks it MEASURED (FR-036a). */
   weightGrams?: number | null;
+  /** 096 — on a live product this is proposed and reviewed, like the rest. */
+  gstStatus?: "taxable" | "gst_free";
 }
 
 const SCALAR_KEYS: (keyof ScalarFieldPatch)[] = [
@@ -40,6 +42,7 @@ const SCALAR_KEYS: (keyof ScalarFieldPatch)[] = [
   "productTypeId",
   "primaryCategoryId",
   "weightGrams",
+  "gstStatus",
 ];
 
 /**

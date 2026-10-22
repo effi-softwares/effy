@@ -220,7 +220,12 @@ export function PackBags({ detail }: { detail: ShopOrderDetailDTO }) {
 
       {/* Scan each label as it goes on its bag. */}
       <div className="border-border grid gap-2 border-b py-4">
-        <MicroLabel>Scan each bag as you pack it</MicroLabel>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <MicroLabel>Scan each bag as you pack it{detail.packScanRequired ? " · required" : ""}</MicroLabel>
+          <span className="text-muted-foreground text-[12.5px] tabular-nums" aria-live="polite">
+            Packed {packed} of {detail.parcels.length}
+          </span>
+        </div>
         <ScanField accept={(t) => TOKEN.test(t)} onRead={onRead} placeholder="Scan a bag label, or type its code" />
         {lastRead ? (
           <p className="text-[13px] font-medium" role="status">

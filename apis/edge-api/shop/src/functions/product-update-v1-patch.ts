@@ -20,7 +20,7 @@ export const handler = async (
     return problem(400, ProblemType.ValidationFailed, "Validation failed", "a JSON body is required", scope, parsed.errors);
   }
   try {
-    return json(200, toDetailDTO(await updateProduct(g.shopId, event.pathParameters?.id ?? "", parsed.value)), scope);
+    return json(200, toDetailDTO(await updateProduct(g.shopId, event.pathParameters?.id ?? "", parsed.value, g.sub)), scope);
   } catch (err) {
     return mapProductError(err, scope);
   }

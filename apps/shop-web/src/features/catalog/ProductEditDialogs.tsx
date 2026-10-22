@@ -12,6 +12,7 @@ import {
   SelectValue,
   Textarea,
 } from "@effy/design-system/ui";
+import { GST_STATUS_WORDS, type GstStatus } from "@effy/shared-types";
 
 import { AttributeField } from "./AttributeField";
 import { FocusedEditDialog } from "./FocusedEditDialog";
@@ -62,6 +63,8 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   // than confirming a number the platform invented. Pre-filling 500 would invite a save that flips the
   // flag to "measured" without anyone measuring anything.
   const [weightGrams, setWeight] = useState(detail.weightIsAssumed ? "" : String(detail.weightGrams));
+  // 096 — "" when the product predates GST status: the operator chooses, nothing is assumed.
+  const [gstStatus, setGst] = useState<"" | GstStatus>(detail.gstStatus ?? "");
 
   useEffect(() => {
     setName(detail.name);
@@ -71,6 +74,7 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
     setShort(detail.shortDescription);
     setLong(detail.longDescription ?? "");
     setWeight(detail.weightIsAssumed ? "" : String(detail.weightGrams));
+    setGst(detail.gstStatus ?? "");
     edit.reset();
     // Seed by open/updatedAt only — see useSeedKey.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,6 +93,7 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
       // ⚠ Blank means "leave it as it is" (undefined → omitted from the diff), NOT "reset to the
       // default". There is deliberately no way to un-measure a weight from this dialog.
       weightGrams: weightGrams.trim() ? Number(weightGrams.trim()) : undefined,
+      gstStatus: gstStatus || undefined,
     });
     void edit.save(buildProductUpdate(detail.updatedAt, changed), () => onOpenChange(false));
   }
@@ -134,6 +139,17 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
             onChange={(e) => setWeight(e.target.value)}
             placeholder={detail.weightIsAssumed ? `${detail.weightGrams} (assumed)` : undefined}
           />
+        </Field>
+        <Field id="e-gst" label="GST">
+          <Select value={gstStatus} onValueChange={(v) => setGst(v as GstStatus)}>
+            <SelectTrigger id="e-gst">
+              <SelectValue placeholder="Not set — choose" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="gst_free">{GST_STATUS_WORDS.gst_free}</SelectItem>
+              <SelectItem value="taxable">{GST_STATUS_WORDS.taxable}</SelectItem>
+            </SelectContent>
+          </Select>
         </Field>
       </div>
       {/* ⚠ The assumed-weight warning spans the dialog: under a one-third-width field it would wrap to

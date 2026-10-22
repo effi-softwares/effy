@@ -91,3 +91,11 @@ export function requireStaff(event: AuthedEvent, context: Context): Promise<Guar
 export function requireWriter(event: AuthedEvent, context: Context): Promise<GuardOk | GuardErr> {
   return gate(event, context, (sub) => hasStaffRole(sub, OUTWARD_ACTION_ROLES));
 }
+
+/**
+ * 096 — admin only: Effy's own tax identity (legal name, ABN) is printed on every customer's tax
+ * invoice; a manager runs operations, an admin answers for what the business tells the tax office.
+ */
+export function requireAdmin(event: AuthedEvent, context: Context): Promise<GuardOk | GuardErr> {
+  return gate(event, context, (sub) => hasStaffRole(sub, ["admin"]));
+}

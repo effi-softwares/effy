@@ -33,6 +33,11 @@ export interface PackageFacts {
   arrived: boolean;
   /** 080 — an open problem with the courier: failed | lost | damaged | returned; null when none. */
   courierProblem?: string | null;
+  /**
+   * 096 — bags declared missing and not yet decided (one bag held; the rest of the package moved on).
+   * ⚠ STAFF ONLY: `packageStatuses` passes 0 for the shop, whose view is unchanged.
+   */
+  bagsHeld?: number;
 }
 
 const FAILURE_WORDS: Record<string, string> = {
@@ -73,6 +78,10 @@ export function packageStatus(f: PackageFacts): PackageStatusView {
   // 080 — a courier reported a problem and nobody has resolved it. After "delivered" (the furthest
   // fact still wins), before "with carrier" — which is otherwise all a lost parcel would ever say.
   if (f.courierProblem) return view("problem", `With the courier — ${COURIER_PROBLEM_WORDS[f.courierProblem] ?? f.courierProblem}`);
+  // 096 — part of the package is missing: the existing "Problem" word, pointing at Exceptions.
+  if ((f.bagsHeld ?? 0) > 0) {
+    return view("problem", `${f.bagsHeld} bag${f.bagsHeld === 1 ? "" : "s"} missing — see Exceptions`);
+  }
   if (f.handedToCarrier) return view("with_carrier");
   if (f.deliveryState === "assigned" && f.deliveryStopStatus !== null && IN_TRANSIT.has(f.deliveryStopStatus)) {
     return view("out_for_delivery", null, f.deliveryDriver);

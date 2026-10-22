@@ -147,6 +147,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     longDescription: d.longDescription,
     weightGrams: d.weightGrams,
     weightIsAssumed: d.weightIsAssumed,
+    gstStatus: d.gstStatus,
     status: d.status,
     attributes: d.attributes.map((a) => ({
       attributeId: a.attributeId,

@@ -64,6 +64,7 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
     ],
     labelCommon: { service: "effy_driver", orderNumber: "EFY-20481", packedOn: null, recipientName: "Ada Lovelace", street: "27 Rathdowne St", suburb: "Fitzroy", state: "VIC", postcode: "3065" },
     zonesNeeded: [],
+    packScanRequired: false,
     delivery: {
       recipientName: "Maya Oyelaran",
       phone: "0400 000 000",

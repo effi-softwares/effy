@@ -546,6 +546,40 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  # ── Order documents (096) ─────────────────────────────────────────────────────────────────────────
+  orderDeliveryNoteV1:
+    handler: src/functions/order-delivery-note-v1-get.handler
+    description: The delivery note as data or PDF (096 US7). Owner only; 404 for not-yours; 409 until delivered.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/orders/{id}/delivery-note
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  orderTaxDocumentsV1:
+    handler: src/functions/order-tax-documents-v1-get.handler
+    description: The order's tax invoice and adjustment notes, issued on first request, as data or PDF (096 US8). Owner only.
+    events:
+      - httpApi:
+          method: GET
+          path: /commerce/v1/orders/{id}/tax-documents
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  orderBusinessIdentityV1:
+    handler: src/functions/order-business-identity-v1-put.handler
+    description: The buyer's business name and ABN for this order's tax invoice (096 FR-085). Owner only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /commerce/v1/orders/{id}/business-identity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   # ── Cancellation, refund requests and the refund reconciler (070 US4) ────────────────────────────
 
   orderCancelV1:

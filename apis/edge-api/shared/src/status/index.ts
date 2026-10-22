@@ -23,6 +23,7 @@ export function factsOf(r: PackageStatusFactsRow): PackageFacts {
     handedToCarrier: r.handed_to_carrier === true,
     courierProblem: r.courier_problem ?? null,
     arrived: r.arrived === true,
+    bagsHeld: Number(r.bags_held ?? 0),
   };
 }
 
@@ -39,7 +40,9 @@ export async function packageStatuses(
   if (packageIds.length === 0) return out;
   const res = await db.query<PackageStatusFactsRow>(PACKAGE_STATUS_FACTS, [packageIds]);
   for (const row of res.rows) {
-    const v = packageStatus(factsOf(row));
+    // 096 — a held bag is staff's business; the shop's word is unchanged.
+    const facts = factsOf(row);
+    const v = packageStatus(audience === "shop" ? { ...facts, bagsHeld: 0 } : facts);
     out.set(row.package_id, audience === "shop" ? forShop(v) : v);
   }
   return out;

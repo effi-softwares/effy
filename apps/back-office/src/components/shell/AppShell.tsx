@@ -15,6 +15,7 @@ import { setCommandPaletteOpen, setSidebarOpen, setTheme, uiStore } from "@/lib/
 import { AppSidebar } from "./AppSidebar";
 import { CHORDS } from "./chords";
 import { CommandPalette } from "./CommandPalette";
+import { ScanBox } from "./ScanBox";
 import { linkOf, locate, NAV_GROUPS, visibleGroups } from "./nav";
 import { ShortcutsDialog, StaffRecordDialog } from "./ShellDialogs";
 import { HeaderDetailProvider, SiteHeader } from "./SiteHeader";
@@ -124,6 +125,7 @@ export function AppShell({ email, roles, onSignOut, signingOut, children }: AppS
           <main className="bo-content">{children}</main>
         </HeaderDetailProvider>
       </SidebarInset>
+      <ScanBox />
       <CommandPalette open={paletteOpen} onOpenChange={setCommandPaletteOpen} groups={groups} roles={roles} />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <StaffRecordDialog open={recordOpen} onOpenChange={setRecordOpen} />

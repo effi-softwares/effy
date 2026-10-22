@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -74,13 +74,19 @@ function addressLines(a: Record<string, unknown> | null): string[] {
 /** A per-action idempotency key (027's rule): one press, one id, reused by a retry of that press. */
 const newChangeId = () => crypto.randomUUID();
 
-export function OrderDetailScreen({ orderId }: { orderId: string }) {
+export function OrderDetailScreen({ orderId, highlight }: { orderId: string; highlight?: { parcelId?: string; packageId?: string } }) {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
   const canRecord = canRecordOrderProgress(roles);
   const mayAssign = canDispatch(roles);
 
   const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(orderId));
+  // 096 — opened from a scan: bring the bag (or its package) into view once the order has loaded.
+  const target = highlight?.parcelId ? `parcel-${highlight.parcelId}` : highlight?.packageId ? `package-${highlight.packageId}` : null;
+  useEffect(() => {
+    if (!target || !data) return;
+    document.getElementById(target)?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [target, data]);
   const handoff = useRecordHandoff(orderId);
   const arrival = useRecordArrival(orderId);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -224,6 +230,7 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
                 flush
               >
                 <PackageRows
+                  highlight={highlight}
                   orderId={order.id}
                   courierCollection={order.courierCollection}
                   packages={order.packages}

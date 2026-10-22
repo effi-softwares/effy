@@ -9,7 +9,7 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import { DeliveryChoiceError } from "./delivery-choice";
 import {
-  AddressNotFoundError, BelowMinimumError, EmptyCartError, NotServiceableError, OrderNotFoundError, PaymentInProgressError,
+  AddressNotFoundError, BelowMinimumError, EmptyCartError, ProductUnavailableError, NotServiceableError, OrderNotFoundError, PaymentInProgressError,
   PaymentMethodNotFoundError, PointsCardRemainderTooSmallError, PointsExceedTotalError,
 } from "./service";
 
@@ -75,6 +75,9 @@ export function checkoutError(scope: RequestScope, err: unknown, what: string): 
   if (err instanceof ConnectionLimitError) throw err;
 
   if (err instanceof EmptyCartError) return validationFailed(scope, "your cart has no items available to purchase");
+  if (err instanceof ProductUnavailableError) {
+    return refused(scope, 409, "product_unavailable", "something in your cart is no longer available", { code: "product_unavailable" });
+  }
   if (err instanceof AddressNotFoundError) return validationFailed(scope, "choose a valid delivery address");
   // ⚠ THE refusal (076 FR-022): one code and one sentence, from the one file that holds them, so
   // the checkout says exactly what the address book says. 422, not 400 — the request is well

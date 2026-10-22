@@ -21,7 +21,7 @@ import type {
 } from "@effy/shared-types";
 
 import { COUNTED_REFUND_STATUSES, imageUrlOrNull, operatingStamp, packageStatuses, query, stageFor, type Queryable } from "@effy/edge-shared";
-import { CONSIGNMENT_PROBLEMS, leastAdvanced, type OrderAssignment, type PackageStatusView } from "@effy/shared-types";
+import { CONSIGNMENT_PROBLEMS, leastAdvanced, parcelCustodyOf, type AdminPackageHandoverDTO, type OrderAssignment, type PackageStatusView, type ParcelZone } from "@effy/shared-types";
 
 import { judgePromise } from "./promise";
 import { consignmentsFor, deliveryMovesFor, nextCourierPickup, parseClock } from "@effy/edge-shared/delivery";
@@ -308,14 +308,35 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     // 091 — how each package was handed over at each step (090's record).
     repo.handovers(pkgIds),
   ]);
+  // 096 — the bags, each with its own hand-overs.
+  const parcelRows = await repo.parcels(pkgIds);
+  const toHandover = (h: repo.HandoverRow) => ({
+    step: h.step as AdminPackageHandoverDTO["step"],
+    method: h.method as AdminPackageHandoverDTO["method"],
+    at: h.recorded_at.toISOString(),
+    driverName: h.driver_name,
+    actor: h.actor_kind,
+    ...(h.parcel_code ? { parcelCode: h.parcel_code } : {}),
+  });
   const consignments = new Map(
     await Promise.all([...consignmentById].map(async ([id, c]) => [id, await toConsignment(c)] as const)),
   );
   const packages = packageRows.map((p) => ({
     ...toPackage(p, statusById.get(p.fulfillment_id) ?? null, assignmentById.get(p.fulfillment_id), consignments.get(p.fulfillment_id) ?? null),
-    handovers: handoverRows
-      .filter((h) => h.package_id === p.fulfillment_id)
-      .map((h) => ({ step: h.step, method: h.method, at: h.recorded_at.toISOString(), driverName: h.driver_name })),
+    handovers: handoverRows.filter((h) => h.package_id === p.fulfillment_id).map(toHandover),
+    parcels: parcelRows
+      .filter((b) => b.package_id === p.fulfillment_id)
+      .map((b) => ({
+        parcelId: b.parcel_id,
+        code: b.parcel_code,
+        seq: Number(b.seq),
+        of: Number(b.of),
+        zone: b.zone as ParcelZone,
+        voided: b.voided,
+        printedCount: Number(b.print_count),
+        custody: parcelCustodyOf(b.last_step),
+        handovers: handoverRows.filter((h) => h.parcel_id === b.parcel_id).map(toHandover),
+      })),
   }));
   const statuses = packageRows.map((p) => p.status);
   const awaitingHandover = packageRows.filter(

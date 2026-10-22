@@ -6,8 +6,13 @@ import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL } from "@effy/edge-shared/deli
 /** Open holds, oldest first. */
 export const HELD_PACKAGES = `
   SELECT ph.id AS hold_id, ph.shop_fulfillment_id AS package_id, o.order_number, s.name AS shop_name,
-         d.name AS driver_name, ph.round_id, ph.step, ph.reason, ph.note, ph.created_at
+         d.name AS driver_name, ph.round_id, ph.step, ph.reason, ph.note, ph.created_at,
+         -- 096 — a hold on ONE bag names it; a hold on the whole package has no bag.
+         pp.parcel_code, pp.seq AS parcel_seq, pp.zone AS parcel_zone,
+         (SELECT count(*) FROM public.package_parcel l
+           WHERE l.shop_fulfillment_id = ph.shop_fulfillment_id AND l.voided_at IS NULL)::int AS parcel_of
     FROM public.package_hold ph
+    LEFT JOIN public.package_parcel pp ON pp.id = ph.parcel_id
     JOIN public.shop_fulfillment sf ON sf.id = ph.shop_fulfillment_id
     JOIN public."order" o ON o.id = sf.order_id
     JOIN public.shop s ON s.id = sf.shop_id

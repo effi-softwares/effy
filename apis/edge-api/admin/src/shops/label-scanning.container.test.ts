@@ -10,6 +10,7 @@ vi.mock("@effy/edge-shared", async (importOriginal) => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
+import { createFirstParcels } from "@effy/edge-shared/labels";
 
 import { getShopDetail } from "./repository";
 
@@ -46,10 +47,15 @@ d("091 — label scanning per shop", () => {
     const drv = await one<{ id: string }>(`INSERT INTO public.driver (cognito_sub, name, work_email) VALUES ('d1', 'Ada', 'ada@effyshopping.com') RETURNING id`);
     const wave = await one<{ id: string }>(`INSERT INTO public.dispatch_wave (kind, planned_for, trigger) VALUES ('collection', now(), 'schedule') RETURNING id`);
     const round = await one<{ id: string }>(`INSERT INTO public.driver_round (wave_id, driver_id, kind, deadline_at) VALUES ($1, $2, 'collection', now()) RETURNING id`, [wave.id, drv.id]);
-    const add = (pkgId: string, method: string, daysAgo: number) => pool.query(
-      `INSERT INTO public.package_handover (shop_fulfillment_id, round_id, driver_id, step, handover_method, change_id, recorded_at)
-       VALUES ($1, $2, $3, 'collect', $4, gen_random_uuid(), now() - make_interval(days => $5))`,
-      [pkgId, round.id, drv.id, method, daysAgo]);
+    // 096 — a hand-over is per bag: each package gets its bag 1 first (idempotent).
+    const add = async (pkgId: string, method: string, daysAgo: number) => {
+      await createFirstParcels(pool, { packageIds: [pkgId] });
+      await pool.query(
+        `INSERT INTO public.package_handover (shop_fulfillment_id, parcel_id, actor_kind, round_id, driver_id, step, handover_method, change_id, recorded_at)
+         SELECT $1, p.id, 'driver', $2, $3, 'collect', $4, gen_random_uuid(), now() - make_interval(days => $5)
+           FROM public.package_parcel p WHERE p.shop_fulfillment_id = $1 AND p.seq = 1`,
+        [pkgId, round.id, drv.id, method, daysAgo]);
+    };
 
     expect((await getShopDetail(shop.id))!.labelScanning).toEqual({ scanned: 0, notScanned: 0, sinceDays: 30 });
 

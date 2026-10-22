@@ -31,7 +31,11 @@ export const handler = async (event: AuthedEvent, context: Context): Promise<API
   }
 
   try {
-    return json(200, toDetailDTO(await courierHandover(g.actor, id, typeof ref === "string" && ref.trim() !== "" ? ref.trim() : null)), scope);
+    // 096 — optional: how each bag was handed over (scanned or typed); the rest went by hand.
+    const parcels = Array.isArray(parsed.value.parcels) ? (parsed.value.parcels as unknown[]).slice(0, 50) : undefined;
+    return json(200, toDetailDTO(await courierHandover(
+      g.actor, id, typeof ref === "string" && ref.trim() !== "" ? ref.trim() : null, parcels as never,
+    )), scope);
   } catch (err) {
     return mapFulfillmentError(err, scope);
   }

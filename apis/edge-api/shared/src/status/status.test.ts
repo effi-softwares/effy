@@ -192,3 +192,18 @@ describe("packageStatus — a courier problem (080)", () => {
     expect(at({ ...handed, courierProblem: "lost", arrived: true }).status).toBe("delivered");
   });
 });
+
+/** 096 — a bag declared missing is a Problem to staff; delivered still wins. */
+describe("packageStatus — a held bag (096)", () => {
+  const atHub = { shopStatus: "collected", collectionState: "picked_up", checkedInAtHub: true } as const;
+
+  it("one bag held → Problem, saying how many and where to look", () => {
+    expect(at({ ...atHub, bagsHeld: 1 })).toEqual({ status: "problem", word: "Problem", detail: "1 bag missing — see Exceptions", driverName: null });
+    expect(at({ ...atHub, bagsHeld: 2 }).detail).toBe("2 bags missing — see Exceptions");
+  });
+
+  it("none held → as before; delivered wins over a held bag", () => {
+    expect(at({ ...atHub, bagsHeld: 0 }).status).toBe("at_hub");
+    expect(at({ ...atHub, bagsHeld: 1, arrived: true }).status).toBe("delivered");
+  });
+});

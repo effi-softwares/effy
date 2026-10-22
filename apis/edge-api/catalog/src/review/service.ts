@@ -10,6 +10,7 @@ import {
   validateMargin,
   type Margin,
 } from "@effy/edge-shared";
+import { isGstStatus, setGstStatus } from "@effy/edge-shared/documents";
 import {
   REVIEW_REASON_MAX,
   type MarginDTO,
@@ -20,6 +21,7 @@ import {
   type ReviewImageDTO,
   type ReviewItemDetailDTO,
   type ReviewQueueDTO,
+  GST_STATUS_WORDS,
 } from "@effy/shared-types";
 
 import { ReviewError } from "./errors";
@@ -170,6 +172,7 @@ function detailsOf(p: repo.ProductRow, attrs: repo.AttributeRow[]): ReviewDetail
     { label: "Shop price", value: p.shop_price_amount },
     { label: "Shop \"was\" price", value: p.shop_compare_at_amount },
     { label: "Weight (g)", value: String(p.weight_grams) },
+    { label: "GST", value: p.gst_status ? GST_STATUS_WORDS[p.gst_status] : "Not set" },
     ...attrs.map((a) => ({ label: a.name, value: attributeText(a) })),
   ];
 }
@@ -198,6 +201,7 @@ type Proposed = {
   priceAmount?: unknown;
   compareAtAmount?: unknown;
   weightGrams?: unknown;
+  gstStatus?: unknown;
   attributes?: unknown;
 };
 
@@ -251,6 +255,10 @@ async function changesOf(
   if ("priceAmount" in proposed) add("priceAmount", "Shop price", p.shop_price_amount, str(proposed.priceAmount));
   if ("compareAtAmount" in proposed) add("compareAtAmount", "Shop \"was\" price", p.shop_compare_at_amount, str(proposed.compareAtAmount));
   if ("weightGrams" in proposed) add("weightGrams", "Weight (g)", String(p.weight_grams), String(proposed.weightGrams));
+  // 096 — the shop's GST status for a live product is reviewed like every other detail.
+  if ("gstStatus" in proposed && isGstStatus(proposed.gstStatus)) {
+    add("gstStatus", "GST", p.gst_status ? GST_STATUS_WORDS[p.gst_status] : "Not set", GST_STATUS_WORDS[proposed.gstStatus]);
+  }
 
   const live = new Map(attrs.map((a) => [a.attribute_definition_id, a]));
   for (const a of pAttrs) {
@@ -462,6 +470,10 @@ export async function approve(
         })),
         change.media_changed,
       );
+      // 096 — through the one writer, recorded as approved in review.
+      if (isGstStatus(proposed.gstStatus)) {
+        await setGstStatus(tx, productId, proposed.gstStatus, { kind: "admin_staff", sub: actorSub }, "review");
+      }
 
       await repo.audit(tx, actorSub, "product.change_approved", productId, {
         shopId: p.shop_id,

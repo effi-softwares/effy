@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
   Skeleton,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -42,7 +43,7 @@ import { ShopHistory } from "./components/ShopHistory";
 import { ShopStatusDialog } from "./components/ShopStatusMenu";
 import { ShopStatusBadge, StaffStatusBadge } from "./components/StatusBadge";
 import type { ShopDetail, ShopUser } from "./model";
-import { shopDetailQuery, useUpdateShopUser } from "./queries";
+import { shopDetailQuery, useSetPackScanning, useUpdateShopUser } from "./queries";
 import { ShopStockPanel } from "./ShopStockPanel";
 import { shopLowStockQuery } from "./stockQueries";
 
@@ -70,6 +71,7 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<ShopLifecycleStatus | null>(null);
+  const packScanning = useSetPackScanning(shopId);
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
   if (isPending) {
@@ -208,6 +210,25 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
                   </div>
                 </Panel>
               ) : null}
+
+              {/* 096 — the shop may not mark an order ready until every bag is scanned as packed. */}
+              <Panel title="Packing" description="What this shop must do before an order can be marked ready.">
+                <label className="flex items-start justify-between gap-4">
+                  <span className="space-y-1">
+                    <span className="block text-sm font-medium">Require pack scanning</span>
+                    <span className="bo-sub block">
+                      Every bag's label must be scanned as it is packed. Printing every label is always required.
+                    </span>
+                  </span>
+                  <Switch
+                    aria-label="Require pack scanning"
+                    checked={shop.packScanRequired ?? false}
+                    disabled={!canManage || packScanning.isPending}
+                    onCheckedChange={(v) => packScanning.mutate(v, { onSuccess: () => track({ name: "shop_pack_scanning_changed", required: v }) })}
+                  />
+                </label>
+                {packScanning.isError ? <p className="text-destructive mt-2 text-sm">That didn't save. Try again.</p> : null}
+              </Panel>
 
               {canManage ? (
                 <Panel title="Danger zone" flush>

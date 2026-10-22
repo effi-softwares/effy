@@ -144,6 +144,13 @@ couriers**. They are Effy employees working typed tasks, not roles:
   `planning_lead_min`; before that the driver service refuses every action (409 `round_not_open`). ⚠ The
   opening time is derived by `public.round_opens_at` only.
 - **One hub** (multi-hub is deferred).
+- ⚠ **THE BAG IS THE UNIT OF HANDLING (096).** A package (one shop's share) travels as one or more bags
+  (`package_parcel`; bag 1's code is the package's 089 code, made at payment by `createFirstParcels` — no trigger).
+  Every driver step accounts for EVERY bag (`expectedParcels` + `accountFor`, 409 `parcels_unaccounted`); one bag
+  missing holds that bag, all missing hold the package. Every read is recorded by ONE writer (`recordReads` →
+  `label_read`); every hand-over by ONE writer (`recordHandovers`, per bag, by driver, shop staff or hub staff).
+  `label_read`, `label_print`, `package_handover` and `tax_document` are append-only (`labels.guard.test.ts`).
+  The hub station closes a run through the driver's own `closeRunCheckin`.
 - **One package status, nine words, everywhere (073).** Preparing · Ready · With driver · At hub · Out for
   delivery · With carrier · Delivered · Problem · Cancelled — derived by `packageStatus` from the dispatch
   rows, never from `shop_fulfillment.status` alone, and shown only through `STATUS_WORD` /
@@ -573,6 +580,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **096-parcel-labels-scanning** — Order Package Labels, Scanning & Printed Documents (a code and carrier-style label per bag; every hand-over per bag; scan-to-find and the hub station; hand-over report; delivery note; GST status; tax invoice on request) — built; NOT migrated, deployed or walked
 - **097-same-day-by-postcode** — Delivery Today, Postcode by Postcode (staff switch "today" off for far postcodes; the calendar leaves today out; no new customer wording) — built; NOT migrated, deployed or walked
 - **095-promotion-skins** — Promotion Skins (staff-designed skins on six layouts, any colour AA-checked on the server, chosen per group placement; pictures on promotions; `mega-nav` in the aisles menu; Classic = as before) — complete in dev, signed off; promotion routes deploy as stack `admin-promotions`
 - **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — complete in dev (migrated, deployed, walked); stage C table removal open

@@ -121,6 +121,28 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  gstMissingV1:
+    handler: src/functions/gst-missing-v1-get.handler
+    description: Live products with no GST status yet (096 FR-092). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/gst/missing
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  gstBulkV1:
+    handler: src/functions/gst-bulk-v1-post.handler
+    description: Set one GST status on many products, recorded per product (096 FR-092). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/gst/bulk
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   reviewItemV1:
     handler: src/functions/review-item-v1-get.handler
     description: One review item with its before/after (067 FR-009, FR-010). Read = any active staff incl. csa.

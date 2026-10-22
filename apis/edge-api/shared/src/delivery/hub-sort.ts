@@ -1,4 +1,5 @@
 // Where a package goes at the hub (090) — what the hub scan shows for each package, with no signal.
+// 096 — moved here from the driver service: the back-office hub station says the same words.
 //
 // ⚠ THE SAME DECISION AND THE SAME WORDS AS THE HUB CHECK-IN GROUPS (082, `complete.ts`): who delivers is
 // `package_delivered_by`; an Effy parcel for a window today goes out now, one for a later day waits on a

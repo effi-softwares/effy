@@ -48,6 +48,8 @@ vi.mock("@effy/edge-shared", async () => {
 
 import { migrationSql } from "@effy/edge-shared";
 
+import { bulkSet, missing } from "../gst/service";
+
 import { ReviewError } from "./errors";
 import { approve, item, marginNotSet, oldestWaitingHours, queue, sendBack, setMargin } from "./service";
 
@@ -487,6 +489,35 @@ d("067 — product review against real PostgreSQL", () => {
     expect(currentMargin).toEqual({ kind: "amount", value: "2" });
     await approve(id, { version }, ADMIN);
     expect((await live(id)).p).toMatchObject({ name: "Rye", price_amount: "12.00", margin_kind: "amount", margin_value: "2.0000" });
+  });
+
+  it("096 — a proposed GST status is shown as GST, and approving it applies it with its history", async () => {
+    const id = await makeProduct({ approved: true });
+    await pool.query(`UPDATE public.product SET margin_kind = 'amount', margin_value = 2, price_amount = 12.00, gst_status = 'taxable' WHERE id = $1`, [id]);
+    await proposeChange(id, { gstStatus: "gst_free" });
+    const detail = await item(id);
+    expect(detail.changes).toEqual(expect.arrayContaining([{ field: "gstStatus", label: "GST", before: "Taxable", after: "GST-free" }]));
+    await approve(id, { version: detail.version }, ADMIN);
+    const row = await pool.query(`SELECT gst_status FROM public.product WHERE id = $1`, [id]);
+    expect(row.rows[0].gst_status).toBe("gst_free");
+    const history = await pool.query(`SELECT from_status, to_status, actor_kind, admin_sub, via FROM public.product_gst_change WHERE product_id = $1`, [id]);
+    expect(history.rows).toEqual([{ from_status: "taxable", to_status: "gst_free", actor_kind: "admin_staff", admin_sub: ADMIN, via: "review" }]);
+  });
+
+  it("096 — lists live products with no GST status, and sets many at once, each recorded", async () => {
+    const a = await makeProduct({ approved: true, name: "Unclassified A" });
+    const b = await makeProduct({ approved: true, name: "Unclassified B" });
+    const draft = await makeProduct({ name: "Draft, not listed" });
+    const before = await missing();
+    expect(before.items.map((i) => i.productId)).toEqual(expect.arrayContaining([a, b]));
+    expect(before.items.map((i) => i.productId)).not.toContain(draft);
+    expect(await bulkSet(ADMIN, [a, b, a], "gst_free")).toEqual({ changed: 2 });
+    expect(await bulkSet(ADMIN, [a], "gst_free")).toEqual({ changed: 0 });
+    expect((await missing()).items.map((i) => i.productId)).not.toContain(a);
+    const history = await pool.query(`SELECT via FROM public.product_gst_change WHERE product_id = ANY($1::uuid[])`, [[a, b]]);
+    expect(history.rows.map((r) => r.via)).toEqual(["bulk", "bulk"]);
+    await expect(bulkSet(ADMIN, [a], "zero")).rejects.toMatchObject({ kind: "validation" });
+    await expect(bulkSet(ADMIN, ["00000000-0000-4000-8000-000000000000"], "taxable")).rejects.toMatchObject({ kind: "not_found" });
   });
 
   it("a product that never had a margin needs one before its change is approved", async () => {

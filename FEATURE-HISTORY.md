@@ -4,6 +4,74 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**096-parcel-labels-scanning — Order Package Labels, Scanning & Printed Documents.** 🔨 **BUILT 2026-10-22 — NOT
+MIGRATED, DEPLOYED OR WALKED** (an earlier deploy of the P1 set may have been run; see the operator steps). Every physical
+bag of an order now has its own permanent code and a professional carrier-style label; every hand-over is per bag and
+on record; back-office can scan anything to find it and run a hub station; customers get a delivery note and, once Effy's
+tax details are entered, an ATO-style tax invoice. Grounded in [research-08](docs/research/logistics/research-08-labels-scanning-documents.md).
+Spec, plan, tasks: [specs/096-parcel-labels-scanning/](specs/096-parcel-labels-scanning/tasks.md).
+
+- **Bags (US1)**: `package_parcel`, one row per bag; bag 1's code IS the package's 089 code (made at payment by
+  `createFirstParcels` in `payments/finalize.ts`, backfilled by the migration — ⚠ no trigger: the shop trigger guard bans
+  them). One code space (UNIQUE). Shops declare bags per temperature zone; a cold line needs a bag of its zone. ⚠ Once a
+  label is printed only the LAST bag may be removed, and bag 1 never. Changes stop when a bag leaves the shop.
+- **Labels (US10, US2)**: ONE renderer (`shop-web …/labels/render.ts`, SVG) for preview, browser print and ZPL; fixed
+  blocks (service · deliver to · zone band · BAG n OF N · Code 128 of `EFY1:<code>` · QR · contact), self-tightening for
+  long addresses, bars on the printer's dot grid, black and white only. ⚠ The recipient's name and address ARE on the
+  label (reverses 089); the shop's name, prices, phone, window or day never are. Direct printing to Zebra printers via
+  Browser Print; Settings → Printing per computer. Every print recorded (`label_print`) only AFTER it was sent; a portion
+  cannot be marked ready until every bag's label is printed (and pack-scanned, where required).
+- **Driver (US3)**: collect, hub check-in, load, door and return each account for EVERY bag (`expectedParcels` +
+  `accountFor`, 409 `parcels_unaccounted`); one bag missing holds that bag, every bag missing holds the package (093's
+  shape). Every read — accepted or refused — is recorded (`label_read`, one writer `recordReads`, with the server's own
+  outcome beside the phone's). The app lists and scans bags; the shared scan rule has a Kotlin twin pinned to
+  `scan-rule.fixtures.json`.
+- **Shop pack scanning (US4)**: each bag scanned as packed; back-office's "Require pack scanning" switch per shop
+  (`PUT /fleet/v1/shops/{id}/pack-scanning`, the one writer; audited). Courier hand-overs are recorded per bag.
+- **Back-office (US5, US6)**: scan anywhere (a handheld scan on any page opens the bag's order, highlighted; typed codes
+  through ⌘K) via `GET /orders/v1/admin/lookup`; the **hub station** (`/hub`, admin/manager — `GET /fleet/v1/hub/expected`,
+  `POST /fleet/v1/hub/checkins`): the driver's own rules, the last bag of a run closes it as hub staff's; order detail
+  shows each bag with its hand-overs (shop and hub staff said by role); Exceptions name the held bag; a held bag reads
+  "Problem" to staff only; the **hand-over report** (`/reports/handovers`): scan/typed/by hand overall, per shop, per
+  driver, refused reads, missing bags, ⚠ exceptions per 1,000 hand-overs (an exception = a refused read that is not a
+  repeat, or a bag declared missing — the spec did not define one).
+- **Delivery note (US7)**: digital only — merged by product NAME across packages (two shops' listings of one thing are
+  two rows; keeping them apart would leak the supplier count), no price, no shop; on the order page (web and app) and
+  linked from the delivered email; PDF by `pdf-lib` in the Lambda. 409 `not_delivered` until every coming package arrived.
+- **GST status (US9)**: `product.gst_status`, ONE writer `setGstStatus` (history in `product_gst_change`, via
+  create/direct/review/bulk; `documents.guard.test.ts`). Required to create a product; a live product's change is
+  PROPOSED and reviewed (067); back-office "GST missing" tab with bulk set; frozen onto `order_item.gst_status` at checkout;
+  while invoices are on, an unclassified product is refused at the intent (409 `product_unavailable`, alarm).
+- **Tax invoice (US8)**: issued ONCE on the customer's first request (never on page view — so the optional business name
+  and ABN, FR-085, can be given first), from a frozen snapshot; numbered `EFY-INV-000001`; GST = round half-up of taxable
+  ÷ 11 over the invoice; fees per `business_tax.fee_treatment`; points listed as a payment; the buyer printed at $1,000+;
+  one adjustment note per settled refund. ⚠ **Nothing is issued until the operator enters the legal name, ABN (checksum
+  validated) and fee treatment in back-office → Settings → Tax AND every live product is classified** — customers are
+  told "not available yet" and `TaxInvoiceRequestedWhileDisabled` alarms. Orders from before 096 get no invoice.
+- **Defects found while building**: the user's `git stash` removed every untracked 096 file mid-build — all rebuilt from
+  the session (docs replayed from the transcript); the migration's version clashed with 097's (renamed
+  `20261024090000`); ⚠ `product_gst_change` referenced `product` without a cascade, so deleting a draft product would
+  fail — fixed by a SECOND migration (`20261025090000_gst_change_follows_product.sql`) because the first may already be
+  applied; the hub station's nav key collided with Delivery's "hub"; the restored check-in core tripped the storefront
+  availability guard (courier service, exempted with a reason).
+- **Gateways**: shared 173/300 (58%), staff 198/300 (66%).
+- **Verified**: whole-repo typecheck (26 tasks); with containers — edge-shared 1072 (incl. new labels, documents, GST,
+  tax-invoice and guard tests), shop 496/497, driver 224/224, fleet 335/335, catalog 46/46, commerce 341/342, orders
+  111/121, admin 232/238; shop-web 505, back-office 389, customer-web 711, shared-types 201, web-kit 143; driver app 160
+  and customer app host tests (incl. the scan-rule fixture and the documents ViewModel); the delivery-word, refresh-timer,
+  legacy-delivery, driver, mobile, emerald/jade and design-token guards.
+- ⚠ **PRE-EXISTING failures, not caused by 096** (as recorded under 097): commerce checkout "079 P9" (085's `promise`);
+  admin go-live (6) and orders `repository.container` (10) build from migrations before 085; shop `attention`
+  "recipients from the platform record".
+- **⚠ Open — operator**: (1) commit; (2) `AWS_PROFILE=ef make db-up ENV=dev` — `20261024090000_parcels_scanning_documents.sql`
+  and `20261025090000_gst_change_follows_product.sql` (and 097's if not yet applied); (3) straight away
+  `make edge-deploy ENV=dev` `SERVICE=commerce` FIRST (bag 1 at payment), then `driver`, `shop`, `fleet`, `orders`,
+  `catalog`, `admin` — ⚠ between the migration and these deploys driver hand-overs fail and newly paid orders get no bag 1;
+  (4) web consoles and storefront deploy on push; rebuild the driver and customer apps; (5) `AWS_PROFILE=ef make apply
+  ENV=dev` for the two new commerce alarms; (6) enter Effy's legal name, ABN and fee treatment (confirm the fee treatment
+  and rounding with the accountant), classify every product, then turn invoices on; (7) the walk in
+  [quickstart.md](specs/096-parcel-labels-scanning/quickstart.md).
+
 **097-same-day-by-postcode — Delivery Today, Postcode by Postcode.** 🔨 **BUILT 2026-10-21 — NOT MIGRATED, DEPLOYED OR
 WALKED.** Each postcode on Effy's list now says whether a window TODAY may be sold there (default: offered). Staff
 switch far postcodes off in bulk from Delivery → Coverage; customers there get Standard delivery from the next

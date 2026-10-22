@@ -216,6 +216,39 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
+  adminLookupV1:
+    handler: src/functions/admin-lookup-v1-get.handler
+    description: What a bag label, a typed code or an order number names; records the read (096 FR-040). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/admin/lookup
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminTaxSettingsGetV1:
+    handler: src/functions/admin-tax-settings-v1-get.handler
+    description: Effy's tax identity and whether invoices are on (096 US8). Admin only.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/admin/tax-settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
+  adminTaxSettingsPutV1:
+    handler: src/functions/admin-tax-settings-v1-put.handler
+    description: Set Effy's legal name, ABN, fee treatment and turn invoices on (096 US8, FR-084). Admin only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /orders/v1/admin/tax-settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
+
   handoversListV1:
     handler: src/functions/handovers-v1-get.handler
     description: Standard packages due to be handed to the carrier, by due day (069 US7). Read = any active staff incl. csa.

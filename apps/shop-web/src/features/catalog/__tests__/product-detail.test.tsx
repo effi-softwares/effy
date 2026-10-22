@@ -51,6 +51,7 @@ const DETAIL = {
   status: "active",
   weightGrams: 800,
   weightIsAssumed: false,
+  gstStatus: "gst_free",
   attributes: [],
   media: [],
   sections: [],

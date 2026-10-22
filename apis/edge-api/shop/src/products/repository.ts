@@ -11,6 +11,8 @@
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
+import { setGstStatus } from "@effy/edge-shared/documents";
+import type { GstStatus } from "@effy/shared-types";
 
 import {
   type AllowedValue,
@@ -268,6 +270,8 @@ export async function createProduct(
     }
 
     await insertAttributeValues(client, productId, input.attributes);
+    // 096 — through the one writer, so the status has its history from the first moment.
+    await setGstStatus(client, productId, input.gstStatus, { kind: "shop_staff", sub: createdBy }, "create");
 
     for (const m of input.media) {
       await client.query(
@@ -311,8 +315,11 @@ export async function updateProduct(
     shortDescription: string;
     longDescription: string | null;
     weightGrams: number | null;
+    /** 096 — null leaves it as it stands. */
+    gstStatus: GstStatus | null;
   },
   attributes: CreateProductInput["attributes"],
+  actorSub: string,
 ): Promise<"updated" | "stale"> {
   return withTransaction(async (client) => {
     let res;
@@ -357,6 +364,7 @@ export async function updateProduct(
     }
     if (res.rowCount === 0) return "stale";
     await insertAttributeValues(client, id, attributes);
+    if (values.gstStatus) await setGstStatus(client, id, values.gstStatus, { kind: "shop_staff", sub: actorSub }, "direct");
     return "updated";
   });
 }
@@ -716,6 +724,7 @@ interface ProductRow {
   long_description: string | null;
   weight_grams: number;
   weight_is_assumed: boolean;
+  gst_status: GstStatus | null;
   status: ProductStatus;
   created_at: Date;
   updated_at: Date;
@@ -763,6 +772,7 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
             p.price_amount::text AS customer_price_amount,
             p.compare_at_amount::text AS customer_compare_at_amount,
             p.short_description, p.long_description, p.weight_grams, p.weight_is_assumed,
+            p.gst_status,
             p.status,
             p.created_at, p.updated_at,
             ${REVIEW_STATE_SQL} AS review_state_shown,
@@ -848,6 +858,7 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     longDescription: row.long_description,
     weightGrams: Number(row.weight_grams),
     weightIsAssumed: row.weight_is_assumed,
+    gstStatus: row.gst_status,
     status: row.status,
     attributes,
     media: mediaOut,

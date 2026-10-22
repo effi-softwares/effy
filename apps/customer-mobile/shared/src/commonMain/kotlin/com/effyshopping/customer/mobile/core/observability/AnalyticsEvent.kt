@@ -93,6 +93,10 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     // 074 — points. ⚠ NO AMOUNTS, NO BALANCE: a balance is account data, not behaviour. The same names
     // and props as customer-web's.
     data object PointsViewed : AnalyticsEvent("points_viewed")
+
+    /** 096 — the order's documents. Which document, never its contents or number. */
+    data object DeliveryNoteViewed : AnalyticsEvent("delivery_note_viewed")
+    data class TaxInvoiceDownloaded(val kind: String) : AnalyticsEvent("tax_invoice_downloaded", mapOf("kind" to kind))
     class CheckoutPointsToggled(on: Boolean) : AnalyticsEvent("checkout_points_toggled", mapOf("on" to on.toString()))
     /** `share`: `part` | `all`. */
     class CheckoutPaidWithPoints(share: String) : AnalyticsEvent("checkout_paid_with_points", mapOf("share" to share))

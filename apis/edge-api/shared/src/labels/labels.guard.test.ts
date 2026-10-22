@@ -61,7 +61,36 @@ describe("096 — the bag record's one writers", () => {
   it("every driver or fleet hand-over judges completeness through expectedParcels + accountFor", () => {
     const recording = sources.filter((s) => /^(driver|fleet)\//.test(s.file) && /\brecordHandovers\(/.test(s.src));
     expect(recording.length).toBeGreaterThan(0);
-    const without = recording.filter((s) => !/\bexpectedParcels\(/.test(s.src) || !/\baccountFor\(/.test(s.src)).map((s) => s.file);
+    const without = recording
+      .filter((s) => !(s.file in PER_SCAN))
+      .filter((s) => !/\bexpectedParcels\(/.test(s.src) || !/\baccountFor\(/.test(s.src))
+      .map((s) => s.file);
     expect(without).toEqual([]);
+  });
+
+  /**
+   * ⚠ ONE named exception: the hub station checks in ONE scanned bag per read, so there is no "every
+   * bag of the step" for `accountFor` to judge. What the run still owes is still the one definition —
+   * `bagsToCheckIn`, built on `expectedParcels` — and the run closes only when that is empty.
+   */
+  const PER_SCAN: Record<string, RegExp> = { "fleet/src/hub/service.ts": /\bbagsToCheckIn\(/ };
+  it("the hub station judges each scan against what the run still owes (bagsToCheckIn)", () => {
+    for (const [file, needs] of Object.entries(PER_SCAN)) {
+      const src = sources.find((s) => s.file === file)?.src;
+      expect(src, `${file} is exempted but does not exist — remove it`).toBeDefined();
+      expect(needs.test(src!)).toBe(true);
+    }
+  });
+
+  /**
+   * ⚠ FR-064 / 073 — a shop sees its own bags' records and never a driver's name. Any shop source that
+   * reads the hand-over or read record must not join the driver table beside it.
+   */
+  it("no shop route reads a driver's name alongside a read or hand-over", () => {
+    const leaking = sources
+      .filter((s) => /^shop\//.test(s.file) && /public\.(package_handover|label_read)\b/.test(s.src))
+      .filter((s) => /JOIN\s+public\.driver\b/.test(s.src))
+      .map((s) => s.file);
+    expect(leaking).toEqual([]);
   });
 });

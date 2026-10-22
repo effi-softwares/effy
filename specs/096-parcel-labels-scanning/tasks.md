@@ -235,11 +235,11 @@ dev before this feature's walk.
 
   Export it from `packages/web-kit/package.json` `exports`.
 - [X] T042 [P] [US4] Write `WK/scanner/wedge.test.ts`: a burst counts as a scan, slow typing does not, an Enter/Tab/idle suffix, Caps Lock, a stray key before, and no leak into an input.
-- [ ] T043 [US4] Write `SHP/parcels/service.ts` `packScan(actor, fulfillmentId, reads)`. It judges each read against this package's parcels (`resolveCode`), sets `pack_scanned_at`/`by` for accepted ones, records a `pack` hand-over and the reads, and refuses a different package with a sentence. Add the handler `SHP/functions/parcel-pack-scans-v1-post.ts` and register it.
-- [ ] T044 [US4] Record shop hand-overs per parcel in the existing courier hand-over and pickup routes (`SHP/functions/fulfillment-courier-handover-v1-post.ts`, `fulfillment-pickup-v1-post.ts`), with actor shop staff and steps `courier_handover` / `shop_pickup`.
-- [ ] T045 [US4] In shop-web's `PackBags.tsx`, add a "Scan bags" `ScanField`, "Packed n of N" and a result line per read. Each bag shows its custody ("At shop", "Packed", "With driver", "With courier") and never a driver's name.
-- [ ] T046 [US4] Back-office: add a "Require pack scanning" switch to the shop detail settings in `BO/features/shops/*`. The admin route is not touched: add a shop-settings field to the existing `SHP`/`orders` path that already sets shop fields, or confirm the owning route with `grep -rn "pack\|settings" apis/edge-api/admin/src/shops` before adding a route anywhere.
-- [ ] T047 [P] [US4] Write `SHP/parcels/pack-scan.container.test.ts` (accepted, foreign package, repeat counted once, the required gate) and `SW/fulfillment/__tests__/pack-scan.test.tsx`.
+- [X] T043 [US4] Write `SHP/parcels/service.ts` `packScan(actor, fulfillmentId, reads)`. It judges each read against this package's parcels (`resolveCode`), sets `pack_scanned_at`/`by` for accepted ones, records a `pack` hand-over and the reads, and refuses a different package with a sentence. Add the handler `SHP/functions/parcel-pack-scans-v1-post.ts` and register it.
+- [X] T044 [US4] (Courier hand-over only — the pickup route is a dev-only scaffold marked do-not-extend.) Record shop hand-overs per parcel in the existing courier hand-over and pickup routes (`SHP/functions/fulfillment-courier-handover-v1-post.ts`, `fulfillment-pickup-v1-post.ts`), with actor shop staff and steps `courier_handover` / `shop_pickup`.
+- [X] T045 [US4] In shop-web's `PackBags.tsx`, add a "Scan bags" `ScanField`, "Packed n of N" and a result line per read. Each bag shows its custody ("At shop", "Packed", "With driver", "With courier") and never a driver's name.
+- [X] T046 [US4] Back-office: add a "Require pack scanning" switch to the shop detail settings in `BO/features/shops/*`. The admin route is not touched: add a shop-settings field to the existing `SHP`/`orders` path that already sets shop fields, or confirm the owning route with `grep -rn "pack\|settings" apis/edge-api/admin/src/shops` before adding a route anywhere.
+- [X] T047 [P] [US4] Write `SHP/parcels/pack-scan.container.test.ts` (accepted, foreign package, repeat counted once, the required gate) and `SW/fulfillment/__tests__/pack-scan.test.tsx`.
 
 ---
 
@@ -248,23 +248,23 @@ dev before this feature's walk.
 **Goal**: one scan box finds anything, and hub staff check bags in.
 **Independent test**: spec US5. Scan a bag, an 089 package label or an order number, and the order opens highlighted. A hub check-in shows At hub with the sort words.
 
-- [ ] T047a [US5] Write `ORD/lookup/service.ts`, `repository.ts` and the handler `ORD/functions/admin-lookup-v1-get.ts` (`GET /orders/v1/admin/lookup?q=`). It calls `resolveCode`, records a `lookup` read with actor admin staff and surface `back_office`, and returns 404 with a sentence when nothing matches. Register it in `apis/edge-api/orders/serverless.yml`.
-- [ ] T048 [US5] Write `BO/components/shell/ScanBox.tsx`, mounted in the shell header:
+- [X] T047a [US5] Write `ORD/lookup/service.ts`, `repository.ts` and the handler `ORD/functions/admin-lookup-v1-get.ts` (`GET /orders/v1/admin/lookup?q=`). It calls `resolveCode`, records a `lookup` read with actor admin staff and surface `back_office`, and returns 404 with a sentence when nothing matches. Register it in `apis/edge-api/orders/serverless.yml`.
+- [X] T048 [US5] Write `BO/components/shell/ScanBox.tsx`, mounted in the shell header:
   - a `ScanField` listening for the wedge on every page;
   - typed entry with Enter;
   - navigate to `/orders/$orderId?parcel=` or `?package=`.
 
   Make `BO/features/orders/OrderDetailScreen.tsx` scroll to and highlight that bag or package.
-- [ ] T049 [US5] Write `FLT/hub/repository.ts`, `service.ts`, and the handlers `FLT/functions/hub-expected-v1-get.ts` and `hub-checkins-v1-post.ts`. Each read is judged, `checkInParcels` is called with actor admin staff, then `closeRunCheckin` for every completed run. Results come back in the scan rule's words with the sort instruction. Access is `admin`/`manager` from the staff record. Announce `dispatch` and the run driver's `today`. Register them in `apis/edge-api/fleet/serverless.yml`.
-- [ ] T050 [US5] Write `BO/features/hub/HubStationScreen.tsx`, the route and the nav entry (admin and manager):
+- [X] T049 [US5] Write `FLT/hub/repository.ts`, `service.ts`, and the handlers `FLT/functions/hub-expected-v1-get.ts` and `hub-checkins-v1-post.ts`. Each read is judged, `checkInParcels` is called with actor admin staff, then `closeRunCheckin` for every completed run. Results come back in the scan rule's words with the sort instruction. Access is `admin`/`manager` from the staff record. Announce `dispatch` and the run driver's `today`. Register them in `apis/edge-api/fleet/serverless.yml`.
+- [X] T050 [US5] Write `BO/features/hub/HubStationScreen.tsx`, the route and the nav entry (admin and manager):
   - a large `ScanField` (wedge and camera);
   - the last read's result in large type (outcome and sort words);
   - a table of expected bags grouped by run (code, n of N, zone, order, checked in);
   - no cards.
 
   Live updates for `dispatch` go through `BO/features/live/routes.ts`.
-- [ ] T051 [US5] Order detail: `ORD/orders/repository.ts` returns `parcels[]`, each with its hand-overs (091 moves from package to parcel). Update `ST/order-admin.ts`, and render bags inside `BO/features/orders/components/PackageRows.tsx` (code, n of N, zone, printed count, custody, hand-over history). Update `ORD/orders/handovers.container.test.ts`.
-- [ ] T052 [P] [US5] Write the tests `ORD/lookup/lookup.container.test.ts`, `FLT/hub/hub.container.test.ts` (accepted with sort, every refusal from FR-043, run closes when complete, driver and staff mixed, a csa refused) and `BO/features/hub/HubStationScreen.test.tsx`.
+- [X] T051 [US5] Order detail: `ORD/orders/repository.ts` returns `parcels[]`, each with its hand-overs (091 moves from package to parcel). Update `ST/order-admin.ts`, and render bags inside `BO/features/orders/components/PackageRows.tsx` (code, n of N, zone, printed count, custody, hand-over history). Update `ORD/orders/handovers.container.test.ts`.
+- [X] T052 [P] [US5] Write the tests `ORD/lookup/lookup.container.test.ts`, `FLT/hub/hub.container.test.ts` (accepted with sort, every refusal from FR-043, run closes when complete, driver and staff mixed, a csa refused) and `BO/features/hub/HubStationScreen.test.tsx`.
 
 ---
 
@@ -273,10 +273,10 @@ dev before this feature's walk.
 **Goal**: reports over reads and hand-overs, and parcel holds on Exceptions.
 **Independent test**: spec US6. A scan, a typed entry, a manual tick, a wrong-shop scan and a void each appear with every field, and the reports count them.
 
-- [ ] T053 [US6] Write `FLT/reports/handovers.ts`, `repository.ts` and the handler `FLT/functions/reports-handovers-v1-get.ts` (`GET /fleet/v1/reports/handovers?from&to`). It returns counts by method overall, per shop and per driver, refused reads by `server_outcome`, missing parcels, exceptions per 1,000 hand-overs, and client/server outcome disagreements. Register it.
-- [ ] T054 [US6] Exceptions: in `FLT/exceptions/*`, held items gain `parcel {code, seq, of, zone}`, and Found/Lost resolve parcel holds. Parcel holds show the existing "Problem" word to staff in `ESH/status/status.ts` `packageStatus` (staff views only; the shop and the customer are unchanged).
-- [ ] T055 [US6] Write `BO/features/reports/handovers/*`: the report page with a date range, tables (method mix, per shop, per driver, refused by kind) and no metric cards. Add its nav entry under Dispatch, and its exceptions row additions in `BO/features/exceptions/*`.
-- [ ] T056 [P] [US6] Write `FLT/reports/handovers.container.test.ts`, seeding each read and hand-over kind and asserting every count and the per-1,000 figure. Extend `ESH/labels/reads.guard.test.ts` with an assertion that no shop route returns a driver's name in a read.
+- [X] T053 [US6] Write `FLT/reports/handovers.ts`, `repository.ts` and the handler `FLT/functions/reports-handovers-v1-get.ts` (`GET /fleet/v1/reports/handovers?from&to`). It returns counts by method overall, per shop and per driver, refused reads by `server_outcome`, missing parcels, exceptions per 1,000 hand-overs, and client/server outcome disagreements. Register it.
+- [X] T054 [US6] Exceptions: in `FLT/exceptions/*`, held items gain `parcel {code, seq, of, zone}`, and Found/Lost resolve parcel holds. Parcel holds show the existing "Problem" word to staff in `ESH/status/status.ts` `packageStatus` (staff views only; the shop and the customer are unchanged).
+- [X] T055 [US6] Write `BO/features/reports/handovers/*`: the report page with a date range, tables (method mix, per shop, per driver, refused by kind) and no metric cards. Add its nav entry under Dispatch, and its exceptions row additions in `BO/features/exceptions/*`.
+- [X] T056 [P] [US6] Write `FLT/reports/handovers.container.test.ts`, seeding each read and hand-over kind and asserting every count and the per-1,000 figure. Extend `ESH/labels/reads.guard.test.ts` with an assertion that no shop route returns a driver's name in a read.
 
 ---
 
@@ -285,17 +285,17 @@ dev before this feature's walk.
 **Goal**: a digital delivery note, as JSON and PDF, on the web and in the app, linked from the delivered message.
 **Independent test**: spec US7. A part-picked and an unavailable line are both correct. No price, no shop.
 
-- [ ] T057 [US7] Write `ESH/documents/pdf.ts`: the `pdf-lib` helpers (A4, Helvetica, black, the wordmark as vector paths from `@effy/brand`, table rows, page breaks), and emit `PdfRenderMs`.
-- [ ] T058 [US7] Write `ESH/documents/delivery-note.ts`:
+- [X] T057 [US7] Write `ESH/documents/pdf.ts`: the `pdf-lib` helpers (A4, Helvetica, black, the wordmark as vector paths from `@effy/brand`, table rows, page breaks), and emit `PdfRenderMs`.
+- [X] T058 [US7] Write `ESH/documents/delivery-note.ts`:
   - `buildDeliveryNote(db, orderId)` → `DeliveryNoteDTO`, with lines merged by product across packages and supplied quantities from `fulfillment_item.gathered_quantity`/`unavailable_quantity`;
   - `renderDeliveryNotePdf(dto)`.
 
   Add the types to `ST/documents.ts`.
-- [ ] T059 [US7] Write `COM/documents/service.ts` and the handler `COM/functions/order-delivery-note-v1-get.ts`. It is owner-only, with byte-identical refusals; returns 409 `not_delivered` before any delivery; and answers `?format=pdf` → base64 `application/pdf`. Register it in `apis/edge-api/commerce/serverless.yml`.
-- [ ] T060 [US7] Add the delivery-note link to the delivered email and push copy in `apis/edge-api/notifications/src/worker/copy.ts` (the order URL, `…/orders/{id}#documents`).
-- [ ] T061 [US7] Customer web: add the "Documents" section on the order page (`CW/orders/[id]/…`), with the delivery note rendered from the DTO and a Download PDF button through `CW/api/orders/[id]/documents/*` (the cookie proxy, as for other order routes).
-- [ ] T062 [US7] Customer app: add the "Documents" section in the order screen (`CM/features/orders/…/documents/*`), the use case, and the repository (Ktor bytes) feeding an expect/actual `CM/core/platform/FileShare.kt` (Android `FileProvider` + share intent; iOS `UIActivityViewController`). Use the storefront kit, and sheets only (`scripts/mobile-guard.sh`).
-- [ ] T063 [P] [US7] Write the tests `ESH/documents/delivery-note.container.test.ts` (merge, part, unavailable, no shop, no price), `COM/documents/delivery-note.container.test.ts` (owner, not delivered, PDF bytes start `%PDF`), a customer-web component test, and a KMP host test of the documents ViewModel.
+- [X] T059 [US7] Write `COM/documents/service.ts` and the handler `COM/functions/order-delivery-note-v1-get.ts`. It is owner-only, with byte-identical refusals; returns 409 `not_delivered` before any delivery; and answers `?format=pdf` → base64 `application/pdf`. Register it in `apis/edge-api/commerce/serverless.yml`.
+- [X] T060 [US7] Add the delivery-note link to the delivered email and push copy in `apis/edge-api/notifications/src/worker/copy.ts` (the order URL, `…/orders/{id}#documents`).
+- [X] T061 [US7] Customer web: add the "Documents" section on the order page (`CW/orders/[id]/…`), with the delivery note rendered from the DTO and a Download PDF button through `CW/api/orders/[id]/documents/*` (the cookie proxy, as for other order routes).
+- [X] T062 [US7] Customer app: add the "Documents" section in the order screen (`CM/features/orders/…/documents/*`), the use case, and the repository (Ktor bytes) feeding an expect/actual `CM/core/platform/FileShare.kt` (Android `FileProvider` + share intent; iOS `UIActivityViewController`). Use the storefront kit, and sheets only (`scripts/mobile-guard.sh`).
+- [X] T063 [P] [US7] Write the tests `ESH/documents/delivery-note.container.test.ts` (merge, part, unavailable, no shop, no price), `COM/documents/delivery-note.container.test.ts` (owner, not delivered, PDF bytes start `%PDF`), a customer-web component test, and a KMP host test of the documents ViewModel.
 
 ---
 
@@ -304,11 +304,11 @@ dev before this feature's walk.
 **Goal**: GST status on products: the shop sets it, back-office reviews it, bulk setting exists, and it is captured on order lines.
 **Independent test**: spec US9. Set it through each path, and the count of unclassified products goes to zero.
 
-- [ ] T064 [US9] Accept `gstStatus` in shop product create and edit: `SHP/products/types.ts`, `service.ts`, `repository.ts` and `change.ts` (a proposed field for live products, per 067). Show it in `CAT/review/service.ts`'s diff as "GST", and write `product_gst_change` on apply (`via: review` or `direct`). Update `ST/catalog.ts`.
-- [ ] T065 [US9] Write `CAT/gst/*` and the handlers `CAT/functions/gst-missing-v1-get.ts` and `gst-bulk-v1-post.ts` (staff), recording `via: bulk`. Register them in `apis/edge-api/catalog/serverless.yml`.
-- [ ] T066 [US9] Checkout: in `COM/checkout/store.ts`, copy `product.gst_status` into `order_item.gst_status` in the same insert. While `business_tax.invoices_enabled`, refuse a cart holding an unclassified product with 409 `product_unavailable` (no reason given to the customer).
-- [ ] T067 [US9] shop-web: add the GST choice in `SW/catalog/ProductEditDialogs.tsx` (Taxable / GST-free), and show it on `ProductDetailScreen.tsx` and in `SW/catalog/review.ts`'s proposed diff. Back-office: add a "GST missing" list with bulk set under `BO/features/catalog/*`.
-- [ ] T068 [P] [US9] Write the tests: `SHP/products/gst.container.test.ts` (create, edit proposes, review applies and records history), `CAT/gst/gst.container.test.ts`, `COM/checkout/gst.container.test.ts` (captured, refused only while enabled), and the shop-web dialog test.
+- [X] T064 [US9] Accept `gstStatus` in shop product create and edit: `SHP/products/types.ts`, `service.ts`, `repository.ts` and `change.ts` (a proposed field for live products, per 067). Show it in `CAT/review/service.ts`'s diff as "GST", and write `product_gst_change` on apply (`via: review` or `direct`). Update `ST/catalog.ts`.
+- [X] T065 [US9] Write `CAT/gst/*` and the handlers `CAT/functions/gst-missing-v1-get.ts` and `gst-bulk-v1-post.ts` (staff), recording `via: bulk`. Register them in `apis/edge-api/catalog/serverless.yml`.
+- [X] T066 [US9] Checkout: in `COM/checkout/store.ts`, copy `product.gst_status` into `order_item.gst_status` in the same insert. While `business_tax.invoices_enabled`, refuse a cart holding an unclassified product with 409 `product_unavailable` (no reason given to the customer).
+- [X] T067 [US9] shop-web: add the GST choice in `SW/catalog/ProductEditDialogs.tsx` (Taxable / GST-free), and show it on `ProductDetailScreen.tsx` and in `SW/catalog/review.ts`'s proposed diff. Back-office: add a "GST missing" list with bulk set under `BO/features/catalog/*`.
+- [X] T068 [P] [US9] Write the tests: `SHP/products/gst.container.test.ts` (create, edit proposes, review applies and records history), `CAT/gst/gst.container.test.ts`, `COM/checkout/gst.container.test.ts` (captured, refused only while enabled), and the shop-web dialog test.
 
 ---
 
@@ -317,36 +317,36 @@ dev before this feature's walk.
 **Goal**: ATO-compliant tax invoices and adjustment notes, operator-set tax details, and a fail-loud state while unset.
 **Independent test**: spec US8 and SC-008. Every required element is present, GST is correct to the cent across the test set, and an issued invoice is never altered.
 
-- [ ] T069 [US8] Write `ESH/documents/gst.ts`:
+- [X] T069 [US8] Write `ESH/documents/gst.ts`:
   - `invoiceTotals(lines, fees, feeTreatment)`, which applies R15 (GST = round half-up of taxable incl. ÷ 11, after discounts; fees per treatment; points as a payment);
   - `adjustmentGst(refund, invoice)`;
   - `isValidAbn(abn)` (the ABN checksum).
 
   Unit-test it in `gst.test.ts` with taxable, GST-free, discounted, fee-bearing and points-paid orders, plus itemised and amount-only refunds.
-- [ ] T070 [US8] Write `ESH/documents/tax-invoice.ts`:
+- [X] T070 [US8] Write `ESH/documents/tax-invoice.ts`:
   - `issueInvoice(tx, orderId)`, which creates the invoice once, with the number from the sequence and a frozen `snapshot` and `issuer`;
   - `issueAdjustment(tx, refundId)`;
   - `renderTaxDocumentPdf(snapshot)`, headed "Tax invoice" / "Adjustment note", showing legal name, ABN, date, number, lines with taxable marks, GST, total, payments, and the buyer at $1,000 or more.
-- [ ] T071 [US8] Write `ORD/tax-settings/*` and the handlers `ORD/functions/admin-tax-settings-v1-get.ts` and `-put.ts` (staff, admin only). Validate the ABN. `invoicesEnabled` only when the legal name, ABN, fee treatment and zero unclassified live products are all set (409 `tax_setup_incomplete`, listing what is missing). Register them.
-- [ ] T072 [US8] Write `COM/documents/service.ts` tax documents and the handlers `COM/functions/order-tax-documents-v1-get.ts` (JSON or `?doc=&format=pdf`) and `order-business-identity-v1-put.ts`.
+- [X] T071 [US8] Write `ORD/tax-settings/*` and the handlers `ORD/functions/admin-tax-settings-v1-get.ts` and `-put.ts` (staff, admin only). Validate the ABN. `invoicesEnabled` only when the legal name, ABN, fee treatment and zero unclassified live products are all set (409 `tax_setup_incomplete`, listing what is missing). Register them.
+- [X] T072 [US8] Write `COM/documents/service.ts` tax documents and the handlers `COM/functions/order-tax-documents-v1-get.ts` (JSON or `?doc=&format=pdf`) and `order-business-identity-v1-put.ts`.
   - Return 409 `invoices_unavailable` while disabled, emitting `TaxInvoiceRequestedWhileDisabled`.
   - Return 409 `buyer_identity_required` at $1,000 or more with no name.
   - Make it owner-only, and register it.
 
   Declare the CloudWatch alarm on the metric in Terraform beside the existing commerce alarms (`infra/` — find them with `grep -rn "metric_name" infra | grep -i commerce`).
-- [ ] T073 [US8] Back-office: add `BO/features/settings/tax/*` (legal name, ABN, fee treatment, enable switch, a link to the GST-missing list). Customer web and app: add "Tax invoice" and "Adjustment notes" rows to the Documents section (T061/T062), the "not available yet" sentence, and the business identity sheet for $1,000 or more.
-- [ ] T074 [P] [US8] Write `ESH/documents/tax-invoice.container.test.ts` (issued once, the snapshot unchanged after a product's GST changes, numbering, an adjustment per refund) and `COM/documents/tax.container.test.ts` (disabled, the buyer identity gate, owner-only, PDF bytes). Add a guard that `tax_document` has no UPDATE anywhere.
+- [X] T073 [US8] Back-office: add `BO/features/settings/tax/*` (legal name, ABN, fee treatment, enable switch, a link to the GST-missing list). Customer web and app: add "Tax invoice" and "Adjustment notes" rows to the Documents section (T061/T062), the "not available yet" sentence, and the business identity sheet for $1,000 or more.
+- [X] T074 [P] [US8] Write `ESH/documents/tax-invoice.container.test.ts` (issued once, the snapshot unchanged after a product's GST changes, numbering, an adjustment per refund) and `COM/documents/tax.container.test.ts` (disabled, the buyer identity gate, owner-only, PDF bytes). Add a guard that `tax_document` has no UPDATE anywhere.
 
 ---
 
 ## Phase 13: Polish & cross-cutting
 
-- [ ] T075 [P] Run `apis/edge-api/shared/src/live/change-map.guard.test.ts`, covering every new mutating route (parcels, prints, pack-scans, hub check-ins, reads), and fix any gaps.
-- [ ] T076 [P] Run the gateway capacity contract test (`gateway-capacity.contract.test.ts`): shared +7, staff +8. Record the new percentages in FEATURE-HISTORY.
-- [ ] T077 [P] Hidden-fulfilment sweep: a test over every customer-facing DTO and PDF builder (delivery note, tax documents) asserting no shop name, no shop count and no bag count (SC-010). Extend `scripts/mobile-guard.sh` if a customer screen could show a count.
-- [ ] T078 [P] Add the analytics events to each surface's typed taxonomy (`parcels_declared`, `labels_printed`, `pack_scanned`, `hub_checkin_scanned`, `delivery_note_viewed`, `tax_invoice_downloaded`), with no PII.
-- [ ] T079 Run every guard and test in quickstart.md, `pnpm -w typecheck`, the driver and customer app builds (Android + iOS), and the design-system guards. Fix anything that fails.
-- [ ] T080 Write the FEATURE-HISTORY.md entry for 096 (what changed, defects found, what was verified, operator steps and deploy order), update CLAUDE.md's feature list and the "Driver operations" / delivery sections where the parcel becomes the unit, and update research-08's status line.
+- [X] T075 [P] Run `apis/edge-api/shared/src/live/change-map.guard.test.ts`, covering every new mutating route (parcels, prints, pack-scans, hub check-ins, reads), and fix any gaps.
+- [X] T076 [P] Run the gateway capacity contract test (`gateway-capacity.contract.test.ts`): shared +7, staff +8. Record the new percentages in FEATURE-HISTORY.
+- [X] T077 [P] Hidden-fulfilment sweep: a test over every customer-facing DTO and PDF builder (delivery note, tax documents) asserting no shop name, no shop count and no bag count (SC-010). Extend `scripts/mobile-guard.sh` if a customer screen could show a count.
+- [X] T078 [P] Add the analytics events to each surface's typed taxonomy (`parcels_declared`, `labels_printed`, `pack_scanned`, `hub_checkin_scanned`, `delivery_note_viewed`, `tax_invoice_downloaded`), with no PII.
+- [X] T079 Run every guard and test in quickstart.md, `pnpm -w typecheck`, the driver and customer app builds (Android + iOS), and the design-system guards. Fix anything that fails.
+- [X] T080 Write the FEATURE-HISTORY.md entry for 096 (what changed, defects found, what was verified, operator steps and deploy order), update CLAUDE.md's feature list and the "Driver operations" / delivery sections where the parcel becomes the unit, and update research-08's status line.
 
 ---
 

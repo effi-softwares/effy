@@ -67,6 +67,7 @@ export function toOrderDTO(d: OrderDetail): ShopOrderDetailDTO {
     parcels: d.parcels.map((p) => ({ ...p, printed: { ...p.printed }, packScanned: p.packScanned ? { ...p.packScanned } : null })),
     labelCommon: { ...d.labelCommon },
     zonesNeeded: [...d.zonesNeeded],
+    packScanRequired: d.packScanRequired,
     lines: d.lines.map((l) => ({ ...l })),
     money: { ...d.money },
     payment: { ...d.payment, paidAt: iso(d.payment.paidAt) },
