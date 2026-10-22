@@ -14,10 +14,11 @@
  *   5 Code 128 of EFY1:<code>, full width                       6 QR · the code grouped for reading aloud
  *   7 footer: the approved customer contact
  *
- * ⚠ NEVER ON A LABEL: the shop's name (hidden fulfilment), any price, the customer's phone or email, or
- * any delivery window, day or estimate (a shop is told who takes a package away and nothing else, 079).
- * The recipient's name and address ARE on it (spec Clarifications, reversing 089): a bag separated from
- * its run must still be deliverable, and the shop already sees both.
+ * ⚠ NEVER ON A LABEL: the shop's name (hidden fulfilment), any price, the customer's email, the billing
+ * address, or any delivery window, day or estimate (a shop is told who takes a package away, 079).
+ * The recipient's name, the full SHIPPING address and the recipient's phone ARE on it (spec
+ * Clarifications, reversing 089; the phone added by the operator 2026-10-22): a bag separated from its run
+ * must still be deliverable, and the shop already sees all three.
  *
  * ⚠ BARS ON THE PRINTER'S DOT GRID. A bar width between dots is rounded per bar by the printer, which
  * skews the ratios Code 128 depends on (research-08 W4). Each layout's module is a whole number of dots
@@ -81,19 +82,18 @@ export { WORDMARK_PATHS, WORDMARK_VIEWBOX } from "@effy/shared-types"
 const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!)
 
-/** "EFFY DELIVERY" or "COURIER" — who takes the bag away, the only delivery fact a shop is told (079). */
-export function serviceWord(s: ShopLabelCommonDTO["service"]): "EFFY DELIVERY" | "COURIER" {
-  return s === "courier" ? "COURIER" : "EFFY DELIVERY"
-}
-
-/** "WTM ZHX" — the code grouped for reading aloud. */
-export const groupCode = (code: string): string => `${code.slice(0, 3)} ${code.slice(3)}`
-
 /** "21 Oct 2026" from an ISO date (yyyy-mm-dd), in the label's own words. */
 export function packedWords(iso: string | null, today: Date = new Date()): string {
   const d = iso ? new Date(`${iso}T00:00:00Z`) : new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))
   const m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()]
   return `${d.getUTCDate()} ${m} ${d.getUTCFullYear()}`
+}
+
+/** "AUSTRALIA" for the stored `AU`; any other value as written, upper-cased. */
+export function countryWords(country: string | null | undefined): string | null {
+  const c = country?.trim()
+  if (!c) return null
+  return c.toUpperCase() === "AU" ? "AUSTRALIA" : c.toUpperCase()
 }
 
 // ── The layout: every element as a box in mm, so tests can prove nothing leaves the label ──────────────
@@ -157,13 +157,9 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
 
   // 1 — header
   blocks.push("header")
-  const headH = 11 * k
-  els.push({ kind: "mark", x: x0, y: y + headH * 0.15, h: headH * 0.62 })
-  const service = serviceWord(doc.common.service)
-  const svcPt = pt(17)
-  const svcW = textWidthMm(service, svcPt, { bold: true }) + 5 * k
-  els.push({ kind: "rect", x: x1 - svcW, y, w: svcW, h: headH, fill: "#000" })
-  els.push({ kind: "text", x: x1 - svcW / 2, y: y + headH / 2 + asc(svcPt) / 2, text: service, sizePt: svcPt, bold: true, anchor: "middle", fill: "#fff" })
+  const headH = 8 * k
+  els.push({ kind: "mark", x: x0, y: y + headH * 0.1, h: headH * 0.8 })
+  // The header is the Effy mark only (operator, 2026-10-22): no service badge for Effy or courier bags.
   y += headH + v(2)
   rule(y)
   y += 0.6 * k + v(2)
@@ -178,37 +174,50 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
     els.push({ kind: "text", x: x0, y: y + asc(name.sizePt), text: line, sizePt: name.sizePt, bold: true })
     y += lineH(name.sizePt)
   }
-  const street = fitText(doc.common.street, W, [12, 11, 10, 9, 8].map(pt), 2)
-  for (const line of street.lines) {
-    els.push({ kind: "text", x: x0, y: y + asc(street.sizePt), text: line, sizePt: street.sizePt })
-    y += lineH(street.sizePt)
+  // Every part of the SHIPPING address, each on its own line (operator, 2026-10-22).
+  for (const part of [doc.common.line1, doc.common.line2]) {
+    if (!part?.trim()) continue
+    const fit = fitText(part.trim(), W, [11, 10, 9, 8].map(pt), 2)
+    for (const line of fit.lines) {
+      els.push({ kind: "text", x: x0, y: y + asc(fit.sizePt), text: line, sizePt: fit.sizePt })
+      y += lineH(fit.sizePt)
+    }
   }
   y += v(1.5)
-  const pcPt = pt(30)
+  const pcPt = pt(22)
   const pc = doc.common.postcode
   const pcW = textWidthMm(pc, pcPt, { bold: true })
   const place = [doc.common.suburb.toUpperCase(), doc.common.state.toUpperCase()].filter(Boolean).join(" ")
-  const placeFit = fitText(place, W - pcW - 3 * k, [14, 12, 10, 9].map(pt), 1, { bold: true })
+  const placeFit = fitText(place, W - pcW - 3 * k, [12, 11, 10, 9].map(pt), 1, { bold: true })
   const rowH = lineH(pcPt) * 0.95
   els.push({ kind: "text", x: x1, y: y + asc(pcPt), text: pc, sizePt: pcPt, bold: true, anchor: "end" })
   if (placeFit.lines[0]) els.push({ kind: "text", x: x0, y: y + asc(pcPt), text: placeFit.lines[0], sizePt: placeFit.sizePt, bold: true })
-  y += rowH + v(1.5)
+  y += rowH
+  // The country, and the phone the driver calls from the door.
+  const country = countryWords(doc.common.country)
+  const contact = [country, doc.common.phone?.trim() ? `Ph ${doc.common.phone.trim()}` : null].filter(Boolean).join(" · ")
+  if (contact) {
+    const fit = fitText(contact, W, [10, 9, 8].map(pt), 1, { bold: true })
+    els.push({ kind: "text", x: x0, y: y + asc(fit.sizePt), text: fit.lines[0]!, sizePt: fit.sizePt, bold: true })
+    y += lineH(fit.sizePt)
+  }
+  y += v(1.5)
   rule(y)
   y += 0.6 * k + v(2)
 
   // 3 — temperature band
   blocks.push("zone")
-  const bandH = 11 * k
+  const bandH = 8 * k
   const reversed = doc.parcel.zone !== "ambient"
   els.push(reversed
     ? { kind: "rect", x: x0, y, w: W, h: bandH, fill: "#000" }
     : { kind: "rect", x: x0, y, w: W, h: bandH, fill: "none", stroke: 0.6 * Math.max(k, 0.7) })
-  const zonePt = pt(22)
+  const zonePt = pt(13)
   const ink = reversed ? "#fff" : "#000"
   const zoneWord = doc.parcel.zone.toUpperCase()
   els.push({ kind: "text", x: x0 + 2.5 * k, y: y + bandH / 2 + asc(zonePt) / 2, text: zoneWord, sizePt: zonePt, bold: true, fill: ink, spacing: 0.08 })
   const zoneLineRoom = W - 5 * k - textWidthMm(zoneWord, zonePt, { bold: true }) - 3 * k
-  const zl = fitText(ZONE_LINE[doc.parcel.zone], zoneLineRoom, [10, 9, 8, 7, 6, 5.5].map(pt), 2, { bold: true })
+  const zl = fitText(ZONE_LINE[doc.parcel.zone], zoneLineRoom, [9, 8, 7, 6, 5.5].map(pt), 2, { bold: true })
   const zlTop = y + bandH / 2 - (zl.lines.length * lineH(zl.sizePt)) / 2
   zl.lines.forEach((line, i) =>
     els.push({ kind: "text", x: x1 - 2.5 * k, y: zlTop + i * lineH(zl.sizePt) + asc(zl.sizePt), text: line, sizePt: zl.sizePt, bold: true, anchor: "end", fill: ink }))
@@ -216,8 +225,8 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
 
   // 4 — bag n of N, order, packed date
   blocks.push("bag")
-  const bigPt = pt(40)
-  const ofPt = pt(18)
+  const bigPt = pt(22)
+  const ofPt = pt(9)
   els.push({ kind: "text", x: x0, y: y + asc(capPt), text: "BAG", sizePt: capPt, bold: true, spacing: 0.12 })
   const bagTop = y + lineH(capPt) + 0.5 * k
   const nStr = String(doc.parcel.seq)
@@ -229,7 +238,7 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   els.push({ kind: "text", x: x0 + nW + gap, y: bagTop + asc(bigPt), text: "OF", sizePt: ofPt, bold: true })
   els.push({ kind: "text", x: x0 + nW + gap + ofW + gap, y: bagTop + asc(bigPt), text: String(doc.parcel.of), sizePt: bigPt, bold: true })
   const metaPt = pt(10)
-  const orderPt = pt(13)
+  const orderPt = pt(11)
   els.push({ kind: "text", x: x1, y: y + asc(capPt), text: "ORDER", sizePt: capPt, bold: true, anchor: "end", spacing: 0.12 })
   els.push({ kind: "text", x: x1, y: y + lineH(capPt) + asc(orderPt), text: doc.common.orderNumber, sizePt: orderPt, bold: true, mono: true, anchor: "end" })
   const packedTop = y + lineH(capPt) + lineH(orderPt) + 1.2 * k
@@ -260,9 +269,9 @@ function layoutAt(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi, toda
   // 6 — QR and the code for reading aloud
   blocks.push("code")
   els.push({ kind: "qr", x: x0, y, size: g.qrMm, token })
-  const codePt = pt(30)
+  const codePt = pt(16)
   const codeX = x0 + g.qrMm + 3 * k
-  els.push({ kind: "text", x: codeX, y: y + g.qrMm / 2 + asc(codePt) / 2 - 1.5 * k, text: groupCode(doc.parcel.code), sizePt: codePt, bold: true, mono: true })
+  els.push({ kind: "text", x: codeX, y: y + g.qrMm / 2 + asc(codePt) / 2 - 1 * k, text: doc.parcel.code, sizePt: codePt, bold: true, mono: true, spacing: 0.08 })
   const hintPt = pt(9)
   els.push({ kind: "text", x: codeX, y: y + g.qrMm / 2 + asc(codePt) / 2 + lineH(hintPt), text: "Scan, or type this code", sizePt: hintPt })
 

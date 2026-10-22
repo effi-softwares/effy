@@ -104,8 +104,8 @@ describe.skipIf(!RUN)("096 — the shop's bags", () => {
     const o = await pool.query<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount, grand_total_amount, delivery_address, placed_at)
        VALUES ($1, $2, 'paid', 10, 10, $3::jsonb, now()) RETURNING id`,
-      [CUST, `EFY-P${String(n).padStart(4, "0")}`, JSON.stringify({ recipientName: "Amelia Thompson", line1: "14 Lydiard Street North",
-        city: "Ballarat Central", region: "VIC", postalCode: "3350", country: "AU" })],
+      [CUST, `EFY-P${String(n).padStart(4, "0")}`, JSON.stringify({ recipientName: "Amelia Thompson", line1: "14 Lydiard Street North", line2: "Unit 3",
+        city: "Ballarat Central", region: "VIC", postalCode: "3350", country: "AU", phone: "0412 345 678" })],
     );
     for (const cls of classes) {
       const p = await pool.query<{ id: string }>(
@@ -136,7 +136,8 @@ describe.skipIf(!RUN)("096 — the shop's bags", () => {
     const d = await read(fid);
     expect(d.parcels).toEqual([expect.objectContaining({ seq: 1, of: 1, zone: "frozen", code: d.label.packageCode, custody: "at_shop" })]);
     expect(d.labelCommon).toEqual({ service: "effy_driver", orderNumber: expect.any(String), packedOn: null, recipientName: "Amelia Thompson",
-      street: "14 Lydiard Street North", suburb: "Ballarat Central", state: "VIC", postcode: "3350" });
+      line1: "14 Lydiard Street North", line2: "Unit 3", suburb: "Ballarat Central", state: "VIC", postcode: "3350",
+      country: "AU", phone: "0412 345 678" });
     expect(d.zonesNeeded).toEqual(["frozen"]);
   });
 

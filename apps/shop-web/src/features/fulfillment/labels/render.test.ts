@@ -14,7 +14,6 @@ import {
   WORDMARK_PATHS,
   layoutLabel,
   renderLabelSvg,
-  serviceWord,
   type LabelDocument,
   type LabelElement,
   type LabelLayout,
@@ -27,7 +26,10 @@ const common = {
   orderNumber: "EFY-ESDPKF",
   packedOn: "2026-10-21",
   recipientName: "Amelia Thompson",
-  street: "14 Lydiard Street North",
+  line1: "14 Lydiard Street North",
+  line2: "Unit 3" as string | null,
+  country: "AU" as string | null,
+  phone: "0412 345 678" as string | null,
   suburb: "Ballarat Central",
   state: "VIC",
   postcode: "3350",
@@ -36,7 +38,8 @@ const LONG = {
   ...common,
   service: "courier" as const,
   recipientName: "Dr Christopher Alexander Montgomery-Wright of Somewhere Rather Long Indeed",
-  street: "Unit 1204, Level 12, 488 St Kilda Road (enter via Bowen Crescent, use the side gate past the bins)",
+  line1: "Unit 1204, Level 12, 488 St Kilda Road (enter via Bowen Crescent, use the side gate past the bins)",
+  line2: "Building C, Southbank Business Park, Tower Two, Reception on the Ground Floor",
   suburb: "Melbourne Central Business District Extended",
 }
 const doc = (over: Partial<LabelDocument["parcel"]> = {}, c: LabelDocument["common"] = common): LabelDocument => ({
@@ -114,11 +117,13 @@ describe("bag labels (096, spec US10)", () => {
   it("says what a bag needs: service, recipient, postcode, zone, bag n of N, order, packed date, code, contact", () => {
     const words = textOf(layoutLabel(doc(), "a6").elements)
     expect(words).toEqual(expect.arrayContaining([
-      "EFFY DELIVERY", "DELIVER TO", "Amelia Thompson", "14 Lydiard Street North", "BALLARAT CENTRAL VIC", "3350",
+      "DELIVER TO", "Amelia Thompson", "14 Lydiard Street North", "Unit 3", "BALLARAT CENTRAL VIC", "3350", "AUSTRALIA · Ph 0412 345 678",
       "FROZEN", "Keep frozen · −18 °C or colder", "BAG", "2", "OF", "3", "ORDER", "EFY-ESDPKF", "PACKED", "21 Oct 2026",
-      "EFY1:WTMZHX", "WTM ZHX", "Scan, or type this code", LABEL_CONTACT,
+      "EFY1:WTMZHX", "WTMZHX", "Scan, or type this code", LABEL_CONTACT,
     ]))
-    expect(serviceWord("courier")).toBe("COURIER")
+    // The header is the Effy mark only: no service badge on any bag.
+    expect(words).not.toContain("EFFY DELIVERY")
+    expect(textOf(layoutLabel(doc({}, { ...common, service: "courier" }), "a6").elements)).not.toContain("COURIER")
     expect(textOf(layoutLabel(doc({ zone: "chilled" }), "a6").elements)).toContain("Keep chilled · 5 °C or colder")
   })
 
@@ -172,16 +177,19 @@ describe("bag labels (096, spec US10)", () => {
   })
 
   /**
-   * ⚠ Hidden fulfilment and the 079 rule: no shop name, price, phone or email but the approved contact,
-   * and no window, day or estimate. The document type carries none of them — this proves a renderer change
-   * cannot add one through a field that happens to be nearby.
+   * ⚠ Hidden fulfilment and the 079 rule: no shop name, price, billing address or email but the approved
+   * contact, and no window, day or estimate. The document type carries none of them — this proves a renderer
+   * change cannot add one through a field that happens to be nearby. (The recipient's phone IS printed.)
    */
-  it("never carries a shop name, a price, a phone, another email, or a delivery window or day", () => {
-    const leaky = { ...common, shopName: "Green Grocer", phone: "0400 000 000", email: "ada@example.com", total: "$44.00", window: "4–6 pm" }
+  it("never carries a shop name, a price, the billing address, another email, or a delivery window or day", () => {
+    const leaky = {
+      ...common, shopName: "Green Grocer", email: "ada@example.com", total: "$44.00", window: "4–6 pm",
+      billingAddress: { line1: "99 Billing Road", city: "Geelong" },
+    }
     for (const layout of LAYOUTS) {
       const svg = renderLabelSvg(doc({}, leaky as typeof common), layout)
       const text = [...svg.matchAll(/>([^<]+)</g)].map((m) => m[1]).join(" ")
-      expect(text).not.toMatch(/Green Grocer|\$|0400|ada@|same.?day|standard|window|\d{1,2}(:\d{2})?\s?(am|pm)|\d\s?–\s?\d/i)
+      expect(text).not.toMatch(/Green Grocer|\$|Billing Road|Geelong|ada@|same.?day|standard|window|\d{1,2}(:\d{2})?\s?(am|pm)|\d\s?–\s?\d/i)
       expect(text.match(/[\w.+-]+@[\w.-]+/g) ?? []).toEqual(["hello@effyshopping.com"])
     }
   })

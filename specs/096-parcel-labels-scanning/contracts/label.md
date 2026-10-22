@@ -60,3 +60,14 @@ renderLabelSvg(doc: LabelDocument, layout: LabelLayout, dpi: PrinterDpi): string
 - The A4 21-up layout (`a4sheet`).
 - `ShopPackageLabelDTO`.
 - "package n of m", which counted shops.
+
+## Revision 2026-10-22 (operator, after the first print)
+
+- The header carries the Effy mark only. Neither "EFFY DELIVERY" nor "COURIER" is printed on any bag.
+- Smaller type throughout: zone word 13 pt, bag number 22 pt ("OF" 9 pt), code 16 pt, postcode 22 pt; the header
+  and zone bands are 8 mm.
+- The code beside the QR is printed as one word (`HACQZ2`), not grouped.
+- The browser print page is fixed at the label's size, so a label can no longer spill its footer onto a second page.
+- Deliver to shows the FULL shipping address — address line 1 and line 2 each on their own line, suburb and state
+  beside the postcode, then the country — and the recipient's phone ("Ph …"). Never the billing address: when it
+  differs from shipping, the label shows shipping only. The shop already received the phone with the order.

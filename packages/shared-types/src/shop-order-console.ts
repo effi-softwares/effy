@@ -288,11 +288,19 @@ export interface ShopLabelCommonDTO {
   orderNumber: string
   /** The day the first label was printed, or null before any print (the label then shows today). */
   packedOn: string | null
+  /**
+   * The SHIPPING address, every part of it, and the recipient's phone (operator, 2026-10-22). Never the
+   * billing address — when the two differ the bag goes where it is shipped.
+   */
   recipientName: string
-  street: string
+  line1: string
+  line2: string | null
   suburb: string
   state: string
   postcode: string
+  /** As stored on the order (`AU`); the label words it. */
+  country: string | null
+  phone: string | null
 }
 
 export interface ShopOrderDetailDTO {

@@ -658,11 +658,15 @@ function labelCommonOf(row: HeadRecord, packedOn: Date | null): ShopLabelCommonD
     service: row.delivered_by,
     orderNumber: row.order_number,
     packedOn: packedOn ? packedOn.toISOString().slice(0, 10) : null,
+    // ⚠ The SHIPPING address (`delivery_address`) — never billing.
     recipientName: s("recipientName"),
-    street: [s("line1"), s("line2")].filter(Boolean).join(", "),
+    line1: s("line1"),
+    line2: s("line2") || null,
     suburb: s("city"),
     state: s("region"),
     postcode: s("postalCode"),
+    country: s("country") || null,
+    phone: s("phone") || null,
   };
 }
 

@@ -172,7 +172,7 @@ export async function flushPendingPrints(record: RecordPrints): Promise<void> {
 /** Print one sample label to check a printer (Settings → Printing). Records nothing. */
 export async function printTestLabel(printer: PrinterChoice, layout: LabelLayout): Promise<PrintOutcome> {
   const sample: LabelDocument = {
-    common: { service: "effy_driver", orderNumber: "EFY-TEST01", packedOn: null, recipientName: "Test label", street: "1 Sample Street", suburb: "Melbourne", state: "VIC", postcode: "3000" },
+    common: { service: "effy_driver", orderNumber: "EFY-TEST01", packedOn: null, recipientName: "Test label", line1: "1 Sample Street", line2: null, suburb: "Melbourne", state: "VIC", postcode: "3000", country: "AU", phone: null },
     parcel: { code: "22222X", seq: 1, of: 1, zone: "ambient" },
   }
   const svg = renderLabelSvg(sample, layout, printer.dpi)

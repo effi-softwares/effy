@@ -29,10 +29,13 @@ export function printDocument(svgs: readonly string[], layout: LabelLayout): str
   return (
     `<!doctype html><html><head><meta charset="utf-8"><title>Bag labels</title><style>` +
     `@page{${PAGE[layout]}}html,body{margin:0;padding:0;background:#fff}` +
-    `.page{break-after:page;page-break-after:always;overflow:hidden}` +
+    // ⚠ A label exactly the page's height spilled its footer onto a second page in Chrome (rounding):
+    // the page box is fixed at the label's size, a hair shorter, and nothing can overflow it.
+    `.page{break-after:page;page-break-after:always;overflow:hidden;width:${g.widthMm}mm;height:${g.heightMm - 0.5}mm}` +
     `.page:last-child{break-after:auto;page-break-after:auto}` +
-    `.page svg{display:block}` +
-    `.sheet{display:grid;grid-template-columns:${g.widthMm}mm ${g.widthMm}mm;grid-template-rows:${g.heightMm}mm ${g.heightMm}mm;width:210mm;height:297mm}` +
+    `.page svg{display:block;width:100%;height:100%}` +
+    `.sheet .cell{overflow:hidden}.sheet .cell svg{display:block;width:100%;height:100%}` +
+    `.page.sheet{display:grid;grid-template-columns:${g.widthMm}mm ${g.widthMm}mm;grid-template-rows:${g.heightMm - 0.25}mm ${g.heightMm - 0.25}mm;width:210mm;height:296.5mm}` +
     `</style></head><body>${pages.join("")}</body></html>`
   )
 }
