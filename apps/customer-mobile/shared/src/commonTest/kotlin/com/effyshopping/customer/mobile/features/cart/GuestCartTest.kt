@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class GuestCartTest {
 
     private fun line(id: String, qty: Int, pkg: String = "") = GuestCartLine(
-        productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00", currency = "AUD", quantity = qty, packageKey = pkg,
+        variantId = id, productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00", currency = "AUD", quantity = qty, packageKey = pkg,
     )
 
     @Test

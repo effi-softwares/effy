@@ -12,12 +12,14 @@ import {
   setCartQty,
   groupByPackage,
   linePayload,
+  readCart,
   removeLine,
   setLineQty,
   type GuestCartLine,
 } from "./cart-store"
 
 const line = (productId: string, quantity: number, packageKey = "pkg_a"): GuestCartLine => ({
+  variantId: productId,
   productId,
   name: productId,
   imageUrl: null,
@@ -70,7 +72,7 @@ describe("cartCount", () => {
 
 describe("linePayload", () => {
   it("projects to productId + quantity", () => {
-    expect(linePayload([line("a", 2)])).toEqual([{ productId: "a", quantity: 2 }])
+    expect(linePayload([line("a", 2)])).toEqual([{ variantId: "a", quantity: 2 }])
   })
 })
 
@@ -120,6 +122,9 @@ describe("the cart mirror — persistence and adoption", () => {
   const dtoLine = (productId: string, quantity: number, over: Partial<CartDTO["lines"][number]> = {}) => ({
     id: `line-${productId}`,
     productId,
+    variantId: productId,
+    variantLabel: null,
+    unitPrice: null,
     name: productId,
     imageUrl: null,
     unitPriceAmount: "5.00",
@@ -139,19 +144,30 @@ describe("the cart mirror — persistence and adoption", () => {
   it("survives a reload — the defect this slice exists to fix", () => {
     addToCart(line("a", 2))
     // A fresh read with the module's cache defeated, exactly as a new page load would do.
-    const raw = window.localStorage.getItem("effy:cart:v2")
+    const raw = window.localStorage.getItem("effy:cart:v3")
     expect(raw).toBeTruthy()
     expect(JSON.parse(raw!).cart.lines[0].quantity).toBe(2)
   })
 
-  it("migrates a 019-shaped cart rather than emptying it on deploy", () => {
+  // 098 — a mirror from before variants names products, which can no longer be bought as such.
+  it("drops a product-keyed cart from before 098 instead of guessing a size for it", () => {
     window.localStorage.clear()
     window.localStorage.setItem("effy:cart", JSON.stringify([line("legacy", 3)]))
-    // First touch after the upgrade.
-    setCartQty("legacy", 3)
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!)
-    expect(stored.cart.lines.map((l: GuestCartLine) => l.productId)).toEqual(["legacy"])
+    window.localStorage.setItem("effy:cart:v2", JSON.stringify({ version: 2, cart: { lines: [line("old", 1)] } }))
+    expect(readCart().lines).toEqual([])
     expect(window.localStorage.getItem("effy:cart")).toBeNull()
+    expect(window.localStorage.getItem("effy:cart:v2")).toBeNull()
+  })
+
+  it("two sizes of one product are two lines; changing one leaves the other", () => {
+    window.localStorage.clear()
+    addToCart({ ...line("p", 1), variantId: "p-500g", variantLabel: "500 g" })
+    addToCart({ ...line("p", 2), variantId: "p-1kg", variantLabel: "1 kg" })
+    setCartQty("p-1kg", 5)
+    expect(readCart().lines.map((l) => [l.productId, l.variantId, l.quantity])).toEqual([
+      ["p", "p-500g", 1],
+      ["p", "p-1kg", 5],
+    ])
   })
 
   it("adopts a newer platform cart", () => {
@@ -167,7 +183,7 @@ describe("the cart mirror — persistence and adoption", () => {
   it("takes guest preview prices without needing a newer revision", () => {
     adopt(dto({ revision: 4, lines: [dtoLine("p1", 1)] }))
     adoptPreview(dto({ revision: 0, lines: [dtoLine("p1", 1, { unitPriceAmount: "6.50" })] }))
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!)
+    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v3")!)
     expect(stored.cart.lines[0].unitPriceAmount).toBe("6.50")
     expect(stored.cart.revision).toBe(4)
   })
@@ -184,7 +200,7 @@ describe("the cart mirror — persistence and adoption", () => {
       }),
     )
     setCartQty("p1", 1)
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!).cart
+    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v3")!).cart
     expect(stored.discount).toBeNull()
     expect(stored.discountAmount).toBe("0.00")
     expect(stored.grandTotalAmount).toBe("5.00")
@@ -193,14 +209,14 @@ describe("the cart mirror — persistence and adoption", () => {
   it("excludes an unavailable line from the subtotal", () => {
     addToCart(line("ok", 1))
     addToCart({ ...line("gone", 1), available: false, unitPriceAmount: "3.00" })
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!).cart
+    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v3")!).cart
     expect(stored.itemSubtotalAmount).toBe("5.00")
     expect(stored.checkout.allowed).toBe(true)
   })
 
   it("blocks checkout when nothing is payable", () => {
     addToCart({ ...line("gone", 1), available: false })
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!).cart
+    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v3")!).cart
     expect(stored.checkout.allowed).toBe(false)
     expect(stored.checkout.blockedReason).toBe("no_payable_items")
   })
@@ -220,20 +236,20 @@ describe("the cart mirror — persistence and adoption", () => {
       }),
     )
     addToCart(line("p1", 1))
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!).cart
+    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v3")!).cart
     expect(stored.checkout.blockedReason).toBe("below_minimum")
     expect(stored.checkout.allowed).toBe(false)
   })
 
   it("discards an unknown schema version instead of trusting it", () => {
-    window.localStorage.setItem("effy:cart:v2", JSON.stringify({ version: 999, cart: { lines: [line("x", 1)] } }))
+    window.localStorage.setItem("effy:cart:v3", JSON.stringify({ version: 999, cart: { lines: [line("x", 1)] } }))
     addToCart(line("y", 1))
-    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v2")!).cart
+    const stored = JSON.parse(window.localStorage.getItem("effy:cart:v3")!).cart
     expect(stored.lines.map((l: GuestCartLine) => l.productId)).toEqual(["y"])
   })
 
   it("survives corrupt JSON without throwing", () => {
-    window.localStorage.setItem("effy:cart:v2", "{not json")
+    window.localStorage.setItem("effy:cart:v3", "{not json")
     expect(() => addToCart(line("z", 1))).not.toThrow()
   })
 })

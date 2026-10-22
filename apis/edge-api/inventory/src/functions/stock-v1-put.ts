@@ -1,4 +1,4 @@
-// PUT /inventory/v1/products/{productId}/stock — set the count to an exact value (054 US1, FR-006).
+// PUT /inventory/v1/variants/{variantId}/stock — set the count to an exact value (054 US1, FR-006).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
@@ -14,8 +14,8 @@ export const handler = async (
   const g = await shopGate(event, context);
   if (!g.ok) return g.response;
 
-  const productId = event.pathParameters?.productId;
-  if (!productId) return mapStockError(new Error("missing productId"), g.scope);
+  const variantId = event.pathParameters?.variantId;
+  if (!variantId) return mapStockError(new Error("missing variantId"), g.scope);
 
   const parsed = parseJsonBody<Record<string, unknown>>(event.body);
   if (!parsed.value) {
@@ -24,7 +24,7 @@ export const handler = async (
   }
 
   try {
-    return json(200, await service.setCount(g.actor, productId, parsed.value), g.scope);
+    return json(200, await service.setCount(g.actor, variantId, parsed.value), g.scope);
   } catch (err) {
     return mapStockError(err, g.scope);
   }

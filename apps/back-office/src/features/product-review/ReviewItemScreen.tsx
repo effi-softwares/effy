@@ -37,6 +37,7 @@ import { track } from "@/lib/telemetry";
 import { canDecideReview } from "./access";
 import { reviewActionError } from "./errorText";
 import { MarginField } from "./MarginField";
+import { ReviewVariants } from "./ReviewVariants";
 import { KIND_LABEL, marginLabel, toMargin, type MarginEntry } from "./model";
 import { reviewItemQuery, useApprove, useSendBack } from "./queries";
 
@@ -242,6 +243,8 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               </Panel>
             </TabsContent>
           </Tabs>
+          {/* 098 — every size the decision puts on sale, priced under the margin being typed. */}
+          <ReviewVariants variants={item.variants} entry={entry} />
         </div>
 
         <aside className="bo-detail__aside is-first">
@@ -250,7 +253,7 @@ function ReviewItem({ item, onChanged }: { item: ReviewItemDetailDTO; onChanged:
               <p className="text-sm text-muted-foreground">You can read this. Approving or sending it back needs a manager or an administrator.</p>
             ) : (
               <div className="space-y-4">
-                <MarginField id="review-margin" shopPriceAmount={item.shopPriceAmount} value={entry} onChange={setEntry} disabled={busy} />
+                <MarginField id="review-margin" shopPrices={item.variants.filter((v) => v.change !== "removed").map((v) => v.shopPriceAmount)} value={entry} onChange={setEntry} disabled={busy} />
                 <p className="bo-sub">
                   {item.currentMargin ? `Current margin: ${marginLabel(item.currentMargin)}.` : "No margin has been set for this product."}
                   {item.marginRequired ? " A margin must be confirmed to approve this." : ""}

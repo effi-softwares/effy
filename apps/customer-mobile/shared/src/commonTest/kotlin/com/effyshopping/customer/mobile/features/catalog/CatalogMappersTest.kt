@@ -29,6 +29,7 @@ class CatalogMappersTest {
             imageURL = "https://signed/p1.jpg",
             name = "Milk",
             priceAmount = "5.00",
+            priceVaries = false, variantID = "v1", variantCount = 1,
         )
 
         val card = dto.toDomain()
@@ -55,6 +56,7 @@ class CatalogMappersTest {
             imageURL = null,
             name = "Bread",
             priceAmount = "3.00",
+            priceVaries = false, variantID = "v2", variantCount = 1,
         )
 
         val card = dto.toDomain()
@@ -77,6 +79,7 @@ class CatalogMappersTest {
                         StorefrontProductCardDTO(
                             available = true, badges = emptyList(), brand = null, compareAtAmount = null,
                             currency = "AUD", id = "p1", imageURL = null, name = "Milk", priceAmount = "5.00",
+                            priceVaries = false, variantID = "v1", variantCount = 1,
                         ),
                     ),
                 ),

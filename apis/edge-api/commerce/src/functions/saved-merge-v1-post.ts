@@ -27,6 +27,8 @@ function mergeItems(body: Record<string, unknown> | null): MergeItem[] | null {
     if (o.savedAt !== undefined && o.savedAt !== null && typeof o.savedAt !== "string") return null;
     out.push({
       productId: (o.productId as string | undefined) ?? "",
+      // 098 — the variant the device remembered; anything but a string is simply not remembered.
+      variantId: typeof o.variantId === "string" ? o.variantId : null,
       // ⚠ An empty string is ABSENT, not zero. "0" would report the item as having dropped from
       // nothing — a fabricated fact, and worse than no baseline at all.
       savedPriceAmount: price === "" ? null : price,

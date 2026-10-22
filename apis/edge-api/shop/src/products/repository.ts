@@ -11,8 +11,9 @@
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
+import { applyVariantSet, readVariantSets, VariantSetInvalid } from "@effy/edge-shared/catalog";
 import { setGstStatus } from "@effy/edge-shared/documents";
-import type { GstStatus } from "@effy/shared-types";
+import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
 import {
   type AllowedValue,
@@ -39,6 +40,12 @@ function asConflict(err: unknown, message: string): ProductError {
   if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23505") {
     return new ProductError("conflict", message);
   }
+  throw err;
+}
+
+/** 098 — the one writer refused the option/variant set: every refusal points at its input. */
+function asVariantError(err: unknown): never {
+  if (err instanceof VariantSetInvalid) throw new ProductError("validation", "the sizes and options are not valid", err.errors);
   throw err;
 }
 
@@ -232,41 +239,28 @@ export async function createProduct(
   return withTransaction(async (client) => {
     let productId: string;
     try {
+      // 098 — prices, codes, weight and stock are the VARIANTS' (written below, same transaction).
       const ins = await client.query<{ id: string }>(
         `INSERT INTO public.product
-             (shop_id, product_type_id, primary_category_id, name, sku, gtin, brand,
-              price_amount, compare_at_amount, short_description, long_description, created_by,
-              weight_grams, weight_is_assumed,
-              shop_price_amount, shop_compare_at_amount)
-             -- ⚠ 067: a shop writes its OWN price. On a product Effy has never approved there is no
-             -- margin yet, so the customer price is the same number — written to both, so a draft
-             -- never carries a customer price that disagrees with what the shop typed.
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                     COALESCE($13::int, 500), $13 IS NULL,
-                     $8, $9)
+             (shop_id, product_type_id, primary_category_id, name, brand,
+              short_description, long_description, created_by, unit_basis)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING id`,
         [
           shopId,
           input.productTypeId,
           input.primaryCategoryId,
           input.name,
-          input.sku,
-          input.gtin,
           input.brand,
-          input.priceAmount,
-          input.compareAtAmount,
           input.shortDescription,
           input.longDescription,
           createdBy,
-          // ⚠ ONE parameter drives both columns: supplying a weight is what makes it MEASURED. A
-          // separate client-settable flag would let "measured" mean only "the client said so".
-          // COALESCE keeps the column default (500g) as the single place the assumption is stated.
-          input.weightGrams,
+          input.unitBasis,
         ],
       );
       productId = ins.rows[0]!.id;
     } catch (err) {
-      throw asConflict(err, "a product with this SKU already exists in this shop");
+      throw asConflict(err, "this product could not be created");
     }
 
     await insertAttributeValues(client, productId, input.attributes);
@@ -287,6 +281,11 @@ export async function createProduct(
         [productId, sectionId],
       );
     }
+    // 098 — the options and variants, through the ONE writer, AFTER the pictures (a variant may name
+    // one). A product and its variants exist together or not at all.
+    await applyVariantSet(client, {
+      productId, shopId, options: input.options, variants: input.variants, unitBasis: input.unitBasis, mode: "draft",
+    }).catch(asVariantError);
     return productId;
   });
 }
@@ -307,16 +306,15 @@ export async function updateProduct(
     name: string;
     productTypeId: string;
     primaryCategoryId: string;
-    sku: string | null;
-    gtin: string | null;
     brand: string | null;
-    priceAmount: string;
-    compareAtAmount: string | null;
     shortDescription: string;
     longDescription: string | null;
-    weightGrams: number | null;
     /** 096 — null leaves it as it stands. */
     gstStatus: GstStatus | null;
+    /** 098 — undefined leaves it as it stands. */
+    unitBasis: UnitBasis | null | undefined;
+    /** 098 — both or neither: the complete target sets. Null leaves them as they stand. */
+    variantSet: { options: OptionInputDTO[]; variants: VariantInputDTO[] } | null;
   },
   attributes: CreateProductInput["attributes"],
   actorSub: string,
@@ -326,21 +324,13 @@ export async function updateProduct(
     try {
       res = await client.query<{ id: string }>(
         `UPDATE public.product SET
-             name = $3, product_type_id = $4, primary_category_id = $5, sku = $6, gtin = $7,
-             brand = $8, price_amount = $9, compare_at_amount = $10, short_description = $11,
-             long_description = $12, updated_at = now(),
-             -- 067: this statement runs ONLY for a never-approved product (the service routes an
-             -- approved one to a pending change), so there is no margin and both prices are the same.
-             shop_price_amount = $9, shop_compare_at_amount = $10,
-             -- ⚠ A weight is only written when one is SUPPLIED; NULL leaves the row as it stands
-             -- rather than resetting a measured weight back to the assumed default.
-             weight_grams      = COALESCE($14::int, weight_grams),
-             weight_is_assumed = CASE WHEN $14::int IS NULL THEN weight_is_assumed ELSE false END
+             name = $3, product_type_id = $4, primary_category_id = $5,
+             brand = $6, short_description = $7, long_description = $8, updated_at = now()
           WHERE id = $1 AND shop_id = $2
             -- ⚠ The guard is IN the statement: even a caller that skipped the service cannot write
             -- an approved product's live details from here (067 FR-015).
             AND approved_at IS NULL
-            AND date_trunc('milliseconds', updated_at) = $13::timestamptz
+            AND date_trunc('milliseconds', updated_at) = $9::timestamptz
           RETURNING id`,
         [
           id,
@@ -348,22 +338,37 @@ export async function updateProduct(
           values.name,
           values.productTypeId,
           values.primaryCategoryId,
-          values.sku,
-          values.gtin,
           values.brand,
-          values.priceAmount,
-          values.compareAtAmount,
           values.shortDescription,
           values.longDescription,
           expectedUpdatedAt,
-          values.weightGrams,
         ],
       );
     } catch (err) {
-      throw asConflict(err, "a product with this SKU already exists in this shop");
+      throw asConflict(err, "this product could not be saved");
     }
     if (res.rowCount === 0) return "stale";
     await insertAttributeValues(client, id, attributes);
+    // 098 — a draft's variants are written as they are (nothing is on sale), through the one writer.
+    if (values.variantSet) {
+      await applyVariantSet(client, {
+        productId: id, shopId, options: values.variantSet.options, variants: values.variantSet.variants,
+        unitBasis: values.unitBasis, mode: "draft",
+      }).catch(asVariantError);
+    } else if (values.unitBasis !== undefined) {
+      // A basis on its own must still agree with the variants' pack units: the writer re-validates.
+      const current = (await readVariantSets(client, [id])).get(id)!;
+      await applyVariantSet(client, {
+        productId: id, shopId, unitBasis: values.unitBasis, mode: "draft",
+        options: current.options.map((o) => ({ id: o.id, position: o.position, name: o.name, values: o.values })),
+        variants: current.variants.filter((v) => v.state !== "removed").map((v) => ({
+          id: v.id, position: v.position, optionValueIds: v.optionValueIds, sku: v.sku, gtin: v.gtin,
+          shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount,
+          weightGrams: v.weightIsAssumed ? null : v.weightGrams, packQuantity: v.packQuantity, packUnit: v.packUnit,
+          mediaStorageKey: v.mediaStorageKey,
+        })),
+      }).catch(asVariantError);
+    }
     if (values.gstStatus) await setGstStatus(client, id, values.gstStatus, { kind: "shop_staff", sub: actorSub }, "direct");
     return "updated";
   });
@@ -616,19 +621,27 @@ interface ProductListRow {
   primary_storage_key: string | null;
   type_name: string;
   category_name: string;
-  price_amount: string;
-  customer_price_amount: string;
+  price_amount: string | null;
+  customer_price_amount: string | null;
+  price_varies: boolean;
+  variant_count: number;
   review_state_shown: ShopReviewState;
   currency: string;
   status: ProductStatus;
-  sku: string | null;
   updated_at: Date;
   total: string;
 }
 
+/**
+ * 098 — a shop's product list shows the LOWEST shop price among its active variants (what the shop
+ * console calls "From"). A shop's catalogue is hundreds of products, so this aggregate is cheap.
+ */
+const SHOP_FROM_PRICE = `(SELECT min(v.shop_price_amount) FROM public.product_variant v
+                           WHERE v.product_id = p.id AND v.state = 'active')`;
+
 const SORT_COLUMNS: Record<ListParams["sort"], string> = {
   name: "p.name",
-  price: "COALESCE(p.shop_price_amount, p.price_amount)",
+  price: SHOP_FROM_PRICE,
   recent: "p.created_at",
 };
 
@@ -642,11 +655,16 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
             (SELECT storage_key FROM public.product_media m
               WHERE m.product_id = p.id AND m.is_primary LIMIT 1) AS primary_storage_key,
             pt.name AS type_name, c.name AS category_name,
-            -- 067: a shop is shown what IT is paid; the customer's price rides beside it.
-            COALESCE(p.shop_price_amount, p.price_amount)::text AS price_amount,
-            p.price_amount::text AS customer_price_amount,
+            -- 067: a shop is shown what IT is paid; the customer's price rides beside it. 098: the
+            -- cheapest active variant's, with "From" when they differ.
+            ${SHOP_FROM_PRICE}::text AS price_amount,
+            p.list_price_amount::text AS customer_price_amount,
+            (SELECT count(DISTINCT v.shop_price_amount) > 1 FROM public.product_variant v
+              WHERE v.product_id = p.id AND v.state = 'active') AS price_varies,
+            (SELECT count(*)::int FROM public.product_variant v
+              WHERE v.product_id = p.id AND v.state <> 'removed') AS variant_count,
             ${REVIEW_STATE_SQL} AS review_state_shown,
-            p.currency, p.status, p.sku, p.updated_at,
+            p.currency, p.status, p.updated_at,
             count(*) OVER() AS total
        FROM public.product p
        JOIN public.product_type pt ON pt.id = p.product_type_id
@@ -655,17 +673,21 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       WHERE p.shop_id = $1
         AND ($11::text IS NULL OR ${REVIEW_STATE_SQL} = $11)
         AND ($2::text IS NULL OR
-             lower(p.name || ' ' || coalesce(p.sku, '') || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)
-               LIKE '%' || lower($2) || '%')
+             lower(p.name || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)
+               LIKE '%' || lower($2) || '%'
+             -- 098 — a variant's stock code or barcode finds its product.
+             OR EXISTS (SELECT 1 FROM public.product_variant sv
+                         WHERE sv.product_id = p.id AND sv.state <> 'removed'
+                           AND (lower(sv.sku) LIKE '%' || lower($2) || '%' OR sv.gtin = $2)))
         AND ($3::uuid IS NULL OR p.product_type_id = $3)
         AND ($4::uuid IS NULL OR p.primary_category_id = $4)
         AND ($5::text IS NULL OR p.status = $5)
-        AND ($6::numeric IS NULL OR COALESCE(p.shop_price_amount, p.price_amount) >= $6)
-        AND ($7::numeric IS NULL OR COALESCE(p.shop_price_amount, p.price_amount) <= $7)
+        AND ($6::numeric IS NULL OR ${SHOP_FROM_PRICE} >= $6)
+        AND ($7::numeric IS NULL OR ${SHOP_FROM_PRICE} <= $7)
         AND ($8::uuid IS NULL OR EXISTS (
               SELECT 1 FROM public.product_section ps
                WHERE ps.product_id = p.id AND ps.shop_section_id = $8))
-      ORDER BY ${sortCol} ${dir}
+      ORDER BY ${sortCol} ${dir} NULLS LAST, p.id
       LIMIT $9 OFFSET $10`,
     [
       shopId,
@@ -690,13 +712,14 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       primaryImageUrl: r.primary_storage_key, // service replaces with a presigned url
       typeName: r.type_name,
       categoryName: r.category_name,
-      priceAmount: r.price_amount,
+      priceAmount: r.price_amount ?? "0.00",
       currency: r.currency,
       status: r.status,
-      sku: r.sku,
       updatedAt: r.updated_at.toISOString(),
       reviewState: r.review_state_shown,
       customerPriceAmount: r.customer_price_amount,
+      priceVaries: r.price_varies === true,
+      variantCount: Number(r.variant_count),
     })),
     total,
     page: params.page,
@@ -714,22 +737,16 @@ interface ProductRow {
   primary_category_id: string;
   category_name: string;
   name: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
-  price_amount: string;
   currency: string;
-  compare_at_amount: string | null;
   short_description: string;
   long_description: string | null;
-  weight_grams: number;
-  weight_is_assumed: boolean;
   gst_status: GstStatus | null;
+  unit_basis: UnitBasis | null;
+  shop_default_threshold: number | null;
   status: ProductStatus;
   created_at: Date;
   updated_at: Date;
-  customer_price_amount: string;
-  customer_compare_at_amount: string | null;
   review_state_shown: ShopReviewState;
   review_reason: string | null;
   approved: boolean;
@@ -762,17 +779,12 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
   const res = await query<ProductRow>(
     `SELECT p.id, p.shop_id, p.product_type_id, pt.name AS type_name,
             p.primary_category_id, c.name AS category_name,
-            p.name, p.sku, p.gtin, p.brand,
-            -- ⚠ 067: price_amount on a shop DTO is the SHOP's price. The table's price_amount is
-            -- the customer's and is returned under its own name. Named columns only — never p.*,
-            -- which would carry Effy's margin to a shop (a guard test fails on it).
-            COALESCE(p.shop_price_amount, p.price_amount)::text AS price_amount, p.currency,
-            CASE WHEN p.shop_price_amount IS NULL THEN p.compare_at_amount
-                 ELSE p.shop_compare_at_amount END::text AS compare_at_amount,
-            p.price_amount::text AS customer_price_amount,
-            p.compare_at_amount::text AS customer_compare_at_amount,
-            p.short_description, p.long_description, p.weight_grams, p.weight_is_assumed,
-            p.gst_status,
+            -- Named columns only — never p.*, which would carry Effy's margin to a shop (a guard
+            -- test fails on it). 098: prices, codes, weight and stock are read per VARIANT below.
+            p.name, p.brand, p.currency,
+            p.short_description, p.long_description,
+            p.gst_status, p.unit_basis,
+            (SELECT default_low_stock_threshold FROM public.shop_stock_settings WHERE shop_id = p.shop_id) AS shop_default_threshold,
             p.status,
             p.created_at, p.updated_at,
             ${REVIEW_STATE_SQL} AS review_state_shown,
@@ -802,6 +814,8 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
        FROM public.product_media WHERE product_id = $1 ORDER BY is_primary DESC, display_order`,
     [id],
   );
+  // 098 — options and every variant (removed last), through the one shared read.
+  const variantSet = (await readVariantSets({ query }, [id])).get(id)!;
   const sections = await query<{ name: string }>(
     `SELECT s.name FROM public.product_section ps
        JOIN public.shop_section s ON s.id = ps.shop_section_id
@@ -848,17 +862,15 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     primaryCategoryId: row.primary_category_id,
     categoryName: row.category_name,
     name: row.name,
-    sku: row.sku,
-    gtin: row.gtin,
     brand: row.brand,
-    priceAmount: row.price_amount,
     currency: row.currency,
-    compareAtAmount: row.compare_at_amount,
     shortDescription: row.short_description,
     longDescription: row.long_description,
-    weightGrams: Number(row.weight_grams),
-    weightIsAssumed: row.weight_is_assumed,
     gstStatus: row.gst_status,
+    unitBasis: row.unit_basis,
+    options: variantSet.options,
+    variants: variantSet.variants,
+    shopDefaultThreshold: row.shop_default_threshold === null ? null : Number(row.shop_default_threshold),
     status: row.status,
     attributes,
     media: mediaOut,
@@ -868,8 +880,6 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     updatedAt: row.updated_at.toISOString(),
     reviewState: row.review_state_shown,
     reviewReason: row.review_reason,
-    customerPriceAmount: row.customer_price_amount,
-    customerCompareAtAmount: row.customer_compare_at_amount,
     approved: row.approved,
     // Filled by the service from ./change.ts — the live product above is ALWAYS the approved one.
     pendingChange: null,

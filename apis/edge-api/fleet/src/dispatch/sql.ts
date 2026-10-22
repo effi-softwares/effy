@@ -234,7 +234,7 @@ export const ROUND_WORK = `
   WITH pkg AS (
     SELECT rs.id AS stop_id,
            rs.zone_id,
-           COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
+           COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
            COALESCE(bool_or(st.chilled), false) AS chilled,
            COALESCE(bool_or(st.frozen),  false) AS frozen
       FROM public.round_stop rs
@@ -242,6 +242,7 @@ export const ROUND_WORK = `
       JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
       LEFT JOIN public.order_item  oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
       LEFT JOIN public.product     p  ON p.id = oi.product_id
+      LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
       LEFT JOIN LATERAL (
         SELECT bool_or(pav.value_text = 'chilled') AS chilled,
                bool_or(pav.value_text = 'frozen')  AS frozen

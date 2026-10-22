@@ -81,7 +81,9 @@ export interface TopProductRow {
 const SELECT_TOP_PRODUCTS = `
 SELECT p.id::text AS product_id,
        p.name,
-       p.sku,
+       -- 098 — sales stay per PRODUCT (FR-025); a stock code is shown only when it has one variant.
+       (SELECT CASE WHEN count(*) = 1 THEN min(v.sku) END FROM public.product_variant v
+         WHERE v.product_id = p.id AND v.state <> 'removed') AS sku,
        -- is_primary then display_order, read off 20260716092105_product_catalog.sql. The first draft
        -- ordered by a "position" column that does not exist: it typechecks perfectly and fails only
        -- at runtime, which is 056's two-wrong-column-names defect exactly.
@@ -97,7 +99,7 @@ SELECT p.id::text AS product_id,
  WHERE d.shop_id = $1::uuid
    AND d.local_date >= $2::date
    AND d.local_date <= $3::date
- GROUP BY p.id, p.name, p.sku
+ GROUP BY p.id, p.name
  ORDER BY SUM(d.gross_goods) DESC, p.name
  LIMIT $4
 `;

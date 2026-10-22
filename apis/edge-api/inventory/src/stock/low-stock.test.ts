@@ -21,13 +21,14 @@ beforeEach(() => {
 });
 
 // ── The effective threshold: the product's own if set, else the shop's default (FR-005) ─────────
+// 098 — per VARIANT: `v` is the variant, `p` its product.
 describe("the restock list (054 US5, FR-029)", () => {
   it("resolves the threshold as product-then-shop-default", async () => {
     await readLowStock("shop-1");
     // ⚠ COALESCE, not a branch in TypeScript. The rule is evaluated per row against thousands of
     // products; pulling it into the service would mean reading every tracked product to filter most
     // of them out again.
-    expect(sql()).toContain("COALESCE(p.low_stock_threshold, s.default_low_stock_threshold)");
+    expect(sql()).toContain("COALESCE(v.low_stock_threshold, s.default_low_stock_threshold)");
   });
 
   it("reports a product at zero even with NO threshold anywhere (FR-005a)", async () => {
@@ -35,24 +36,29 @@ describe("the restock list (054 US5, FR-029)", () => {
     // ⚠ A missing threshold means "I have no opinion about running LOW" — not "never tell me about
     // this product". An empty shelf is reported regardless, or a shop that never set a threshold
     // would silently sell nothing.
-    expect(sql()).toContain("p.stock_on_hand <= 0 OR (COALESCE");
+    expect(sql()).toContain("v.stock_on_hand <= 0 OR (COALESCE");
   });
 
   it("excludes zero from 'low' so out and low are mutually exclusive", async () => {
     await readLowStock("shop-1");
     // An empty shelf and a thin one need different actions — restock now versus restock soon — and a
     // row claiming both would sort into two places at once.
-    expect(sql()).toContain("CASE WHEN p.stock_on_hand <= 0 THEN 'out' ELSE 'low' END");
+    expect(sql()).toContain("CASE WHEN v.stock_on_hand <= 0 THEN 'out' ELSE 'low' END");
   });
 
   it("sorts out-of-stock above low", async () => {
     await readLowStock("shop-1");
-    expect(sql()).toContain("ORDER BY (p.stock_on_hand <= 0) DESC");
+    expect(sql()).toContain("ORDER BY (v.stock_on_hand <= 0) DESC");
   });
 
   it("never shows an untracked product (FR-024)", async () => {
     await readLowStock("shop-1");
-    expect(sql()).toContain("AND p.stock_tracked");
+    expect(sql()).toContain("WHERE v.shop_id = $1 AND v.stock_tracked");
+  });
+
+  it("098 — never shows a removed variant: it is history, not a shelf", async () => {
+    await readLowStock("shop-1");
+    expect(sql()).toContain("v.state <> 'removed'");
   });
 
   it("never shows an archived product — there is nothing to restock", async () => {
@@ -62,22 +68,22 @@ describe("the restock list (054 US5, FR-029)", () => {
 
   it("is scoped to one shop, from the caller's own resolved id", async () => {
     await readLowStock("shop-1");
-    expect(sql()).toContain("WHERE p.shop_id = $1");
+    expect(sql()).toContain("WHERE v.shop_id = $1");
     expect(query.mock.calls.at(-1)?.[1]).toEqual(["shop-1"]);
   });
 
   it("maps rows to the DTO the console renders", async () => {
     query.mockResolvedValue({
       rows: [
-        { product_id: "p1", name: "Milk", sku: "MLK", on_hand: 0, effective_threshold: 5, severity: "out" },
-        { product_id: "p2", name: "Bread", sku: null, on_hand: 3, effective_threshold: 5, severity: "low" },
+        { product_id: "p1", variant_id: "v1", name: "Milk", variant_label: null, sku: "MLK", on_hand: 0, effective_threshold: 5, severity: "out" },
+        { product_id: "p2", variant_id: "v2", name: "Bread", variant_label: "Large", sku: null, on_hand: 3, effective_threshold: 5, severity: "low" },
       ],
     });
     const rows = await readLowStock("shop-1");
 
     expect(rows).toEqual([
-      { productId: "p1", name: "Milk", sku: "MLK", onHand: 0, effectiveThreshold: 5, severity: "out" },
-      { productId: "p2", name: "Bread", sku: null, onHand: 3, effectiveThreshold: 5, severity: "low" },
+      { productId: "p1", variantId: "v1", name: "Milk", variantLabel: null, sku: "MLK", onHand: 0, effectiveThreshold: 5, severity: "out" },
+      { productId: "p2", variantId: "v2", name: "Bread", variantLabel: "Large", sku: null, onHand: 3, effectiveThreshold: 5, severity: "low" },
     ]);
   });
 });

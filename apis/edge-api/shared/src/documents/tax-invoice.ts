@@ -70,7 +70,8 @@ export async function issueInvoice(tx: Tx, orderId: string): Promise<TaxDocument
   )).rows[0];
   if (!head) throw new InvoiceNotAvailableForOrder();
   const lines = (await tx.query(
-    `SELECT product_name, quantity, unit_price_amount, discount_amount, gst_status
+    // 098 — the line as sold, with its variant.
+    `SELECT CASE WHEN variant_label IS NULL THEN product_name ELSE product_name || ' — ' || variant_label END AS product_name, quantity, unit_price_amount, discount_amount, gst_status
        FROM public.order_item WHERE order_id = $1 ORDER BY product_name, id`,
     [orderId],
   )).rows as Array<{ product_name: string; quantity: number; unit_price_amount: string; discount_amount: string; gst_status: GstStatus | null }>;
@@ -133,7 +134,7 @@ export async function issueAdjustment(tx: Tx, refundId: string): Promise<TaxDocu
   const settings = await readTaxSettings(tx);
   const feeTreatment = settings.feeTreatment ?? "taxable";
   const refundLines = (await tx.query(
-    `SELECT oi.product_name, rl.quantity, rl.amount, oi.gst_status
+    `SELECT CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name, rl.quantity, rl.amount, oi.gst_status
        FROM public.refund_line rl JOIN public.order_item oi ON oi.id = rl.order_item_id
       WHERE rl.refund_id = $1 ORDER BY oi.product_name, rl.id`,
     [refundId],

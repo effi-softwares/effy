@@ -20,17 +20,15 @@ function detail(over: Partial<ProductDetail> = {}): ProductDetail {
     primaryCategoryId: "c1",
     categoryName: "Coffee",
     name: "Flat White",
-    sku: "FW-001",
-    gtin: null,
     brand: "Effy Roastery",
-    priceAmount: "4.50",
     currency: "AUD",
-    compareAtAmount: null,
     shortDescription: "Silky espresso",
     longDescription: null,
-    weightGrams: 500,
-    weightIsAssumed: true,
     gstStatus: "gst_free",
+    // 098 — price, codes and weight are each variant's, edited as a set (variants.test.ts).
+    unitBasis: null,
+    options: [],
+    variants: [],
     status: "active",
     attributes: [],
     media: [],
@@ -44,10 +42,10 @@ function detail(over: Partial<ProductDetail> = {}): ProductDetail {
 
 describe("buildProductUpdate", () => {
   it("always includes expectedUpdatedAt and only the changed subset", () => {
-    const body = buildProductUpdate("2026-07-16T10:00:00Z", { priceAmount: "5.00" });
-    expect(body).toEqual({ expectedUpdatedAt: "2026-07-16T10:00:00Z", priceAmount: "5.00" });
+    const body = buildProductUpdate("2026-07-16T10:00:00Z", { name: "Long Black" });
+    expect(body).toEqual({ expectedUpdatedAt: "2026-07-16T10:00:00Z", name: "Long Black" });
     // No other field leaks into the payload.
-    expect(Object.keys(body).sort()).toEqual(["expectedUpdatedAt", "priceAmount"]);
+    expect(Object.keys(body).sort()).toEqual(["expectedUpdatedAt", "name"]);
   });
 });
 
@@ -55,17 +53,17 @@ describe("diffScalarFields", () => {
   it("returns only the fields whose value actually changed", () => {
     const changed = diffScalarFields(detail(), {
       name: "Flat White", // unchanged
-      priceAmount: "5.00", // changed
+      shortDescription: "Velvet espresso", // changed
       brand: "Effy Roastery", // unchanged
     });
-    expect(changed).toEqual({ priceAmount: "5.00" });
+    expect(changed).toEqual({ shortDescription: "Velvet espresso" });
   });
 
   it("treats '' vs null as a change and null vs null as unchanged", () => {
     // brand was "Effy Roastery" → cleared to null is a change
     expect(diffScalarFields(detail(), { brand: null })).toEqual({ brand: null });
-    // gtin was null → staying null is not a change
-    expect(diffScalarFields(detail(), { gtin: null })).toEqual({});
+    // longDescription was null → staying null is not a change
+    expect(diffScalarFields(detail(), { longDescription: null })).toEqual({});
   });
 
   it("ignores keys that were not supplied", () => {
@@ -160,35 +158,6 @@ describe("seedAttributeDraft", () => {
       "a-num": { number: "250" },
       "a-multi": { options: ["vegan"] },
     });
-  });
-});
-
-// ── Shipping weight (032, FR-036a/FR-037a) ────────────────────────────────────────────────────
-describe("focused edit — shipping weight", () => {
-  it("sends a changed weight", () => {
-    const changed = diffScalarFields(detail({ weightGrams: 500, weightIsAssumed: true }), {
-      weightGrams: 780,
-    });
-    expect(changed).toEqual({ weightGrams: 780 });
-  });
-
-  // ⚠ Leaving the field blank must NOT patch the weight. Otherwise editing a product's name would
-  // reset a measured weight back to the platform's assumption, silently.
-  it("omits the weight when it was not entered", () => {
-    const changed = diffScalarFields(detail({ weightGrams: 780, weightIsAssumed: false }), {
-      name: "Renamed",
-      weightGrams: undefined,
-    });
-    expect(changed).toEqual({ name: "Renamed" });
-    expect(changed).not.toHaveProperty("weightGrams");
-  });
-
-  // Re-entering the same number is not a change — the PATCH stays minimal (FR-023a).
-  it("omits an unchanged weight", () => {
-    const changed = diffScalarFields(detail({ weightGrams: 780, weightIsAssumed: false }), {
-      weightGrams: 780,
-    });
-    expect(changed).not.toHaveProperty("weightGrams");
   });
 });
 

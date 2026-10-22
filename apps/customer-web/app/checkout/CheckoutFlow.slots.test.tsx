@@ -6,6 +6,7 @@ import { DELIVERY_FEE_WORDS, type AddressDTO, type DeliveryQuoteDTO } from "@eff
 
 import { capture } from "@/lib/telemetry"
 
+import { addToCart, resetCart } from "@/lib/cart-store"
 import { CheckoutFlow } from "./CheckoutFlow"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -61,10 +62,9 @@ beforeEach(() => {
   quoteCalls = 0
   intentBodies = []
   intentReplies = [ACCEPTED]
-  window.localStorage.setItem(
-    "effy:cart",
-    JSON.stringify([{ productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" }]),
-  )
+  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  resetCart()
+  addToCart({ variantId: "v1", productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" })
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL, init?: RequestInit) => {

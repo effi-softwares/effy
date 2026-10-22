@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.cart.domain
 
+import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
 import kotlinx.serialization.Serializable
 
 /**
@@ -19,8 +20,15 @@ const val MAX_CART_QTY = 99
 
 @Serializable
 data class GuestCartLine(
+    /** 098 — the line's identity: the size being bought. */
+    val variantId: String,
+    /** The product it is a size of — for opening its page. */
     val productId: String,
     val name: String,
+    /** 098 — the size's words ("1 kg"); null for a product sold one way. */
+    val variantLabel: String? = null,
+    /** 098 — the comparison price, as the platform gave it. */
+    val unitPrice: UnitPrice? = null,
     val imageUrl: String?,
     val unitPriceAmount: String,
     val currency: String,
@@ -73,10 +81,10 @@ fun packagesOf(lines: List<GuestCartLine>): List<CartPackage> {
 
 /** Add or increment a line, clamping quantity to the max. */
 fun addLine(lines: List<GuestCartLine>, line: GuestCartLine): List<GuestCartLine> {
-    val existing = lines.any { it.productId == line.productId }
+    val existing = lines.any { it.variantId == line.variantId }
     return if (existing) {
         lines.map {
-            if (it.productId == line.productId) it.copy(quantity = minOf(it.quantity + line.quantity, MAX_CART_QTY)) else it
+            if (it.variantId == line.variantId) it.copy(quantity = minOf(it.quantity + line.quantity, MAX_CART_QTY)) else it
         }
     } else {
         lines + line.copy(quantity = line.quantity.coerceIn(1, MAX_CART_QTY))
@@ -84,16 +92,16 @@ fun addLine(lines: List<GuestCartLine>, line: GuestCartLine): List<GuestCartLine
 }
 
 /** Set a line's quantity; 0 or less removes it. */
-fun setLineQty(lines: List<GuestCartLine>, productId: String, quantity: Int): List<GuestCartLine> =
+fun setLineQty(lines: List<GuestCartLine>, variantId: String, quantity: Int): List<GuestCartLine> =
     if (quantity <= 0) {
-        lines.filterNot { it.productId == productId }
+        lines.filterNot { it.variantId == variantId }
     } else {
-        lines.map { if (it.productId == productId) it.copy(quantity = minOf(quantity, MAX_CART_QTY)) else it }
+        lines.map { if (it.variantId == variantId) it.copy(quantity = minOf(quantity, MAX_CART_QTY)) else it }
     }
 
 /** Remove a line. */
-fun removeLine(lines: List<GuestCartLine>, productId: String): List<GuestCartLine> =
-    lines.filterNot { it.productId == productId }
+fun removeLine(lines: List<GuestCartLine>, variantId: String): List<GuestCartLine> =
+    lines.filterNot { it.variantId == variantId }
 
 /** Total item count (sum of quantities) — the cart badge. */
 fun cartCount(lines: List<GuestCartLine>): Int = lines.sumOf { it.quantity }

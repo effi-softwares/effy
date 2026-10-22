@@ -55,6 +55,8 @@ class ListChooserViewModel(
     private val addToList: AddToList,
     private val removeFromList: RemoveFromList,
     private val createList: CreateList,
+    /** 098 — the size on screen, remembered when the product is placed in a list. */
+    private val variantId: String? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ListChooserState>(ListChooserState.Loading)
@@ -83,7 +85,7 @@ class ListChooserViewModel(
         viewModelScope.launch {
             val error = attempt {
                 if (list.containsProduct == true) removeFromList(list.id, productId)
-                else addToList(list.id, productId)
+                else addToList(list.id, productId, variantId = variantId)
             }
             reload(error = error)
         }
@@ -97,7 +99,7 @@ class ListChooserViewModel(
 
         viewModelScope.launch {
             // ⚠ ONE call makes the list AND places the product in it (FR-015). A refusal makes neither.
-            val error = attempt { createList(name, productId) }
+            val error = attempt { createList(name, productId, variantId) }
             if (error == null) onCreated()
             reload(nameError = error)
         }

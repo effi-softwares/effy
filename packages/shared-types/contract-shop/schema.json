@@ -321,17 +321,9 @@
             "null"
           ]
         },
-        "compareAtAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "gtin": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "gstStatus": {
+          "$ref": "#/definitions/GstStatus",
+          "description": "096 — required: every product is taxable or GST-free from the moment it exists (FR-091)."
         },
         "longDescription": {
           "type": [
@@ -369,8 +361,12 @@
         "name": {
           "type": "string"
         },
-        "priceAmount": {
-          "type": "string"
+        "options": {
+          "description": "098 — 0 to 2 options. Ids are client-generated UUIDs.",
+          "items": {
+            "$ref": "#/definitions/OptionInputDTO"
+          },
+          "type": "array"
         },
         "primaryCategoryId": {
           "type": "string"
@@ -393,26 +389,33 @@
         "shortDescription": {
           "type": "string"
         },
-        "sku": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "unitBasis": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitBasis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098 — how sizes are compared; omit for no unit price."
         },
-        "weightGrams": {
-          "description": "Shipping weight in grams (032, FR-036a). Omit and the platform records its stated default as an ASSUMPTION. ⚠ There is deliberately no `weightIsAssumed` field: the flag is derived from the act of supplying a weight and is never accepted from a client, or \"measured\" would mean only \"the client said so\".",
-          "type": [
-            "number",
-            "null"
-          ]
+        "variants": {
+          "description": "098 — 1 to 50 variants; exactly one (with no option values) when there are no options. Each carries its own price, codes and shipping weight (omit a weight to record the platform default as an ASSUMPTION — 032 FR-036a).",
+          "items": {
+            "$ref": "#/definitions/VariantInputDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
         "productTypeId",
         "primaryCategoryId",
         "name",
-        "priceAmount",
-        "shortDescription"
+        "shortDescription",
+        "gstStatus",
+        "options",
+        "variants"
       ],
       "type": "object"
     },
@@ -700,6 +703,14 @@
       ],
       "type": "object"
     },
+    "GstStatus": {
+      "description": "096 US9 — a product's GST status: taxable, or GST-free (basic food). Null = not yet classified.",
+      "enum": [
+        "taxable",
+        "gst_free"
+      ],
+      "type": "string"
+    },
     "ItemProgressRequest": {
       "additionalProperties": false,
       "description": "Record picking progress (PATCH /shop/v1/fulfillments/{id}/items/{orderItemId}).\n\nAbsolute values, not deltas — idempotent under retry, which matters on a shop tablet with a flaky connection. Lowering `unavailableQuantity` is how an item is un-flagged when it turns up (FR-010d). `gathered + unavailable <= ordered` is enforced server-side and by a DB CHECK.",
@@ -748,11 +759,24 @@
             "string",
             "null"
           ]
+        },
+        "variantId": {
+          "description": "098",
+          "type": "string"
+        },
+        "variantLabel": {
+          "description": "098 — \"1 kg\"; null for a product with no options.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "productId",
+        "variantId",
         "name",
+        "variantLabel",
         "sku",
         "onHand",
         "effectiveThreshold",
@@ -766,6 +790,121 @@
         "correction",
         "damage",
         "expiry"
+      ],
+      "type": "string"
+    },
+    "OptionDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt",
+          "description": "1 or 2."
+        },
+        "values": {
+          "items": {
+            "$ref": "#/definitions/OptionValueDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "name",
+        "values"
+      ],
+      "type": "object"
+    },
+    "OptionInputDTO": {
+      "additionalProperties": false,
+      "description": "One option as a shop sends it. Ids are CLIENT-GENERATED (UUIDs) for new options and values (R6).",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "values": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "position": {
+                "$ref": "#/definitions/WireInt"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "value",
+              "position"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "name",
+        "values"
+      ],
+      "type": "object"
+    },
+    "OptionValueDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value",
+        "position"
+      ],
+      "type": "object"
+    },
+    "OptionValueIds": {
+      "description": "`[position-1 value, position-2 value]`; null where the product has no such option.",
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+    },
+    "PackUnit": {
+      "enum": [
+        "g",
+        "kg",
+        "ml",
+        "l",
+        "each"
       ],
       "type": "string"
     },
@@ -928,17 +1067,9 @@
             "null"
           ]
         },
-        "compareAtAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "gtin": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "gstStatus": {
+          "$ref": "#/definitions/GstStatus",
+          "description": "096"
         },
         "longDescription": {
           "type": [
@@ -949,9 +1080,12 @@
         "name": {
           "type": "string"
         },
-        "priceAmount": {
-          "description": "The proposed SHOP price.",
-          "type": "string"
+        "options": {
+          "description": "098 — the COMPLETE proposed option set, present only when it differs from live.",
+          "items": {
+            "$ref": "#/definitions/OptionInputDTO"
+          },
+          "type": "array"
         },
         "primaryCategoryId": {
           "type": "string"
@@ -962,14 +1096,23 @@
         "shortDescription": {
           "type": "string"
         },
-        "sku": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "unitBasis": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitBasis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098"
         },
-        "weightGrams": {
-          "type": "number"
+        "variants": {
+          "description": "098 — the COMPLETE proposed variant set (prices are SHOP prices), present only when it differs from live. A live variant missing from it is removed on approval.",
+          "items": {
+            "$ref": "#/definitions/VariantInputDTO"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -993,34 +1136,22 @@
         "categoryName": {
           "type": "string"
         },
-        "compareAtAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "createdAt": {
           "type": "string"
         },
         "currency": {
           "type": "string"
         },
-        "customerCompareAtAmount": {
-          "description": "The customer-facing \"was\" price, with the same margin applied; `compareAtAmount` is the shop's.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "customerPriceAmount": {
-          "description": "What customers pay. For a product with no margin set, equal to the shop price.",
-          "type": "string"
-        },
-        "gtin": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "gstStatus": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/GstStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "096 — taxable or GST-free; null on a product made before 096 and not yet classified."
         },
         "id": {
           "type": "string"
@@ -1046,6 +1177,13 @@
         "name": {
           "type": "string"
         },
+        "options": {
+          "description": "098 — up to two options (\"Size\", \"Flavour\") with their values in the shop's order. Empty for a product with no options.",
+          "items": {
+            "$ref": "#/definitions/OptionDTO"
+          },
+          "type": "array"
+        },
         "pendingChange": {
           "anyOf": [
             {
@@ -1056,9 +1194,6 @@
             }
           ],
           "description": "The shop's proposed new version of an APPROVED product, waiting on Effy — or null when there is none. Customers keep seeing everything ABOVE this field until it is approved."
-        },
-        "priceAmount": {
-          "type": "string"
         },
         "primaryCategoryId": {
           "type": "string"
@@ -1085,18 +1220,8 @@
         "shopId": {
           "type": "string"
         },
-        "shopPriceAmount": {
-          "description": "What the shop is paid. `priceAmount` above stays equal to it.",
-          "type": "string"
-        },
         "shortDescription": {
           "type": "string"
-        },
-        "sku": {
-          "type": [
-            "string",
-            "null"
-          ]
         },
         "status": {
           "$ref": "#/definitions/ProductStatus"
@@ -1104,16 +1229,26 @@
         "typeName": {
           "type": "string"
         },
+        "unitBasis": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitBasis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098 — how this product's sizes are compared (unit pricing); null = no unit price."
+        },
         "updatedAt": {
           "type": "string"
         },
-        "weightGrams": {
-          "description": "Shipping weight in grams (032). ⚠ A LOGISTICS fact, deliberately distinct from any `net_weight` attribute a shopper reads on the product page — they agree by backfill today and may legitimately diverge, because packaging weighs something. Delivery is priced from this.",
-          "type": "number"
-        },
-        "weightIsAssumed": {
-          "description": "⚠ TRUE means nobody has recorded a real weight and the platform default is in use. Without this flag \"500 g\" would mean both \"we weighed it\" and \"nobody has said\", and no operator could tell which products still need attention (FR-037a).",
-          "type": "boolean"
+        "variants": {
+          "description": "098 — every variant (active, inactive, then removed), in display order. Price, stock code, barcode, weight, pack size and stock all live HERE — a product has none of its own.",
+          "items": {
+            "$ref": "#/definitions/ShopVariantDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -1124,16 +1259,14 @@
         "primaryCategoryId",
         "categoryName",
         "name",
-        "sku",
-        "gtin",
         "brand",
-        "priceAmount",
         "currency",
-        "compareAtAmount",
         "shortDescription",
         "longDescription",
-        "weightGrams",
-        "weightIsAssumed",
+        "gstStatus",
+        "unitBasis",
+        "options",
+        "variants",
         "status",
         "attributes",
         "media",
@@ -1189,8 +1322,11 @@
           "type": "string"
         },
         "customerPriceAmount": {
-          "description": "067 — what customers pay: the shop price plus Effy's margin.",
-          "type": "string"
+          "description": "067/098 — the lowest customer price among active variants; null until first approved.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "id": {
           "type": "string"
@@ -1199,7 +1335,12 @@
           "type": "string"
         },
         "priceAmount": {
+          "description": "098 — the LOWEST shop price among the product's active variants (say \"From\" when `priceVaries`). Equal to `shopPriceAmount`.",
           "type": "string"
+        },
+        "priceVaries": {
+          "description": "098 — active variants' prices differ.",
+          "type": "boolean"
         },
         "primaryImageUrl": {
           "type": [
@@ -1212,14 +1353,8 @@
           "description": "067 — where the product stands with Effy's review."
         },
         "shopPriceAmount": {
-          "description": "067 — what the shop is paid. Equal to `priceAmount`, which is kept for installed app builds.",
+          "description": "067/098 — the lowest shop price among active variants.",
           "type": "string"
-        },
-        "sku": {
-          "type": [
-            "string",
-            "null"
-          ]
         },
         "status": {
           "$ref": "#/definitions/ProductStatus"
@@ -1229,6 +1364,10 @@
         },
         "updatedAt": {
           "type": "string"
+        },
+        "variantCount": {
+          "description": "098 — variants that are not removed.",
+          "type": "number"
         }
       },
       "required": [
@@ -1241,8 +1380,9 @@
         "priceAmount",
         "currency",
         "status",
-        "sku",
-        "updatedAt"
+        "updatedAt",
+        "priceVaries",
+        "variantCount"
       ],
       "type": "object"
     },
@@ -1340,7 +1480,7 @@
     },
     "ProductStockDTO": {
       "additionalProperties": false,
-      "description": "A product's stock, as one operator screen needs it.",
+      "description": "A VARIANT's stock (098; a product's before), as one operator screen needs it.",
       "properties": {
         "effectiveThreshold": {
           "anyOf": [
@@ -1389,10 +1529,15 @@
         "tracked": {
           "description": "false = unlimited, and identical to how the product behaved before 054 existed (FR-002).",
           "type": "boolean"
+        },
+        "variantId": {
+          "description": "098 — stock is counted per variant.",
+          "type": "string"
         }
       },
       "required": [
         "productId",
+        "variantId",
         "tracked",
         "onHand",
         "threshold",
@@ -1849,6 +1994,119 @@
       ],
       "type": "object"
     },
+    "ShopVariantDTO": {
+      "additionalProperties": false,
+      "description": "A shop's (and back-office's) view of one variant.",
+      "properties": {
+        "customerCompareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "customerPriceAmount": {
+          "description": "What the customer pays: shop price + Effy's margin. Null until the product is first approved.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gtin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mediaId": {
+          "description": "One of the product's gallery pictures, or null.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "optionValueIds": {
+          "$ref": "#/definitions/OptionValueIds"
+        },
+        "packQuantity": {
+          "description": "Decimal string, up to 3 places (\"1.25\"), with `packUnit`; both null when no pack size.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packUnit": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PackUnit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "shopCompareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shopPriceAmount": {
+          "description": "What the shop is paid.",
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "$ref": "#/definitions/VariantState"
+        },
+        "stock": {
+          "$ref": "#/definitions/ProductStockDTO"
+        },
+        "weightGrams": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "weightIsAssumed": {
+          "description": "True while nobody has recorded a real weight (032).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "optionValueIds",
+        "label",
+        "sku",
+        "gtin",
+        "shopPriceAmount",
+        "shopCompareAtAmount",
+        "customerPriceAmount",
+        "customerCompareAtAmount",
+        "weightGrams",
+        "weightIsAssumed",
+        "packQuantity",
+        "packUnit",
+        "mediaId",
+        "state",
+        "stock"
+      ],
+      "type": "object"
+    },
     "StockActorKind": {
       "description": "WHO acted, kept separate from WHY (`reason`).\n\n⚠ The separation is what makes FR-027 possible: a shop reading its own history must be able to see plainly that back-office made a change, without back-office having to pick a reason that says so. `system` is the paid-order path — the only actor with no person behind it.",
       "enum": [
@@ -1927,7 +2185,8 @@
         "order_paid",
         "pick_shortfall",
         "tracking_enabled",
-        "tracking_disabled"
+        "tracking_disabled",
+        "refund"
       ],
       "type": "string"
     },
@@ -1946,6 +2205,17 @@
         "to"
       ],
       "type": "object"
+    },
+    "UnitBasis": {
+      "description": "Unit pricing — 098-product-variants (R12).\n\nA product says how its sizes are COMPARED (`UnitBasis`: per 100 g, per kg, per 100 mL, per L, each); each variant says how much is in its pack (`packQuantity` + `PackUnit`). The comparison price is the price scaled to the basis: $3.20 for 500 g → $0.64 / 100 g. Australian online grocers show one beside every price (the Unit Pricing Code), and it is how a shopper tells which size is better value.\n\n⚠ ONE SUM, HERE. The server computes it for every DTO that carries a price and sends `UnitPriceDTO`; clients only FORMAT it (`unitPriceText`). The customer app's Kotlin formatter is pinned to `unit-price.fixtures.json` — the same file `unit-price.test.ts` runs.\n\n⚠ INTEGER ARITHMETIC. Price in whole cents, pack quantity scaled to thousandths, one half-up rounding to a whole cent at the end — never a float.",
+      "enum": [
+        "per_100g",
+        "per_kg",
+        "per_100ml",
+        "per_l",
+        "each"
+      ],
+      "type": "string"
     },
     "UpdateMediaRequest": {
       "additionalProperties": false,
@@ -1982,20 +2252,12 @@
             "null"
           ]
         },
-        "compareAtAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "expectedUpdatedAt": {
           "type": "string"
         },
-        "gtin": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "gstStatus": {
+          "$ref": "#/definitions/GstStatus",
+          "description": "096 — on a live product this is PROPOSED and reviewed, like every other detail (067)."
         },
         "longDescription": {
           "type": [
@@ -2006,8 +2268,12 @@
         "name": {
           "type": "string"
         },
-        "priceAmount": {
-          "type": "string"
+        "options": {
+          "description": "098 — when present, BOTH are the complete target sets (send them together). On a draft they are written as they are; on a live product they become part of the pending change (R6). Variant state (active/inactive/removed) is never set here — it has its own immediate route.",
+          "items": {
+            "$ref": "#/definitions/OptionInputDTO"
+          },
+          "type": "array"
         },
         "primaryCategoryId": {
           "type": "string"
@@ -2018,18 +2284,22 @@
         "shortDescription": {
           "type": "string"
         },
-        "sku": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "unitBasis": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitBasis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098"
         },
-        "weightGrams": {
-          "description": "Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands.",
-          "type": [
-            "number",
-            "null"
-          ]
+        "variants": {
+          "items": {
+            "$ref": "#/definitions/VariantInputDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -2048,6 +2318,91 @@
         }
       },
       "type": "object"
+    },
+    "VariantInputDTO": {
+      "additionalProperties": false,
+      "description": "One variant as a shop sends it. `id` is client-generated for a new variant (R6).",
+      "properties": {
+        "gtin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "mediaStorageKey": {
+          "description": "A storage key from the product's gallery (live, or proposed with a pending change).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "optionValueIds": {
+          "$ref": "#/definitions/OptionValueIds"
+        },
+        "packQuantity": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packUnit": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PackUnit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "shopCompareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "shopPriceAmount": {
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "weightGrams": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Recording a weight marks it measured (032). Omit or null to keep the assumed default."
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "optionValueIds",
+        "shopPriceAmount"
+      ],
+      "type": "object"
+    },
+    "VariantState": {
+      "enum": [
+        "active",
+        "inactive",
+        "removed"
+      ],
+      "type": "string"
     },
     "WireInt": {
       "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",

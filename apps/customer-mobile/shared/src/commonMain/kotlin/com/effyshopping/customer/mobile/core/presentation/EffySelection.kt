@@ -37,6 +37,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.theme.EffyRoles
@@ -49,6 +52,9 @@ import com.effyshopping.mobile.design.EffySpacing
  * 6dp corners (the storefront's controls are never pills), 40dp visual inside a 48dp target. Selected
  * is the light-blue tint with a blue border and blue label, so the state is carried by fill, edge and
  * colour together, never by colour alone.
+ *
+ * [unavailable] (098 — a sold-out size) strikes the label through and says "sold out" to a screen
+ * reader: it stays pressable, because choosing it shows the shopper that size is sold out.
  */
 @Composable
 fun EffyChip(
@@ -56,13 +62,15 @@ fun EffyChip(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    unavailable: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .heightIn(min = EffySize.target)
             .effyPress(interactions)
-            .selectable(selected = selected, interactionSource = interactions, indication = null, role = Role.Tab, onClick = onClick),
+            .selectable(selected = selected, interactionSource = interactions, indication = null, role = Role.Tab, onClick = onClick)
+            .then(if (unavailable) Modifier.semantics { stateDescription = "sold out" } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -80,8 +88,12 @@ fun EffyChip(
         ) {
             Text(
                 label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelMedium.copy(textDecoration = if (unavailable) TextDecoration.LineThrough else null),
+                color = when {
+                    selected -> MaterialTheme.colorScheme.primary
+                    unavailable -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
                 maxLines = 1,
             )
         }

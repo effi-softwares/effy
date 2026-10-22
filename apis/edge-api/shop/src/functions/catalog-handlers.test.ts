@@ -53,7 +53,7 @@ describe("shop product handlers — gate + shop-scope + no leakage", () => {
     authorizeShopMember.mockResolvedValue("shop-1");
     service.createProduct.mockResolvedValue({
       id: "p1", shopId: "shop-1", productTypeId: "t", typeName: "T", primaryCategoryId: "c", categoryName: "C",
-      name: "X", sku: null, gtin: null, brand: null, priceAmount: "1.00", currency: "AUD", compareAtAmount: null,
+      name: "X", brand: null, currency: "AUD", unitBasis: null, options: [], variants: [], shopDefaultThreshold: null,
       shortDescription: "d", longDescription: null, status: "draft", attributes: [], media: [], sections: [],
       missingMandatoryAttributes: [], createdAt: "t", updatedAt: "t",
     });

@@ -35,6 +35,9 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.Promotion
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
+import com.effyshopping.customer.mobile.features.catalog.domain.Variant
+import com.effyshopping.customer.mobile.features.catalog.domain.VariantOption
+import com.effyshopping.customer.mobile.features.catalog.domain.VariantOptionValue
 
 /**
  * Wire DTO → domain mappers (019 US1). Kept as internal top-level functions so `commonTest` can exercise
@@ -53,6 +56,10 @@ internal fun StorefrontProductCardDTO.toDomain(): ProductCard = ProductCard(
     badges = badges.map { it.toDomain() },
     available = available,
     offerLabel = offer?.label,
+    variantId = variantID,
+    variantCount = variantCount.toInt(),
+    priceVaries = priceVaries,
+    unitPrice = unitPrice?.toDomain(),
 )
 
 internal fun ProductBadgeDTO.toDomain(): ProductBadge = when (this) {
@@ -175,12 +182,37 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
         badges = badges.map { it.toDomain() },
         available = available,
         offerLabel = offer?.label,
+        variantId = variantID,
+        variantCount = variantCount.toInt(),
+        priceVaries = priceVaries,
+        unitPrice = unitPrice?.toDomain(),
     ),
     longDescription = longDescription,
     gallery = gallery.map { it.toDomain() },
     attributes = attributes.map { it.toDomain() },
     categoryPath = categoryPath,
     categoryKey = categoryKey,
+    options = options.map { o ->
+        VariantOption(
+            id = o.id,
+            position = o.position.toInt(),
+            name = o.name,
+            values = o.values.map { VariantOptionValue(id = it.id, value = it.value, position = it.position.toInt()) },
+        )
+    },
+    variants = variants.map { v ->
+        Variant(
+            id = v.id,
+            optionValueIds = v.optionValueIDS.getOrNull(0) to v.optionValueIDS.getOrNull(1),
+            label = v.label,
+            priceAmount = v.priceAmount,
+            compareAtAmount = v.compareAtAmount,
+            unitPrice = v.unitPrice?.toDomain(),
+            available = v.available,
+            imageUrl = v.imageURL,
+        )
+    },
+    defaultVariantId = defaultVariantID,
 )
 
 // ── Facets (043) ─────────────────────────────────────────────────────────────────────────────────

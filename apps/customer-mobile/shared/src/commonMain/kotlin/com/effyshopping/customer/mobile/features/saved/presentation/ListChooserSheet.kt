@@ -51,8 +51,10 @@ fun ListChooserSheet(
     productId: String,
     onDismiss: () -> Unit,
     onRequireSignIn: (() -> Unit)? = null,
+    /** 098 — the size on screen, remembered with the product. */
+    variantId: String? = null,
 ) {
-    val vm = remember(productId) {
+    val vm = remember(productId, variantId) {
         ListChooserViewModel(
             productId = productId,
             isSignedIn = { container.session.state.value is SessionState.Authenticated },
@@ -60,6 +62,7 @@ fun ListChooserSheet(
             addToList = container.addToList,
             removeFromList = container.removeFromList,
             createList = container.createList,
+            variantId = variantId,
         )
     }
     val state by vm.state.collectAsState()

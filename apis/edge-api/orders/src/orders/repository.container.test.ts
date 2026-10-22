@@ -71,6 +71,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         delivery_address jsonb NOT NULL DEFAULT '{}'::jsonb,
         delivery_handover text,
         delivery_note text,
+        delivery_promise text,
         billing_address jsonb,
         promo_code text,
         delivery_type text, delivery_type_reason text, courier_estimate text,
@@ -88,6 +89,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         shop_id uuid NOT NULL REFERENCES public.shop (id),
         status text NOT NULL, item_count int NOT NULL DEFAULT 1,
         subtotal_amount numeric(12,2) NOT NULL DEFAULT 0,
+        delivery_method text,
         -- 089 — every package's label code (the real column has a generated default).
         package_code text NOT NULL DEFAULT upper(substr(md5(gen_random_uuid()::text), 1, 6))
       );
@@ -96,7 +98,9 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         order_id uuid NOT NULL, product_id uuid NOT NULL DEFAULT gen_random_uuid(),
         shop_id uuid NOT NULL, product_name text NOT NULL,
         unit_price_amount numeric(12,2) NOT NULL DEFAULT 0, quantity int NOT NULL DEFAULT 1,
-        line_subtotal_amount numeric(12,2) NOT NULL DEFAULT 0
+        line_subtotal_amount numeric(12,2) NOT NULL DEFAULT 0,
+        -- 098: a line is a variant, with its label and codes as sold.
+        variant_id uuid NOT NULL DEFAULT gen_random_uuid(), variant_label text, sku text, gtin text
       );
       CREATE TABLE public.order_package_delivery (
         order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL,

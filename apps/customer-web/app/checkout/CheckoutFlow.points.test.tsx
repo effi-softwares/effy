@@ -6,6 +6,7 @@ import type { AddressDTO, DeliveryQuoteDTO } from "@effy/shared-types"
 
 import { capture } from "@/lib/telemetry"
 
+import { addToCart, resetCart } from "@/lib/cart-store"
 import { CheckoutFlow } from "./CheckoutFlow"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -39,10 +40,9 @@ beforeEach(() => {
   quote = QUOTE(1000)
   intentBodies = []
   intentReply = () => jsonRes({ orderId: "o1", orderNumber: "E-1", clientSecret: "cs", publishableKey: "pk", grandTotalAmount: "16.00", currency: "AUD", pointsUsed: 1000, pointsAmount: "10.00", cardAmount: "6.00", paidWithPoints: false })
-  window.localStorage.setItem(
-    "effy:cart",
-    JSON.stringify([{ productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" }]),
-  )
+  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  resetCart()
+  addToCart({ variantId: "v1", productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" })
   vi.stubGlobal("location", { ...window.location, assign })
   vi.stubGlobal(
     "fetch",

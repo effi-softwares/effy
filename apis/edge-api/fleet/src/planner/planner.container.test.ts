@@ -185,19 +185,15 @@ let skuSeq = 0;
 async function addLine(sfId: string, shopId: string, grams: number, storage: "chilled" | "frozen" | null = null) {
   skuSeq += 1;
   const p = await q(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, sku,
-                                 price_amount, short_description, created_by, status, weight_grams, approved_at)
-     VALUES ($1,
-             (SELECT id FROM public.product_type LIMIT 1),
-             (SELECT id FROM public.category LIMIT 1),
-             $2, $3, 1, 'A thing', 'test', 'active', $4, now()) RETURNING id`,
+    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, sku, weight_grams) SELECT p.id, p.shop_id, COALESCE(1, 1)::numeric, (1)::numeric, $3, $4 FROM p RETURNING id)
+SELECT id FROM p`,
     [shopId, `Thing ${skuSeq}`, `SKU-L${skuSeq}`, grams],
   );
   const o = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sfId]);
   await q(
-    `INSERT INTO public.order_item (order_id, shop_id, product_id, product_name, quantity,
-                                    unit_price_amount, line_subtotal_amount)
-     VALUES ($1, $2, $3, 'Thing', 1, 1, 1)`,
+    `INSERT INTO public.order_item (order_id, shop_id, product_id, variant_id, product_name, quantity, unit_price_amount, line_subtotal_amount)
+     VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), 'Thing', 1, 1, 1)`,
     [o.rows[0].order_id, shopId, p.rows[0].id],
   );
   if (storage) {
@@ -514,19 +510,15 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     const sf = await makeReadyPackage(shop);
     // 5 kg of goods against a 1 kg van.
     await q(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, sku,
-                                   price_amount, short_description, created_by, status, weight_grams, approved_at)
-       VALUES ($1,
-               (SELECT id FROM public.product_type LIMIT 1),
-               (SELECT id FROM public.category LIMIT 1),
-               'Heavy', 'SKU-H', 1, 'A heavy thing', 'test', 'active', 5000, now()) RETURNING id`,
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Heavy', 'A heavy thing', 'test', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, sku, weight_grams) SELECT p.id, p.shop_id, COALESCE(1, 1)::numeric, (1)::numeric, 'SKU-H', 5000 FROM p RETURNING id)
+SELECT id FROM p`,
       [shop],
     ).then(async (p) => {
       const o = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sf]);
       await q(
-        `INSERT INTO public.order_item (order_id, shop_id, product_id, product_name, quantity,
-                                        unit_price_amount, line_subtotal_amount)
-         VALUES ($1, $2, $3, 'Heavy', 1, 1, 1)`,
+        `INSERT INTO public.order_item (order_id, shop_id, product_id, variant_id, product_name, quantity, unit_price_amount, line_subtotal_amount)
+         VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), 'Heavy', 1, 1, 1)`,
         [o.rows[0].order_id, shop, p.rows[0].id],
       );
     });

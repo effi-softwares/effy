@@ -202,7 +202,9 @@ export type StorefrontEvent =
   // 019 commerce funnel (shared taxonomy — customer-mobile adopts these SAME names when its telemetry
   // lands; NO PII, product ids only). discover → product → cart → checkout → order.
   | { name: "product_viewed"; props: { productId: string } }
-  | { name: "product_added_to_cart"; props: { productId: string; quantity: number } }
+  | { name: "product_added_to_cart"; props: { productId: string; quantity: number; variantId?: string } }
+  /** 098 — a size chosen on the product page (ids only). */
+  | { name: "variant_selected"; props: { productId: string; variantId: string } }
   | { name: "cart_viewed"; props?: Record<string, never> }
   | { name: "checkout_started"; props?: Record<string, never> }
   | { name: "order_placed"; props: { orderId: string } }

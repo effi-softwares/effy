@@ -22,38 +22,39 @@ import { api } from "@/lib/api";
 // and repository instead of two that would drift (research R6). Same gateway, same api client, same
 // bearer; only the prefix differs.
 
-const base = (productId: string) => `/inventory/v1/products/${productId}/stock`;
+// 098 — stock is counted per VARIANT (a size); a product with one size has exactly one.
+const base = (variantId: string) => `/inventory/v1/variants/${variantId}/stock`;
 
-export function getProductStock(productId: string): Promise<ProductStockDetailDTO> {
-  return api.get<ProductStockDetailDTO>(base(productId));
+export function getVariantStock(variantId: string): Promise<ProductStockDetailDTO> {
+  return api.get<ProductStockDetailDTO>(base(variantId));
 }
 
 export function setStockCount(
-  productId: string,
+  variantId: string,
   body: SetStockRequest,
 ): Promise<ProductStockDetailDTO> {
-  return api.put<ProductStockDetailDTO>(base(productId), body);
+  return api.put<ProductStockDetailDTO>(base(variantId), body);
 }
 
 export function adjustStock(
-  productId: string,
+  variantId: string,
   body: AdjustStockRequest,
 ): Promise<ProductStockDetailDTO> {
-  return api.post<ProductStockDetailDTO>(`${base(productId)}/adjustments`, body);
+  return api.post<ProductStockDetailDTO>(`${base(variantId)}/adjustments`, body);
 }
 
 export function setStockTracking(
-  productId: string,
+  variantId: string,
   body: SetTrackingRequest,
 ): Promise<ProductStockDetailDTO> {
-  return api.put<ProductStockDetailDTO>(`${base(productId)}/tracking`, body);
+  return api.put<ProductStockDetailDTO>(`${base(variantId)}/tracking`, body);
 }
 
 export function setStockThreshold(
-  productId: string,
+  variantId: string,
   body: SetThresholdRequest,
 ): Promise<ProductStockDetailDTO> {
-  return api.put<ProductStockDetailDTO>(`${base(productId)}/threshold`, body);
+  return api.put<ProductStockDetailDTO>(`${base(variantId)}/threshold`, body);
 }
 
 export function getLowStock(): Promise<LowStockRowDTO[]> {

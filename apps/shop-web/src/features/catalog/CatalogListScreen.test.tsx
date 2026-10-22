@@ -48,7 +48,8 @@ const ONE_PAGE: ProductList = {
       priceAmount: "4.50",
       currency: "AUD",
       status: "active",
-      sku: "FW-001",
+      priceVaries: false,
+      variantCount: 1,
       updatedAt: "2026-07-16T00:00:00Z",
     },
   ],
@@ -63,7 +64,7 @@ function wrap(children: ReactNode) {
 }
 
 describe("CatalogListScreen columns", () => {
-  it("renders name/type/category/price/status/sku from the paged response", async () => {
+  it("renders name/type/category/price/status/sizes from the paged response", async () => {
     getCatalogSchema.mockResolvedValue(SCHEMA);
     listProducts.mockResolvedValue(ONE_PAGE);
 
@@ -78,7 +79,7 @@ describe("CatalogListScreen columns", () => {
     expect(screen.getByText("Coffee")).toBeInTheDocument();
     expect(screen.getByText("AUD 4.50")).toBeInTheDocument();
     expect(screen.getByText("active")).toBeInTheDocument();
-    expect(screen.getByText("FW-001")).toBeInTheDocument();
+    expect(screen.getByText("One size")).toBeInTheDocument(); // 098 — codes are each size's
     // ⚠ Matched across elements: the count is its own <span> so the figure is tabular-nums.
     expect(
       screen.getAllByText((_, el) => (el?.textContent ?? "").trim().startsWith("1 product ·"))[0],

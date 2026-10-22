@@ -10,18 +10,14 @@ const live = {
   id: "p1",
   name: "Oat milk",
   brand: "Oatly",
-  sku: null,
-  gtin: null,
   shortDescription: "One litre",
   longDescription: null,
   status: "active",
   reviewState: "live_change_pending",
   currency: "AUD",
-  priceAmount: "4.00",
-  shopPriceAmount: "4.00",
-  customerPriceAmount: "4.60",
-  compareAtAmount: null,
-  weightGrams: 1000,
+  // 098 — one size; its shop price is 4.00, customers pay 4.60.
+  options: [],
+  variants: [{ id: "v1", optionValueIds: [null, null], label: null, sku: null, gtin: null, shopPriceAmount: "4.00", customerPriceAmount: "4.60", state: "active" }],
   typeName: "Drink",
   categoryName: "Dairy alternatives",
   attributes: [
@@ -34,7 +30,8 @@ const live = {
     submittedAt: "2026-10-04T00:00:00Z",
     proposed: {
       name: "Oat milk barista",
-      priceAmount: "4.50",
+      options: [],
+      variants: [{ id: "v1", position: 0, optionValueIds: [null, null], shopPriceAmount: "4.50" }],
       attributes: [
         { attributeId: "a1", valueText: "ambient" },
         { attributeId: "a2", valueNumber: 12 },
@@ -79,7 +76,6 @@ describe("workingDetail", () => {
   it("lays the shop's proposal over the live details, so an editor opens on what the shop last saved", () => {
     const w = workingDetail(live);
     expect(w.name).toBe("Oat milk barista");
-    expect(w.priceAmount).toBe("4.50");
     // Untouched details stay live.
     expect(w.brand).toBe("Oatly");
   });
@@ -114,8 +110,8 @@ describe("workingDetail", () => {
 describe("proposedRows", () => {
   it("lists only what differs, with the SHOP's price on both sides", () => {
     const rows = proposedRows(live);
-    expect(rows.map((r) => r.label)).toEqual(["Name", "Your price", "Attributes"]);
-    expect(rows[1]).toEqual({ label: "Your price", now: "AUD 4.00", proposed: "AUD 4.50" });
+    expect(rows.map((r) => r.label)).toEqual(["Name", "Price", "Attributes"]);
+    expect(rows[1]).toEqual({ label: "Price", now: "AUD 4.00", proposed: "AUD 4.50" });
   });
   it("never shows the customer price or a margin", () => {
     expect(JSON.stringify(proposedRows(live))).not.toContain("4.60");

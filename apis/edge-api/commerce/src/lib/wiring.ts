@@ -24,7 +24,7 @@ export const cartService = createCartService({ repo: createCartRepository(), pol
 // Bulk add-to-cart calls the cart in-process: one rule for what may enter a cart, not two.
 export const savedService = createSavedService({
   repo: createSavedRepository(),
-  addToCart: (customerId, productId, changeId, quantity) => cartService.add(customerId, productId, changeId, quantity),
+  addToCart: (customerId, variantId, changeId, quantity) => cartService.add(customerId, variantId, changeId, quantity),
 });
 
 export const checkoutStore = createCheckoutStore();
@@ -36,7 +36,7 @@ const promos: PromoSource = async ({ customerId, lines, deliveryType, deliveryFe
   pricePromotionsFor(pooled, {
     customerId,
     enteredCodeId: await cartService.enteredCodeFor(customerId),
-    lines: lines.map((l) => ({ productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
+    lines: lines.map((l) => ({ variantId: l.variantId, productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
     deliveryType,
     deliveryFeeCents,
     now,

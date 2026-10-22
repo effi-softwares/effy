@@ -1,5 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrationSql } from "@effy/edge-shared";
+import { applyVariantSet, priceVariants } from "@effy/edge-shared/catalog";
+import { insertTestProduct } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -32,27 +34,27 @@ const d = RUN ? describe : describe.skip;
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 const ids: Record<string, string> = {};
+const variantIds: Record<string, string> = {};
 const noImage = async () => null;
 
 async function product(name: string, o: {
   price: string; brand?: string | null; category?: string; compareAt?: string; status?: string;
-  tracked?: boolean; onHand?: number; ageDays?: number; shortDescription?: string;
+  tracked?: boolean; onHand?: number; ageDays?: number; shortDescription?: string; sku?: string;
 }) {
-  const res = await pool.query<{ id: string }>(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, brand, price_amount,
-                                 shop_price_amount, compare_at_amount, short_description, created_by, status,
-                                 approved_at, stock_tracked, stock_on_hand, created_at)
-     SELECT (SELECT id FROM public.shop WHERE code = 'SFT'),
-            (SELECT id FROM public.product_type WHERE key = 'sft-type'),
-            (SELECT id FROM public.category WHERE key = $1),
-            $2, $3, $4::numeric, $4::numeric, $5::numeric, $6, 'seed', $7, now(), $8, $9,
-            now() - make_interval(days => $10)
-     RETURNING id::text AS id`,
-    [o.category ?? "sft-dairy", name, o.brand ?? null, o.price, o.compareAt ?? null,
-     o.shortDescription ?? `${name} description`, o.status ?? "active", o.tracked ?? false,
-     o.tracked ? (o.onHand ?? 0) : null, o.ageDays ?? 30],
-  );
-  ids[name] = res.rows[0]!.id;
+  // 098 — a product and its one variant, as the one writer would leave them.
+  const one = async (sql: string, args: unknown[]) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
+  const created = await insertTestProduct(pool, {
+    shopId: await one(`SELECT id::text FROM public.shop WHERE code = 'SFT'`, []),
+    productTypeId: await one(`SELECT id::text FROM public.product_type WHERE key = 'sft-type'`, []),
+    primaryCategoryId: await one(`SELECT id::text FROM public.category WHERE key = $1`, [o.category ?? "sft-dairy"]),
+    name, brand: o.brand ?? null, price: o.price, compareAt: o.compareAt ?? null,
+    shortDescription: o.shortDescription ?? `${name} description`,
+    status: (o.status ?? "active") as "active", approved: true,
+    tracked: o.tracked ?? false, onHand: o.tracked ? (o.onHand ?? 0) : null, sku: o.sku ?? null,
+  });
+  await pool.query(`UPDATE public.product SET created_at = now() - make_interval(days => $2) WHERE id = $1`, [created.productId, o.ageDays ?? 30]);
+  ids[name] = created.productId;
+  variantIds[name] = created.variantId;
 }
 
 d("070 — storefront reads against the real schema", () => {
@@ -250,14 +252,14 @@ d("070 — storefront reads against the real schema", () => {
     try {
       await client.query("BEGIN");
       await client.query(`
-        INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, brand, price_amount,
-                                    shop_price_amount, short_description, created_by, status, approved_at)
+        INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, brand,
+                                    short_description, created_by, status, approved_at)
         SELECT (SELECT id FROM public.shop WHERE code = 'SFT'),
                (SELECT id FROM public.product_type WHERE key = 'sft-type'),
                (SELECT id FROM public.category WHERE key = 'sft-bakery'),
                (array['Oat','Soy','Rye','Full cream','Greek','Spelt','Basil','Apple','Cheddar','Rice'])[1 + g % 10] || ' ' ||
                (array['loaf','yoghurt','roll','bunch','block','juice','pasta','butter'])[1 + (g / 10) % 8] || ' ' || g,
-               'Maker ' || (g % 400), 1, 1, 'x', 'seed', 'active', now()
+               'Maker ' || (g % 400), 'x', 'seed', 'active', now()
         FROM generate_series(1, 50000) g`);
       await client.query("ANALYZE public.product");
       // ANALYZE samples at random, and on a borderline estimate the planner then flips between the
@@ -283,7 +285,7 @@ d("070 — storefront reads against the real schema", () => {
       await client.query("ROLLBACK");
       client.release();
     }
-  });
+  }, 60_000); // fifty thousand rows into trigram-indexed tables: seconds, not milliseconds
 
   /**
    * PERF-21 — what actually leaves the service: every picture address in every storefront answer is
@@ -338,5 +340,55 @@ d("070 — storefront reads against the real schema", () => {
       if (before === undefined) delete process.env.MEDIA_PUBLIC_BASE_URL;
       else process.env.MEDIA_PUBLIC_BASE_URL = before;
     }
+  });
+
+  // ── 098 — a product with sizes ────────────────────────────────────────────────────────────────
+  it("098 — one tile per product, From the cheapest ACTIVE size; the page lists only active sizes", async () => {
+    const one = async (sql: string, args: unknown[] = []) => (await pool.query<{ id: string }>(sql, args)).rows[0]!.id;
+    const shopId = await one(`SELECT id::text FROM public.shop WHERE code = 'SFT'`);
+    const { productId } = await insertTestProduct(pool, {
+      shopId, productTypeId: await one(`SELECT id::text FROM public.product_type WHERE key = 'sft-type'`),
+      primaryCategoryId: await one(`SELECT id::text FROM public.category WHERE key = 'sft-bakery'`),
+      name: "Basmati Rice", price: "1.00", status: "draft", approved: false,
+    });
+    const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`UPDATE public.product SET unit_basis = 'per_kg' WHERE id = $1`, [productId]);
+      await applyVariantSet(client, {
+        productId, shopId, mode: "draft",
+        options: [{ id: u(1), position: 1, name: "Size", values: [{ id: u(2), value: "500 g", position: 0 }, { id: u(3), value: "1 kg", position: 1 }, { id: u(4), value: "5 kg", position: 2 }] }],
+        variants: [
+          { id: u(10), position: 0, optionValueIds: [u(2), null], shopPriceAmount: "3.20", sku: "RICE-500", packQuantity: "500", packUnit: "g" },
+          { id: u(11), position: 1, optionValueIds: [u(3), null], shopPriceAmount: "5.50", gtin: "9300000000011", packQuantity: "1", packUnit: "kg" },
+          { id: u(12), position: 2, optionValueIds: [u(4), null], shopPriceAmount: "2.00" },
+        ],
+      });
+      await client.query(`UPDATE public.product SET status = 'active', approved_at = now() WHERE id = $1`, [productId]);
+      await priceVariants(client, productId, { kind: "percent", value: "10" });
+      // The 5 kg is switched off: it must leave the listing price and the page.
+      await client.query(`UPDATE public.product_variant SET state = 'inactive' WHERE id = $1`, [u(12)]);
+      const { refreshListing } = await import("@effy/edge-shared/catalog");
+      await refreshListing(client, productId);
+      await client.query("COMMIT");
+    } finally {
+      client.release();
+    }
+
+    const search = createSearchService(createSearchRepository(pool), noImage);
+    const found = await search.search({ q: "basmati", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, sort: "relevance", cursor: "", limit: 20 } as never);
+    const tiles = found.items.filter((c) => c.id === productId);
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]).toMatchObject({ priceAmount: "3.52", priceVaries: true, variantCount: 2, unitPrice: { amount: "7.04", basis: "per_kg" } });
+
+    // A query that IS a stock code finds the product and opens it on that size.
+    const byCode = await search.search({ q: "RICE-500", categoryKey: "", minPrice: "", maxPrice: "", saleOnly: false, brands: [], attributes: {}, sort: "relevance", cursor: "", limit: 20 } as never);
+    expect(byCode.items.find((c) => c.id === productId)?.variantId).toBe(u(10));
+
+    const page = await createCatalogService(createCatalogRepository(pool), noImage).productDetail(productId);
+    expect(page?.variants.map((v) => [v.label, v.priceAmount])).toEqual([["500 g", "3.52"], ["1 kg", "6.05"]]);
+    expect(page?.options[0]?.values.map((v) => v.value)).toEqual(["500 g", "1 kg"]);
+    expect(page?.defaultVariantId).toBe(u(10));
   });
 });

@@ -513,6 +513,8 @@ export interface DeliveryFeeBreakdownDTO {
 export interface RefundableLineDTO {
   orderItemId: string;
   productName: string;
+  /** 098 */
+  variantLabel: string | null;
   unitPriceAmount: string;
   /** ⚠ REMAINING units, not ordered units — ordered minus already refunded. */
   quantity: WireInt;
@@ -523,7 +525,13 @@ export interface RefundableLineDTO {
 export interface AdminOrderItemDTO {
   orderItemId: string;
   productId: string;
+  /** 098 */
+  variantId: string;
   productName: string;
+  /** 098 — the variant's label as sold; null for a product with no options. */
+  variantLabel: string | null;
+  /** 098 — the variant's stock code as sold. */
+  sku: string | null;
   unitPriceAmount: string;
   quantity: number;
   lineSubtotalAmount: string;

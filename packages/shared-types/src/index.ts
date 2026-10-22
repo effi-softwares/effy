@@ -6,6 +6,8 @@ export * from "./back-office";
 export * from "./shop";
 export * from "./customer";
 export * from "./catalog";
+export * from "./variants";
+export * from "./unit-price";
 export * from "./product-review";
 // 019-customer-commerce-flow
 export * from "./storefront";

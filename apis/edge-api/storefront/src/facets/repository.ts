@@ -104,7 +104,7 @@ LEFT JOIN public.attribute_allowed_value aav ON aav.attribute_definition_id = ad
     async priceBounds(p) {
       const args: unknown[] = [];
       const sql =
-        "SELECT min(p.price_amount)::text AS lo, max(p.price_amount)::text AS hi\nFROM public.product p" +
+        "SELECT min(p.list_price_amount)::text AS lo, max(p.list_price_amount)::text AS hi\nFROM public.product p" +
         filters(p, binder(args));
       const row = (await db.query<{ lo: string | null; hi: string | null }>(sql, args)).rows[0];
       return { lo: row?.lo ?? null, hi: row?.hi ?? null };

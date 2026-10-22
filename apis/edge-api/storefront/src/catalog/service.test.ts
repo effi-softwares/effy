@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AttrRow, CatalogRepository, DetailRow, MediaRow } from "./repository";
+import type { AttrRow, CatalogRepository, DetailRow, MediaRow, VariantPageRow } from "./repository";
 import { createCatalogService, formatAttrValue, groupAttributes } from "./service";
 
 const ID = "00000000-0000-0000-0000-000000000001";
@@ -10,10 +10,15 @@ const attr = (over: Partial<AttrRow>): AttrRow => ({
   value_options: null, group_label: "Details", ...over,
 });
 
+const variantRow = (over: Partial<VariantPageRow> = {}): VariantPageRow => ({
+  id: "v1", option1: null, option2: null, label: null, price_amount: "4.50", compare_at_amount: null,
+  pack_quantity: null, pack_unit: null, available: true, storage_key: null, image_widths: null, ...over,
+});
+
 const detail = (over: Partial<DetailRow> = {}): DetailRow => ({
   id: ID, name: "Oat milk", brand: "Oatly", price_amount: "4.50", currency: "AUD", compare_at_amount: null,
   short_description: "Short", long_description: null, primary_category_id: "cat-1", primary_category_key: "dairy",
-  is_new: false, available: true, ...over,
+  is_new: false, available: true, unit_basis: null, ...over,
 });
 
 /** The page's parts, faked one by one; `productPage` is assembled from them as the statement would. */
@@ -23,6 +28,7 @@ interface Parts {
   productMedia: () => Promise<MediaRow[]>;
   productAttributes: () => Promise<AttrRow[]>;
   categoryPath: () => Promise<string[]>;
+  variants: () => Promise<VariantPageRow[]>;
 }
 
 function repo(over: Partial<Parts> = {}) {
@@ -33,6 +39,7 @@ function repo(over: Partial<Parts> = {}) {
     productMedia: async () => [],
     productAttributes: async () => [],
     categoryPath: async () => ["Food", "Dairy"],
+    variants: async () => [variantRow()],
     ...over,
   };
   const r: CatalogRepository = {
@@ -40,7 +47,7 @@ function repo(over: Partial<Parts> = {}) {
     productPage: async (id) => {
       calls.push(`page:${id}`);
       const row = await parts.productDetail(id);
-      return row && { ...row, media: await parts.productMedia(), attributes: await parts.productAttributes(), category_path: await parts.categoryPath() };
+      return row && { ...row, media: await parts.productMedia(), attributes: await parts.productAttributes(), category_path: await parts.categoryPath(), variants: await parts.variants(), options: [] };
     },
   };
   return { svc: createCatalogService(r, async (k) => (k ? `signed:${k}` : null)), calls };
@@ -95,7 +102,23 @@ describe("productDetail", () => {
       gallery: [{ imageUrl: "signed:a.jpg", imageWidths: [160, 320, 640], alt: "Front" }, { imageUrl: "signed:b.jpg", alt: null }],
       attributes: [{ groupLabel: "Details", items: [{ label: "Size", value: "1L" }] }],
       categoryPath: ["Food", "Dairy"], categoryKey: "dairy",
+      priceVaries: false, variantId: "v1", variantCount: 1, unitPrice: null, options: [], unitBasis: null,
+      variants: [{ id: "v1", optionValueIds: [null, null], label: null, priceAmount: "4.50", compareAtAmount: null, unitPrice: null, available: true, imageUrl: null }],
+      defaultVariantId: "v1",
     });
+  });
+
+  it("098 — opens on the first variant that can be bought, and says From when prices differ", async () => {
+    const d = await repo({
+      variants: async () => [
+        variantRow({ id: "v1", option1: "s", label: "5 kg", price_amount: "21.00", available: false }),
+        variantRow({ id: "v2", option1: "m", label: "1 kg", price_amount: "5.50", pack_quantity: "1", pack_unit: "kg" }),
+      ],
+      productDetail: async () => detail({ unit_basis: "per_kg" }),
+    }).svc.productDetail(ID);
+    expect(d?.defaultVariantId).toBe("v2");
+    expect(d?.priceVaries).toBe(true);
+    expect(d?.variants[1]?.unitPrice).toEqual({ amount: "5.50", basis: "per_kg" });
   });
 
   it("prefers the long description; falls back to the short one when it is null or empty", async () => {

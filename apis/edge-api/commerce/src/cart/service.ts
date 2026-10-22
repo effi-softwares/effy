@@ -3,7 +3,8 @@
 // device and is re-priced through `preview`.
 //
 // The rules that keep it safe (019 R8, extended by 027):
-//   - prices are RE-READ from public.product on every read — never carried from the client;
+//   - prices are RE-READ from public.product_variant on every read — never carried from the client;
+//   - 098: a LINE IS A VARIANT — every operation names the variant, two sizes are two lines;
 //   - a line that is no longer PURCHASABLE (withdrawn, or the shop has run out — 054) is surfaced
 //     but EXCLUDED from every total (FR-006, FR-017);
 //   - the two ceilings and the minimum come from public.order_policy;
@@ -13,8 +14,9 @@ import {
   CURRENCY, emitMetric, formatCents, imageWidthsField, metricNamespace, outOfStock, parseCents, pooled, publicImageAddress, purchasable,
 } from "@effy/edge-shared";
 import { hasMinimum, meetsMinimum, remainingToMinimum, type CartPolicy } from "@effy/edge-shared/cart-policy";
-import type {
-  CartCheckoutStateDTO, CartDTO, CartLineDTO, CartNoticeDTO, ReorderResultDTO, ReorderSkippedDTO,
+import {
+  unitPrice,
+  type CartCheckoutStateDTO, type CartDTO, type CartLineDTO, type CartNoticeDTO, type ReorderResultDTO, type ReorderSkippedDTO,
 } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
@@ -37,13 +39,15 @@ export class OrderNotFoundError extends Error {}
  * the two (FR-015b). Deliberately distinct from `ProductUnavailableError`: that means none.
  */
 export class InsufficientStockError extends Error {
+  /** `productId` names the VARIANT since 098 (the field name is kept for the problem body). */
   constructor(readonly productId: string, readonly available: number) {
     super(`cart: only ${available} available`);
   }
 }
 
 export interface LineInput {
-  productId: string;
+  /** 098 — a line is a variant. */
+  variantId: string;
   quantity: number;
 }
 
@@ -51,32 +55,35 @@ export type ImageAddress = (storageKey: string | null | undefined) => Promise<st
 export type PolicyReader = () => Promise<CartPolicy>;
 
 const clampTo = (qty: number, max: number): number => (qty < 1 ? 1 : qty > max ? max : qty);
-const quantityOf = (rows: readonly CartLineRow[], productId: string) => rows.find((r) => r.product_id === productId)?.quantity ?? 0;
-const containsProduct = (rows: readonly CartLineRow[], productId: string) => rows.some((r) => r.product_id === productId);
-const isPurchasable = (r: Pick<CartLineRow, "status" | "stock_tracked" | "stock_on_hand">) =>
-  purchasable(r.status, r.stock_tracked, r.stock_on_hand);
+const quantityOf = (rows: readonly CartLineRow[], variantId: string) => rows.find((r) => r.variant_id === variantId)?.quantity ?? 0;
+const containsVariant = (rows: readonly CartLineRow[], variantId: string) => rows.some((r) => r.variant_id === variantId);
+const isPurchasable = (r: Pick<CartLineRow, "status" | "variant_state" | "stock_tracked" | "stock_on_hand">) =>
+  purchasable(r.status, r.variant_state, r.stock_tracked, r.stock_on_hand);
+/** "Basmati Rice (1 kg)" — how a line is named in a sentence. */
+const lineWords = (row: Pick<CartLineRow, "name" | "variant_label">) => (row.variant_label ? `${row.name} (${row.variant_label})` : row.name);
 
 /**
  * WHY a line cannot be bought, in words a shopper can act on (054 FR-014). Never names or implies a
  * shop: it says what happened to the PRODUCT.
  */
 function unavailableDetail(row: CartLineRow): string {
-  if (row.status === STATUS_ARCHIVED) return `${row.name} is no longer sold`;
-  if (outOfStock(row.status, row.stock_tracked, row.stock_on_hand)) return `${row.name} is out of stock`;
-  return `${row.name} is unavailable right now`;
+  const name = lineWords(row);
+  if (row.status === STATUS_ARCHIVED || row.variant_state === "removed") return `${name} is no longer sold`;
+  if (outOfStock(row.status, row.variant_state, row.stock_tracked, row.stock_on_hand)) return `${name} is out of stock`;
+  return `${name} is unavailable right now`;
 }
 
 /**
- * Collapse duplicate product ids (summing, then clamping to the per-line ceiling) and drop
+ * Collapse duplicate variant ids (summing, then clamping to the per-line ceiling) and drop
  * malformed or non-positive entries. First-seen order is preserved.
  */
 export function dedupe(lines: readonly LineInput[], max: number): { ids: string[]; qty: Map<string, number> } {
   const qty = new Map<string, number>();
   const ids: string[] = [];
   for (const l of lines) {
-    if (!Number.isInteger(l.quantity) || l.quantity <= 0 || !isUuid(l.productId)) continue;
-    if (!qty.has(l.productId)) ids.push(l.productId);
-    qty.set(l.productId, (qty.get(l.productId) ?? 0) + l.quantity);
+    if (!Number.isInteger(l.quantity) || l.quantity <= 0 || !isUuid(l.variantId)) continue;
+    if (!qty.has(l.variantId)) ids.push(l.variantId);
+    qty.set(l.variantId, (qty.get(l.variantId) ?? 0) + l.quantity);
   }
   for (const [id, q] of qty) qty.set(id, clampTo(q, max));
   return { ids, qty };
@@ -162,7 +169,9 @@ export function createCartService(deps: {
         return {
           id: row.id,
           productId: row.product_id,
+          variantId: row.variant_id,
           name: row.name,
+          variantLabel: row.variant_label,
           imageUrl: await imageAddress(row.storage_key),
           ...imageWidthsField(row.image_widths),
           unitPriceAmount: row.unit_price_amount,
@@ -171,6 +180,8 @@ export function createCartService(deps: {
           available,
           priceChangedFrom: changedFrom,
           packageKey: packageKey(row.shop_id),
+          // Replaced in `assemble` with the unit price AFTER this line's discount.
+          unitPrice: unitPrice(row.unit_price_amount, row.pack_quantity, row.pack_unit, row.unit_basis),
         };
       }),
     );
@@ -179,18 +190,18 @@ export function createCartService(deps: {
     rows.forEach((row, i) => {
       const line = lines[i]!;
       if (collectNotices && line.priceChangedFrom !== null) {
-        notices.push({ productId: row.product_id, kind: "price_changed", detail: row.name });
+        notices.push({ productId: row.product_id, variantId: row.variant_id, kind: "price_changed", detail: lineWords(row) });
       }
       if (line.available) {
         subtotalCents += parseCents(line.lineSubtotalAmount);
         // Partially supplied: told, not silently reduced (FR-017).
         if (collectNotices && line.quantity < row.quantity) {
-          notices.push({ productId: row.product_id, kind: "quantity_clamped", detail: `Only ${line.quantity} of ${row.name} available` });
+          notices.push({ productId: row.product_id, variantId: row.variant_id, kind: "quantity_clamped", detail: `Only ${line.quantity} of ${lineWords(row)} available` });
         }
       } else if (collectNotices) {
         // ⚠ ONE NOTICE KIND, TWO CAUSES, AND THE CAUSE IS IN THE DETAIL (FR-014). "Out of stock"
         // and "no longer sold" ask different things of a shopper — wait, versus give up.
-        notices.push({ productId: row.product_id, kind: "unavailable", detail: unavailableDetail(row) });
+        notices.push({ productId: row.product_id, variantId: row.variant_id, kind: "unavailable", detail: unavailableDetail(row) });
       }
     });
 
@@ -207,7 +218,7 @@ export function createCartService(deps: {
     const pricing = await promotions.price({
       customerId: meta?.customerId ?? null,
       enteredCodeId: meta?.promotionCodeId ?? null,
-      lines: lines.filter((l) => l.available).map((l) => ({ productId: l.productId, unitCents: parseCents(l.unitPriceAmount), quantity: l.quantity })),
+      lines: lines.filter((l) => l.available).map((l) => ({ variantId: l.variantId, productId: l.productId, unitCents: parseCents(l.unitPriceAmount), quantity: l.quantity })),
       deliveryType: null,
       deliveryFeeCents: null,
       now: now(),
@@ -228,14 +239,15 @@ export function createCartService(deps: {
   }): Promise<CartDTO> {
     const notices: CartNoticeDTO[] = [...(input.extra ?? [])];
 
-    // An `archived` product is terminal — sweep the line rather than leaving a shopper looking at
-    // something they can never buy. `unavailable`/`draft` are kept and flagged.
+    // An `archived` product — or a REMOVED variant (098) — is terminal: sweep the line rather than
+    // leaving a shopper looking at something they can never buy. `unavailable`/`draft` products and
+    // INACTIVE variants are kept and flagged (the shop may turn them back on).
     const archived: string[] = [];
     const kept: CartLineRow[] = [];
     for (const row of input.lineRows) {
-      if (row.status === STATUS_ARCHIVED) {
-        archived.push(row.product_id);
-        notices.push({ productId: row.product_id, kind: "removed", detail: row.name });
+      if (row.status === STATUS_ARCHIVED || row.variant_state === "removed") {
+        archived.push(row.variant_id);
+        notices.push({ productId: row.product_id, variantId: row.variant_id, kind: "removed", detail: lineWords(row) });
       } else {
         kept.push(row);
       }
@@ -258,11 +270,18 @@ export function createCartService(deps: {
     // Cart-level: productId is null. Kept for installed apps, which read notices, not the new lists.
     if (view.enteredLapsed) notices.push({ productId: null, kind: "promo_no_longer_applies", detail: view.enteredLapsed });
     const grandCents = payable.subtotalCents - discountCents;
-    const lineDiscount = (productId: string) => formatCents(pricing.outcome.lineDiscounts[productId] ?? 0);
+    const lineDiscountCents = (variantId: string) => pricing.outcome.lineDiscounts[variantId] ?? 0;
+    const rowOf = new Map(kept.map((r) => [r.variant_id, r]));
 
     return {
       revision,
-      lines: payable.lines.map((l) => ({ ...l, discountAmount: lineDiscount(l.productId) })),
+      lines: payable.lines.map((l) => {
+        const off = lineDiscountCents(l.variantId);
+        const row = rowOf.get(l.variantId)!;
+        // 098 — the comparison price follows what one unit actually costs after this line's discount.
+        const effective = l.quantity > 0 && off > 0 ? formatCents(Math.round((parseCents(l.unitPriceAmount) * l.quantity - off) / l.quantity)) : l.unitPriceAmount;
+        return { ...l, discountAmount: formatCents(off), unitPrice: unitPrice(effective, row.pack_quantity, row.pack_unit, row.unit_basis) };
+      }),
       savedLines: saved.lines,
       itemSubtotalAmount: formatCents(payable.subtotalCents),
       discountAmount: formatCents(discountCents),
@@ -284,12 +303,12 @@ export function createCartService(deps: {
     return assemble({ cartId, lineRows: all.lines, savedRows: all.saved, revision: all.revision, policy: p, extra, sweep: true });
   }
 
-  /** The product exists and can be bought right now. */
-  async function assertPurchasable(productId: string): Promise<void> {
-    if (!isUuid(productId)) throw new ProductNotFoundError();
-    const prod = await repo.productStatus(productId);
-    if (!prod) throw new ProductNotFoundError();
-    if (!isPurchasable(prod)) throw new ProductUnavailableError();
+  /** The variant exists and can be bought right now. */
+  async function assertPurchasable(variantId: string): Promise<void> {
+    if (!isUuid(variantId)) throw new ProductNotFoundError();
+    const v = await repo.variantStatus(variantId);
+    if (!v) throw new ProductNotFoundError();
+    if (!isPurchasable(v)) throw new ProductUnavailableError();
   }
 
   /**
@@ -299,19 +318,19 @@ export function createCartService(deps: {
    * the last unit; the binding check is the locked deduction at payment. This exists so the shopper
    * is told BEFORE the payment step, in the place they can do something about it.
    */
-  async function assertCanTake(productId: string, want: number): Promise<void> {
-    if (!isUuid(productId)) throw new ProductNotFoundError();
-    const prod = await repo.productStatus(productId);
-    if (!prod) throw new ProductNotFoundError();
-    if (!isPurchasable(prod)) throw new ProductUnavailableError();
-    if (prod.stock_tracked && prod.stock_on_hand !== null && want > prod.stock_on_hand) {
+  async function assertCanTake(variantId: string, want: number): Promise<void> {
+    if (!isUuid(variantId)) throw new ProductNotFoundError();
+    const v = await repo.variantStatus(variantId);
+    if (!v) throw new ProductNotFoundError();
+    if (!isPurchasable(v)) throw new ProductUnavailableError();
+    if (v.stock_tracked && v.stock_on_hand !== null && want > v.stock_on_hand) {
       emitMetric(metricNamespace(), "StockBlocked", 1, { stage: "add" });
-      throw new InsufficientStockError(productId, prod.stock_on_hand);
+      throw new InsufficientStockError(variantId, v.stock_on_hand);
     }
   }
 
-  const clampNotice = (productId: string, max: number): CartNoticeDTO => ({
-    productId, kind: "quantity_clamped", detail: `Limited to ${max} per item`,
+  const clampNotice = (variantId: string, max: number): CartNoticeDTO => ({
+    productId: null, variantId, kind: "quantity_clamped", detail: `Limited to ${max} per item`,
   });
 
   return {
@@ -333,65 +352,65 @@ export function createCartService(deps: {
       const { ids, qty } = dedupe(lines, p.maxLineQuantity);
       const wanted = ids.slice(0, p.maxDistinctItems);
 
-      const byId = new Map((await repo.productSnapshots(wanted)).map((r) => [r.product_id, r]));
+      const byId = new Map((await repo.variantSnapshots(wanted)).map((r) => [r.variant_id, r]));
       const ordered: CartLineRow[] = [];
       const notices: CartNoticeDTO[] = [];
       for (const id of wanted) {
         const row = byId.get(id.toLowerCase()) ?? byId.get(id);
-        if (!row) notices.push({ productId: id, kind: "removed", detail: null });
+        if (!row) notices.push({ productId: null, variantId: id, kind: "removed", detail: null });
         else ordered.push({ ...row, quantity: qty.get(id)! });
       }
       return assemble({ cartId: null, lineRows: ordered, policy: p, extra: notices, sweep: false });
     },
 
     /** Increment a line. The one non-idempotent operation, so `changeId` is required. */
-    async add(customerId: string, productId: string, changeId: string, qty: number): Promise<CartDTO> {
+    async add(customerId: string, variantId: string, changeId: string, qty: number): Promise<CartDTO> {
       const p = await policy();
       const cartId = await repo.getOrCreateCartId(customerId);
 
       // The ceiling applies to DISTINCT products, so incrementing something already in the cart is
       // always allowed — being full must not stop a shopper adjusting what they already chose.
       const existing = await repo.lines(cartId);
-      if (!containsProduct(existing, productId) && existing.length >= p.maxDistinctItems) throw new CartFullError();
+      if (!containsVariant(existing, variantId) && existing.length >= p.maxDistinctItems) throw new CartFullError();
 
       // ⚠ 054: the stock check is on the RESULTING line quantity. Adding 2 to a line holding 4 asks
       // the shop for 6; checking only the increment would let a shopper walk a line past the shelf
       // two taps at a time.
-      const held = quantityOf(existing, productId);
-      await assertCanTake(productId, held + qty);
+      const held = quantityOf(existing, variantId);
+      await assertCanTake(variantId, held + qty);
 
       const clamped = clampTo(qty, p.maxLineQuantity);
-      const applied = await repo.addItem(cartId, productId, changeId, clamped, p.maxLineQuantity);
+      const applied = await repo.addItem(cartId, variantId, changeId, clamped, p.maxLineQuantity);
 
       // A duplicate change id means this exact action already happened: report nothing new.
-      const wasClamped = qty !== clamped || (containsProduct(existing, productId) && held + clamped > p.maxLineQuantity);
-      return build(cartId, p, applied && wasClamped ? [clampNotice(productId, p.maxLineQuantity)] : []);
+      const wasClamped = qty !== clamped || (containsVariant(existing, variantId) && held + clamped > p.maxLineQuantity);
+      return build(cartId, p, applied && wasClamped ? [clampNotice(variantId, p.maxLineQuantity)] : []);
     },
 
     /** Set an ABSOLUTE quantity; zero or less removes the line. Safe to repeat. */
-    async setQty(customerId: string, productId: string, changeId: string, qty: number): Promise<CartDTO> {
-      if (!isUuid(productId)) throw new ProductNotFoundError();
+    async setQty(customerId: string, variantId: string, changeId: string, qty: number): Promise<CartDTO> {
+      if (!isUuid(variantId)) throw new ProductNotFoundError();
       const p = await policy();
       const cartId = await repo.getOrCreateCartId(customerId);
 
       if (qty <= 0) {
-        await repo.removeItem(cartId, productId, changeId);
+        await repo.removeItem(cartId, variantId, changeId);
         return build(cartId, p);
       }
 
       // An absolute set asks for exactly `qty`, so that is what the shop must be able to supply.
-      await assertCanTake(productId, qty);
+      await assertCanTake(variantId, qty);
 
       const clamped = clampTo(qty, p.maxLineQuantity);
-      const applied = await repo.setQty(cartId, productId, changeId, clamped);
-      return build(cartId, p, applied && clamped !== qty ? [clampNotice(productId, p.maxLineQuantity)] : []);
+      const applied = await repo.setQty(cartId, variantId, changeId, clamped);
+      return build(cartId, p, applied && clamped !== qty ? [clampNotice(variantId, p.maxLineQuantity)] : []);
     },
 
     /** Delete a line. Removing something already gone is a no-op, not an error. */
-    async remove(customerId: string, productId: string, changeId: string): Promise<CartDTO> {
-      if (!isUuid(productId)) throw new ProductNotFoundError();
+    async remove(customerId: string, variantId: string, changeId: string): Promise<CartDTO> {
+      if (!isUuid(variantId)) throw new ProductNotFoundError();
       const cartId = await repo.getOrCreateCartId(customerId);
-      await repo.removeItem(cartId, productId, changeId);
+      await repo.removeItem(cartId, variantId, changeId);
       return build(cartId);
     },
 
@@ -412,29 +431,29 @@ export function createCartService(deps: {
       const cartId = await repo.getOrCreateCartId(customerId);
       const { ids, qty } = dedupe(lines, p.maxLineQuantity);
 
-      // Keep only products that still exist and are not archived. An `unavailable` product IS
-      // merged: the shopper chose it, and it must arrive flagged, not disappeared.
+      // Keep only variants that still exist and are not archived or removed. An `unavailable` product
+      // or an inactive variant IS merged: the shopper chose it, and it must arrive flagged.
       const kept: string[] = [];
       for (const id of ids) {
-        const prod = await repo.productStatus(id);
-        if (prod && prod.status !== STATUS_ARCHIVED) kept.push(id);
+        const v = await repo.variantStatus(id);
+        if (v && v.status !== STATUS_ARCHIVED && v.variant_state !== "removed") kept.push(id);
       }
 
       // Respect the distinct-item ceiling across the merged result: something already in the cart
       // does not consume room; anything new is dropped once it is full.
       const existing = await repo.lines(cartId);
       let room = p.maxDistinctItems - existing.length;
-      const mergeIds = kept.filter((id) => containsProduct(existing, id) || room-- > 0);
+      const mergeIds = kept.filter((id) => containsVariant(existing, id) || room-- > 0);
 
       await repo.mergeItems(cartId, changeId, mergeIds, mergeIds.map((id) => qty.get(id)!), p.maxLineQuantity);
       return build(cartId, p);
     },
 
     /** Move a line to "saved for later". It leaves the payable totals immediately. */
-    async setAside(customerId: string, productId: string, changeId: string): Promise<CartDTO> {
-      if (!isUuid(productId)) throw new ProductNotFoundError();
+    async setAside(customerId: string, variantId: string, changeId: string): Promise<CartDTO> {
+      if (!isUuid(variantId)) throw new ProductNotFoundError();
       const cartId = await repo.getOrCreateCartId(customerId);
-      await repo.setAside(cartId, productId, changeId);
+      await repo.setAside(cartId, variantId, changeId);
       return build(cartId);
     },
 
@@ -443,20 +462,20 @@ export function createCartService(deps: {
      * shopper must not be able to route an unavailable product into a payable cart by way of the
      * saved list.
      */
-    async restoreSaved(customerId: string, productId: string, changeId: string): Promise<CartDTO> {
-      await assertPurchasable(productId);
+    async restoreSaved(customerId: string, variantId: string, changeId: string): Promise<CartDTO> {
+      await assertPurchasable(variantId);
       const p = await policy();
       const cartId = await repo.getOrCreateCartId(customerId);
       const existing = await repo.lines(cartId);
-      if (!containsProduct(existing, productId) && existing.length >= p.maxDistinctItems) throw new CartFullError();
-      await repo.restoreSaved(cartId, productId, changeId, p.maxLineQuantity);
+      if (!containsVariant(existing, variantId) && existing.length >= p.maxDistinctItems) throw new CartFullError();
+      await repo.restoreSaved(cartId, variantId, changeId, p.maxLineQuantity);
       return build(cartId, p);
     },
 
-    async deleteSaved(customerId: string, productId: string, changeId: string): Promise<CartDTO> {
-      if (!isUuid(productId)) throw new ProductNotFoundError();
+    async deleteSaved(customerId: string, variantId: string, changeId: string): Promise<CartDTO> {
+      if (!isUuid(variantId)) throw new ProductNotFoundError();
       const cartId = await repo.getOrCreateCartId(customerId);
-      await repo.deleteSaved(cartId, productId, changeId);
+      await repo.deleteSaved(cartId, variantId, changeId);
       return build(cartId);
     },
 
@@ -477,24 +496,24 @@ export function createCartService(deps: {
       let room = p.maxDistinctItems - existing.length;
 
       const skipped: ReorderSkippedDTO[] = [];
-      const skip = (c: { product_id: string; name: string }, reason: ReorderSkippedDTO["reason"]) =>
-        skipped.push({ productId: c.product_id, name: c.name === "" ? null : c.name, reason });
+      const skip = (c: { product_id: string; variant_id: string; variant_label: string | null; name: string }, reason: ReorderSkippedDTO["reason"]) =>
+        skipped.push({ productId: c.product_id, variantId: c.variant_id, name: c.name === "" ? null : c.name, variantLabel: c.variant_label, reason });
       const ids: string[] = [];
       const quantities: number[] = [];
 
       for (const c of candidates) {
-        if (c.status === null || c.status === STATUS_ARCHIVED) {
-          skip(c, "removed"); // gone for good
+        if (c.status === null || c.status === STATUS_ARCHIVED || c.variant_state === null || c.variant_state === "removed") {
+          skip(c, "removed"); // gone for good — the product, or the size that was bought (098)
           continue;
         }
         // 054: something the shop has run out of is skipped as unavailable, exactly like one the
         // operator withdrew. What the shopper must NOT get is it silently added to a cart that
         // cannot be paid for.
-        if (!purchasable(c.status, c.stock_tracked === true, c.stock_on_hand)) {
+        if (!purchasable(c.status, c.variant_state, c.stock_tracked === true, c.stock_on_hand)) {
           skip(c, "unavailable");
           continue;
         }
-        if (!containsProduct(existing, c.product_id)) {
+        if (!containsVariant(existing, c.variant_id)) {
           if (room <= 0) {
             skip(c, "cart_full");
             continue;
@@ -506,7 +525,7 @@ export function createCartService(deps: {
           q = p.maxLineQuantity;
           skip(c, "clamped"); // added, but at the ceiling — still worth telling them
         }
-        ids.push(c.product_id);
+        ids.push(c.variant_id);
         quantities.push(q);
       }
 
@@ -527,7 +546,7 @@ export function createCartService(deps: {
       const codeId = await promotions.vet({
         customerId,
         raw: rawCode,
-        lines: rows.map((r) => ({ productId: r.product_id, unitCents: parseCents(r.unit_price_amount), quantity: suppliableQuantity(r) })),
+        lines: rows.map((r) => ({ variantId: r.variant_id, productId: r.product_id, unitCents: parseCents(r.unit_price_amount), quantity: suppliableQuantity(r) })),
         now: now(),
       });
       await repo.setCartPromo(cartId, codeId);

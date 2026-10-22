@@ -151,7 +151,11 @@ export interface FulfillmentDelivery {
 export interface FulfillmentItem {
   orderItemId: string;
   name: string;
+  /** 098 */
+  variantLabel: string | null;
   sku: string | null;
+  /** 098 */
+  gtin: string | null;
   imageUrl: string | null;
   orderedQuantity: number;
   gatheredQuantity: number;

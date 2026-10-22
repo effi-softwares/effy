@@ -129,12 +129,14 @@ fi
 # list of sources — which is a blind spot pretending to be a check. Grepping the real tree catches a
 # reintroduction in a screen nobody remembered to add to a list.
 #
-#   size pickers      — FR-007: the kit is apparel, Effy is groceries.
+#   size pickers      — LIFTED BY 098. 026 FR-007 kept the kit's apparel size picker out; 098 gave
+#                       products real sizes and flavours (variants), chosen through `VariantChips`
+#                       from the product's own options — not the kit's fixed S/M/L row.
 #   ratings/reviews   — FR-029: no such capability; invented stars would be a lie on every tile.
 #   Facebook sign-in  — FR-030a: not an Effy credential route.
 #   card-entry fields — FR-030: the payment provider's sheet owns these, and card data must never
 #                       land in this app.
-EXCLUDED_PATTERN='Choose size|Select size|Text\("Size |out of 5|Write a review|Facebook|Card number|CVV|Cardholder'
+EXCLUDED_PATTERN='out of 5|Write a review|Facebook|Card number|CVV|Cardholder'
 EXCLUDED_HITS="$(grep -rInE "$EXCLUDED_PATTERN" \
   --include='*.kt' --include='*.swift' \
   --exclude-dir=build --exclude-dir='.gradle' --exclude-dir=DerivedData \

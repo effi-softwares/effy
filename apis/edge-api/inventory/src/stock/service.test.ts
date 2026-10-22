@@ -21,6 +21,7 @@ const shopActor: Actor = { sub: "sub-shop", shopId: "shop-1", kind: "shop" };
 function row(over: Partial<StockRow> = {}): StockRow {
   return {
     productId: "p1",
+    variantId: "v1",
     shopId: "shop-1",
     tracked: true,
     onHand: 5,

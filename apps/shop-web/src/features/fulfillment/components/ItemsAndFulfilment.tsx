@@ -245,9 +245,14 @@ function LineRow({
         </div>
       </td>
       <td className="px-2 py-[18px]">
-        <div className="text-sm font-medium">{line.name}</div>
+        {/* 098 — the size sold is part of the name a picker reads: they must never guess it. */}
+        <div className="text-sm font-medium">
+          {line.name}
+          {line.variantLabel ? <span className="text-foreground"> — {line.variantLabel}</span> : null}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{line.sku ?? "no SKU"}</span>
+          {line.gtin ? <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{line.gtin}</span> : null}
           <span
             className={cn(
               "text-[11.5px] whitespace-nowrap",
@@ -557,7 +562,10 @@ function FulfilDialog({
         {inParcel.map((l) => (
           <div key={l.orderItemId} className="border-border flex items-center justify-between gap-3 border-b py-2.5">
             <div className="grid min-w-0 flex-1 gap-0.5">
-              <div className="text-[13.5px] font-medium">{l.name}</div>
+              <div className="text-[13.5px] font-medium">
+                {l.name}
+                {l.variantLabel ? ` — ${l.variantLabel}` : ""}
+              </div>
               <div className="text-muted-foreground font-mono text-[12px]">{l.sku ?? "no SKU"}</div>
             </div>
             <div className="text-[13px] whitespace-nowrap tabular-nums">

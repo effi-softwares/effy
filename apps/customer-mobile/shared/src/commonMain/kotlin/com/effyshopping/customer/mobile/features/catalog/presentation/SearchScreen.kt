@@ -435,7 +435,7 @@ fun SearchScreen(
                         // browse, category and "see all", so omitting it would take the control off
                         // four surfaces at once.
                         imageOverlay = { TileSaveControl(product, savedTiles) },
-                        cartQuantity = tileCart.quantityOf(product.id),
+                        cartQuantity = tileCart.quantityOf(product.variantId),
                         onCartQuantityChange = { tileCart.change(product, it) },
                     )
                 }

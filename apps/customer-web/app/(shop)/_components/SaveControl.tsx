@@ -11,8 +11,8 @@ import { toast } from "@/lib/toast-store"
  * ⚠ LOADED ON DEMAND, NEVER IMPORTED (068). This control is on `/` and `/product/[id]`, and `/` had
  * 0.3 KB of guest budget left when lists arrived. The chooser costs nothing until someone opens it.
  */
-const openChooser = (productId: string) =>
-  void import("./ListChooser").then((m) => m.openListChooser(productId))
+const openChooser = (productId: string, variantId?: string | null) =>
+  void import("./ListChooser").then((m) => m.openListChooser(productId, undefined, variantId))
 
 /**
  * The heart (033). One toggle, used on product tiles and on product detail.
@@ -41,10 +41,13 @@ const openChooser = (productId: string) =>
  */
 export function SaveControl({
   productId,
+  variantId,
   className = "",
   label = false,
 }: {
   productId: string
+  /** 098 — the size on screen, remembered with the save (the product page passes it; a tile does not). */
+  variantId?: string | null
   className?: string
   /** The product page's wide "Save" button; on a card the control is the heart alone. */
   label?: boolean
@@ -58,13 +61,13 @@ export function SaveControl({
     setBusy(true)
     // The store is updated inside `toggleSaved` BEFORE the request goes out, so the control moves
     // immediately and reverts only if the platform actually refuses.
-    const result = await toggleSaved(productId, !saved)
+    const result = await toggleSaved(productId, !saved, variantId)
     setBusy(false)
     // ⚠ 068 FR-020: a product in a list the shopper named is never un-saved by this tap.
-    if (result === "chooser") openChooser(productId)
+    if (result === "chooser") openChooser(productId, variantId)
     // FR-013: the save has ALREADY happened, in one tap. The other lists are an offer after it.
     else if (result && !saved) {
-      toast("Saved", { action: { label: "Add to a list", run: () => openChooser(productId) } })
+      toast("Saved", { action: { label: "Add to a list", run: () => openChooser(productId, variantId) } })
     }
   }
 

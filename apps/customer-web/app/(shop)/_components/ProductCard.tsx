@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { formatMoney, isDiscounted } from "@/lib/money"
 
 import { CardAdd } from "./CardAdd"
+import { UnitPrice } from "./UnitPrice"
 
 /**
  * A product tile — Principle V's recorded no-card exception (a scannable product grid IS the right
@@ -79,6 +80,14 @@ export function ProductGridSkeleton({ className, count = 8 }: { className: strin
 /** How many cards open a listing above the fold — one row at the widest layout the rails and the search grid share. */
 export const FIRST_ROW = 4
 
+/**
+ * The product page, opened on the size this tile stands for when there is a choice (098) — a search
+ * that matched one size's stock code or barcode opens on that size.
+ */
+export function productHref(product: Pick<StorefrontProductCardDTO, "id" | "variantId" | "variantCount">): string {
+  return product.variantCount > 1 ? `/product/${product.id}?variant=${product.variantId}` : `/product/${product.id}`
+}
+
 export function ProductCard({
   product,
   saveControl,
@@ -110,7 +119,7 @@ export function ProductCard({
 
       {/* The whole card is one link, laid UNDER the controls: the heart and the Add button sit above
           it (z-10) and stay separately pressable, and a screen reader meets one link, not three. */}
-      <Link href={`/product/${product.id}`} className="absolute inset-0 z-0 rounded-lg" aria-label={product.name} />
+      <Link href={productHref(product)} className="absolute inset-0 z-0 rounded-lg" aria-label={product.name} />
 
       <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted">
         {product.imageUrl ? (
@@ -156,6 +165,8 @@ export function ProductCard({
         <div className="min-w-0">
           <p className="flex flex-wrap items-baseline gap-x-1.5">
             <span className="text-base font-semibold tabular-nums">
+              {/* 098 — sizes at different prices: the tile says the lowest, and says it is a lowest. */}
+              {product.priceVaries ? <span className="text-xs font-normal text-muted-foreground">From </span> : null}
               {formatMoney(product.priceAmount, product.currency)}
             </span>
             {discounted && product.compareAtAmount && (
@@ -168,10 +179,14 @@ export function ProductCard({
           {percentOff !== null && percentOff > 0 && (
             <p className="text-xs font-medium text-brand">{percentOff}% off</p>
           )}
+          <UnitPrice unit={product.unitPrice} className="block" />
         </div>
         {product.available && (
           <CardAdd
+            href={productHref(product)}
             product={{
+              variantId: product.variantId,
+              variantCount: product.variantCount,
               productId: product.id,
               name: product.name,
               imageUrl: product.imageUrl,

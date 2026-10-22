@@ -303,7 +303,7 @@ describe("a pick shortfall corrects stock (054 FR-023)", () => {
     const text = String(calls.find(([t]) => t.includes("public.stock_movement"))?.[0]).replace(/\s+/g, " ");
     // Untracked → no row to lock, so no movement (FR-024). Already zero → no movement either, because
     // a history full of "corrected 0 → 0" is a history nobody reads.
-    expect(text).toContain("p.stock_tracked AND p.stock_on_hand <> 0");
+    expect(text).toContain("v.stock_tracked AND v.stock_on_hand <> 0"); // 098 — the VARIANT sold
   });
 });
 

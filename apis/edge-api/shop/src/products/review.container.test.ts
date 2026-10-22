@@ -85,11 +85,9 @@ async function makeShop(code: string): Promise<string> {
 async function makeProduct(opts: { approved?: boolean; image?: boolean; shop?: string } = {}): Promise<string> {
   const approved = opts.approved ?? false;
   const id = (await pool.query<{ id: string }>(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-                                 shop_price_amount, short_description, created_by, status, approved_at)
-     SELECT $1, (SELECT id FROM public.product_type WHERE key = 'general' LIMIT 1),
-            (SELECT id FROM public.category LIMIT 1), 'Sourdough', 10.00, 10.00, 'A loaf', 'seed',
-            $2, $3 RETURNING id`,
+    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type WHERE key = 'general' LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Sourdough', 'A loaf', 'seed', $2, $3) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 10.00)::numeric, (10.00)::numeric FROM p RETURNING id)
+SELECT id FROM p`,
     [opts.shop ?? shopId, approved ? "active" : "draft", approved ? new Date() : null],
   )).rows[0]!.id;
   if (opts.image ?? true) {
@@ -105,10 +103,14 @@ async function makeProduct(opts: { approved?: boolean; image?: boolean; shop?: s
 /** Everything a customer could be shown, as one comparable value. */
 async function liveSnapshot(id: string): Promise<string> {
   const p = (await pool.query(
-    `SELECT name, sku, gtin, brand, price_amount::text, compare_at_amount::text, shop_price_amount::text,
-            short_description, long_description, primary_category_id, product_type_id, weight_grams, status
+    `SELECT name, brand, short_description, long_description, primary_category_id, product_type_id, status
        FROM public.product WHERE id = $1`, [id],
   )).rows[0];
+  // 098 — prices, codes and weight are the variants'.
+  const v = (await pool.query(
+    `SELECT id, sku, gtin, price_amount::text, compare_at_amount::text, shop_price_amount::text, weight_grams, state
+       FROM public.product_variant WHERE product_id = $1 ORDER BY position, id`, [id],
+  )).rows;
   const a = (await pool.query(
     `SELECT attribute_definition_id, value_text, value_number::text, value_boolean, value_options
        FROM public.product_attribute_value WHERE product_id = $1 ORDER BY attribute_definition_id`, [id],
@@ -117,7 +119,19 @@ async function liveSnapshot(id: string): Promise<string> {
     `SELECT storage_key, is_primary, display_order, alt_text
        FROM public.product_media WHERE product_id = $1 ORDER BY display_order, storage_key`, [id],
   )).rows;
-  return JSON.stringify({ p, a, m });
+  return JSON.stringify({ p, v, a, m });
+}
+
+/** 098 — the whole variant set a shop sends: the product's one variant at a new shop price. */
+async function repriced(productId: string, shopPriceAmount: string) {
+  const v = (await pool.query<{ id: string }>(`SELECT id FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!;
+  return {
+    options: [],
+    variants: [{
+      id: v.id, position: 0, optionValueIds: [null, null], sku: null, gtin: null, shopPriceAmount, shopCompareAtAmount: null,
+      weightGrams: null, packQuantity: null, packUnit: null, mediaStorageKey: null,
+    }],
+  };
 }
 
 const changeCount = async (id: string) =>
@@ -207,14 +221,14 @@ d("067 — shop product review against real PostgreSQL", () => {
     expect(await kindOf(getProduct(otherShopId, id))).toBe("not_found");
   });
 
-  it("a draft is still edited in place, and both prices follow what the shop typed", async () => {
+  it("a draft is still edited in place, and its shop price follows what the shop typed", async () => {
     const id = await makeProduct();
     const before = await getProduct(shopId, id);
-    await updateProduct(shopId, id, { expectedUpdatedAt: before.updatedAt, name: "Rye", priceAmount: "12.50" }, "staff-sub");
+    await updateProduct(shopId, id, { expectedUpdatedAt: before.updatedAt, name: "Rye", ...(await repriced(id, "12.50")) }, "staff-sub");
     const row = (await pool.query(
-      `SELECT name, price_amount::text, shop_price_amount::text FROM public.product WHERE id = $1`, [id],
+      `SELECT p.name, v.shop_price_amount::text FROM public.product p JOIN public.product_variant v ON v.product_id = p.id WHERE p.id = $1`, [id],
     )).rows[0];
-    expect(row).toEqual({ name: "Rye", price_amount: "12.50", shop_price_amount: "12.50" });
+    expect(row).toEqual({ name: "Rye", shop_price_amount: "12.50" });
     expect(await changeCount(id)).toBe(0);
   });
 
@@ -268,7 +282,7 @@ d("067 — shop product review against real PostgreSQL", () => {
     );
     const before = await liveSnapshot(id);
 
-    await updateProduct(shopId, id, { name: "Rye", priceAmount: "12.50" }, "staff-sub");
+    await updateProduct(shopId, id, { name: "Rye", ...(await repriced(id, "12.50")) }, "staff-sub");
     await updateProduct(shopId, id, { brand: "Acme", attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] }, "staff-sub");
     await registerMedia(shopId, id, { storageKey: "new/three.jpg", isPrimary: true });
 
@@ -278,7 +292,8 @@ d("067 — shop product review against real PostgreSQL", () => {
     const shown = await getProduct(shopId, id);
     expect(shown.name).toBe("Sourdough"); // the shop still sees what customers see
     expect(shown.reviewState).toBe("live_change_pending");
-    expect(shown.pendingChange!.proposed).toMatchObject({ name: "Rye", priceAmount: "12.50", brand: "Acme" });
+    expect(shown.pendingChange!.proposed).toMatchObject({ name: "Rye", brand: "Acme" });
+    expect(shown.pendingChange!.proposed.variants![0]).toMatchObject({ shopPriceAmount: "12.50" });
     expect(shown.pendingChange!.proposed.attributes).toHaveLength(1);
     expect(shown.pendingChange!.proposed.attributes![0]).toMatchObject({ attributeId: storageAttrId, valueText: "frozen" });
     expect(shown.pendingChange!.media!.map((m) => [m.storageKey, m.isPrimary])).toEqual([
@@ -356,11 +371,11 @@ d("067 — shop product review against real PostgreSQL", () => {
   it("the customer price a shop is shown is the live one, beside its own", async () => {
     const id = await makeProduct({ approved: true });
     await pool.query(
-      `UPDATE public.product SET price_amount = 12.00, margin_kind = 'percent', margin_value = 20 WHERE id = $1`, [id],
+      `UPDATE public.product SET margin_kind = 'percent', margin_value = 20 WHERE id = $1`, [id],
     );
+    await pool.query(`UPDATE public.product_variant SET price_amount = 12.00 WHERE product_id = $1`, [id]);
     const shown = await getProduct(shopId, id);
-    expect(shown.priceAmount).toBe("10.00");
-    expect(shown.customerPriceAmount).toBe("12.00");
+    expect(shown.variants[0]).toMatchObject({ shopPriceAmount: "10.00", priceAmount: "12.00" });
     // ⚠ FR-039 — the margin itself is nowhere on what a shop receives.
     expect(JSON.stringify(shown)).not.toMatch(/margin/i);
   });

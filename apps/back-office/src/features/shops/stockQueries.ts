@@ -4,8 +4,8 @@ import type { SetShopStockSettingsRequest, SetStockRequest } from "@effy/shared-
 
 import {
   getShopLowStock,
-  getShopProductStock,
-  setShopProductStock,
+  getShopVariantStock,
+  setShopVariantStock,
   setShopStockSettings,
 } from "./stockRepo";
 
@@ -22,19 +22,19 @@ export const shopLowStockQuery = (shopId: string) =>
     staleTime: 15_000,
   });
 
-export const shopProductStockQuery = (shopId: string, productId: string) =>
+export const shopVariantStockQuery = (shopId: string, variantId: string) =>
   queryOptions({
-    queryKey: [...STOCK_ROOT, "product", shopId, productId] as const,
-    queryFn: () => getShopProductStock(shopId, productId),
+    queryKey: [...STOCK_ROOT, "variant", shopId, variantId] as const,
+    queryFn: () => getShopVariantStock(shopId, variantId),
     staleTime: 15_000,
   });
 
-export function useSetShopProductStock(shopId: string, productId: string) {
+export function useSetShopVariantStock(shopId: string, variantId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: SetStockRequest) => setShopProductStock(shopId, productId, body),
+    mutationFn: (body: SetStockRequest) => setShopVariantStock(shopId, variantId, body),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: [...STOCK_ROOT, "product", shopId, productId] });
+      void qc.invalidateQueries({ queryKey: [...STOCK_ROOT, "variant", shopId, variantId] });
       void qc.invalidateQueries({ queryKey: [...STOCK_ROOT, "low", shopId] });
     },
   });

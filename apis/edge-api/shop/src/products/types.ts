@@ -2,7 +2,8 @@
 // mapped explicitly in handler-support; these are the internal domain shapes and never leak wire
 // concerns (constitution Principle VI). Mirrors data-model.md §2.6–2.10 + §5.
 
-import type { GstStatus } from "@effy/shared-types";
+import type { OptionRow, VariantRow } from "@effy/edge-shared/catalog";
+import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
 export type ProductStatus = "draft" | "active" | "unavailable" | "archived";
 export const PRODUCT_STATUSES: readonly ProductStatus[] = ["draft", "active", "unavailable", "archived"];
@@ -85,15 +86,19 @@ export interface ProductListItem {
   primaryImageUrl: string | null;
   typeName: string;
   categoryName: string;
+  /** 098 — the LOWEST shop price among active variants. */
   priceAmount: string;
   currency: string;
   status: ProductStatus;
-  sku: string | null;
   updatedAt: string;
   /** 067 — where the product stands with Effy's review. */
   reviewState: ShopReviewState;
-  /** 067 — what CUSTOMERS pay. `priceAmount` above is what the shop is paid. */
-  customerPriceAmount: string;
+  /** 067/098 — the lowest CUSTOMER price among active variants; null until first approved. */
+  customerPriceAmount: string | null;
+  /** 098 — active variants' shop prices differ. */
+  priceVaries: boolean;
+  /** 098 — variants that are not removed. */
+  variantCount: number;
 }
 
 /** 067 — the six review states a shop is shown (see `REVIEW_STATE_SQL` in repository.ts). */
@@ -111,17 +116,17 @@ export interface ProductChangeProposal {
   shortDescription?: string;
   longDescription?: string | null;
   brand?: string | null;
-  sku?: string | null;
-  gtin?: string | null;
   primaryCategoryId?: string;
   productTypeId?: string;
-  /** The proposed SHOP price. */
-  priceAmount?: string;
-  compareAtAmount?: string | null;
-  weightGrams?: number;
   /** 096 */
   gstStatus?: GstStatus;
   attributes?: AttributeValueInput[];
+  /** 098 */
+  unitBasis?: UnitBasis | null;
+  /** 098 — the COMPLETE proposed option set; present only when it differs from live. */
+  options?: OptionInputDTO[];
+  /** 098 — the COMPLETE proposed variant set (SHOP prices); present only when it differs from live. */
+  variants?: VariantInputDTO[];
 }
 
 export interface ProductPendingChange {
@@ -162,20 +167,19 @@ export interface ProductDetail {
   primaryCategoryId: string;
   categoryName: string;
   name: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
-  priceAmount: string;
   currency: string;
-  compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
-  /** Shipping weight in grams (032) — what delivery is priced from. */
-  weightGrams: number;
-  /** ⚠ TRUE = the platform default is in use; nobody has measured it (FR-037a). */
-  weightIsAssumed: boolean;
   /** 096 — null for a product made before 096 and not yet classified. */
   gstStatus: GstStatus | null;
+  /** 098 — how sizes are compared; null = no unit price. */
+  unitBasis: UnitBasis | null;
+  /** 098 — the options and every variant (active, inactive, removed). Price, codes, weight and stock live on the variants. */
+  options: OptionRow[];
+  variants: VariantRow[];
+  /** 098 — the shop's default low-stock threshold, for each variant's stock state. */
+  shopDefaultThreshold: number | null;
   status: ProductStatus;
   attributes: ProductAttributeValue[];
   media: ProductMedia[];
@@ -185,12 +189,10 @@ export interface ProductDetail {
   updatedAt: string;
 
   // ── 067 ──────────────────────────────────────────────────────────────────────────────────────
-  // ⚠ `priceAmount` / `compareAtAmount` above are the SHOP's prices — what this audience entered and
-  // is paid. The customer's are below. Nothing here carries Effy's margin as a figure (FR-039).
+  // ⚠ Each variant carries the SHOP's prices and the customer's. Nothing here carries Effy's margin as
+  // a figure (FR-039).
   reviewState: ShopReviewState;
   reviewReason: string | null;
-  customerPriceAmount: string;
-  customerCompareAtAmount: string | null;
   /** True once Effy has approved this product at least once. */
   approved: boolean;
   pendingChange: ProductPendingChange | null;
@@ -210,19 +212,15 @@ export interface CreateProductInput {
   productTypeId: string;
   primaryCategoryId: string;
   name: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
-  priceAmount: string;
-  compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
-  /**
-   * ⚠ NULL means "not supplied" and the column default (an assumption) stands. It does NOT mean zero
-   * — a zero-weight product is free-delivery-by-arithmetic, which the CHECK constraint refuses.
-   */
-  weightGrams: number | null;
   gstStatus: GstStatus;
+  /** 098 */
+  unitBasis: UnitBasis | null;
+  /** 098 — validated by `validateVariantSet` inside the one writer (`applyVariantSet`). */
+  options: OptionInputDTO[];
+  variants: VariantInputDTO[];
   attributes: AttributeValueInput[];
   sectionIds: string[];
   media: { storageKey: string; isPrimary: boolean; altText: string | null; displayOrder: number }[];

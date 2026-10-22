@@ -70,8 +70,12 @@ function LowStockTable({ rows }: { rows: LowStockRowDTO[] }) {
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.productId}>
-              <TableCell>{row.name}</TableCell>
+            <TableRow key={row.variantId}>
+              <TableCell>
+                {row.name}
+                {/* 098 — stock is per size; the size names the row. */}
+                {row.variantLabel ? <span className="text-muted-foreground"> — {row.variantLabel}</span> : null}
+              </TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
                 {row.sku ?? "—"}
               </TableCell>

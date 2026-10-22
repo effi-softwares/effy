@@ -8,7 +8,8 @@ const DAY = 24 * 3600_000;
 
 const row = (over: Partial<CardRow> = {}): CardRow => ({
   id: "p1", name: "Oat milk", brand: "Oatly", price_amount: "4.50", currency: "AUD", compare_at_amount: null,
-  storage_key: null, alt_text: null, image_widths: null, created_at: new Date(NOW - 30 * DAY), created_at_key: "k", available: true, ...over,
+  storage_key: null, alt_text: null, image_widths: null, created_at: new Date(NOW - 30 * DAY), created_at_key: "k", available: true,
+  price_varies: false, unit_basis: null, variant_id: "v1", pack_quantity: null, pack_unit: null, variant_count: 1, ...over,
 });
 
 describe("deriveBadges", () => {
@@ -33,7 +34,17 @@ describe("toCards", () => {
     expect(card).toEqual({
       id: "p1", name: "Oat milk", brand: "Oatly", imageUrl: "signed:products/a.jpg", priceAmount: "4.50",
       currency: "AUD", compareAtAmount: null, badges: [], available: true,
+      priceVaries: false, variantId: "v1", variantCount: 1, unitPrice: null,
     });
+  });
+
+  it("098 — a code-matched variant wins the tile; a pack size gives a unit price", async () => {
+    const [card] = await toCards(
+      [row({ matched_variant_id: "v9", unit_basis: "per_100g", pack_quantity: "500", pack_unit: "g", price_amount: "3.20" })],
+      async () => null,
+    );
+    expect(card?.variantId).toBe("v9");
+    expect(card?.unitPrice).toEqual({ amount: "0.64", basis: "per_100g" });
   });
 
   it("an image that cannot be signed is null — it never fails the read", async () => {

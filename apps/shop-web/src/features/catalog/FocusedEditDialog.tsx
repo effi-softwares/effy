@@ -37,7 +37,8 @@ export interface FocusedEditDialogProps {
    * basics and attribute editors lay their fields out in columns, which a 512px dialog stacks into a
    * tall scroll with half the screen unused beside it. Below the `sm` breakpoint both are full width.
    */
-  size?: "default" | "wide";
+  /** 098 — `full` fits the sizes table (a column per price, code and weight). */
+  size?: "default" | "wide" | "full";
   children: ReactNode;
 }
 
@@ -60,7 +61,7 @@ export function FocusedEditDialog({
       <DialogContent
         className={cn(
           "max-h-[90vh] overflow-y-auto",
-          size === "wide" ? "sm:max-w-3xl" : "sm:max-w-lg",
+          size === "full" ? "sm:max-w-6xl" : size === "wide" ? "sm:max-w-3xl" : "sm:max-w-lg",
         )}
       >
         <DialogHeader>

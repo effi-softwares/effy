@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { candidateOf, type FixtureCandidate, melbourneContext, pricePromotions, type PromotionRecord, type PromotionWords } from "@effy/edge-shared/promotions";
 
 import { type Pricing, type PricingInput, PromotionCodeRefusedError, type PromotionPort } from "../promotions/pricing";
-import type { CartLineRow, CartRepository, ProductStatusRow, ReorderCandidate } from "./repository";
+import type { CartLineRow, CartRepository, ReorderCandidate, VariantStatusRow } from "./repository";
 import {
   CartFullError, checkoutState, createCartService, dedupe, InsufficientStockError, OrderNotFoundError, payableCents,
   ProductNotFoundError, ProductUnavailableError,
@@ -37,7 +37,10 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
   const row = (pid: string, e: { qty: number; atAdd: string | null }): CartLineRow => {
     const p = products[pid]!;
     return {
-      id: `line-${pid}`, product_id: pid, shop_id: p.shop ?? "shop-1", quantity: e.qty, name: p.name,
+      // 098 — each fake product is its own single variant, keyed by the same id.
+      id: `line-${pid}`, product_id: pid, variant_id: pid, variant_label: null, variant_state: "active",
+      pack_quantity: null, pack_unit: null, unit_basis: null,
+      shop_id: p.shop ?? "shop-1", quantity: e.qty, name: p.name,
       unit_price_amount: p.price, currency: "AUD", status: p.status ?? "active", stock_tracked: p.tracked ?? false,
       stock_on_hand: p.tracked ? (p.onHand ?? 0) : null, storage_key: null, image_widths: null, unit_price_at_add: e.atAdd,
     };
@@ -61,11 +64,11 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
       saved: [...saved].map(([pid, e]) => row(pid, e)),
       revision,
     }),
-    productStatus: async (pid): Promise<ProductStatusRow | null> => {
+    variantStatus: async (pid): Promise<VariantStatusRow | null> => {
       const p = products[pid];
-      return p ? { status: p.status ?? "active", price_amount: p.price, stock_tracked: p.tracked ?? false, stock_on_hand: p.tracked ? (p.onHand ?? 0) : null } : null;
+      return p ? { product_id: pid, status: p.status ?? "active", variant_state: "active", price_amount: p.price, stock_tracked: p.tracked ?? false, stock_on_hand: p.tracked ? (p.onHand ?? 0) : null } : null;
     },
-    productSnapshots: async (ids) => ids.filter((i) => products[i]).map((i) => ({ ...row(i, { qty: 0, atAdd: null }), id: "" })),
+    variantSnapshots: async (ids) => ids.filter((i) => products[i]).map((i) => ({ ...row(i, { qty: 0, atAdd: null }), id: "" })),
     orderItemsForReorder: async (customerId, orderId) => {
       const o = orders.get(orderId);
       return o && o.owner === customerId ? o.items : null;
@@ -101,7 +104,7 @@ function world(products: Record<string, Product>, policy: Partial<CartPolicy> = 
       const live = [...promos.values()].filter((x) => x.code === null || `code-${x.code}` === input.enteredCodeId);
       const candidates = live.map((x, i) => candidateOf({ ...x.candidate, codeId: x.code ? `code-${x.code}` : null, codeText: x.code }, i));
       const outcome = pricePromotions(
-        { lines: input.lines.map((l) => ({ lineId: l.productId, productId: l.productId, categoryIds: [], brand: null, unitCents: l.unitCents, quantity: l.quantity })), deliveryType: null, deliveryFeeCents: null },
+        { lines: input.lines.map((l) => ({ lineId: l.variantId, productId: l.productId, categoryIds: [], brand: null, unitCents: l.unitCents, quantity: l.quantity })), deliveryType: null, deliveryFeeCents: null },
         candidates,
         melbourneContext(input.now),
       );
@@ -160,7 +163,7 @@ describe("reading the cart", () => {
     w.seedAtAdd(A, "4.50", 2);
     const cart = await w.svc.get(CUSTOMER);
     expect(cart.lines[0]).toMatchObject({ unitPriceAmount: "5.00", priceChangedFrom: "4.50", lineSubtotalAmount: "10.00" });
-    expect(cart.notices).toEqual([{ productId: A, kind: "price_changed", detail: "Oat Milk" }]);
+    expect(cart.notices).toEqual([{ productId: A, variantId: A, kind: "price_changed", detail: "Oat Milk" }]);
   });
 
   it("never fabricates a price change from a line that predates price tracking", async () => {
@@ -178,7 +181,7 @@ describe("reading the cart", () => {
     const cart = await w.svc.get(CUSTOMER);
     expect(cart.lines.map((l) => l.available)).toEqual([true, false]);
     expect(cart.itemSubtotalAmount).toBe("4.50");
-    expect(cart.notices).toContainEqual({ productId: B, kind: "unavailable", detail: "Sourdough is unavailable right now" });
+    expect(cart.notices).toContainEqual({ productId: B, variantId: B, kind: "unavailable", detail: "Sourdough is unavailable right now" });
   });
 
   it("says OUT OF STOCK when the shelf is empty — a different sentence from 'unavailable'", async () => {
@@ -194,7 +197,7 @@ describe("reading the cart", () => {
     w.seedAtAdd(A, "4.50", 5);
     const cart = await w.svc.get(CUSTOMER);
     expect(cart.lines[0]).toMatchObject({ quantity: 2, lineSubtotalAmount: "9.00", available: true });
-    expect(cart.notices).toEqual([{ productId: A, kind: "quantity_clamped", detail: "Only 2 of Oat Milk available" }]);
+    expect(cart.notices).toEqual([{ productId: A, variantId: A, kind: "quantity_clamped", detail: "Only 2 of Oat Milk available" }]);
     expect(w.cart.get(A)?.qty).toBe(5); // the stored row is untouched: if stock returns, so does the 5
   });
 
@@ -205,7 +208,7 @@ describe("reading the cart", () => {
     w.setRevision(7);
     const cart = await w.svc.get(CUSTOMER);
     expect(cart.lines.map((l) => l.productId)).toEqual([A]);
-    expect(cart.notices).toContainEqual({ productId: B, kind: "removed", detail: "Sourdough" });
+    expect(cart.notices).toContainEqual({ productId: B, variantId: B, kind: "removed", detail: "Sourdough" });
     expect(w.calls).toEqual([`sweep:${B}`]);
     expect(cart.revision).toBe(8);
   });
@@ -254,7 +257,7 @@ describe("add", () => {
     const w = world({ [A]: milk }, { maxLineQuantity: 5 });
     const cart = await w.svc.add(CUSTOMER, A, "c1", 9);
     expect(cart.lines[0]?.quantity).toBe(5);
-    expect(cart.notices).toContainEqual({ productId: A, kind: "quantity_clamped", detail: "Limited to 5 per item" });
+    expect(cart.notices).toContainEqual({ productId: null, variantId: A, kind: "quantity_clamped", detail: "Limited to 5 per item" });
   });
 
   it("a full cart refuses a NEW product but still lets an existing line grow", async () => {
@@ -304,14 +307,14 @@ describe("merge at sign-in", () => {
   it("takes the MAXIMUM of the two quantities, never the sum", async () => {
     const w = world({ [A]: milk, [B]: bread });
     await w.svc.add(CUSTOMER, A, "c1", 3);
-    const cart = await w.svc.merge(CUSTOMER, "m1", [{ productId: A, quantity: 2 }, { productId: B, quantity: 4 }]);
+    const cart = await w.svc.merge(CUSTOMER, "m1", [{ variantId: A, quantity: 2 }, { variantId: B, quantity: 4 }]);
     expect(cart.lines.map((l) => [l.productId, l.quantity])).toEqual([[A, 3], [B, 4]]);
   });
 
   it("repeating the merge changes nothing", async () => {
     const w = world({ [A]: milk });
-    await w.svc.merge(CUSTOMER, "", [{ productId: A, quantity: 2 }]);
-    expect((await w.svc.merge(CUSTOMER, "", [{ productId: A, quantity: 2 }])).lines[0]?.quantity).toBe(2);
+    await w.svc.merge(CUSTOMER, "", [{ variantId: A, quantity: 2 }]);
+    expect((await w.svc.merge(CUSTOMER, "", [{ variantId: A, quantity: 2 }])).lines[0]?.quantity).toBe(2);
   });
 
   it("an empty device cart never empties the account cart", async () => {
@@ -322,14 +325,14 @@ describe("merge at sign-in", () => {
 
   it("drops a product that is gone or archived, but brings an unavailable one across flagged", async () => {
     const w = world({ [A]: { ...milk, status: "unavailable" }, [B]: { ...bread, status: "archived" } });
-    const cart = await w.svc.merge(CUSTOMER, "m", [{ productId: A, quantity: 1 }, { productId: B, quantity: 1 }, { productId: C, quantity: 1 }]);
+    const cart = await w.svc.merge(CUSTOMER, "m", [{ variantId: A, quantity: 1 }, { variantId: B, quantity: 1 }, { variantId: C, quantity: 1 }]);
     expect(cart.lines.map((l) => [l.productId, l.available])).toEqual([[A, false]]);
   });
 
   it("respects the distinct-item ceiling across the merged result", async () => {
     const w = world({ [A]: milk, [B]: bread, [C]: { name: "Soy", price: "3.00" } }, { maxDistinctItems: 2 });
     await w.svc.add(CUSTOMER, A, "c1", 1);
-    const cart = await w.svc.merge(CUSTOMER, "m", [{ productId: A, quantity: 5 }, { productId: B, quantity: 1 }, { productId: C, quantity: 1 }]);
+    const cart = await w.svc.merge(CUSTOMER, "m", [{ variantId: A, quantity: 5 }, { variantId: B, quantity: 1 }, { variantId: C, quantity: 1 }]);
     expect(cart.lines.map((l) => l.productId)).toEqual([A, B]); // A did not consume room; C did not fit
     expect(cart.lines[0]?.quantity).toBe(5);
   });
@@ -357,7 +360,10 @@ describe("saved for later", () => {
 
 describe("reorder", () => {
   const order = (items: Partial<ReorderCandidate>[]) =>
-    items.map((i, n): ReorderCandidate => ({ product_id: id(n + 1), quantity: 1, name: `Item ${n + 1}`, status: "active", stock_tracked: false, stock_on_hand: null, ...i }));
+    items.map((i, n): ReorderCandidate => {
+      const pid = i.product_id ?? id(n + 1);
+      return { product_id: pid, variant_id: pid, variant_label: null, quantity: 1, name: `Item ${n + 1}`, status: "active", variant_state: "active", stock_tracked: false, stock_on_hand: null, ...i };
+    });
 
   it("someone else's order and a missing order are the SAME not-found", async () => {
     const w = world({ [A]: milk });
@@ -381,9 +387,9 @@ describe("reorder", () => {
     const res = await w.svc.reorder(CUSTOMER, id(900), "r1");
     expect(res.cart.lines.map((l) => [l.productId, l.quantity])).toEqual([[A, 2], [id(4), 5]]);
     expect(res.skipped).toEqual([
-      { productId: B, name: "Item 2", reason: "unavailable" },
-      { productId: C, name: "Deleted thing", reason: "removed" },
-      { productId: id(4), name: "Item 4", reason: "clamped" },
+      { productId: B, variantId: B, name: "Item 2", variantLabel: null, reason: "unavailable" },
+      { productId: C, variantId: C, name: "Deleted thing", variantLabel: null, reason: "removed" },
+      { productId: id(4), variantId: id(4), name: "Item 4", variantLabel: null, reason: "clamped" },
     ]);
   });
 
@@ -480,7 +486,7 @@ describe("the minimum order value", () => {
 describe("guest preview", () => {
   it("re-prices a device cart in the client's order and writes nothing", async () => {
     const w = world({ [A]: milk, [B]: bread });
-    const cart = await w.svc.preview([{ productId: B, quantity: 1 }, { productId: A, quantity: 2 }]);
+    const cart = await w.svc.preview([{ variantId: B, quantity: 1 }, { variantId: A, quantity: 2 }]);
     expect(cart.lines.map((l) => [l.productId, l.lineSubtotalAmount])).toEqual([[B, "9.00"], [A, "9.00"]]);
     expect(cart.revision).toBe(0);
     expect(cart.discount).toBeNull();
@@ -490,26 +496,26 @@ describe("guest preview", () => {
 
   it("reports a product that no longer exists, and excludes an archived one without trying to sweep", async () => {
     const w = world({ [A]: { ...milk, status: "archived" } });
-    const cart = await w.svc.preview([{ productId: A, quantity: 1 }, { productId: B, quantity: 1 }]);
+    const cart = await w.svc.preview([{ variantId: A, quantity: 1 }, { variantId: B, quantity: 1 }]);
     expect(cart.lines).toEqual([]);
     expect(cart.notices).toEqual([
-      { productId: B, kind: "removed", detail: null },
-      { productId: A, kind: "removed", detail: "Oat Milk" },
+      { productId: null, variantId: B, kind: "removed", detail: null },
+      { productId: A, variantId: A, kind: "removed", detail: "Oat Milk" },
     ]);
     expect(w.calls).toEqual([]);
   });
 
   it("applies the distinct-item ceiling, since no table constraint is in play", async () => {
     const w = world({ [A]: milk, [B]: bread }, { maxDistinctItems: 1 });
-    expect((await w.svc.preview([{ productId: A, quantity: 1 }, { productId: B, quantity: 1 }])).lines).toHaveLength(1);
+    expect((await w.svc.preview([{ variantId: A, quantity: 1 }, { variantId: B, quantity: 1 }])).lines).toHaveLength(1);
   });
 });
 
 describe("dedupe / payableCents", () => {
   it("sums duplicates, clamps to the ceiling, drops junk, keeps first-seen order", () => {
     const { ids, qty } = dedupe(
-      [{ productId: B, quantity: 2 }, { productId: A, quantity: 60 }, { productId: B, quantity: 3 }, { productId: A, quantity: 60 },
-       { productId: "junk", quantity: 1 }, { productId: C, quantity: 0 }, { productId: C, quantity: 1.5 }],
+      [{ variantId: B, quantity: 2 }, { variantId: A, quantity: 60 }, { variantId: B, quantity: 3 }, { variantId: A, quantity: 60 },
+       { variantId: "junk", quantity: 1 }, { variantId: C, quantity: 0 }, { variantId: C, quantity: 1.5 }],
       99,
     );
     expect(ids).toEqual([B, A]);
@@ -518,7 +524,8 @@ describe("dedupe / payableCents", () => {
 
   it("payableCents counts only what can be bought, at the quantity that can be supplied", () => {
     const row = (over: Partial<CartLineRow>): CartLineRow => ({
-      id: "l", product_id: A, shop_id: "s", quantity: 2, name: "n", unit_price_amount: "10.00", currency: "AUD",
+      id: "l", product_id: A, variant_id: A, variant_label: null, variant_state: "active", pack_quantity: null, pack_unit: null, unit_basis: null,
+      shop_id: "s", quantity: 2, name: "n", unit_price_amount: "10.00", currency: "AUD",
       status: "active", stock_tracked: false, stock_on_hand: null, storage_key: null, image_widths: null, unit_price_at_add: null, ...over,
     });
     expect(payableCents([row({}), row({ status: "unavailable" }), row({ stock_tracked: true, stock_on_hand: 1, quantity: 5 })])).toBe(2000 + 1000);

@@ -247,7 +247,10 @@ function toItem(row: repo.OrderItemRow): AdminOrderItemDTO {
   return {
     orderItemId: row.order_item_id,
     productId: row.product_id,
+    variantId: row.variant_id,
     productName: row.product_name,
+    variantLabel: row.variant_label,
+    sku: row.sku,
     unitPriceAmount: row.unit_price_amount,
     quantity: row.quantity,
     lineSubtotalAmount: row.line_subtotal_amount,
@@ -531,6 +534,7 @@ function refundView(
       .map((i) => ({
         orderItemId: i.order_item_id,
         productName: i.product_name,
+        variantLabel: i.variant_label,
         unitPriceAmount: i.unit_price_amount,
         quantity: i.quantity - (usedUnits.get(i.order_item_id) ?? 0),
       }))

@@ -8,7 +8,7 @@ import { collectAttributeInputs } from "./validation";
  * Pure payload builders for the focused-edit dialogs (US4 — no React, no I/O, unit-testable).
  *
  * A focused edit PATCHes a small subset: the fields in the one section the operator opened, and
- * NOTHING else. Every payload additionally carries `expectedUpdatedAt` — the `updatedAt` from the
+ * NOTHING else. (098 — price, codes and weight are a VARIANT's; the sizes dialog sends the whole set.) Every payload additionally carries `expectedUpdatedAt` — the `updatedAt` from the
  * loaded detail — so a stale edit is rejected server-side with 409 (optimistic concurrency, FR-023a).
  */
 
@@ -18,14 +18,8 @@ export interface ScalarFieldPatch {
   shortDescription?: string;
   longDescription?: string | null;
   brand?: string | null;
-  sku?: string | null;
-  gtin?: string | null;
-  priceAmount?: string;
-  compareAtAmount?: string | null;
   productTypeId?: string;
   primaryCategoryId?: string;
-  /** Shipping weight in grams (032). Sending one marks it MEASURED (FR-036a). */
-  weightGrams?: number | null;
   /** 096 — on a live product this is proposed and reviewed, like the rest. */
   gstStatus?: "taxable" | "gst_free";
 }
@@ -35,13 +29,8 @@ const SCALAR_KEYS: (keyof ScalarFieldPatch)[] = [
   "shortDescription",
   "longDescription",
   "brand",
-  "sku",
-  "gtin",
-  "priceAmount",
-  "compareAtAmount",
   "productTypeId",
   "primaryCategoryId",
-  "weightGrams",
   "gstStatus",
 ];
 

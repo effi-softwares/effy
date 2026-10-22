@@ -109,12 +109,13 @@ describe.skipIf(!RUN)("096 — the shop's bags", () => {
     );
     for (const cls of classes) {
       const p = await pool.query<{ id: string }>(
-        `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by)
-         SELECT $1, pt.id, c.id, 'Thing', 5, 'x', 'seed' FROM public.product_type pt, public.category c RETURNING id`, [shop],
+        `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by) SELECT $1, pt.id, c.id, 'Thing', 'x', 'seed' FROM public.product_type pt, public.category c RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(5, 5)::numeric, (5)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shop],
       );
       await pool.query(
-        `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, storage_class)
-         VALUES ($1, $2, $3, 'Thing', 5, 1, 5, $4)`, [o.rows[0]!.id, p.rows[0]!.id, shop, cls],
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, storage_class)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Thing', 5, 1, 5, $4)`, [o.rows[0]!.id, p.rows[0]!.id, shop, cls],
       );
     }
     const f = await pool.query<{ id: string }>(

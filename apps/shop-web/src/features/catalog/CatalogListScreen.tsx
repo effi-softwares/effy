@@ -302,7 +302,7 @@ export function CatalogListScreen() {
             <thead>
               <tr className="bg-muted">
                 <Th>Product</Th>
-                <Th width="15%">SKU</Th>
+                <Th width="15%">Sizes</Th>
                 <Th width="12%">Category</Th>
                 <Th width="14%">Status</Th>
                 <Th width="11%" align="right">
@@ -408,8 +408,9 @@ function ProductRow({ product }: { product: ProductListItem }) {
           </div>
         </div>
       </Td>
-      <Td className="text-muted-foreground truncate font-mono text-[12.5px]">
-        {product.sku ?? "—"}
+      {/* 098 — stock codes are each size's; the list says how many sizes the product is sold in. */}
+      <Td className="text-muted-foreground truncate text-[12.5px]">
+        {product.variantCount === 1 ? "One size" : `${product.variantCount} sizes`}
       </Td>
       <Td className="text-muted-foreground text-[13px]">{product.categoryName}</Td>
       <Td>
@@ -419,6 +420,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
         </div>
       </Td>
       <Td align="right" className="font-medium tabular-nums">
+        {product.priceVaries ? "From " : ""}
         {product.currency} {product.shopPriceAmount ?? product.priceAmount}
       </Td>
       <Td align="right">

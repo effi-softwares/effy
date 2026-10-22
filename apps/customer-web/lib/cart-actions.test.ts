@@ -16,6 +16,7 @@ import {
 import { addToCart as seedGuestLine, readCart, resetCart, type GuestCartLine } from "./cart-store"
 
 const line = (productId: string, quantity = 1, unitPriceAmount = "5.00"): GuestCartLine => ({
+  variantId: productId,
   productId,
   name: productId,
   imageUrl: null,
@@ -28,6 +29,9 @@ const line = (productId: string, quantity = 1, unitPriceAmount = "5.00"): GuestC
 const dtoLine = (productId: string, quantity: number, over: Record<string, unknown> = {}) => ({
   id: `line-${productId}`,
   productId,
+  variantId: productId,
+  variantLabel: null,
+  unitPrice: null,
   name: productId,
   imageUrl: null,
   unitPriceAmount: "5.00",
@@ -104,7 +108,7 @@ describe("cart actions — the mutation reaches the platform", () => {
     expect(calls).toHaveLength(1)
     expect(calls[0].path).toBe("/api/cart/items")
     expect(calls[0].method).toBe("POST")
-    expect(calls[0].body).toMatchObject({ productId: "p1", quantity: 2 })
+    expect(calls[0].body).toMatchObject({ variantId: "p1", quantity: 2 })
     expect((calls[0].body as { changeId: string }).changeId).toBeTruthy()
     expect(readCart().revision).toBe(6)
   })
@@ -200,7 +204,7 @@ describe("mergeCartAfterSignIn", () => {
     expect(await mergeCartAfterSignIn()).toBe(true)
 
     expect(calls[0].path).toBe("/api/cart/merge")
-    expect(calls[0].body).toMatchObject({ lines: [{ productId: "a", quantity: 1 }, { productId: "b", quantity: 2 }] })
+    expect(calls[0].body).toMatchObject({ lines: [{ variantId: "a", quantity: 1 }, { variantId: "b", quantity: 2 }] })
     expect(readCart().lines.map((l) => l.productId)).toEqual(["a", "b", "c"])
     expect(readCart().lines[1].quantity).toBe(3) // the GREATER, not the sum
   })

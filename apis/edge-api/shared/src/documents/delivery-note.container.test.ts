@@ -39,9 +39,9 @@ async function shop(code: string) {
 }
 async function product(shopId: string, name: string) {
   return (await one<{ id: string }>(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by, status, approved_at)
-     VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 4.50, 'A thing', 'test', 'active', now())
-     RETURNING id`, [shopId, name])).id;
+    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(4.50, 4.50)::numeric, (4.50)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shopId, name])).id;
 }
 
 d("096 US7 — the delivery note", () => {
@@ -69,8 +69,8 @@ d("096 US7 — the delivery note", () => {
       `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, placed_at)
        VALUES ($1, 'EFY-DN0001', 30, 32, '{}'::jsonb, 'paid', now() - interval '1 day') RETURNING id`, [cust.id]);
     const line = async (productId: string, shopId: string, name: string, qty: number) => (await one<{ id: string }>(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, $3, $4, 4.50, $5::int, 4.50 * $6::numeric) RETURNING id`, [order.id, productId, shopId, name, qty, qty])).id;
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, 4.50, $5::int, 4.50 * $6::numeric) RETURNING id`, [order.id, productId, shopId, name, qty, qty])).id;
     const pkg = async (shopId: string, status: string) => (await one<{ id: string }>(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status, unfulfillable_reason)
        VALUES ($1, $2, 1, 10, $3, CASE WHEN $3 = 'unfulfillable' THEN 'Out of stock' END) RETURNING id`,

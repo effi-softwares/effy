@@ -1,4 +1,4 @@
-import { GST_STATUS_WORDS } from "@effy/shared-types";
+import { GST_STATUS_WORDS, UNIT_BASIS_LABELS, variantLabel } from "@effy/shared-types";
 import type {
   AttributeDataType,
   ProductAttributeValueDTO,
@@ -76,7 +76,9 @@ function inferDataType(a: NonNullable<ProductChangeProposalDTO["attributes"]>[nu
 export function workingDetail(detail: ProductDetail): ProductDetail {
   const pending = detail.pendingChange;
   if (!pending) return detail;
-  const { attributes: proposedAttributes, ...scalars } = pending.proposed;
+  // 098 — the option/variant sets are NOT laid over the live rows here: those carry stock and state a
+  // proposal has not got. The sizes editor opens on the proposal itself (`draftFromDetail`).
+  const { attributes: proposedAttributes, options: _options, variants: _variants, ...scalars } = pending.proposed;
 
   let attributes: ProductAttributeValueDTO[] = detail.attributes;
   if (proposedAttributes) {
@@ -139,21 +141,25 @@ export function proposedRows(detail: ProductDetail, schema?: CatalogSchema): Pro
 
   if (p.name !== undefined) add("Name", detail.name, p.name);
   if (p.brand !== undefined) add("Brand", text(detail.brand), text(p.brand));
-  if (p.sku !== undefined) add("SKU", text(detail.sku), text(p.sku));
-  if (p.gtin !== undefined) add("GTIN", text(detail.gtin), text(p.gtin));
   if (p.shortDescription !== undefined) add("Short description", detail.shortDescription, p.shortDescription);
   if (p.longDescription !== undefined) add("Long description", text(detail.longDescription), text(p.longDescription));
-  if (p.priceAmount !== undefined) {
-    add("Your price", `${detail.currency} ${detail.shopPriceAmount ?? detail.priceAmount}`, `${detail.currency} ${p.priceAmount}`);
+  if (p.unitBasis !== undefined) {
+    add("Unit pricing", detail.unitBasis ? UNIT_BASIS_LABELS[detail.unitBasis] : "None", p.unitBasis ? UNIT_BASIS_LABELS[p.unitBasis] : "None");
   }
-  if (p.compareAtAmount !== undefined) {
-    add(
-      "Compare at",
-      detail.compareAtAmount ? `${detail.currency} ${detail.compareAtAmount}` : "—",
-      p.compareAtAmount ? `${detail.currency} ${p.compareAtAmount}` : "—",
-    );
+  // 098 — sizes: one row per size added, removed or re-priced. Prices are the SHOP's: what it typed.
+  if (p.options && p.variants) {
+    const liveSets = detail.variants.filter((v) => v.state !== "removed");
+    const live = new Map(liveSets.map((v) => [v.id, v]));
+    const kept = new Set(p.variants.map((v) => v.id));
+    for (const v of p.variants) {
+      const label = variantLabel(p.options, v.optionValueIds) ?? "Price";
+      const was = live.get(v.id);
+      if (!was) add(`${label} (new)`, "—", `${detail.currency} ${v.shopPriceAmount}`);
+      else if (Number(was.shopPriceAmount) !== Number(v.shopPriceAmount)) add(label, `${detail.currency} ${was.shopPriceAmount}`, `${detail.currency} ${v.shopPriceAmount}`);
+      else if ((was.sku ?? "") !== (v.sku ?? "") || (was.gtin ?? "") !== (v.gtin ?? "")) add(`${label} codes`, text(was.sku ?? was.gtin), text(v.sku ?? v.gtin));
+    }
+    for (const v of liveSets) if (!kept.has(v.id)) add(`${v.label ?? "Variant"} (removed)`, `${detail.currency} ${v.shopPriceAmount}`, "—");
   }
-  if (p.weightGrams !== undefined) add("Shipping weight", `${detail.weightGrams} g`, `${p.weightGrams} g`);
   if (p.gstStatus !== undefined) add("GST", detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set", GST_STATUS_WORDS[p.gstStatus]);
   if (p.productTypeId !== undefined) {
     const type = schema?.productTypes.find((t) => t.id === p.productTypeId);

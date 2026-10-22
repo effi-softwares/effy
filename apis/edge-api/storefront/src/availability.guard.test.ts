@@ -35,7 +35,8 @@ const ROOTS = [
 /** The rule's own home is the one place allowed to state it. */
 const RULE_HOME = /shared\/src\/lib\/availability(\.test)?\.ts$/;
 
-const HAND_WRITTEN = /\b([a-z_]+\.)?status\s*(=|==|!=|<>)\s*['"]active['"]/;
+// 098 — a variant's `state = 'active'` is half of the rule too.
+const HAND_WRITTEN = /\b([a-z_]+\.)?(status|state)\s*(=|==|!=|<>)\s*['"]active['"]/;
 const EXEMPT = "availability-exempt:";
 
 function sourceFiles(dir: string): string[] {
@@ -70,7 +71,7 @@ it("no shopper-facing code decides product availability by hand", () => {
   expect(scanned).toBeGreaterThan(15);
   expect(
     offences,
-    `availability is decided by hand in ${offences.length} place(s). Use availabilityPredicate(alias) in SQL or ` +
+    `availability is decided by hand in ${offences.length} place(s). Use variantPurchasableSql / productAvailableSql in SQL or ` +
       `purchasable(...) in code, or mark the line \`${EXEMPT} <table> — <why>\`:\n  ${offences.join("\n  ")}`,
   ).toEqual([]);
 });

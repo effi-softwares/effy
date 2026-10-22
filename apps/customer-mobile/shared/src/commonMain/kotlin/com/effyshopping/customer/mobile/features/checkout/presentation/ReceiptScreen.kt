@@ -668,6 +668,8 @@ private fun ReceiptLine(
         }
         Column(Modifier.weight(1f)) {
             Text(item.productName, style = MaterialTheme.typography.bodyMedium)
+            // 098 — the size as it was sold.
+            item.variantLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             // ⚠ The unit price. It has been on the wire since 019 and this screen never showed it —
             // it is what makes a line checkable rather than merely stated (FR-003).
             Text(

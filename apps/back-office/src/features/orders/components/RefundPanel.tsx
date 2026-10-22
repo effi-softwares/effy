@@ -28,6 +28,8 @@ import { useIssueRefund } from "../refundQueries";
 export interface RefundableLine {
   orderItemId: string;
   productName: string;
+  /** 098 — the size as sold. */
+  variantLabel?: string | null;
   quantity: number;
   unitPriceAmount: string;
 }
@@ -223,13 +225,14 @@ function ItemSelection({
           />
           <Label htmlFor={`line-${l.orderItemId}`} className="flex-1 font-normal">
             {l.productName}
+            {l.variantLabel ? <span className="text-muted-foreground"> — {l.variantLabel}</span> : null}
             <span className="ml-2 text-muted-foreground">
               {l.unitPriceAmount} each · {l.quantity} refundable
             </span>
           </Label>
           {selected[l.orderItemId] ? (
             <Input
-              aria-label={`Quantity to refund for ${l.productName}`}
+              aria-label={`Quantity to refund for ${l.productName}${l.variantLabel ? ` — ${l.variantLabel}` : ""}`}
               inputMode="numeric"
               className="w-20"
               value={String(selected[l.orderItemId])}

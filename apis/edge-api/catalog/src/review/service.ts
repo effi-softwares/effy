@@ -6,13 +6,24 @@
 
 import {
   customerPrice,
+  pooled,
   presignRead,
   validateMargin,
   type Margin,
 } from "@effy/edge-shared";
+import {
+  applyVariantSet, priceVariants, readVariantSets, VariantSetInvalid, type VariantSet,
+} from "@effy/edge-shared/catalog";
 import { isGstStatus, setGstStatus } from "@effy/edge-shared/documents";
 import {
   REVIEW_REASON_MAX,
+  UNIT_BASIS_LABELS,
+  validateVariantSet,
+  variantLabel,
+  type OptionInputDTO,
+  type ReviewVariantDTO,
+  type UnitBasis,
+  type VariantInputDTO,
   type MarginDTO,
   type MarginNotSetDTO,
   type ReviewDecisionDTO,
@@ -159,22 +170,157 @@ function attributeText(a: {
   return null;
 }
 
-function detailsOf(p: repo.ProductRow, attrs: repo.AttributeRow[]): ReviewDetailRowDTO[] {
+const basisWords = (b: string | null | undefined) => (b ? (UNIT_BASIS_LABELS[b as UnitBasis] ?? b) : "None");
+
+/** "Size: 500 g, 1 kg · Flavour: Plain, Spiced" — how a reviewer reads a set of options. */
+function optionsText(options: readonly { position: number; name: string; values: readonly { value: string; position: number }[] }[]): string | null {
+  if (options.length === 0) return null;
+  return [...options]
+    .sort((a, b) => a.position - b.position)
+    .map((o) => `${o.name}: ${[...o.values].sort((a, b) => a.position - b.position).map((v) => v.value).join(", ")}`)
+    .join(" · ");
+}
+
+function detailsOf(p: repo.ProductRow, attrs: repo.AttributeRow[], set: VariantSet): ReviewDetailRowDTO[] {
   return [
     { label: "Name", value: p.name },
     { label: "Short description", value: p.short_description },
     { label: "Long description", value: p.long_description },
     { label: "Brand", value: p.brand },
-    { label: "SKU", value: p.sku },
-    { label: "Barcode", value: p.gtin },
     { label: "Category", value: p.category_name },
     { label: "Product type", value: p.type_name },
-    { label: "Shop price", value: p.shop_price_amount },
-    { label: "Shop \"was\" price", value: p.shop_compare_at_amount },
-    { label: "Weight (g)", value: String(p.weight_grams) },
+    // 098 — prices, codes and weights are per variant, in `variants` beside these rows.
+    { label: "Options", value: optionsText(set.options) ?? "None — one variant" },
+    { label: "Unit pricing", value: basisWords(p.unit_basis) },
     { label: "GST", value: p.gst_status ? GST_STATUS_WORDS[p.gst_status] : "Not set" },
     ...attrs.map((a) => ({ label: a.name, value: attributeText(a) })),
   ];
+}
+
+// ── 098 — variants as a reviewer sees them ─────────────────────────────────────────────────────
+
+type SetInput = { options: OptionInputDTO[]; variants: VariantInputDTO[] };
+
+/** The live set (removed variants excluded) in the shape a proposal carries. */
+function liveSetOf(set: VariantSet): SetInput {
+  return {
+    options: set.options.map((o) => ({ id: o.id, position: o.position, name: o.name, values: o.values })),
+    variants: set.variants
+      .filter((v) => v.state !== "removed")
+      .map((v) => ({
+        id: v.id, position: v.position, optionValueIds: v.optionValueIds, sku: v.sku, gtin: v.gtin,
+        shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount,
+        weightGrams: v.weightIsAssumed ? null : v.weightGrams, packQuantity: v.packQuantity, packUnit: v.packUnit,
+        mediaStorageKey: v.mediaStorageKey,
+      })),
+  };
+}
+
+function proposedSetOf(proposed: Proposed): SetInput | null {
+  return Array.isArray(proposed.options) && Array.isArray(proposed.variants)
+    ? { options: proposed.options as OptionInputDTO[], variants: proposed.variants as VariantInputDTO[] }
+    : null;
+}
+
+const moneyOrNull = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v).toFixed(2));
+
+/** Under the margin (the shop's own price when none is set). A malformed amount shows as itself. */
+function underMargin(shop: string | null | undefined, margin: Margin | null): string | null {
+  if (shop === null || shop === undefined || shop === "") return null;
+  return MONEY.test(shop) ? customerPrice(shop, margin) : shop;
+}
+
+const VARIANT_FIELDS: readonly { key: keyof VariantInputDTO; label: string; show: (v: VariantInputDTO) => string | null }[] = [
+  { key: "shopPriceAmount", label: "Shop price", show: (v) => moneyOrNull(v.shopPriceAmount) },
+  { key: "shopCompareAtAmount", label: "Shop \"was\" price", show: (v) => moneyOrNull(v.shopCompareAtAmount) },
+  { key: "sku", label: "SKU", show: (v) => v.sku ?? null },
+  { key: "gtin", label: "Barcode", show: (v) => v.gtin ?? null },
+  { key: "weightGrams", label: "Weight (g)", show: (v) => (v.weightGrams === null || v.weightGrams === undefined ? null : String(v.weightGrams)) },
+  { key: "packQuantity", label: "Pack size", show: (v) => (v.packQuantity ? `${Number(v.packQuantity)} ${v.packUnit ?? ""}`.trim() : null) },
+  { key: "mediaStorageKey", label: "Picture", show: (v) => (v.mediaStorageKey ? "Own picture" : null) },
+];
+
+/**
+ * Every variant the decision would make live, with what it will sell at under `margin`, and — for a
+ * change — whether the change adds, removes or alters it (FR-011).
+ */
+function reviewVariants(live: VariantSet, target: SetInput | null, margin: Margin | null): ReviewVariantDTO[] {
+  const liveSet = liveSetOf(live);
+  const set = target ?? liveSet;
+  const liveById = new Map(liveSet.variants.map((v) => [v.id, v]));
+  const liveRows = new Map(live.variants.map((v) => [v.id, v]));
+  const out: ReviewVariantDTO[] = [...set.variants]
+    .sort((a, b) => a.position - b.position)
+    .map((v) => {
+      const was = liveById.get(v.id);
+      const changed = !was ? "added" : VARIANT_FIELDS.some((f) => f.show(was) !== f.show(v)) || String(was.optionValueIds) !== String(v.optionValueIds) ? "changed" : "unchanged";
+      return {
+        id: v.id,
+        label: variantLabel(set.options, v.optionValueIds),
+        sku: v.sku ?? null,
+        gtin: v.gtin ?? null,
+        shopPriceAmount: v.shopPriceAmount,
+        shopCompareAtAmount: v.shopCompareAtAmount ?? null,
+        customerPriceAmount: underMargin(v.shopPriceAmount, margin) ?? v.shopPriceAmount,
+        customerCompareAtAmount: underMargin(v.shopCompareAtAmount, margin),
+        weightGrams: v.weightGrams ?? liveRows.get(v.id)?.weightGrams ?? 500,
+        packQuantity: v.packQuantity ?? null,
+        packUnit: v.packUnit ?? null,
+        state: liveRows.get(v.id)?.state ?? "active",
+        change: target ? changed : "unchanged",
+      };
+    });
+  if (target) {
+    const kept = new Set(target.variants.map((v) => v.id));
+    for (const v of live.variants) {
+      if (v.state === "removed" || kept.has(v.id)) continue;
+      out.push({
+        id: v.id, label: v.label, sku: v.sku, gtin: v.gtin,
+        shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount,
+        customerPriceAmount: v.priceAmount ?? v.shopPriceAmount, customerCompareAtAmount: v.compareAtAmount,
+        weightGrams: v.weightGrams, packQuantity: v.packQuantity, packUnit: v.packUnit, state: v.state, change: "removed",
+      });
+    }
+  }
+  return out;
+}
+
+/** The per-variant and option rows of a change's before/after, keyed `variant:<id>:<field>`. */
+function variantChanges(live: VariantSet, target: SetInput): ReviewFieldChangeDTO[] {
+  const out: ReviewFieldChangeDTO[] = [];
+  const liveSet = liveSetOf(live);
+  const before = optionsText(liveSet.options);
+  const after = optionsText(target.options);
+  if (before !== after) out.push({ field: "options", label: "Options", before, after });
+  const liveById = new Map(liveSet.variants.map((v) => [v.id, v]));
+  for (const v of target.variants) {
+    const label = variantLabel(target.options, v.optionValueIds) ?? "The product";
+    const was = liveById.get(v.id);
+    if (!was) {
+      out.push({ field: `variant:${v.id}`, label: `${label} — new`, before: null, after: `Shop price ${moneyOrNull(v.shopPriceAmount)}` });
+      continue;
+    }
+    for (const f of VARIANT_FIELDS) {
+      const b = f.show(was);
+      const a = f.show(v);
+      if (b !== a) out.push({ field: `variant:${v.id}:${String(f.key)}`, label: `${label} — ${f.label}`, before: b, after: a });
+    }
+  }
+  const kept = new Set(target.variants.map((v) => v.id));
+  for (const v of liveSet.variants) {
+    if (!kept.has(v.id)) out.push({ field: `variant:${v.id}`, label: `${variantLabel(liveSet.options, v.optionValueIds) ?? "The product"} — removed`, before: "Sold", after: null });
+  }
+  return out;
+}
+
+/** Whether a change moves any shop price (a new variant has one): the margin must then be confirmed (FR-031). */
+function changesShopPrices(live: VariantSet, target: SetInput | null): boolean {
+  if (!target) return false;
+  const liveById = new Map(liveSetOf(live).variants.map((v) => [v.id, v]));
+  return target.variants.some((v) => {
+    const was = liveById.get(v.id);
+    return !was || moneyOrNull(was.shopPriceAmount) !== moneyOrNull(v.shopPriceAmount) || moneyOrNull(was.shopCompareAtAmount) !== moneyOrNull(v.shopCompareAtAmount);
+  });
 }
 
 async function images(rows: repo.MediaRow[], liveKeys: Set<string> | null): Promise<ReviewImageDTO[]> {
@@ -194,15 +340,14 @@ type Proposed = {
   shortDescription?: unknown;
   longDescription?: unknown;
   brand?: unknown;
-  sku?: unknown;
-  gtin?: unknown;
   primaryCategoryId?: unknown;
   productTypeId?: unknown;
-  priceAmount?: unknown;
-  compareAtAmount?: unknown;
-  weightGrams?: unknown;
   gstStatus?: unknown;
   attributes?: unknown;
+  /** 098 */
+  unitBasis?: unknown;
+  options?: unknown;
+  variants?: unknown;
 };
 
 interface ProposedAttribute {
@@ -227,6 +372,7 @@ async function changesOf(
   p: repo.ProductRow,
   attrs: repo.AttributeRow[],
   proposed: Proposed,
+  live: VariantSet,
 ): Promise<ReviewFieldChangeDTO[]> {
   const pAttrs = proposedAttributes(proposed);
   const names = await repo.namesFor(
@@ -242,8 +388,6 @@ async function changesOf(
   if ("shortDescription" in proposed) add("shortDescription", "Short description", p.short_description, str(proposed.shortDescription));
   if ("longDescription" in proposed) add("longDescription", "Long description", p.long_description, str(proposed.longDescription));
   if ("brand" in proposed) add("brand", "Brand", p.brand, str(proposed.brand));
-  if ("sku" in proposed) add("sku", "SKU", p.sku, str(proposed.sku));
-  if ("gtin" in proposed) add("gtin", "Barcode", p.gtin, str(proposed.gtin));
   if ("primaryCategoryId" in proposed) {
     const c = names.categories.get(String(proposed.primaryCategoryId));
     add("primaryCategoryId", "Category", p.category_name, c?.name ?? null);
@@ -252,18 +396,19 @@ async function changesOf(
     const t = names.types.get(String(proposed.productTypeId));
     add("productTypeId", "Product type", p.type_name, t?.name ?? null);
   }
-  if ("priceAmount" in proposed) add("priceAmount", "Shop price", p.shop_price_amount, str(proposed.priceAmount));
-  if ("compareAtAmount" in proposed) add("compareAtAmount", "Shop \"was\" price", p.shop_compare_at_amount, str(proposed.compareAtAmount));
-  if ("weightGrams" in proposed) add("weightGrams", "Weight (g)", String(p.weight_grams), String(proposed.weightGrams));
+  if ("unitBasis" in proposed) add("unitBasis", "Unit pricing", basisWords(p.unit_basis), basisWords(str(proposed.unitBasis)));
+  // 098 — sizes added, removed or changed, and the options they are chosen by.
+  const target = proposedSetOf(proposed);
+  if (target) out.push(...variantChanges(live, target));
   // 096 — the shop's GST status for a live product is reviewed like every other detail.
   if ("gstStatus" in proposed && isGstStatus(proposed.gstStatus)) {
     add("gstStatus", "GST", p.gst_status ? GST_STATUS_WORDS[p.gst_status] : "Not set", GST_STATUS_WORDS[proposed.gstStatus]);
   }
 
-  const live = new Map(attrs.map((a) => [a.attribute_definition_id, a]));
+  const liveAttrs = new Map(attrs.map((a) => [a.attribute_definition_id, a]));
   for (const a of pAttrs) {
     const def = names.attributes.get(a.attributeId);
-    const was = live.get(a.attributeId);
+    const was = liveAttrs.get(a.attributeId);
     add(`attribute:${def?.key ?? a.attributeId}`, def?.name ?? "Attribute", was ? attributeText(was) : null, attributeText(a));
   }
   return out;
@@ -274,7 +419,10 @@ export async function item(rawProductId: string | undefined): Promise<ReviewItem
   const p = await repo.readProduct(productId);
   if (!p) throw new ReviewError("not_found", "no such review item");
 
-  const [attrs, liveMedia] = await Promise.all([repo.readAttributes(productId), repo.readLiveMedia(productId)]);
+  const [attrs, liveMedia, sets] = await Promise.all([
+    repo.readAttributes(productId), repo.readLiveMedia(productId), readVariantSets(pooled, [productId]),
+  ]);
+  const live = sets.get(productId)!;
   const shop = { id: p.shop_id, name: p.shop_name, status: p.shop_status };
 
   if (!p.approved) {
@@ -288,11 +436,11 @@ export async function item(rawProductId: string | undefined): Promise<ReviewItem
       shop,
       submittedAt: p.submitted_at.toISOString(),
       productName: p.name,
-      details: detailsOf(p, attrs),
+      details: detailsOf(p, attrs, live),
       changes: [],
       images: { current: await images(liveMedia, null), proposed: null },
-      shopPriceAmount: p.shop_price_amount,
-      shopCompareAtAmount: p.shop_compare_at_amount,
+      // Under no margin yet: the reviewer's margin input recomputes these as they type.
+      variants: reviewVariants(live, null, null),
       currentMargin: null,
       marginRequired: true,
     };
@@ -305,7 +453,8 @@ export async function item(rawProductId: string | undefined): Promise<ReviewItem
   const proposed = change.proposed as Proposed;
   const liveKeys = new Set(liveMedia.map((m) => m.storage_key));
   const proposedMedia = change.media_changed ? await repo.readChangeMedia(change.id) : null;
-  const priceChanges = "priceAmount" in proposed;
+  const target = proposedSetOf(proposed);
+  const priceChanges = changesShopPrices(live, target);
 
   return {
     productId,
@@ -314,15 +463,13 @@ export async function item(rawProductId: string | undefined): Promise<ReviewItem
     shop,
     submittedAt: change.submitted_at.toISOString(),
     productName: p.name,
-    details: detailsOf(p, attrs),
-    changes: await changesOf(p, attrs, proposed),
+    details: detailsOf(p, attrs, live),
+    changes: await changesOf(p, attrs, proposed, live),
     images: {
       current: await images(liveMedia, null),
       proposed: proposedMedia ? await images(proposedMedia, liveKeys) : null,
     },
-    shopPriceAmount: priceChanges ? String(proposed.priceAmount) : p.shop_price_amount,
-    shopCompareAtAmount:
-      "compareAtAmount" in proposed ? str(proposed.compareAtAmount) : p.shop_compare_at_amount,
+    variants: reviewVariants(live, target, marginOf(p)),
     currentMargin: marginOf(p),
     marginRequired: priceChanges || p.margin_kind === null,
   };
@@ -353,16 +500,24 @@ function requireMargin(input: unknown): Margin {
   return out.margin;
 }
 
-function priceFor(shopPrice: string, shopCompareAt: string | null, margin: Margin | null): repo.PriceWrite {
-  if (!MONEY.test(shopPrice)) throw new ReviewError("validation", "the shop price is not a valid amount");
-  return {
-    marginKind: margin?.kind ?? null,
-    marginValue: margin?.value ?? null,
-    priceAmount: customerPrice(shopPrice, margin),
-    // ⚠ FR-035 — the "was" price carries the SAME margin, so the comparison a customer sees is like
-    // for like. A shop "was 12, now 10" must not become "was 12, now 12" once Effy adds 20%.
-    compareAtAmount: shopCompareAt !== null && MONEY.test(shopCompareAt) ? customerPrice(shopCompareAt, margin) : null,
-  };
+const marginWrite = (margin: Margin | null): repo.MarginWrite => ({ marginKind: margin?.kind ?? null, marginValue: margin?.value ?? null });
+
+/**
+ * 098 — every live variant's prices after a decision. The customer prices were written by
+ * `priceVariants` (lib/margin.ts is the arithmetic); ⚠ FR-035 — the "was" price carries the SAME
+ * margin, so "was 12, now 10" never becomes "was 12, now 12" once Effy adds 20%.
+ */
+async function decidedVariants(tx: Parameters<typeof readVariantSets>[0], productId: string): Promise<ReviewDecisionDTO["variants"]> {
+  const set = (await readVariantSets(tx, [productId], { states: ["active", "inactive"] })).get(productId)!;
+  return set.variants.map((v) => ({ id: v.id, label: v.label, shopPriceAmount: v.shopPriceAmount, customerPriceAmount: v.priceAmount ?? v.shopPriceAmount }));
+}
+
+/** A set the one writer refused at approval — the shop must change it, so it goes back. */
+function asReviewError(err: unknown): never {
+  if (err instanceof VariantSetInvalid) {
+    throw new ReviewError("validation", "the proposed sizes are no longer valid — send this back", err.errors);
+  }
+  throw err;
 }
 
 const marginDetail = (m: Margin | MarginDTO | null) => (m ? { kind: m.kind, value: m.value } : null);
@@ -389,18 +544,19 @@ export async function approve(
         if (p.review_state !== "in_review" || p.version !== version) throw new ReviewError("conflict", STALE);
         // FR-028 — no approval without a margin. Zero is a margin; absent is not.
         const margin = requireMargin(body.margin);
-        const price = priceFor(p.shop_price_amount, p.shop_compare_at_amount, margin);
-        if (!(await repo.approveNewProduct(tx, productId, version, price))) throw new ReviewError("conflict", STALE);
+        if (!(await repo.approveNewProduct(tx, productId, version, marginWrite(margin)))) throw new ReviewError("conflict", STALE);
+        // 098 — the ONE margin prices EVERY variant (R7).
+        await priceVariants(tx, productId, margin);
+        const variants = await decidedVariants(tx, productId);
 
         await repo.audit(tx, actorSub, "product.approved", productId, {
           shopId: p.shop_id,
-          shopPriceAmount: p.shop_price_amount,
-          customerPriceAmount: price.priceAmount,
+          variants: variants.map((v) => ({ id: v.id, shopPriceAmount: v.shopPriceAmount, customerPriceAmount: v.customerPriceAmount })),
           marginBefore: null,
           marginAfter: marginDetail(margin),
         });
         await repo.notifyShop(tx, "shop_product_approved", p.shop_id, productId, `${productId}:${version}`);
-        return { productId, shopPriceAmount: p.shop_price_amount, customerPriceAmount: price.priceAmount, margin };
+        return { productId, margin, variants };
       }
 
       // ── A change to a live product ──
@@ -425,22 +581,18 @@ export async function approve(
         throw new ReviewError("validation", "the proposed product type is no longer available — send this back");
       }
 
-      const shopPrice = "priceAmount" in proposed ? String(proposed.priceAmount) : p.shop_price_amount;
-      const shopCompareAt = "compareAtAmount" in proposed ? str(proposed.compareAtAmount) : p.shop_compare_at_amount;
+      const live = (await readVariantSets(tx, [productId])).get(productId)!;
+      const target = proposedSetOf(proposed);
       const current = marginOf(p);
-      // FR-031 — a new shop price reopens the margin; so does a product that never had one.
-      const marginRequired = "priceAmount" in proposed || current === null;
+      // FR-031 — a new shop price (or a new variant) reopens the margin; so does a product that never had one.
+      const marginRequired = changesShopPrices(live, target) || current === null;
       const supplied = body.margin !== undefined && body.margin !== null;
       if (marginRequired && !supplied) {
         const message = "confirm the margin — the shop's price is changing, or none has been set";
         throw new ReviewError("validation", message, [{ field: "margin", message }]);
       }
       const margin = supplied ? requireMargin(body.margin) : current;
-      const price = priceFor(shopPrice, shopCompareAt, margin);
-
-      const weight = typeof proposed.weightGrams === "number" && Number.isInteger(proposed.weightGrams) && proposed.weightGrams > 0
-        ? proposed.weightGrams
-        : null;
+      const unitBasis = "unitBasis" in proposed ? (str(proposed.unitBasis) as UnitBasis | null) : (p.unit_basis as UnitBasis | null);
 
       await repo.applyChange(
         tx,
@@ -448,19 +600,14 @@ export async function approve(
         change.id,
         {
           name: str(proposed.name) ?? p.name,
-          sku: "sku" in proposed ? str(proposed.sku) : p.sku,
-          gtin: "gtin" in proposed ? str(proposed.gtin) : p.gtin,
           brand: "brand" in proposed ? str(proposed.brand) : p.brand,
           shortDescription: str(proposed.shortDescription) ?? p.short_description,
           longDescription: "longDescription" in proposed ? str(proposed.longDescription) : p.long_description,
           productTypeId: str(proposed.productTypeId) ?? p.product_type_id,
           primaryCategoryId: str(proposed.primaryCategoryId) ?? p.primary_category_id,
-          weightGrams: weight ?? p.weight_grams,
-          weightChanged: weight !== null,
-          shopPriceAmount: shopPrice,
-          shopCompareAtAmount: shopCompareAt,
+          unitBasis,
         },
-        price,
+        marginWrite(margin),
         pAttrs.map((a) => ({
           attributeId: a.attributeId,
           valueText: a.valueText ?? null,
@@ -474,20 +621,30 @@ export async function approve(
       if (isGstStatus(proposed.gstStatus)) {
         await setGstStatus(tx, productId, proposed.gstStatus, { kind: "admin_staff", sub: actorSub }, "review");
       }
+      // 098 — the proposed sizes become the live ones through the ONE writer (after the images, which
+      // a variant may name); a variant the proposal drops is REMOVED, kept for history. A basis that
+      // changed alone is checked against the sizes as they are.
+      if (target) {
+        await applyVariantSet(tx, { productId, shopId: p.shop_id, options: target.options, variants: target.variants, unitBasis, mode: "live" }).catch(asReviewError);
+      } else if ("unitBasis" in proposed) {
+        const errors = validateVariantSet(liveSetOf(live).options, liveSetOf(live).variants, unitBasis);
+        if (errors.length > 0) throw new ReviewError("validation", "the proposed unit pricing does not fit the sizes — send this back", errors);
+      }
+      // 098 — the ONE margin prices EVERY variant (R7), new ones included.
+      await priceVariants(tx, productId, margin);
+      const variants = await decidedVariants(tx, productId);
 
       await repo.audit(tx, actorSub, "product.change_approved", productId, {
         shopId: p.shop_id,
         // WHICH details changed, never their values: a description is not audit data, and the
-        // before/after of a price is carried explicitly below.
+        // prices after are carried explicitly below.
         changed: [...Object.keys(proposed).filter((k) => k !== "attributes"), ...(pAttrs.length ? ["attributes"] : []), ...(change.media_changed ? ["images"] : [])].sort(),
-        shopPriceBefore: p.shop_price_amount,
-        shopPriceAfter: shopPrice,
-        customerPriceAmount: price.priceAmount,
+        variants: variants.map((v) => ({ id: v.id, shopPriceAmount: v.shopPriceAmount, customerPriceAmount: v.customerPriceAmount })),
         marginBefore: marginDetail(current),
         marginAfter: marginDetail(margin),
       });
       await repo.notifyShop(tx, "shop_product_approved", p.shop_id, productId, `${productId}:${version}`);
-      return { productId, shopPriceAmount: shopPrice, customerPriceAmount: price.priceAmount, margin };
+      return { productId, margin, variants };
     });
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -552,18 +709,20 @@ export async function setMargin(
     if (!p.approved) {
       throw new ReviewError("conflict", "this product has not been approved — set its margin when approving it");
     }
-    const price = priceFor(p.shop_price_amount, p.shop_compare_at_amount, margin);
-    const ok = await repo.setMargin(tx, productId, { kind: expected?.kind ?? null, value: expected?.value ?? null }, price);
+    const before = await decidedVariants(tx, productId);
+    const ok = await repo.setMargin(tx, productId, { kind: expected?.kind ?? null, value: expected?.value ?? null }, marginWrite(margin));
     if (!ok) throw new ReviewError("conflict", "the margin was changed by someone else — reload and look again");
+    // 098 — the customer price of EVERY variant follows at once.
+    await priceVariants(tx, productId, margin);
+    const variants = await decidedVariants(tx, productId);
 
     await repo.audit(tx, actorSub, "product.margin_set", productId, {
       shopId: p.shop_id,
-      shopPriceAmount: p.shop_price_amount,
-      customerPriceBefore: p.price_amount,
-      customerPriceAfter: price.priceAmount,
+      customerPricesBefore: before.map((v) => ({ id: v.id, customerPriceAmount: v.customerPriceAmount })),
+      customerPricesAfter: variants.map((v) => ({ id: v.id, customerPriceAmount: v.customerPriceAmount })),
       marginBefore: marginDetail(marginOf(p)),
       marginAfter: marginDetail(margin),
     });
-    return { productId, shopPriceAmount: p.shop_price_amount, customerPriceAmount: price.priceAmount, margin };
+    return { productId, margin, variants };
   });
 }

@@ -6,6 +6,7 @@ import { COVERAGE_REFUSAL_SENTENCE, type AddressDTO, type DeliveryQuoteDTO } fro
 
 import { capture } from "@/lib/telemetry"
 
+import { addToCart, resetCart } from "@/lib/cart-store"
 import { CheckoutFlow, DELIVERY_TYPE_CHANGED_MESSAGE } from "./CheckoutFlow"
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -74,10 +75,9 @@ beforeEach(() => {
   quoted = []
   intentBodies = []
   intentReplies = [ACCEPTED]
-  window.localStorage.setItem(
-    "effy:cart",
-    JSON.stringify([{ productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" }]),
-  )
+  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  resetCart()
+  addToCart({ variantId: "v1", productId: "p1", name: "Milk", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a" })
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL, init?: RequestInit) => {

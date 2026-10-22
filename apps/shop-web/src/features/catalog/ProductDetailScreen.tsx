@@ -27,7 +27,6 @@ import {
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge";
 import {
-  discountText,
   formatAttributeValue,
   formatMoney,
   orderedMedia,
@@ -42,15 +41,16 @@ import {
   AttributesEditDialog,
   BasicsEditDialog,
   CategorizationEditDialog,
-  PricingEditDialog,
+  SizesEditDialog,
 } from "./ProductEditDialogs";
 import { productDetailQuery } from "./queries";
 import { isApproved, reviewChip, workingDetail } from "./review";
 import { ReviewPanel } from "./ReviewPanel";
 import { SectionAssignment } from "./SectionAssignment";
-import { productStockQuery } from "./stockQueries";
+import { defaultStockVariantId, shopPriceSummary } from "./variants";
+import { VariantsSection } from "./VariantsSection";
 
-type EditTarget = "basics" | "pricing" | "categorization" | "attributes" | null;
+type EditTarget = "basics" | "sizes" | "categorization" | "attributes" | null;
 
 type DetailTab = "details" | "inventory" | "media" | "visibility";
 
@@ -77,11 +77,11 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 
 function ProductDetailBody({ productId }: { productId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId));
-  // Shares the Inventory tab's cache entry rather than issuing a second read (Principle VI).
-  const headerStock = useQuery(productStockQuery(productId));
   const [editing, setEditing] = useState<EditTarget>(null);
   const [tab, setTab] = useState<DetailTab>("details");
   const [activityOpen, setActivityOpen] = useState(false);
+  // 098 — the size whose stock the Inventory tab, Receive stock and Activity show.
+  const [chosenStockVariant, setStockVariant] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const goCatalog = () => void navigate({ to: "/catalog" });
@@ -102,12 +102,18 @@ function ProductDetailBody({ productId }: { productId: string }) {
   }
 
   const detail: ProductDetail = data;
+  const stockVariantId =
+    chosenStockVariant && detail.variants.some((v) => v.id === chosenStockVariant && v.state !== "removed")
+      ? chosenStockVariant
+      : (defaultStockVariantId(detail) ?? "");
   // 067 — the page shows the LIVE product; the editors open on the shop's own latest version.
   const working = workingDetail(detail);
   const chip = reviewChip(detail.reviewState);
-  const approved = isApproved(detail);
-  const shopPrice = detail.shopPriceAmount ?? detail.priceAmount;
-  const customerPrice = detail.customerPriceAmount ?? detail.priceAmount;
+  // 098 — the header's price is the cheapest size on sale, "From" when sizes differ; its stock chip
+  // answers for the product as a whole (sold out only when every size on sale is).
+  const price = shopPriceSummary(detail);
+  const onSale = detail.variants.filter((v) => v.state === "active");
+  const soldOut = onSale.length > 0 && onSale.every((v) => v.stock.outOfStock);
   const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target);
 
   return (
@@ -121,8 +127,10 @@ function ProductDetailBody({ productId }: { productId: string }) {
             {detail.name}
           </h1>
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-muted-foreground font-mono text-[12.5px] whitespace-nowrap">
-              {detail.sku ?? "no SKU"}
+            <span className="text-muted-foreground text-[12.5px] whitespace-nowrap">
+              {detail.variants.filter((v) => v.state !== "removed").length === 1
+                ? (detail.variants[0]?.sku ?? "no SKU")
+                : `${detail.variants.filter((v) => v.state !== "removed").length} sizes`}
             </span>
             <MetaDivider />
             <span className="text-muted-foreground text-[13px]">{detail.categoryName}</span>
@@ -130,10 +138,10 @@ function ProductDetailBody({ productId }: { productId: string }) {
             {/* ⚠ The header chip answers "can a shopper buy this right now", which is the question
                 an operator opens this screen with — so it takes the live stock the rest of the page
                 is already reading rather than reporting a lifecycle state an empty shelf contradicts. */}
-            <ProductStatusBadge status={detail.status} stock={headerStock.data?.stock} />
+            <ProductStatusBadge status={detail.status} stock={onSale.length === 1 || soldOut ? onSale[0]?.stock : undefined} />
             {chip ? <Badge variant={chip.tone}>{chip.label}</Badge> : null}
             <span className="text-[13.5px] font-medium tabular-nums whitespace-nowrap">
-              {formatMoney(shopPrice, detail.currency)}
+              {price.amount ? `${price.varies ? "From " : ""}${formatMoney(price.amount, detail.currency)}` : "—"}
             </span>
           </div>
         </div>
@@ -141,6 +149,7 @@ function ProductDetailBody({ productId }: { productId: string }) {
         {/* Receive stock · Unpublish/Publish · Activity · Archive — the mockup's order. */}
         <ProductHeaderActions
           detail={detail}
+          stockVariantId={stockVariantId}
           onOpenActivity={() => setActivityOpen(true)}
           onDeleted={goCatalog}
         />
@@ -184,62 +193,19 @@ function ProductDetailBody({ productId }: { productId: string }) {
         <TabsContent value="details" className="grid gap-[34px]">
           <DetailSection
             title="Product details"
-            subtitle="Name, SKU and how this product is filed."
+            subtitle="Name, brand and how this product is taxed. Codes and weights are each size's."
             action={<SectionAction onClick={edit("basics")}>Edit</SectionAction>}
           >
             <FieldGrid>
               <Field label="Name" value={detail.name} />
               <Field label="Brand" value={detail.brand ?? "—"} />
-              <Field label="SKU" value={detail.sku ?? "—"} mono />
-              <Field label="GTIN" value={detail.gtin ?? "—"} mono />
-              <Field
-                label="Shipping weight"
-                value={
-                  detail.weightIsAssumed
-                    ? `${detail.weightGrams} g (assumed — not yet measured)`
-                    : `${detail.weightGrams} g`
-                }
-              />
               <Field label="GST" value={detail.gstStatus ? GST_STATUS_WORDS[detail.gstStatus] : "Not set"} />
               <Field label="Short description" value={detail.shortDescription} wide />
               <Field label="Long description" value={detail.longDescription ?? "—"} wide />
             </FieldGrid>
           </DetailSection>
 
-          {/* ⚠ FOUR FIGURES, AS THE MOCKUP HAS — BUT NOT ITS FOUR. Its Unit cost and Margin need a cost
-              the platform never records (`inventory-guard.test.ts`); Currency and the compare-at
-              saving are the two real figures that take their places. */}
-          <DetailSection
-            title="Pricing"
-            subtitle={
-              approved
-                ? "What you are paid, and what customers pay. A new price is reviewed by Effy before it applies."
-                : "What you are paid. Effy sets what customers pay when it approves the product."
-            }
-            action={<SectionAction onClick={edit("pricing")}>Edit</SectionAction>}
-          >
-            <div className="grid grid-cols-2 gap-x-8 gap-y-[18px] pt-[18px] sm:grid-cols-4">
-              <Field label="Your price" size="display" value={formatMoney(shopPrice, detail.currency)} />
-              {/* ⚠ BOTH PRICES, NEVER THE MARGIN (067 FR-033). The customer price is shown only once
-                  Effy has approved the product: before that there is no customer price, and showing
-                  the shop's own figure under that label would be a promise nobody made. */}
-              <Field
-                label="Customers pay"
-                size="display"
-                value={approved ? formatMoney(customerPrice, detail.currency) : "Set when approved"}
-              />
-              <Field
-                label="Compare at"
-                size="display"
-                value={formatMoney(detail.compareAtAmount, detail.currency)}
-              />
-              <Field
-                label="Discount"
-                size="display"
-                value={discountText(detail.priceAmount, detail.compareAtAmount)}
-              />
-            </div>
-          </DetailSection>
+          <VariantsSection detail={detail} onEdit={edit("sizes")} />
 
           {/* Not in the mockup, which has no typed attributes; it belongs with the other facts about
               what the product IS, so it closes the Details tab. */}
@@ -268,7 +234,7 @@ function ProductDetailBody({ productId }: { productId: string }) {
 
         {/* ── Inventory: Stock rules + Stock movements (see InventorySection) ─────────────────── */}
         <TabsContent value="inventory" className="grid gap-[34px]">
-          <InventorySection detail={detail} />
+          <InventorySection detail={detail} variantId={stockVariantId} onVariantChange={setStockVariant} />
         </TabsContent>
 
         <TabsContent value="media" className="grid gap-[34px]">
@@ -300,17 +266,17 @@ function ProductDetailBody({ productId }: { productId: string }) {
         </TabsContent>
       </Tabs>
 
-      <ProductActivitySheet detail={detail} open={activityOpen} onOpenChange={setActivityOpen} />
+      <ProductActivitySheet detail={detail} variantId={stockVariantId} open={activityOpen} onOpenChange={setActivityOpen} />
 
       <BasicsEditDialog
         detail={working}
         open={editing === "basics"}
         onOpenChange={(o) => setEditing(o ? "basics" : null)}
       />
-      <PricingEditDialog
+      <SizesEditDialog
         detail={working}
-        open={editing === "pricing"}
-        onOpenChange={(o) => setEditing(o ? "pricing" : null)}
+        open={editing === "sizes"}
+        onOpenChange={(o) => setEditing(o ? "sizes" : null)}
       />
       <CategorizationEditDialog
         detail={working}

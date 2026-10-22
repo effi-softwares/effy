@@ -65,7 +65,7 @@ class ListChooserViewModelTest {
             }
         }
 
-        override suspend fun create(name: String, productId: String?): SavedList {
+        override suspend fun create(name: String, productId: String?, variantId: String?): SavedList {
             calls += "create:$name:$productId"
             refuse?.let { throw ListRefusedException(it) }
             names["new"] = name
@@ -76,7 +76,7 @@ class ListChooserViewModelTest {
         override suspend fun rename(listId: String, name: String) = error("not used")
         override suspend fun delete(listId: String) = error("not used")
 
-        override suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String?) {
+        override suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String?, variantId: String?) {
             calls += "add:$listId"
             refuse?.let {
                 if (it == ListRefusal.LIST_NOT_FOUND) names.remove(listId)
@@ -95,7 +95,7 @@ class ListChooserViewModelTest {
         var reads = 0
         override suspend fun membership(): SavedMembership { reads++; return SavedMembership(setOf(PRODUCT)) }
         override suspend fun list(listId: String): List<SavedItem> = emptyList()
-        override suspend fun save(productId: String, restoreSavedAt: String?) = Unit
+        override suspend fun save(productId: String, restoreSavedAt: String?, variantId: String?) = Unit
         override suspend fun remove(productId: String) = Unit
     }
 

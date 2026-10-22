@@ -10,15 +10,10 @@
 --      ⚠ `food` and `grocery` — dev's old top levels — are RETIRED once nothing is filed in them.
 --   2. THE PRODUCTS DEV ALREADY HAS are re-filed under the leaf they belong to, by name. A product
 --      whose name matches nothing stays exactly where it is.
---   3. NEW PRODUCTS (sku `SEED084-…`), on sale at once: active, approved, margin not set — the same
---      shape 067's backfill gave every product that predates approval. They have NO picture.
+--   3. Products are no longer seeded here (098): see db/seeds/098_variant_catalogue_dev.sql, run
+--      after this file.
 --
--- ⚠ THE NEW PRODUCTS BELONG TO AN EXISTING SHOP — the shop of dev's oldest product on sale — and
---   copy its product type. A shop is never invented here. With no such product it STOPS, having
---   written nothing.
--- ⚠ Stock is untracked on the new products, so they read as available everywhere.
---
--- Idempotent: categories upsert by key, products are skipped when their sku is already in the shop.
+-- Idempotent: categories upsert by key.
 
 \set ON_ERROR_STOP on
 
@@ -252,126 +247,15 @@ WHERE c.key IN ('food', 'grocery')
   AND NOT EXISTS (SELECT 1 FROM public.product p WHERE p.primary_category_id = c.id)
   AND NOT EXISTS (SELECT 1 FROM public.category k WHERE k.parent_id = c.id AND k.status = 'active');
 
--- ── 3. New products ─────────────────────────────────────────────────────────────────────────────
-
-CREATE TEMP TABLE seed_template ON COMMIT DROP AS
-SELECT shop_id, product_type_id, created_by
-FROM public.product
-WHERE status = 'active' AND approved_at IS NOT NULL
-ORDER BY created_at ASC, id ASC
-LIMIT 1;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM seed_template) THEN
-        RAISE EXCEPTION '084 seed: dev has no product on sale to take a shop and product type from. Nothing was written.';
-    END IF;
-END
-$$;
-
-INSERT INTO public.product (
-    shop_id, product_type_id, primary_category_id, name, sku,
-    price_amount, shop_price_amount, compare_at_amount, shop_compare_at_amount,
-    short_description, status, approved_at, created_by)
-SELECT t.shop_id, t.product_type_id, c.id, v.name, v.sku,
-       v.price, v.price, v.was, v.was,
-       v.blurb, 'active', now(), t.created_by
-FROM (VALUES
-    ('SEED084-001', 'milk_full_cream', 'Full Cream Milk 2L', 3.60::numeric, NULL::numeric, 'Fresh full cream milk.'),
-    ('SEED084-002', 'milk_full_cream', 'Full Cream Milk 1L', 2.10::numeric, NULL::numeric, 'Fresh full cream milk.'),
-    ('SEED084-003', 'milk_full_cream', 'Jersey Full Cream Milk 1.5L', 4.80::numeric, 5.50::numeric, 'Rich, creamy jersey milk.'),
-    ('SEED084-004', 'milk_light_and_skim', 'Light Milk 2L', 3.60::numeric, NULL::numeric, 'Reduced fat milk.'),
-    ('SEED084-005', 'milk_light_and_skim', 'Skim Milk 1L', 2.10::numeric, NULL::numeric, 'Fat free milk.'),
-    ('SEED084-006', 'milk_long_life', 'Long Life Full Cream Milk 1L', 1.80::numeric, NULL::numeric, 'UHT milk that keeps in the pantry.'),
-    ('SEED084-007', 'milk_long_life', 'Long Life Lactose Free Milk 1L', 2.90::numeric, NULL::numeric, 'Lactose free UHT milk.'),
-    ('SEED084-008', 'plant_milk_oat', 'Oat Milk Barista 1L', 3.00::numeric, 4.00::numeric, 'Oat milk made to steam and pour.'),
-    ('SEED084-009', 'plant_milk_oat', 'Oat Milk Original 2L', 5.20::numeric, NULL::numeric, 'Everyday oat milk.'),
-    ('SEED084-010', 'plant_milk_almond', 'Almond Milk Unsweetened 1L', 2.80::numeric, NULL::numeric, 'No added sugar.'),
-    ('SEED084-011', 'plant_milk_soy', 'Soy Milk Original 1L', 2.40::numeric, NULL::numeric, 'Calcium enriched soy milk.'),
-    ('SEED084-012', 'cheese_block', 'Tasty Cheese Block 500g', 8.50::numeric, NULL::numeric, 'Mature cheddar.'),
-    ('SEED084-013', 'cheese_block', 'Mild Cheddar Block 250g', 5.00::numeric, NULL::numeric, 'Smooth, mild cheddar.'),
-    ('SEED084-014', 'cheese_sliced', 'Tasty Cheese Slices 12 Pack', 5.50::numeric, 6.50::numeric, 'Sandwich-ready slices.'),
-    ('SEED084-015', 'cheese_specialty', 'Double Cream Brie 200g', 7.00::numeric, NULL::numeric, 'Soft-ripened brie.'),
-    ('SEED084-016', 'cheese_specialty', 'Greek Style Feta 200g', 5.20::numeric, NULL::numeric, 'Crumbly, salty feta.'),
-    ('SEED084-017', 'yoghurt_greek', 'Greek Yoghurt Natural 1kg', 5.80::numeric, NULL::numeric, 'Thick, strained yoghurt.'),
-    ('SEED084-018', 'yoghurt_greek', 'Greek Yoghurt Honey 500g', 4.50::numeric, NULL::numeric, 'Greek yoghurt with honey.'),
-    ('SEED084-019', 'yoghurt_kids', 'Kids Yoghurt Pouches Strawberry 4 Pack', 4.80::numeric, NULL::numeric, 'No added sugar.'),
-    ('SEED084-020', 'yoghurt_dairy_free', 'Coconut Yoghurt Vanilla 500g', 6.90::numeric, NULL::numeric, 'Dairy free coconut yoghurt.'),
-    ('SEED084-021', 'eggs_free_range', 'Free Range Eggs 12 Pack', 7.20::numeric, NULL::numeric, 'Large free range eggs.'),
-    ('SEED084-022', 'eggs_free_range', 'Free Range Eggs 6 Pack', 4.20::numeric, NULL::numeric, 'Large free range eggs.'),
-    ('SEED084-023', 'eggs_cage_free', 'Cage Free Eggs 12 Pack', 5.90::numeric, NULL::numeric, 'Barn laid eggs.'),
-    ('SEED084-024', 'butter_spreads_butter', 'Salted Butter 250g', 4.90::numeric, NULL::numeric, 'Churned Australian butter.'),
-    ('SEED084-025', 'butter_spreads_butter', 'Unsalted Butter 250g', 4.90::numeric, NULL::numeric, 'For baking and cooking.'),
-    ('SEED084-026', 'butter_spreads_margarine', 'Olive Oil Spread 500g', 4.00::numeric, NULL::numeric, 'Soft table spread.'),
-    ('SEED084-027', 'fruit_apples_and_pears', 'Royal Gala Apples 1kg', 4.90::numeric, NULL::numeric, 'Crisp and sweet.'),
-    ('SEED084-028', 'fruit_apples_and_pears', 'Packham Pears 1kg', 4.50::numeric, NULL::numeric, 'Juicy green pears.'),
-    ('SEED084-029', 'fruit_bananas', 'Cavendish Bananas 1kg', 3.90::numeric, NULL::numeric, 'Ripen at home.'),
-    ('SEED084-030', 'fruit_citrus', 'Navel Oranges 3kg', 6.00::numeric, 7.50::numeric, 'Seedless and easy to peel.'),
-    ('SEED084-031', 'fruit_berries', 'Strawberries 250g', 4.50::numeric, NULL::numeric, 'Sweet local strawberries.'),
-    ('SEED084-032', 'vegetables_leafy_greens', 'Baby Spinach 120g', 3.00::numeric, NULL::numeric, 'Washed and ready.'),
-    ('SEED084-033', 'vegetables_root_vegetables', 'Carrots 1kg', 2.40::numeric, NULL::numeric, 'Crunchy carrots.'),
-    ('SEED084-034', 'vegetables_root_vegetables', 'Brushed Potatoes 2kg', 4.50::numeric, NULL::numeric, 'Good for mashing and roasting.'),
-    ('SEED084-035', 'vegetables_tomatoes_and_capsicum', 'Truss Tomatoes 500g', 4.20::numeric, NULL::numeric, 'Ripened on the vine.'),
-    ('SEED084-036', 'salad_herbs_salad_bags', 'Mixed Leaf Salad 200g', 3.50::numeric, NULL::numeric, 'Washed mixed leaves.'),
-    ('SEED084-037', 'salad_herbs_fresh_herbs', 'Fresh Basil Bunch', 3.00::numeric, NULL::numeric, 'Fragrant fresh basil.'),
-    ('SEED084-038', 'bread_white', 'White Sandwich Loaf 700g', 3.80::numeric, NULL::numeric, 'Soft white bread.'),
-    ('SEED084-039', 'bread_wholemeal_and_grain', 'Multigrain Loaf 700g', 4.20::numeric, NULL::numeric, 'Seeded multigrain bread.'),
-    ('SEED084-040', 'bread_sourdough', 'Sourdough Loaf 750g', 6.50::numeric, NULL::numeric, 'Slow fermented sourdough.'),
-    ('SEED084-041', 'rolls_wraps_rolls', 'Crusty Bread Rolls 6 Pack', 3.50::numeric, NULL::numeric, 'Baked fresh.'),
-    ('SEED084-042', 'rolls_wraps_wraps_and_flatbread', 'Wholemeal Wraps 8 Pack', 4.00::numeric, NULL::numeric, 'Soft wholemeal wraps.'),
-    ('SEED084-043', 'sweet_bakery_muffins_and_cakes', 'Blueberry Muffins 4 Pack', 5.50::numeric, NULL::numeric, 'Baked with real blueberries.'),
-    ('SEED084-044', 'sweet_bakery_pastries', 'Butter Croissants 4 Pack', 5.00::numeric, NULL::numeric, 'All-butter croissants.'),
-    ('SEED084-045', 'beef_lamb_mince', 'Beef Mince 500g', 8.00::numeric, NULL::numeric, 'Lean beef mince.'),
-    ('SEED084-046', 'beef_lamb_steak', 'Porterhouse Steak 2 Pack', 18.00::numeric, 21.00::numeric, 'Grass fed porterhouse.'),
-    ('SEED084-047', 'poultry_chicken_breast', 'Chicken Breast Fillets 500g', 9.50::numeric, NULL::numeric, 'Skinless chicken breast.'),
-    ('SEED084-048', 'poultry_chicken_thigh', 'Chicken Thigh Fillets 500g', 8.50::numeric, NULL::numeric, 'Skinless chicken thigh.'),
-    ('SEED084-049', 'pork_bacon_bacon', 'Short Cut Bacon 250g', 6.00::numeric, NULL::numeric, 'Rindless short cut bacon.'),
-    ('SEED084-050', 'pork_bacon_sausages', 'Pork Sausages 6 Pack', 7.50::numeric, NULL::numeric, 'Classic pork sausages.'),
-    ('SEED084-051', 'seafood_salmon', 'Salmon Fillets 2 Pack', 11.00::numeric, NULL::numeric, 'Skin-on Atlantic salmon.'),
-    ('SEED084-052', 'seafood_prawns', 'Cooked Prawns 300g', 12.50::numeric, NULL::numeric, 'Peeled and ready to eat.'),
-    ('SEED084-053', 'pasta_rice_pasta', 'Penne Pasta 500g', 2.20::numeric, NULL::numeric, 'Durum wheat penne.'),
-    ('SEED084-054', 'pasta_rice_rice', 'Basmati Rice 2kg', 6.90::numeric, NULL::numeric, 'Long grain basmati.'),
-    ('SEED084-055', 'pasta_rice_noodles', 'Egg Noodles 400g', 2.80::numeric, NULL::numeric, 'Quick-cook egg noodles.'),
-    ('SEED084-056', 'canned_soup', 'Tomato Soup 420g', 2.50::numeric, NULL::numeric, 'Ready to heat.'),
-    ('SEED084-057', 'breakfast_spreads', 'Strawberry Jam 500g', 4.00::numeric, NULL::numeric, 'Made with whole fruit.'),
-    ('SEED084-058', 'breakfast_spreads', 'Peanut Butter Crunchy 375g', 4.50::numeric, 5.20::numeric, 'Roasted peanuts, nothing else.'),
-    ('SEED084-059', 'baking_flour', 'Plain Flour 1kg', 2.00::numeric, NULL::numeric, 'All-purpose flour.'),
-    ('SEED084-060', 'oils_sauces_pasta_sauce', 'Tomato & Basil Pasta Sauce 500g', 3.50::numeric, NULL::numeric, 'Slow cooked tomato sauce.'),
-    ('SEED084-061', 'oils_sauces_condiments', 'Tomato Sauce 500mL', 3.20::numeric, NULL::numeric, 'The barbecue staple.'),
-    ('SEED084-062', 'chips_corn_chips', 'Corn Chips Original 230g', 3.50::numeric, NULL::numeric, 'Stone-ground corn chips.'),
-    ('SEED084-063', 'biscuits_crackers', 'Water Crackers 125g', 2.20::numeric, NULL::numeric, 'Thin, crisp crackers.'),
-    ('SEED084-064', 'chocolate_blocks', 'Dark Chocolate 180g', 3.50::numeric, 5.00::numeric, '70% cocoa.'),
-    ('SEED084-065', 'chocolate_blocks', 'Milk Chocolate Block 180g', 4.50::numeric, NULL::numeric, 'Smooth milk chocolate.'),
-    ('SEED084-066', 'nuts_nuts', 'Roasted Almonds 400g', 9.00::numeric, NULL::numeric, 'Dry roasted, unsalted.'),
-    ('SEED084-067', 'soft_drinks_cola', 'Cola 1.25L', 2.50::numeric, NULL::numeric, 'Classic cola.'),
-    ('SEED084-068', 'soft_drinks_mineral_water', 'Lemon Mineral Water 1.25L', 2.20::numeric, NULL::numeric, 'Lightly sparkling.'),
-    ('SEED084-069', 'coffee_tea_coffee', 'Coffee Beans 500g', 12.00::numeric, 14.00::numeric, 'Medium roast whole beans.'),
-    ('SEED084-070', 'coffee_tea_tea', 'English Breakfast Tea 100 Bags', 5.50::numeric, NULL::numeric, 'A strong morning cup.'),
-    ('SEED084-071', 'water_sparkling_water', 'Sparkling Water 10 Pack', 7.00::numeric, NULL::numeric, 'Ten 375mL cans.'),
-    ('SEED084-072', 'water_still_water', 'Spring Water 12 x 600mL', 6.50::numeric, NULL::numeric, 'Still spring water.'),
-    ('SEED084-073', 'frozen_veg_vegetables', 'Frozen Peas 1kg', 3.50::numeric, NULL::numeric, 'Snap frozen garden peas.'),
-    ('SEED084-074', 'frozen_veg_chips_and_wedges', 'Frozen Straight Cut Chips 1kg', 4.50::numeric, NULL::numeric, 'Oven bake chips.'),
-    ('SEED084-075', 'frozen_meals_pizza', 'Frozen Margherita Pizza 400g', 6.00::numeric, NULL::numeric, 'Stone baked base.'),
-    ('SEED084-076', 'ice_cream_tubs', 'Vanilla Ice Cream 2L', 6.50::numeric, NULL::numeric, 'Classic vanilla.'),
-    ('SEED084-077', 'deli_sliced_meats', 'Shaved Leg Ham 200g', 5.50::numeric, NULL::numeric, 'Thinly shaved ham.'),
-    ('SEED084-078', 'deli_dips_and_antipasto', 'Hommus Dip 200g', 3.50::numeric, NULL::numeric, 'Chickpea and tahini dip.'),
-    ('SEED084-079', 'ready_meals_chilled_meals', 'Butter Chicken with Rice 350g', 7.50::numeric, NULL::numeric, 'Heat and eat.'),
-    ('SEED084-080', 'cleaning_surface_cleaners', 'Multipurpose Cleaner 750mL', 4.00::numeric, NULL::numeric, 'For kitchen and bathroom.'),
-    ('SEED084-081', 'paper_goods_tissues', 'Facial Tissues 224 Pack', 2.80::numeric, NULL::numeric, 'Soft 2 ply tissues.'),
-    ('SEED084-082', 'kitchen_bags_food_wrap', 'Cling Wrap 60m', 3.60::numeric, NULL::numeric, 'Keeps food fresh.'),
-    ('SEED084-083', 'nappies_nappies', 'Nappies Crawler 44 Pack', 16.00::numeric, 19.00::numeric, 'For 6 to 11 kg.'),
-    ('SEED084-084', 'nappies_wipes', 'Baby Wipes Fragrance Free 80 Pack', 3.50::numeric, NULL::numeric, 'Gentle on skin.'),
-    ('SEED084-085', 'baby_food_pouches', 'Apple & Pear Puree Pouch 120g', 2.00::numeric, NULL::numeric, 'From 4 months.'),
-    ('SEED084-086', 'kids_snacks_lunchbox_snacks', 'Fruit Bars 8 Pack', 4.50::numeric, NULL::numeric, 'Lunchbox-sized fruit bars.')
-) AS v (sku, category_key, name, price, was, blurb)
-JOIN public.category c ON c.key = v.category_key
-CROSS JOIN seed_template t
-WHERE NOT EXISTS (SELECT 1 FROM public.product p WHERE p.shop_id = t.shop_id AND p.sku = v.sku);
+-- ── 3. Products ─────────────────────────────────────────────────────────────────────────────────
+-- ⚠ MOVED TO db/seeds/098_variant_catalogue_dev.sql (098-product-variants). A product's price, stock
+-- code and stock now live on its variants, and the catalogue was reset to start fresh, so the
+-- products this seed used to insert are seeded there — as products with variants — after the aisles
+-- above exist. Run this file first, then 098's.
 
 COMMIT;
 
 -- What is there now.
 SELECT (SELECT count(*) FROM public.category WHERE status = 'active')                       AS active_categories,
        (SELECT count(*) FROM public.category WHERE status = 'active' AND parent_id IS NULL) AS aisles,
-       (SELECT count(*) FROM public.product WHERE sku LIKE 'SEED084-%')                     AS seeded_products,
        (SELECT count(*) FROM public.product WHERE status = 'active')                        AS products_on_sale;

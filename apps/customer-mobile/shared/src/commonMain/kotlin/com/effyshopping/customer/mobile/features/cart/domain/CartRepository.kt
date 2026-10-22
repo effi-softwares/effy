@@ -31,12 +31,12 @@ interface CartRepository {
      * Add or INCREMENT a line — the one non-idempotent operation, which is why `changeId` is not optional
      * anywhere in this port and is load-bearing here.
      */
-    suspend fun add(productId: String, quantity: Int, changeId: String): CartSnapshot
+    suspend fun add(variantId: String, quantity: Int, changeId: String): CartSnapshot
 
     /** Set an ABSOLUTE quantity; 0 removes. Absolute is what makes debouncing ten taps safe. */
-    suspend fun setQuantity(productId: String, quantity: Int, changeId: String): CartSnapshot
+    suspend fun setQuantity(variantId: String, quantity: Int, changeId: String): CartSnapshot
 
-    suspend fun remove(productId: String, changeId: String): CartSnapshot
+    suspend fun remove(variantId: String, changeId: String): CartSnapshot
 
     /** Empty the payable cart. Set-aside items survive it (FR-030/FR-032). */
     suspend fun clear(changeId: String): CartSnapshot
@@ -50,12 +50,12 @@ interface CartRepository {
     /** Add every still-available item of a past order back to the cart, reporting what could not come. */
     suspend fun reorder(orderId: String, changeId: String): ReorderOutcome
 
-    suspend fun setAside(productId: String, changeId: String): CartSnapshot
+    suspend fun setAside(variantId: String, changeId: String): CartSnapshot
 
     /** Move a set-aside line back into the cart, at its CURRENT price (FR-029). */
-    suspend fun restoreSaved(productId: String, changeId: String): CartSnapshot
+    suspend fun restoreSaved(variantId: String, changeId: String): CartSnapshot
 
-    suspend fun deleteSaved(productId: String, changeId: String): CartSnapshot
+    suspend fun deleteSaved(variantId: String, changeId: String): CartSnapshot
 
     /** Apply a promotional code. The platform decides validity and worth — never this client (FR-042). */
     suspend fun applyPromo(code: String): CartSnapshot

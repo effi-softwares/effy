@@ -22,10 +22,13 @@ data class AddToCartRequest (
     @SerialName("changeId")
     val changeID: String,
 
-    @SerialName("productId")
-    val productID: String,
+    val quantity: Long,
 
-    val quantity: Long
+    /**
+     * 098 — the variant chosen; a product with no options has exactly one.
+     */
+    @SerialName("variantId")
+    val variantID: String
 )
 
 /**
@@ -480,8 +483,63 @@ data class CartLineDTO (
     val productID: String,
 
     val quantity: Long,
-    val unitPriceAmount: String
+
+    /**
+     * 098 — the comparison price of what one unit costs after this line's discount; null
+     * without a pack size.
+     */
+    val unitPrice: UnitPriceDTO? = null,
+
+    val unitPriceAmount: String,
+
+    /**
+     * 098 — the variant this line buys. Lines are keyed by it: two sizes of one product are two
+     * lines.
+     */
+    @SerialName("variantId")
+    val variantID: String,
+
+    /**
+     * 098 — "Spiced / 500 g"; null for a product with no options.
+     */
+    val variantLabel: String? = null
 )
+
+/**
+ * A server-computed comparison price. `amount` is a 2-dp money string, like every price on
+ * the wire.
+ */
+@Serializable
+data class UnitPriceDTO (
+    val amount: String,
+    val basis: UnitBasis
+)
+
+/**
+ * Unit pricing — 098-product-variants (R12).
+ *
+ * A product says how its sizes are COMPARED (`UnitBasis`: per 100 g, per kg, per 100 mL,
+ * per L, each); each variant says how much is in its pack (`packQuantity` + `PackUnit`).
+ * The comparison price is the price scaled to the basis: $3.20 for 500 g → $0.64 / 100 g.
+ * Australian online grocers show one beside every price (the Unit Pricing Code), and it is
+ * how a shopper tells which size is better value.
+ *
+ * ⚠ ONE SUM, HERE. The server computes it for every DTO that carries a price and sends
+ * `UnitPriceDTO`; clients only FORMAT it (`unitPriceText`). The customer app's Kotlin
+ * formatter is pinned to `unit-price.fixtures.json` — the same file `unit-price.test.ts`
+ * runs.
+ *
+ * ⚠ INTEGER ARITHMETIC. Price in whole cents, pack quantity scaled to thousandths, one
+ * half-up rounding to a whole cent at the end — never a float.
+ */
+@Serializable
+enum class UnitBasis(val value: String) {
+    @SerialName("each") Each("each"),
+    @SerialName("per_100g") Per100G("per_100g"),
+    @SerialName("per_100ml") Per100Ml("per_100ml"),
+    @SerialName("per_kg") PerKg("per_kg"),
+    @SerialName("per_l") PerL("per_l");
+}
 
 @Serializable
 data class CartNoticeDTO (
@@ -494,7 +552,13 @@ data class CartNoticeDTO (
     val kind: CartNoticeKind,
 
     @SerialName("productId")
-    val productID: String? = null
+    val productID: String? = null,
+
+    /**
+     * 098 — the line's variant, when the notice is about a line.
+     */
+    @SerialName("variantId")
+    val variantID: String? = null
 )
 
 /**
@@ -572,10 +636,13 @@ enum class CartPromotionNotAppliedReason(val value: String) {
  */
 @Serializable
 data class CartLineInput (
-    @SerialName("productId")
-    val productID: String,
+    val quantity: Long,
 
-    val quantity: Long
+    /**
+     * 098 — a line is a variant.
+     */
+    @SerialName("variantId")
+    val variantID: String
 )
 
 /**
@@ -1410,10 +1477,19 @@ data class StorefrontRailDTO (
  */
 @Serializable
 data class StorefrontProductCardDTO (
+    /**
+     * Some variant can be bought now (the one availability rule).
+     */
     val available: Boolean,
+
     val badges: List<ProductBadge>,
     val brand: String? = null,
+
+    /**
+     * The "was" price of the variant `priceAmount` came from.
+     */
     val compareAtAmount: String? = null,
+
     val currency: String,
     val id: String,
 
@@ -1433,7 +1509,36 @@ data class StorefrontProductCardDTO (
      */
     val offer: ProductOfferDTO? = null,
 
-    val priceAmount: String
+    /**
+     * 098 — the LISTING price: the lowest price among the product's active variants. Say "From"
+     * when `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec
+     * FR-013.)
+     */
+    val priceAmount: String,
+
+    /**
+     * 098 — active variants' prices differ: show "From".
+     */
+    val priceVaries: Boolean,
+
+    /**
+     * 098 — the comparison price of `priceAmount`, when the product has a unit basis and that
+     * variant a pack size.
+     */
+    val unitPrice: UnitPriceDTO? = null,
+
+    /**
+     * 098 — active variants. Above 1 the tile offers "Choose" (open the product) instead of
+     * quick-add.
+     */
+    val variantCount: Long,
+
+    /**
+     * 098 — the variant this tile stands for: the one whose stock code or barcode a search
+     * matched, else the product's default. Quick-add adds THIS variant when `variantCount` is 1.
+     */
+    @SerialName("variantId")
+    val variantID: String
 )
 
 /**
@@ -1581,11 +1686,11 @@ data class MediaDTO (
 /**
  * POST /v1/cart/merge — fold a device cart into the account cart at sign-in.
  *
- * ⚠ UNION WITH MAXIMUM QUANTITY per product. This is NOT 019's original `/v1/cart/merge`,
- * which SUMMED quantities and was removed on 2026-07-23 after it tripled carts. Taking the
- * maximum makes the operation idempotent AND commutative: signing in twice, or retrying an
- * interrupted merge, leaves exactly the same cart (FR-011, FR-012). Nothing from either
- * side is dropped.
+ * ⚠ UNION WITH MAXIMUM QUANTITY per variant (098; per product before). This is NOT 019's
+ * original `/v1/cart/merge`, which SUMMED quantities and was removed on 2026-07-23 after it
+ * tripled carts. Taking the maximum makes the operation idempotent AND commutative: signing
+ * in twice, or retrying an interrupted merge, leaves exactly the same cart (FR-011,
+ * FR-012). Nothing from either side is dropped.
  */
 @Serializable
 data class MergeCartRequest (
@@ -1593,6 +1698,26 @@ data class MergeCartRequest (
     val changeID: String? = null,
 
     val lines: List<CartLineInput>
+)
+
+@Serializable
+data class OptionDTO (
+    val id: String,
+    val name: String,
+
+    /**
+     * 1 or 2.
+     */
+    val position: Long,
+
+    val values: List<OptionValueDTO>
+)
+
+@Serializable
+data class OptionValueDTO (
+    val id: String,
+    val position: Long,
+    val value: String
 )
 
 /**
@@ -2047,7 +2172,18 @@ data class OrderItemDTO (
 
     val productName: String,
     val quantity: Double,
-    val unitPriceAmount: String
+    val unitPriceAmount: String,
+
+    /**
+     * 098 — the variant sold.
+     */
+    @SerialName("variantId")
+    val variantID: String,
+
+    /**
+     * 098 — the variant's label AS SOLD ("Spiced / 500 g"); null for a product with no options.
+     */
+    val variantLabel: String? = null
 )
 
 /**
@@ -2320,7 +2456,12 @@ data class Totals (
 @Serializable
 data class StorefrontProductDetailDTO (
     val attributes: List<ProductAttributeGroupDTO>,
+
+    /**
+     * Some variant can be bought now (the one availability rule).
+     */
     val available: Boolean,
+
     val badges: List<ProductBadge>,
     val brand: String? = null,
 
@@ -2331,8 +2472,21 @@ data class StorefrontProductDetailDTO (
     val categoryKey: String,
 
     val categoryPath: List<String>,
+
+    /**
+     * The "was" price of the variant `priceAmount` came from.
+     */
     val compareAtAmount: String? = null,
+
     val currency: String,
+
+    /**
+     * 098 — the variant to open on (FR-014): the one the link named if it is active, else the
+     * first that can be bought, else the first.
+     */
+    @SerialName("defaultVariantId")
+    val defaultVariantID: String,
+
     val gallery: List<MediaDTO>,
     val id: String,
 
@@ -2353,7 +2507,85 @@ data class StorefrontProductDetailDTO (
      */
     val offer: ProductOfferDTO? = null,
 
-    val priceAmount: String
+    /**
+     * 098 — the product's options in the shop's order; empty when it has none (no selector).
+     */
+    val options: List<OptionDTO>,
+
+    /**
+     * 098 — the LISTING price: the lowest price among the product's active variants. Say "From"
+     * when `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec
+     * FR-013.)
+     */
+    val priceAmount: String,
+
+    /**
+     * 098 — active variants' prices differ: show "From".
+     */
+    val priceVaries: Boolean,
+
+    val unitBasis: UnitBasis? = null,
+
+    /**
+     * 098 — the comparison price of `priceAmount`, when the product has a unit basis and that
+     * variant a pack size.
+     */
+    val unitPrice: UnitPriceDTO? = null,
+
+    /**
+     * 098 — active variants. Above 1 the tile offers "Choose" (open the product) instead of
+     * quick-add.
+     */
+    val variantCount: Long,
+
+    /**
+     * 098 — the variant this tile stands for: the one whose stock code or barcode a search
+     * matched, else the product's default. Quick-add adds THIS variant when `variantCount` is 1.
+     */
+    @SerialName("variantId")
+    val variantID: String,
+
+    /**
+     * 098 — ACTIVE variants only, in display order. Inactive and removed variants are never
+     * sent.
+     */
+    val variants: List<StorefrontVariantDTO>
+)
+
+/**
+ * A shopper's view of one variant. Inactive and removed variants are never sent to shoppers.
+ */
+@Serializable
+data class StorefrontVariantDTO (
+    /**
+     * Purchasable now (the one availability rule, R5).
+     */
+    val available: Boolean,
+
+    val compareAtAmount: String? = null,
+    val id: String,
+
+    /**
+     * The variant's own picture, or null — show the product's gallery.
+     */
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
+    /**
+     * 086 — widths (px) of this picture's smaller copies, ascending.
+     */
+    val imageWidths: List<Double>? = null,
+
+    /**
+     * "Spiced / 500 g"; null when the product has no options.
+     */
+    val label: String? = null,
+
+    @SerialName("optionValueIds")
+    val optionValueIDS: List<String?>,
+
+    val priceAmount: String,
+    val unitPrice: UnitPriceDTO? = null
 )
 
 /**
@@ -2981,7 +3213,18 @@ data class ReorderSkippedDTO (
     @SerialName("productId")
     val productID: String,
 
-    val reason: ReorderSkipReason
+    val reason: ReorderSkipReason,
+
+    /**
+     * 098
+     */
+    @SerialName("variantId")
+    val variantID: String,
+
+    /**
+     * 098 — the label it was sold with.
+     */
+    val variantLabel: String? = null
 )
 
 /**
@@ -2994,6 +3237,22 @@ enum class ReorderSkipReason(val value: String) {
     @SerialName("removed") Removed("removed"),
     @SerialName("unavailable") Unavailable("unavailable");
 }
+
+/**
+ * PUT /commerce/v1/saved/{productId} — save (idempotent). 098: `variantId` remembers the
+ * variant the shopper had selected; saving again with another one updates it. Both fields
+ * optional.
+ */
+@Serializable
+data class SaveItemRequest (
+    /**
+     * Set ONLY by undo.
+     */
+    val restoreSavedAt: String? = null,
+
+    @SerialName("variantId")
+    val variantID: String? = null
+)
 
 @Serializable
 data class SavedAddToCartRequest (
@@ -3023,7 +3282,9 @@ data class SavedSkip (
     val productID: String,
 
     /**
-     * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason.
+     * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | 098
+     * `choose_variant` (no variant remembered, or it is no longer sold — the shopper opens the
+     * product and chooses).
      */
     val reason: String
 )
@@ -3093,6 +3354,29 @@ data class SavedItemDTO (
      */
     val savedPriceAmount: String,
 
+    val unitPrice: UnitPriceDTO? = null,
+
+    /**
+     * 098 — products with more than one active variant: adding to the cart without a remembered
+     * one asks the shopper to choose.
+     */
+    val variantCount: Long,
+
+    /**
+     * 098 — the variant "Add to cart" adds: the one remembered when it was saved (FR-015a),
+     * else the product's only one. Null when the product is sold in several sizes and none is
+     * remembered (or the one remembered is no longer sold) — the shopper chooses. Price,
+     * verdict and image above are the REMEMBERED variant's when there is one, else the
+     * product's listing price and availability.
+     */
+    @SerialName("variantId")
+    val variantID: String? = null,
+
+    /**
+     * 098 — its label ("1 kg"); null when none, or the product has no options.
+     */
+    val variantLabel: String? = null,
+
     val verdict: SavedVerdict
 )
 
@@ -3153,7 +3437,13 @@ data class SavedListCreateRequest (
      * Place this product in the new list in the same action (068 FR-015).
      */
     @SerialName("productId")
-    val productID: String? = null
+    val productID: String? = null,
+
+    /**
+     * 098 — with `productId`: the variant to remember.
+     */
+    @SerialName("variantId")
+    val variantID: String? = null
 )
 
 @Serializable
@@ -3161,7 +3451,13 @@ data class SavedListEntryRequest (
     /**
      * Set ONLY by undo, to return the product to the position it held in this list.
      */
-    val restoreAddedAt: String? = null
+    val restoreAddedAt: String? = null,
+
+    /**
+     * 098 — the variant the shopper had selected; it becomes the product's remembered variant.
+     */
+    @SerialName("variantId")
+    val variantID: String? = null
 )
 
 /**
@@ -3249,7 +3545,13 @@ data class SavedMergeItem (
      * `"0"` instead would report the item as having fallen from nothing: a fabricated fact,
      * worse than an absent one.
      */
-    val savedPriceAmount: String? = null
+    val savedPriceAmount: String? = null,
+
+    /**
+     * 098 — the variant the device remembered, if any.
+     */
+    @SerialName("variantId")
+    val variantID: String? = null
 )
 
 /**
@@ -3363,7 +3665,7 @@ data class UpdateAddressRequest (
 )
 
 /**
- * PATCH /v1/cart/items/{productId} — set an ABSOLUTE line quantity; 0 removes.
+ * PATCH /v1/cart/items/{variantId} — set an ABSOLUTE line quantity; 0 removes.
  *
  * Absolute, not a delta, which is what lets the client debounce ten taps into one request
  * and drop the intermediate values safely (FR-016). Idempotent, so `changeId` is optional;
@@ -3376,3 +3678,10 @@ data class UpdateCartLineRequest (
 
     val quantity: Long
 )
+
+@Serializable
+enum class VariantState(val value: String) {
+    @SerialName("active") Active("active"),
+    @SerialName("inactive") Inactive("inactive"),
+    @SerialName("removed") Removed("removed");
+}

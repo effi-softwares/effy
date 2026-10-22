@@ -20,6 +20,8 @@ import type { ProductOfferDTO } from "./promotions";
 // thing that can drift, which defeats the entire point of having it (027's `1.0` into a Go `int`).
 import type { WireInt } from "./cart";
 import type { BannerPlacement } from "./banner";
+import type { UnitBasis, UnitPriceDTO } from "./unit-price";
+import type { OptionDTO, StorefrontVariantDTO } from "./variants";
 
 /** A badge shown on a product card. Derived server-side (on_sale = has compare-at; new = newest). */
 export type ProductBadge = "on_sale" | "new";
@@ -47,13 +49,30 @@ export interface StorefrontProductCardDTO {
   imageUrl: string | null;
   /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
   imageWidths?: number[];
+  /**
+   * 098 — the LISTING price: the lowest price among the product's active variants. Say "From" when
+   * `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec FR-013.)
+   */
   priceAmount: string;
   currency: string;
+  /** The "was" price of the variant `priceAmount` came from. */
   compareAtAmount: string | null;
   badges: ProductBadge[];
+  /** Some variant can be bought now (the one availability rule). */
   available: boolean;
   /** 094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11). */
   offer?: ProductOfferDTO | null;
+  /** 098 — active variants' prices differ: show "From". */
+  priceVaries: boolean;
+  /**
+   * 098 — the variant this tile stands for: the one whose stock code or barcode a search matched,
+   * else the product's default. Quick-add adds THIS variant when `variantCount` is 1.
+   */
+  variantId: string;
+  /** 098 — active variants. Above 1 the tile offers "Choose" (open the product) instead of quick-add. */
+  variantCount: WireInt;
+  /** 098 — the comparison price of `priceAmount`, when the product has a unit basis and that variant a pack size. */
+  unitPrice: UnitPriceDTO | null;
 }
 
 /** A labelled group of attribute rows on the product detail page (never laid out as cards). */
@@ -71,6 +90,16 @@ export interface StorefrontProductDetailDTO extends StorefrontProductCardDTO {
   /** The primary category's key — drives the related-products rail (025 FR-026). `categoryPath`
    * carries display NAMES, which cannot be used to query. */
   categoryKey: string;
+  /** 098 — the product's options in the shop's order; empty when it has none (no selector). */
+  options: OptionDTO[];
+  /** 098 — ACTIVE variants only, in display order. Inactive and removed variants are never sent. */
+  variants: StorefrontVariantDTO[];
+  /**
+   * 098 — the variant to open on (FR-014): the one the link named if it is active, else the first
+   * that can be bought, else the first.
+   */
+  defaultVariantId: string;
+  unitBasis: UnitBasis | null;
 }
 
 /** A merchandising rail on Home (Featured / On-sale / a category rail). */

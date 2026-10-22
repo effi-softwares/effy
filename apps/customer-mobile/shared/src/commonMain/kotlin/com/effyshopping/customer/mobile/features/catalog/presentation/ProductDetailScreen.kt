@@ -1,5 +1,10 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
+import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
+import com.effyshopping.customer.mobile.core.presentation.UnitPriceText
+import com.effyshopping.customer.mobile.core.presentation.VariantChips
+import com.effyshopping.customer.mobile.features.catalog.domain.Variant
+import com.effyshopping.customer.mobile.features.catalog.domain.VariantSelection
 import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.withStyle
@@ -187,6 +192,13 @@ fun ProductDetailScreen(
             is ProductDetailUiState.Ready -> ProductBody(
                 container = container,
                 product = s.product,
+                selected = s.selected,
+                onPickValue = { slot, valueId ->
+                    vm.pickValue(slot, valueId)
+                    (vm.state.value as? ProductDetailUiState.Ready)?.selected?.let {
+                        container.analyticsDriver.capture(AnalyticsEvent.VariantSelected(productId, it.id))
+                    }
+                },
                 justAdded = justAdded,
                 saved = s.product.card.id in savedIds,
                 onToggleSaved = { wanted ->
@@ -197,7 +209,9 @@ fun ProductDetailScreen(
                         val outcome = runCatching {
                             container.toggleSaved(
                                 s.product.card.id, wanted,
-                                s.product.card.priceAmount, s.product.card.currency,
+                                s.selected?.priceAmount ?: s.product.card.priceAmount, s.product.card.currency,
+                                // 098 — the size on screen is remembered with the save.
+                                s.selected?.id,
                             )
                         }.getOrNull()
                         // ⚠ 068 FR-020: in a list the shopper named, so the tap removed nothing.
@@ -216,6 +230,7 @@ fun ProductDetailScreen(
         ListChooserSheet(
             container = container,
             productId = productId,
+            variantId = (state as? ProductDetailUiState.Ready)?.selected?.id,
             onDismiss = { choosingLists = false },
             onRequireSignIn = onRequireSignIn,
         )
@@ -234,6 +249,9 @@ private data class ProductContext(val address: SavedAddress?, val points: Points
 private fun ProductBody(
     container: AppContainer,
     product: ProductDetail,
+    /** 098 — the ONE size the price, availability and add follow; null only for a product with none. */
+    selected: Variant?,
+    onPickValue: (slot: Int, valueId: String) -> Unit,
     justAdded: Boolean,
     saved: Boolean,
     onToggleSaved: (Boolean) -> Unit,
@@ -243,7 +261,10 @@ private fun ProductBody(
     onRefresh: suspend () -> Unit,
 ) {
     var qty by remember { mutableStateOf(1) }
-    val card = product.card
+    // 098 — the card as the chosen size: its price, "was" price, availability and comparison price.
+    val card = selected?.let {
+        product.card.copy(priceAmount = it.priceAmount, compareAtAmount = it.compareAtAmount, available = it.available, unitPrice = it.unitPrice)
+    } ?: product.card
     val session by container.session.state.collectAsState()
     val signedIn = session is SessionState.Authenticated
     val context by produceState(ProductContext(null, null), signedIn) {
@@ -288,6 +309,7 @@ private fun ProductBody(
             // 094 — the offer the cart will apply to this product.
             if (card.offerLabel != null && card.available) EffySaleBadge(text = card.offerLabel)
         }
+        UnitPriceText(card.unitPrice, modifier = Modifier.padding(top = 2.dp))
         Text(
             buildAnnotatedString {
                 if (percentOff != null && card.compareAtAmount != null) {
@@ -310,8 +332,19 @@ private fun ProductBody(
                 Icon(painterResource(Res.drawable.lucide_circle_check), contentDescription = null, tint = EffyRoles.brand, modifier = Modifier.size(16.dp))
                 Text("Available now", style = MaterialTheme.typography.bodyMedium, color = EffyRoles.brand)
             }
+        } else if (product.options.isNotEmpty()) {
+            EffyNotice("This size is sold out. Choose another, or save it for later.", icon = Res.drawable.lucide_info)
         } else {
             EffyNotice("Currently unavailable. Browse the rest of the store while we restock.", icon = Res.drawable.lucide_info)
+        }
+
+        // 098 — the size selector, only for a product sold in more than one way.
+        if (selected != null) {
+            VariantChips(
+                rows = VariantSelection.rows(product.options, product.variants, selected),
+                onPick = onPickValue,
+                modifier = Modifier.padding(top = EffySpacing.lg),
+            )
         }
 
         // Save and Add to list, side by side (Product board). The heart is filled and blue once saved.
@@ -582,7 +615,7 @@ private fun RelatedProductsRail(
                 product,
                 onProductClick,
                 width = 160.dp,
-                cartQuantity = tileCart.quantityOf(product.id),
+                cartQuantity = tileCart.quantityOf(product.variantId),
                 onCartQuantityChange = { tileCart.change(product, it) },
             )
         }

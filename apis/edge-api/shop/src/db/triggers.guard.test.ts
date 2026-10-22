@@ -138,7 +138,8 @@ describe("database triggers stay inside their justification", () => {
     expect(drop).toBeGreaterThan(-1);
     expect(sql.slice(drop)).not.toMatch(/PERFORM\s+public\.shop_ops_poke/);
     for (const name of Object.keys(ALLOWED)) {
-      const last = sql.lastIndexOf(`FUNCTION public.${name}()`);
+      // The last DEFINITION — a trigger that merely EXECUTEs the function (098 re-points one) is not one.
+      const last = Math.max(sql.lastIndexOf(`CREATE FUNCTION public.${name}()`), sql.lastIndexOf(`CREATE OR REPLACE FUNCTION public.${name}()`));
       const body = /AS\s+\$\$([\s\S]*?)\$\$;/.exec(sql.slice(last))?.[1] ?? "";
       if (/shop_ops_poke/.test(triggerFunctionBodiesFirst(sql).get(name) ?? "")) expect(last, `${name} is replaced before the drop`).toBeLessThan(drop);
       expect(stripComments(body), `${name}'s final body`).not.toMatch(/shop_ops_poke|pg_notify/);

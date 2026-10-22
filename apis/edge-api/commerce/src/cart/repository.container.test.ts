@@ -1,6 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrationSql, transactorFor } from "@effy/edge-shared";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
+import { insertTestProduct, insertTestVariant } from "@effy/edge-shared/testing";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -26,7 +27,9 @@ let svc: CartService;
 let customerId: string;
 let otherCustomerId: string;
 let cartId: string;
+/** 098 — the VARIANT each name buys (a cart line is a variant), and its product. */
 const p: Record<string, string> = {};
+const prod: Record<string, string> = {};
 /** A change id is a uuid on the wire and in the table. */
 const chg = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
@@ -39,23 +42,30 @@ d("070 — cart repository against the real schema", () => {
     await pool.query(`INSERT INTO public.shop (code, name) VALUES ('CRT', 'Cart test shop')`);
     await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('crt-type', 'Cart test type')`);
     await pool.query(`INSERT INTO public.category (key, name) VALUES ('crt-cat', 'Cart test category')`);
+    const one = async (sql: string) => (await pool.query<{ id: string }>(sql)).rows[0]!.id;
+    const ids = {
+      shopId: await one(`SELECT id::text FROM public.shop WHERE code='CRT'`),
+      productTypeId: await one(`SELECT id::text FROM public.product_type WHERE key='crt-type'`),
+      primaryCategoryId: await one(`SELECT id::text FROM public.category WHERE key='crt-cat'`),
+    };
     for (const [name, price, status, tracked, onHand] of [
       ["Milk", "4.50", "active", false, null],
       ["Bread", "9.00", "active", false, null],
       ["Scarce", "2.00", "active", true, 2],
       ["Gone", "1.00", "archived", false, null],
     ] as const) {
-      p[name] = (
-        await pool.query<{ id: string }>(
-          `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, shop_price_amount,
-                                       short_description, created_by, status, approved_at, stock_tracked, stock_on_hand)
-           SELECT (SELECT id FROM public.shop WHERE code='CRT'), (SELECT id FROM public.product_type WHERE key='crt-type'),
-                  (SELECT id FROM public.category WHERE key='crt-cat'), $1, $2::numeric, $2::numeric, 'd', 'seed', $3, now(), $4, $5
-           RETURNING id::text AS id`,
-          [name, price, status, tracked, onHand],
-        )
-      ).rows[0]!.id;
+      const t = await insertTestProduct(pool, { ...ids, name, price, status, approved: true, tracked, onHand });
+      p[name] = t.variantId;
+      prod[name] = t.productId;
     }
+    // 098 — a second size of Milk: the same product, its own line, price and count. A product with
+    // two variants has an option to tell them apart (no two variants may share a combination).
+    const size = await one(`INSERT INTO public.product_option (product_id, position, name) VALUES ('${prod.Milk}', 1, 'Size') RETURNING id::text`);
+    const [oneL, twoL] = (await pool.query<{ id: string }>(
+      `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '1 L', 0), ($1, '2 L', 1) RETURNING id::text`, [size],
+    )).rows.map((r) => r.id);
+    await pool.query(`UPDATE public.product_variant SET option1_value_id = $2 WHERE id = $1`, [p.Milk, oneL]);
+    p["Milk 2L"] = await insertTestVariant(pool, prod.Milk!, { shopId: ids.shopId, price: "7.90", position: 1, optionValueIds: [twoL!, null] });
     [customerId, otherCustomerId] = (
       await pool.query<{ id: string }>(
         `INSERT INTO public.customer (cognito_sub, email) VALUES ('crt-sub-1', 'crt1@example.test'), ('crt-sub-2', 'crt2@example.test')
@@ -102,7 +112,7 @@ d("070 — cart repository against the real schema", () => {
   it("⚠ two deliveries of ONE add racing on separate connections add once", async () => {
     const results = await Promise.all(Array.from({ length: 6 }, () => repo.addItem(cartId, p.Bread!, chg(10), 1, 99)));
     expect(results.filter(Boolean)).toHaveLength(1);
-    expect((await repo.lines(cartId)).find((l) => l.product_id === p.Bread)?.quantity).toBe(1);
+    expect((await repo.lines(cartId)).find((l) => l.variant_id === p.Bread)?.quantity).toBe(1);
   });
 
   it("add captures the price at add, and increments are capped at the ceiling", async () => {
@@ -128,12 +138,12 @@ d("070 — cart repository against the real schema", () => {
     expect(all.lines).toEqual([]);
     expect(all.saved.map((l) => [l.name, l.quantity, l.unit_price_at_add])).toEqual([["Milk", 2, "4.50"]]);
 
-    await pool.query(`UPDATE public.product SET price_amount = 5.00 WHERE id = $1`, [p.Milk]);
+    await pool.query(`UPDATE public.product_variant SET price_amount = 5.00 WHERE id = $1`, [p.Milk]);
     await repo.restoreSaved(cartId, p.Milk!, "", 99);
     all = await repo.allLines(cartId);
     expect(all.saved).toEqual([]);
     expect(all.lines[0]).toMatchObject({ unit_price_amount: "5.00", unit_price_at_add: "5.00" });
-    await pool.query(`UPDATE public.product SET price_amount = 4.50 WHERE id = $1`, [p.Milk]);
+    await pool.query(`UPDATE public.product_variant SET price_amount = 4.50 WHERE id = $1`, [p.Milk]);
   });
 
   it("the combined read returns payable lines, saved lines and the revision; an empty cart still has one", async () => {
@@ -144,7 +154,9 @@ d("070 — cart repository against the real schema", () => {
 
   it("the service end to end: stock cap, archived sweep, totals to the cent", async () => {
     await pool.query(
-      `INSERT INTO public.cart_item (cart_id, product_id, quantity) VALUES ($1, $2, 5), ($1, $3, 1), ($1, $4, 1)`,
+      `INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity)
+       SELECT $1, v.product_id, v.id, q.n FROM (VALUES ($2::uuid, 5), ($3::uuid, 1), ($4::uuid, 1)) q (vid, n)
+       JOIN public.product_variant v ON v.id = q.vid`,
       [cartId, p.Scarce, p.Gone, p.Milk],
     );
     const cart = await svc.get(customerId);
@@ -163,12 +175,56 @@ d("070 — cart repository against the real schema", () => {
       )
     ).rows[0]!.id;
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       SELECT $1, $2, shop_id, 'Milk', 4.50, 2, 9.00 FROM public.product WHERE id = $2`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+       SELECT $1, product_id, id, shop_id, 'Milk', 4.50, 2, 9.00 FROM public.product_variant WHERE id = $2`,
       [orderId, p.Milk],
     );
     expect(await repo.orderItemsForReorder(otherCustomerId, orderId)).toBeNull();
-    expect((await repo.orderItemsForReorder(customerId, orderId))?.[0]).toMatchObject({ product_id: p.Milk, quantity: 2, status: "active" });
+    expect((await repo.orderItemsForReorder(customerId, orderId))?.[0]).toMatchObject({ product_id: prod.Milk, variant_id: p.Milk, quantity: 2, status: "active", variant_state: "active" });
+  });
+
+  it("098 — two sizes of one product are two lines, each at its own price", async () => {
+    await svc.add(customerId, p.Milk!, chg(20), 2);
+    await svc.add(customerId, p["Milk 2L"]!, chg(21), 1);
+    const cart = await svc.get(customerId);
+    expect(cart.lines.map((l) => [l.productId, l.variantId, l.quantity, l.lineSubtotalAmount])).toEqual([
+      [prod.Milk, p.Milk, 2, "9.00"],
+      [prod.Milk, p["Milk 2L"], 1, "7.90"],
+    ]);
+    // An inactive size stays on the cart, flagged, and is charged nothing.
+    await pool.query(`UPDATE public.product_variant SET state = 'inactive' WHERE id = $1`, [p["Milk 2L"]]);
+    const after = await svc.get(customerId);
+    expect(after.itemSubtotalAmount).toBe("9.00");
+    expect(after.notices.find((n) => n.variantId === p["Milk 2L"])?.kind).toBe("unavailable");
+    await pool.query(`UPDATE public.product_variant SET state = 'active' WHERE id = $1`, [p["Milk 2L"]]);
+  });
+
+  it("098 — a sold-out or off-sale SIZE is refused on add; the other size of the same product is not", async () => {
+    await pool.query(`UPDATE public.product_variant SET stock_tracked = true, stock_on_hand = 0 WHERE id = $1`, [p["Milk 2L"]]);
+    await expect(svc.add(customerId, p["Milk 2L"]!, chg(30), 1)).rejects.toThrow();
+    await pool.query(`UPDATE public.product_variant SET stock_tracked = false, stock_on_hand = NULL, state = 'inactive' WHERE id = $1`, [p["Milk 2L"]]);
+    await expect(svc.add(customerId, p["Milk 2L"]!, chg(31), 1)).rejects.toThrow();
+    await pool.query(`UPDATE public.product_variant SET state = 'active' WHERE id = $1`, [p["Milk 2L"]]);
+    expect((await svc.add(customerId, p.Milk!, chg(32), 1)).lines.map((l) => l.variantId)).toEqual([p.Milk]);
+  });
+
+  it("098 — a promotion targets the PRODUCT: its minimum quantity counts every size together", async () => {
+    const promo = (await pool.query<{ id: string }>(
+      `INSERT INTO public.promotion (name, kind, trigger, value_type, percent_off, applies_to, min_quantity, published_at, created_by)
+       VALUES ('Milk run', 'item', 'automatic', 'percent', 10, 'products', 3, now() - interval '1 minute', 'seed') RETURNING id::text AS id`,
+    )).rows[0]!.id;
+    await pool.query(`INSERT INTO public.promotion_target (promotion_id, target_type, product_id) VALUES ($1, 'product', $2)`, [promo, prod.Milk]);
+    try {
+      await svc.add(customerId, p.Milk!, chg(40), 2);
+      expect((await svc.get(customerId)).discountAmount).toBe("0.00"); // two units: not yet
+      await svc.add(customerId, p["Milk 2L"]!, chg(41), 1);
+      const cart = await svc.get(customerId);
+      // Three units across two sizes qualify; both lines are discounted (10% of 9.00 + 7.90).
+      expect(cart.itemSubtotalAmount).toBe("16.90");
+      expect(Number(cart.discountAmount)).toBeCloseTo(1.69, 2);
+    } finally {
+      await pool.query(`DELETE FROM public.promotion WHERE id = $1`, [promo]);
+    }
   });
 
   it("a change id that is not a uuid is refused by the column — which is why the handlers check first", async () => {

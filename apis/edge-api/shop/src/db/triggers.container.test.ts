@@ -101,16 +101,14 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     );
     const orderId = o.rows[0]!.id;
     const p = await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-         short_description, created_by, status, approved_at)
-       SELECT $1, pt.id, c.id, 'Milk', 10, 'x', 'seed', 'active', now()
-         FROM public.product_type pt, public.category c
-       RETURNING id`,
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) SELECT $1, pt.id, c.id, 'Milk', 'x', 'seed', 'active', now() FROM public.product_type pt, public.category c RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10, 10)::numeric, (10)::numeric FROM p RETURNING id)
+SELECT id FROM p`,
       [SHOP],
     );
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1,$2,$3,'Milk',10,3,30)`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, 3, 30)`,
       [orderId, p.rows[0]!.id, SHOP],
     );
     const f = await pool.query<{ id: string }>(
@@ -193,9 +191,10 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     // The function the triggers called is gone, not merely unused.
     const poke = await pool.query(`SELECT 1 FROM pg_proc WHERE proname = 'shop_ops_poke'`);
     expect(poke.rowCount).toBe(0);
-    // And every trigger 058 created is still attached: only the notification was removed.
+    // And every trigger 058 created is still attached: only the notification was removed. (098 adds
+    // the eleventh, on product_variant, where stock now lives.)
     const triggers = await pool.query<{ n: string }>(`SELECT count(*) AS n FROM pg_trigger WHERE tgname LIKE 'shop_ops_%' AND NOT tgisinternal`);
-    expect(Number(triggers.rows[0]!.n)).toBe(10);
+    expect(Number(triggers.rows[0]!.n)).toBe(11);
   });
 
   it("the first mark's marked_at survives later marks, so backlog age is the real lag", async () => {

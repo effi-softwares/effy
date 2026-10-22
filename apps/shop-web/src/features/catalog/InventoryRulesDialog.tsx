@@ -39,17 +39,20 @@ import { useSetStockThreshold, useSetStockTracking } from "./stockQueries";
  */
 export function InventoryRulesDialog({
   detail,
+  variantId,
   stock,
   open,
   onOpenChange,
 }: {
   detail: ProductDetail;
+  /** 098 — the size whose rules these are. */
+  variantId: string;
   stock: ProductStockDTO;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const setTracking = useSetStockTracking(detail.id);
-  const setThreshold = useSetStockThreshold(detail.id);
+  const setTracking = useSetStockTracking(variantId);
+  const setThreshold = useSetStockThreshold(variantId);
 
   const [tracked, setTracked] = useState(stock.tracked);
   const [openingCount, setOpeningCount] = useState("");

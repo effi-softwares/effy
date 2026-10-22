@@ -38,7 +38,7 @@ export const GATHER_COLLECTION = `
          z.id                                    AS zone_id,
          z.name                                  AS zone_name,
          sf.state_changed_at                     AS ready_since,
-         COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
+         COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint                    AS item_count,
          COALESCE(bool_or(st.chilled), false) AS requires_chilled,
          COALESCE(bool_or(st.frozen),  false) AS requires_frozen
@@ -48,6 +48,7 @@ export const GATHER_COLLECTION = `
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
+    LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
     -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
     -- attribute value a product has and then test which one was 'storage'; a product with five
     -- attribute values therefore contributed its weight FIVE TIMES to the SUM above, and the capacity
@@ -142,7 +143,7 @@ export const GATHER_DELIVERY = `
          -- here rebuilds one (research R5) — which is why this needed no Go↔TypeScript duplicate.
          opd.window_start            AS window_start,
          opd.window_end              AS window_end,
-         COALESCE(SUM(oi.quantity * p.weight_grams), 0)::bigint AS weight_grams,
+         COALESCE(SUM(oi.quantity * pv.weight_grams), 0)::bigint AS weight_grams,
          COUNT(oi.id)::bigint        AS item_count,
          COALESCE(bool_or(st.chilled), false) AS requires_chilled,
          COALESCE(bool_or(st.frozen),  false) AS requires_frozen
@@ -156,6 +157,7 @@ export const GATHER_DELIVERY = `
     LEFT JOIN public.order_package_delivery opd ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
     LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     LEFT JOIN public.product    p  ON p.id = oi.product_id
+    LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
     -- ⚠ 072 — ONE ROW PER ORDER LINE, WHATEVER THE PRODUCT'S ATTRIBUTES. This used to join every
     -- attribute value a product has and then test which one was 'storage'; a product with five
     -- attribute values therefore contributed its weight FIVE TIMES to the SUM above, and the capacity
@@ -305,11 +307,12 @@ export const BUCKET_ROUNDS = `
          rs.order_id    AS order_id,
          (rs.status NOT IN ('done', 'skipped')) AS outstanding,
          COALESCE((
-           SELECT SUM(oi.quantity * p.weight_grams)
+           SELECT SUM(oi.quantity * pv.weight_grams)
              FROM public.round_package rp
              JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
              JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
              JOIN public.product    p  ON p.id = oi.product_id
+             JOIN public.product_variant pv ON pv.id = oi.variant_id  -- 098: weight is the VARIANT's
             WHERE rp.stop_id = rs.id AND rp.state IN ('assigned', 'picked_up')
          ), 0)::bigint  AS stop_weight_grams
     FROM public.driver_round dr

@@ -427,7 +427,9 @@ ON CONFLICT (provider_refund_id) DO NOTHING`,
       await db.query(
         `
 WITH refunded AS (
-    SELECT rl.order_item_id, rl.quantity, oi.product_id, oi.shop_id
+    -- 098 — back to the VARIANT that was sold. Two lines of one variant cannot exist on one order
+    -- (order_item_order_variant_uq), so the UPDATE below meets each variant once.
+    SELECT rl.order_item_id, rl.quantity, oi.variant_id, oi.shop_id
       FROM public.refund_line rl
       JOIN public.order_item oi ON oi.id = rl.order_item_id
       JOIN public.shop_fulfillment sf
@@ -435,18 +437,18 @@ WITH refunded AS (
      WHERE rl.refund_id = $1
        AND sf.status NOT IN ('collected', 'delivered')
 ), moved AS (
-    UPDATE public.product p
-       SET stock_on_hand = p.stock_on_hand + r.quantity
+    UPDATE public.product_variant v
+       SET stock_on_hand = v.stock_on_hand + r.quantity
       FROM refunded r
-     WHERE p.id = r.product_id
-       AND p.stock_tracked
- RETURNING p.id AS product_id, r.shop_id, r.quantity,
-           p.stock_on_hand - r.quantity AS before, p.stock_on_hand AS after
+     WHERE v.id = r.variant_id
+       AND v.stock_tracked
+ RETURNING v.product_id, v.id AS variant_id, r.shop_id, r.quantity,
+           v.stock_on_hand - r.quantity AS before, v.stock_on_hand AS after
 )
 INSERT INTO public.stock_movement
-    (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason,
+    (product_id, variant_id, shop_id, quantity_delta, quantity_before, quantity_after, reason,
      actor_kind, actor_sub, order_id)
-SELECT m.product_id, m.shop_id, m.quantity, m.before, m.after, 'refund', 'system', NULL, $2
+SELECT m.product_id, m.variant_id, m.shop_id, m.quantity, m.before, m.after, 'refund', 'system', NULL, $2
   FROM moved m`,
         [refundId, orderId],
       );

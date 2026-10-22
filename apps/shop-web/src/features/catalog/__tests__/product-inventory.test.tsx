@@ -15,14 +15,14 @@ import type { ProductStockDetailDTO } from "@effy/shared-types"
  * operator in the server's own words rather than one generic sentence (053).
  */
 
-const getProductStock = vi.hoisted(() => vi.fn())
+const getVariantStock = vi.hoisted(() => vi.fn())
 const setStockCount = vi.hoisted(() => vi.fn())
 const adjustStock = vi.hoisted(() => vi.fn())
 const setStockTracking = vi.hoisted(() => vi.fn())
 const setStockThreshold = vi.hoisted(() => vi.fn())
 
 vi.mock("../stockRepo", () => ({
-  getProductStock,
+  getVariantStock,
   setStockCount,
   adjustStock,
   setStockTracking,
@@ -43,6 +43,7 @@ function stockDetail(over: Partial<ProductStockDetailDTO["stock"]> = {}): Produc
   return {
     stock: {
       productId: "p1",
+      variantId: "v1",
       tracked: true,
       onHand: 12,
       threshold: null,
@@ -57,6 +58,9 @@ function stockDetail(over: Partial<ProductStockDetailDTO["stock"]> = {}): Produc
 
 const PRODUCT = {
   id: "p1",
+  // 098 — stock is per size; this product is sold in one.
+  options: [],
+  variants: [{ id: "v1", state: "active", label: null, stock: {} }],
   name: "Barossa Free-Range Eggs 700g",
   sku: "EGG-700",
   gtin: null,
@@ -75,7 +79,7 @@ function wrap(children: ReactNode) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  getProductStock.mockResolvedValue(stockDetail())
+  getVariantStock.mockResolvedValue(stockDetail())
   setStockCount.mockResolvedValue(stockDetail())
   adjustStock.mockResolvedValue(stockDetail())
   setStockTracking.mockResolvedValue(stockDetail())
@@ -88,20 +92,20 @@ describe("the Inventory section", () => {
   it("states the count, and says where the threshold came from", async () => {
     // ⚠ A shop default and a per-product override produce the same figure and mean different things:
     // change the shop default and one of them moves. A row that shows only "8" cannot be predicted.
-    getProductStock.mockResolvedValue(
+    getVariantStock.mockResolvedValue(
       stockDetail({ onHand: 9, threshold: null, effectiveThreshold: 8 }),
     )
-    wrap(<InventorySection detail={PRODUCT} />)
+    wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
 
     expect(await screen.findByText("9 units")).toBeInTheDocument()
     expect(screen.getByText(/8 — the shop default/)).toBeInTheDocument()
   })
 
   it("names a per-product threshold as this product's own", async () => {
-    getProductStock.mockResolvedValue(
+    getVariantStock.mockResolvedValue(
       stockDetail({ onHand: 9, threshold: 4, effectiveThreshold: 4 }),
     )
-    wrap(<InventorySection detail={PRODUCT} />)
+    wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
     expect(await screen.findByText(/4 — set for this product/)).toBeInTheDocument()
   })
 
@@ -111,15 +115,15 @@ describe("the Inventory section", () => {
   // reader), and EMPTY and LOW do not render alike — collapsing them is what made "nothing left" and
   // "a few left" look like the same problem.
   it("says an empty shelf is unbuyable, in words AND distinguishably from merely low", async () => {
-    getProductStock.mockResolvedValue(stockDetail({ onHand: 0, outOfStock: true }))
-    const out = wrap(<InventorySection detail={PRODUCT} />)
+    getVariantStock.mockResolvedValue(stockDetail({ onHand: 0, outOfStock: true }))
+    const out = wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
     const outLine = await within(out.container).findByText(
       /out of stock — shoppers cannot buy this right now/i,
     )
     expect(outLine.className).toMatch(/font-semibold/)
 
-    getProductStock.mockResolvedValue(stockDetail({ onHand: 2, low: true }))
-    const low = wrap(<InventorySection detail={PRODUCT} />)
+    getVariantStock.mockResolvedValue(stockDetail({ onHand: 2, low: true }))
+    const low = wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
     const lowLine = await within(low.container).findByText(/running low — 2 left/i)
     expect(lowLine.className).toMatch(/font-semibold/)
 
@@ -129,8 +133,8 @@ describe("the Inventory section", () => {
   it("withholds the count and the adjustment when stock is not tracked", async () => {
     // An untracked product behaves exactly as it did before 054 existed (FR-002) — there is no count
     // to show, and the server answers a write with a 409.
-    getProductStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
-    wrap(<InventorySection detail={PRODUCT} />)
+    getVariantStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
+    wrap(<InventorySection detail={PRODUCT} variantId="v1" onVariantChange={() => {}} />)
 
     expect(await screen.findByText(/can be bought without limit/i)).toBeInTheDocument()
     expect(screen.queryByText(/units on hand/i)).not.toBeInTheDocument()
@@ -144,7 +148,7 @@ describe("receiving stock", () => {
   it("adds units with reason 'received' and shows the arithmetic before the write", async () => {
     wrap(
       <ReceiveStockDialog
-        productId="p1"
+        variantId="v1"
         stock={stockDetail({ onHand: 12 }).stock}
         open
         onOpenChange={() => {}}
@@ -163,7 +167,7 @@ describe("receiving stock", () => {
 
   it("refuses a blank, a fraction and a negative rather than sending them", async () => {
     wrap(
-      <ReceiveStockDialog productId="p1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
+      <ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
     )
     const button = screen.getByRole("button", { name: /add to stock/i })
     const input = screen.getByLabelText(/units received/i)
@@ -182,7 +186,7 @@ describe("receiving stock", () => {
     // purchasing (deferred to its own feature); two free-text boxes here would record that intent as
     // unjoinable prose while leaving the operator believing the delivery had been reconciled.
     wrap(
-      <ReceiveStockDialog productId="p1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
+      <ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
     )
     expect(screen.queryByLabelText(/^supplier$/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/^reference$/i)).not.toBeInTheDocument()
@@ -198,7 +202,7 @@ describe("receiving stock", () => {
       detail: "internal wording that must never be rendered",
     })
     wrap(
-      <ReceiveStockDialog productId="p1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
+      <ReceiveStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
     )
     await userEvent.type(screen.getByLabelText(/units received/i), "5")
     await userEvent.click(screen.getByRole("button", { name: /add to stock/i }))
@@ -215,7 +219,7 @@ describe("adjusting stock", () => {
   it("writes an absolute count when the operator counted the shelf", async () => {
     wrap(
       <AdjustStockDialog
-        productId="p1"
+        variantId="v1"
         stock={stockDetail({ onHand: 12 }).stock}
         open
         onOpenChange={() => {}}
@@ -235,7 +239,7 @@ describe("adjusting stock", () => {
     const user = userEvent.setup()
     wrap(
       <AdjustStockDialog
-        productId="p1"
+        variantId="v1"
         stock={stockDetail({ onHand: 12 }).stock}
         open
         onOpenChange={() => {}}
@@ -255,7 +259,7 @@ describe("adjusting stock", () => {
   it("refuses a zero delta — a movement that moves nothing has no fact behind it", async () => {
     const user = userEvent.setup()
     wrap(
-      <AdjustStockDialog productId="p1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
+      <AdjustStockDialog variantId="v1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
     )
     await user.click(screen.getByLabelText(/^change$/i))
     await user.click(await screen.findByRole("option", { name: /add or remove/i }))
@@ -270,7 +274,7 @@ describe("adjusting stock", () => {
     const user = userEvent.setup()
     wrap(
       <AdjustStockDialog
-        productId="p1"
+        variantId="v1"
         stock={stockDetail({ onHand: 5 }).stock}
         open
         onOpenChange={() => {}}
@@ -292,8 +296,8 @@ describe("the header stock action on an untracked product", () => {
   // action is coming, and the action itself is reachable in one step.
 
   it("offers Add stock instead of a disabled Receive stock", async () => {
-    getProductStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
-    wrap(<ReceiveStockButton detail={PRODUCT} onReceive={() => {}} />)
+    getVariantStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
+    wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
 
     const button = await screen.findByRole("button", { name: "Add stock" })
     expect(button).toBeEnabled()
@@ -302,8 +306,8 @@ describe("the header stock action on an untracked product", () => {
   it("keeps Receive stock where a count already exists", async () => {
     // ⚠ Waited for, not read once: the loading state ALSO reads "Receive stock" (deliberately — see
     // below), so a bare findByRole resolves against the disabled placeholder and asserts nothing.
-    getProductStock.mockResolvedValue(stockDetail({ tracked: true, onHand: 12 }))
-    wrap(<ReceiveStockButton detail={PRODUCT} onReceive={() => {}} />)
+    getVariantStock.mockResolvedValue(stockDetail({ tracked: true, onHand: 12 }))
+    wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Receive stock" })).toBeEnabled(),
     )
@@ -312,8 +316,8 @@ describe("the header stock action on an untracked product", () => {
   it("stays disabled and keeps the tracked label while the stock read is in flight", () => {
     // ⚠ Defaulting to "Add stock" would flip the wording under the operator's cursor a moment later,
     // and on a tracked product a fast click would open the wrong dialog.
-    getProductStock.mockReturnValue(new Promise(() => {}))
-    wrap(<ReceiveStockButton detail={PRODUCT} onReceive={() => {}} />)
+    getVariantStock.mockReturnValue(new Promise(() => {}))
+    wrap(<ReceiveStockButton variantId="v1" onReceive={() => {}} />)
     expect(screen.getByRole("button", { name: "Receive stock" })).toBeDisabled()
   })
 
@@ -322,7 +326,7 @@ describe("the header stock action on an untracked product", () => {
     // product tracked at zero — briefly unbuyable — which is the state FR-003 refuses to create by
     // accident.
     const user = userEvent.setup()
-    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
 
     expect(screen.getByRole("button", { name: /^add stock$/i })).toBeDisabled()
     await user.type(screen.getByLabelText(/units in stock now/i), "24")
@@ -337,13 +341,13 @@ describe("the header stock action on an untracked product", () => {
   it("says that selling behaviour changes, before the write", async () => {
     // ⚠ An operator who typed a number into something called "Add stock" has not consented to the
     // product going unbuyable at zero unless it is written next to the field.
-    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
     expect(screen.getByText(/deducts a unit, and the product stops selling at zero/i)).toBeInTheDocument()
   })
 
   it("refuses a count that is not a whole number, without asking the server", async () => {
     const user = userEvent.setup()
-    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
 
     await user.type(screen.getByLabelText(/units in stock now/i), "-3")
     expect(screen.getByRole("button", { name: /^add stock$/i })).toBeDisabled()
@@ -358,7 +362,7 @@ describe("the header stock action on an untracked product", () => {
       title: "Forbidden",
       detail: "internal wording that must never be rendered",
     })
-    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+    wrap(<StartTrackingDialog variantId="v1" open onOpenChange={() => {}} />)
 
     await user.type(screen.getByLabelText(/units in stock now/i), "5")
     await user.click(screen.getByRole("button", { name: /^add stock$/i }))
@@ -376,6 +380,7 @@ describe("inventory rules", () => {
     return wrap(
       <InventoryRulesDialog
         detail={product}
+        variantId="v1"
         stock={stockDetail(over).stock}
         open
         onOpenChange={() => {}}
@@ -540,11 +545,13 @@ describe("the Activity sheet", () => {
 
   it("shows the WHOLE change log, not the old rail's newest four", async () => {
     // ⚠ The reason the log moved into a sheet: a rail could only ever fit four entries.
-    getProductStock.mockResolvedValue({
+    getVariantStock.mockResolvedValue({
       ...stockDetail(),
       movements: Array.from({ length: 9 }, (_, i) => movement(i)),
     })
-    wrap(<ProductActivitySheet detail={PRODUCT} open onOpenChange={() => {}} />)
+    wrap(<ProductActivitySheet
+          detail={PRODUCT}
+          variantId="v1" open onOpenChange={() => {}} />)
 
     const dialog = await screen.findByRole("dialog")
     await waitFor(() => expect(within(dialog).getAllByRole("listitem")).toHaveLength(9))
@@ -555,7 +562,9 @@ describe("the Activity sheet", () => {
   })
 
   it("does not invent a sales history it has no data for", async () => {
-    wrap(<ProductActivitySheet detail={PRODUCT} open onOpenChange={() => {}} />)
+    wrap(<ProductActivitySheet
+          detail={PRODUCT}
+          variantId="v1" open onOpenChange={() => {}} />)
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).queryByText(/last 30 days/i)).not.toBeInTheDocument()
     expect(await within(dialog).findByText(/no changes recorded yet/i)).toBeInTheDocument()

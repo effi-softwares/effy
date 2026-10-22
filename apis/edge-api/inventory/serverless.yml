@@ -119,7 +119,7 @@ functions:
     events:
       - httpApi:
           method: GET
-          path: /inventory/v1/products/{productId}/stock
+          path: /inventory/v1/variants/{variantId}/stock
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -130,7 +130,7 @@ functions:
     events:
       - httpApi:
           method: PUT
-          path: /inventory/v1/products/{productId}/stock/tracking
+          path: /inventory/v1/variants/{variantId}/stock/tracking
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -141,7 +141,7 @@ functions:
     events:
       - httpApi:
           method: PUT
-          path: /inventory/v1/products/{productId}/stock
+          path: /inventory/v1/variants/{variantId}/stock
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -152,7 +152,7 @@ functions:
     events:
       - httpApi:
           method: POST
-          path: /inventory/v1/products/{productId}/stock/adjustments
+          path: /inventory/v1/variants/{variantId}/stock/adjustments
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -163,7 +163,7 @@ functions:
     events:
       - httpApi:
           method: PUT
-          path: /inventory/v1/products/{productId}/stock/threshold
+          path: /inventory/v1/variants/{variantId}/stock/threshold
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}

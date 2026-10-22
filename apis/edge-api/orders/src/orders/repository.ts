@@ -413,6 +413,10 @@ export async function deliveryTypeHistory(orderId: string): Promise<DeliveryType
 export interface OrderItemRow {
   order_item_id: string;
   product_id: string;
+  /** 098 — the variant sold, its label and stock code AS SOLD. */
+  variant_id: string;
+  variant_label: string | null;
+  sku: string | null;
   product_name: string;
   unit_price_amount: string;
   quantity: number;
@@ -423,10 +427,11 @@ export interface OrderItemRow {
 export async function items(orderId: string): Promise<OrderItemRow[]> {
   const res = await query<OrderItemRow>(
     `SELECT oi.id AS order_item_id, oi.product_id, oi.product_name,
+            oi.variant_id::text AS variant_id, oi.variant_label, oi.sku,
             oi.unit_price_amount::text, oi.quantity, oi.line_subtotal_amount::text, oi.shop_id
        FROM public.order_item oi
       WHERE oi.order_id = $1
-   ORDER BY oi.product_name`,
+   ORDER BY oi.product_name, oi.variant_label NULLS FIRST`,
     [orderId],
   );
   return res.rows;

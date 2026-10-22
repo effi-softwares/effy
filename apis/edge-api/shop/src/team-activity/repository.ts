@@ -9,6 +9,7 @@
 // that Effy did something, not which Effy employee — the same boundary 023 FR-018 draws for customer
 // data, applied to Effy's own people.
 import { query } from "@effy/edge-shared";
+import { lineNameSql, variantLabelSql } from "@effy/edge-shared/catalog";
 
 export type ActivityKind =
   | "state_changed"
@@ -47,7 +48,8 @@ const SELECT_ACTIVITY = `
          true                 AS actor_was_staff,
          fe.event_type        AS kind,
          o.order_number,
-         oi.product_name,
+         -- 098 — the line as sold, with its variant ("Basmati Rice — 1 kg").
+         CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END,
          fe.quantity,
          NULL::text           AS amount,
          fe.to_status         AS reason
@@ -67,12 +69,14 @@ UNION ALL
          sm.actor_kind = 'shop',
          'stock_changed',
          NULL,
-         p.name,
+         -- 098 — a count belongs to a variant; name it.
+         ${lineNameSql("p.name", variantLabelSql("v"))},
          sm.quantity_delta,
          NULL::text,
          sm.reason
     FROM public.stock_movement sm
     JOIN public.product p          ON p.id = sm.product_id
+    JOIN public.product_variant v  ON v.id = sm.variant_id
     LEFT JOIN public.shop_staff ss ON ss.cognito_sub = sm.actor_sub AND ss.shop_id = sm.shop_id
    WHERE sm.shop_id = $1
      AND sm.created_at >= now() - make_interval(days => $2::int)

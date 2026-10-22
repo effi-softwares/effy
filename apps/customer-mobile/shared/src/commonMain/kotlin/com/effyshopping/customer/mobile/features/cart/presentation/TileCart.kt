@@ -23,15 +23,18 @@ class TileCart internal constructor(
     private val snapshot: CartSnapshot,
     private val container: AppContainer,
 ) {
-    fun quantityOf(productId: String): Int = snapshot.lines.firstOrNull { it.productId == productId }?.quantity ?: 0
+    /** 098 — how many of the tile's SIZE ([ProductCard.variantId]) are in the cart. */
+    fun quantityOf(variantId: String): Int = snapshot.lines.firstOrNull { it.variantId == variantId }?.quantity ?: 0
 
     fun change(product: ProductCard, quantity: Int) {
-        val current = quantityOf(product.id)
+        val current = quantityOf(product.variantId)
         when {
-            quantity <= 0 -> container.removeFromCart(product.id)
+            quantity <= 0 -> container.removeFromCart(product.variantId)
             current == 0 -> container.addToCart(
                 GuestCartLine(
+                    variantId = product.variantId,
                     productId = product.id,
+                    unitPrice = product.unitPrice,
                     name = product.name,
                     imageUrl = product.imageUrl,
                     unitPriceAmount = product.priceAmount,
@@ -40,7 +43,7 @@ class TileCart internal constructor(
                     packageKey = product.packageKey,
                 ),
             )
-            else -> container.setCartQuantity(product.id, quantity)
+            else -> container.setCartQuantity(product.variantId, quantity)
         }
     }
 }

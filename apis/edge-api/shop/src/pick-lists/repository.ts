@@ -24,7 +24,7 @@ export interface PickListRow {
   courierPickup?: CourierPickupDTO;
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
-  lines: Array<{ name: string; sku: string | null; quantity: number }>;
+  lines: Array<{ name: string; variantLabel: string | null; sku: string | null; quantity: number }>;
 }
 
 /**
@@ -40,15 +40,15 @@ SELECT sf.id::text AS fulfillment_id,
        ${DELIVERED_BY_SQL} AS delivered_by,
        COALESCE(
          json_agg(
-           json_build_object('name', oi.product_name, 'sku', p.sku, 'quantity', oi.quantity)
-           ORDER BY oi.product_name
+           -- 098 — the variant and its stock code AS SOLD.
+           json_build_object('name', oi.product_name, 'variantLabel', oi.variant_label, 'sku', oi.sku, 'quantity', oi.quantity)
+           ORDER BY oi.product_name, oi.variant_label NULLS FIRST
          ) FILTER (WHERE oi.id IS NOT NULL),
          '[]'::json
        ) AS lines
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
   LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-  LEFT JOIN public.product p ON p.id = oi.product_id
  WHERE sf.shop_id = $1
    AND sf.status IN ('pending', 'received')
  GROUP BY sf.id, o.order_number, o.delivery_address, o.placed_at, o.created_at, sf.delivery_method, o.delivery_type
@@ -69,7 +69,7 @@ interface PickListDbRow {
   paid_at: Date;
   delivery_method: "same_day" | "standard" | null;
   delivered_by: DeliveredBy;
-  lines: Array<{ name: string; sku: string | null; quantity: number }>;
+  lines: Array<{ name: string; variantLabel: string | null; sku: string | null; quantity: number }>;
 }
 
 export async function readPickLists(

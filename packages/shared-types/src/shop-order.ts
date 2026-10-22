@@ -158,7 +158,11 @@ export interface FulfillmentDeliveryDTO {
 export interface FulfillmentItemDTO {
   orderItemId: string;
   name: string;
+  /** 098 — the variant's label as sold ("1 kg"); null with no options. A picker must never guess the size. */
+  variantLabel?: string | null;
   sku: string | null;
+  /** 098 — the variant's barcode as sold. */
+  gtin?: string | null;
   /** Presigned; may be absent. */
   imageUrl: string | null;
   orderedQuantity: number;

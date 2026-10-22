@@ -30,27 +30,31 @@ vi.mock("../repo", () => ({
   deleteProductMedia: vi.fn(),
 }))
 
-import { PricingEditDialog } from "../ProductEditDialogs"
+import { SizesEditDialog } from "../ProductEditDialogs"
 import type { ProductDetail } from "../model"
 
 const DETAIL = {
   id: "p1",
   name: "Barossa Free-Range Eggs 700g",
   brand: "Barossa",
-  sku: "EGG-700",
-  gtin: null,
   productTypeId: "t1",
   primaryCategoryId: "c1",
   typeName: "Grocery",
   categoryName: "Pantry",
   shortDescription: "Free-range eggs.",
   longDescription: null,
-  priceAmount: "8.50",
-  compareAtAmount: null,
   currency: "AUD",
   status: "active",
-  weightGrams: 800,
-  weightIsAssumed: false,
+  // 098 — the one size this product is sold as carries the price, codes and weight.
+  unitBasis: null,
+  options: [],
+  variants: [{
+    id: "00000000-0000-4000-8000-0000000000a1", position: 0, optionValueIds: [null, null], label: null,
+    sku: "EGG-700", gtin: null, shopPriceAmount: "8.50", shopCompareAtAmount: null,
+    customerPriceAmount: "8.50", customerCompareAtAmount: null, weightGrams: 800, weightIsAssumed: false,
+    packQuantity: null, packUnit: null, mediaId: null, state: "active",
+    stock: { productId: "p1", variantId: "00000000-0000-4000-8000-0000000000a1", tracked: false, onHand: null, threshold: null, effectiveThreshold: null, outOfStock: false, low: false },
+  }],
   gstStatus: "gst_free",
   attributes: [],
   media: [],
@@ -72,13 +76,13 @@ describe("product edit and persist", () => {
     updateProduct.mockClear()
   })
 
-  it("sends only the fields that actually changed", async () => {
-    updateProduct.mockResolvedValue({ ...DETAIL, priceAmount: "9.00" })
+  it("sends the whole set of sizes, with the changed price", async () => {
+    updateProduct.mockResolvedValue(DETAIL)
     getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })
 
-    wrap(<PricingEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
-    const price = await screen.findByLabelText(/^price/i)
+    const price = await screen.findByLabelText(/^price for/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.00")
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
@@ -86,10 +90,10 @@ describe("product edit and persist", () => {
     await waitFor(() => expect(updateProduct).toHaveBeenCalled())
     const body = updateProduct.mock.calls[0]![1]
 
-    // ⚠ A PATCH that resends untouched fields is how one operator's save silently reverts another's.
-    // compareAtAmount was never edited, so it must not appear in the body at all.
-    expect(body).toMatchObject({ priceAmount: "9.00" })
-    expect(body).not.toHaveProperty("compareAtAmount")
+    // 098 — sizes travel WHOLE (the server proposes only a difference), and nothing else rides along:
+    // a PATCH that resent untouched details is how one operator's save reverts another's.
+    expect(body).toMatchObject({ options: [], variants: [{ id: "00000000-0000-4000-8000-0000000000a1", shopPriceAmount: "9.00", sku: "EGG-700", weightGrams: 800 }] })
+    expect(body).not.toHaveProperty("name")
   })
 
   /**
@@ -102,9 +106,9 @@ describe("product edit and persist", () => {
     updateProduct.mockResolvedValue(DETAIL)
     getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })
 
-    wrap(<PricingEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
-    const price = await screen.findByLabelText(/^price/i)
+    const price = await screen.findByLabelText(/^price for/i)
     await userEvent.clear(price)
     await userEvent.type(price, "9.99")
     await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
@@ -117,13 +121,13 @@ describe("product edit and persist", () => {
   it("refuses to save an invalid price, and says why", async () => {
     getCatalogSchema.mockResolvedValue({ productTypes: [], categories: [] })
 
-    wrap(<PricingEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
+    wrap(<SizesEditDialog detail={DETAIL} open onOpenChange={() => {}} />)
 
-    const price = await screen.findByLabelText(/^price/i)
+    const price = await screen.findByLabelText(/^price for/i)
     await userEvent.clear(price)
     await userEvent.type(price, "-3")
 
-    expect(screen.getByText(/enter a positive amount/i)).toBeInTheDocument()
+    expect(screen.getByText(/enter a price like/i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled()
     expect(updateProduct).not.toHaveBeenCalled()
   })

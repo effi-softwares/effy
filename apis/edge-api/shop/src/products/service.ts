@@ -2,8 +2,14 @@
 // presign boundary (keys → short-lived urls). No HTTP and no SQL (Principle VI). Dependencies wired
 // by explicit module import (no DI framework); tests mock ./repository and ./media at the module
 // boundary. `shopId` is always the caller-resolved actor shop — never client input.
+import { emitMetric, metricNamespace, withTransaction } from "@effy/edge-shared";
+import { setVariantState as writeVariantState } from "@effy/edge-shared/catalog";
 import { isGstStatus } from "@effy/edge-shared/documents";
-import type { GstStatus } from "@effy/shared-types";
+import { announce } from "@effy/edge-shared/live";
+import {
+  UNIT_BASES, validateVariantSet,
+  type GstStatus, type OptionInputDTO, type UnitBasis, type VariantInputDTO,
+} from "@effy/shared-types";
 
 import * as media from "./media";
 import * as repo from "./repository";
@@ -42,15 +48,6 @@ export function getCatalogSchema(): Promise<CatalogSchema> {
 }
 
 // ── Value parsing / typing helpers ──────────────────────────────────────────────────────────────
-
-function parsePrice(value: unknown, field: string, fields: FieldIssue[]): string | null {
-  const s = typeof value === "number" ? String(value) : typeof value === "string" ? value.trim() : "";
-  if (!PRICE_RE.test(s) || Number(s) < 0) {
-    fields.push({ field, message: "must be a non-negative amount with up to 2 decimals" });
-    return null;
-  }
-  return s;
-}
 
 function optText(v: unknown): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
@@ -137,6 +134,63 @@ function failMissing(field: string, fields: FieldIssue[], def: SchemaAttribute):
   return null;
 }
 
+// ── 098 — options and variants ─────────────────────────────────────────────────────────────────
+
+/**
+ * The option/variant sets from a request body, in their wire shape — or null when the body sends
+ * neither. Only the SHAPE is checked here; every rule a set must meet is `validateVariantSet`, run
+ * below and again inside the one writer. Both must be sent together.
+ */
+function parseVariantSet(body: Record<string, unknown>, fields: FieldIssue[]): { options: OptionInputDTO[]; variants: VariantInputDTO[] } | null {
+  const hasOptions = "options" in body && body.options !== undefined;
+  const hasVariants = "variants" in body && body.variants !== undefined;
+  if (!hasOptions && !hasVariants) return null;
+  if (!Array.isArray(body.options) || !Array.isArray(body.variants)) {
+    fields.push({ field: "variants", message: "send the options and the variants together" });
+    return null;
+  }
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const strOrNull = (v: unknown) => (typeof v === "string" ? v : v === null || v === undefined ? null : String(v));
+  const int = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : -1);
+  const options: OptionInputDTO[] = (body.options as unknown[]).map((o) => {
+    const r = (o ?? {}) as Record<string, unknown>;
+    return {
+      id: str(r.id), position: int(r.position), name: str(r.name),
+      values: Array.isArray(r.values)
+        ? (r.values as unknown[]).map((v) => {
+            const x = (v ?? {}) as Record<string, unknown>;
+            return { id: str(x.id), value: str(x.value), position: int(x.position) };
+          })
+        : [],
+    };
+  });
+  const variants: VariantInputDTO[] = (body.variants as unknown[]).map((v) => {
+    const r = (v ?? {}) as Record<string, unknown>;
+    const ids = Array.isArray(r.optionValueIds) ? (r.optionValueIds as unknown[]) : [];
+    return {
+      id: str(r.id), position: int(r.position),
+      optionValueIds: [typeof ids[0] === "string" ? ids[0] : null, typeof ids[1] === "string" ? ids[1] : null],
+      sku: strOrNull(r.sku), gtin: strOrNull(r.gtin),
+      shopPriceAmount: typeof r.shopPriceAmount === "number" ? String(r.shopPriceAmount) : str(r.shopPriceAmount),
+      shopCompareAtAmount: strOrNull(r.shopCompareAtAmount),
+      weightGrams: normaliseWeight(r.weightGrams, fields),
+      packQuantity: strOrNull(r.packQuantity),
+      packUnit: (strOrNull(r.packUnit) as VariantInputDTO["packUnit"]) ?? null,
+      mediaStorageKey: strOrNull(r.mediaStorageKey),
+    };
+  });
+  return { options, variants };
+}
+
+/** `undefined` = not sent; null = cleared; refuses anything else that is not a basis. */
+function parseUnitBasis(body: Record<string, unknown>, fields: FieldIssue[]): UnitBasis | null | undefined {
+  if (!("unitBasis" in body) || body.unitBasis === undefined) return undefined;
+  if (body.unitBasis === null || body.unitBasis === "") return null;
+  if (typeof body.unitBasis === "string" && (UNIT_BASES as readonly string[]).includes(body.unitBasis)) return body.unitBasis as UnitBasis;
+  fields.push({ field: "unitBasis", message: `must be one of ${UNIT_BASES.join(", ")}` });
+  return undefined;
+}
+
 // ── Create ────────────────────────────────────────────────────────────────────────────────────
 
 export async function createProduct(
@@ -155,11 +209,11 @@ export async function createProduct(
   if (!productTypeId) fields.push({ field: "productTypeId", message: "is required" });
   if (!primaryCategoryId) fields.push({ field: "primaryCategoryId", message: "is required" });
 
-  const priceAmount = parsePrice(body.priceAmount, "priceAmount", fields);
-  const compareAtAmount =
-    body.compareAtAmount === undefined || body.compareAtAmount === null
-      ? null
-      : parsePrice(body.compareAtAmount, "compareAtAmount", fields);
+  // 098 — every product is created WITH its variants: one when it has no options (FR-002).
+  const unitBasis = parseUnitBasis(body, fields) ?? null;
+  const variantSet = parseVariantSet(body, fields);
+  if (!variantSet) fields.push({ field: "variants", message: "a product needs at least one variant with a price" });
+  else fields.push(...validateVariantSet(variantSet.options, variantSet.variants, unitBasis));
 
   // Media at create is OPTIONAL — a product is created as a DRAFT and its image is attached
   // immediately after (the presign endpoint needs the product id first). The primary-image and
@@ -186,7 +240,6 @@ export async function createProduct(
     if (norm) attributes.push(norm);
   }
 
-  const weightGrams = normaliseWeight(body.weightGrams, fields);
   // 096 — every product is taxable or GST-free from the moment it exists (FR-091).
   if (!isGstStatus(body.gstStatus)) fields.push({ field: "gstStatus", message: "choose Taxable or GST-free" });
 
@@ -196,15 +249,13 @@ export async function createProduct(
     productTypeId,
     primaryCategoryId,
     name: name!,
-    sku: optText(body.sku),
-    gtin: optText(body.gtin),
     brand: optText(body.brand), // first-class column (FR-010a) — never an attribute
-    priceAmount: priceAmount!,
-    compareAtAmount,
     shortDescription: shortDescription!,
     longDescription: optText(body.longDescription),
-    weightGrams,
     gstStatus: body.gstStatus as GstStatus,
+    unitBasis,
+    options: variantSet!.options,
+    variants: variantSet!.variants,
     attributes,
     sectionIds: Array.isArray(body.sectionIds) ? (body.sectionIds as unknown[]).filter((s): s is string => typeof s === "string") : [],
     media: mediaInput,
@@ -381,13 +432,13 @@ export async function updateProduct(
     "shortDescription" in body ? requireNonEmpty(body.shortDescription, "shortDescription", fields) ?? current.shortDescription : current.shortDescription;
   const productTypeId = "productTypeId" in body && typeof body.productTypeId === "string" ? body.productTypeId : current.productTypeId;
   const primaryCategoryId = "primaryCategoryId" in body && typeof body.primaryCategoryId === "string" ? body.primaryCategoryId : current.primaryCategoryId;
-  const priceAmount = "priceAmount" in body ? parsePrice(body.priceAmount, "priceAmount", fields) ?? current.priceAmount : current.priceAmount;
-  const compareAtAmount =
-    "compareAtAmount" in body
-      ? body.compareAtAmount === null
-        ? null
-        : parsePrice(body.compareAtAmount, "compareAtAmount", fields)
-      : current.compareAtAmount;
+  // 098 — the variant sets, when sent, are the complete target; the basis likewise.
+  const unitBasisSent = parseUnitBasis(body, fields);
+  const unitBasis = unitBasisSent === undefined ? current.unitBasis : unitBasisSent;
+  const sentSet = parseVariantSet(body, fields);
+  const baseSet = live.approved ? change.proposedVariantInputs(live, pending?.proposed ?? null) : change.liveVariantInputs(live);
+  const targetSet = sentSet ?? baseSet;
+  if (sentSet || unitBasisSent !== undefined) fields.push(...validateVariantSet(targetSet.options, targetSet.variants, unitBasis));
 
   if (productTypeId !== current.productTypeId && !(await repo.productTypeIsActive(productTypeId))) {
     fields.push({ field: "productTypeId", message: "is not an active product type" });
@@ -418,16 +469,15 @@ export async function updateProduct(
       name,
       productTypeId,
       primaryCategoryId,
-      sku: "sku" in body ? optText(body.sku) : current.sku,
-      gtin: "gtin" in body ? optText(body.gtin) : current.gtin,
       brand: "brand" in body ? optText(body.brand) : current.brand,
-      priceAmount,
-      compareAtAmount,
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
-      weightGrams: "weightGrams" in body ? normaliseWeight(body.weightGrams, fields) : current.weightGrams,
       // 096 — on a live product the GST status is PROPOSED and reviewed, like every other detail.
       gstStatus: gstStatus ?? current.gstStatus,
+      // 098 — so are the options and variants: added sizes, prices, codes, weights, pack sizes.
+      unitBasis,
+      options: targetSet.options,
+      variants: targetSet.variants,
     };
     if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
     const proposal = change.diffProposal(
@@ -448,17 +498,12 @@ export async function updateProduct(
       name,
       productTypeId,
       primaryCategoryId,
-      sku: "sku" in body ? optText(body.sku) : current.sku,
-      gtin: "gtin" in body ? optText(body.gtin) : current.gtin,
       brand: "brand" in body ? optText(body.brand) : current.brand,
-      priceAmount,
-      compareAtAmount,
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
-      // ⚠ Absent means "leave it alone", NOT "reset to the default". Patching a product's name must
-      // not silently turn a measured weight back into an assumption.
-      weightGrams: "weightGrams" in body ? normaliseWeight(body.weightGrams, fields) : null,
       gstStatus,
+      unitBasis: unitBasisSent,
+      variantSet: sentSet,
     },
     attributes,
     actorSub,
@@ -564,6 +609,54 @@ export async function removeMedia(shopId: string, productId: string, mediaId: st
   }
 }
 
+// ── 098 — a variant on or off sale, immediately ───────────────────────────────────────────────
+
+const VARIANT_STATES = ["active", "inactive", "removed"] as const;
+
+/**
+ * Turn one variant on or off, or remove it — at once, approved product or not (spec FR-009: stopping a
+ * sale never waits on review). The product always keeps one variant on sale (FR-019). A removed
+ * variant is dropped from any pending proposal too, so approving that proposal cannot bring it back.
+ */
+export async function setVariantState(
+  shopId: string,
+  productId: string,
+  variantId: string,
+  body: Record<string, unknown>,
+): Promise<ProductDetail> {
+  const state = body.state;
+  if (typeof state !== "string" || !(VARIANT_STATES as readonly string[]).includes(state)) {
+    throw new ProductError("validation", "invalid state", [{ field: "state", message: `must be one of ${VARIANT_STATES.join(", ")}` }]);
+  }
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID.test(productId) || !UUID.test(variantId)) throw new ProductError("not_found", "variant not found");
+
+  const outcome = await withTransaction(async (tx) => {
+    const result = await writeVariantState(tx, { productId, shopId, variantId, state: state as (typeof VARIANT_STATES)[number] });
+    if (result === "ok" && state === "removed") {
+      await tx.query(
+        `UPDATE public.product_change
+            SET proposed = jsonb_set(proposed, '{variants}', COALESCE((
+                  SELECT jsonb_agg(x) FROM jsonb_array_elements(proposed -> 'variants') x WHERE x ->> 'id' <> $2), '[]'::jsonb)),
+                updated_at = now()
+          WHERE product_id = $1 AND proposed ? 'variants'`,
+        [productId, variantId],
+      );
+    }
+    return result;
+  });
+  if (outcome === "not_found") throw new ProductError("not_found", "variant not found");
+  if (outcome === "last_variant") {
+    throw new ProductError("conflict", "this is the last size on sale — make the product unavailable instead");
+  }
+  if (outcome === "ok") {
+    emitMetric(metricNamespace(), "VariantStateChanged", 1, { state });
+    // The shop's stock and attention lists show variants; they are now out of date (071).
+    await announce([{ scope: "shop", shopId, kind: "stock" }]);
+  }
+  return getProduct(shopId, productId);
+}
+
 // ── Detail ────────────────────────────────────────────────────────────────────────────────────
 
 export async function getProduct(shopId: string, id: string): Promise<ProductDetail> {
@@ -619,6 +712,10 @@ export async function submitForReview(shopId: string, id: string): Promise<Produ
   if (!(await repo.hasPrimaryImage(shopId, id))) {
     fields.push({ field: "media", message: "a primary image is required before this can be reviewed" });
   }
+  // 098 — every variant priced, and the set valid as a whole (US1-6), before Effy is asked.
+  const set = change.liveVariantInputs(detail);
+  if (!detail.variants.some((v) => v.state === "active")) fields.push({ field: "variants", message: "at least one variant must be on sale" });
+  fields.push(...validateVariantSet(set.options, set.variants, detail.unitBasis));
   if (fields.length > 0) throw new ProductError("validation", "cannot submit — missing required fields", fields);
   if (!(await repo.submitForReview(shopId, id))) throw new ProductError("not_found", "product not found");
   return getProduct(shopId, id);

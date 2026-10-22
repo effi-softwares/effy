@@ -12,7 +12,7 @@ const row = (n: number, over: Partial<SearchRow> = {}): SearchRow => ({
   id: id(n), name: `P${n}`, brand: null, price_amount: `${n}.00`, currency: "AUD",
   compare_at_amount: null, storage_key: null, alt_text: null, image_widths: null,
   created_at: new Date("2020-01-01T00:00:00Z"), created_at_key: `2020-01-01T00:00:00.00000${n % 10}Z`,
-  available: true, score: 0.5, ...over,
+  available: true, score: 0.5, price_varies: false, unit_basis: null, variant_id: "v1", pack_quantity: null, pack_unit: null, variant_count: 1, ...over,
 });
 
 function fake(rows: SearchRow[], total = rows.length) {

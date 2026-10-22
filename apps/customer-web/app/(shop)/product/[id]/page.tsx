@@ -4,41 +4,40 @@ import { cacheLife, cacheTag } from "next/cache"
 import { notFound } from "next/navigation"
 import { cache, Suspense } from "react"
 
-import type {
-  ProductSearchResultDTO,
-  StorefrontProductCardDTO,
-  StorefrontProductDetailDTO,
-} from "@effy/shared-types"
+import type { StorefrontProductDetailDTO } from "@effy/shared-types"
 
-import { CircleCheck, CircleX } from "lucide-react"
+import { CircleX } from "lucide-react"
 
 import { Alert } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Breadcrumb } from "@/components/ui/misc"
 import { edgeApiPublic, uncached } from "@/lib/api/edge"
 import { CACHE_LIFE } from "@/lib/cache-life"
-import { formatMoney, isDiscounted } from "@/lib/money"
+import { siteUrl } from "@/lib/config"
+import { JsonLd, productLd } from "@/lib/json-ld"
+import { initialVariantId } from "@/lib/variant-selection"
 
-import { AddToCartControl } from "../../_components/AddToCartControl"
-import { AddToListButton } from "../../_components/AddToListButton"
-import { SaveControl } from "../../_components/SaveControl"
 import { ProductGallery } from "../../_components/ProductGallery"
 import { RecordView } from "../../_components/RecordView"
 import { ProductDeliveryNote, ProductDeliveryNoteFallback } from "../../_components/ProductDeliveryNote"
 import { MoreFromBrand, RelatedProducts } from "../../_components/RelatedProducts"
+import { VariantBuyBox } from "../../_components/VariantBuyBox"
 
 /**
- * What a product page says that stock and pricing cannot change: its words, pictures, attributes and
- * aisle. The price, the was-price and "Available now" are deliberately NOT in it — they are stripped
- * here, before anything is kept, so no render can reach a cached one.
+ * The fields of a product page that stock, pricing or a size going on or off sale can change. They are
+ * stripped from the KEPT content before anything is kept, so no render can reach a cached one; the
+ * page reads them live (`getProductLive`). 098 — sizes are live too: each carries its own price and
+ * availability, and a size taken off sale must vanish from the selector at once.
  */
-type ProductContent = Omit<
-  StorefrontProductDetailDTO,
-  "priceAmount" | "compareAtAmount" | "currency" | "available" | "badges" | "offer"
->
+const LIVE_FIELDS = [
+  "priceAmount", "compareAtAmount", "currency", "available", "badges", "offer",
+  "priceVaries", "variantId", "variantCount", "unitPrice", "options", "variants", "defaultVariantId",
+] as const
+
+/** What a product page says that stock and pricing cannot change: its words, pictures, attributes and aisle. */
+type ProductContent = Omit<StorefrontProductDetailDTO, (typeof LIVE_FIELDS)[number]>
 
 /** The part of a product page that must be current: read live on every view (054 FR-015a). */
-type ProductLive = Pick<StorefrontProductCardDTO, "priceAmount" | "compareAtAmount" | "currency" | "available" | "offer">
+type ProductLive = Pick<StorefrontProductDetailDTO, (typeof LIVE_FIELDS)[number]>
 
 /**
  * The product's content — SHARED between requests for minutes (PERF-07, 054 FR-015a as amended).
@@ -61,7 +60,9 @@ async function readProductContent(id: string): Promise<ProductContent | null> {
     return null
   }
   // 094 — the offer changes with promotions, so it is live, never kept with the content.
-  const { priceAmount, compareAtAmount, currency, available, badges, offer, ...content } = detail
+  const kept: Partial<StorefrontProductDetailDTO> = { ...detail }
+  for (const k of LIVE_FIELDS) delete kept[k]
+  const content = kept as ProductContent
   const signed = [content.imageUrl, ...content.gallery.map((m) => m.imageUrl)].some((u) => u?.includes("X-Amz-"))
   cacheLife(signed ? CACHE_LIFE.listing : CACHE_LIFE.catalogue)
   return content
@@ -71,16 +72,17 @@ async function readProductContent(id: string): Promise<ProductContent | null> {
 const getProductContent = cache(readProductContent)
 
 /**
- * The price and availability, LIVE — the same card read the recently-viewed rail makes (`?ids=`), so
- * the product page's current tier costs no route of its own. Null when the product has stopped being
+ * The prices, sizes and availability, LIVE — the product read itself, uncached (098: a card read
+ * carries one price, and the selector needs every size's). Null when the product has stopped being
  * sold since its content was kept.
  */
 const getProductLive = cache(async (id: string): Promise<ProductLive | null> => {
-  const page = await edgeApiPublic().get<ProductSearchResultDTO>(
-    `/storefront/v1/products?ids=${encodeURIComponent(id)}`,
-    uncached(),
-  )
-  return page.items[0] ?? null
+  try {
+    return await edgeApiPublic().get<StorefrontProductDetailDTO>(`/storefront/v1/products/${encodeURIComponent(id)}`, uncached())
+  } catch (err) {
+    if ((err as { status?: number }).status === 404) return null
+    throw err
+  }
 })
 
 export async function generateMetadata({
@@ -113,8 +115,9 @@ function excerpt(text: string): string {
  *
  * Two substitutions, both driven by what Effy is rather than by what looks good:
  *
- *  - The reference's buy column has SIZE and COLOUR pickers. Effy sells groceries; there are no
- *    variants in the catalogue, and a disabled or invented picker is worse than none.
+ *  - The reference's buy column has SIZE and COLOUR pickers. 098 gave Effy sizes and flavours, so the
+ *    selector is drawn from the product's own options — and only when it has some: a product sold one
+ *    way shows no picker, because a disabled or invented one is worse than none.
  *  - Its tab strip is Product Details / Rating & Reviews / FAQs. Effy has no reviews and no
  *    per-product FAQs, so the section carries only what exists — Description and Details. A tab bar
  *    managing one panel is furniture.
@@ -122,17 +125,19 @@ function excerpt(text: string): string {
  * Attributes remain SECTIONED DETAIL ROWS, never cards (Principle V / DOCTRINE-2). Guest-first:
  * add-to-cart needs no account; saving prompts it.
  */
-export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
+type SearchParams = Promise<{ variant?: string | string[] }>
+
+export default function ProductPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   // Do NOT await params here — reading it outside <Suspense> makes the whole route blocking under
   // cacheComponents. Pass the promise in and await it inside the boundary.
   return (
     <Suspense fallback={<ProductSkeleton />}>
-      <ProductDetail params={params} />
+      <ProductDetail params={params} searchParams={searchParams} />
     </Suspense>
   )
 }
 
-async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
+async function ProductDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   const { id } = await params
   const product = await getProductContent(id)
   if (!product) notFound()
@@ -157,25 +162,15 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           {product.brand && <p className="text-sm text-muted-foreground">{product.brand}</p>}
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{product.name}</h1>
 
-          {/* ⚠ THE CURRENT TIER (054 FR-015a): price and availability stream in from a live read beside
-              the kept content. Both islands ask `getProductLive`, which is one request per render. */}
+          {/* ⚠ THE CURRENT TIER (054 FR-015a): prices, sizes and availability stream in from a live read
+              beside the kept content — one request per render. */}
           <Suspense fallback={<PriceSkeleton />}>
-            <LivePrice id={product.id} />
+            <LiveBuy product={product} searchParams={searchParams} />
           </Suspense>
 
           {product.longDescription && (
-            <p className="mt-4 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{product.longDescription}</p>
+            <p className="mt-6 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{product.longDescription}</p>
           )}
-
-          <div className="mt-6 border-t pt-6">
-            <Suspense fallback={<div className="h-12 w-full animate-pulse rounded-lg bg-muted" aria-hidden="true" />}>
-              <LiveBuy product={product} />
-            </Suspense>
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <SaveControl productId={product.id} label />
-              <AddToListButton productId={product.id} />
-            </div>
-          </div>
 
           <div className="mt-6">
             <Suspense fallback={<ProductDeliveryNoteFallback />}>
@@ -201,95 +196,46 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
   )
 }
 
-/** Price, was-price and "Available now" — read live. A failed read says nothing rather than guess. */
-async function LivePrice({ id }: { id: string }) {
-  const live = await getProductLive(id).catch(() => undefined)
-  if (live === undefined) return null
-  if (live === null) return <AvailabilityStatus available={false} />
-
-  const discounted = isDiscounted(live.priceAmount, live.compareAtAmount)
-  const saving = discounted && live.compareAtAmount ? Number(live.compareAtAmount) - Number(live.priceAmount) : 0
-  const percentOff =
-    discounted && live.compareAtAmount ? Math.round((saving / Number(live.compareAtAmount)) * 100) : null
-
-  return (
-    <>
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-3xl font-bold tabular-nums">{formatMoney(live.priceAmount, live.currency)}</span>
-        {/* 094 — the offer the cart will apply to this product. */}
-        {live.offer && live.available ? <Badge variant="brand">{live.offer.label}</Badge> : null}
-        {discounted && live.compareAtAmount && (
-          <>
-            <span className="text-sm text-muted-foreground tabular-nums line-through">
-              <span className="sr-only">was </span>
-              {formatMoney(live.compareAtAmount, live.currency)}
-            </span>
-            {percentOff !== null && percentOff > 0 && (
-              <Badge variant="brand" className="self-center">
-                −{percentOff}%
-              </Badge>
-            )}
-          </>
-        )}
-      </div>
-      {saving > 0 && percentOff !== null && percentOff > 0 && (
-        <p className="mt-1 text-sm font-medium text-brand">
-          Save {formatMoney(saving.toFixed(2), live.currency)} ({percentOff}% off)
-        </p>
-      )}
-      <AvailabilityStatus available={live.available} />
-    </>
-  )
-}
-
 /**
- * ⚠ "Available" is all that is said — never a count. A shopper learns it can be bought, not how many
- * are on a shelf they will never see.
+ * Price, sizes, "Available now" and the add / save / list controls — read live, and the structured data
+ * from the SAME read, so what a search engine is told matches what the page shows (`lib/json-ld.tsx`).
+ * A product that has stopped being sold since its content was kept offers no control; a failed read
+ * offers none either — the cart would refuse a price this page could not confirm.
  */
-function AvailabilityStatus({ available }: { available: boolean }) {
-  return (
-    <p role="status" className={`mt-4 flex items-center gap-2 text-sm font-medium ${available ? "text-brand" : ""}`}>
-      {available ? (
-        <CircleCheck aria-hidden="true" className="size-4" />
-      ) : (
-        <CircleX aria-hidden="true" className="size-4" />
-      )}
-      {available ? "Available now" : "Currently unavailable"}
-    </p>
-  )
-}
-
-/**
- * The add-to-cart control, priced from the live read. A product that has stopped being sold since its
- * content was kept offers no control; a failed read offers none either — the cart would refuse a
- * price this page could not confirm.
- */
-async function LiveBuy({ product }: { product: ProductContent }) {
-  const live = await getProductLive(product.id).catch(() => null)
-  if (!live) {
+async function LiveBuy({ product, searchParams }: { product: ProductContent; searchParams: SearchParams }) {
+  const [live, query] = await Promise.all([getProductLive(product.id).catch(() => undefined), searchParams])
+  if (live === undefined) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="mt-4 text-sm text-muted-foreground">
         This product can&rsquo;t be added right now. Save it and we&rsquo;ll show you when it&rsquo;s back.
       </p>
     )
   }
+  if (live === null || live.variants.length === 0) {
+    return (
+      <p role="status" className="mt-4 flex items-center gap-2 text-sm font-medium">
+        <CircleX aria-hidden="true" className="size-4" />
+        Currently unavailable
+      </p>
+    )
+  }
+  const requested = typeof query.variant === "string" ? query.variant : null
   return (
     <>
+      <JsonLd data={productLd(siteUrl(), product, live)} />
       {!live.available && (
-        <p className="mb-3 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
           Browse similar products below, or save it and we&rsquo;ll show you when it&rsquo;s back.
         </p>
       )}
-      <AddToCartControl
-        product={{
-          productId: product.id,
-          name: product.name,
-          imageUrl: product.imageUrl,
-          imageWidths: product.imageWidths,
-          unitPriceAmount: live.priceAmount,
-          currency: live.currency,
-          available: live.available,
-        }}
+      <VariantBuyBox
+        product={{ id: product.id, name: product.name, imageUrl: product.imageUrl, imageWidths: product.imageWidths }}
+        options={live.options}
+        variants={live.variants}
+        initialVariantId={initialVariantId(live.variants, live.defaultVariantId, requested)}
+        offer={live.offer}
+        currency={live.currency}
+        gallery={product.gallery.map((m) => m.imageUrl)}
       />
     </>
   )

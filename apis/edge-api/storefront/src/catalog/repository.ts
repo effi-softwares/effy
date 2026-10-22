@@ -1,5 +1,7 @@
 // The category tree and the product detail page. SQL only.
-import { availabilityPredicate, pooled, renditionWidthsSql, type Queryable } from "@effy/edge-shared";
+import { pooled, productAvailableSql, renditionWidthsSql, type Queryable, variantPurchasableSql } from "@effy/edge-shared";
+import { variantLabelSql } from "@effy/edge-shared/catalog";
+import type { PackUnit, UnitBasis } from "@effy/shared-types";
 import { PRODUCT_OFFER_SQL, type ProductOfferRow } from "@effy/edge-shared/promotions";
 
 import { categoryClosure } from "../lib/category-tree";
@@ -30,6 +32,31 @@ export interface DetailRow {
   primary_category_key: string;
   is_new: boolean;
   available: boolean;
+  /** 098 */
+  unit_basis: UnitBasis | null;
+}
+
+/** 098 — one ACTIVE variant on the product page. */
+export interface VariantPageRow {
+  id: string;
+  option1: string | null;
+  option2: string | null;
+  label: string | null;
+  price_amount: string;
+  compare_at_amount: string | null;
+  pack_quantity: string | null;
+  pack_unit: PackUnit | null;
+  available: boolean;
+  storage_key: string | null;
+  image_widths: number[] | null;
+}
+
+/** 098 — one option with the values ACTIVE variants use, in the shop's order. */
+export interface OptionPageRow {
+  id: string;
+  position: number;
+  name: string;
+  values: { id: string; value: string; position: number }[];
 }
 
 export interface MediaRow {
@@ -59,6 +86,9 @@ export interface ProductPageRow extends DetailRow {
   attributes: AttrRow[];
   /** The primary category's path, root → leaf, as names. */
   category_path: string[];
+  /** 098 — active variants in display order. */
+  variants: VariantPageRow[];
+  options: OptionPageRow[];
 }
 
 export interface CatalogRepository {
@@ -95,7 +125,7 @@ counts AS (
     -- The category and everything under it: the number on an aisle is what its page shows.
     SELECT tree.root_id, count(*)::int AS n
     FROM tree
-    JOIN public.product p ON p.primary_category_id = tree.id AND ${availabilityPredicate("p")}
+    JOIN public.product p ON p.primary_category_id = tree.id AND ${productAvailableSql("p")}
     GROUP BY tree.root_id
 ),
 pictures AS (
@@ -140,9 +170,10 @@ ORDER BY c.display_order ASC, c.name ASC`)
 SELECT p.id::text                  AS id,
        p.name                      AS name,
        p.brand                     AS brand,
-       p.price_amount::text        AS price_amount,
+       p.list_price_amount::text   AS price_amount,
        p.currency                  AS currency,
-       p.compare_at_amount::text   AS compare_at_amount,
+       p.list_compare_at_amount::text AS compare_at_amount,
+       p.unit_basis                AS unit_basis,
        -- 094 — an item or buy-X-get-Y offer open to everyone that covers this product (R11).
        ${PRODUCT_OFFER_SQL("p", "now()")} AS offer,
        p.short_description         AS short_description,
@@ -153,7 +184,42 @@ SELECT p.id::text                  AS id,
        -- ⚠ 054: PROJECTED, not filtered. A product page that 404'd the moment stock ran out would
        -- break every shared link and every saved item, and would tell a shopper "gone" when the
        -- truth is "back soon".
-       (${availabilityPredicate("p")}) AS available,
+       (${productAvailableSql("p")}) AS available,
+       -- 098 — the ACTIVE variants (inactive and removed are never sent to a shopper), each with its
+       -- own purchasability, in the shop's order.
+       COALESCE((
+         SELECT json_agg(json_build_object(
+                  'id', v.id,
+                  'option1', v.option1_value_id,
+                  'option2', v.option2_value_id,
+                  'label', ${variantLabelSql("v")},
+                  'price_amount', v.price_amount::text,
+                  'compare_at_amount', v.compare_at_amount::text,
+                  'pack_quantity', v.pack_quantity::text,
+                  'pack_unit', v.pack_unit,
+                  'available', (${variantPurchasableSql("p", "v")}),
+                  'storage_key', vm.storage_key,
+                  'image_widths', ${renditionWidthsSql("vm.storage_key")})
+                ORDER BY v.position ASC, v.created_at ASC)
+         FROM public.product_variant v
+         LEFT JOIN public.product_media vm ON vm.id = v.media_id
+         -- availability-exempt: product_variant — a VISIBILITY filter; purchasability is 'available'.
+         WHERE v.product_id = p.id AND v.state = 'active'), '[]'::json) AS variants,
+       -- 098 — the options, with only the values some active variant uses.
+       COALESCE((
+         SELECT json_agg(json_build_object(
+                  'id', o.id, 'position', o.position, 'name', o.name,
+                  'values', COALESCE((
+                     SELECT json_agg(json_build_object('id', ov.id, 'value', ov.value, 'position', ov.position) ORDER BY ov.position)
+                       FROM public.product_option_value ov
+                      WHERE ov.option_id = o.id
+                        AND EXISTS (SELECT 1 FROM public.product_variant uv
+                                     -- availability-exempt: product_variant — a visibility filter.
+                                     WHERE uv.product_id = p.id AND uv.state = 'active'
+                                       AND ov.id IN (uv.option1_value_id, uv.option2_value_id))), '[]'::json))
+                ORDER BY o.position)
+         FROM public.product_option o
+         WHERE o.product_id = p.id), '[]'::json) AS options,
        -- The gallery: primary first, then display order.
        COALESCE((
          SELECT json_agg(json_build_object(

@@ -15,7 +15,9 @@ const CUST = "cust-1";
 const row = (n: number, over: Partial<ListRow> = {}): ListRow => ({
   product_id: id(n), name: `P${n}`, brand: null, price_amount: "4.50", currency: "AUD", compare_at_amount: null,
   storage_key: null, image_widths: null, saved_at: new Date("2026-10-01T02:03:04.567Z"), saved_price_amount: "4.50", category_key: null,
-  is_new: false, price_dropped: false, verdict: "purchasable", ...over,
+  is_new: false, price_dropped: false, verdict: "purchasable",
+  variant_id: null, shown_variant_id: id(n), variant_label: null, variant_count: 1, pack_quantity: null, pack_unit: null, unit_basis: null,
+  ...over,
 });
 
 const summary = (over: Partial<ListSummaryRow>): ListSummaryRow => ({ id: id(900), is_default: false, name: "Weekly", count: 0, only_here: 0, contains: false, ...over });
@@ -59,6 +61,8 @@ describe("list", () => {
     expect(item).toEqual({
       id: id(1), name: "P1", brand: null, imageUrl: null, priceAmount: "4.50", currency: "AUD", compareAtAmount: null,
       badges: [], savedAt: "2026-10-01T02:03:04Z", savedPriceAmount: "4.50", verdict: "purchasable",
+      // 098 — one size and none remembered: "Add to cart" adds that size.
+      variantId: id(1), variantLabel: null, variantCount: 1, unitPrice: null,
     });
     expect(item).not.toHaveProperty("priceDropped");
     expect(item).not.toHaveProperty("categoryKey");
@@ -83,7 +87,7 @@ describe("save / remove", () => {
   it("save puts the product in the default list, at the account cap", async () => {
     const { svc, repo } = build();
     await svc.save(CUST, id(1), null);
-    expect(repo.addEntry).toHaveBeenCalledWith(CUST, "default", id(1), null, ACCOUNT_CAP);
+    expect(repo.addEntry).toHaveBeenCalledWith(CUST, "default", id(1), null, ACCOUNT_CAP, null);
     expect(ACCOUNT_CAP).toBe(200);
   });
 
@@ -100,10 +104,10 @@ describe("merge", () => {
     const { svc, repo } = build();
     const at = (s: string) => new Date(s);
     const items: MergeItem[] = [
-      { productId: "old", savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-01-01T00:00:00Z") },
-      { productId: "tie-1", savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-06-01T00:00:00Z") },
-      { productId: "new", savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-09-01T00:00:00Z") },
-      { productId: "tie-2", savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-06-01T00:00:00Z") },
+      { productId: "old", variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-01-01T00:00:00Z") },
+      { productId: "tie-1", variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-06-01T00:00:00Z") },
+      { productId: "new", variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-09-01T00:00:00Z") },
+      { productId: "tie-2", variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at("2026-06-01T00:00:00Z") },
     ];
     await svc.merge(CUST, items);
     expect((vi.mocked(repo.merge).mock.calls[0]![1] as MergeItem[]).map((i) => i.productId)).toEqual(["new", "tie-1", "tie-2", "old"]);
@@ -119,6 +123,17 @@ describe("add a whole list to the cart", () => {
       [CUST, id(1), itemChangeId("batch-1", id(1)), 1],
       [CUST, id(2), itemChangeId("batch-1", id(2)), 1],
     ]);
+  });
+
+  it("098 — adds the REMEMBERED variant; with several and none remembered, asks the shopper to choose", async () => {
+    const { svc, addToCart } = build({
+      list: async () => [row(1, { variant_id: "v-1kg", variant_count: 3 }), row(2, { variant_count: 2 }), row(3)],
+    });
+    expect(await svc.addAllToCart(CUST, "default", "b")).toEqual({
+      added: [id(1), id(3)],
+      skipped: [{ productId: id(2), reason: "choose_variant" }],
+    });
+    expect((addToCart.mock.calls as unknown as string[][]).map((c) => c[1])).toEqual(["v-1kg", id(3)]);
   });
 
   it("skips what cannot be bought, giving the SAME reason the list shows", async () => {
@@ -187,7 +202,7 @@ describe("lists", () => {
   it("create normalises the name, then returns the list as it now stands", async () => {
     const { svc, repo } = build({ lists: async () => [summary({ name: "Weekly Items", count: 1 })] });
     expect(await svc.createList(CUST, "  Weekly   Items ", id(1))).toMatchObject({ id: id(900), name: "Weekly Items", count: 1 });
-    expect(repo.createList).toHaveBeenCalledWith(CUST, "Weekly Items", id(1), 20, ACCOUNT_CAP);
+    expect(repo.createList).toHaveBeenCalledWith(CUST, "Weekly Items", id(1), 20, ACCOUNT_CAP, null);
   });
 
   it("create refuses a bad name or a taken one before touching the database", async () => {

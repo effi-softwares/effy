@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.saved.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.UnitPriceText
 import com.effyshopping.customer.mobile.core.presentation.EffySnackbarHost
 import com.effyshopping.customer.mobile.resources.lucide_heart
 import com.effyshopping.customer.mobile.resources.lucide_trash_2
@@ -182,10 +183,15 @@ fun SavedScreen(
      * point is to keep watching what it costs.
      */
     fun addOne(item: SavedItem) {
+        // 098 — no remembered size on a product sold in several: the row offers "Choose size" instead.
+        val variantId = item.variantId ?: return onOpen(item.productId)
         container.addToCart(
             GuestCartLine(
+                variantId = variantId,
                 productId = item.productId,
                 name = item.name,
+                variantLabel = item.variantLabel,
+                unitPrice = item.unitPrice,
                 imageUrl = item.imageUrl,
                 unitPriceAmount = item.priceAmount,
                 currency = item.currency,
@@ -553,6 +559,10 @@ private fun SavedRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                // 098 — the size remembered with the save.
+                item.variantLabel?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
 
                 // ⚠ ONE SENTENCE PER OUTCOME, and they are deliberately different sentences.
                 // "Out of stock" and "no longer sold" imply different next actions — wait, versus give
@@ -579,6 +589,7 @@ private fun SavedRow(
                     money(item.priceAmount, item.currency),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 )
+                UnitPriceText(item.unitPrice)
                 // ⚠ The watchlist's whole reason for existing: what CHANGED since it was saved. There
                 // is deliberately no equivalent for a rise (FR-044) — the current price is always
                 // shown, so nothing is concealed, but a rise is not something a shopper can act on.
@@ -617,6 +628,8 @@ private fun SavedRow(
                 !item.verdict.isPurchasable -> Unit
                 // The count is stated: "in your cart" is not the same fact as "two of these are".
                 cartQuantity > 0 -> EffyTextLink(if (cartQuantity == 1) "In your cart · View" else "$cartQuantity in your cart · View", onClick = onGoToCart)
+                // 098 — sold in several sizes and none remembered: the shopper chooses (never a guess).
+                item.variantId == null -> EffyTextLink("Choose size", onClick = { onOpen(item.productId) })
                 else -> EffyTextLink("Add to cart", onClick = onAddToCart)
             }
             Spacer(Modifier.weight(1f))
@@ -666,6 +679,8 @@ private fun skipReason(reason: String): String = when (reason) {
     "not_found" -> "no longer available"
     "temporarily_unavailable" -> "out of stock right now"
     "no_longer_sold" -> "no longer sold"
+    // 098 — several sizes and none remembered.
+    "choose_variant" -> "choose a size on its page"
     else -> "couldn't be added right now"
 }
 

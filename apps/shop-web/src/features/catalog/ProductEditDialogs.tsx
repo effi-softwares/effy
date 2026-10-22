@@ -28,7 +28,10 @@ import { isApproved } from "./review";
 import type { ProductDetail, ProductType } from "./model";
 import { catalogSchemaQuery } from "./queries";
 import { useFocusedEdit } from "./useFocusedEdit";
-import { attributeErrors, attributesValid, isValidPrice } from "./validation";
+import { attributeErrors, attributesValid } from "./validation";
+import { VariantEditor } from "./VariantEditor";
+import { draftFromDetail, toInputs, variantSetErrors, type VariantSetDraft } from "./variants";
+import { track } from "@/lib/telemetry";
 
 // The four focused-edit dialogs (US4). Each is scoped to ONE section, seeds its local form state from
 // the loaded detail, PATCHes only its changed subset (diffScalarFields) with the detail's `updatedAt`
@@ -47,7 +50,7 @@ function useSeedKey(detail: ProductDetail, open: boolean) {
   return `${open ? "open" : "closed"}:${detail.updatedAt}`;
 }
 
-// ── Basics (name / brand / sku / gtin / descriptions) ─────────────────────────────────────────────
+// ── Basics (name / brand / GST / descriptions) ───────────────────────────────────────────────────
 
 export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   const edit = useFocusedEdit(detail.id);
@@ -55,25 +58,16 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
 
   const [name, setName] = useState(detail.name);
   const [brand, setBrand] = useState(detail.brand ?? "");
-  const [sku, setSku] = useState(detail.sku ?? "");
-  const [gtin, setGtin] = useState(detail.gtin ?? "");
   const [shortDescription, setShort] = useState(detail.shortDescription);
   const [longDescription, setLong] = useState(detail.longDescription ?? "");
-  // ⚠ Seeded BLANK when the weight is assumed, so the operator is answering "how heavy is it?" rather
-  // than confirming a number the platform invented. Pre-filling 500 would invite a save that flips the
-  // flag to "measured" without anyone measuring anything.
-  const [weightGrams, setWeight] = useState(detail.weightIsAssumed ? "" : String(detail.weightGrams));
   // 096 — "" when the product predates GST status: the operator chooses, nothing is assumed.
   const [gstStatus, setGst] = useState<"" | GstStatus>(detail.gstStatus ?? "");
 
   useEffect(() => {
     setName(detail.name);
     setBrand(detail.brand ?? "");
-    setSku(detail.sku ?? "");
-    setGtin(detail.gtin ?? "");
     setShort(detail.shortDescription);
     setLong(detail.longDescription ?? "");
-    setWeight(detail.weightIsAssumed ? "" : String(detail.weightGrams));
     setGst(detail.gstStatus ?? "");
     edit.reset();
     // Seed by open/updatedAt only — see useSeedKey.
@@ -86,13 +80,8 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
     const changed = diffScalarFields(detail, {
       name: name.trim(),
       brand: brand.trim() || null,
-      sku: sku.trim() || null,
-      gtin: gtin.trim() || null,
       shortDescription: shortDescription.trim(),
       longDescription: longDescription.trim() || null,
-      // ⚠ Blank means "leave it as it is" (undefined → omitted from the diff), NOT "reset to the
-      // default". There is deliberately no way to un-measure a weight from this dialog.
-      weightGrams: weightGrams.trim() ? Number(weightGrams.trim()) : undefined,
       gstStatus: gstStatus || undefined,
     });
     void edit.save(buildProductUpdate(detail.updatedAt, changed), () => onOpenChange(false));
@@ -103,7 +92,7 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
       open={open}
       onOpenChange={onOpenChange}
       title="Edit basics"
-      description={reviewNote(detail, "Name, brand, identifiers, and descriptions.")}
+      description={reviewNote(detail, "Name, brand, GST and descriptions. Prices, codes and weights are each size's — under Sizes and prices.")}
       canSave={canSave}
       saving={edit.saving}
       error={edit.error}
@@ -122,24 +111,6 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
         <Field id="e-brand" label="Brand">
           <Input id="e-brand" value={brand} onChange={(e) => setBrand(e.target.value)} />
         </Field>
-        <Field id="e-sku" label="SKU">
-          <Input id="e-sku" value={sku} onChange={(e) => setSku(e.target.value)} />
-        </Field>
-        <Field id="e-gtin" label="GTIN">
-          <Input id="e-gtin" value={gtin} onChange={(e) => setGtin(e.target.value)} />
-        </Field>
-        <Field id="e-weight" label="Shipping weight (grams)">
-          <Input
-            id="e-weight"
-            type="number"
-            inputMode="numeric"
-            min={1}
-            step={1}
-            value={weightGrams}
-            onChange={(e) => setWeight(e.target.value)}
-            placeholder={detail.weightIsAssumed ? `${detail.weightGrams} (assumed)` : undefined}
-          />
-        </Field>
         <Field id="e-gst" label="GST">
           <Select value={gstStatus} onValueChange={(v) => setGst(v as GstStatus)}>
             <SelectTrigger id="e-gst">
@@ -152,14 +123,6 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
           </Select>
         </Field>
       </div>
-      {/* ⚠ The assumed-weight warning spans the dialog: under a one-third-width field it would wrap to
-          six lines and push the descriptions out of view. */}
-      {detail.weightIsAssumed ? (
-        <p className="text-sm text-muted-foreground">
-          ⚠ Nobody has weighed this — {detail.weightGrams} g is an assumption the platform records so
-          delivery can still be priced. Enter the real weight, including packaging.
-        </p>
-      ) : null}
       <Field id="e-short" label="Short description" required>
         <Textarea id="e-short" value={shortDescription} onChange={(e) => setShort(e.target.value)} />
       </Field>
@@ -175,70 +138,67 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   );
 }
 
-// ── Pricing (price / compare-at) ─────────────────────────────────────────────────────────────────
+// ── Sizes and prices (098 — options, and each variant's price, codes, weight and pack size) ──────
 
-export function PricingEditDialog({ detail, open, onOpenChange }: EditProps) {
+export function SizesEditDialog({ detail, open, onOpenChange }: EditProps) {
   const edit = useFocusedEdit(detail.id);
   const seedKey = useSeedKey(detail, open);
-
-  const [priceAmount, setPrice] = useState(detail.priceAmount);
-  const [compareAtAmount, setCompareAt] = useState(detail.compareAtAmount ?? "");
+  // ⚠ Opens on the shop's own latest version: the pending proposal when there is one (067).
+  const [set, setSet] = useState<VariantSetDraft>(() => draftFromDetail(detail));
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
-    setPrice(detail.priceAmount);
-    setCompareAt(detail.compareAtAmount ?? "");
+    setSet(draftFromDetail(detail));
+    setTouched(false);
     edit.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedKey]);
 
-  const compareValid = !compareAtAmount.trim() || isValidPrice(compareAtAmount);
-  const canSave = isValidPrice(priceAmount) && compareValid;
+  const errors = variantSetErrors(set);
+  const valid = Object.keys(errors).length === 0;
 
   function onSave() {
-    const changed = diffScalarFields(detail, {
-      priceAmount: priceAmount.trim(),
-      compareAtAmount: compareAtAmount.trim() || null,
-    });
-    void edit.save(buildProductUpdate(detail.updatedAt, changed), () => onOpenChange(false));
+    setTouched(true);
+    if (!valid) return;
+    const inputs = toInputs(set);
+    // The whole set travels: the server compares it with the live one and proposes only a difference.
+    void edit.save(
+      { expectedUpdatedAt: detail.updatedAt, options: inputs.options, variants: inputs.variants, unitBasis: inputs.unitBasis },
+      () => {
+        track({ name: "product_variants_saved", productId: detail.id, variantCount: inputs.variants.length });
+        onOpenChange(false);
+      },
+    );
   }
 
   return (
     <FocusedEditDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Edit pricing"
-      description={reviewNote(detail, "The price you are paid, and an optional compare-at (strike-through) price.")}
-      canSave={canSave}
+      title="Edit sizes and prices"
+      description={reviewNote(
+        detail,
+        "What you are paid for each size, and its codes, weight and pack size. Turning a size off is immediate — use the Off sale action on the size's row.",
+      )}
+      canSave={!touched || valid}
       saving={edit.saving}
       error={edit.error}
       stale={edit.stale}
       onReload={edit.reload}
       onSave={onSave}
+      size="full"
     >
-      <Field id="e-price" label={`Price (${detail.currency})`} required>
-        <Input
-          id="e-price"
-          inputMode="decimal"
-          placeholder="0.00"
-          value={priceAmount}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-        {priceAmount && !isValidPrice(priceAmount) ? (
-          <p className="text-xs text-destructive">Enter a positive amount (e.g. 4.99).</p>
-        ) : null}
-      </Field>
-      <Field id="e-compare" label={`Compare-at (${detail.currency})`}>
-        <Input
-          id="e-compare"
-          inputMode="decimal"
-          placeholder="0.00"
-          value={compareAtAmount}
-          onChange={(e) => setCompareAt(e.target.value)}
-        />
-        {!compareValid ? (
-          <p className="text-xs text-destructive">Enter a positive amount, or leave blank.</p>
-        ) : null}
-      </Field>
+      <VariantEditor
+        value={set}
+        onChange={(next) => {
+          setTouched(true);
+          setSet(next);
+        }}
+        errors={errors}
+        showErrors={touched}
+        media={(detail.pendingChange?.media ?? detail.media).map((m) => ({ storageKey: m.storageKey, url: m.url, altText: m.altText }))}
+        disabled={edit.saving}
+      />
     </FocusedEditDialog>
   );
 }

@@ -50,17 +50,17 @@ d("096 US8 — the customer's tax documents", () => {
   it("owner only; not available while disabled; the business identity is set before issue; a PDF by number", async () => {
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('CTX', 'Shop') RETURNING id`);
     const product = await one<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by, status, approved_at, gst_status)
-       VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Soap', 1100, 'A thing', 'test', 'active', now(), 'taxable')
-       RETURNING id`, [shop.id]);
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Soap', 'A thing', 'test', 'active', now(), 'taxable') RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(1100, 1100)::numeric, (1100)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shop.id]);
     const me = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email, given_name) VALUES ('me', 'me@effyshopping.com', 'Ada') RETURNING id`);
     const them = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('them', 'them@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, delivery_fee_amount, grand_total_amount, delivery_address, status, placed_at)
        VALUES ($1, 'EFY-CTX001', 1100, 0, 1100, '{}'::jsonb, 'paid', now()) RETURNING id`, [me.id]);
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status)
-       VALUES ($1, $2, $3, 'Soap', 1100, 1, 1100, 'taxable')`, [order.id, product.id, shop.id]);
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Soap', 1100, 1, 1100, 'taxable')`, [order.id, product.id, shop.id]);
 
     await expect(taxDocuments(them.id, order.id)).rejects.toBeInstanceOf(DocumentNotFound);
     await expect(taxDocuments(me.id, order.id)).rejects.toMatchObject({ code: "invoices_unavailable" });

@@ -67,7 +67,7 @@ const refunds = (orderId: string) =>
     `SELECT kind, amount::text, status, actor_kind, actor_sub, provider_refund_id FROM public.refund WHERE order_id = $1 ORDER BY created_at, id`,
     [orderId],
   ).then((r) => r.rows);
-const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_on_hand AS n FROM public.product WHERE id = $1`, [product[name]])).n;
+const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_on_hand AS n FROM public.product_variant WHERE product_id = $1`, [product[name]])).n;
 
 /** A PAID order: 2 × Tracked (5.00) from shop A and 1 × Plain (10.00) from shop B, plus 6.00 delivery = 26.00. */
 async function paidOrder() {
@@ -84,8 +84,8 @@ async function paidOrder() {
   for (const [name, shop, price, qty] of [["Tracked", shopA, "5.00", 2], ["Plain", shopB, "10.00", 1]] as const) {
     item[name] = (
       await one<{ id: string }>(
-        `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-         VALUES ($1, $2, $3, $4, $5::numeric, $6::int, $5::numeric * $6::int) RETURNING id::text AS id`,
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, $5::numeric, $6::int, $5::numeric * $6::int) RETURNING id::text AS id`,
         [orderId, product[name], shop, name, price, qty],
       )
     ).id;
@@ -149,11 +149,9 @@ d("070 — refunds and cancellation against the real schema", () => {
     for (const [name, shop, price, tracked] of [["Tracked", shopA, "5.00", true], ["Plain", shopB, "10.00", false]] as const) {
       product[name] = (
         await one<{ id: string }>(
-          `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, shop_price_amount,
-                                       short_description, created_by, status, approved_at, stock_tracked, stock_on_hand)
-           SELECT $1, (SELECT id FROM public.product_type WHERE key='rf-type'), (SELECT id FROM public.category WHERE key='rf-cat'),
-                  $2, $3::numeric, $3::numeric, 'd', 'seed', 'active', now(), $4, $5
-           RETURNING id::text AS id`,
+          `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type WHERE key='rf-type'), (SELECT id FROM public.category WHERE key='rf-cat'), $2, 'd', 'seed', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, stock_tracked, stock_on_hand) SELECT p.id, p.shop_id, COALESCE($3::numeric, $3::numeric)::numeric, ($3::numeric)::numeric, $4, $5 FROM p RETURNING id)
+SELECT id::text AS id FROM p`,
           [shop, name, price, tracked, tracked ? 1000 : null],
         )
       ).id;

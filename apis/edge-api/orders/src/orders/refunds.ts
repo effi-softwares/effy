@@ -76,7 +76,9 @@ export interface RefundLineRow {
 
 export async function refundLines(orderId: string): Promise<RefundLineRow[]> {
   const res = await query<RefundLineRow>(
-    `SELECT rl.refund_id::text, rl.order_item_id::text, oi.product_name,
+    `SELECT rl.refund_id::text, rl.order_item_id::text,
+            -- 098 — the line as sold, with its variant.
+            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
             rl.quantity, rl.amount::text
        FROM public.refund_line rl
        JOIN public.refund r     ON r.id = rl.refund_id
@@ -131,7 +133,7 @@ export interface RefundRequestItemRow {
 /** What the customer named in their request. Empty means they asked about the order as a whole. */
 export async function refundRequestItems(requestId: string): Promise<RefundRequestItemRow[]> {
   const res = await query<RefundRequestItemRow>(
-    `SELECT ri.order_item_id::text, oi.product_name, ri.quantity
+    `SELECT ri.order_item_id::text, CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name, ri.quantity
        FROM public.refund_request_item ri
        JOIN public.order_item oi ON oi.id = ri.order_item_id
       WHERE ri.request_id = $1

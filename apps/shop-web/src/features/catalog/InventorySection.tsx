@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
-import { Button, LoadingArea } from "@effy/design-system/ui";
+import { Button, Label, LoadingArea, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { DetailSection, Field, FieldGrid, SectionAction } from "@/components/console/primitives";
@@ -12,7 +12,7 @@ import type { ProductDetail } from "./model";
 import { AdjustStockDialog } from "./StockDialogs";
 import { InventoryRulesDialog } from "./InventoryRulesDialog";
 import { StockHistory } from "./StockHistory";
-import { productStockQuery } from "./stockQueries";
+import { variantStockQuery } from "./stockQueries";
 
 /**
  * The Inventory section of the product detail screen, rebuilt to the imported mockup (057).
@@ -45,8 +45,17 @@ import { productStockQuery } from "./stockQueries";
  *     an invented velocity is the defect this feature deleted from the dashboard, where a fake chart
  *     shipped as if it were real.
  */
-export function InventorySection({ detail }: { detail: ProductDetail }) {
-  const { data, isPending, isError, error, refetch } = useQuery(productStockQuery(detail.id));
+export function InventorySection({
+  detail,
+  variantId,
+  onVariantChange,
+}: {
+  detail: ProductDetail;
+  /** 098 — stock is counted per size; this is the size the tab is showing. */
+  variantId: string;
+  onVariantChange: (variantId: string) => void;
+}) {
+  const { data, isPending, isError, error, refetch } = useQuery(variantStockQuery(variantId));
   const [rulesOpen, setRulesOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
 
@@ -77,6 +86,7 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
 
   return (
     <>
+      <SizePicker detail={detail} variantId={variantId} onChange={onVariantChange} />
       <DetailSection
         title="Stock rules"
         subtitle={RULES_SUBTITLE}
@@ -159,6 +169,7 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
 
       <InventoryRulesDialog
         detail={detail}
+        variantId={variantId}
         stock={stock}
         open={rulesOpen}
         onOpenChange={setRulesOpen}
@@ -168,13 +179,40 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
           dialog would be offering a guaranteed refusal. */}
       {stock.tracked ? (
         <AdjustStockDialog
-          productId={detail.id}
+          variantId={variantId}
           stock={stock}
           open={adjustOpen}
           onOpenChange={setAdjustOpen}
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * 098 — which size's stock the tab shows. Each size is its own shelf with its own count, rules and
+ * history; a product sold in one size shows no picker at all.
+ */
+function SizePicker({ detail, variantId, onChange }: { detail: ProductDetail; variantId: string; onChange: (id: string) => void }) {
+  const live = detail.variants.filter((v) => v.state !== "removed");
+  if (live.length <= 1) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Label htmlFor="stock-size">Size</Label>
+      <Select value={variantId} onValueChange={onChange}>
+        <SelectTrigger id="stock-size" className="w-[240px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {live.map((v) => (
+            <SelectItem key={v.id} value={v.id}>
+              {v.label ?? detail.name}
+              {v.state === "inactive" ? " (off sale)" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -213,13 +251,13 @@ function thresholdText(own: number | null, effective: number | null): string {
  * product, offer the wrong dialog to a fast click.
  */
 export function ReceiveStockButton({
-  detail,
+  variantId,
   onReceive,
 }: {
-  detail: ProductDetail;
+  variantId: string;
   onReceive: () => void;
 }) {
-  const { data } = useQuery(productStockQuery(detail.id));
+  const { data } = useQuery(variantStockQuery(variantId));
   const loading = data === undefined;
   const tracked = data?.stock.tracked ?? false;
 

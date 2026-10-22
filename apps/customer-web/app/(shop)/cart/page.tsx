@@ -27,6 +27,7 @@ import { toast } from "@/lib/toast-store"
 import { useOnDemand } from "@/lib/use-on-demand"
 
 import { PaymentMarks } from "../_components/PaymentMarks"
+import { UnitPrice } from "../_components/UnitPrice"
 import { PromoField } from "./PromoField"
 
 /**
@@ -103,7 +104,7 @@ export default function CartPage() {
           <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
             <ul className="divide-y rounded-lg border shadow-xs">
               {lines.map((line) => (
-                <CartLineRow key={line.productId} line={line} />
+                <CartLineRow key={line.variantId} line={line} />
               ))}
             </ul>
 
@@ -189,7 +190,7 @@ export default function CartPage() {
           </h2>
           <ul className="mt-4 divide-y rounded-lg border shadow-xs">
             {saved.map((line) => (
-              <SavedLineRow key={line.productId} line={line} />
+              <SavedLineRow key={line.variantId} line={line} />
             ))}
           </ul>
         </section>
@@ -234,27 +235,22 @@ function Thumb({ line }: { line: GuestCartLine }) {
 
 const textAction = "text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
 
+/** The product page, opened on the line's size when it is one of several (098). */
+const lineHref = (line: GuestCartLine) =>
+  line.variantLabel ? `/product/${line.productId}?variant=${line.variantId}` : `/product/${line.productId}`
+
 function CartLineRow({ line }: { line: GuestCartLine }) {
   const [busy, setBusy] = useState(false)
 
   function remove() {
-    removeItem(line.productId)
+    removeItem(line.variantId)
     void import("@/lib/telemetry").then(({ capture }) =>
       capture({ name: "product_removed_from_cart", props: { productId: line.productId } }),
     )
     toast(`Removed ${line.name}`, {
       action: {
         label: "Undo",
-        run: () =>
-          addItem({
-            productId: line.productId,
-            name: line.name,
-            imageUrl: line.imageUrl,
-            unitPriceAmount: line.unitPriceAmount,
-            currency: line.currency,
-            quantity: line.quantity,
-            packageKey: line.packageKey,
-          }),
+        run: () => addItem({ ...line }),
       },
     })
   }
@@ -262,7 +258,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
   /** Save for later is per customer; a guest's request fails and says why (the routes need a session). */
   async function saveForLater() {
     setBusy(true)
-    const ok = await setAsideItem(line.productId)
+    const ok = await setAsideItem(line.variantId)
     setBusy(false)
     toast(ok ? `Saved ${line.name} for later` : "Sign in to save items for later")
   }
@@ -272,8 +268,10 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
       <Thumb line={line} />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-4">
-          <Link href={`/product/${line.productId}`} className="text-sm font-medium hover:underline">
+          <Link href={lineHref(line)} className="text-sm font-medium hover:underline">
             {line.name}
+            {/* 098 — the size chosen, said beside the name. */}
+            {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
           </Link>
           <span className="text-sm font-semibold tabular-nums">
             {formatMoney((parseFloatSafe(line.unitPriceAmount) * line.quantity).toFixed(2), line.currency)}
@@ -283,6 +281,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
           {formatMoney(line.unitPriceAmount, line.currency)} each
           {line.priceChangedFrom ? ` · was ${formatMoney(line.priceChangedFrom, line.currency)}` : ""}
         </span>
+        <UnitPrice unit={line.unitPrice} />
         {line.available === false ? (
           <span className="mt-1 flex items-center gap-1.5 text-xs font-medium">
             <CircleAlert aria-hidden="true" className="size-3.5" />
@@ -294,7 +293,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
           <div className="flex h-9 items-center rounded-md border border-input shadow-xs">
             <button
               type="button"
-              onClick={() => setItemQuantity(line.productId, line.quantity - 1)}
+              onClick={() => setItemQuantity(line.variantId, line.quantity - 1)}
               className="grid h-full w-9 place-items-center rounded-l-md hover:bg-accent"
               aria-label="Decrease quantity"
             >
@@ -305,7 +304,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
             </span>
             <button
               type="button"
-              onClick={() => setItemQuantity(line.productId, line.quantity + 1)}
+              onClick={() => setItemQuantity(line.variantId, line.quantity + 1)}
               className="grid h-full w-9 place-items-center rounded-r-md hover:bg-accent disabled:opacity-40"
               disabled={line.quantity >= 99}
               aria-label="Increase quantity"
@@ -329,7 +328,7 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
   const [busy, setBusy] = useState(false)
   async function run(action: (id: string) => Promise<boolean>, failed: string) {
     setBusy(true)
-    const ok = await action(line.productId)
+    const ok = await action(line.variantId)
     setBusy(false)
     if (!ok) toast(failed)
   }
@@ -337,8 +336,9 @@ function SavedLineRow({ line }: { line: GuestCartLine }) {
     <li className="flex gap-4 p-4">
       <Thumb line={line} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Link href={`/product/${line.productId}`} className="text-sm font-medium hover:underline">
+        <Link href={lineHref(line)} className="text-sm font-medium hover:underline">
           {line.name}
+          {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
         </Link>
         <span className="text-sm text-muted-foreground">{formatMoney(line.unitPriceAmount, line.currency)} each</span>
         <div className="mt-3 flex flex-wrap items-center gap-4">

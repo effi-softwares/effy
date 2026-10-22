@@ -21,7 +21,7 @@ import type { ProductDetail } from "./model";
 import { useChangeStatus, useDeleteProduct, useSubmitForReview, useWithdrawReview } from "./queries";
 import { ReceiveStockDialog, StartTrackingDialog } from "./StockDialogs";
 import { removalAction, visibilityAction } from "./statusControl";
-import { productStockQuery } from "./stockQueries";
+import { variantStockQuery } from "./stockQueries";
 import { useQuery } from "@tanstack/react-query";
 
 /**
@@ -40,15 +40,18 @@ import { useQuery } from "@tanstack/react-query";
  */
 export function ProductHeaderActions({
   detail,
+  stockVariantId,
   onOpenActivity,
   onDeleted,
 }: {
   detail: ProductDetail;
+  /** 098 — the size "Receive stock" receives into: the one the Inventory tab shows. */
+  stockVariantId: string;
   onOpenActivity: () => void;
   onDeleted: () => void;
 }) {
   const changeStatus = useChangeStatus(detail.id);
-  const stock = useQuery(productStockQuery(detail.id));
+  const stock = useQuery(variantStockQuery(stockVariantId));
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +99,7 @@ export function ProductHeaderActions({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <ReceiveStockButton detail={detail} onReceive={() => setReceiveOpen(true)} />
+      <ReceiveStockButton variantId={stockVariantId} onReceive={() => setReceiveOpen(true)} />
 
       {action ? (
         <Button
@@ -135,14 +138,14 @@ export function ProductHeaderActions({
       {stock.data ? (
         stock.data.stock.tracked ? (
           <ReceiveStockDialog
-            productId={detail.id}
+            variantId={stockVariantId}
             stock={stock.data.stock}
             open={receiveOpen}
             onOpenChange={setReceiveOpen}
           />
         ) : (
           <StartTrackingDialog
-            productId={detail.id}
+            variantId={stockVariantId}
             open={receiveOpen}
             onOpenChange={setReceiveOpen}
           />

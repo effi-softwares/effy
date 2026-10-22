@@ -537,7 +537,7 @@ private fun SectionBlock(
                     onProductClick,
                     width = tileWidth,
                     imageOverlay = { TileSaveControl(product, savedTiles) },
-                    cartQuantity = tileCart.quantityOf(product.id),
+                    cartQuantity = tileCart.quantityOf(product.variantId),
                     onCartQuantityChange = { tileCart.change(product, it) },
                 )
             }

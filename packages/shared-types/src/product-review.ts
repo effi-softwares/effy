@@ -48,6 +48,7 @@ export interface MarginNotSetItemDTO {
   shopId: string;
   shopName: string;
   productName: string;
+  /** 098 — the lowest shop price among its active variants. */
   shopPriceAmount: string;
   status: string;
 }
@@ -72,6 +73,30 @@ export interface ReviewFieldChangeDTO {
   label: string;
   before: string | null;
   after: string | null;
+}
+
+/**
+ * 098 — one variant as the decision would make it live: the shop's prices and, so the reviewer sees
+ * what each will sell at BEFORE deciding (FR-011), its prices under the product's current margin.
+ * The back-office recomputes the resulting prices as the reviewer types a margin (preview only — the
+ * server's arithmetic is the one that sells).
+ */
+export interface ReviewVariantDTO {
+  id: string;
+  label: string | null;
+  sku: string | null;
+  gtin: string | null;
+  shopPriceAmount: string;
+  shopCompareAtAmount: string | null;
+  /** Under `currentMargin` (the shop price when none is set). */
+  customerPriceAmount: string;
+  customerCompareAtAmount: string | null;
+  weightGrams: WireInt;
+  packQuantity: string | null;
+  packUnit: string | null;
+  state: "active" | "inactive" | "removed";
+  /** For a change: whether this variant is new, dropped, changed or unchanged by it. */
+  change: "added" | "removed" | "changed" | "unchanged";
 }
 
 export interface ReviewDetailRowDTO {
@@ -99,12 +124,15 @@ export interface ReviewItemDetailDTO {
     /** The proposed image set, or null when the change does not touch images. */
     proposed: ReviewImageDTO[] | null;
   };
-  /** The shop price this decision would make live. */
-  shopPriceAmount: string;
-  shopCompareAtAmount: string | null;
+  /**
+   * 098 — every variant the decision would make live (for a change: the proposed set, with removed
+   * live variants listed as `removed`). Per-variant field changes are also in `changes`, keyed
+   * `variant:<id>:<field>`.
+   */
+  variants: ReviewVariantDTO[];
   /** The margin the product carries NOW, or null if none has ever been set. */
   currentMargin: MarginDTO | null;
-  /** True when approving requires a margin in the request (new product, shop price changed, or none set). */
+  /** True when approving requires a margin in the request (new product, a shop price changed, or none set). */
   marginRequired: boolean;
 }
 
@@ -128,9 +156,9 @@ export interface SetMarginRequest {
 
 export interface ReviewDecisionDTO {
   productId: string;
-  shopPriceAmount: string;
-  customerPriceAmount: string;
   margin: MarginDTO | null;
+  /** 098 — every live variant's prices after the decision. */
+  variants: { id: string; label: string | null; shopPriceAmount: string; customerPriceAmount: string }[];
 }
 
 export const REVIEW_REASON_MAX = 500;

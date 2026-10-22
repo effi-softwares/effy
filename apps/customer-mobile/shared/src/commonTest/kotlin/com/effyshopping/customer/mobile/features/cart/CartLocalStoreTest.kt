@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 class CartLocalStoreTest {
 
     private fun line(id: String, qty: Int = 1, price: String = "5.00") = GuestCartLine(
-        productId = id,
+        variantId = id, productId = id,
         name = "Product $id",
         imageUrl = null,
         unitPriceAmount = price,
@@ -41,7 +41,7 @@ class CartLocalStoreTest {
         val prefs = InMemoryDevicePreferences()
         val store = CartLocalStore(prefs)
         val queue = listOf(
-            PendingChange(changeId = "c1", kind = PendingChangeKind.Add, productId = "p1", quantity = 2),
+            PendingChange(changeId = "c1", kind = PendingChangeKind.Add, variantId = "p1", quantity = 2),
         )
 
         store.save(cart(line("p1", 2)), queue)
@@ -115,7 +115,7 @@ class CartLocalStoreTest {
         val store = CartLocalStore(prefs)
         store.save(
             cart(line("p1", 3)),
-            listOf(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, productId = "p1")),
+            listOf(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, variantId = "p1")),
         )
         prefs.putString(PreferenceKeys.CART_QUEUE, "{not json")
 

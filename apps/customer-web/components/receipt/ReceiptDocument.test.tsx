@@ -19,6 +19,8 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
       {
         orderItemId: "oi1",
         productId: "p1",
+        variantId: "p1-v",
+        variantLabel: null,
         productName: "Barilla Spaghetti No.5 500g",
         unitPriceAmount: "3.60",
         quantity: 1,
@@ -27,6 +29,8 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
       {
         orderItemId: "oi2",
         productId: "p2",
+        variantId: "p2-v",
+        variantLabel: null,
         productName: "Quilton 3 Ply Toilet Tissue 12 Pack",
         unitPriceAmount: "9.50",
         quantity: 2,
@@ -90,6 +94,8 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
             {
               orderItemId: "oi3",
               productId: "p1",
+              variantId: "p1-v",
+              variantLabel: null,
               productName: "Milk",
               unitPriceAmount: "3.10",
               quantity: 2,

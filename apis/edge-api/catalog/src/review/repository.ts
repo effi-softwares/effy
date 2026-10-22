@@ -113,7 +113,10 @@ export async function listMarginNotSet(
 ): Promise<MarginNotSetRow[]> {
   const res = await query<MarginNotSetRow>(
     `SELECT p.id AS product_id, p.shop_id, s.name AS shop_name, p.name AS product_name,
-            COALESCE(p.shop_price_amount, p.price_amount)::text AS shop_price_amount, p.status
+            -- 098 — the lowest shop price among its active variants ("from").
+            (SELECT min(v.shop_price_amount) FROM public.product_variant v
+              WHERE v.product_id = p.id AND v.state = 'active')::text AS shop_price_amount,
+            p.status
        FROM public.product p
        JOIN public.shop s ON s.id = p.shop_id
       WHERE p.approved_at IS NOT NULL AND p.margin_kind IS NULL AND p.status <> 'archived'
@@ -148,8 +151,6 @@ export interface ProductRow {
   shop_name: string;
   shop_status: string;
   name: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
   short_description: string;
   long_description: string | null;
@@ -157,13 +158,11 @@ export interface ProductRow {
   type_name: string;
   primary_category_id: string;
   category_name: string;
-  weight_grams: number;
   /** 096 */
   gst_status: "taxable" | "gst_free" | null;
+  /** 098 */
+  unit_basis: string | null;
   status: string;
-  shop_price_amount: string;
-  shop_compare_at_amount: string | null;
-  price_amount: string;
   margin_kind: "percent" | "amount" | null;
   margin_value: string | null;
   approved: boolean;
@@ -174,13 +173,10 @@ export interface ProductRow {
 
 const PRODUCT = `
   SELECT p.id, p.shop_id, s.name AS shop_name, s.status AS shop_status,
-         p.name, p.sku, p.gtin, p.brand, p.short_description, p.long_description,
+         p.name, p.brand, p.short_description, p.long_description,
          p.product_type_id, pt.name AS type_name, p.primary_category_id, c.name AS category_name,
-         p.weight_grams, p.gst_status, p.status,
-         COALESCE(p.shop_price_amount, p.price_amount)::text AS shop_price_amount,
-         CASE WHEN p.shop_price_amount IS NULL THEN p.compare_at_amount
-              ELSE p.shop_compare_at_amount END::text AS shop_compare_at_amount,
-         p.price_amount::text AS price_amount,
+         p.gst_status, p.unit_basis, p.status,
+         -- 098 — prices, codes and weights are the VARIANTS' (readVariantSets).
          p.margin_kind, p.margin_value::text AS margin_value,
          p.approved_at IS NOT NULL AS approved, p.review_state, p.submitted_at,
          p.updated_at::text AS version
@@ -351,31 +347,31 @@ export async function notifyShop(
   );
 }
 
-export interface PriceWrite {
+/** Effy's one margin per product (098 R7). The variants' customer prices follow via `priceVariants`. */
+export interface MarginWrite {
   marginKind: "percent" | "amount" | null;
   marginValue: string | null;
-  /** The customer prices the margin produces — computed by @effy/edge-shared's margin.ts. */
-  priceAmount: string;
-  compareAtAmount: string | null;
 }
 
-/** Approve a NEW product. Zero rows = it changed, or was already decided. */
+/**
+ * Approve a NEW product. Zero rows = it changed, or was already decided. The caller then prices every
+ * variant through `priceVariants` in the same transaction.
+ */
 export async function approveNewProduct(
   tx: pg.PoolClient,
   productId: string,
   version: string,
-  price: PriceWrite,
+  margin: MarginWrite,
 ): Promise<boolean> {
   const res = await tx.query(
     `UPDATE public.product
         SET approved_at = now(), status = 'active',
             review_state = 'none', review_reason = NULL, submitted_at = NULL,
             margin_kind = $3, margin_value = $4::numeric,
-            price_amount = $5::numeric, compare_at_amount = $6::numeric,
             updated_at = now()
       WHERE id = $1 AND approved_at IS NULL AND review_state = 'in_review'
         AND updated_at::text = $2`,
-    [productId, version, price.marginKind, price.marginValue, price.priceAmount, price.compareAtAmount],
+    [productId, version, margin.marginKind, margin.marginValue],
   );
   return (res.rowCount ?? 0) > 0;
 }
@@ -413,17 +409,13 @@ export async function sendBackChange(
 
 export interface AppliedValues {
   name: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
   shortDescription: string;
   longDescription: string | null;
   productTypeId: string;
   primaryCategoryId: string;
-  weightGrams: number;
-  weightChanged: boolean;
-  shopPriceAmount: string;
-  shopCompareAtAmount: string | null;
+  /** 098 */
+  unitBasis: string | null;
 }
 
 export interface AttributeWrite {
@@ -438,33 +430,29 @@ export interface AttributeWrite {
  * Apply an approved change to the LIVE product: details, attribute values and the image set.
  *
  * ⚠ Called inside the decision transaction with the change row already locked. The caller has
- * verified the version; this only writes.
+ * verified the version; this only writes. 098: the option/variant set is applied by the caller AFTER
+ * this (a variant may name one of the images this puts live), then priced.
  */
 export async function applyChange(
   tx: pg.PoolClient,
   productId: string,
   changeId: string,
   values: AppliedValues,
-  price: PriceWrite,
+  margin: MarginWrite,
   attributes: AttributeWrite[],
   mediaChanged: boolean,
 ): Promise<void> {
   await tx.query(
     `UPDATE public.product
-        SET name = $2, sku = $3, gtin = $4, brand = $5, short_description = $6, long_description = $7,
-            product_type_id = $8, primary_category_id = $9,
-            weight_grams = $10,
-            weight_is_assumed = CASE WHEN $11::boolean THEN false ELSE weight_is_assumed END,
-            shop_price_amount = $12::numeric, shop_compare_at_amount = $13::numeric,
-            margin_kind = $14, margin_value = $15::numeric,
-            price_amount = $16::numeric, compare_at_amount = $17::numeric,
+        SET name = $2, brand = $3, short_description = $4, long_description = $5,
+            product_type_id = $6, primary_category_id = $7, unit_basis = $8,
+            margin_kind = $9, margin_value = $10::numeric,
             updated_at = now()
       WHERE id = $1`,
     [
-      productId, values.name, values.sku, values.gtin, values.brand, values.shortDescription,
-      values.longDescription, values.productTypeId, values.primaryCategoryId, values.weightGrams,
-      values.weightChanged, values.shopPriceAmount, values.shopCompareAtAmount,
-      price.marginKind, price.marginValue, price.priceAmount, price.compareAtAmount,
+      productId, values.name, values.brand, values.shortDescription, values.longDescription,
+      values.productTypeId, values.primaryCategoryId, values.unitBasis,
+      margin.marginKind, margin.marginValue,
     ],
   );
 
@@ -496,21 +484,23 @@ export async function applyChange(
   await tx.query(`DELETE FROM public.product_change WHERE id = $1`, [changeId]);
 }
 
-/** Set a live product's margin. Zero rows = the margin was not what the reviewer saw. */
+/**
+ * Set a live product's margin. Zero rows = the margin was not what the reviewer saw. The caller then
+ * reprices every variant (`priceVariants`) in the same transaction.
+ */
 export async function setMargin(
   tx: pg.PoolClient,
   productId: string,
   expected: { kind: string | null; value: string | null },
-  price: PriceWrite,
+  margin: MarginWrite,
 ): Promise<boolean> {
   const res = await tx.query(
     `UPDATE public.product
-        SET margin_kind = $4, margin_value = $5::numeric,
-            price_amount = $6::numeric, compare_at_amount = $7::numeric, updated_at = now()
+        SET margin_kind = $4, margin_value = $5::numeric, updated_at = now()
       WHERE id = $1 AND approved_at IS NOT NULL
         AND margin_kind IS NOT DISTINCT FROM $2
         AND margin_value IS NOT DISTINCT FROM $3::numeric`,
-    [productId, expected.kind, expected.value, price.marginKind, price.marginValue, price.priceAmount, price.compareAtAmount],
+    [productId, expected.kind, expected.value, margin.marginKind, margin.marginValue],
   );
   return (res.rowCount ?? 0) > 0;
 }

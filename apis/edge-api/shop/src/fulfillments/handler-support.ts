@@ -156,7 +156,9 @@ function toItemDTO(i: FulfillmentItem): FulfillmentItemDTO {
   return {
     orderItemId: i.orderItemId,
     name: i.name,
+    variantLabel: i.variantLabel,
     sku: i.sku,
+    gtin: i.gtin,
     imageUrl: i.imageUrl,
     orderedQuantity: i.orderedQuantity,
     gatheredQuantity: i.gatheredQuantity,

@@ -54,9 +54,15 @@ export function fetchListItems(listId: string): Promise<ListResult<SavedItemDTO[
   return call(`/api/lists/${encodeURIComponent(listId)}/items`)
 }
 
-/** Create a list; with `productId`, the product is placed in it in the same action (FR-015). */
-export async function createList(name: string, productId?: string): Promise<ListResult<SavedListDTO>> {
-  const result = await call<SavedListDTO>("/api/lists", json("POST", productId ? { name, productId } : { name }))
+/**
+ * Create a list; with `productId`, the product is placed in it in the same action (FR-015). 098 —
+ * `variantId` is the size on screen, remembered with the product.
+ */
+export async function createList(name: string, productId?: string, variantId?: string | null): Promise<ListResult<SavedListDTO>> {
+  const result = await call<SavedListDTO>(
+    "/api/lists",
+    json("POST", productId ? { name, productId, ...(variantId ? { variantId } : {}) } : { name }),
+  )
   if (result.ok) {
     // ⚠ Where it was made and whether a product came with it. Never `name`.
     capture({
@@ -79,11 +85,14 @@ export async function deleteList(listId: string): Promise<ListResult> {
   return result
 }
 
-/** `restoreAddedAt` is set only by undo: the product returns to the position it held. */
-export async function addToList(listId: string, productId: string, restoreAddedAt?: string): Promise<ListResult> {
+/**
+ * `restoreAddedAt` is set only by undo: the product returns to the position it held. 098 —
+ * `variantId` is the size on screen, remembered with the product (lists hold products, not sizes).
+ */
+export async function addToList(listId: string, productId: string, restoreAddedAt?: string, variantId?: string | null): Promise<ListResult> {
   const result = await call<void>(
     `/api/lists/${encodeURIComponent(listId)}/entries/${encodeURIComponent(productId)}`,
-    json("PUT", restoreAddedAt ? { restoreAddedAt } : {}),
+    json("PUT", { ...(restoreAddedAt ? { restoreAddedAt } : {}), ...(variantId ? { variantId } : {}) }),
   )
   if (result.ok) {
     capture({

@@ -1,4 +1,5 @@
 import type {
+  SetVariantStateRequest,
   CatalogSchemaDTO,
   ChangeProductStatusRequest,
   CreatePresignedUploadResponse,
@@ -84,6 +85,18 @@ export async function changeProductStatus(
   body: ChangeProductStatusRequest,
 ): Promise<ProductDetail> {
   return api.post<ProductDetailDTO>(`/shop/v1/products/${id}/status`, body);
+}
+
+/**
+ * 098 — put one size on or off sale, or remove it. Immediate, never reviewed; 409 when it is the last
+ * size on sale (the product is made unavailable instead).
+ */
+export async function setVariantState(
+  productId: string,
+  variantId: string,
+  body: SetVariantStateRequest,
+): Promise<ProductDetail> {
+  return api.post<ProductDetailDTO>(`/shop/v1/products/${productId}/variants/${variantId}/state`, body);
 }
 
 /**

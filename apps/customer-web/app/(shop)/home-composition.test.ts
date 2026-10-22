@@ -31,6 +31,10 @@ function product(id = "p1"): StorefrontProductCardDTO {
     compareAtAmount: null,
     badges: [],
     available: true,
+    priceVaries: false,
+    variantId: `${id}-v`,
+    variantCount: 1,
+    unitPrice: null,
   }
 }
 

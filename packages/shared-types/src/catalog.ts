@@ -17,6 +17,8 @@
  */
 import type { GstStatus } from "./documents";
 import type { PagedDTO } from "./shop";
+import type { UnitBasis } from "./unit-price";
+import type { OptionDTO, OptionInputDTO, ShopVariantDTO, VariantInputDTO } from "./variants";
 
 export type { PagedDTO };
 
@@ -227,17 +229,24 @@ export interface ProductListItemDTO {
   primaryImageUrl: string | null;
   typeName: string;
   categoryName: string;
+  /**
+   * 098 — the LOWEST shop price among the product's active variants (say "From" when
+   * `priceVaries`). Equal to `shopPriceAmount`.
+   */
   priceAmount: string;
   currency: string;
   status: ProductStatus;
-  sku: string | null;
   updatedAt: string;
   /** 067 — where the product stands with Effy's review. */
   reviewState?: ShopReviewState;
-  /** 067 — what the shop is paid. Equal to `priceAmount`, which is kept for installed app builds. */
+  /** 067/098 — the lowest shop price among active variants. */
   shopPriceAmount?: string;
-  /** 067 — what customers pay: the shop price plus Effy's margin. */
-  customerPriceAmount?: string;
+  /** 067/098 — the lowest customer price among active variants; null until first approved. */
+  customerPriceAmount?: string | null;
+  /** 098 — active variants' prices differ. */
+  priceVaries: boolean;
+  /** 098 — variants that are not removed. */
+  variantCount: number;
 }
 
 /** A typed attribute value on a product (EAV, one value shape per data type). */
@@ -273,28 +282,24 @@ export interface ProductDetailDTO {
   primaryCategoryId: string;
   categoryName: string;
   name: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
-  priceAmount: string;
   currency: string;
-  compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
-  /**
-   * Shipping weight in grams (032). ⚠ A LOGISTICS fact, deliberately distinct from any `net_weight`
-   * attribute a shopper reads on the product page — they agree by backfill today and may legitimately
-   * diverge, because packaging weighs something. Delivery is priced from this.
-   */
-  weightGrams: number;
   /** 096 — taxable or GST-free; null on a product made before 096 and not yet classified. */
   gstStatus: GstStatus | null;
+  /** 098 — how this product's sizes are compared (unit pricing); null = no unit price. */
+  unitBasis: UnitBasis | null;
   /**
-   * ⚠ TRUE means nobody has recorded a real weight and the platform default is in use. Without this
-   * flag "500 g" would mean both "we weighed it" and "nobody has said", and no operator could tell
-   * which products still need attention (FR-037a).
+   * 098 — up to two options ("Size", "Flavour") with their values in the shop's order. Empty for a
+   * product with no options.
    */
-  weightIsAssumed: boolean;
+  options: OptionDTO[];
+  /**
+   * 098 — every variant (active, inactive, then removed), in display order. Price, stock code,
+   * barcode, weight, pack size and stock all live HERE — a product has none of its own.
+   */
+  variants: ShopVariantDTO[];
   status: ProductStatus;
   attributes: ProductAttributeValueDTO[];
   media: ProductMediaDTO[];
@@ -303,18 +308,13 @@ export interface ProductDetailDTO {
   createdAt: string;
   updatedAt: string;
 
-  // ── 067 — review and the two prices ───────────────────────────────────────────────────────────
+  // ── 067 — review ────────────────────────────────────────────────────────────────────────────
   // ⚠ NOTHING HERE NAMES OR DERIVES FROM THE MARGIN'S KIND OR VALUE, and nothing may (067 FR-039).
-  // A shop sees what it is paid and what the customer pays; the margin as a figure is Effy's.
+  // A shop sees what it is paid and what the customer pays (per variant, above); the margin as a
+  // figure is Effy's.
   reviewState?: ShopReviewState;
   /** Why Effy last sent this product (or its pending change) back. Carries no staff identity. */
   reviewReason?: string | null;
-  /** What the shop is paid. `priceAmount` above stays equal to it. */
-  shopPriceAmount?: string;
-  /** What customers pay. For a product with no margin set, equal to the shop price. */
-  customerPriceAmount?: string;
-  /** The customer-facing "was" price, with the same margin applied; `compareAtAmount` is the shop's. */
-  customerCompareAtAmount?: string | null;
   /**
    * The shop's proposed new version of an APPROVED product, waiting on Effy — or null when there is
    * none. Customers keep seeing everything ABOVE this field until it is approved.
@@ -342,17 +342,20 @@ export interface ProductChangeProposalDTO {
   shortDescription?: string;
   longDescription?: string | null;
   brand?: string | null;
-  sku?: string | null;
-  gtin?: string | null;
   primaryCategoryId?: string;
   productTypeId?: string;
-  /** The proposed SHOP price. */
-  priceAmount?: string;
-  compareAtAmount?: string | null;
-  weightGrams?: number;
   /** 096 */
   gstStatus?: GstStatus;
   attributes?: AttributeValueInputDTO[];
+  /** 098 */
+  unitBasis?: UnitBasis | null;
+  /** 098 — the COMPLETE proposed option set, present only when it differs from live. */
+  options?: OptionInputDTO[];
+  /**
+   * 098 — the COMPLETE proposed variant set (prices are SHOP prices), present only when it differs
+   * from live. A live variant missing from it is removed on approval.
+   */
+  variants?: VariantInputDTO[];
 }
 
 export interface ProductPendingChangeDTO {
@@ -378,22 +381,21 @@ export interface CreateProductRequest {
   productTypeId: string;
   primaryCategoryId: string;
   name: string;
-  sku?: string | null;
-  gtin?: string | null;
   brand?: string | null;
-  priceAmount: string;
-  compareAtAmount?: string | null;
   shortDescription: string;
   longDescription?: string | null;
-  /**
-   * Shipping weight in grams (032, FR-036a). Omit and the platform records its stated default as an
-   * ASSUMPTION. ⚠ There is deliberately no `weightIsAssumed` field: the flag is derived from the act
-   * of supplying a weight and is never accepted from a client, or "measured" would mean only "the
-   * client said so".
-   */
-  weightGrams?: number | null;
   /** 096 — required: every product is taxable or GST-free from the moment it exists (FR-091). */
   gstStatus: GstStatus;
+  /** 098 — how sizes are compared; omit for no unit price. */
+  unitBasis?: UnitBasis | null;
+  /** 098 — 0 to 2 options. Ids are client-generated UUIDs. */
+  options: OptionInputDTO[];
+  /**
+   * 098 — 1 to 50 variants; exactly one (with no option values) when there are no options. Each
+   * carries its own price, codes and shipping weight (omit a weight to record the platform default
+   * as an ASSUMPTION — 032 FR-036a).
+   */
+  variants: VariantInputDTO[];
   attributes?: AttributeValueInputDTO[];
   sectionIds?: string[];
   primaryMediaStorageKey?: string | null;
@@ -407,18 +409,21 @@ export interface UpdateProductRequest {
   name?: string;
   productTypeId?: string;
   primaryCategoryId?: string;
-  sku?: string | null;
-  gtin?: string | null;
   brand?: string | null;
-  priceAmount?: string;
-  compareAtAmount?: string | null;
   shortDescription?: string;
   longDescription?: string | null;
-  /** Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands. */
-  weightGrams?: number | null;
   /** 096 — on a live product this is PROPOSED and reviewed, like every other detail (067). */
   gstStatus?: GstStatus;
   attributes?: AttributeValueInputDTO[];
+  /** 098 */
+  unitBasis?: UnitBasis | null;
+  /**
+   * 098 — when present, BOTH are the complete target sets (send them together). On a draft they are
+   * written as they are; on a live product they become part of the pending change (R6). Variant
+   * state (active/inactive/removed) is never set here — it has its own immediate route.
+   */
+  options?: OptionInputDTO[];
+  variants?: VariantInputDTO[];
 }
 
 /** POST /shop/v1/products/{id}/status — lifecycle transition. */

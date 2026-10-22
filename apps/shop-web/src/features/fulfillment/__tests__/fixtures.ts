@@ -79,7 +79,9 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
       {
         orderItemId: "oi1",
         name: "Barossa Free-Range Eggs 700g",
-        sku: "EGG-700",
+        variantLabel: null,
+      gtin: null,
+      sku: "EGG-700",
         imageUrl: null,
         orderedQuantity: 2,
         gatheredQuantity: 1,

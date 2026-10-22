@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.cart.presentation
 
+import com.effyshopping.customer.mobile.core.presentation.UnitPriceText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -189,7 +190,7 @@ fun CartScreen(
                             EffyGhostButton("Empty cart", onClick = { confirmingClear = true }, leading = Res.drawable.lucide_trash_2)
                         }
                     }
-                    items(lines, key = { it.productId }) { line ->
+                    items(lines, key = { it.variantId }) { line ->
                         Column(Modifier.animateItem()) {
                             CartRow(line, container, ::onRemoved)
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -257,7 +258,7 @@ fun CartScreen(
                                             product,
                                             onProductClick,
                                             width = 150.dp,
-                                            cartQuantity = tileCart.quantityOf(product.id),
+                                            cartQuantity = tileCart.quantityOf(product.variantId),
                                             onCartQuantityChange = { tileCart.change(product, it) },
                                         )
                                     }
@@ -351,12 +352,15 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
             Row {
                 Column(Modifier.weight(1f)) {
                     Text(line.name, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    // 098 — the size chosen.
+                    line.variantLabel?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     // FR-023/FR-024: a price that moved is SAID, with what it was.
                     Text(
                         money(line.unitPriceAmount, line.currency) + " each" + (line.priceChangedFrom?.let { " · was ${money(it, line.currency)}" } ?: ""),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    UnitPriceText(line.unitPrice)
                 }
                 Spacer(Modifier.size(EffySpacing.s))
                 Text(money(lineTotal(line), line.currency), style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"))
@@ -365,11 +369,11 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
             if (!line.available) EffyInlineError("Unavailable — not included in your total")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (line.available) {
-                    EffyQuantityStepper(quantity = line.quantity, onChange = { container.setCartQuantity(line.productId, it) })
+                    EffyQuantityStepper(quantity = line.quantity, onChange = { container.setCartQuantity(line.variantId, it) })
                 }
                 Spacer(Modifier.weight(1f))
                 EffyTextLink("Remove", onClick = {
-                    container.removeFromCart(line.productId)
+                    container.removeFromCart(line.variantId)
                     onRemoved(line)
                 })
             }

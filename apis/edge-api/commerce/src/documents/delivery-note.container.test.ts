@@ -33,17 +33,17 @@ d("096 US7 — the customer's delivery note", () => {
   it("is the owner's only, waits for delivery, and comes as a PDF", async () => {
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('CDN', 'Shop') RETURNING id`);
     const product = await one<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by, status, approved_at)
-       VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Milk', 4.50, 'A thing', 'test', 'active', now())
-       RETURNING id`, [shop.id]);
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Milk', 'A thing', 'test', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(4.50, 4.50)::numeric, (4.50)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shop.id]);
     const me = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('me', 'me@effyshopping.com') RETURNING id`);
     const other = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('them', 'them@effyshopping.com') RETURNING id`);
     const order = await one<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, item_subtotal_amount, grand_total_amount, delivery_address, status, placed_at)
        VALUES ($1, 'EFY-CDN001', 9, 11, '{}'::jsonb, 'paid', now()) RETURNING id`, [me.id]);
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1, $2, $3, 'Milk', 4.50, 2, 9.00)`, [order.id, product.id, shop.id]);
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+       VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 4.50, 2, 9.00)`, [order.id, product.id, shop.id]);
     const pkg = await one<{ id: string }>(
       `INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount, status) VALUES ($1, $2, 1, 9, 'collected') RETURNING id`,
       [order.id, shop.id]);

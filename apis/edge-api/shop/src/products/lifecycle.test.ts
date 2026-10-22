@@ -43,12 +43,23 @@ async function kindOf(p: Promise<unknown>): Promise<string> {
   }
 }
 
+const V1 = "00000000-0000-4000-8000-0000000000a1";
+/** 098 — the one variant of a product with no options. */
+const variantRow = {
+  id: V1, productId: "p1", position: 0, optionValueIds: [null, null], label: null, sku: null, gtin: null,
+  shopPriceAmount: "1.00", shopCompareAtAmount: null, priceAmount: "1.00", compareAtAmount: null,
+  weightGrams: 500, weightIsAssumed: false, packQuantity: null, packUnit: null, mediaId: null, mediaStorageKey: null,
+  stockTracked: false, stockOnHand: null, lowStockThreshold: null, state: "active",
+};
 const detail = {
   id: "p1", shopId: "shop-1", productTypeId: "t1", typeName: "T", primaryCategoryId: "c1", categoryName: "C",
-  name: "X", sku: null, gtin: null, brand: null, priceAmount: "1.00", currency: "AUD", compareAtAmount: null,
+  name: "X", brand: null, currency: "AUD",
   shortDescription: "d", longDescription: null, status: "draft", attributes: [], media: [], sections: [],
   missingMandatoryAttributes: [], createdAt: "t", updatedAt: "2026-07-16T00:00:00.000Z",
+  unitBasis: null, options: [], variants: [variantRow], shopDefaultThreshold: null, gstStatus: null,
 };
+/** The variant set as a shop would send it, with its price changed. */
+const repriced = (price: string) => ({ options: [], variants: [{ id: V1, position: 0, optionValueIds: [null, null], shopPriceAmount: price }] });
 
 describe("updateProduct — optimistic concurrency (FR-023a)", () => {
   beforeEach(() => {
@@ -172,7 +183,7 @@ describe("setSections", () => {
 
 // ── 067 — review ────────────────────────────────────────────────────────────────────────────────
 
-const approvedDetail = { ...detail, status: "active", approved: true, weightGrams: 500, pendingChange: null };
+const approvedDetail = { ...detail, status: "active", approved: true, pendingChange: null };
 
 describe("067 — submitting a new product for review", () => {
   beforeEach(() => {
@@ -253,9 +264,13 @@ describe("067 — editing an APPROVED product proposes a change", () => {
 
   /** ⚠ FR-015 — the live row is not written. */
   it("⚠ saves a proposal and NEVER writes the live product", async () => {
-    await updateProduct("shop-1", "p1", { name: "Renamed", priceAmount: "2.50" }, "sub-1");
+    await updateProduct("shop-1", "p1", { name: "Renamed", ...repriced("2.50") }, "sub-1");
     expect(repo.updateProduct).not.toHaveBeenCalled();
-    expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", { name: "Renamed", priceAmount: "2.50" });
+    expect(changeMod.saveProposal).toHaveBeenCalledWith("shop-1", "p1", expect.objectContaining({
+      name: "Renamed",
+      // 098 — a price is a VARIANT's; the whole set travels with the proposal.
+      variants: [expect.objectContaining({ id: V1, shopPriceAmount: "2.50" })],
+    }));
   });
 
   it("needs no concurrency token — a proposal does not touch the live row", async () => {
@@ -281,7 +296,7 @@ describe("067 — editing an APPROVED product proposes a change", () => {
   });
 
   it("still validates what is proposed", async () => {
-    expect(await kindOf(updateProduct("shop-1", "p1", { priceAmount: "abc" }, "sub-1"))).toBe("validation");
+    expect(await kindOf(updateProduct("shop-1", "p1", repriced("abc"), "sub-1"))).toBe("validation");
     expect(changeMod.saveProposal).not.toHaveBeenCalled();
   });
 });
@@ -291,9 +306,10 @@ describe("067 — the proposal diff", () => {
     { attributeId: "a1", key: "storage", name: "Storage", dataType: "single_select", unit: null,
       valueText: "chilled", valueNumber: null, valueBoolean: null, valueOptions: null },
   ] } as never;
+  const sameVariants = [{ id: V1, position: 0, optionValueIds: [null, null] as [null, null], sku: null, gtin: null, shopPriceAmount: "1.00", shopCompareAtAmount: null, weightGrams: 500, packQuantity: null, packUnit: null, mediaStorageKey: null }];
   const same = {
-    name: "X", productTypeId: "t1", primaryCategoryId: "c1", sku: null, gtin: null, brand: null,
-    priceAmount: "1.00", compareAtAmount: null, shortDescription: "d", longDescription: null, weightGrams: 500, gstStatus: null,
+    name: "X", productTypeId: "t1", primaryCategoryId: "c1", brand: null,
+    shortDescription: "d", longDescription: null, gstStatus: null, unitBasis: null, options: [], variants: sameVariants,
   };
 
   it("is empty when nothing differs", () => {
@@ -301,12 +317,13 @@ describe("067 — the proposal diff", () => {
   });
 
   it("treats 1 and 1.00 as the same price", () => {
-    expect(diffProposal(live, { ...same, priceAmount: "1" }, [])).toEqual({});
+    expect(diffProposal(live, { ...same, variants: [{ ...sameVariants[0]!, shopPriceAmount: "1" }] }, [])).toEqual({});
   });
 
-  it("carries only what changed", () => {
-    expect(diffProposal(live, { ...same, name: "Y", compareAtAmount: "2.00", weightGrams: 750 }, [])).toEqual({
-      name: "Y", compareAtAmount: "2.00", weightGrams: 750,
+  it("carries only what changed — and a variant change carries the WHOLE set (098)", () => {
+    const changed = [{ ...sameVariants[0]!, shopCompareAtAmount: "2.00", weightGrams: 750 }];
+    expect(diffProposal(live, { ...same, name: "Y", variants: changed }, [])).toEqual({
+      name: "Y", options: [], variants: changed,
     });
   });
 
@@ -318,8 +335,8 @@ describe("067 — the proposal diff", () => {
   });
 
   it("lays a proposal over the live product, including an explicit null", () => {
-    const merged = overlay(live, { name: "Y", brand: null, priceAmount: "3.00" });
-    expect(merged).toMatchObject({ name: "Y", brand: null, priceAmount: "3.00", shortDescription: "d" });
+    const merged = overlay(live, { name: "Y", brand: null, unitBasis: "per_kg" });
+    expect(merged).toMatchObject({ name: "Y", brand: null, unitBasis: "per_kg", shortDescription: "d" });
   });
 
   it("merges proposed attributes by attribute", () => {

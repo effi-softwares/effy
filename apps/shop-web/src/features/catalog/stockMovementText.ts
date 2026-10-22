@@ -16,6 +16,7 @@ const REASONS: Record<StockMovementReason, string> = {
   expiry: "Expired",
   order_paid: "Sold",
   pick_shortfall: "Short at picking",
+  refund: "Returned on a refund",
   tracking_enabled: "Tracking turned on",
   tracking_disabled: "Tracking turned off",
 };

@@ -287,7 +287,12 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                               <span className="bo-img size-9" aria-hidden="true">
                                 <Package />
                               </span>
-                              <span>{i.productName}</span>
+                              <span>
+                                {i.productName}
+                                {/* 098 — the size as sold, and its stock code. */}
+                                {i.variantLabel ? <span className="text-muted-foreground"> — {i.variantLabel}</span> : null}
+                                {i.sku ? <span className="block font-mono text-xs text-muted-foreground">{i.sku}</span> : null}
+                              </span>
                             </div>
                           </td>
                           <td data-m="meta" data-label="Qty" className="is-num">

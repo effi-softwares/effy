@@ -64,11 +64,11 @@ class CartStore(
     fun add(line: GuestCartLine) = edit { it.copy(lines = addLine(it.lines, line)) }
 
     /** Set a line's quantity locally; 0 or less removes it. */
-    fun setQuantity(productId: String, quantity: Int) =
-        edit { it.copy(lines = setLineQty(it.lines, productId, quantity)) }
+    fun setQuantity(variantId: String, quantity: Int) =
+        edit { it.copy(lines = setLineQty(it.lines, variantId, quantity)) }
 
     /** Remove a line locally. */
-    fun remove(productId: String) = edit { it.copy(lines = removeLine(it.lines, productId)) }
+    fun remove(variantId: String) = edit { it.copy(lines = removeLine(it.lines, variantId)) }
 
     /** Empty the payable cart locally. Set-aside items survive, exactly as on the platform (FR-030). */
     fun clear() = edit { it.copy(lines = emptyList()) }
@@ -133,7 +133,7 @@ class CartStore(
      */
     fun enqueueConflating(change: PendingChange) {
         val superseded = _queue.value.filterNot {
-            it.status == PendingStatus.Queued && it.kind == change.kind && it.productId == change.productId
+            it.status == PendingStatus.Queued && it.kind == change.kind && it.variantId == change.variantId
         }
         _queue.value = superseded + change
         syncPendingIntoState()

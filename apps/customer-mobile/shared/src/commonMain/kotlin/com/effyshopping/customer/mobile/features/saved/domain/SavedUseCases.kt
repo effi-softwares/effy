@@ -47,6 +47,8 @@ class ToggleSaved(
         saved: Boolean,
         priceAmount: String? = null,
         currency: String? = null,
+        /** 098 — the size on screen, remembered with the save (signed in only). */
+        variantId: String? = null,
     ): ToggleOutcome {
         val previous = store.isSaved(productId)
         if (previous == saved) return ToggleOutcome.DONE // nothing to do — and nothing to revert if it fails
@@ -63,7 +65,7 @@ class ToggleSaved(
 
         store.apply(productId, saved)
         try {
-            if (saved) repo.save(productId) else repo.remove(productId)
+            if (saved) repo.save(productId, variantId = variantId) else repo.remove(productId)
         } catch (e: ListRefusedException) {
             store.revert(productId, previous)
             // The mirror did not know (another device made the list). The platform refused; nothing
@@ -155,8 +157,8 @@ class LoadLists(private val repo: ListRepository) {
 }
 
 class CreateList(private val repo: ListRepository, private val reload: LoadSavedMembership) {
-    suspend operator fun invoke(name: String, productId: String? = null): SavedList {
-        val list = repo.create(name, productId)
+    suspend operator fun invoke(name: String, productId: String? = null, variantId: String? = null): SavedList {
+        val list = repo.create(name, productId, variantId)
         if (productId != null) runCatching { reload() }
         return list
     }
@@ -174,8 +176,8 @@ class DeleteList(private val repo: ListRepository, private val reload: LoadSaved
 }
 
 class AddToList(private val repo: ListRepository, private val reload: LoadSavedMembership) {
-    suspend operator fun invoke(listId: String, productId: String, restoreAddedAt: String? = null) {
-        repo.addEntry(listId, productId, restoreAddedAt)
+    suspend operator fun invoke(listId: String, productId: String, restoreAddedAt: String? = null, variantId: String? = null) {
+        repo.addEntry(listId, productId, restoreAddedAt, variantId)
         runCatching { reload() }
     }
 }

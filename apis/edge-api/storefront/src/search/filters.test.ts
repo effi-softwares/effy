@@ -22,8 +22,10 @@ describe("filters", () => {
 
   it("text search matches name, brand and short description against one bound pattern", () => {
     const { sql, args } = build({ q: "milk" });
-    expect(args).toEqual(["%milk%"]);
+    expect(args).toEqual(["%milk%", "milk"]);
     expect(sql).toContain("p.name ILIKE $1 OR p.brand ILIKE $1 OR p.short_description ILIKE $1");
+    // 098 — or the query IS an active variant's stock code or barcode, matched exactly.
+    expect(sql).toContain("lower(cv.sku) = lower($2) OR cv.gtin = $2");
   });
 
   it("binds every value — nothing a shopper typed is ever spliced into the SQL", () => {
@@ -37,9 +39,9 @@ describe("filters", () => {
     const { sql, args } = build({ categoryKey: "dairy", minPrice: "1.50", maxPrice: "9", saleOnly: true, brands: ["A", "B"] });
     expect(args).toEqual(["dairy", "1.50", "9", ["A", "B"]]);
     expect(sql).toContain("WHERE key = $1 ");
-    expect(sql).toContain("p.price_amount >= $2::numeric");
-    expect(sql).toContain("p.price_amount <= $3::numeric");
-    expect(sql).toContain("p.compare_at_amount > p.price_amount");
+    expect(sql).toContain("p.list_price_amount >= $2::numeric");
+    expect(sql).toContain("p.list_price_amount <= $3::numeric");
+    expect(sql).toContain("p.list_compare_at_amount > p.list_price_amount");
     expect(sql).toContain("p.brand = ANY($4::text[])");
   });
 
@@ -67,8 +69,8 @@ describe("filters", () => {
 describe("orderClause", () => {
   it.each([
     ["newest", "p.created_at DESC, p.id DESC"],
-    ["price_asc", "p.price_amount ASC, p.id ASC"],
-    ["price_desc", "p.price_amount DESC, p.id DESC"],
+    ["price_asc", "p.list_price_amount ASC, p.id ASC"],
+    ["price_desc", "p.list_price_amount DESC, p.id DESC"],
     ["relevance", "score DESC, p.id DESC"],
   ] as const)("%s orders by %s — always with the id tiebreak", (sort, want) => {
     expect(orderClause(sort)).toContain(want);
@@ -85,8 +87,8 @@ describe("cursorPredicate", () => {
 
   it("walks the same direction as the ORDER BY", () => {
     expect(at("newest").sql).toContain("(p.created_at, p.id) < ($1::timestamptz, $2::uuid)");
-    expect(at("price_desc").sql).toContain("(p.price_amount, p.id) < ($1::numeric, $2::uuid)");
-    expect(at("price_asc").sql).toContain("(p.price_amount, p.id) > ($1::numeric, $2::uuid)");
+    expect(at("price_desc").sql).toContain("(p.list_price_amount, p.id) < ($1::numeric, $2::uuid)");
+    expect(at("price_asc").sql).toContain("(p.list_price_amount, p.id) > ($1::numeric, $2::uuid)");
   });
 
   it("relevance repeats the SAME similarity expression the select scores with", () => {

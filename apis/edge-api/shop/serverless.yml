@@ -296,6 +296,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  productVariantStateV1:
+    handler: src/functions/product-variant-state-v1-post.handler
+    description: Put one variant on or off sale, or remove it — immediate, never reviewed — 098
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products/{id}/variants/{variantId}/state
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   productDeleteV1:
     handler: src/functions/product-delete-v1-delete.handler
     description: Hard-delete an unreferenced draft (else 409, archive) — 016

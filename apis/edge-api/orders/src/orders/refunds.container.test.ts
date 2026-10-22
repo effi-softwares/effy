@@ -101,15 +101,13 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
       `INSERT INTO public.category (id, key, name) VALUES (gen_random_uuid(),'dairy','Dairy')
        ON CONFLICT DO NOTHING`);
     await pool.query(
-      `INSERT INTO public.product (id, shop_id, product_type_id, primary_category_id, name,
-         price_amount, short_description, created_by)
-       SELECT $1, $2, pt.id, c.id, 'Milk', 10, 'Fresh milk', 'seed'
-         FROM public.product_type pt, public.category c
-        WHERE pt.key = 'grocery' AND c.key = 'dairy'`, [PRODUCT, SHOP]);
+      `WITH p AS (INSERT INTO public.product (id, shop_id, product_type_id, primary_category_id, name, short_description, created_by) SELECT $1, $2, pt.id, c.id, 'Milk', 'Fresh milk', 'seed' FROM public.product_type pt, public.category c
+        WHERE pt.key = 'grocery' AND c.key = 'dairy' RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10, 10)::numeric, (10)::numeric FROM p RETURNING id)
+SELECT p.id FROM p`, [PRODUCT, SHOP]);
     await pool.query(
-      `INSERT INTO public.order_item (id, order_id, product_id, shop_id, product_name,
-         unit_price_amount, quantity, line_subtotal_amount)
-       VALUES ($1,$2,$3,$4,'Milk',10,3,30)`, [ITEM, ORDER, PRODUCT, SHOP]);
+      `INSERT INTO public.order_item (id, order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+       VALUES ($1, $2, $3, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($3)::uuid ORDER BY v.position LIMIT 1), $4, 'Milk', 10, 3, 30)`, [ITEM, ORDER, PRODUCT, SHOP]);
     await pool.query(
       `INSERT INTO public.shop_fulfillment (id, order_id, shop_id, item_count, subtotal_amount)
        VALUES ($1,$2,$3,3,30)`, [FULFILMENT, ORDER, SHOP]);

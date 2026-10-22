@@ -1,4 +1,4 @@
-// GET /inventory/v1/admin/shops/{shopId}/products/{productId}/stock — read any shop's stock and its
+// GET /inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock — read any shop's stock and its
 // movement history on their behalf (054 US4, FR-025).
 //
 // ⚠ READ is open to ANY active back-office staff INCLUDING `csa`. Triage is CSA work, and a support
@@ -19,11 +19,11 @@ export const handler = async (
   const g = await backOfficeGate(event, context, "read");
   if (!g.ok) return g.response;
 
-  const productId = event.pathParameters?.productId;
-  if (!productId) return mapStockError(new Error("missing productId"), g.scope);
+  const variantId = event.pathParameters?.variantId;
+  if (!variantId) return mapStockError(new Error("missing variantId"), g.scope);
 
   try {
-    return json(200, await service.getStock(g.actor, productId), g.scope);
+    return json(200, await service.getStock(g.actor, variantId), g.scope);
   } catch (err) {
     return mapStockError(err, g.scope);
   }

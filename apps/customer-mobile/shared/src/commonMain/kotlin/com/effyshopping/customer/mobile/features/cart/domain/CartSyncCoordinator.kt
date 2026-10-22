@@ -84,7 +84,7 @@ class CartSyncCoordinator(
                 if (lines.isEmpty()) {
                     false
                 } else {
-                    store.adoptPreview(repo.preview(lines.map { PendingLine(it.productId, it.quantity) }))
+                    store.adoptPreview(repo.preview(lines.map { PendingLine(it.variantId, it.quantity) }))
                 }
             }
         } catch (e: AppException) {
@@ -122,8 +122,8 @@ class CartSyncCoordinator(
     fun submitDebounced(change: PendingChange) {
         if (!isSignedIn()) return
         store.enqueueConflating(change)
-        debounced[change.productId]?.cancel()
-        debounced[change.productId] = scope.launch {
+        debounced[change.variantId]?.cancel()
+        debounced[change.variantId] = scope.launch {
             delay(SEND_DEBOUNCE_MS)
             drain()
         }
@@ -180,14 +180,14 @@ class CartSyncCoordinator(
     }
 
     private suspend fun apply(change: PendingChange): CartSnapshot = when (change.kind) {
-        PendingChangeKind.Add -> repo.add(change.productId, change.quantity, change.changeId)
-        PendingChangeKind.SetQuantity -> repo.setQuantity(change.productId, change.quantity, change.changeId)
-        PendingChangeKind.Remove -> repo.remove(change.productId, change.changeId)
+        PendingChangeKind.Add -> repo.add(change.variantId, change.quantity, change.changeId)
+        PendingChangeKind.SetQuantity -> repo.setQuantity(change.variantId, change.quantity, change.changeId)
+        PendingChangeKind.Remove -> repo.remove(change.variantId, change.changeId)
         PendingChangeKind.Clear -> repo.clear(change.changeId)
         PendingChangeKind.Merge -> repo.merge(change.lines, change.changeId)
-        PendingChangeKind.SetAside -> repo.setAside(change.productId, change.changeId)
-        PendingChangeKind.RestoreSaved -> repo.restoreSaved(change.productId, change.changeId)
-        PendingChangeKind.DeleteSaved -> repo.deleteSaved(change.productId, change.changeId)
+        PendingChangeKind.SetAside -> repo.setAside(change.variantId, change.changeId)
+        PendingChangeKind.RestoreSaved -> repo.restoreSaved(change.variantId, change.changeId)
+        PendingChangeKind.DeleteSaved -> repo.deleteSaved(change.variantId, change.changeId)
     }
 
     /**

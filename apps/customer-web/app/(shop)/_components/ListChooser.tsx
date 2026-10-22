@@ -29,13 +29,14 @@ import {
  *
  * Checkbox rows, not cards (Principle V).
  */
-export function openListChooser(productId: string, onClose?: () => void): void {
+export function openListChooser(productId: string, onClose?: () => void, variantId?: string | null): void {
   const host = document.createElement("div")
   document.body.appendChild(host)
   const root = createRoot(host)
   root.render(
     <ListChooser
       productId={productId}
+      variantId={variantId ?? null}
       onClosed={() => {
         root.unmount()
         host.remove()
@@ -51,7 +52,16 @@ type State =
   | { phase: "failed" }
   | { phase: "ready"; lists: SavedListDTO[] }
 
-export function ListChooser({ productId, onClosed }: { productId: string; onClosed: () => void }) {
+export function ListChooser({
+  productId,
+  variantId = null,
+  onClosed,
+}: {
+  productId: string
+  /** 098 — the size on screen, remembered when the product is placed in a list. */
+  variantId?: string | null
+  onClosed: () => void
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [state, setState] = useState<State>({ phase: "loading" })
   const [pending, setPending] = useState<string | null>(null)
@@ -79,7 +89,7 @@ export function ListChooser({ productId, onClosed }: { productId: string; onClos
     setError(null)
     const result = list.containsProduct
       ? await removeFromList(list.id, productId)
-      : await addToList(list.id, productId)
+      : await addToList(list.id, productId, undefined, variantId)
     if (!result.ok) setError(refusalText(result.reason))
     // Re-read rather than flip locally: a list deleted on another device must disappear, and the
     // counts belong to the platform.
@@ -92,7 +102,7 @@ export function ListChooser({ productId, onClosed }: { productId: string; onClos
     if (pending) return
     setPending("new")
     setNameError(null)
-    const result = await createList(name, productId)
+    const result = await createList(name, productId, variantId)
     if (result.ok) {
       setName("")
       await load()

@@ -11,7 +11,7 @@ import type {
 import {
   adjustStock,
   getLowStock,
-  getProductStock,
+  getVariantStock,
   getStockSettings,
   setStockCount,
   setStockSettings,
@@ -26,10 +26,10 @@ import {
 
 const STOCK_ROOT = ["shop", "stock"] as const;
 
-export const productStockQuery = (productId: string) =>
+export const variantStockQuery = (variantId: string) =>
   queryOptions({
-    queryKey: [...STOCK_ROOT, "product", productId] as const,
-    queryFn: () => getProductStock(productId),
+    queryKey: [...STOCK_ROOT, "variant", variantId] as const,
+    queryFn: () => getVariantStock(variantId),
     // ⚠ Short. Stock is the one thing on this screen that another operator — or a paid order — can
     // change underneath the person looking at it. A stale count here is what a wrong restock
     // decision is made from.
@@ -50,31 +50,33 @@ export const stockSettingsQuery = queryOptions({
 });
 
 function useStockMutation<TBody>(
-  productId: string,
-  fn: (productId: string, body: TBody) => Promise<unknown>,
+  variantId: string,
+  fn: (variantId: string, body: TBody) => Promise<unknown>,
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: TBody) => fn(productId, body),
+    mutationFn: (body: TBody) => fn(variantId, body),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: [...STOCK_ROOT, "product", productId] });
+      void qc.invalidateQueries({ queryKey: [...STOCK_ROOT, "variant", variantId] });
+      // 098 — the product page's sizes table shows each size's count too.
+      void qc.invalidateQueries({ queryKey: ["shop", "catalog", "product"] });
       // The low-stock list is derived from the same counts, so it is stale the moment one moves.
       void qc.invalidateQueries({ queryKey: [...STOCK_ROOT, "low"] });
     },
   });
 }
 
-export const useSetStockCount = (productId: string) =>
-  useStockMutation<SetStockRequest>(productId, setStockCount);
+export const useSetStockCount = (variantId: string) =>
+  useStockMutation<SetStockRequest>(variantId, setStockCount);
 
-export const useAdjustStock = (productId: string) =>
-  useStockMutation<AdjustStockRequest>(productId, adjustStock);
+export const useAdjustStock = (variantId: string) =>
+  useStockMutation<AdjustStockRequest>(variantId, adjustStock);
 
-export const useSetStockTracking = (productId: string) =>
-  useStockMutation<SetTrackingRequest>(productId, setStockTracking);
+export const useSetStockTracking = (variantId: string) =>
+  useStockMutation<SetTrackingRequest>(variantId, setStockTracking);
 
-export const useSetStockThreshold = (productId: string) =>
-  useStockMutation<SetThresholdRequest>(productId, setStockThreshold);
+export const useSetStockThreshold = (variantId: string) =>
+  useStockMutation<SetThresholdRequest>(variantId, setStockThreshold);
 
 export function useSetStockSettings() {
   const qc = useQueryClient();

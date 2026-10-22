@@ -60,6 +60,7 @@ export * from "./lib/driver-eligibility";
 // gate, one metric emitter, one overload answer.
 export * from "./lib/money";
 export * from "./lib/availability";
+export * from "./lib/stock-state";
 export * from "./lib/customer-identity";
 export * from "./lib/metrics";
 export * from "./lib/shopper-handler";

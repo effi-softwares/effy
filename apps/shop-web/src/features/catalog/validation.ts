@@ -8,7 +8,8 @@ import type { AttributeDraftValue, ProductDraft } from "./draft";
  *
  * The backend is authoritative (it re-validates everything server-side); this only decides when the
  * step form may advance and shapes the wire payload. Mandatory = the universal fields (name / type /
- * category / price / short description / primary image) PLUS the selected type's mandatory attributes.
+ * category / short description / primary image), a valid variant set (098 — every variant priced),
+ * PLUS the selected type's mandatory attributes.
  */
 
 /** A positive decimal money string (the wire carries price as a string to avoid float drift). */
@@ -138,7 +139,6 @@ export function basicsComplete(draft: ProductDraft): boolean {
   return (
     draft.name.trim().length > 0 &&
     !!draft.primaryCategoryId &&
-    isValidPrice(draft.priceAmount) &&
     draft.shortDescription.trim().length > 0 &&
     // 096 — every product is taxable or GST-free from the moment it exists.
     (draft.gstStatus === "taxable" || draft.gstStatus === "gst_free")

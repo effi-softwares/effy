@@ -159,7 +159,9 @@ export const ROUND_PACKAGES = `
  */
 export const PACKAGE_ITEMS = `
   SELECT sf.id                 AS package_id,
-         oi.product_name       AS name,
+         -- 098 — the line as sold, with its variant ("Basmati Rice — 1 kg"): one string, so an
+         -- installed driver app shows it without knowing variants exist.
+         CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS name,
          oi.quantity           AS ordered_qty,
          oi.storage_class      AS storage_class,
          fi.gathered_quantity  AS gathered_qty

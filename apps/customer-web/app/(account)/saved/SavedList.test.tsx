@@ -24,6 +24,11 @@ const item = (id: string, name: string, over: Partial<SavedItemDTO> = {}): Saved
   savedAt: `2026-10-0${id}T00:00:00Z`,
   savedPriceAmount: "6.50",
   verdict: "purchasable",
+  // 098 — one size: "Add to cart" adds it.
+  variantId: `v${id}`,
+  variantLabel: null,
+  variantCount: 1,
+  unitPrice: null,
   ...over,
 })
 
@@ -80,7 +85,7 @@ describe("068 — one list's page", () => {
   /** 033 FR-050a, on every list: a second "Add to cart" would raise the quantity. */
   it("says a row is already in the cart, and how many, instead of offering to add it again", () => {
     platform()
-    addToCart({ productId: "3", name: "Eggs", imageUrl: null, unitPriceAmount: "6.50", currency: "AUD", quantity: 2, packageKey: DEFAULT_PACKAGE_KEY })
+    addToCart({ variantId: "v3", productId: "3", name: "Eggs", imageUrl: null, unitPriceAmount: "6.50", currency: "AUD", quantity: 2, packageKey: DEFAULT_PACKAGE_KEY })
     render(<SavedList initial={[eggs, milk]} listId={WEEKLY} />)
 
     expect(screen.getByRole("link", { name: "2 in your cart" })).toHaveAttribute("href", "/cart")

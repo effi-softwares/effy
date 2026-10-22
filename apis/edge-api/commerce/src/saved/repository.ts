@@ -10,7 +10,8 @@
 // It is scoped to one customer, so it never contends across shoppers, and it is transaction-scoped,
 // so it is released by COMMIT or ROLLBACK with nothing to forget.
 import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
-import { DEFAULT_LIST_ID } from "@effy/shared-types";
+import { variantLabelSql } from "@effy/edge-shared/catalog";
+import { DEFAULT_LIST_ID, type PackUnit, type UnitBasis } from "@effy/shared-types";
 
 import { isUuid } from "../lib/ids";
 import { ListNameTakenError } from "./list-name";
@@ -36,6 +37,15 @@ export class InNamedListsError extends Error {}
 
 export interface ListRow {
   product_id: string;
+  /** 098 — the remembered variant, NULL when none (or it was removed). */
+  variant_id: string | null;
+  /** The variant the listing price is from — what is added when the product has only one. */
+  shown_variant_id: string | null;
+  variant_label: string | null;
+  variant_count: number;
+  pack_quantity: string | null;
+  pack_unit: PackUnit | null;
+  unit_basis: UnitBasis | null;
   name: string;
   brand: string | null;
   price_amount: string;
@@ -63,6 +73,8 @@ export interface ListSummaryRow {
 
 export interface MergeItem {
   productId: string;
+  /** 098 — the variant the device remembered; ignored unless it is one of the product's live variants. */
+  variantId: string | null;
   /** Null when the device never observed a price: the product's current price is the baseline. */
   savedPriceAmount: string | null;
   savedCurrency: string | null;
@@ -81,39 +93,67 @@ WHERE customer_id = $1
 ORDER BY saved_at DESC`;
 
 // ⚠ `saved_at` here is the ENTRY's added_at: when the product joined THIS list (068).
+//
+// 098 — an entry is still ONE PER PRODUCT, but remembers a variant (rv). Price, picture and verdict
+// are that variant's when one is remembered and still sold; otherwise the product's listing price and
+// "can any variant be bought" (sv, the first sellable variant).
 const LIST = `
 SELECT s.product_id::text                        AS product_id,
+       rv.id::text                               AS variant_id,
+       dv.id::text                               AS shown_variant_id,
+       ${variantLabelSql("rv")}                  AS variant_label,
+       (SELECT count(*)::int FROM public.product_variant cv
+         -- availability-exempt: product_variant — counting the choices, not deciding a sale.
+         WHERE cv.product_id = p.id AND cv.state = 'active') AS variant_count,
+       COALESCE(rv.pack_quantity, dv.pack_quantity)::text AS pack_quantity,
+       COALESCE(rv.pack_unit, dv.pack_unit)      AS pack_unit,
+       p.unit_basis                              AS unit_basis,
        p.name                                    AS name,
        p.brand                                   AS brand,
-       p.price_amount::text                      AS price_amount,
+       COALESCE(rv.price_amount, p.list_price_amount)::text AS price_amount,
        p.currency                                AS currency,
-       p.compare_at_amount::text                 AS compare_at_amount,
+       (CASE WHEN rv.id IS NOT NULL THEN rv.compare_at_amount ELSE p.list_compare_at_amount END)::text AS compare_at_amount,
        m.storage_key                             AS storage_key,
        m.image_widths                            AS image_widths,
        e.added_at                                AS saved_at,
        s.saved_price_amount::text                AS saved_price_amount,
        c.key                                     AS category_key,
        p.created_at >= now() - interval '14 days' AS is_new,
-       (p.currency = s.saved_currency AND p.price_amount < s.saved_price_amount) AS price_dropped,
-       -- availability-exempt: public.product, and deliberately. This CASE does not decide WHETHER
-       -- the product is purchasable — it classifies WHY it is not, into the two answers a shopper can
-       -- act on differently ("wait" vs "give up"). The predicate collapses both into one boolean,
-       -- which is exactly the distinction 054 FR-014 exists to preserve.
+       (p.currency = s.saved_currency AND COALESCE(rv.price_amount, p.list_price_amount) < s.saved_price_amount) AS price_dropped,
+       -- availability-exempt: public.product / product_variant, and deliberately. This CASE does not
+       -- decide WHETHER something is purchasable — it classifies WHY it is not, into the two answers a
+       -- shopper can act on differently ("wait" vs "give up"). The predicate collapses both into one
+       -- boolean, which is exactly the distinction 054 FR-014 exists to preserve.
        CASE
          WHEN p.status = 'archived' THEN 'no_longer_sold'
          WHEN p.status <> 'active'  THEN 'temporarily_unavailable'
-         WHEN p.stock_tracked AND coalesce(p.stock_on_hand, 0) <= 0 THEN 'temporarily_unavailable'
+         WHEN rv.id IS NOT NULL AND rv.state <> 'active' THEN 'temporarily_unavailable'
+         WHEN rv.id IS NOT NULL AND rv.stock_tracked AND coalesce(rv.stock_on_hand, 0) <= 0 THEN 'temporarily_unavailable'
+         WHEN rv.id IS NULL AND NOT EXISTS (
+              -- availability-exempt: product_variant — classifying WHY (the CASE above), not deciding.
+              SELECT 1 FROM public.product_variant sv
+               WHERE sv.product_id = p.id AND sv.state = 'active'
+                 AND (NOT sv.stock_tracked OR sv.stock_on_hand > 0)) THEN 'temporarily_unavailable'
          ELSE 'purchasable'
        END                                       AS verdict
 FROM public.customer_list_entry e
 JOIN public.customer_saved_item s ON s.customer_id = e.customer_id AND s.product_id = e.product_id
 JOIN public.product p ON p.id = e.product_id
+-- The remembered variant, while it is still offered (a removed one is forgotten, never substituted).
+LEFT JOIN public.product_variant rv ON rv.id = s.variant_id AND rv.state <> 'removed'
+-- The variant the listing price comes from, for a pack size when none is remembered.
+LEFT JOIN LATERAL (
+    SELECT x.id, x.pack_quantity, x.pack_unit FROM public.product_variant x
+     -- availability-exempt: product_variant — the shown price's variant, not a sale.
+     WHERE x.product_id = p.id AND x.state = 'active'
+     ORDER BY x.price_amount NULLS LAST, x.position LIMIT 1
+) dv ON true
 LEFT JOIN public.category c ON c.id = p.primary_category_id
 LEFT JOIN LATERAL (
     SELECT pm.storage_key, pm.alt_text, ${renditionWidthsSql("pm.storage_key")} AS image_widths
     FROM public.product_media pm
     WHERE pm.product_id = p.id
-    ORDER BY pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
+    ORDER BY (pm.id = rv.media_id) DESC NULLS LAST, pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
     LIMIT 1
 ) m ON true
 WHERE e.customer_id = $1 AND e.list_id = $2
@@ -123,22 +163,33 @@ const PRODUCT_EXISTS = `SELECT EXISTS (SELECT 1 FROM public.product WHERE id = $
 const ALREADY_SAVED = `SELECT EXISTS (SELECT 1 FROM public.customer_saved_item WHERE customer_id = $1 AND product_id = $2) AS yes`;
 const COUNT_SAVED = `SELECT count(*)::int AS n FROM public.customer_saved_item WHERE customer_id = $1`;
 
-// ⚠ saved_price_amount is taken from the product IN THE SAME STATEMENT, so the baseline is the
-// price that actually existed at the moment of saving.
+// ⚠ saved_price_amount is taken IN THE SAME STATEMENT, so the baseline is the price that actually
+// existed at the moment of saving — the remembered variant's (098), else the product's listing price.
 const INSERT_SAVED = `
-INSERT INTO public.customer_saved_item (customer_id, product_id, saved_price_amount, saved_currency, saved_at)
-SELECT $1, p.id, p.price_amount, p.currency, COALESCE($3::timestamptz, now())
+INSERT INTO public.customer_saved_item (customer_id, product_id, variant_id, saved_price_amount, saved_currency, saved_at)
+SELECT $1, p.id, v.id, COALESCE(v.price_amount, p.list_price_amount, 0), p.currency, COALESCE($3::timestamptz, now())
 FROM public.product p
+LEFT JOIN public.product_variant v ON v.id = $4::uuid AND v.product_id = p.id AND v.state <> 'removed'
 WHERE p.id = $2
 ON CONFLICT (customer_id, product_id) DO NOTHING`;
+
+// 098 — saving again with another variant selected moves the remembered choice (FR-015a). The
+// baseline price and time are NOT touched: they describe when the PRODUCT was saved.
+const REMEMBER_VARIANT = `
+UPDATE public.customer_saved_item s SET variant_id = v.id, updated_at = now()
+  FROM public.product_variant v
+ WHERE s.customer_id = $1 AND s.product_id = $2
+   AND v.id = $3::uuid AND v.product_id = s.product_id AND v.state <> 'removed'
+   AND s.variant_id IS DISTINCT FROM v.id`;
 
 const DELETE_SAVED = `DELETE FROM public.customer_saved_item WHERE customer_id = $1 AND product_id = $2`;
 const LOCK_CUSTOMER = `SELECT pg_advisory_xact_lock(hashtext($1))`;
 
 const MERGE_INSERT = `
-INSERT INTO public.customer_saved_item (customer_id, product_id, saved_price_amount, saved_currency, saved_at)
-SELECT $1, p.id, COALESCE($3::numeric, p.price_amount), COALESCE($4, p.currency), $5::timestamptz
+INSERT INTO public.customer_saved_item (customer_id, product_id, variant_id, saved_price_amount, saved_currency, saved_at)
+SELECT $1, p.id, v.id, COALESCE($3::numeric, v.price_amount, p.list_price_amount, 0), COALESCE($4, p.currency), $5::timestamptz
 FROM public.product p
+LEFT JOIN public.product_variant v ON v.id = $6::uuid AND v.product_id = p.id AND v.state <> 'removed'
 WHERE p.id = $2
 ON CONFLICT (customer_id, product_id) DO NOTHING`;
 
@@ -227,10 +278,11 @@ export interface SavedRepository {
   remove(customerId: string, productId: string): Promise<void>;
   merge(customerId: string, items: readonly MergeItem[], cap: number): Promise<{ added: number; skipped: Skip[]; productIds: string[] }>;
   lists(customerId: string, productId: string | null): Promise<ListSummaryRow[]>;
-  createList(customerId: string, name: string, productId: string | null, listLimit: number, cap: number): Promise<string>;
+  createList(customerId: string, name: string, productId: string | null, listLimit: number, cap: number, variantId?: string | null): Promise<string>;
   renameList(customerId: string, listRef: string, name: string): Promise<void>;
   deleteList(customerId: string, listRef: string): Promise<void>;
-  addEntry(customerId: string, listRef: string, productId: string, at: Date | null, cap: number): Promise<void>;
+  /** 098 — `variantId`, when given, becomes the product's remembered variant. */
+  addEntry(customerId: string, listRef: string, productId: string, at: Date | null, cap: number, variantId?: string | null): Promise<void>;
   removeEntry(customerId: string, listRef: string, productId: string): Promise<void>;
 }
 
@@ -250,7 +302,9 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
   }
 
   /** Put a product in a list inside the caller's transaction. The caller holds the lock. */
-  async function addEntryTx(tx: Queryable, customerId: string, listId: string, productId: string, at: Date | null, cap: number) {
+  async function addEntryTx(tx: Queryable, customerId: string, listId: string, productId: string, at: Date | null, cap: number, variantId: string | null = null) {
+    // A malformed variant id is simply not remembered — a save never fails over the choice.
+    const variant = variantId && isUuid(variantId) ? variantId : null;
     if (!(await yes(tx, PRODUCT_EXISTS, [productId]))) throw new ProductNotFoundError();
 
     // ⚠ The cap counts DISTINCT SAVED PRODUCTS (068 FR-033). Placing an already-saved product in
@@ -262,7 +316,8 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
 
     // The saved row first: the entry's foreign key needs it. ON CONFLICT DO NOTHING keeps the
     // ORIGINAL price and time when the product is already saved through another list.
-    await tx.query(INSERT_SAVED, [customerId, productId, iso(at)]);
+    await tx.query(INSERT_SAVED, [customerId, productId, iso(at), variant]);
+    if (variant) await tx.query(REMEMBER_VARIANT, [customerId, productId, variant]);
     await tx.query(INSERT_ENTRY, [listId, productId, customerId, iso(at)]);
   }
 
@@ -344,7 +399,10 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
             skipped.push({ productId: it.productId, reason: "cap_reached" });
             continue;
           }
-          await tx.query(MERGE_INSERT, [customerId, it.productId, it.savedPriceAmount, it.savedCurrency, iso(it.savedAt)]);
+          await tx.query(MERGE_INSERT, [
+            customerId, it.productId, it.savedPriceAmount, it.savedCurrency, iso(it.savedAt),
+            it.variantId && isUuid(it.variantId) ? it.variantId : null,
+          ]);
           await place(it.productId, it.savedAt);
           n += 1;
           added += 1;
@@ -360,7 +418,7 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
     },
 
     /** Create a named list and, when `productId` is given, place that product in it — atomically. */
-    createList: (customerId, name, productId, listLimit, cap) =>
+    createList: (customerId, name, productId, listLimit, cap, variantId = null) =>
       locked(customerId, async (tx) => {
         const n = (await tx.query<{ n: number }>(COUNT_NAMED_LISTS, [customerId])).rows[0]?.n ?? 0;
         if (n >= listLimit) throw new ListLimitError();
@@ -372,7 +430,7 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
           if (isNameTaken(err)) throw new ListNameTakenError();
           throw err;
         }
-        if (productId) await addEntryTx(tx, customerId, id, productId, null, cap);
+        if (productId) await addEntryTx(tx, customerId, id, productId, null, cap, variantId);
         return id;
       }),
 
@@ -411,14 +469,14 @@ export function createSavedRepository(db: Queryable = pooled, transact: Transact
     },
 
     /** Place a product in a list. Idempotent: an entry that exists is left exactly as it was. */
-    addEntry: (customerId, listRef, productId, at, cap) =>
+    addEntry: (customerId, listRef, productId, at, cap, variantId = null) =>
       locked(customerId, async (tx) => {
         const listId =
           listRef === DEFAULT_LIST_REF
             ? // The one place the default list comes into being, apart from the merge.
               (await tx.query<{ id: string }>(ENSURE_DEFAULT, [customerId])).rows[0]!.id
             : (await resolveList(tx, customerId, listRef))!;
-        await addEntryTx(tx, customerId, listId, productId, at, cap);
+        await addEntryTx(tx, customerId, listId, productId, at, cap, variantId);
       }),
 
     /** Take a product out of one list; un-save it if that was its last. Always succeeds. */

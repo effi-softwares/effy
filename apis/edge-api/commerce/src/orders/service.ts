@@ -249,6 +249,7 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
             const imageUrl = await imageAddress(it.image_key).catch(() => null);
             return {
               orderItemId: it.order_item_id, productId: it.product_id, productName: it.product_name,
+              variantId: it.variant_id, variantLabel: it.variant_label,
               unitPriceAmount: it.unit_price_amount, quantity: it.quantity, lineSubtotalAmount: it.line_subtotal_amount,
               discountAmount: it.discount_amount,
               // Absent, not null or "", when there is no image.

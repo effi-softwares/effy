@@ -1,27 +1,33 @@
 import { Input, Label } from "@effy/design-system/ui";
 
-import { previewCustomerPrice, type MarginEntry } from "./model";
+import { previewCustomerPrice, priceRange, type MarginEntry } from "./model";
 
 /**
  * Effy's margin, as a reviewer enters it (067 FR-029, FR-030): a percentage of the shop's price or
  * a fixed amount, with the price customers will pay shown BEFORE anything is confirmed.
  *
  * Controlled — the entry lives with the decision it belongs to.
+ *
+ * 098 — ONE margin prices every size (variant) of the product; the preview says the range customers
+ * will pay, and the sizes table beside it shows each size's own figure.
  */
 export function MarginField({
   id,
-  shopPriceAmount,
+  shopPrices,
   value,
   onChange,
   disabled = false,
 }: {
   id: string;
-  shopPriceAmount: string;
+  /** Every size's shop price — the sizes the decision will put on sale. */
+  shopPrices: readonly string[];
   value: MarginEntry;
   onChange: (next: MarginEntry) => void;
   disabled?: boolean;
 }) {
-  const preview = previewCustomerPrice(shopPriceAmount, value.kind, value.value);
+  const shop = priceRange(shopPrices);
+  const previews = shopPrices.map((p) => previewCustomerPrice(p, value.kind, value.value));
+  const preview = previews.every((p): p is string => p !== null) ? priceRange(previews) : null;
   return (
     <div className="space-y-2">
       <Label htmlFor={id}>Effy margin</Label>
@@ -55,7 +61,7 @@ export function MarginField({
       </div>
       {/* The number that matters to the reviewer: what a customer will actually be charged. */}
       <p className="text-sm text-muted-foreground" aria-live="polite">
-        Shop price {shopPriceAmount}
+        {shopPrices.length > 1 ? `${shopPrices.length} sizes · shop price ${shop}` : `Shop price ${shop}`}
         {preview ? (
           <>
             {" "}

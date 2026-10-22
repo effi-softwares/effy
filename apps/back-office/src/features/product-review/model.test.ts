@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { canDecideReview } from "./access";
-import { marginLabel, previewCustomerPrice, toMargin, waitingLabel } from "./model";
+import { marginLabel, previewCustomerPrice, priceRange, toMargin, waitingLabel } from "./model";
 
 describe("previewCustomerPrice", () => {
   it("adds a fixed amount", () => {
@@ -50,5 +50,14 @@ describe("canDecideReview", () => {
     expect(canDecideReview(["manager"])).toBe(true);
     expect(canDecideReview(["csa"])).toBe(false);
     expect(canDecideReview([])).toBe(false);
+  });
+});
+
+describe("priceRange (098)", () => {
+  it("says one figure for one size or equal prices, and the span when sizes differ", () => {
+    expect(priceRange(["4.00"])).toBe("4.00");
+    expect(priceRange(["4.00", "4.0"])).toBe("4.00");
+    expect(priceRange(["5.50", "3.00", "4.25"])).toBe("3.00–5.50");
+    expect(priceRange([])).toBe("—");
   });
 });

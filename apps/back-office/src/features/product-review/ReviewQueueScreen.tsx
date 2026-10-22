@@ -241,7 +241,7 @@ function MarginNotSet() {
             <tr>
               <th>Product</th>
               <th>Shop</th>
-              <th className="text-right">Shop price</th>
+              <th className="text-right">Lowest shop price</th>
               <th>{canDecide ? "Set margin" : ""}</th>
             </tr>
           </thead>
@@ -304,7 +304,7 @@ function MarginNotSetRow({ product, canDecide }: { product: MarginNotSetItemDTO;
           <div className="space-y-2">
             <MarginField
               id={`margin-${product.productId}`}
-              shopPriceAmount={product.shopPriceAmount}
+              shopPrices={[product.shopPriceAmount]}
               value={entry}
               onChange={setEntry}
               disabled={setMargin.isPending}

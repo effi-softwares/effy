@@ -16,6 +16,8 @@
  * renders them.
  */
 
+import type { StorefrontProductDetailDTO } from "@effy/shared-types"
+
 export function JsonLd({ data }: { data: Record<string, unknown> }) {
   return (
     <script
@@ -51,5 +53,60 @@ export function breadcrumbLd(
       name: crumb.name,
       item: `${siteUrl}${crumb.path}`,
     })),
+  }
+}
+
+const AVAILABILITY = (available: boolean) => (available ? "https://schema.org/InStock" : "https://schema.org/OutOfStock")
+
+/**
+ * The product (098, research R18). One size → a `Product` with its `Offer`. Several sizes → a
+ * `ProductGroup` whose `hasVariant` lists each size as a `Product`, each with its own price,
+ * availability and a link that opens the page on it (`?variant=`) — Google's documented shape for
+ * variants. Built from the page's LIVE read, so it says what the page says.
+ */
+export function productLd(
+  siteUrl: string,
+  content: Pick<StorefrontProductDetailDTO, "id" | "name" | "brand" | "imageUrl" | "longDescription">,
+  live: Pick<StorefrontProductDetailDTO, "currency" | "options" | "variants">,
+): Record<string, unknown> {
+  const url = `${siteUrl}/product/${content.id}`
+  const base = {
+    name: content.name,
+    ...(content.brand ? { brand: { "@type": "Brand", name: content.brand } } : {}),
+    ...(content.longDescription ? { description: content.longDescription } : {}),
+  }
+  const offer = (v: StorefrontProductDetailDTO["variants"][number], at: string) => ({
+    "@type": "Offer",
+    url: at,
+    price: v.priceAmount,
+    priceCurrency: live.currency,
+    availability: AVAILABILITY(v.available),
+  })
+  if (live.variants.length === 1) {
+    const only = live.variants[0]!
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      ...base,
+      ...(content.imageUrl ? { image: content.imageUrl } : {}),
+      offers: offer(only, url),
+    }
+  }
+  return {
+    "@context": "https://schema.org",
+    "@type": "ProductGroup",
+    ...base,
+    productGroupID: content.id,
+    url,
+    ...(live.options.length > 0 ? { variesBy: live.options.map((o) => o.name) } : {}),
+    hasVariant: live.variants.map((v) => {
+      const at = `${url}?variant=${v.id}`
+      return {
+        "@type": "Product",
+        name: v.label ? `${content.name} — ${v.label}` : content.name,
+        ...((v.imageUrl ?? content.imageUrl) ? { image: v.imageUrl ?? content.imageUrl } : {}),
+        offers: offer(v, at),
+      }
+    }),
   }
 }

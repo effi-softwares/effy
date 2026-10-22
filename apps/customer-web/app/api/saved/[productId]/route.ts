@@ -11,9 +11,12 @@ import { proxyToEdge } from "@/lib/api/proxy"
  * 4xx untouched — so the client can still distinguish a 404 (no such product) from a 422 (cap
  * reached), which are different things to tell a shopper.
  */
-export async function PUT(_req: Request, { params }: { params: Promise<{ productId: string }> }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ productId: string }> }) {
   const { productId } = await params
-  return proxyToEdge((c) => c.put(`/commerce/v1/saved/${encodeURIComponent(productId)}`, {}))
+  // 098 — the body may name the size the shopper had chosen (`SaveItemRequest.variantId`); the
+  // platform remembers it. An empty body saves the product alone, exactly as before.
+  const body = await req.json().catch(() => ({}))
+  return proxyToEdge((c) => c.put(`/commerce/v1/saved/${encodeURIComponent(productId)}`, body))
 }
 
 /** ⚠ Always succeeds when the membership is absent — un-saving something not saved is a no-op. */

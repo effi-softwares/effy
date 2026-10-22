@@ -40,7 +40,8 @@ export async function buildDeliveryNote(db: Db, orderId: string): Promise<Delive
   // One row per order line: ordered, and what its package could not supply. A withdrawn or
   // unfulfillable package supplied nothing.
   const lines = await db.query(
-    `SELECT oi.product_id, oi.product_name, oi.quantity AS ordered,
+    // 098 — named with its variant, so two sizes of one product stay two lines.
+    `SELECT oi.product_id, CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name, oi.quantity AS ordered,
             CASE WHEN sf.status IN ('withdrawn', 'unfulfillable') THEN oi.quantity
                  ELSE COALESCE(fi.unavailable_quantity, 0) END AS unavailable
        FROM public.order_item oi

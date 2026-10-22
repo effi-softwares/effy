@@ -27,9 +27,9 @@ function migrationsDir(): string {
 }
 
 it("TRIGRAM_EXPR is the product_search_trgm_idx expression with the query's alias", () => {
-  const sql = readFileSync(resolve(migrationsDir(), "20260716092105_product_catalog.sql"), "utf8");
+  const sql = readFileSync(resolve(migrationsDir(), "20261026090000_product_variants.sql"), "utf8");
   const m = /CREATE INDEX product_search_trgm_idx ON public\.product\s+USING gin \(\((.+)\) gin_trgm_ops\);/.exec(sql);
-  if (!m) throw new Error("product_search_trgm_idx not found in the catalogue migration — this guard would prove nothing");
+  if (!m) throw new Error("product_search_trgm_idx not found in the 098 migration (which rebuilt it) — this guard would prove nothing");
 
   // The index is declared on bare column names; the query reads them through the alias `p`.
   const indexed = m[1]!.replace(/\b(name|sku|brand|short_description)\b/g, "p.$1");

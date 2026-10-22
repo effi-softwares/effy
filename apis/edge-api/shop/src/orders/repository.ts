@@ -118,11 +118,13 @@ WITH base AS (
     -- The design's Items column: "Eggs ×2, Oat milk" over THIS shop's lines only (the fan-out key,
     -- oi.shop_id = sf.shop_id, as everywhere else). SKUs ride along so search can match them.
     LEFT JOIN LATERAL (
-      SELECT string_agg(split_part(oi.product_name, ',', 1) || ' ×' || oi.quantity, ', '
-                        ORDER BY oi.product_name, oi.id) AS items_summary,
-             string_agg(COALESCE(p.sku, ''), ' ') AS skus
+      -- 098 — a line is named with its variant ("Rice (1 kg) ×2"); the codes are the sold snapshot.
+      SELECT string_agg(split_part(oi.product_name, ',', 1)
+                          || CASE WHEN oi.variant_label IS NULL THEN '' ELSE ' (' || oi.variant_label || ')' END
+                          || ' ×' || oi.quantity, ', '
+                        ORDER BY oi.product_name, oi.variant_label NULLS FIRST, oi.id) AS items_summary,
+             string_agg(COALESCE(oi.sku, '') || ' ' || COALESCE(oi.gtin, ''), ' ') AS skus
         FROM public.order_item oi
-        LEFT JOIN public.product p ON p.id = oi.product_id
        WHERE oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
     ) li ON true
     LEFT JOIN LATERAL (
@@ -336,7 +338,9 @@ SELECT sf.id, sf.order_id, o.order_number,
 interface LineRecord {
   order_item_id: string;
   name: string;
+  variant_label: string | null;
   sku: string | null;
+  gtin: string | null;
   pick_note: string | null;
   storage_key: string | null;
   ordered_quantity: number;
@@ -358,7 +362,10 @@ interface LineRecord {
 const READ_LINES = `
 SELECT oi.id AS order_item_id,
        oi.product_name AS name,
-       p.sku,
+       -- 098 — the variant, its stock code and its barcode AS SOLD (snapshots on the line).
+       oi.variant_label,
+       oi.sku,
+       oi.gtin,
        pm.storage_key,
        oi.quantity AS ordered_quantity,
        fi.gathered_quantity,
@@ -376,12 +383,17 @@ SELECT oi.id AS order_item_id,
        COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount) AS line_subtotal_amount
   FROM public.shop_fulfillment sf
   JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-  LEFT JOIN public.product p ON p.id = oi.product_id
-  LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
+  -- The line's picture: the sold variant's own, else the product's primary (decoration only).
+  LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id
+  LEFT JOIN LATERAL (
+      SELECT m.storage_key FROM public.product_media m
+       WHERE m.product_id = oi.product_id AND (m.id = pv.media_id OR m.is_primary)
+       ORDER BY (m.id = pv.media_id) DESC LIMIT 1
+  ) pm ON true
   LEFT JOIN public.fulfillment_item fi
          ON fi.shop_fulfillment_id = sf.id AND fi.order_item_id = oi.id
  WHERE sf.id = $1 AND sf.shop_id = $2
- ORDER BY oi.product_name ASC, oi.id ASC
+ ORDER BY oi.product_name ASC, oi.variant_label ASC NULLS FIRST, oi.id ASC
 `;
 
 interface RefundRecord {
@@ -622,7 +634,9 @@ async function toLine(r: LineRecord): Promise<OrderLine> {
   return {
     orderItemId: r.order_item_id,
     name: r.name,
+    variantLabel: r.variant_label,
     sku: r.sku,
+    gtin: r.gtin,
     // ⚠ PRESIGNED, not the raw storage key. The pick DTO hands the key through as `imageUrl`, which
     // no browser can load; the console renders a thumbnail, so it gets a URL that works.
     imageUrl: r.storage_key ? await presignRead(r.storage_key) : null,
@@ -658,7 +672,7 @@ function labelCommonOf(row: HeadRecord, packedOn: Date | null): ShopLabelCommonD
     service: row.delivered_by,
     orderNumber: row.order_number,
     packedOn: packedOn ? packedOn.toISOString().slice(0, 10) : null,
-    // ⚠ The SHIPPING address (`delivery_address`) — never billing.
+    // ⚠ The SHIPPING address (`delivery_address`) — never the payer's (023 FR-018).
     recipientName: s("recipientName"),
     line1: s("line1"),
     line2: s("line2") || null,

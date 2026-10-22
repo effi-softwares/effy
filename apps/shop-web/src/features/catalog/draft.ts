@@ -12,6 +12,8 @@
  * from storage across a reload. The text fields restore; the operator re-picks the image on reopen.
  */
 
+import { emptyVariantSet, type VariantSetDraft } from "./variants";
+
 /** One attribute's in-progress value. Only the field matching the attribute's data type is set. */
 export interface AttributeDraftValue {
   text?: string;
@@ -26,17 +28,15 @@ export interface ProductDraft {
   productTypeId: string | null;
   name: string;
   primaryCategoryId: string | null;
-  priceAmount: string;
   shortDescription: string;
   brand: string;
-  sku: string;
   longDescription: string;
   /**
-   * Shipping weight in grams (032). ⚠ A STRING in the draft, like priceAmount: the field is a text
-   * input and an empty string must survive a round trip through localStorage as "not answered". A
-   * number would make "" collapse to 0, and a zero weight ships free.
+   * 098 — the options and variants: each variant's price, codes, shipping weight and pack size. ⚠ Every
+   * variant field is a STRING here: "" must survive localStorage as "not answered" (a zero weight
+   * ships free).
    */
-  weightGrams: string;
+  variantSet: VariantSetDraft;
   /** 096 — taxable or GST-free; "" until the operator chooses (required to create). */
   gstStatus: "" | "taxable" | "gst_free";
   attributes: Record<string, AttributeDraftValue>;
@@ -48,12 +48,10 @@ export function emptyDraft(): ProductDraft {
     productTypeId: null,
     name: "",
     primaryCategoryId: null,
-    priceAmount: "",
     shortDescription: "",
     brand: "",
-    sku: "",
     longDescription: "",
-    weightGrams: "",
+    variantSet: emptyVariantSet(),
     gstStatus: "",
     attributes: {},
   };
@@ -73,7 +71,11 @@ export function loadDraft(shopId: string, subject: string): ProductDraft | null 
     const parsed = JSON.parse(raw) as Partial<ProductDraft>;
     if (typeof parsed !== "object" || parsed === null) return null;
     // Merge over a fresh draft so a partial/old shape never yields undefined fields.
-    return { ...emptyDraft(), ...parsed, attributes: parsed.attributes ?? {} };
+    // A draft saved before 098 has no variant set: it starts with one empty variant.
+    const variantSet = parsed.variantSet && Array.isArray(parsed.variantSet.variants) && parsed.variantSet.variants.length > 0
+      ? parsed.variantSet
+      : emptyVariantSet();
+    return { ...emptyDraft(), ...parsed, variantSet, attributes: parsed.attributes ?? {} };
   } catch {
     return null;
   }

@@ -54,7 +54,7 @@ export function MiniCartBody({
           cart is the difference between a usable drawer and one you have to hunt through. */}
       <ul className="flex-1 divide-y overflow-y-auto border-t px-4">
         {lines.map((line) => (
-          <li key={line.productId} className="flex gap-3 py-4">
+          <li key={line.variantId} className="flex gap-3 py-4">
             <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-muted">
               {line.imageUrl && (
                 <CatalogImage
@@ -69,7 +69,11 @@ export function MiniCartBody({
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="line-clamp-2 text-sm font-medium">{line.name}</span>
+              <span className="line-clamp-2 text-sm font-medium">
+                {line.name}
+                {/* 098 — the size chosen. */}
+                {line.variantLabel ? <span className="font-normal text-muted-foreground"> · {line.variantLabel}</span> : null}
+              </span>
               <span className="mt-0.5 text-xs text-muted-foreground">
                 {formatMoney(line.unitPriceAmount, line.currency)} each
               </span>
@@ -82,7 +86,7 @@ export function MiniCartBody({
                 <div className="inline-flex items-center overflow-hidden rounded-md border border-input shadow-xs">
                   <button
                     type="button"
-                    onClick={() => setItemQuantity(line.productId, line.quantity - 1)}
+                    onClick={() => setItemQuantity(line.variantId, line.quantity - 1)}
                     aria-label={`Decrease quantity of ${line.name}`}
                     className="inline-flex size-8 items-center justify-center text-base leading-none hover:bg-accent"
                   >
@@ -93,7 +97,7 @@ export function MiniCartBody({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setItemQuantity(line.productId, line.quantity + 1)}
+                    onClick={() => setItemQuantity(line.variantId, line.quantity + 1)}
                     aria-label={`Increase quantity of ${line.name}`}
                     className="inline-flex size-8 items-center justify-center text-base leading-none hover:bg-accent"
                   >
@@ -108,7 +112,7 @@ export function MiniCartBody({
 
               <button
                 type="button"
-                onClick={() => removeItem(line.productId)}
+                onClick={() => removeItem(line.variantId)}
                 // The accessible name carries the product; "Remove" alone, repeated down a
                 // list, tells a screen-reader user nothing about WHICH thing goes.
                 aria-label={`Remove ${line.name}`}

@@ -38,6 +38,8 @@ export type StockMovementReason =
   | "pick_shortfall"
   | "tracking_enabled"
   | "tracking_disabled"
+  /** 055 — returned on an item refund of an uncollected portion. */
+  | "refund"
 
 /**
  * WHO acted, kept separate from WHY (`reason`).
@@ -58,9 +60,11 @@ export const OPERATOR_STOCK_REASONS = [
 
 export type OperatorStockReason = (typeof OPERATOR_STOCK_REASONS)[number]
 
-/** A product's stock, as one operator screen needs it. */
+/** A VARIANT's stock (098; a product's before), as one operator screen needs it. */
 export interface ProductStockDTO {
   productId: string
+  /** 098 — stock is counted per variant. */
+  variantId: string
   /** false = unlimited, and identical to how the product behaved before 054 existed (FR-002). */
   tracked: boolean
   /** null exactly when untracked — the database makes "tracked with no count" unrepresentable. */
@@ -102,7 +106,11 @@ export interface ProductStockDetailDTO {
 
 export interface LowStockRowDTO {
   productId: string
+  /** 098 */
+  variantId: string
   name: string
+  /** 098 — "1 kg"; null for a product with no options. */
+  variantLabel: string | null
   sku: string | null
   onHand: WireInt
   effectiveThreshold: WireInt | null

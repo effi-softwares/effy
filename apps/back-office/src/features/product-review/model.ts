@@ -36,6 +36,15 @@ export function previewCustomerPrice(shopPrice: string, kind: "percent" | "amoun
   return (cents / 100).toFixed(2);
 }
 
+/** "3.00" for one price or several equal ones, "3.00–5.50" when they differ (098). */
+export function priceRange(prices: readonly string[]): string {
+  if (prices.length === 0) return "—";
+  const sorted = [...prices].sort((a, b) => Number(a) - Number(b));
+  const lo = sorted[0]!;
+  const hi = sorted[sorted.length - 1]!;
+  return Number(lo) === Number(hi) ? lo : `${lo}–${hi}`;
+}
+
 export type MarginEntry = { kind: "percent" | "amount"; value: string };
 
 /** A margin the form can send, or null while what is typed is not one. Zero is a margin; blank is not. */

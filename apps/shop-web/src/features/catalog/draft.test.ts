@@ -39,7 +39,8 @@ describe("catalog draft store", () => {
     const loaded = loadDraft("shop-1", "sub-a");
     expect(loaded?.name).toBe("Old");
     expect(loaded?.attributes).toEqual({});
-    expect(loaded?.priceAmount).toBe("");
+    // 098 — a pre-variants draft starts with one empty variant.
+    expect(loaded?.variantSet.variants).toHaveLength(1);
   });
 
   it("clears a draft on publish/discard", () => {

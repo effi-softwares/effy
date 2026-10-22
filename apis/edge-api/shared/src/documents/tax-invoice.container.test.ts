@@ -17,9 +17,9 @@ const one = async <T,>(sql: string, p: unknown[] = []) => (await pool.query(sql,
 
 async function product(name: string, gst: string) {
   return (await one<{ id: string }>(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by, status, approved_at, gst_status)
-     VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 5.50, 'A thing', 'test', 'active', now(), $3)
-     RETURNING id`, [shopId, name, gst])).id;
+    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now(), $3) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(5.50, 5.50)::numeric, (5.50)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shopId, name, gst])).id;
 }
 
 /** A paid order: Milk 2 × $4.50 (GST-free), Soap 1 × $5.50 less 50c (taxable), delivery $9.90. Total $23.90. */
@@ -35,11 +35,11 @@ async function paidOrder(opts: { lineGst?: (string | null)[]; unit?: string; num
      VALUES ($1, $2, $3, 0.50, 9.90, $4, '{}'::jsonb, 'paid', now()) RETURNING id`,
     [customerId, opts.number ?? `EFY-T${Math.random().toString(36).slice(2, 7).toUpperCase()}`, (9 + Number(unit)).toFixed(2), total]);
   const milkLine = await one<{ id: string }>(
-    `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status)
-     VALUES ($1, $2, $3, 'Milk', 4.50, 2, 9.00, $4) RETURNING id`, [order.id, milk, shopId, milkGst]);
+    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, gst_status)
+     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 4.50, 2, 9.00, $4) RETURNING id`, [order.id, milk, shopId, milkGst]);
   const soapRow = await one<{ id: string }>(
-    `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, discount_amount, gst_status)
-     VALUES ($1, $2, $3, 'Soap', $5::numeric, 1, $5::numeric, 0.50, $4) RETURNING id`, [order.id, soap, shopId, soapGst, unit]);
+    `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount, discount_amount, gst_status)
+     VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Soap', $5::numeric, 1, $5::numeric, 0.50, $4) RETURNING id`, [order.id, soap, shopId, soapGst, unit]);
   await pool.query(`INSERT INTO public.payment (order_id, amount, status) VALUES ($1, $2, 'succeeded')`, [order.id, total]);
   return { order: order.id, milk, soap, milkLine: milkLine.id, soapLine: soapRow.id };
 }

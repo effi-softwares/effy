@@ -302,6 +302,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
                 orderItemId = it.orderItemID,
                 productId = it.productID,
                 productName = it.productName,
+                variantLabel = it.variantLabel,
                 quantity = it.quantity.toInt(),
                 unitPriceAmount = it.unitPriceAmount,
                 lineSubtotalAmount = it.lineSubtotalAmount,

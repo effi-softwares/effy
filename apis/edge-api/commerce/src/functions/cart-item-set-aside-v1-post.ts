@@ -1,4 +1,4 @@
-// POST /commerce/v1/cart/items/{productId}/set-aside?changeId= — move a line to "saved for later".
+// POST /commerce/v1/cart/items/{variantId}/set-aside?changeId= — move a line to "saved for later".
 // It leaves the payable totals immediately.
 import { validationFailed } from "@effy/edge-shared";
 
@@ -9,5 +9,5 @@ import { cartService } from "../lib/wiring";
 export const handler = customerRoute(async ({ event, scope, customer }) => {
   const changeId = changeIdOf(queryParam(event, "changeId"));
   if (changeId === null) return validationFailed(scope, "changeId must be a uuid");
-  return respond(scope, () => cartService.setAside(customer.id, pathParam(event, "productId"), changeId));
+  return respond(scope, () => cartService.setAside(customer.id, pathParam(event, "variantId"), changeId));
 });

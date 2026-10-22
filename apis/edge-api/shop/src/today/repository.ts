@@ -11,6 +11,7 @@ import {
   LOW_STOCK_SEVERITY,
   query,
 } from "@effy/edge-shared";
+import { lineNameSql, variantLabelSql } from "@effy/edge-shared/catalog";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 import type { Backlog, LiveOrder, StockAttention } from "./types";
@@ -44,11 +45,13 @@ awaiting AS (
    WHERE p.status IN ('pending', 'received')
 ),
 stock AS (
+  -- 098 — counted per VARIANT: "1 kg running low" is a different shelf from "500 g".
   SELECT COUNT(*)::int AS skus,
-         COUNT(*) FILTER (WHERE p.stock_on_hand <= 0)::int AS out_of_stock
-    FROM public.product p
-    LEFT JOIN public.shop_stock_settings s ON s.shop_id = p.shop_id
-   WHERE p.shop_id = $1
+         COUNT(*) FILTER (WHERE v.stock_on_hand <= 0)::int AS out_of_stock
+    FROM public.product_variant v
+    JOIN public.product p ON p.id = v.product_id
+    LEFT JOIN public.shop_stock_settings s ON s.shop_id = v.shop_id
+   WHERE v.shop_id = $1
      AND ${LOW_STOCK_PREDICATE}
 )
 SELECT (SELECT COUNT(*) FROM awaiting)::int AS awaiting_orders,
@@ -102,34 +105,36 @@ export async function readBacklog(shopId: string): Promise<Backlog> {
  */
 const SELECT_STOCK_ATTENTION = `
 SELECT p.id::text AS product_id,
-       p.name,
-       p.stock_on_hand AS on_hand,
+       -- 098 — one row per VARIANT, named with its label ("Basmati Rice — 1 kg").
+       ${lineNameSql("p.name", variantLabelSql("v"))} AS name,
+       v.stock_on_hand AS on_hand,
        ${LOW_STOCK_SEVERITY} AS severity,
        COALESCE(d.sold_7d, 0)::int AS sold_7d,
        CASE WHEN COALESCE(d.sold_7d, 0) > 0
-            THEN FLOOR(p.stock_on_hand::numeric / (d.sold_7d::numeric / 7))::int
+            THEN FLOOR(v.stock_on_hand::numeric / (d.sold_7d::numeric / 7))::int
             ELSE NULL END AS days_of_cover,
-       COALESCE(m.last_moved_at, p.updated_at) AS since,
+       COALESCE(m.last_moved_at, v.updated_at) AS since,
        ${EFFECTIVE_LOW_STOCK_THRESHOLD} AS effective_threshold
-  FROM public.product p
-  LEFT JOIN public.shop_stock_settings s ON s.shop_id = p.shop_id
+  FROM public.product_variant v
+  JOIN public.product p ON p.id = v.product_id
+  LEFT JOIN public.shop_stock_settings s ON s.shop_id = v.shop_id
   LEFT JOIN LATERAL (
     SELECT SUM(-sm.quantity_delta) AS sold_7d
       FROM public.stock_movement sm
-     WHERE sm.product_id = p.id
+     WHERE sm.variant_id = v.id
        AND sm.reason = 'order_paid'
        AND sm.created_at >= now() - interval '7 days'
   ) d ON true
   LEFT JOIN LATERAL (
     SELECT MAX(sm.created_at) AS last_moved_at
       FROM public.stock_movement sm
-     WHERE sm.product_id = p.id
+     WHERE sm.variant_id = v.id
   ) m ON true
- WHERE p.shop_id = $1
+ WHERE v.shop_id = $1
    AND ${LOW_STOCK_PREDICATE}
  -- Most urgent first, matching the restock list's own ordering so two screens never rank the same
- -- two products differently.
- ORDER BY (p.stock_on_hand <= 0) DESC, p.stock_on_hand ASC, p.name ASC
+ -- two variants differently.
+ ORDER BY (v.stock_on_hand <= 0) DESC, v.stock_on_hand ASC, p.name ASC
  LIMIT $2
 `;
 

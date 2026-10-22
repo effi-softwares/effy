@@ -75,7 +75,7 @@ function signedNumber(raw: string): number | null {
 }
 
 interface DialogProps {
-  productId: string;
+  variantId: string;
   stock: ProductStockDTO;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -93,8 +93,8 @@ interface DialogProps {
  * believe the delivery had been reconciled against something when nothing had. The note is the honest
  * place for context until purchasing exists.
  */
-export function ReceiveStockDialog({ productId, stock, open, onOpenChange }: DialogProps) {
-  const adjust = useAdjustStock(productId);
+export function ReceiveStockDialog({ variantId, stock, open, onOpenChange }: DialogProps) {
+  const adjust = useAdjustStock(variantId);
   const [units, setUnits] = useState("");
   const [note, setNote] = useState("");
 
@@ -203,11 +203,11 @@ export function ReceiveStockDialog({ productId, stock, open, onOpenChange }: Dia
  * something called "Add stock" has not consented to that unless it is written next to the field.
  */
 export function StartTrackingDialog({
-  productId,
+  variantId,
   open,
   onOpenChange,
 }: Omit<DialogProps, "stock">) {
-  const setTracking = useSetStockTracking(productId);
+  const setTracking = useSetStockTracking(variantId);
   const [units, setUnits] = useState("");
 
   useEffect(() => {
@@ -299,9 +299,9 @@ export function StartTrackingDialog({
  * must not require them to know the current count at all — which they may not, if a sale landed while
  * they were walking back from the aisle.
  */
-export function AdjustStockDialog({ productId, stock, open, onOpenChange }: DialogProps) {
-  const setCount = useSetStockCount(productId);
-  const adjust = useAdjustStock(productId);
+export function AdjustStockDialog({ variantId, stock, open, onOpenChange }: DialogProps) {
+  const setCount = useSetStockCount(variantId);
+  const adjust = useAdjustStock(variantId);
 
   const [mode, setMode] = useState<"set" | "adjust">("set");
   const [value, setValue] = useState("");

@@ -6,6 +6,7 @@ import { refreshCart } from "./cart-sync"
 import { addToCart, readCart, resetCart, type GuestCartLine } from "./cart-store"
 
 const line = (productId: string, quantity = 1, unitPriceAmount = "5.00"): GuestCartLine => ({
+  variantId: productId,
   productId,
   name: productId,
   imageUrl: null,
@@ -33,6 +34,9 @@ const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
 const dtoLine = (productId: string, quantity: number, over: Partial<CartDTO["lines"][number]> = {}) => ({
   id: `line-${productId}`,
   productId,
+  variantId: productId,
+  variantLabel: null,
+  unitPrice: null,
   name: productId,
   imageUrl: null,
   unitPriceAmount: "5.00",

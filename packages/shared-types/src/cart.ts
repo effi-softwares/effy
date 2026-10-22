@@ -1,3 +1,4 @@
+import type { UnitPriceDTO } from "./unit-price";
 /**
  * Cart contracts — 019-customer-commerce-flow, rewritten by 027-customer-cart-sync.
  *
@@ -50,7 +51,11 @@ export type WireInt = number;
 export interface CartLineDTO {
   id: string;
   productId: string;
+  /** 098 — the variant this line buys. Lines are keyed by it: two sizes of one product are two lines. */
+  variantId: string;
   name: string;
+  /** 098 — "Spiced / 500 g"; null for a product with no options. */
+  variantLabel: string | null;
   imageUrl: string | null;
   /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
   imageWidths?: number[];
@@ -73,6 +78,8 @@ export interface CartLineDTO {
   packageKey: string;
   /** 094 — what promotions take off this line, in cents exactly as allocated; "0.00" when none. */
   discountAmount?: string;
+  /** 098 — the comparison price of what one unit costs after this line's discount; null without a pack size. */
+  unitPrice: UnitPriceDTO | null;
 }
 
 /**
@@ -99,6 +106,8 @@ export const CART_NOTICE_KINDS: readonly CartNoticeKind[] = [
 
 export interface CartNoticeDTO {
   productId: string | null;
+  /** 098 — the line's variant, when the notice is about a line. */
+  variantId?: string | null;
   kind: CartNoticeKind;
   /** Human-readable specifics where the kind alone is not enough. NEVER names or implies a shop. */
   detail: string | null;
@@ -205,7 +214,8 @@ export interface CartDTO {
 
 /** One line of a client-supplied set (merge, preview). */
 export interface CartLineInput {
-  productId: string;
+  /** 098 — a line is a variant. */
+  variantId: string;
   quantity: WireInt;
 }
 
@@ -218,13 +228,14 @@ export interface CartLineInput {
  * (FR-018).
  */
 export interface AddToCartRequest {
-  productId: string;
+  /** 098 — the variant chosen; a product with no options has exactly one. */
+  variantId: string;
   quantity: WireInt;
   changeId: string;
 }
 
 /**
- * PATCH /v1/cart/items/{productId} — set an ABSOLUTE line quantity; 0 removes.
+ * PATCH /v1/cart/items/{variantId} — set an ABSOLUTE line quantity; 0 removes.
  *
  * Absolute, not a delta, which is what lets the client debounce ten taps into one request and drop the
  * intermediate values safely (FR-016). Idempotent, so `changeId` is optional; clients send it anyway
@@ -238,7 +249,7 @@ export interface UpdateCartLineRequest {
 /**
  * POST /v1/cart/merge — fold a device cart into the account cart at sign-in.
  *
- * ⚠ UNION WITH MAXIMUM QUANTITY per product. This is NOT 019's original `/v1/cart/merge`, which SUMMED
+ * ⚠ UNION WITH MAXIMUM QUANTITY per variant (098; per product before). This is NOT 019's original `/v1/cart/merge`, which SUMMED
  * quantities and was removed on 2026-07-23 after it tripled carts. Taking the maximum makes the
  * operation idempotent AND commutative: signing in twice, or retrying an interrupted merge, leaves
  * exactly the same cart (FR-011, FR-012). Nothing from either side is dropped.
@@ -262,7 +273,11 @@ export type ReorderSkipReason = "unavailable" | "removed" | "cart_full" | "clamp
 
 export interface ReorderSkippedDTO {
   productId: string;
+  /** 098 */
+  variantId: string;
   name: string | null;
+  /** 098 — the label it was sold with. */
+  variantLabel: string | null;
   reason: ReorderSkipReason;
 }
 

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -59,7 +61,9 @@ d("096 US9 — a product's GST status, set by the shop", () => {
       `SELECT (SELECT id FROM public.product_type LIMIT 1) AS t, (SELECT id FROM public.category WHERE status = 'active' LIMIT 1) AS c`)).rows[0]!;
 
     const created = await createProduct(shopId, {
-      productTypeId: ids.t, primaryCategoryId: ids.c, name: "Milk", priceAmount: "4.50", shortDescription: "Full cream", gstStatus: "gst_free",
+      productTypeId: ids.t, primaryCategoryId: ids.c, name: "Milk", shortDescription: "Full cream", options: [],
+      variants: [{ id: randomUUID(), position: 0, optionValueIds: [null, null], sku: null, gtin: null, shopPriceAmount: "4.50", shopCompareAtAmount: null, weightGrams: null, packQuantity: null, packUnit: null, mediaStorageKey: null }],
+      unitBasis: null, gstStatus: "gst_free",
     }, "sub-sam");
     expect(created.gstStatus).toBe("gst_free");
 

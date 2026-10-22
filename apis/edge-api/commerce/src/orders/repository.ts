@@ -96,7 +96,11 @@ export interface OrderRow {
 export interface ItemRow {
   order_item_id: string;
   product_id: string;
+  /** 098 */
+  variant_id: string;
   product_name: string;
+  /** 098 — the label AS SOLD (snapshot). */
+  variant_label: string | null;
   unit_price_amount: string;
   quantity: number;
   line_subtotal_amount: string;
@@ -260,6 +264,7 @@ WHERE o.id = $1 AND o.customer_id = $2`,
         `
 SELECT oi.id::text AS order_item_id,
        oi.product_id::text AS product_id, oi.product_name AS product_name,
+       oi.variant_id::text AS variant_id, oi.variant_label AS variant_label,
        oi.unit_price_amount::text AS unit_price_amount, oi.quantity AS quantity,
        oi.line_subtotal_amount::text AS line_subtotal_amount,
        oi.discount_amount::text AS discount_amount,
@@ -286,7 +291,8 @@ FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at ASC`,
       rows<ShortfallRow>(
         `
 SELECT fi.shop_fulfillment_id::text AS shop_fulfillment_id,
-       oi.product_name              AS product_name,
+       -- 098 — a shortfall names what was SOLD, label included ("Basmati Rice — 1 kg").
+       CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
        fi.unavailable_quantity      AS quantity
 FROM public.fulfillment_item fi
 JOIN public.shop_fulfillment sf ON sf.id = fi.shop_fulfillment_id

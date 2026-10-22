@@ -15,7 +15,7 @@
 import type { PoolClient } from "pg";
 
 import { query, withTransaction } from "@effy/edge-shared";
-import type { GstStatus } from "@effy/shared-types";
+import type { GstStatus, OptionInputDTO, UnitBasis, VariantInputDTO } from "@effy/shared-types";
 
 import type {
   AttributeValueInput,
@@ -32,22 +32,67 @@ export interface TargetValues {
   name: string;
   productTypeId: string;
   primaryCategoryId: string;
-  sku: string | null;
-  gtin: string | null;
   brand: string | null;
-  priceAmount: string;
-  compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
-  weightGrams: number | null;
   /** 096 */
   gstStatus: GstStatus | null;
+  /** 098 */
+  unitBasis: UnitBasis | null;
+  /** 098 — the COMPLETE target sets (live, overlaid with what is proposed, overlaid with this edit). */
+  options: OptionInputDTO[];
+  variants: VariantInputDTO[];
 }
 
-/** Money compares as numbers: "10" and "10.00" are one price, not a change. */
-function sameMoney(a: string | null, b: string | null): boolean {
-  if (a === null || b === null) return a === b;
-  return Number(a) === Number(b);
+// ── 098 — variant sets as inputs, and comparing them ───────────────────────────────────────────
+
+/**
+ * The live options and variants in the shape a shop sends them — the base every edit to an approved
+ * product is laid over. Removed variants are history, not part of the set. An assumed weight is sent
+ * as "not supplied" so a proposal never turns it into a measured one by accident.
+ */
+export function liveVariantInputs(live: ProductDetail): { options: OptionInputDTO[]; variants: VariantInputDTO[] } {
+  return {
+    options: live.options.map((o) => ({
+      id: o.id, position: o.position, name: o.name,
+      values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position })),
+    })),
+    variants: live.variants
+      .filter((v) => v.state !== "removed")
+      .map((v) => ({
+        id: v.id, position: v.position, optionValueIds: v.optionValueIds, sku: v.sku, gtin: v.gtin,
+        shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount,
+        weightGrams: v.weightIsAssumed ? null : v.weightGrams,
+        packQuantity: v.packQuantity, packUnit: v.packUnit, mediaStorageKey: v.mediaStorageKey,
+      })),
+  };
+}
+
+const money = (a: string | null | undefined) => (a === null || a === undefined || a === "" ? null : Number(a).toFixed(2));
+const text = (a: string | null | undefined) => (a === null || a === undefined || a.trim() === "" ? null : a.trim());
+const qty = (a: string | number | null | undefined) => (a === null || a === undefined || a === "" ? null : String(Number(a)));
+
+/** A canonical form, so a set re-sent with "4.5" for "4.50" or in another order is not a change. */
+function canonicalSet(options: readonly OptionInputDTO[], variants: readonly VariantInputDTO[]): string {
+  return JSON.stringify({
+    options: [...options]
+      .sort((a, b) => a.position - b.position)
+      .map((o) => ({ id: o.id, p: o.position, n: o.name.trim(), v: [...o.values].sort((a, b) => a.position - b.position).map((v) => [v.id, v.value.trim(), v.position]) })),
+    variants: [...variants]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((v) => [
+        v.id, v.position, v.optionValueIds[0] ?? null, v.optionValueIds[1] ?? null, text(v.sku), text(v.gtin),
+        money(v.shopPriceAmount), money(v.shopCompareAtAmount), v.weightGrams ?? null, qty(v.packQuantity), v.packUnit ?? null,
+        text(v.mediaStorageKey),
+      ]),
+  });
+}
+
+export function sameVariantSet(
+  a: { options: readonly OptionInputDTO[]; variants: readonly VariantInputDTO[] },
+  b: { options: readonly OptionInputDTO[]; variants: readonly VariantInputDTO[] },
+): boolean {
+  return canonicalSet(a.options, a.variants) === canonicalSet(b.options, b.variants);
 }
 
 function sameAttribute(live: ProductAttributeValue | undefined, next: AttributeValueInput): boolean {
@@ -75,14 +120,15 @@ export function diffProposal(
   if (target.shortDescription !== live.shortDescription) out.shortDescription = target.shortDescription;
   if ((target.longDescription ?? null) !== (live.longDescription ?? null)) out.longDescription = target.longDescription;
   if ((target.brand ?? null) !== (live.brand ?? null)) out.brand = target.brand;
-  if ((target.sku ?? null) !== (live.sku ?? null)) out.sku = target.sku;
-  if ((target.gtin ?? null) !== (live.gtin ?? null)) out.gtin = target.gtin;
   if (target.primaryCategoryId !== live.primaryCategoryId) out.primaryCategoryId = target.primaryCategoryId;
   if (target.productTypeId !== live.productTypeId) out.productTypeId = target.productTypeId;
-  if (!sameMoney(target.priceAmount, live.priceAmount)) out.priceAmount = target.priceAmount;
-  if (!sameMoney(target.compareAtAmount, live.compareAtAmount)) out.compareAtAmount = target.compareAtAmount;
-  if (target.weightGrams !== null && target.weightGrams !== live.weightGrams) out.weightGrams = target.weightGrams;
   if (target.gstStatus !== null && target.gstStatus !== live.gstStatus) out.gstStatus = target.gstStatus;
+  if ((target.unitBasis ?? null) !== (live.unitBasis ?? null)) out.unitBasis = target.unitBasis;
+  // 098 — the option and variant sets travel WHOLE, and together, or not at all.
+  if (!sameVariantSet(target, liveVariantInputs(live))) {
+    out.options = target.options;
+    out.variants = target.variants;
+  }
 
   const liveById = new Map(live.attributes.map((a) => [a.attributeId, a]));
   const changed = attributes.filter((a) => !sameAttribute(liveById.get(a.attributeId), a));
@@ -99,15 +145,22 @@ export function overlay(live: ProductDetail, proposed: ProductChangeProposal | n
     shortDescription: proposed.shortDescription ?? live.shortDescription,
     longDescription: "longDescription" in proposed ? (proposed.longDescription ?? null) : live.longDescription,
     brand: "brand" in proposed ? (proposed.brand ?? null) : live.brand,
-    sku: "sku" in proposed ? (proposed.sku ?? null) : live.sku,
-    gtin: "gtin" in proposed ? (proposed.gtin ?? null) : live.gtin,
     primaryCategoryId: proposed.primaryCategoryId ?? live.primaryCategoryId,
     productTypeId: proposed.productTypeId ?? live.productTypeId,
-    priceAmount: proposed.priceAmount ?? live.priceAmount,
-    compareAtAmount: "compareAtAmount" in proposed ? (proposed.compareAtAmount ?? null) : live.compareAtAmount,
-    weightGrams: proposed.weightGrams ?? live.weightGrams,
     gstStatus: proposed.gstStatus ?? live.gstStatus,
+    unitBasis: "unitBasis" in proposed ? (proposed.unitBasis ?? null) : live.unitBasis,
+    // 098 — the variant sets are NOT overlaid here (live rows carry stock and state a proposal has
+    // not got); `proposedVariantInputs` gives the base an edit is laid over.
   };
+}
+
+/** 098 — the option/variant set an edit to an approved product starts from: proposed, else live. */
+export function proposedVariantInputs(
+  live: ProductDetail,
+  proposed: ProductChangeProposal | null,
+): { options: OptionInputDTO[]; variants: VariantInputDTO[] } {
+  if (proposed?.options && proposed.variants) return { options: proposed.options, variants: proposed.variants };
+  return liveVariantInputs(live);
 }
 
 /** Earlier proposed attribute values, with this edit's laid over them by attribute. */

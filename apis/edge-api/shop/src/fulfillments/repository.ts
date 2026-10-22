@@ -57,7 +57,9 @@ interface DetailRow {
 interface ItemRow {
   order_item_id: string;
   name: string;
+  variant_label: string | null;
   sku: string | null;
+  gtin: string | null;
   storage_key: string | null;
   ordered_quantity: number;
   gathered_quantity: number | null;
@@ -159,19 +161,26 @@ SELECT sf.id, sf.order_id, o.order_number, o.placed_at, sf.status, sf.state_chan
 const READ_ITEMS = `
 SELECT oi.id AS order_item_id,
        oi.product_name AS name,
-       p.sku,
+       -- 098 — the variant, its stock code and barcode AS SOLD: a picker must never guess the size.
+       oi.variant_label,
+       oi.sku,
+       oi.gtin,
        pm.storage_key,
        oi.quantity AS ordered_quantity,
        fi.gathered_quantity,
        fi.unavailable_quantity
   FROM public.shop_fulfillment sf
   JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
-  LEFT JOIN public.product p ON p.id = oi.product_id
-  LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
+  LEFT JOIN public.product_variant pv ON pv.id = oi.variant_id
+  LEFT JOIN LATERAL (
+      SELECT m.storage_key FROM public.product_media m
+       WHERE m.product_id = oi.product_id AND (m.id = pv.media_id OR m.is_primary)
+       ORDER BY (m.id = pv.media_id) DESC LIMIT 1
+  ) pm ON true
   LEFT JOIN public.fulfillment_item fi
          ON fi.shop_fulfillment_id = sf.id AND fi.order_item_id = oi.id
  WHERE sf.id = $1 AND sf.shop_id = $2
- ORDER BY oi.product_name ASC
+ ORDER BY oi.product_name ASC, oi.variant_label ASC NULLS FIRST
 `;
 
 /** Implicit acknowledge on first open (FR-011a). Guarded, so concurrent opens yield one transition. */
@@ -201,7 +210,9 @@ function mapItem(r: ItemRow): FulfillmentItem {
   return {
     orderItemId: r.order_item_id,
     name: r.name,
+    variantLabel: r.variant_label,
     sku: r.sku,
+    gtin: r.gtin,
     imageUrl: r.storage_key,
     orderedQuantity: r.ordered_quantity,
     gatheredQuantity: r.gathered_quantity ?? 0,
@@ -599,22 +610,23 @@ export async function emptyShelfFromPick(
   actorStaffId: string | null,
 ): Promise<void> {
   await client.query(
+    // 098 — the shelf that is empty is the VARIANT's that was sold, not its siblings'.
     `WITH prev AS (
-       SELECT p.id, p.shop_id, p.stock_on_hand
-         FROM public.product p
-         JOIN public.order_item oi ON oi.product_id = p.id
-        WHERE oi.id = $1 AND p.stock_tracked AND p.stock_on_hand <> 0
-        FOR UPDATE OF p
+       SELECT v.id, v.product_id, v.shop_id, v.stock_on_hand
+         FROM public.product_variant v
+         JOIN public.order_item oi ON oi.variant_id = v.id
+        WHERE oi.id = $1 AND v.stock_tracked AND v.stock_on_hand <> 0
+        FOR UPDATE OF v
      ), moved AS (
-       UPDATE public.product p
+       UPDATE public.product_variant v
           SET stock_on_hand = 0
          FROM prev
-        WHERE p.id = prev.id
-       RETURNING p.id, prev.shop_id, prev.stock_on_hand AS before, p.stock_on_hand AS after
+        WHERE v.id = prev.id
+       RETURNING v.id, prev.product_id, prev.shop_id, prev.stock_on_hand AS before, v.stock_on_hand AS after
      )
      INSERT INTO public.stock_movement
-         (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub)
-     SELECT id, shop_id, after - before, before, after, 'pick_shortfall', 'shop',
+         (product_id, variant_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub)
+     SELECT product_id, id, shop_id, after - before, before, after, 'pick_shortfall', 'shop',
             (SELECT ss.cognito_sub FROM public.shop_staff ss WHERE ss.id = $2)
        FROM moved`,
     [orderItemId, actorStaffId],

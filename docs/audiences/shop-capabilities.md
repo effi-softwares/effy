@@ -671,3 +671,28 @@ A shop submits; Effy approves. Stock is never reviewed.
 - **Who reviewed it.** A send-back reason comes from Effy.
 - **Another shop's products, prices or review state.**
 
+
+---
+
+## §098 — Product sizes and flavours (098-product-variants)
+
+A product is now the shared details (name, descriptions, brand, aisle, attributes, pictures, GST, review)
+and **one or more variants** — up to two options (e.g. Size, Flavour), up to 50 variants. Each variant
+has its own shop price, "was" price, SKU, barcode, weight, pack size, stock and optional picture. A
+product sold one way has exactly one variant and no options.
+
+| Capability | shop-web | shop-mobile |
+|---|---|---|
+| Define options and values; edit the variant grid (price, codes, weight, pack size, picture) | ✅ create wizard "Sizes & prices" step; Sizes editor on the product | ⛔ stopped (2026-10-21) |
+| Unit pricing basis for the product (per 100 g / kg / 100 mL / L / each) | ✅ with a preview per row | ⛔ |
+| A new size or a price change on a live product waits for Effy's review | ✅ whole set proposed together | ⛔ |
+| Take one size off sale / back on sale / remove it — **immediately** | ✅ Sizes table row actions (`POST /shop/v1/products/{id}/variants/{variantId}/state`) | ⛔ |
+| Stock per size (count, adjust, threshold, tracking, history) | ✅ size picker in the Inventory section | ⛔ |
+| Each order line, pick list and label names the size, with its SKU and barcode as sold | ✅ | ⛔ |
+
+- ⚠ **The last size on sale cannot be taken off** (409) — make the product unavailable instead.
+- ⚠ **A removed size is kept** for past orders and stock history; its stock code is freed.
+- ⚠ **One margin per product** prices every size; the shop sees what it is paid and what customers pay
+  for each size, never the margin.
+- **Not available:** per-size promotions (a promotion covers the whole product), more than two options,
+  sell-by-weight.

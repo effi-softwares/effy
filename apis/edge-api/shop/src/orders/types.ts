@@ -113,7 +113,11 @@ export interface OrderList {
 export interface OrderLine {
   orderItemId: string;
   name: string;
+  /** 098 — the variant's label as sold; null with no options. */
+  variantLabel: string | null;
   sku: string | null;
+  /** 098 — the variant's barcode as sold. */
+  gtin: string | null;
   imageUrl: string | null;
   orderedQuantity: number;
   gatheredQuantity: number;

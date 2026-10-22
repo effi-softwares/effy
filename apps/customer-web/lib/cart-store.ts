@@ -25,19 +25,20 @@
  */
 import { useSyncExternalStore } from "react"
 
-import type { CartDTO } from "@effy/shared-types"
+import type { CartDTO, UnitPriceDTO } from "@effy/shared-types"
 
 import { computeCartTotals } from "./cart-totals"
 
 /**
- * ⚠ A NEW key, and the old one is migrated rather than abandoned. 019 stored a bare array under
- * `effy:cart`; 027 stores a versioned envelope holding the whole mirror. Reading the old key on first
- * load means a shopper who had items in their cart when this shipped still has them — dropping it would
- * have made the deploy itself the cart-loss bug this slice exists to fix.
+ * ⚠ 098 — a line is a VARIANT (a size of a product), so the mirror is keyed by `variantId` and the
+ * envelope moved to a new key. Earlier mirrors (`effy:cart`, `effy:cart:v2`) name products, which can
+ * no longer be bought as such — and 098 started the catalogue afresh, so no id in them exists. They
+ * are DROPPED on first read, never migrated: a line guessed onto "the product's first size" would put
+ * something in the cart the shopper did not choose.
  */
-const KEY = "effy:cart:v2"
-const LEGACY_KEY = "effy:cart"
-const SCHEMA_VERSION = 2
+const KEY = "effy:cart:v3"
+const RETIRED_KEYS = ["effy:cart", "effy:cart:v2"] as const
+const SCHEMA_VERSION = 3
 const MAX_QTY = 99
 
 /**
@@ -49,8 +50,15 @@ const MAX_QTY = 99
 export const DEFAULT_PACKAGE_KEY = "pkg_default"
 
 export interface GuestCartLine {
+  /** 098 — the line's identity: the size being bought. */
+  variantId: string
+  /** The product it is a size of — for the link back to its page. */
   productId: string
   name: string
+  /** 098 — the size's words ("1 kg"), null for a product sold one way. */
+  variantLabel?: string | null
+  /** 098 — the comparison price, when the platform gave one (never computed here). */
+  unitPrice?: UnitPriceDTO | null
   imageUrl: string | null
   /** 086 — the picture's smaller copies, when the read that added the line said. */
   imageWidths?: number[]
@@ -89,10 +97,10 @@ export interface CartPackage {
 
 /** Add or increment a line, clamping quantity to the max. */
 export function addLine(lines: readonly GuestCartLine[], line: GuestCartLine): GuestCartLine[] {
-  const existing = lines.find((l) => l.productId === line.productId)
+  const existing = lines.find((l) => l.variantId === line.variantId)
   if (existing) {
     return lines.map((l) =>
-      l.productId === line.productId
+      l.variantId === line.variantId
         ? { ...l, quantity: Math.min(l.quantity + line.quantity, MAX_QTY) }
         : l,
     )
@@ -103,17 +111,17 @@ export function addLine(lines: readonly GuestCartLine[], line: GuestCartLine): G
 /** Set a line's quantity; 0 or less removes it. */
 export function setLineQty(
   lines: readonly GuestCartLine[],
-  productId: string,
+  variantId: string,
   quantity: number,
 ): GuestCartLine[] {
-  if (quantity <= 0) return lines.filter((l) => l.productId !== productId)
+  if (quantity <= 0) return lines.filter((l) => l.variantId !== variantId)
   return lines.map((l) =>
-    l.productId === productId ? { ...l, quantity: Math.min(quantity, MAX_QTY) } : l,
+    l.variantId === variantId ? { ...l, quantity: Math.min(quantity, MAX_QTY) } : l,
   )
 }
 
-export function removeLine(lines: readonly GuestCartLine[], productId: string): GuestCartLine[] {
-  return lines.filter((l) => l.productId !== productId)
+export function removeLine(lines: readonly GuestCartLine[], variantId: string): GuestCartLine[] {
+  return lines.filter((l) => l.variantId !== variantId)
 }
 
 /** Total item count (sum of quantities) — the cart badge. */
@@ -125,8 +133,8 @@ export function cartCount(lines: readonly GuestCartLine[]): number {
  * The line payload the platform accepts (merge, preview). Renamed from 019's `replacePayload`: there is
  * no replace any more, and a name promising one would outlive the operation it described.
  */
-export function linePayload(lines: readonly GuestCartLine[]): { productId: string; quantity: number }[] {
-  return lines.map((l) => ({ productId: l.productId, quantity: l.quantity }))
+export function linePayload(lines: readonly GuestCartLine[]): { variantId: string; quantity: number }[] {
+  return lines.map((l) => ({ variantId: l.variantId, quantity: l.quantity }))
 }
 
 /**
@@ -208,7 +216,7 @@ let cacheRaw = ""
 function read(): CartMirror {
   if (typeof window === "undefined") return EMPTY_MIRROR
   const raw = window.localStorage.getItem(KEY)
-  if (raw === null) return migrateLegacy()
+  if (raw === null) return dropRetired()
   if (raw === cacheRaw) return cache
   try {
     const parsed = JSON.parse(raw) as Envelope
@@ -220,26 +228,14 @@ function read(): CartMirror {
   return cache
 }
 
-/**
- * Adopt a 019-shaped bare array of lines, once. A shopper mid-shop when this deploys keeps their cart;
- * without this the release itself would empty it.
- */
-function migrateLegacy(): CartMirror {
-  let lines: GuestCartLine[] = []
+/** Forget the product-keyed mirrors of before 098 (see KEY), once, and start empty. */
+function dropRetired(): CartMirror {
   try {
-    const legacy: unknown = JSON.parse(window.localStorage.getItem(LEGACY_KEY) ?? "[]")
-    if (Array.isArray(legacy)) lines = legacy as GuestCartLine[]
-  } catch {
-    lines = []
-  }
-  const migrated = recompute({ ...EMPTY_MIRROR, lines })
-  write(migrated)
-  try {
-    window.localStorage.removeItem(LEGACY_KEY)
+    for (const k of RETIRED_KEYS) window.localStorage.removeItem(k)
   } catch {
     /* storage disabled — the mirror is best-effort */
   }
-  return migrated
+  return EMPTY_MIRROR
 }
 
 function write(next: CartMirror): void {
@@ -308,14 +304,14 @@ export function addToCart(line: GuestCartLine): void {
   write(recompute({ ...cart, lines: addLine(cart.lines, line) }))
 }
 
-export function setCartQty(productId: string, quantity: number): void {
+export function setCartQty(variantId: string, quantity: number): void {
   const cart = read()
-  write(recompute({ ...cart, lines: setLineQty(cart.lines, productId, quantity) }))
+  write(recompute({ ...cart, lines: setLineQty(cart.lines, variantId, quantity) }))
 }
 
-export function removeFromCart(productId: string): void {
+export function removeFromCart(variantId: string): void {
   const cart = read()
-  write(recompute({ ...cart, lines: removeLine(cart.lines, productId) }))
+  write(recompute({ ...cart, lines: removeLine(cart.lines, variantId) }))
 }
 
 /** Empty the payable cart. Set-aside items survive, exactly as on the platform (FR-030). */
@@ -352,8 +348,11 @@ export function resetCart(): void {
 
 function fromDTO(dto: CartDTO): CartMirror {
   const line = (l: CartDTO["lines"][number]): GuestCartLine => ({
+    variantId: l.variantId,
     productId: l.productId,
     name: l.name,
+    variantLabel: l.variantLabel,
+    unitPrice: l.unitPrice ?? null,
     imageUrl: l.imageUrl,
     ...(l.imageWidths?.length ? { imageWidths: l.imageWidths } : {}),
     unitPriceAmount: l.unitPriceAmount,

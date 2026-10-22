@@ -175,7 +175,12 @@ export interface ShopOrderListDTO {
 export interface ShopOrderLineDTO {
   orderItemId: string
   name: string
+  /** 098 — the variant's label as sold ("1 kg"); null for a product with no options. */
+  variantLabel: string | null
+  /** The variant's stock code as sold. */
   sku: string | null
+  /** 098 — the variant's barcode as sold, so a picker can check the item in hand (FR-022). */
+  gtin: string | null
   imageUrl: string | null
   orderedQuantity: WireInt
   gatheredQuantity: WireInt

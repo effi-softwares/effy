@@ -197,15 +197,16 @@ WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = 
   //      "1 on the shelf", neither flagged a shortfall, and the second shopper's missing unit was
   //      discovered at the shelf instead of on the pick list. With the lock taken first, the second
   //      payment's 2d runs after the first has committed and sees the shelf as it now is.
-  //      ⚠ `ORDER BY p.id` is a DEADLOCK guard: two orders with overlapping baskets must take their
+  //      ⚠ `ORDER BY v.id` is a DEADLOCK guard: two orders with overlapping baskets must take their
   //      row locks in the same sequence, or each can hold what the other needs.
+  //      098 — stock is counted PER VARIANT, so the variant rows are what is locked and moved.
   await tx.query(
     `
-SELECT p.id FROM public.product p
- WHERE p.stock_tracked
-   AND p.id IN (SELECT oi.product_id FROM public.order_item oi WHERE oi.order_id = $1)
- ORDER BY p.id
-   FOR UPDATE OF p`,
+SELECT v.id FROM public.product_variant v
+ WHERE v.stock_tracked
+   AND v.id IN (SELECT oi.variant_id FROM public.order_item oi WHERE oi.order_id = $1)
+ ORDER BY v.id
+   FOR UPDATE OF v`,
     [orderId],
   );
 
@@ -219,13 +220,13 @@ SELECT p.id FROM public.product p
 INSERT INTO public.fulfillment_item
     (shop_fulfillment_id, order_item_id, ordered_quantity, unavailable_quantity)
 SELECT sf.id, oi.id, oi.quantity,
-       LEAST(oi.quantity, oi.quantity - COALESCE(p.stock_on_hand, 0))
+       LEAST(oi.quantity, oi.quantity - COALESCE(v.stock_on_hand, 0))
   FROM public.order_item oi
   JOIN public.shop_fulfillment sf ON sf.order_id = oi.order_id AND sf.shop_id = oi.shop_id
-  JOIN public.product p ON p.id = oi.product_id
+  JOIN public.product_variant v ON v.id = oi.variant_id
  WHERE oi.order_id = $1
-   AND p.stock_tracked
-   AND oi.quantity > COALESCE(p.stock_on_hand, 0)
+   AND v.stock_tracked
+   AND oi.quantity > COALESCE(v.stock_on_hand, 0)
 ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`,
     [orderId],
   );
@@ -234,31 +235,31 @@ ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`,
   //     ⚠ `GREATEST(0, …)` IS THE FLOOR, IN THE STATEMENT, and it stays even though 2c′ already
   //     holds the locks: the floor is what makes a negative count impossible, not merely unlikely.
   //     The `prev` CTE carries the before-value out so the movement records what happened.
-  //     Untracked products match nothing here and produce no movement.
+  //     Untracked variants match nothing here and produce no movement.
   const stockMoved = await tx.query<{ shop_id: string }>(
     `
 WITH ordered AS (
-    SELECT oi.product_id, oi.shop_id, SUM(oi.quantity)::int AS qty
+    SELECT oi.variant_id, oi.shop_id, SUM(oi.quantity)::int AS qty
       FROM public.order_item oi
      WHERE oi.order_id = $1
-     GROUP BY oi.product_id, oi.shop_id
+     GROUP BY oi.variant_id, oi.shop_id
 ), prev AS (
-    SELECT p.id, o.shop_id, p.stock_on_hand, o.qty
-      FROM public.product p
-      JOIN ordered o ON o.product_id = p.id
-     WHERE p.stock_tracked
-     ORDER BY p.id
-     FOR UPDATE OF p
+    SELECT v.id, v.product_id, o.shop_id, v.stock_on_hand, o.qty
+      FROM public.product_variant v
+      JOIN ordered o ON o.variant_id = v.id
+     WHERE v.stock_tracked
+     ORDER BY v.id
+     FOR UPDATE OF v
 ), moved AS (
-    UPDATE public.product p
+    UPDATE public.product_variant v
        SET stock_on_hand = GREATEST(0, prev.stock_on_hand - prev.qty)
       FROM prev
-     WHERE p.id = prev.id
-    RETURNING p.id, prev.shop_id, prev.stock_on_hand AS before, p.stock_on_hand AS after
+     WHERE v.id = prev.id
+    RETURNING v.id, prev.product_id, prev.shop_id, prev.stock_on_hand AS before, v.stock_on_hand AS after
 )
 INSERT INTO public.stock_movement
-    (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub, order_id)
-SELECT id, shop_id, after - before, before, after, 'order_paid', 'system', NULL, $1
+    (product_id, variant_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub, order_id)
+SELECT product_id, id, shop_id, after - before, before, after, 'order_paid', 'system', NULL, $1
   FROM moved
 RETURNING shop_id::text AS shop_id`,
     [orderId],

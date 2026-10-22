@@ -58,7 +58,7 @@ const UNRESOLVED_SHORTFALL = `
 export async function proposedRefunds(orderId: string): Promise<ProposedRefundRow[]> {
   const res = await query<ProposedRefundRow>(
     `SELECT oi.id::text AS order_item_id,
-            oi.product_name,
+            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
             SUM(fi.unavailable_quantity)::int AS quantity,
             (SUM(fi.unavailable_quantity) * oi.unit_price_amount)::text AS amount
        FROM public.fulfillment_item fi
@@ -66,8 +66,8 @@ export async function proposedRefunds(orderId: string): Promise<ProposedRefundRo
        JOIN public.shop_fulfillment sf  ON sf.id = fi.shop_fulfillment_id
       WHERE oi.order_id = $1
         AND ${UNRESOLVED_SHORTFALL}
-   GROUP BY oi.id, oi.product_name, oi.unit_price_amount
-   ORDER BY oi.product_name`,
+   GROUP BY oi.id, oi.product_name, oi.variant_label, oi.unit_price_amount
+   ORDER BY oi.product_name, oi.variant_label NULLS FIRST`,
     [orderId],
   );
   return res.rows;
@@ -89,7 +89,7 @@ export async function proposedRefundsForShop(
             o.id::text   AS order_id,
             o.order_number,
             oi.id::text  AS order_item_id,
-            oi.product_name,
+            CASE WHEN oi.variant_label IS NULL THEN oi.product_name ELSE oi.product_name || ' — ' || oi.variant_label END AS product_name,
             SUM(fi.unavailable_quantity)::int AS quantity,
             (SUM(fi.unavailable_quantity) * oi.unit_price_amount)::text AS amount,
             MAX(sf.state_changed_at) AS since
@@ -99,7 +99,7 @@ export async function proposedRefundsForShop(
        JOIN public."order" o           ON o.id = sf.order_id
       WHERE sf.shop_id = $1
         AND ${UNRESOLVED_SHORTFALL}
-   GROUP BY sf.id, o.id, o.order_number, oi.id, oi.product_name, oi.unit_price_amount
+   GROUP BY sf.id, o.id, o.order_number, oi.id, oi.product_name, oi.variant_label, oi.unit_price_amount
    ORDER BY MAX(sf.state_changed_at) ASC
       LIMIT $2`,
     [shopId, limit],

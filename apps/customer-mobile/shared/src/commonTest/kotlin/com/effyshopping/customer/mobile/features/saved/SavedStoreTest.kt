@@ -67,7 +67,7 @@ class SavedStoreTest {
 
         override suspend fun membership() = SavedMembership(membership, named)
         override suspend fun list(listId: String): List<SavedItem> = emptyList()
-        override suspend fun save(productId: String, restoreSavedAt: String?) {
+        override suspend fun save(productId: String, restoreSavedAt: String?, variantId: String?) {
             failWith?.let { throw AppException(it) }
             saved += productId to restoreSavedAt
         }

@@ -9,15 +9,16 @@
         "changeId": {
           "type": "string"
         },
-        "productId": {
-          "type": "string"
-        },
         "quantity": {
           "$ref": "#/definitions/WireInt"
+        },
+        "variantId": {
+          "description": "098 — the variant chosen; a product with no options has exactly one.",
+          "type": "string"
         }
       },
       "required": [
-        "productId",
+        "variantId",
         "quantity",
         "changeId"
       ],
@@ -695,20 +696,45 @@
         "quantity": {
           "$ref": "#/definitions/WireInt"
         },
+        "unitPrice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitPriceDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098 — the comparison price of what one unit costs after this line's discount; null without a pack size."
+        },
         "unitPriceAmount": {
           "type": "string"
+        },
+        "variantId": {
+          "description": "098 — the variant this line buys. Lines are keyed by it: two sizes of one product are two lines.",
+          "type": "string"
+        },
+        "variantLabel": {
+          "description": "098 — \"Spiced / 500 g\"; null for a product with no options.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "id",
         "productId",
+        "variantId",
         "name",
+        "variantLabel",
         "imageUrl",
         "unitPriceAmount",
         "quantity",
         "lineSubtotalAmount",
         "available",
-        "packageKey"
+        "packageKey",
+        "unitPrice"
       ],
       "type": "object"
     },
@@ -716,15 +742,16 @@
       "additionalProperties": false,
       "description": "One line of a client-supplied set (merge, preview).",
       "properties": {
-        "productId": {
-          "type": "string"
-        },
         "quantity": {
           "$ref": "#/definitions/WireInt"
+        },
+        "variantId": {
+          "description": "098 — a line is a variant.",
+          "type": "string"
         }
       },
       "required": [
-        "productId",
+        "variantId",
         "quantity"
       ],
       "type": "object"
@@ -768,6 +795,13 @@
           "$ref": "#/definitions/CartNoticeKind"
         },
         "productId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variantId": {
+          "description": "098 — the line's variant, when the notice is about a line.",
           "type": [
             "string",
             "null"
@@ -1987,7 +2021,7 @@
     },
     "MergeCartRequest": {
       "additionalProperties": false,
-      "description": "POST /v1/cart/merge — fold a device cart into the account cart at sign-in.\n\n⚠ UNION WITH MAXIMUM QUANTITY per product. This is NOT 019's original `/v1/cart/merge`, which SUMMED quantities and was removed on 2026-07-23 after it tripled carts. Taking the maximum makes the operation idempotent AND commutative: signing in twice, or retrying an interrupted merge, leaves exactly the same cart (FR-011, FR-012). Nothing from either side is dropped.",
+      "description": "POST /v1/cart/merge — fold a device cart into the account cart at sign-in.\n\n⚠ UNION WITH MAXIMUM QUANTITY per variant (098; per product before). This is NOT 019's original `/v1/cart/merge`, which SUMMED quantities and was removed on 2026-07-23 after it tripled carts. Taking the maximum makes the operation idempotent AND commutative: signing in twice, or retrying an interrupted merge, leaves exactly the same cart (FR-011, FR-012). Nothing from either side is dropped.",
       "properties": {
         "changeId": {
           "type": "string"
@@ -2003,6 +2037,66 @@
         "lines"
       ],
       "type": "object"
+    },
+    "OptionDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt",
+          "description": "1 or 2."
+        },
+        "values": {
+          "items": {
+            "$ref": "#/definitions/OptionValueDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "position",
+        "name",
+        "values"
+      ],
+      "type": "object"
+    },
+    "OptionValueDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value",
+        "position"
+      ],
+      "type": "object"
+    },
+    "OptionValueIds": {
+      "description": "`[position-1 value, position-2 value]`; null where the product has no such option.",
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
     },
     "OrderAddressDTO": {
       "additionalProperties": false,
@@ -2401,12 +2495,25 @@
         },
         "unitPriceAmount": {
           "type": "string"
+        },
+        "variantId": {
+          "description": "098 — the variant sold.",
+          "type": "string"
+        },
+        "variantLabel": {
+          "description": "098 — the variant's label AS SOLD (\"Spiced / 500 g\"); null for a product with no options.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "orderItemId",
         "productId",
+        "variantId",
         "productName",
+        "variantLabel",
         "unitPriceAmount",
         "quantity",
         "lineSubtotalAmount"
@@ -3074,13 +3181,43 @@
         },
         "reason": {
           "$ref": "#/definitions/ReorderSkipReason"
+        },
+        "variantId": {
+          "description": "098",
+          "type": "string"
+        },
+        "variantLabel": {
+          "description": "098 — the label it was sold with.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "productId",
+        "variantId",
         "name",
+        "variantLabel",
         "reason"
       ],
+      "type": "object"
+    },
+    "SaveItemRequest": {
+      "additionalProperties": false,
+      "description": "PUT /commerce/v1/saved/{productId} — save (idempotent). 098: `variantId` remembers the variant the shopper had selected; saving again with another one updates it. Both fields optional.",
+      "properties": {
+        "restoreSavedAt": {
+          "description": "Set ONLY by undo.",
+          "type": "string"
+        },
+        "variantId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
       "type": "object"
     },
     "SavedAddToCartRequest": {
@@ -3178,6 +3315,34 @@
           "description": "The price at the moment of saving — the baseline `priceDropped` is measured against.",
           "type": "string"
         },
+        "unitPrice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitPriceDTO"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "variantCount": {
+          "$ref": "#/definitions/WireInt",
+          "description": "098 — products with more than one active variant: adding to the cart without a remembered one asks the shopper to choose."
+        },
+        "variantId": {
+          "description": "098 — the variant \"Add to cart\" adds: the one remembered when it was saved (FR-015a), else the product's only one. Null when the product is sold in several sizes and none is remembered (or the one remembered is no longer sold) — the shopper chooses. Price, verdict and image above are the REMEMBERED variant's when there is one, else the product's listing price and availability.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variantLabel": {
+          "description": "098 — its label (\"1 kg\"); null when none, or the product has no options.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "verdict": {
           "$ref": "#/definitions/SavedVerdict"
         }
@@ -3193,7 +3358,11 @@
         "badges",
         "savedAt",
         "savedPriceAmount",
-        "verdict"
+        "verdict",
+        "variantId",
+        "variantLabel",
+        "variantCount",
+        "unitPrice"
       ],
       "type": "object"
     },
@@ -3206,6 +3375,13 @@
         "productId": {
           "description": "Place this product in the new list in the same action (068 FR-015).",
           "type": "string"
+        },
+        "variantId": {
+          "description": "098 — with `productId`: the variant to remember.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -3257,6 +3433,13 @@
         "restoreAddedAt": {
           "description": "Set ONLY by undo, to return the product to the position it held in this list.",
           "type": "string"
+        },
+        "variantId": {
+          "description": "098 — the variant the shopper had selected; it becomes the product's remembered variant.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": "object"
@@ -3336,6 +3519,13 @@
             "string",
             "null"
           ]
+        },
+        "variantId": {
+          "description": "098 — the variant the device remembered, if any.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -3397,7 +3587,7 @@
           "type": "string"
         },
         "reason": {
-          "description": "`cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason.",
+          "description": "`cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | 098 `choose_variant` (no variant remembered, or it is no longer sold — the shopper opens the product and chooses).",
           "type": "string"
         }
       },
@@ -4122,6 +4312,7 @@
       "description": "The at-a-glance product card used in rails, search results, saved items and recently-viewed.",
       "properties": {
         "available": {
+          "description": "Some variant can be bought now (the one availability rule).",
           "type": "boolean"
         },
         "badges": {
@@ -4137,6 +4328,7 @@
           ]
         },
         "compareAtAmount": {
+          "description": "The \"was\" price of the variant `priceAmount` came from.",
           "type": [
             "string",
             "null"
@@ -4176,6 +4368,30 @@
           "description": "094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11)."
         },
         "priceAmount": {
+          "description": "098 — the LISTING price: the lowest price among the product's active variants. Say \"From\" when `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec FR-013.)",
+          "type": "string"
+        },
+        "priceVaries": {
+          "description": "098 — active variants' prices differ: show \"From\".",
+          "type": "boolean"
+        },
+        "unitPrice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitPriceDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098 — the comparison price of `priceAmount`, when the product has a unit basis and that variant a pack size."
+        },
+        "variantCount": {
+          "$ref": "#/definitions/WireInt",
+          "description": "098 — active variants. Above 1 the tile offers \"Choose\" (open the product) instead of quick-add."
+        },
+        "variantId": {
+          "description": "098 — the variant this tile stands for: the one whose stock code or barcode a search matched, else the product's default. Quick-add adds THIS variant when `variantCount` is 1.",
           "type": "string"
         }
       },
@@ -4188,7 +4404,11 @@
         "currency",
         "compareAtAmount",
         "badges",
-        "available"
+        "available",
+        "priceVaries",
+        "variantId",
+        "variantCount",
+        "unitPrice"
       ],
       "type": "object"
     },
@@ -4203,6 +4423,7 @@
           "type": "array"
         },
         "available": {
+          "description": "Some variant can be bought now (the one availability rule).",
           "type": "boolean"
         },
         "badges": {
@@ -4228,12 +4449,17 @@
           "type": "array"
         },
         "compareAtAmount": {
+          "description": "The \"was\" price of the variant `priceAmount` came from.",
           "type": [
             "string",
             "null"
           ]
         },
         "currency": {
+          "type": "string"
+        },
+        "defaultVariantId": {
+          "description": "098 — the variant to open on (FR-014): the one the link named if it is active, else the first that can be bought, else the first.",
           "type": "string"
         },
         "gallery": {
@@ -4278,8 +4504,56 @@
           ],
           "description": "094 — an item or buy-X-get-Y promotion open to everyone that covers this product (R11)."
         },
+        "options": {
+          "description": "098 — the product's options in the shop's order; empty when it has none (no selector).",
+          "items": {
+            "$ref": "#/definitions/OptionDTO"
+          },
+          "type": "array"
+        },
         "priceAmount": {
+          "description": "098 — the LISTING price: the lowest price among the product's active variants. Say \"From\" when `priceVaries`. (Active, not in-stock — selling out one size never moves it; spec FR-013.)",
           "type": "string"
+        },
+        "priceVaries": {
+          "description": "098 — active variants' prices differ: show \"From\".",
+          "type": "boolean"
+        },
+        "unitBasis": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitBasis"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unitPrice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitPriceDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "098 — the comparison price of `priceAmount`, when the product has a unit basis and that variant a pack size."
+        },
+        "variantCount": {
+          "$ref": "#/definitions/WireInt",
+          "description": "098 — active variants. Above 1 the tile offers \"Choose\" (open the product) instead of quick-add."
+        },
+        "variantId": {
+          "description": "098 — the variant this tile stands for: the one whose stock code or barcode a search matched, else the product's default. Quick-add adds THIS variant when `variantCount` is 1.",
+          "type": "string"
+        },
+        "variants": {
+          "description": "098 — ACTIVE variants only, in display order. Inactive and removed variants are never sent.",
+          "items": {
+            "$ref": "#/definitions/StorefrontVariantDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -4291,12 +4565,20 @@
         "categoryPath",
         "compareAtAmount",
         "currency",
+        "defaultVariantId",
         "gallery",
         "id",
         "imageUrl",
         "longDescription",
         "name",
-        "priceAmount"
+        "options",
+        "priceAmount",
+        "priceVaries",
+        "unitBasis",
+        "unitPrice",
+        "variantCount",
+        "variantId",
+        "variants"
       ],
       "type": "object"
     },
@@ -4321,6 +4603,73 @@
         "key",
         "title",
         "products"
+      ],
+      "type": "object"
+    },
+    "StorefrontVariantDTO": {
+      "additionalProperties": false,
+      "description": "A shopper's view of one variant. Inactive and removed variants are never sent to shoppers.",
+      "properties": {
+        "available": {
+          "description": "Purchasable now (the one availability rule, R5).",
+          "type": "boolean"
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "description": "The variant's own picture, or null — show the product's gallery.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imageWidths": {
+          "description": "086 — widths (px) of this picture's smaller copies, ascending.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "label": {
+          "description": "\"Spiced / 500 g\"; null when the product has no options.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "optionValueIds": {
+          "$ref": "#/definitions/OptionValueIds"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "unitPrice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/UnitPriceDTO"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "optionValueIds",
+        "label",
+        "priceAmount",
+        "compareAtAmount",
+        "unitPrice",
+        "available",
+        "imageUrl"
       ],
       "type": "object"
     },
@@ -4547,6 +4896,34 @@
       ],
       "type": "object"
     },
+    "UnitBasis": {
+      "description": "Unit pricing — 098-product-variants (R12).\n\nA product says how its sizes are COMPARED (`UnitBasis`: per 100 g, per kg, per 100 mL, per L, each); each variant says how much is in its pack (`packQuantity` + `PackUnit`). The comparison price is the price scaled to the basis: $3.20 for 500 g → $0.64 / 100 g. Australian online grocers show one beside every price (the Unit Pricing Code), and it is how a shopper tells which size is better value.\n\n⚠ ONE SUM, HERE. The server computes it for every DTO that carries a price and sends `UnitPriceDTO`; clients only FORMAT it (`unitPriceText`). The customer app's Kotlin formatter is pinned to `unit-price.fixtures.json` — the same file `unit-price.test.ts` runs.\n\n⚠ INTEGER ARITHMETIC. Price in whole cents, pack quantity scaled to thousandths, one half-up rounding to a whole cent at the end — never a float.",
+      "enum": [
+        "per_100g",
+        "per_kg",
+        "per_100ml",
+        "per_l",
+        "each"
+      ],
+      "type": "string"
+    },
+    "UnitPriceDTO": {
+      "additionalProperties": false,
+      "description": "A server-computed comparison price. `amount` is a 2-dp money string, like every price on the wire.",
+      "properties": {
+        "amount": {
+          "type": "string"
+        },
+        "basis": {
+          "$ref": "#/definitions/UnitBasis"
+        }
+      },
+      "required": [
+        "amount",
+        "basis"
+      ],
+      "type": "object"
+    },
     "UpdateAddressRequest": {
       "additionalProperties": false,
       "description": "PATCH /v1/addresses/{id} — partial update / set default.",
@@ -4609,7 +4986,7 @@
     },
     "UpdateCartLineRequest": {
       "additionalProperties": false,
-      "description": "PATCH /v1/cart/items/{productId} — set an ABSOLUTE line quantity; 0 removes.\n\nAbsolute, not a delta, which is what lets the client debounce ten taps into one request and drop the intermediate values safely (FR-016). Idempotent, so `changeId` is optional; clients send it anyway so the queue has no special cases.",
+      "description": "PATCH /v1/cart/items/{variantId} — set an ABSOLUTE line quantity; 0 removes.\n\nAbsolute, not a delta, which is what lets the client debounce ten taps into one request and drop the intermediate values safely (FR-016). Idempotent, so `changeId` is optional; clients send it anyway so the queue has no special cases.",
       "properties": {
         "changeId": {
           "type": "string"
@@ -4622,6 +4999,14 @@
         "quantity"
       ],
       "type": "object"
+    },
+    "VariantState": {
+      "enum": [
+        "active",
+        "inactive",
+        "removed"
+      ],
+      "type": "string"
     },
     "Weight": {
       "enum": [
@@ -4761,6 +5146,12 @@
     "mergeCart": {
       "$ref": "#/definitions/MergeCartRequest"
     },
+    "option": {
+      "$ref": "#/definitions/OptionDTO"
+    },
+    "optionValue": {
+      "$ref": "#/definitions/OptionValueDTO"
+    },
     "order": {
       "$ref": "#/definitions/OrderDTO"
     },
@@ -4816,6 +5207,9 @@
     "reorderSkipped": {
       "$ref": "#/definitions/ReorderSkippedDTO"
     },
+    "saveItemRequest": {
+      "$ref": "#/definitions/SaveItemRequest"
+    },
     "savedAddToCartRequest": {
       "$ref": "#/definitions/SavedAddToCartRequest"
     },
@@ -4855,11 +5249,23 @@
     "serviceability": {
       "$ref": "#/definitions/ServiceabilityDTO"
     },
+    "storefrontVariant": {
+      "$ref": "#/definitions/StorefrontVariantDTO"
+    },
+    "unitBasis": {
+      "$ref": "#/definitions/UnitBasis"
+    },
+    "unitPrice": {
+      "$ref": "#/definitions/UnitPriceDTO"
+    },
     "updateAddress": {
       "$ref": "#/definitions/UpdateAddressRequest"
     },
     "updateCartLine": {
       "$ref": "#/definitions/UpdateCartLineRequest"
+    },
+    "variantState": {
+      "$ref": "#/definitions/VariantState"
     }
   },
   "required": [
@@ -4936,7 +5342,14 @@
     "cancelOrder",
     "deliveryNote",
     "orderTaxDocuments",
-    "businessIdentity"
+    "businessIdentity",
+    "option",
+    "optionValue",
+    "storefrontVariant",
+    "variantState",
+    "unitPrice",
+    "unitBasis",
+    "saveItemRequest"
   ],
   "type": "object",
   "title": "CustomerCommerceContract"

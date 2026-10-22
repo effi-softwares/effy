@@ -19,6 +19,7 @@ vi.mock("@effy/edge-shared", async () => {
     ...actual,
     presignRead: async (key: string) => `signed:${key}`,
     query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
+    pooled: { query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]) },
     withTransaction: async (fn: (c: unknown) => unknown) => {
       const client = await holder.pool!.connect();
       // A client whose query can be made to fail on a chosen statement — to kill a decision midway.
@@ -106,13 +107,9 @@ async function makeProduct(o: Opts = {}): Promise<string> {
   const approved = o.approved ?? false;
   const inReview = o.inReview ?? !approved;
   const id = (await pool.query<{ id: string }>(
-    `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-                                 shop_price_amount, compare_at_amount, shop_compare_at_amount,
-                                 short_description, created_by, status, approved_at, review_state, submitted_at)
-     SELECT $1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category ORDER BY name LIMIT 1),
-            $2, $3::numeric, $3::numeric, $4::numeric, $4::numeric, 'A thing', 'seed',
-            $5, $6, $7, CASE WHEN $7 = 'in_review' THEN now() - $8::interval ELSE NULL END
-     RETURNING id`,
+    `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, review_state, submitted_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category ORDER BY name LIMIT 1), $2, 'A thing', 'seed', $5, $6, $7, CASE WHEN $7 = 'in_review' THEN now() - $8::interval ELSE NULL END) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, compare_at_amount, shop_compare_at_amount) SELECT p.id, p.shop_id, COALESCE($3::numeric, $3::numeric)::numeric, ($3::numeric)::numeric, $4::numeric, $4::numeric FROM p RETURNING id)
+SELECT id FROM p`,
     [
       o.shop ?? shopId, o.name ?? "Sourdough", o.price ?? "10.00", o.was ?? null,
       approved ? "active" : "draft", approved ? new Date() : null,
@@ -141,11 +138,14 @@ async function proposeChange(productId: string, proposed: Record<string, unknown
 }
 
 async function live(id: string) {
+  // 098 — prices live on the variant; these products have one.
   const p = (await pool.query(
-    `SELECT name, brand, status, price_amount::text, compare_at_amount::text, shop_price_amount::text,
-            shop_compare_at_amount::text, margin_kind, margin_value::text, approved_at IS NOT NULL AS approved,
-            review_state, review_reason
-       FROM public.product WHERE id = $1`, [id],
+    `SELECT p.name, p.brand, p.status, v.price_amount::text, v.compare_at_amount::text, v.shop_price_amount::text,
+            v.shop_compare_at_amount::text, p.margin_kind, p.margin_value::text, p.approved_at IS NOT NULL AS approved,
+            p.review_state, p.review_reason
+       FROM public.product p
+       JOIN LATERAL (SELECT * FROM public.product_variant WHERE product_id = p.id ORDER BY position LIMIT 1) v ON true
+      WHERE p.id = $1`, [id],
   )).rows[0];
   const media = (await pool.query(
     `SELECT storage_key, is_primary FROM public.product_media WHERE product_id = $1 ORDER BY display_order, storage_key`, [id],
@@ -155,6 +155,25 @@ async function live(id: string) {
   )).rows;
   return { p, media, attrs };
 }
+
+/** 098 — a proposal's whole variant set: the product's one live variant at a new shop price. */
+async function repriced(productId: string, shopPriceAmount: string) {
+  const v = (await pool.query<{ id: string }>(`SELECT id FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!;
+  return {
+    options: [],
+    variants: [{
+      id: v.id, position: 0, optionValueIds: [null, null], sku: null, gtin: null, shopPriceAmount, shopCompareAtAmount: null,
+      weightGrams: null, packQuantity: null, packUnit: null, mediaStorageKey: null,
+    }],
+  };
+}
+
+const variantIdOf = async (productId: string) =>
+  (await pool.query<{ id: string }>(`SELECT id FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!.id;
+
+/** 098 — a live customer price is the variant's. */
+const setCustomerPrice = (productId: string, amount: string) =>
+  pool.query(`UPDATE public.product_variant SET price_amount = $2 WHERE product_id = $1`, [productId, amount]);
 
 const audits = async (id: string) =>
   (await pool.query(`SELECT actor_sub, action, detail FROM admin.audit_log WHERE target_id = $1 ORDER BY created_at`, [id])).rows;
@@ -271,7 +290,7 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.marginRequired).toBe(true);
     expect(out.changes).toEqual([]);
     expect(out.details.find((r) => r.label === "Name")!.value).toBe("Sourdough");
-    expect(out.details.find((r) => r.label === "Shop price")!.value).toBe("10.00");
+    expect(out.variants).toEqual([expect.objectContaining({ shopPriceAmount: "10.00", shopCompareAtAmount: "12.00", label: null, change: "unchanged" })]);
     expect(out.images.current.map((i) => i.url)).toEqual(["signed:live/one.jpg", "signed:live/two.jpg"]);
     expect(out.images.proposed).toBeNull();
   });
@@ -291,7 +310,7 @@ d("067 — product review against real PostgreSQL", () => {
     const { version } = await item(id);
     const out = await approve(id, { version, margin: { kind: "percent", value: "20" } }, ADMIN);
 
-    expect(out).toMatchObject({ shopPriceAmount: "10.00", customerPriceAmount: "12.00" });
+    expect(out.variants).toEqual([expect.objectContaining({ shopPriceAmount: "10.00", customerPriceAmount: "12.00" })]);
     expect((await live(id)).p).toMatchObject({
       status: "active", approved: true, review_state: "none",
       shop_price_amount: "10.00", price_amount: "12.00",
@@ -369,7 +388,7 @@ d("067 — product review against real PostgreSQL", () => {
     );
     await proposeChange(
       id,
-      { name: "Rye", priceAmount: "12.50", attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] },
+      { name: "Rye", ...(await repriced(id, "12.50")), attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] },
       ["new/three.jpg", "live/one.jpg"],
     );
     const out = await item(id);
@@ -378,24 +397,25 @@ d("067 — product review against real PostgreSQL", () => {
     expect(out.productName).toBe("Sourdough");
     expect(out.changes).toEqual([
       { field: "name", label: "Name", before: "Sourdough", after: "Rye" },
-      { field: "priceAmount", label: "Shop price", before: "10.00", after: "12.50" },
+      { field: `variant:${await variantIdOf(id)}:shopPriceAmount`, label: "The product — Shop price", before: "10.00", after: "12.50" },
       { field: "attribute:storage", label: "Storage", before: "chilled", after: "frozen" },
     ]);
     expect(out.images.proposed!.map((i) => [i.url, i.isNew, i.isPrimary])).toEqual([
       ["signed:new/three.jpg", true, true],
       ["signed:live/one.jpg", false, false],
     ]);
-    expect(out.shopPriceAmount).toBe("12.50");
+    expect(out.variants[0]).toMatchObject({ shopPriceAmount: "12.50", change: "changed" });
     expect(out.marginRequired).toBe(true); // the shop price is changing
   });
 
   /** FR-019. */
   it("approving a change applies every proposed value together, images included", async () => {
     const id = await makeProduct({ approved: true });
-    await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 20, price_amount = 12.00 WHERE id = $1`, [id]);
+    await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 20 WHERE id = $1`, [id]);
+    await setCustomerPrice(id, "12.00");
     await proposeChange(
       id,
-      { name: "Rye", brand: "Acme", priceAmount: "20.00", attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] },
+      { name: "Rye", brand: "Acme", ...(await repriced(id, "20.00")), attributes: [{ attributeId: storageAttrId, valueText: "frozen" }] },
       ["new/three.jpg", "live/one.jpg"],
     );
     const { version } = await item(id);
@@ -432,7 +452,7 @@ d("067 — product review against real PostgreSQL", () => {
   /** ⚠ FR-020 / SC-004. */
   it("⚠ sending a change back leaves the live product byte-identical", async () => {
     const id = await makeProduct({ approved: true });
-    await proposeChange(id, { name: "Rye", priceAmount: "99.00" }, ["new/three.jpg"]);
+    await proposeChange(id, { name: "Rye", ...(await repriced(id, "99.00")) }, ["new/three.jpg"]);
     const before = JSON.stringify(await live(id));
     const { version } = await item(id);
 
@@ -472,8 +492,9 @@ d("067 — product review against real PostgreSQL", () => {
   /** FR-031. */
   it("a change to the shop price cannot be approved without confirming the margin", async () => {
     const id = await makeProduct({ approved: true });
-    await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 20, price_amount = 12.00 WHERE id = $1`, [id]);
-    await proposeChange(id, { priceAmount: "20.00" });
+    await pool.query(`UPDATE public.product SET margin_kind = 'percent', margin_value = 20 WHERE id = $1`, [id]);
+    await setCustomerPrice(id, "12.00");
+    await proposeChange(id, await repriced(id, "20.00"));
     const { version, marginRequired } = await item(id);
     expect(marginRequired).toBe(true);
     expect(await kindOf(approve(id, { version }, ADMIN))).toBe("validation");
@@ -482,7 +503,8 @@ d("067 — product review against real PostgreSQL", () => {
 
   it("a change that leaves the price alone keeps the margin without asking", async () => {
     const id = await makeProduct({ approved: true });
-    await pool.query(`UPDATE public.product SET margin_kind = 'amount', margin_value = 2, price_amount = 12.00 WHERE id = $1`, [id]);
+    await pool.query(`UPDATE public.product SET margin_kind = 'amount', margin_value = 2 WHERE id = $1`, [id]);
+    await setCustomerPrice(id, "12.00");
     await proposeChange(id, { name: "Rye" });
     const { version, marginRequired, currentMargin } = await item(id);
     expect(marginRequired).toBe(false);
@@ -493,7 +515,8 @@ d("067 — product review against real PostgreSQL", () => {
 
   it("096 — a proposed GST status is shown as GST, and approving it applies it with its history", async () => {
     const id = await makeProduct({ approved: true });
-    await pool.query(`UPDATE public.product SET margin_kind = 'amount', margin_value = 2, price_amount = 12.00, gst_status = 'taxable' WHERE id = $1`, [id]);
+    await pool.query(`UPDATE public.product SET margin_kind = 'amount', margin_value = 2, gst_status = 'taxable' WHERE id = $1`, [id]);
+    await setCustomerPrice(id, "12.00");
     await proposeChange(id, { gstStatus: "gst_free" });
     const detail = await item(id);
     expect(detail.changes).toEqual(expect.arrayContaining([{ field: "gstStatus", label: "GST", before: "Taxable", after: "GST-free" }]));
@@ -532,7 +555,7 @@ d("067 — product review against real PostgreSQL", () => {
   it("setting a live product's margin moves the customer price at once", async () => {
     const id = await makeProduct({ approved: true, was: "12.00" });
     const out = await setMargin(id, { margin: { kind: "amount", value: "2.50" }, expectedCurrent: null }, ADMIN);
-    expect(out.customerPriceAmount).toBe("12.50");
+    expect(out.variants[0]!.customerPriceAmount).toBe("12.50");
     expect((await live(id)).p).toMatchObject({ price_amount: "12.50", compare_at_amount: "14.50", shop_price_amount: "10.00" });
 
     // A second reviewer working from the old view is refused…
@@ -571,10 +594,15 @@ d("067 — product review against real PostgreSQL", () => {
       [ADMIN, "product.approved"],
       [ADMIN, "product.margin_set"],
     ]);
-    expect(rows[0]!.detail).toMatchObject({ marginBefore: null, marginAfter: { kind: "percent", value: "20" }, customerPriceAmount: "12.00" });
+    const vid = await variantIdOf(fresh);
+    expect(rows[0]!.detail).toMatchObject({
+      marginBefore: null, marginAfter: { kind: "percent", value: "20" },
+      variants: [{ id: vid, shopPriceAmount: "10.00", customerPriceAmount: "12.00" }],
+    });
     expect(rows[1]!.detail).toMatchObject({
       marginBefore: { kind: "percent", value: "20" }, marginAfter: { kind: "percent", value: "25" },
-      customerPriceBefore: "12.00", customerPriceAfter: "12.50",
+      customerPricesBefore: [{ id: vid, customerPriceAmount: "12.00" }],
+      customerPricesAfter: [{ id: vid, customerPriceAmount: "12.50" }],
     });
 
     const sent = await makeProduct({ name: "Other" });

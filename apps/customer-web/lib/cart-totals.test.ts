@@ -4,6 +4,7 @@ import type { GuestCartLine } from "./cart-store"
 import { computeCartTotals, formatCents, parseCents } from "./cart-totals"
 
 const line = (unit: string, qty: number): GuestCartLine => ({
+  variantId: `v${unit}${qty}`,
   productId: unit + qty,
   name: "x",
   imageUrl: null,

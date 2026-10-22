@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
 class CartSyncCoordinatorTest {
 
     private fun line(id: String, qty: Int = 1, price: String = "5.00") = GuestCartLine(
-        productId = id,
+        variantId = id, productId = id,
         name = "Product $id",
         imageUrl = null,
         unitPriceAmount = price,
@@ -289,7 +289,7 @@ class CartSyncCoordinatorTest {
         val merged = MergeCartOnSignIn(store, repo)()
 
         assertTrue(merged)
-        assertEquals(listOf("a" to 1, "b" to 2), repo.mergedLines!!.map { it.productId to it.quantity })
+        assertEquals(listOf("a" to 1, "b" to 2), repo.mergedLines!!.map { it.variantId to it.quantity })
         assertEquals(listOf("a", "b", "c"), store.state.value.lines.map { it.productId })
         assertEquals(3, store.state.value.lines[1].quantity, "b takes the GREATER quantity, not the sum")
     }
@@ -328,7 +328,7 @@ class CartSyncCoordinatorTest {
 class CartDebounceTest {
 
     private fun line(id: String, qty: Int = 1) = GuestCartLine(
-        productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00",
+        variantId = id, productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00",
         currency = "AUD", quantity = qty, packageKey = "pkg_a",
     )
 
@@ -390,7 +390,7 @@ class CartDebounceTest {
         val prefs = InMemoryDevicePreferences()
         val first = CartStore(CartLocalStore(prefs), this)
         first.add(line("p1", 2))
-        first.enqueue(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, productId = "p1", quantity = 2))
+        first.enqueue(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, variantId = "p1", quantity = 2))
         advanceUntilIdle()
 
         // A fresh process over the same storage.

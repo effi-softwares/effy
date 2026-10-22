@@ -1,6 +1,10 @@
-// Repository layer: SQL only. The server cart stores ONLY product + quantity + the price the line
-// was added at; the price a shopper is CHARGED is always re-read from public.product at read time.
-// One cart per customer.
+// Repository layer: SQL only. The server cart stores ONLY variant + quantity + the price the line
+// was added at; the price a shopper is CHARGED is always re-read from public.product_variant at read
+// time. One cart per customer.
+//
+// ⚠ 098 — A LINE IS A VARIANT. Every line carries `variant_id` (and the `product_id` it belongs to,
+// held equal by a composite FK); lines are unique per (cart, variant), so two sizes of one product are
+// two lines. Routes and mutations are keyed by the variant id.
 //
 // ── Two rules every mutation in this file obeys (027) ──────────────────────────────────────────────
 //
@@ -16,6 +20,8 @@
 // ⚠ There is NO whole-cart replace. Merge has no "delete what is absent" clause — that clause is
 // what would let a stale device wipe lines it had never heard of (027 FR-010).
 import { parseCents, pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
+import { variantLabelSql } from "@effy/edge-shared/catalog";
+import type { PackUnit, UnitBasis } from "@effy/shared-types";
 
 
 /**
@@ -25,15 +31,26 @@ import { parseCents, pooled, renditionWidthsSql, withTransaction, type Queryable
 export interface CartLineRow {
   id: string;
   product_id: string;
+  /** 098 — the variant this line buys. */
+  variant_id: string;
+  /** 098 — "1 kg"; NULL for a product with no options. */
+  variant_label: string | null;
+  /** 098 — active | inactive | removed. */
+  variant_state: string;
   shop_id: string;
   quantity: number;
   name: string;
+  /** The VARIANT's current customer price. NULL only for a never-approved product (never sold). */
   unit_price_amount: string;
   currency: string;
   status: string;
   stock_tracked: boolean;
-  /** NULL exactly when the product is untracked. */
+  /** NULL exactly when the variant is untracked. */
   stock_on_hand: number | null;
+  /** 098 — for the unit price. */
+  pack_quantity: string | null;
+  pack_unit: PackUnit | null;
+  unit_basis: UnitBasis | null;
   storage_key: string | null;
   /** 086 — the line picture's ready copies; NULL for none. */
   image_widths: number[] | null;
@@ -51,9 +68,12 @@ export interface CartMeta {
   customerId: string | null;
 }
 
-export interface ProductStatusRow {
+/** 098 — what an add needs to judge a variant: its product's status and its own state, price and stock. */
+export interface VariantStatusRow {
+  product_id: string;
   status: string;
-  price_amount: string;
+  variant_state: string;
+  price_amount: string | null;
   stock_tracked: boolean;
   stock_on_hand: number | null;
 }
@@ -61,10 +81,16 @@ export interface ProductStatusRow {
 /** One line of a past order as a candidate for re-adding. */
 export interface ReorderCandidate {
   product_id: string;
+  /** 098 */
+  variant_id: string;
+  /** The label it was SOLD with (the order line's snapshot). */
+  variant_label: string | null;
   quantity: number;
   name: string;
   /** NULL when the product row is gone (the LEFT JOIN missed). */
   status: string | null;
+  /** NULL when the variant row is gone. */
+  variant_state: string | null;
   stock_tracked: boolean | null;
   stock_on_hand: number | null;
 }
@@ -72,25 +98,32 @@ export interface ReorderCandidate {
 const LINE_PROJECTION = `
        ci.id::text            AS id,
        ci.product_id::text    AS product_id,
+       ci.variant_id::text    AS variant_id,
+       ${variantLabelSql("v")} AS variant_label,
+       v.state                AS variant_state,
        p.shop_id::text        AS shop_id,
        ci.quantity            AS quantity,
        p.name                 AS name,
-       p.price_amount::text   AS unit_price_amount,
+       v.price_amount::text   AS unit_price_amount,
        p.currency             AS currency,
        p.status               AS status,
-       p.stock_tracked        AS stock_tracked,
-       p.stock_on_hand        AS stock_on_hand,
+       v.stock_tracked        AS stock_tracked,
+       v.stock_on_hand        AS stock_on_hand,
+       v.pack_quantity::text  AS pack_quantity,
+       v.pack_unit            AS pack_unit,
+       p.unit_basis           AS unit_basis,
        ci.unit_price_at_add::text AS unit_price_at_add,
        ci.added_at            AS added_at,
        m.storage_key          AS storage_key,
        m.image_widths         AS image_widths`;
 
+/** The line's picture: the variant's own if it has one (098), else the product's primary. */
 const PRIMARY_MEDIA_JOIN = `
 LEFT JOIN LATERAL (
     SELECT pm.storage_key, ${renditionWidthsSql("pm.storage_key")} AS image_widths
     FROM public.product_media pm
     WHERE pm.product_id = p.id
-    ORDER BY pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
+    ORDER BY (pm.id = v.media_id) DESC NULLS LAST, pm.is_primary DESC, pm.display_order ASC, pm.created_at ASC
     LIMIT 1
 ) m ON true`;
 
@@ -100,21 +133,23 @@ export interface CartRepository {
   lines(cartId: string): Promise<CartLineRow[]>;
   /** Payable lines, set-aside lines and the revision in ONE round trip. */
   allLines(cartId: string): Promise<{ lines: CartLineRow[]; saved: CartLineRow[]; revision: number }>;
-  productStatus(productId: string): Promise<ProductStatusRow | null>;
-  productSnapshots(productIds: readonly string[]): Promise<CartLineRow[]>;
+  /** 098 — keyed by VARIANT id. */
+  variantStatus(variantId: string): Promise<VariantStatusRow | null>;
+  variantSnapshots(variantIds: readonly string[]): Promise<CartLineRow[]>;
   orderItemsForReorder(customerId: string, orderId: string): Promise<ReorderCandidate[] | null>;
 
   // Mutations report whether the change was APPLIED (false = this change id was already applied).
-  addItem(cartId: string, productId: string, changeId: string, qty: number, max: number): Promise<boolean>;
-  setQty(cartId: string, productId: string, changeId: string, qty: number): Promise<boolean>;
-  removeItem(cartId: string, productId: string, changeId: string): Promise<boolean>;
+  // 098 — every line mutation is keyed by the VARIANT id.
+  addItem(cartId: string, variantId: string, changeId: string, qty: number, max: number): Promise<boolean>;
+  setQty(cartId: string, variantId: string, changeId: string, qty: number): Promise<boolean>;
+  removeItem(cartId: string, variantId: string, changeId: string): Promise<boolean>;
   deleteAllItems(cartId: string, changeId: string): Promise<boolean>;
-  /** Sweep specific lines (archived products) as an attributable mutation. */
-  deleteLines(cartId: string, productIds: readonly string[]): Promise<void>;
-  mergeItems(cartId: string, changeId: string, productIds: readonly string[], quantities: readonly number[], max: number): Promise<boolean>;
-  setAside(cartId: string, productId: string, changeId: string): Promise<boolean>;
-  restoreSaved(cartId: string, productId: string, changeId: string, max: number): Promise<boolean>;
-  deleteSaved(cartId: string, productId: string, changeId: string): Promise<boolean>;
+  /** Sweep specific lines (archived products, removed variants) as an attributable mutation. */
+  deleteLines(cartId: string, variantIds: readonly string[]): Promise<void>;
+  mergeItems(cartId: string, changeId: string, variantIds: readonly string[], quantities: readonly number[], max: number): Promise<boolean>;
+  setAside(cartId: string, variantId: string, changeId: string): Promise<boolean>;
+  restoreSaved(cartId: string, variantId: string, changeId: string, max: number): Promise<boolean>;
+  deleteSaved(cartId: string, variantId: string, changeId: string): Promise<boolean>;
 
   /** 094 — the code the shopper entered (null clears it). Only the CHOICE is stored. */
   setCartPromo(cartId: string, promotionCodeId: string | null): Promise<boolean>;
@@ -163,7 +198,8 @@ export function createCartRepository(db: Queryable = pooled, transact: Transacto
         `
 SELECT${LINE_PROJECTION}
 FROM ${table} ci
-JOIN public.product p ON p.id = ci.product_id${PRIMARY_MEDIA_JOIN}
+JOIN public.product p ON p.id = ci.product_id
+JOIN public.product_variant v ON v.id = ci.variant_id${PRIMARY_MEDIA_JOIN}
 WHERE ci.cart_id = $1
 ORDER BY ci.added_at ASC, ci.id ASC`,
         [cartId],
@@ -210,13 +246,15 @@ FROM public.cart WHERE id = $1`,
 SELECT c.revision::int AS revision, false AS saved,${LINE_PROJECTION}
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
-JOIN public.product p ON p.id = ci.product_id${PRIMARY_MEDIA_JOIN}
+JOIN public.product p ON p.id = ci.product_id
+JOIN public.product_variant v ON v.id = ci.variant_id${PRIMARY_MEDIA_JOIN}
 WHERE c.id = $1
 UNION ALL
 SELECT c.revision::int AS revision, true AS saved,${LINE_PROJECTION}
 FROM public.cart c
 JOIN public.cart_saved_item ci ON ci.cart_id = c.id
-JOIN public.product p ON p.id = ci.product_id${PRIMARY_MEDIA_JOIN}
+JOIN public.product p ON p.id = ci.product_id
+JOIN public.product_variant v ON v.id = ci.variant_id${PRIMARY_MEDIA_JOIN}
 WHERE c.id = $1
 ORDER BY saved, added_at ASC, id ASC`,
           [cartId],
@@ -229,45 +267,53 @@ ORDER BY saved, added_at ASC, id ASC`,
       return { lines: all.filter((r) => !r.saved), saved: all.filter((r) => r.saved), revision };
     },
 
-    async productStatus(productId) {
+    async variantStatus(variantId) {
       return (
         (
-          await db.query<ProductStatusRow>(
+          await db.query<VariantStatusRow>(
             `
-SELECT status AS status, price_amount::text AS price_amount,
-       stock_tracked AS stock_tracked, stock_on_hand AS stock_on_hand
-FROM public.product WHERE id = $1`,
-            [productId],
+SELECT v.product_id::text AS product_id, p.status AS status, v.state AS variant_state,
+       v.price_amount::text AS price_amount, v.stock_tracked AS stock_tracked, v.stock_on_hand AS stock_on_hand
+FROM public.product_variant v JOIN public.product p ON p.id = v.product_id
+WHERE v.id = $1`,
+            [variantId],
           )
         ).rows[0] ?? null
       );
     },
 
     /**
-     * Current price/status/image for a set of products, in the line shape, with no cart behind it
+     * Current price/status/image for a set of VARIANTS, in the line shape, with no cart behind it
      * (the PUBLIC preview): a guest's cart lives on their device. `quantity` is set by the caller.
      */
-    async productSnapshots(productIds) {
-      if (productIds.length === 0) return [];
+    async variantSnapshots(variantIds) {
+      if (variantIds.length === 0) return [];
       return (
         await db.query<CartLineRow>(
           `
 SELECT ''::text              AS id,
        p.id::text            AS product_id,
+       v.id::text            AS variant_id,
+       ${variantLabelSql("v")} AS variant_label,
+       v.state               AS variant_state,
        p.shop_id::text       AS shop_id,
        0                     AS quantity,
        p.name                AS name,
-       p.price_amount::text  AS unit_price_amount,
+       v.price_amount::text  AS unit_price_amount,
        p.currency            AS currency,
        p.status              AS status,
-       p.stock_tracked       AS stock_tracked,
-       p.stock_on_hand       AS stock_on_hand,
+       v.stock_tracked       AS stock_tracked,
+       v.stock_on_hand       AS stock_on_hand,
+       v.pack_quantity::text AS pack_quantity,
+       v.pack_unit           AS pack_unit,
+       p.unit_basis          AS unit_basis,
        NULL::text            AS unit_price_at_add,
        m.storage_key         AS storage_key,
        m.image_widths        AS image_widths
-FROM public.product p${PRIMARY_MEDIA_JOIN}
-WHERE p.id = ANY($1::uuid[])`,
-          [[...productIds]],
+FROM public.product_variant v
+JOIN public.product p ON p.id = v.product_id${PRIMARY_MEDIA_JOIN}
+WHERE v.id = ANY($1::uuid[])`,
+          [[...variantIds]],
         )
       ).rows;
     },
@@ -287,14 +333,18 @@ WHERE p.id = ANY($1::uuid[])`,
         await db.query<ReorderCandidate>(
           `
 SELECT oi.product_id::text AS product_id,
+       oi.variant_id::text AS variant_id,
+       oi.variant_label    AS variant_label,
        oi.quantity         AS quantity,
        oi.product_name     AS name,
        p.status            AS status,
-       p.stock_tracked     AS stock_tracked,
-       p.stock_on_hand     AS stock_on_hand
+       v.state             AS variant_state,
+       v.stock_tracked     AS stock_tracked,
+       v.stock_on_hand     AS stock_on_hand
 FROM public."order" o
 JOIN public.order_item oi ON oi.order_id = o.id
 LEFT JOIN public.product p ON p.id = oi.product_id
+LEFT JOIN public.product_variant v ON v.id = oi.variant_id
 WHERE o.id = $1 AND o.customer_id = $2
 ORDER BY oi.id ASC`,
           [orderId, customerId],
@@ -308,32 +358,32 @@ ORDER BY oi.id ASC`,
      * MUTATION, which is why it always carries a change id. The current price is captured as
      * `unit_price_at_add` on insert and left alone on conflict.
      */
-    addItem: (cartId, productId, changeId, qty, max) =>
+    addItem: (cartId, variantId, changeId, qty, max) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(
           `
-INSERT INTO public.cart_item (cart_id, product_id, quantity, unit_price_at_add)
-SELECT $1, $2, $3, p.price_amount FROM public.product p WHERE p.id = $2
-ON CONFLICT (cart_id, product_id)
+INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity, unit_price_at_add)
+SELECT $1, v.product_id, v.id, $3, v.price_amount FROM public.product_variant v WHERE v.id = $2
+ON CONFLICT (cart_id, variant_id)
 DO UPDATE SET quantity = LEAST(public.cart_item.quantity + EXCLUDED.quantity, $4), updated_at = now()`,
-          [cartId, productId, qty, max],
+          [cartId, variantId, qty, max],
         );
       }),
 
     /** An ABSOLUTE quantity — naturally idempotent. Never touches the add-time price. */
-    setQty: (cartId, productId, changeId, qty) =>
+    setQty: (cartId, variantId, changeId, qty) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(
           `
 UPDATE public.cart_item SET quantity = $3, updated_at = now()
-WHERE cart_id = $1 AND product_id = $2`,
-          [cartId, productId, qty],
+WHERE cart_id = $1 AND variant_id = $2`,
+          [cartId, variantId, qty],
         );
       }),
 
-    removeItem: (cartId, productId, changeId) =>
+    removeItem: (cartId, variantId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
-        await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND product_id = $2`, [cartId, productId]);
+        await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
     /**
@@ -347,12 +397,12 @@ WHERE cart_id = $1 AND product_id = $2`,
         await tx.query(`UPDATE public.cart SET promotion_code_id = NULL, promo_applied_at = NULL WHERE id = $1`, [cartId]);
       }),
 
-    async deleteLines(cartId, productIds) {
-      if (productIds.length === 0) return;
+    async deleteLines(cartId, variantIds) {
+      if (variantIds.length === 0) return;
       await inTx(cartId, "", async (tx) => {
-        await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND product_id = ANY($2::uuid[])`, [
+        await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND variant_id = ANY($2::uuid[])`, [
           cartId,
-          [...productIds],
+          [...variantIds],
         ]);
       });
     },
@@ -361,39 +411,39 @@ WHERE cart_id = $1 AND product_id = $2`,
      * Union the given lines into the cart with MAXIMUM-quantity semantics (027 FR-009), capped at
      * `max`. A line only in the cart is untouched — there is no delete clause — and repeating the
      * merge changes nothing: max(a, a) = a. Summing would double a product the shopper already
-     * holds on another device. Lines whose product no longer exists are dropped by the join.
+     * holds on another device. Lines whose variant no longer exists are dropped by the join.
      */
-    mergeItems: (cartId, changeId, productIds, quantities, max) =>
+    mergeItems: (cartId, changeId, variantIds, quantities, max) =>
       inTx(cartId, changeId, async (tx) => {
         // Merging nothing is a legitimate no-op: an empty guest cart must not empty the account's.
-        if (productIds.length === 0) return;
+        if (variantIds.length === 0) return;
         await tx.query(
           `
-INSERT INTO public.cart_item (cart_id, product_id, quantity, unit_price_at_add)
-SELECT $1, t.product_id, LEAST(t.quantity, $4), p.price_amount
-FROM unnest($2::uuid[], $3::int[]) AS t(product_id, quantity)
-JOIN public.product p ON p.id = t.product_id
-ON CONFLICT (cart_id, product_id)
+INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity, unit_price_at_add)
+SELECT $1, v.product_id, v.id, LEAST(t.quantity, $4), v.price_amount
+FROM unnest($2::uuid[], $3::int[]) AS t(variant_id, quantity)
+JOIN public.product_variant v ON v.id = t.variant_id
+ON CONFLICT (cart_id, variant_id)
 DO UPDATE SET quantity = LEAST(GREATEST(public.cart_item.quantity, EXCLUDED.quantity), $4),
               updated_at = now()`,
-          [cartId, [...productIds], [...quantities], max],
+          [cartId, [...variantIds], [...quantities], max],
         );
       }),
 
     /** Move a line from the payable cart to "saved for later". No-op if it is not in the cart. */
-    setAside: (cartId, productId, changeId) =>
+    setAside: (cartId, variantId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
         // The add-time price travels with the line, so a price change is still reported while aside.
         await tx.query(
           `
-INSERT INTO public.cart_saved_item (cart_id, product_id, quantity, unit_price_at_add)
-SELECT cart_id, product_id, quantity, unit_price_at_add
-FROM public.cart_item WHERE cart_id = $1 AND product_id = $2
-ON CONFLICT (cart_id, product_id)
+INSERT INTO public.cart_saved_item (cart_id, product_id, variant_id, quantity, unit_price_at_add)
+SELECT cart_id, product_id, variant_id, quantity, unit_price_at_add
+FROM public.cart_item WHERE cart_id = $1 AND variant_id = $2
+ON CONFLICT (cart_id, variant_id)
 DO UPDATE SET quantity = GREATEST(public.cart_saved_item.quantity, EXCLUDED.quantity), updated_at = now()`,
-          [cartId, productId],
+          [cartId, variantId],
         );
-        await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND product_id = $2`, [cartId, productId]);
+        await tx.query(`DELETE FROM public.cart_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
     /**
@@ -401,26 +451,26 @@ DO UPDATE SET quantity = GREATEST(public.cart_saved_item.quantity, EXCLUDED.quan
      * current price: the shopper is choosing it again, at today's price, and reporting a "price
      * change" against a number they saw weeks ago would be noise.
      */
-    restoreSaved: (cartId, productId, changeId, max) =>
+    restoreSaved: (cartId, variantId, changeId, max) =>
       inTx(cartId, changeId, async (tx) => {
         await tx.query(
           `
-INSERT INTO public.cart_item (cart_id, product_id, quantity, unit_price_at_add)
-SELECT s.cart_id, s.product_id, LEAST(s.quantity, $3), p.price_amount
+INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity, unit_price_at_add)
+SELECT s.cart_id, s.product_id, s.variant_id, LEAST(s.quantity, $3), v.price_amount
 FROM public.cart_saved_item s
-JOIN public.product p ON p.id = s.product_id
-WHERE s.cart_id = $1 AND s.product_id = $2
-ON CONFLICT (cart_id, product_id)
+JOIN public.product_variant v ON v.id = s.variant_id
+WHERE s.cart_id = $1 AND s.variant_id = $2
+ON CONFLICT (cart_id, variant_id)
 DO UPDATE SET quantity = LEAST(GREATEST(public.cart_item.quantity, EXCLUDED.quantity), $3),
               updated_at = now()`,
-          [cartId, productId, max],
+          [cartId, variantId, max],
         );
-        await tx.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1 AND product_id = $2`, [cartId, productId]);
+        await tx.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
-    deleteSaved: (cartId, productId, changeId) =>
+    deleteSaved: (cartId, variantId, changeId) =>
       inTx(cartId, changeId, async (tx) => {
-        await tx.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1 AND product_id = $2`, [cartId, productId]);
+        await tx.query(`DELETE FROM public.cart_saved_item WHERE cart_id = $1 AND variant_id = $2`, [cartId, variantId]);
       }),
 
     /**

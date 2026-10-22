@@ -27,8 +27,8 @@ data class PendingChange(
     /** UUIDv4, one per shopper action. */
     val changeId: String,
     val kind: PendingChangeKind,
-    /** Empty for cart-wide operations (clear, merge). */
-    val productId: String = "",
+    /** 098 — the line (size) changed. Empty for cart-wide operations (clear, merge). */
+    val variantId: String = "",
     /** The ABSOLUTE quantity for SetQuantity, the increment for Add, otherwise ignored. */
     val quantity: Int = 0,
     /** Only for [PendingChangeKind.Merge] — the device lines being folded in. */
@@ -44,7 +44,7 @@ data class PendingChange(
 }
 
 @Serializable
-data class PendingLine(val productId: String, val quantity: Int)
+data class PendingLine(val variantId: String, val quantity: Int)
 
 @Serializable
 enum class PendingChangeKind {

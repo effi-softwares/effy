@@ -143,14 +143,12 @@ describe("basicsComplete", () => {
       ...emptyDraft(),
       name: "Latte",
       primaryCategoryId: "c1",
-      priceAmount: "4.50",
       shortDescription: "Hot milk coffee",
       gstStatus: "taxable" as const,
     };
     expect(basicsComplete(full)).toBe(true);
     expect(basicsComplete({ ...full, name: "  " })).toBe(false);
     expect(basicsComplete({ ...full, primaryCategoryId: null })).toBe(false);
-    expect(basicsComplete({ ...full, priceAmount: "0" })).toBe(false);
     expect(basicsComplete({ ...full, shortDescription: "" })).toBe(false);
     expect(basicsComplete({ ...full, gstStatus: "" })).toBe(false);
   });

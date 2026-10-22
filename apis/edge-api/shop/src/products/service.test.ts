@@ -44,14 +44,19 @@ const numberAttr: SchemaAttribute = {
   groupLabel: null,
 };
 
+const V1 = "00000000-0000-4000-8000-0000000000a1";
+/** 098 — a product with no options is created with exactly one variant, which carries the price. */
+const baseVariant = { id: V1, position: 0, optionValueIds: [null, null], shopPriceAmount: "9.99" };
 const baseBody = {
   productTypeId: "type-1",
   primaryCategoryId: "cat-1",
   name: "Test Product",
-  priceAmount: "9.99",
   shortDescription: "A tasty thing",
   gstStatus: "gst_free",
+  options: [],
+  variants: [baseVariant],
 };
+const withVariant = (over: Record<string, unknown>) => ({ ...baseBody, variants: [{ ...baseVariant, ...over }] });
 
 describe("createProduct (validation, draft-first)", () => {
   it("096 — refuses a product with no GST status, naming the field", async () => {
@@ -69,6 +74,12 @@ describe("createProduct (validation, draft-first)", () => {
     repo.assignmentsForType.mockResolvedValue([]);
     repo.createProduct.mockResolvedValue("prod-1");
     repo.getProductDetail.mockResolvedValue({ id: "prod-1", media: [] });
+  });
+
+  it("098 — refuses a product with no variant, and a variant with no price", async () => {
+    expect(await kindOf(createProduct("shop-1", { ...baseBody, options: undefined, variants: undefined }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", withVariant({ shopPriceAmount: "" }), "sub"))).toBe("validation");
+    expect(repo.createProduct).not.toHaveBeenCalled();
   });
 
   it("rejects a missing name / price / short description", async () => {
@@ -120,7 +131,7 @@ describe("createProduct (validation, draft-first)", () => {
 
   it("maps a duplicate-SKU conflict from the repository to a 409-conflict", async () => {
     repo.createProduct.mockRejectedValue(new ProductError("conflict", "a product with this SKU already exists in this shop"));
-    expect(await kindOf(createProduct("shop-1", { ...baseBody, sku: "DUP-1" }, "sub"))).toBe("conflict");
+    expect(await kindOf(createProduct("shop-1", withVariant({ sku: "DUP-1" }), "sub"))).toBe("conflict");
   });
 });
 
@@ -146,7 +157,7 @@ describe("listProducts (param clamp, shop-scope, presign)", () => {
 
   it("presigns the primary image storage key into a url", async () => {
     repo.listProducts.mockResolvedValue({
-      items: [{ id: "p1", primaryImageUrl: "products/p1/abc.jpg", name: "x", brand: null, typeName: "T", categoryName: "C", priceAmount: "1.00", currency: "AUD", status: "draft", sku: null, updatedAt: "t" }],
+      items: [{ id: "p1", primaryImageUrl: "products/p1/abc.jpg", name: "x", brand: null, typeName: "T", categoryName: "C", priceAmount: "1.00", currency: "AUD", status: "draft", updatedAt: "t", priceVaries: false, variantCount: 1 }],
       total: 1, page: 1, pageSize: 20,
     });
     mediaMod.presignRead.mockResolvedValue("https://s3/signed");
@@ -189,10 +200,10 @@ describe("createProduct — shipping weight", () => {
   });
 
   it("passes a supplied weight through to the repository", async () => {
-    await createProduct("shop-1", { ...baseBody, weightGrams: 750 }, "sub");
+    await createProduct("shop-1", withVariant({ weightGrams: 750 }), "sub");
     expect(repo.createProduct).toHaveBeenCalledWith(
       "shop-1",
-      expect.objectContaining({ weightGrams: 750 }),
+      expect.objectContaining({ variants: [expect.objectContaining({ weightGrams: 750 })] }),
       "sub",
     );
   });
@@ -201,33 +212,33 @@ describe("createProduct — shipping weight", () => {
   // a zero-weight product would ship free, and no test downstream would notice.
   it("omitting a weight passes null, never zero", async () => {
     await createProduct("shop-1", baseBody, "sub");
-    const input = repo.createProduct.mock.calls[0]![1] as { weightGrams: number | null };
-    expect(input.weightGrams).toBeNull();
-    expect(input.weightGrams).not.toBe(0);
+    const input = repo.createProduct.mock.calls[0]![1] as { variants: { weightGrams: number | null }[] };
+    expect(input.variants[0]!.weightGrams).toBeNull();
+    expect(input.variants[0]!.weightGrams).not.toBe(0);
   });
 
   it("rejects a zero or negative weight", async () => {
-    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: 0 }, "sub"))).toBe("validation");
-    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: -5 }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: 0 }), "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: -5 }), "sub"))).toBe("validation");
     expect(repo.createProduct).not.toHaveBeenCalled();
   });
 
   it("rejects a non-integer or unparseable weight", async () => {
-    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: 1.5 }, "sub"))).toBe("validation");
-    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: "heavy" }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: 1.5 }), "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: "heavy" }), "sub"))).toBe("validation");
   });
 
   // 250000 for "250 g" is the obvious slip, and it would price that basket at the cap forever.
   it("rejects an implausible weight with a units hint", async () => {
-    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: 300_000 }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", withVariant({ weightGrams: 300_000 }), "sub"))).toBe("validation");
   });
 
   // ⚠ FR-037a. A client that sends weightIsAssumed:false with no weight must not be able to declare
   // the platform's own default a measurement.
   it("ignores a client-supplied weightIsAssumed", async () => {
-    await createProduct("shop-1", { ...baseBody, weightIsAssumed: false }, "sub");
-    const input = repo.createProduct.mock.calls[0]![1] as Record<string, unknown>;
-    expect(input).not.toHaveProperty("weightIsAssumed");
-    expect(input.weightGrams).toBeNull();
+    await createProduct("shop-1", withVariant({ weightIsAssumed: false }), "sub");
+    const input = repo.createProduct.mock.calls[0]![1] as { variants: Record<string, unknown>[] };
+    expect(input.variants[0]).not.toHaveProperty("weightIsAssumed");
+    expect(input.variants[0]!.weightGrams).toBeNull();
   });
 });

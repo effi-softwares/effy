@@ -38,7 +38,7 @@ export interface PickListDocument {
   deliveredBy: DeliveredBy
   /** ISO instant, or null when the promise is unknown (the batch read carries the paid time). */
   readyBy: string | null
-  lines: Array<{ name: string; sku: string | null; quantity: number }>
+  lines: Array<{ name: string; variantLabel?: string | null; sku: string | null; quantity: number }>
 }
 
 const esc = (s: string): string =>
@@ -49,7 +49,7 @@ export function renderPickListPage(doc: PickListDocument): string {
   const rows = doc.lines
     .map(
       (l) =>
-        `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(l.sku ?? "")}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.quantity}</td></tr>`,
+        `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.variantLabel ? `${l.name} — ${l.variantLabel}` : l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(l.sku ?? "")}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.quantity}</td></tr>`,
     )
     .join("")
   const ready = doc.readyBy ? ` · ready by ${esc(formatWhen(doc.readyBy))}` : ""

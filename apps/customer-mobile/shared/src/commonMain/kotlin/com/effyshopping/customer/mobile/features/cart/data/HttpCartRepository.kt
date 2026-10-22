@@ -17,6 +17,7 @@ import com.effyshopping.customer.mobile.commerce.contract.UpdateCartLineRequest
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
+import com.effyshopping.customer.mobile.features.catalog.data.toDomain
 import com.effyshopping.customer.mobile.features.cart.domain.CartBlockedReason as DomainBlockedReason
 import com.effyshopping.customer.mobile.features.cart.domain.CartCheckout
 import com.effyshopping.customer.mobile.features.cart.domain.CartDiscount
@@ -62,11 +63,11 @@ class HttpCartRepository(private val edge: HttpClient) : CartRepository {
         edge.get("commerce/v1/cart").ensureSuccess().body<CartDTO>().toDomain()
     }
 
-    override suspend fun add(productId: String, quantity: Int, changeId: String): CartSnapshot = request {
+    override suspend fun add(variantId: String, quantity: Int, changeId: String): CartSnapshot = request {
         edge.post("commerce/v1/cart/items") {
             setBody(
                 AddToCartRequest(
-                    productID = productId,
+                    variantID = variantId,
                     quantity = quantity.toLong(),
                     changeID = changeId,
                 ),
@@ -74,14 +75,14 @@ class HttpCartRepository(private val edge: HttpClient) : CartRepository {
         }.ensureSuccess().body<CartDTO>().toDomain()
     }
 
-    override suspend fun setQuantity(productId: String, quantity: Int, changeId: String): CartSnapshot = request {
-        edge.patch("commerce/v1/cart/items/$productId") {
+    override suspend fun setQuantity(variantId: String, quantity: Int, changeId: String): CartSnapshot = request {
+        edge.patch("commerce/v1/cart/items/$variantId") {
             setBody(UpdateCartLineRequest(quantity = quantity.toLong(), changeID = changeId))
         }.ensureSuccess().body<CartDTO>().toDomain()
     }
 
-    override suspend fun remove(productId: String, changeId: String): CartSnapshot = request {
-        edge.delete("commerce/v1/cart/items/$productId") { parameter("changeId", changeId) }
+    override suspend fun remove(variantId: String, changeId: String): CartSnapshot = request {
+        edge.delete("commerce/v1/cart/items/$variantId") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
@@ -103,23 +104,29 @@ class HttpCartRepository(private val edge: HttpClient) : CartRepository {
         ReorderOutcome(
             cart = dto.cart.toDomain(),
             skipped = dto.skipped.map {
-                ReorderSkipped(productId = it.productID, name = it.name, reason = it.reason.toDomain())
+                ReorderSkipped(
+                    productId = it.productID,
+                    variantId = it.variantID,
+                    variantLabel = it.variantLabel,
+                    name = it.name,
+                    reason = it.reason.toDomain(),
+                )
             },
         )
     }
 
-    override suspend fun setAside(productId: String, changeId: String): CartSnapshot = request {
-        edge.post("commerce/v1/cart/items/$productId/set-aside") { parameter("changeId", changeId) }
+    override suspend fun setAside(variantId: String, changeId: String): CartSnapshot = request {
+        edge.post("commerce/v1/cart/items/$variantId/set-aside") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
-    override suspend fun restoreSaved(productId: String, changeId: String): CartSnapshot = request {
-        edge.post("commerce/v1/cart/saved/$productId/restore") { parameter("changeId", changeId) }
+    override suspend fun restoreSaved(variantId: String, changeId: String): CartSnapshot = request {
+        edge.post("commerce/v1/cart/saved/$variantId/restore") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
-    override suspend fun deleteSaved(productId: String, changeId: String): CartSnapshot = request {
-        edge.delete("commerce/v1/cart/saved/$productId") { parameter("changeId", changeId) }
+    override suspend fun deleteSaved(variantId: String, changeId: String): CartSnapshot = request {
+        edge.delete("commerce/v1/cart/saved/$variantId") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
     }
 
@@ -173,7 +180,7 @@ class HttpCartRepository(private val edge: HttpClient) : CartRepository {
 // unmarshal `1.0` into an `int` — so every mobile cart write answered 422 (research R13). They are narrowed
 // to `Int` here, once, at the boundary; nothing above the data layer deals in wire widths.
 
-private fun PendingLine.toInput() = CartLineInput(productID = productId, quantity = quantity.toLong())
+private fun PendingLine.toInput() = CartLineInput(variantID = variantId, quantity = quantity.toLong())
 
 private fun CartDTO.toDomain() = CartSnapshot(
     revision = revision.toLong(),
@@ -184,7 +191,7 @@ private fun CartDTO.toDomain() = CartSnapshot(
     grandTotalAmount = grandTotalAmount,
     currency = currency,
     notices = notices.map {
-        CartNotice(productId = it.productID, kind = it.kind.toDomain(), detail = it.detail)
+        CartNotice(productId = it.productID, variantId = it.variantID, kind = it.kind.toDomain(), detail = it.detail)
     },
     discount = discount?.let {
         CartDiscount(code = it.code, kind = it.kind.value, amount = it.amount, label = it.label)
@@ -208,8 +215,11 @@ private fun CartDTO.toDomain() = CartSnapshot(
 )
 
 private fun CartLineDTO.toDomain(cartCurrency: String) = GuestCartLine(
+    variantId = variantID,
     productId = productID,
     name = name,
+    variantLabel = variantLabel,
+    unitPrice = unitPrice?.toDomain(),
     imageUrl = imageURL,
     unitPriceAmount = unitPriceAmount,
     currency = cartCurrency,

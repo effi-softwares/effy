@@ -1,3 +1,4 @@
+import type { SetVariantStateRequest } from "@effy/shared-types";
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type {
@@ -28,6 +29,7 @@ import {
   updateSection,
   uploadProductMedia,
   withdrawProductReview,
+  setVariantState,
 } from "./repo";
 import type { ProductListParams } from "./model";
 
@@ -141,6 +143,19 @@ export function useChangeStatus(id: string) {
     mutationFn: (body: ChangeProductStatusRequest) => changeProductStatus(id, body),
     onSuccess: () => {
       invalidateDetail(queryClient, id);
+      invalidateProducts(queryClient);
+    },
+  });
+}
+
+/** 098 — a size on or off sale, or removed. Its stock screens change too. */
+export function useSetVariantState(productId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ variantId, state }: { variantId: string; state: SetVariantStateRequest["state"] }) =>
+      setVariantState(productId, variantId, { state }),
+    onSuccess: () => {
+      invalidateDetail(queryClient, productId);
       invalidateProducts(queryClient);
     },
   });

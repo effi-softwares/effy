@@ -22,11 +22,16 @@ import type { CartDiscountDTO, CartNotAppliedDTO, CartPromotionLineDTO } from "@
  * Commerce's one way into the promotion engine (094). The cart read, applying a code and the payment
  * intent all price through `pricePromotionsFor`, so the cart, the charge and the receipt agree (SC-003).
  *
- * A basket line's id is its PRODUCT id — the cart has one line per product, and the order's lines are
- * written from the same cart — so a line's discount is carried from the price to the order by product.
+ * A basket line's id is its VARIANT id (098) — the cart has one line per variant, and the order's lines
+ * are written from the same cart — so a line's discount is carried from the price to the order by
+ * variant. Targets stay product, category and brand: a promotion on a product covers all its variants,
+ * and a minimum quantity counts units across them (the engine sums the lines it covers).
  */
 
 export interface PricingLine {
+  /** 098 — the line's id. */
+  variantId: string;
+  /** What promotions target. */
   productId: string;
   unitCents: number;
   quantity: number;
@@ -63,7 +68,7 @@ export class PromotionCodeRefusedError extends Error {
 export async function pricePromotionsFor(db: Queryable, input: PricingInput): Promise<Pricing> {
   const [set, basketLines] = await Promise.all([
     candidatesFor(db, { customerId: input.customerId, enteredCodeId: input.enteredCodeId, now: input.now, excludeOrderId: input.excludeOrderId ?? null }),
-    basketLinesFor(db, input.lines.map((l) => ({ lineId: l.productId, ...l }))),
+    basketLinesFor(db, input.lines.map((l) => ({ lineId: l.variantId, productId: l.productId, unitCents: l.unitCents, quantity: l.quantity }))),
   ]);
   const outcome = pricePromotions(
     { lines: basketLines, deliveryType: input.deliveryType, deliveryFeeCents: input.deliveryFeeCents },

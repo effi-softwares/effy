@@ -102,7 +102,11 @@ export interface OrderItemDTO {
    */
   orderItemId: string;
   productId: string;
+  /** 098 — the variant sold. */
+  variantId: string;
   productName: string;
+  /** 098 — the variant's label AS SOLD ("Spiced / 500 g"); null for a product with no options. */
+  variantLabel: string | null;
   unitPriceAmount: string;
   quantity: number;
   lineSubtotalAmount: string;

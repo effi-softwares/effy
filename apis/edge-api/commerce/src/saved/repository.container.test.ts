@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrationSql, transactorFor } from "@effy/edge-shared";
+import { refreshListing } from "@effy/edge-shared/catalog";
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -30,6 +31,12 @@ let me: string;
 let other: string;
 const products: string[] = [];
 
+/** 098 — a product's price is its variant's; the listing summary follows through its one writer. */
+async function setVariant(productId: string, set: string, args: unknown[] = []) {
+  await pool.query(`UPDATE public.product_variant SET ${set} WHERE product_id = $1`, [productId, ...args]);
+  await refreshListing(pool, productId);
+}
+
 const savedCount = async (customerId: string) =>
   (await pool.query<{ n: number }>(`SELECT count(*)::int AS n FROM public.customer_saved_item WHERE customer_id = $1`, [customerId])).rows[0]!.n;
 
@@ -46,11 +53,9 @@ d("070 — saved items and lists against the real schema", () => {
       products.push(
         (
           await pool.query<{ id: string }>(
-            `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, shop_price_amount,
-                                         short_description, created_by, status, approved_at)
-             SELECT (SELECT id FROM public.shop WHERE code='SVD'), (SELECT id FROM public.product_type WHERE key='svd-type'),
-                    (SELECT id FROM public.category WHERE key='svd-cat'), $1, 10.00, 10.00, 'd', 'seed', 'active', now()
-             RETURNING id::text AS id`,
+            `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ((SELECT id FROM public.shop WHERE code='SVD'), (SELECT id FROM public.product_type WHERE key='svd-type'), (SELECT id FROM public.category WHERE key='svd-cat'), $1, 'd', 'seed', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 10.00)::numeric, (10.00)::numeric FROM p RETURNING id)
+SELECT id::text AS id FROM p`,
             [`Saved product ${i}`],
           )
         ).rows[0]!.id,
@@ -69,7 +74,9 @@ d("070 — saved items and lists against the real schema", () => {
   beforeEach(async () => {
     await pool.query(`DELETE FROM public.customer_list WHERE customer_id IN ($1, $2)`, [me, other]);
     await pool.query(`DELETE FROM public.customer_saved_item WHERE customer_id IN ($1, $2)`, [me, other]);
-    await pool.query(`UPDATE public.product SET price_amount = 10.00, status = 'active', stock_tracked = false, stock_on_hand = NULL`);
+    await pool.query(`UPDATE public.product SET status = 'active'`);
+    await pool.query(`UPDATE public.product_variant SET price_amount = 10.00, stock_tracked = false, stock_on_hand = NULL`);
+    for (const p of products) await refreshListing(pool, p);
   });
 
   afterAll(async () => {
@@ -114,8 +121,8 @@ d("070 — saved items and lists against the real schema", () => {
   it("snapshots the price at save, and reports a drop but never a rise", async () => {
     await repo.addEntry(me, DEFAULT_LIST_REF, products[0]!, null, 200);
     await repo.addEntry(me, DEFAULT_LIST_REF, products[1]!, null, 200);
-    await pool.query(`UPDATE public.product SET price_amount = 8.00 WHERE id = $1`, [products[0]]);
-    await pool.query(`UPDATE public.product SET price_amount = 12.00 WHERE id = $1`, [products[1]]);
+    await setVariant(products[0]!, "price_amount = 8.00");
+    await setVariant(products[1]!, "price_amount = 12.00");
     const rows = Object.fromEntries((await repo.list(me, DEFAULT_LIST_REF)).map((r) => [r.product_id, r]));
     expect(rows[products[0]!]).toMatchObject({ price_amount: "8.00", saved_price_amount: "10.00", price_dropped: true });
     expect(rows[products[1]!]).toMatchObject({ price_amount: "12.00", saved_price_amount: "10.00", price_dropped: false });
@@ -125,12 +132,23 @@ d("070 — saved items and lists against the real schema", () => {
     for (const p of products.slice(0, 4)) await repo.addEntry(me, DEFAULT_LIST_REF, p, null, 200);
     await pool.query(`UPDATE public.product SET status = 'archived' WHERE id = $1`, [products[1]]);
     await pool.query(`UPDATE public.product SET status = 'unavailable' WHERE id = $1`, [products[2]]);
-    await pool.query(`UPDATE public.product SET stock_tracked = true, stock_on_hand = 0 WHERE id = $1`, [products[3]]);
+    await setVariant(products[3]!, "stock_tracked = true, stock_on_hand = 0");
     const verdicts = Object.fromEntries((await repo.list(me, DEFAULT_LIST_REF)).map((r) => [r.product_id, r.verdict]));
     expect(verdicts).toEqual({
       [products[0]!]: "purchasable", [products[1]!]: "no_longer_sold",
       [products[2]!]: "temporarily_unavailable", [products[3]!]: "temporarily_unavailable",
     });
+  });
+
+  it("098 — remembers the variant saved with, and its price and verdict are that variant's", async () => {
+    const v = (await pool.query<{ id: string }>(`SELECT id::text FROM public.product_variant WHERE product_id = $1`, [products[4]])).rows[0]!.id;
+    await repo.addEntry(me, DEFAULT_LIST_REF, products[4]!, null, 200, v);
+    await setVariant(products[4]!, "price_amount = 7.50, stock_tracked = true, stock_on_hand = 0");
+    const [row] = await repo.list(me, DEFAULT_LIST_REF);
+    expect(row).toMatchObject({ product_id: products[4], variant_id: v, price_amount: "7.50", verdict: "temporarily_unavailable", variant_count: 1 });
+    // A variant id that is not the product's is simply not remembered — the save itself still works.
+    await repo.addEntry(me, DEFAULT_LIST_REF, products[5]!, null, 200, v);
+    expect((await repo.list(me, DEFAULT_LIST_REF)).find((r) => r.product_id === products[5])?.variant_id).toBeNull();
   });
 
   it("⚠ THE INVARIANT: leaving its last list un-saves a product; leaving one of two does not", async () => {
@@ -224,12 +242,12 @@ d("070 — saved items and lists against the real schema", () => {
     const res = await repo.merge(
       me,
       [
-        { productId: products[1]!, savedPriceAmount: "7.50", savedCurrency: "AUD", savedAt: at(0) },
-        { productId: products[0]!, savedPriceAmount: "1.00", savedCurrency: "AUD", savedAt: at(1) }, // already there: untouched
-        { productId: "junk", savedPriceAmount: null, savedCurrency: null, savedAt: at(2) },
-        { productId: "00000000-0000-0000-0000-000000000000", savedPriceAmount: null, savedCurrency: null, savedAt: at(3) },
-        { productId: products[2]!, savedPriceAmount: null, savedCurrency: null, savedAt: at(4) },
-        { productId: products[3]!, savedPriceAmount: null, savedCurrency: null, savedAt: at(5) }, // over the cap of 3
+        { productId: products[1]!, variantId: null, savedPriceAmount: "7.50", savedCurrency: "AUD", savedAt: at(0) },
+        { productId: products[0]!, variantId: null, savedPriceAmount: "1.00", savedCurrency: "AUD", savedAt: at(1) }, // already there: untouched
+        { productId: "junk", variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at(2) },
+        { productId: "00000000-0000-0000-0000-000000000000", variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at(3) },
+        { productId: products[2]!, variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at(4) },
+        { productId: products[3]!, variantId: null, savedPriceAmount: null, savedCurrency: null, savedAt: at(5) }, // over the cap of 3
       ],
       3,
     );

@@ -51,12 +51,14 @@ let container: StartedPostgreSqlContainer;
 let pool: Pool;
 let actor: Actor;
 let productId: string;
+/** 098 — stock is counted per variant; this product has one. */
+let variantId: string;
 
 /** Everything about the product that a customer sees, and the change waiting on Effy. */
 async function snapshot() {
   const live = (await pool.query(
-    `SELECT name, price_amount, shop_price_amount, status, approved_at, review_state, updated_at::text AS v
-       FROM public.product WHERE id = $1`, [productId],
+    `SELECT p.name, v.price_amount, v.shop_price_amount, p.status, p.approved_at, p.review_state, p.updated_at::text AS v
+       FROM public.product p JOIN public.product_variant v ON v.product_id = p.id WHERE p.id = $1`, [productId],
   )).rows[0];
   const change = (await pool.query(
     `SELECT proposed, media_changed, state, reason, submitted_at::text AS s, updated_at::text AS v
@@ -67,7 +69,7 @@ async function snapshot() {
 
 const stock = async () =>
   (await pool.query(
-    `SELECT stock_tracked, stock_on_hand, low_stock_threshold FROM public.product WHERE id = $1`, [productId],
+    `SELECT stock_tracked, stock_on_hand, low_stock_threshold FROM public.product_variant WHERE product_id = $1`, [productId],
   )).rows[0];
 
 d("067 — stock is never reviewed (real PostgreSQL)", () => {
@@ -94,12 +96,11 @@ d("067 — stock is never reviewed (real PostgreSQL)", () => {
     actor = { sub: "sub-shop", shopId, kind: "shop" };
     // An APPROVED product, on sale, with a change to its name and price waiting on Effy.
     productId = (await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-                                   shop_price_amount, short_description, created_by, status, approved_at)
-       SELECT $1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1),
-              'Sourdough', 11.50, 10.00, 'A loaf', 'seed', 'active', now()
-       RETURNING id`, [shopId],
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), 'Sourdough', 'A loaf', 'seed', 'active', now()) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10.00, 11.50)::numeric, (11.50)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shopId],
     )).rows[0]!.id;
+    variantId = (await pool.query<{ id: string }>(`SELECT id::text FROM public.product_variant WHERE product_id = $1`, [productId])).rows[0]!.id;
     await pool.query(
       `INSERT INTO public.product_change (product_id, shop_id, proposed)
        VALUES ($1, $2, '{"name":"Rye","priceAmount":"12.00"}'::jsonb)`, [productId, shopId],
@@ -110,19 +111,19 @@ d("067 — stock is never reviewed (real PostgreSQL)", () => {
     const before = await snapshot();
     expect(before.change).toHaveLength(1);
 
-    await setTracking(actor, productId, { tracked: true, onHand: 12 });
+    await setTracking(actor, variantId, { tracked: true, onHand: 12 });
     expect(await stock()).toMatchObject({ stock_tracked: true, stock_on_hand: 12 });
 
-    await adjustCount(actor, productId, { delta: 24, reason: "received" });
+    await adjustCount(actor, variantId, { delta: 24, reason: "received" });
     expect((await stock()).stock_on_hand).toBe(36);
 
-    await setCount(actor, productId, { onHand: 30, reason: "correction" });
+    await setCount(actor, variantId, { onHand: 30, reason: "correction" });
     expect((await stock()).stock_on_hand).toBe(30);
 
-    await setThreshold(actor, productId, { threshold: 5 });
+    await setThreshold(actor, variantId, { threshold: 5 });
     expect((await stock()).low_stock_threshold).toBe(5);
 
-    await setTracking(actor, productId, { tracked: false });
+    await setTracking(actor, variantId, { tracked: false });
     expect((await stock()).stock_tracked).toBe(false);
 
     const after = await snapshot();
@@ -138,8 +139,8 @@ d("067 — stock is never reviewed (real PostgreSQL)", () => {
 
   it("a stock write on a product with nothing pending creates no change", async () => {
     await pool.query("DELETE FROM public.product_change");
-    await setTracking(actor, productId, { tracked: true, onHand: 3 });
-    await adjustCount(actor, productId, { delta: -1, reason: "damage" });
+    await setTracking(actor, variantId, { tracked: true, onHand: 3 });
+    await adjustCount(actor, variantId, { delta: -1, reason: "damage" });
     expect((await pool.query(`SELECT count(*) AS n FROM public.product_change`)).rows[0].n).toBe("0");
   });
 
@@ -152,9 +153,9 @@ d("067 — stock is never reviewed (real PostgreSQL)", () => {
           SET status = 'draft', approved_at = NULL, review_state = 'in_review', submitted_at = now()
         WHERE id = $1`, [productId],
     );
-    await setTracking(actor, productId, { tracked: true, onHand: 8 });
+    await setTracking(actor, variantId, { tracked: true, onHand: 8 });
     const row = (await pool.query(
-      `SELECT status, review_state, stock_on_hand FROM public.product WHERE id = $1`, [productId],
+      `SELECT p.status, p.review_state, v.stock_on_hand FROM public.product p JOIN public.product_variant v ON v.product_id = p.id WHERE p.id = $1`, [productId],
     )).rows[0];
     expect(row).toEqual({ status: "draft", review_state: "in_review", stock_on_hand: 8 });
   });

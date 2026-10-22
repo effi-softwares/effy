@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
+import com.effyshopping.customer.mobile.features.catalog.domain.Variant
+import com.effyshopping.customer.mobile.features.catalog.domain.VariantSelection
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.AddToCart
 import kotlinx.coroutines.CancellationException
@@ -15,7 +17,10 @@ import kotlinx.coroutines.launch
 
 sealed interface ProductDetailUiState {
     data object Loading : ProductDetailUiState
-    data class Ready(val product: ProductDetail) : ProductDetailUiState
+    /** 098 — [selectedVariantId] is the ONE size price, availability and add follow. */
+    data class Ready(val product: ProductDetail, val selectedVariantId: String = product.defaultVariantId) : ProductDetailUiState {
+        val selected: Variant? get() = product.variants.firstOrNull { it.id == selectedVariantId } ?: product.variants.firstOrNull()
+    }
     data object Error : ProductDetailUiState
 }
 
@@ -67,15 +72,28 @@ class ProductDetailViewModel(
         }
     }
 
+    /** 098 — the shopper picked value [valueId] of the option at [slot]; the selection moves to one size. */
+    fun pickValue(slot: Int, valueId: String) {
+        val ready = _state.value as? ProductDetailUiState.Ready ?: return
+        val current = ready.selected ?: return
+        val next = VariantSelection.pickValue(ready.product.variants, current.optionValueIds, slot, valueId) ?: return
+        _state.value = ready.copy(selectedVariantId = next.id)
+    }
+
     fun addToCart(quantity: Int) {
-        val product = (_state.value as? ProductDetailUiState.Ready)?.product ?: return
-        if (!product.card.available) return
+        val ready = _state.value as? ProductDetailUiState.Ready ?: return
+        val product = ready.product
+        val variant = ready.selected ?: return
+        if (!variant.available) return
         addToCart(
             GuestCartLine(
+                variantId = variant.id,
                 productId = product.card.id,
                 name = product.card.name,
-                imageUrl = product.card.imageUrl,
-                unitPriceAmount = product.card.priceAmount,
+                variantLabel = variant.label,
+                unitPrice = variant.unitPrice,
+                imageUrl = variant.imageUrl ?: product.card.imageUrl,
+                unitPriceAmount = variant.priceAmount,
                 currency = product.card.currency,
                 quantity = quantity,
                 packageKey = product.card.packageKey,

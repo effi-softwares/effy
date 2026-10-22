@@ -56,7 +56,10 @@ d("067 — the migration over an existing catalogue", () => {
     const mine = files.find((f) => f.endsWith(THIS));
     if (!mine) throw new Error("the 067 migration is missing — this test would prove nothing");
     const before = files.filter((f) => f < mine);
-    const after = files.filter((f) => f > mine);
+    // ⚠ Up to, not including, 098: 098 refuses a database that has a catalogue (the operator reset the
+    // catalogue to start variants fresh) and drops the very columns this test proves 067 backfilled.
+    // What is proven here is 067 over the catalogue of its day.
+    const after = files.filter((f) => f > mine && f < "20261026090000");
     expect(before.length).toBeGreaterThan(50);
 
     for (const f of before) await pool.query(upOf(f));

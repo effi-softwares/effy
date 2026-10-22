@@ -27,6 +27,8 @@ import { capture } from "@/lib/telemetry"
 import { takeMergeNotice } from "@/lib/saved-merge"
 import { isPurchasable, verdictNote } from "@/lib/saved-display"
 
+import { UnitPrice } from "@/app/(shop)/_components/UnitPrice"
+
 /**
  * The saved list (033) — a watchlist, so every row says what CHANGED.
  *
@@ -259,8 +261,10 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                   <MediaFrame src={item.imageUrl} widths={item.imageWidths} alt="" sizes="72px" rounded="rounded-md" className="bg-secondary" />
                 </Link>
                 <div className="min-w-[200px] flex-1 space-y-1">
-                  <Link href={`/product/${item.id}`} className="font-medium hover:underline">
+                  <Link href={savedHref(item)} className="font-medium hover:underline">
                     {item.name}
+                    {/* 098 — the size remembered with the save. */}
+                    {item.variantLabel ? <span className="font-normal text-muted-foreground"> · {item.variantLabel}</span> : null}
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-semibold tabular-nums">{formatMoney(item.priceAmount, item.currency)}</span>
@@ -277,6 +281,7 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                       </>
                     )}
                   </div>
+                  <UnitPrice unit={item.unitPrice} className="block" />
                   <VerdictLine verdict={item.verdict} />
                 </div>
 
@@ -288,16 +293,25 @@ export function SavedList({ initial, listId = DEFAULT_LIST_ID }: { initial: Save
                     <Button asChild variant="link" size="sm">
                       <Link href="/cart">{quantity === 1 ? "In your cart" : `${quantity} in your cart`}</Link>
                     </Button>
+                  ) : available && item.variantId === null ? (
+                    // 098 — sold in several sizes and none remembered: the shopper chooses (never a guess).
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/product/${item.id}`}>Choose size</Link>
+                    </Button>
                   ) : (
-                    available && (
+                    available &&
+                    item.variantId !== null && (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={() =>
                           addItem({
+                            variantId: item.variantId!,
                             productId: item.id,
                             name: item.name,
+                            variantLabel: item.variantLabel,
+                            unitPrice: item.unitPrice,
                             imageUrl: item.imageUrl,
                             unitPriceAmount: item.priceAmount,
                             currency: item.currency,
@@ -353,6 +367,10 @@ function insertAt(items: SavedItemDTO[], item: SavedItemDTO, index: number): Sav
   return next
 }
 
+/** The product page, on the remembered size when the product is sold in several (098). */
+const savedHref = (item: SavedItemDTO) =>
+  item.variantId && item.variantCount > 1 ? `/product/${item.id}?variant=${item.variantId}` : `/product/${item.id}`
+
 function inCart(lines: readonly { productId: string; quantity: number }[], productId: string): number {
   return lines.reduce((n, l) => (l.productId === productId ? n + l.quantity : n), 0)
 }
@@ -370,6 +388,9 @@ function skipReason(reason: string): string {
       return "no longer available"
     case "unavailable":
       return "couldn't be added right now"
+    // 098 — sold in several sizes and none remembered: never a guessed size.
+    case "choose_variant":
+      return "choose a size on its page"
     default:
       return verdictNote(reason as SavedVerdict).toLowerCase()
   }

@@ -14,6 +14,8 @@
  *
  * Every mutation returns the COMPLETE re-priced cart, so the caller never guesses an outcome (FR-007), and
  * carries a `changeId` minted once per shopper action so a retry cannot apply twice (FR-018).
+ *
+ * 098 — a line is a VARIANT (a size of a product); every per-line call names its `variantId`.
  */
 import type { CartDTO, CartPolicyDTO, ReorderResultDTO } from "@effy/shared-types"
 
@@ -46,10 +48,10 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const q = (changeId: string) => `?changeId=${encodeURIComponent(changeId)}`
-const seg = (productId: string) => encodeURIComponent(productId)
+const seg = (variantId: string) => encodeURIComponent(variantId)
 
 export interface CartLineInputJson {
-  productId: string
+  variantId: string
   quantity: number
 }
 
@@ -57,21 +59,21 @@ export const cartApi = {
   get: () => call<CartDTO>("/api/cart"),
 
   /** Add or INCREMENT — the only non-idempotent write, so `changeId` is not optional. */
-  add: (productId: string, quantity: number, changeId: string) =>
+  add: (variantId: string, quantity: number, changeId: string) =>
     call<CartDTO>("/api/cart/items", {
       method: "POST",
-      body: JSON.stringify({ productId, quantity, changeId }),
+      body: JSON.stringify({ variantId, quantity, changeId }),
     }),
 
   /** Set an ABSOLUTE quantity; 0 removes. */
-  setQuantity: (productId: string, quantity: number, changeId: string) =>
-    call<CartDTO>(`/api/cart/items/${seg(productId)}`, {
+  setQuantity: (variantId: string, quantity: number, changeId: string) =>
+    call<CartDTO>(`/api/cart/items/${seg(variantId)}`, {
       method: "PATCH",
       body: JSON.stringify({ quantity, changeId }),
     }),
 
-  remove: (productId: string, changeId: string) =>
-    call<CartDTO>(`/api/cart/items/${seg(productId)}${q(changeId)}`, { method: "DELETE" }),
+  remove: (variantId: string, changeId: string) =>
+    call<CartDTO>(`/api/cart/items/${seg(variantId)}${q(changeId)}`, { method: "DELETE" }),
 
   /** Empty the payable cart; set-aside items survive (FR-030). */
   clear: (changeId: string) => call<CartDTO>(`/api/cart${q(changeId)}`, { method: "DELETE" }),
@@ -86,14 +88,14 @@ export const cartApi = {
       body: JSON.stringify({ orderId, changeId }),
     }),
 
-  setAside: (productId: string, changeId: string) =>
-    call<CartDTO>(`/api/cart/items/${seg(productId)}/set-aside${q(changeId)}`, { method: "POST" }),
+  setAside: (variantId: string, changeId: string) =>
+    call<CartDTO>(`/api/cart/items/${seg(variantId)}/set-aside${q(changeId)}`, { method: "POST" }),
 
-  restoreSaved: (productId: string, changeId: string) =>
-    call<CartDTO>(`/api/cart/saved/${seg(productId)}/restore${q(changeId)}`, { method: "POST" }),
+  restoreSaved: (variantId: string, changeId: string) =>
+    call<CartDTO>(`/api/cart/saved/${seg(variantId)}/restore${q(changeId)}`, { method: "POST" }),
 
-  deleteSaved: (productId: string, changeId: string) =>
-    call<CartDTO>(`/api/cart/saved/${seg(productId)}${q(changeId)}`, { method: "DELETE" }),
+  deleteSaved: (variantId: string, changeId: string) =>
+    call<CartDTO>(`/api/cart/saved/${seg(variantId)}${q(changeId)}`, { method: "DELETE" }),
 
   /** Apply a promotional code. The platform decides validity and worth — never this client (FR-042). */
   applyPromo: (code: string) => call<CartDTO>("/api/cart/promo", { method: "POST", body: JSON.stringify({ code }) }),

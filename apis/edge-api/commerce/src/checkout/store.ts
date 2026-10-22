@@ -1,8 +1,9 @@
 // The checkout store: SQL only. What the charge is computed from, and the pending order it is
 // recorded against. Payment FINALISATION is not here — it is `@effy/edge-shared/payments`.
 import {
-  availabilityPredicate, formatCents, parseCents, pooled, withTransaction, type Queryable, type Transactor,
+  formatCents, parseCents, pooled, variantPurchasableSql, withTransaction, type Queryable, type Transactor,
 } from "@effy/edge-shared";
+import { variantLabelSql } from "@effy/edge-shared/catalog";
 import {
   judgeWindow, loadSlotSettings, lockSlot, collectionSchedule, slotLoad, type SlotVerdict,
 } from "@effy/edge-shared/delivery";
@@ -16,6 +17,13 @@ import type { Pricing } from "../promotions/pricing";
 
 export interface CheckoutLine {
   productId: string;
+  /** 098 — the variant bought; the line's identity. */
+  variantId: string;
+  /** 098 — its label as it is NOW, snapshotted onto the order line ("1 kg"); null with no options. */
+  variantLabel: string | null;
+  /** 098 — its stock code and barcode now, snapshotted for the picker. */
+  sku: string | null;
+  gtin: string | null;
   shopId: string;
   name: string;
   unitCents: number;
@@ -23,7 +31,7 @@ export interface CheckoutLine {
   quantity: number;
   /** What the cart asked for, before that cap. */
   requestedQuantity: number;
-  /** Per-unit logistics weight; a package's weight is Σ(weight × quantity) per shop (047). */
+  /** Per-unit logistics weight (the VARIANT's, 098); a package's weight is Σ(weight × quantity) per shop (047). */
   weightGrams: number;
   /** frozen | chilled | ambient — snapshotted so a driver is told what was SOLD (065). */
   storageClass: string;
@@ -108,6 +116,10 @@ export interface PaymentProfile {
 
 interface LineRow {
   product_id: string;
+  variant_id: string;
+  variant_label: string | null;
+  sku: string | null;
+  gtin: string | null;
   shop_id: string;
   name: string;
   unit_price_amount: string;
@@ -181,20 +193,24 @@ export function createCheckoutStore(db: Queryable = pooled, transact: Transactor
         await db.query<LineRow>(
           `
 SELECT ci.product_id::text AS product_id,
+       ci.variant_id::text AS variant_id,
+       ${variantLabelSql("v")} AS variant_label,
+       v.sku               AS sku,
+       v.gtin              AS gtin,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
-       p.price_amount::text AS unit_price_amount,
-       -- 067: price_amount is what the CUSTOMER pays and is what is charged. The shop's own price
-       -- rides beside it; NULL on a row written before 067 means "the same".
-       COALESCE(p.shop_price_amount, p.price_amount)::text AS shop_unit_price_amount,
+       -- 098 — the VARIANT's prices. price_amount is what the CUSTOMER pays and is what is charged
+       -- (067); the shop's own price rides beside it.
+       v.price_amount::text AS unit_price_amount,
+       v.shop_price_amount::text AS shop_unit_price_amount,
        -- ⚠ 054 FR-020: the quantity PAID FOR is capped at what the shop can supply. Without this a
        -- line asking for 5 with 2 on the shelf would create a charge for 5, and the shopper would
        -- pay in full for three units that do not exist.
        -- ⚠ In SQL, not in code, so it cannot be forgotten by a second caller of this read.
        LEAST(ci.quantity,
-             CASE WHEN p.stock_tracked THEN p.stock_on_hand ELSE ci.quantity END) AS quantity,
+             CASE WHEN v.stock_tracked THEN v.stock_on_hand ELSE ci.quantity END) AS quantity,
        ci.quantity         AS requested_quantity,
-       p.weight_grams      AS weight_grams,
+       v.weight_grams      AS weight_grams,
        -- ⚠ 065: storage is a product ATTRIBUTE, not a column. Anything that is not exactly frozen
        -- or chilled is ambient, INCLUDING a value the back office adds later: the order line's
        -- CHECK admits three values, and an unrecognised fourth must not fail a shopper's payment.
@@ -208,13 +224,15 @@ SELECT ci.product_id::text AS product_id,
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
-WHERE c.customer_id = $1 AND ${availabilityPredicate("p")}
+JOIN public.product_variant v ON v.id = ci.variant_id
+WHERE c.customer_id = $1 AND ${variantPurchasableSql("p", "v")}
 ORDER BY ci.added_at ASC`,
           [customerId],
         )
       ).rows;
       return rows.map((r) => ({
-        productId: r.product_id, shopId: r.shop_id, name: r.name,
+        productId: r.product_id, variantId: r.variant_id, variantLabel: r.variant_label, sku: r.sku, gtin: r.gtin,
+        shopId: r.shop_id, name: r.name,
         unitCents: parseCents(r.unit_price_amount), shopUnitCents: parseCents(r.shop_unit_price_amount),
         quantity: r.quantity, requestedQuantity: r.requested_quantity,
         weightGrams: r.weight_grams, storageClass: r.storage_class, gstClassified: r.gst_classified,
@@ -349,14 +367,18 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
             `
 INSERT INTO public.order_item
     (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount,
-     storage_class, shop_unit_price_amount, shop_line_subtotal_amount, gst_status)
+     storage_class, shop_unit_price_amount, shop_line_subtotal_amount, gst_status,
+     variant_id, variant_label, sku, gtin)
 VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::numeric,
         -- 096 — the product's GST status as it is NOW, frozen on the line: a later change to the
         -- product never alters what this order's tax invoice says.
-        (SELECT p.gst_status FROM public.product p WHERE p.id = $2))`,
+        (SELECT p.gst_status FROM public.product p WHERE p.id = $2),
+        -- 098 — the variant, and its label and codes AS SOLD (snapshots, like the name and price).
+        $11, $12, $13, $14)`,
             [
               orderId, l.productId, l.shopId, l.name, formatCents(l.unitCents), l.quantity, formatCents(l.unitCents * l.quantity),
               storageClassOrAmbient(l.storageClass), formatCents(l.shopUnitCents), formatCents(l.shopUnitCents * l.quantity),
+              l.variantId, l.variantLabel, l.sku, l.gtin,
             ],
           );
         }
@@ -522,11 +544,11 @@ WHERE o.id = $1 AND o.customer_id = $2 AND pay.stripe_payment_intent_id IS NOT N
           formatCents(o.deliveryDiscountCents),
         ]);
         await tx.query(`UPDATE public.order_item SET discount_amount = 0 WHERE order_id = $1`, [orderId]);
-        // The cart has one line per product, and the order's lines were written from it (pricing.ts).
-        for (const [productId, cents] of Object.entries(o.lineDiscounts)) {
-          await tx.query(`UPDATE public.order_item SET discount_amount = $3::numeric WHERE order_id = $1 AND product_id = $2`, [
+        // The cart has one line per VARIANT (098), and the order's lines were written from it (pricing.ts).
+        for (const [variantId, cents] of Object.entries(o.lineDiscounts)) {
+          await tx.query(`UPDATE public.order_item SET discount_amount = $3::numeric WHERE order_id = $1 AND variant_id = $2`, [
             orderId,
-            productId,
+            variantId,
             formatCents(cents),
           ]);
         }

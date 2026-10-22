@@ -1,0 +1,148 @@
+// Reading a product's options and variants (098) — one read for every service that shows them (the
+// shop console, Effy's review, the storefront), so the label, the order and the shape agree.
+// Rows only: each service maps them to its own DTO (a shopper never sees a shop price or a removed
+// variant; a shop never sees a margin).
+
+import type { PackUnit, VariantState } from "@effy/shared-types";
+
+import type { Queryable } from "../lib/db";
+import { variantLabelSql } from "./label";
+
+export interface OptionValueRow {
+  id: string;
+  value: string;
+  position: number;
+}
+
+export interface OptionRow {
+  id: string;
+  productId: string;
+  position: number;
+  name: string;
+  values: OptionValueRow[];
+}
+
+export interface VariantRow {
+  id: string;
+  productId: string;
+  position: number;
+  optionValueIds: [string | null, string | null];
+  label: string | null;
+  sku: string | null;
+  gtin: string | null;
+  shopPriceAmount: string;
+  shopCompareAtAmount: string | null;
+  /** Customer price; null until first approved. */
+  priceAmount: string | null;
+  compareAtAmount: string | null;
+  weightGrams: number;
+  weightIsAssumed: boolean;
+  packQuantity: string | null;
+  packUnit: PackUnit | null;
+  mediaId: string | null;
+  mediaStorageKey: string | null;
+  stockTracked: boolean;
+  stockOnHand: number | null;
+  lowStockThreshold: number | null;
+  state: VariantState;
+}
+
+export interface VariantSet {
+  options: OptionRow[];
+  variants: VariantRow[];
+}
+
+/** A pack quantity as the shop typed it: "1.25", "500" — never "500.000". */
+function trimQuantity(q: string | null): string | null {
+  if (q === null) return null;
+  return q.includes(".") ? q.replace(/0+$/, "").replace(/\.$/, "") : q;
+}
+
+/**
+ * Options (with their values, in order) and variants (active and inactive in display order, then
+ * removed) for each product. `includeRemoved: false` leaves removed variants out; shopper reads pass
+ * `states: ["active"]`.
+ */
+export async function readVariantSets(
+  db: Queryable,
+  productIds: readonly string[],
+  opts: { states?: readonly VariantState[] } = {},
+): Promise<Map<string, VariantSet>> {
+  const out = new Map<string, VariantSet>();
+  for (const id of productIds) out.set(id, { options: [], variants: [] });
+  if (productIds.length === 0) return out;
+
+  const [options, variants] = await Promise.all([
+    db.query<{ id: string; product_id: string; position: number; name: string; values: OptionValueRow[] | null }>(
+      `SELECT o.id::text, o.product_id::text, o.position, o.name,
+              (SELECT json_agg(json_build_object('id', ov.id, 'value', ov.value, 'position', ov.position) ORDER BY ov.position)
+                 FROM public.product_option_value ov WHERE ov.option_id = o.id) AS values
+         FROM public.product_option o
+        WHERE o.product_id = ANY($1::uuid[])
+        ORDER BY o.product_id, o.position`,
+      [productIds],
+    ),
+    db.query<{
+      id: string; product_id: string; position: number; option1_value_id: string | null; option2_value_id: string | null;
+      label: string | null; sku: string | null; gtin: string | null; shop_price_amount: string; shop_compare_at_amount: string | null;
+      price_amount: string | null; compare_at_amount: string | null; weight_grams: number; weight_is_assumed: boolean;
+      pack_quantity: string | null; pack_unit: PackUnit | null; media_id: string | null; media_storage_key: string | null;
+      stock_tracked: boolean; stock_on_hand: number | null; low_stock_threshold: number | null; state: VariantState;
+    }>(
+      `SELECT v.id::text, v.product_id::text, v.position, v.option1_value_id::text, v.option2_value_id::text,
+              ${variantLabelSql("v")} AS label,
+              v.sku, v.gtin, v.shop_price_amount::text, v.shop_compare_at_amount::text,
+              v.price_amount::text, v.compare_at_amount::text, v.weight_grams, v.weight_is_assumed,
+              v.pack_quantity::text, v.pack_unit, v.media_id::text, m.storage_key AS media_storage_key,
+              v.stock_tracked, v.stock_on_hand, v.low_stock_threshold, v.state
+         FROM public.product_variant v
+         LEFT JOIN public.product_media m ON m.id = v.media_id
+        WHERE v.product_id = ANY($1::uuid[])
+          AND ($2::text[] IS NULL OR v.state = ANY($2::text[]))
+        ORDER BY v.product_id, (v.state = 'removed'), v.position, v.created_at`,
+      [productIds, opts.states ? [...opts.states] : null],
+    ),
+  ]);
+
+  for (const r of options.rows) {
+    out.get(r.product_id)?.options.push({
+      id: r.id,
+      productId: r.product_id,
+      position: Number(r.position),
+      name: r.name,
+      values: (r.values ?? []).map((v) => ({ id: String(v.id), value: v.value, position: Number(v.position) })),
+    });
+  }
+  for (const r of variants.rows) {
+    out.get(r.product_id)?.variants.push({
+      id: r.id,
+      productId: r.product_id,
+      position: Number(r.position),
+      optionValueIds: [r.option1_value_id, r.option2_value_id],
+      label: r.label,
+      sku: r.sku,
+      gtin: r.gtin,
+      shopPriceAmount: r.shop_price_amount,
+      shopCompareAtAmount: r.shop_compare_at_amount,
+      priceAmount: r.price_amount,
+      compareAtAmount: r.compare_at_amount,
+      weightGrams: Number(r.weight_grams),
+      weightIsAssumed: r.weight_is_assumed,
+      packQuantity: trimQuantity(r.pack_quantity),
+      packUnit: r.pack_unit,
+      mediaId: r.media_id,
+      mediaStorageKey: r.media_storage_key,
+      stockTracked: r.stock_tracked,
+      stockOnHand: r.stock_on_hand === null ? null : Number(r.stock_on_hand),
+      lowStockThreshold: r.low_stock_threshold === null ? null : Number(r.low_stock_threshold),
+      state: r.state,
+    });
+  }
+  return out;
+}
+
+/** Only the values some given variant names — what a shopper's selector shows. */
+export function optionsInUse(set: VariantSet): OptionRow[] {
+  const used = new Set(set.variants.flatMap((v) => v.optionValueIds.filter((x): x is string => x !== null)));
+  return set.options.map((o) => ({ ...o, values: o.values.filter((v) => used.has(v.id)) }));
+}

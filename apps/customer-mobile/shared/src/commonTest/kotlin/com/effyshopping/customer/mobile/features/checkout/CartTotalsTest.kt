@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 class CartTotalsTest {
 
     private fun line(unit: String, qty: Int) =
-        GuestCartLine("p$unit$qty", "x", null, unit, "AUD", qty)
+        GuestCartLine("v$unit$qty", "p$unit$qty", "x", imageUrl = null, unitPriceAmount = unit, currency = "AUD", quantity = qty)
 
     @Test
     fun centsRoundTrip() {

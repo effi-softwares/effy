@@ -4,6 +4,61 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**098-product-variants — Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** 🔨 **BUILT
+2026-10-22 — NOT MIGRATED, DEPLOYED OR WALKED.** A product is now its shared details plus one or more **variants**
+(up to two options such as Size and Flavour, up to 20 values each, up to 50 variants). Each variant has its own shop
+price, "was" price, SKU, barcode, weight, pack size, stock and optional picture; a product sold one way has exactly
+one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](specs/098-product-variants/tasks.md).
+- **Data** (`db/migrations/20261026090000_product_variants.sql`, ONE-WAY): `product_option`, `product_option_value`,
+  `product_variant`; the product loses its price, codes, weight and stock columns and gains `unit_basis` and a
+  listing summary (`list_price_amount`, `list_compare_at_amount`, `price_varies`). Cart lines, saved-for-later
+  lines, order lines (+ `variant_label`, `sku`, `gtin` snapshots) and stock movements name a variant through a
+  composite FK `(variant_id, product_id)`; a saved item remembers one (`customer_saved_item.variant_id`, SET NULL).
+  ⚠ The migration **refuses to run** while any product, order or cart row exists — the purge script comes first.
+- **One writer each** (`@effy/edge-shared/catalog`): `applyVariantSet` (options/values/variants; a variant left
+  out of a draft is deleted, of a live product REMOVED and kept), `priceVariants` (the product's ONE margin prices
+  every variant), `setVariantState` (on/off/remove, immediate; the last active variant cannot go — 409),
+  `refreshListing` (the summary; lowest ACTIVE price, never moved by a sale). Stock columns stay with the 054 stock
+  writers; `finalize` locks and deducts per variant. `catalog.guard.test.ts` fails a second writer.
+- **Approval**: a draft is edited in place; a live product's edits propose the WHOLE option/variant set, applied at
+  approval. Taking a size off sale never waits. Back-office review shows every size priced under the margin as
+  typed (`ReviewVariants`).
+- **Routes renamed one for one**: cart lines and stock are keyed by `{variantId}`; saved items and lists stay keyed
+  by product. New: `POST /shop/v1/products/{id}/variants/{variantId}/state`. Saved/list writes accept `variantId`.
+  A saved item's `variantId` is **the size "Add to cart" adds** (remembered, else the only one; null = choose).
+- **Unit pricing**: `unitPrice` computed by the platform (`unitPriceCents`, whole cents, half up) and only SAID by
+  clients; the words and cases are pinned by `unit-price.fixtures.json` (TS + the app's `UnitPriceWordsTest`).
+- **Surfaces**: shop-web (Sizes & prices step and editor, Sizes table with immediate on/off/remove, stock per size,
+  labels and barcodes on order/pick/label lines); back-office (review sizes, stock per size, order and refund
+  labels); customer-web and the customer app at parity ("From", "Choose" on multi-size tiles, the selector with
+  sold-out sizes struck through, unit price, labels in cart/checkout/receipt, saved/lists remember the size,
+  `ProductGroup` JSON-LD on the web). Driver manifest, receipts email and documents name the size in the line.
+- ⚠ **Carts from before 098 are DROPPED** on both clients (web storage key `effy:cart:v3`, app cart schema 2) —
+  they named products and the catalogue was started afresh, so a guessed size would be a wrong one.
+- ⚠ **026's mobile-guard ban on size pickers was lifted** (`scripts/mobile-guard.sh`): it kept the UI kit's apparel
+  picker out; 098's selector is drawn from the product's own options.
+- **Defects found while building**: (1) the migration's DROP COLUMN failed on the shop-ops trigger that depended on
+  the column — the trigger is dropped and recreated around it; (2) a plain combination unique index refused a size
+  re-added after removal, and value FKs on removed variants blocked deleting an option — now a partial unique index
+  and SET NULL FKs; (3) validation that ran a query first aborted the caller's transaction on a malformed id — the
+  pure rules now run before any query; (4) customer-web's product page kept per-size prices in its MINUTES-long
+  content cache — sizes are now part of the live read (`LIVE_FIELDS`, guarded); (5) a BigInt literal in
+  `unit-price.ts` failed customer-web's compile target; (6) the app's saved list could not add a single-size
+  product with nothing remembered until the DTO's `variantId` meant "the size to add".
+- **Verified**: every edge-api unit suite, shop-web 509, back-office 390, customer-web 717 (+ production build,
+  every route within the bundle budget), shared-types 217, customer app host tests 440 + iOS compile, design-system
+  and mobile guards, gateway capacity. Container suites run green for the 098-touched areas, incl. new
+  `catalog/variants.container.test.ts` (writers, pricing, state, two payments for the last unit of one size),
+  `shop/products/variant-change.container.test.ts`, cart/promotion/checkout/order-line cases. ⚠ Failing for reasons
+  older than 098: shop attention (`shop_role` has no `id`), admin go-live (schema bounded before 085), the orders
+  read test's hand-built schema (`round_opens_at`), commerce checkout "079 P9".
+- **OPERATOR STEPS (dev only, in order)**: commit; `psql "$DSN" -f db/reset/098_purge_catalogue_dev.sql` (refuses a
+  database whose name lacks "dev"); `make db-up ENV=dev`; `psql "$DSN" -f db/seeds/084_storefront_catalogue_dev.sql`
+  then `psql "$DSN" -f db/seeds/098_variant_catalogue_dev.sql`; `make edge-deploy ENV=dev SERVICE=…` for
+  `storefront`, `commerce`, `shop`, `catalog`, `inventory`, `inventory-staff`, `orders`, `driver`, `fleet`,
+  `notifications`, `admin-promotions` — ALL before dev is used; then shop-web, back-office, customer-web; then a new
+  customer app build. Walk [quickstart.md](specs/098-product-variants/quickstart.md).
+
 **096-parcel-labels-scanning — Order Package Labels, Scanning & Printed Documents.** 🔨 **BUILT 2026-10-22 — NOT
 MIGRATED, DEPLOYED OR WALKED** (an earlier deploy of the P1 set may have been run; see the operator steps). Every physical
 bag of an order now has its own permanent code and a professional carrier-style label; every hand-over is per bag and

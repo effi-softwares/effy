@@ -172,12 +172,20 @@ data class CreatePresignedUploadRequest (
 data class CreateProductRequest (
     val attributes: List<AttributeValueInputDTO>? = null,
     val brand: String? = null,
-    val compareAtAmount: String? = null,
-    val gtin: String? = null,
+
+    /**
+     * 096 — required: every product is taxable or GST-free from the moment it exists (FR-091).
+     */
+    val gstStatus: GstStatus,
+
     val longDescription: String? = null,
     val media: List<Media>? = null,
     val name: String,
-    val priceAmount: String,
+
+    /**
+     * 098 — 0 to 2 options. Ids are client-generated UUIDs.
+     */
+    val options: List<OptionInputDTO>,
 
     @SerialName("primaryCategoryId")
     val primaryCategoryID: String,
@@ -191,15 +199,18 @@ data class CreateProductRequest (
     val sectionIDS: List<String>? = null,
 
     val shortDescription: String,
-    val sku: String? = null,
 
     /**
-     * Shipping weight in grams (032, FR-036a). Omit and the platform records its stated default
-     * as an ASSUMPTION. ⚠ There is deliberately no `weightIsAssumed` field: the flag is derived
-     * from the act of supplying a weight and is never accepted from a client, or "measured"
-     * would mean only "the client said so".
+     * 098 — how sizes are compared; omit for no unit price.
      */
-    val weightGrams: Double? = null
+    val unitBasis: UnitBasis? = null,
+
+    /**
+     * 098 — 1 to 50 variants; exactly one (with no option values) when there are no options.
+     * Each carries its own price, codes and shipping weight (omit a weight to record the
+     * platform default as an ASSUMPTION — 032 FR-036a).
+     */
+    val variants: List<VariantInputDTO>
 )
 
 /**
@@ -217,6 +228,22 @@ data class AttributeValueInputDTO (
     val valueText: String? = null
 )
 
+/**
+ * 096 — required: every product is taxable or GST-free from the moment it exists (FR-091).
+ *
+ * 096 US9 — a product's GST status: taxable, or GST-free (basic food). Null = not yet
+ * classified.
+ *
+ * 096
+ *
+ * 096 — on a live product this is PROPOSED and reviewed, like every other detail (067).
+ */
+@Serializable
+enum class GstStatus(val value: String) {
+    @SerialName("gst_free") GstFree("gst_free"),
+    @SerialName("taxable") Taxable("taxable");
+}
+
 @Serializable
 data class Media (
     val altText: String? = null,
@@ -224,6 +251,89 @@ data class Media (
     val isPrimary: Boolean? = null,
     val storageKey: String
 )
+
+/**
+ * One option as a shop sends it. Ids are CLIENT-GENERATED (UUIDs) for new options and
+ * values (R6).
+ */
+@Serializable
+data class OptionInputDTO (
+    val id: String,
+    val name: String,
+    val position: Long,
+    val values: List<Value>
+)
+
+@Serializable
+data class Value (
+    val id: String,
+    val position: Long,
+    val value: String
+)
+
+/**
+ * Unit pricing — 098-product-variants (R12).
+ *
+ * A product says how its sizes are COMPARED (`UnitBasis`: per 100 g, per kg, per 100 mL,
+ * per L, each); each variant says how much is in its pack (`packQuantity` + `PackUnit`).
+ * The comparison price is the price scaled to the basis: $3.20 for 500 g → $0.64 / 100 g.
+ * Australian online grocers show one beside every price (the Unit Pricing Code), and it is
+ * how a shopper tells which size is better value.
+ *
+ * ⚠ ONE SUM, HERE. The server computes it for every DTO that carries a price and sends
+ * `UnitPriceDTO`; clients only FORMAT it (`unitPriceText`). The customer app's Kotlin
+ * formatter is pinned to `unit-price.fixtures.json` — the same file `unit-price.test.ts`
+ * runs.
+ *
+ * ⚠ INTEGER ARITHMETIC. Price in whole cents, pack quantity scaled to thousandths, one
+ * half-up rounding to a whole cent at the end — never a float.
+ */
+@Serializable
+enum class UnitBasis(val value: String) {
+    @SerialName("each") Each("each"),
+    @SerialName("per_100g") Per100G("per_100g"),
+    @SerialName("per_100ml") Per100Ml("per_100ml"),
+    @SerialName("per_kg") PerKg("per_kg"),
+    @SerialName("per_l") PerL("per_l");
+}
+
+/**
+ * One variant as a shop sends it. `id` is client-generated for a new variant (R6).
+ */
+@Serializable
+data class VariantInputDTO (
+    val gtin: String? = null,
+    val id: String,
+
+    /**
+     * A storage key from the product's gallery (live, or proposed with a pending change).
+     */
+    val mediaStorageKey: String? = null,
+
+    @SerialName("optionValueIds")
+    val optionValueIDS: List<String?>,
+
+    val packQuantity: String? = null,
+    val packUnit: PackUnit? = null,
+    val position: Long,
+    val shopCompareAtAmount: String? = null,
+    val shopPriceAmount: String,
+    val sku: String? = null,
+
+    /**
+     * Recording a weight marks it measured (032). Omit or null to keep the assumed default.
+     */
+    val weightGrams: Long? = null
+)
+
+@Serializable
+enum class PackUnit(val value: String) {
+    @SerialName("each") Each("each"),
+    @SerialName("g") G("g"),
+    @SerialName("kg") Kg("kg"),
+    @SerialName("l") L("l"),
+    @SerialName("ml") Ml("ml");
+}
 
 @Serializable
 data class CreateShopSectionRequest (
@@ -507,7 +617,18 @@ data class LowStockRowDTO (
      */
     val severity: Severity,
 
-    val sku: String? = null
+    val sku: String? = null,
+
+    /**
+     * 098
+     */
+    @SerialName("variantId")
+    val variantID: String,
+
+    /**
+     * 098 — "1 kg"; null for a product with no options.
+     */
+    val variantLabel: String? = null
 )
 
 /**
@@ -623,22 +744,14 @@ data class ProductDetailDTO (
     val attributes: List<ProductAttributeValueDTO>,
     val brand: String? = null,
     val categoryName: String,
-    val compareAtAmount: String? = null,
     val createdAt: String,
     val currency: String,
 
     /**
-     * The customer-facing "was" price, with the same margin applied; `compareAtAmount` is the
-     * shop's.
+     * 096 — taxable or GST-free; null on a product made before 096 and not yet classified.
      */
-    val customerCompareAtAmount: String? = null,
+    val gstStatus: GstStatus? = null,
 
-    /**
-     * What customers pay. For a product with no margin set, equal to the shop price.
-     */
-    val customerPriceAmount: String? = null,
-
-    val gtin: String? = null,
     val id: String,
     val longDescription: String? = null,
     val media: List<ProductMediaDTO>,
@@ -646,12 +759,16 @@ data class ProductDetailDTO (
     val name: String,
 
     /**
+     * 098 — up to two options ("Size", "Flavour") with their values in the shop's order. Empty
+     * for a product with no options.
+     */
+    val options: List<OptionDTO>,
+
+    /**
      * The shop's proposed new version of an APPROVED product, waiting on Effy — or null when
      * there is none. Customers keep seeing everything ABOVE this field until it is approved.
      */
     val pendingChange: ProductPendingChangeDTO? = null,
-
-    val priceAmount: String,
 
     @SerialName("primaryCategoryId")
     val primaryCategoryID: String,
@@ -670,31 +787,22 @@ data class ProductDetailDTO (
     @SerialName("shopId")
     val shopID: String,
 
-    /**
-     * What the shop is paid. `priceAmount` above stays equal to it.
-     */
-    val shopPriceAmount: String? = null,
-
     val shortDescription: String,
-    val sku: String? = null,
     val status: ProductStatus,
     val typeName: String,
+
+    /**
+     * 098 — how this product's sizes are compared (unit pricing); null = no unit price.
+     */
+    val unitBasis: UnitBasis? = null,
+
     val updatedAt: String,
 
     /**
-     * Shipping weight in grams (032). ⚠ A LOGISTICS fact, deliberately distinct from any
-     * `net_weight` attribute a shopper reads on the product page — they agree by backfill today
-     * and may legitimately diverge, because packaging weighs something. Delivery is priced from
-     * this.
+     * 098 — every variant (active, inactive, then removed), in display order. Price, stock
+     * code, barcode, weight, pack size and stock all live HERE — a product has none of its own.
      */
-    val weightGrams: Double,
-
-    /**
-     * ⚠ TRUE means nobody has recorded a real weight and the platform default is in use.
-     * Without this flag "500 g" would mean both "we weighed it" and "nobody has said", and no
-     * operator could tell which products still need attention (FR-037a).
-     */
-    val weightIsAssumed: Boolean
+    val variants: List<ShopVariantDTO>
 )
 
 /**
@@ -729,6 +837,26 @@ data class ProductMediaDTO (
 )
 
 @Serializable
+data class OptionDTO (
+    val id: String,
+    val name: String,
+
+    /**
+     * 1 or 2.
+     */
+    val position: Long,
+
+    val values: List<OptionValueDTO>
+)
+
+@Serializable
+data class OptionValueDTO (
+    val id: String,
+    val position: Long,
+    val value: String
+)
+
+@Serializable
 data class ProductPendingChangeDTO (
     /**
      * The COMPLETE proposed image set, or null when the images are not being changed.
@@ -749,15 +877,19 @@ data class ProductPendingChangeDTO (
 data class ProductChangeProposalDTO (
     val attributes: List<AttributeValueInputDTO>? = null,
     val brand: String? = null,
-    val compareAtAmount: String? = null,
-    val gtin: String? = null,
+
+    /**
+     * 096
+     */
+    val gstStatus: GstStatus? = null,
+
     val longDescription: String? = null,
     val name: String? = null,
 
     /**
-     * The proposed SHOP price.
+     * 098 — the COMPLETE proposed option set, present only when it differs from live.
      */
-    val priceAmount: String? = null,
+    val options: List<OptionInputDTO>? = null,
 
     @SerialName("primaryCategoryId")
     val primaryCategoryID: String? = null,
@@ -766,8 +898,17 @@ data class ProductChangeProposalDTO (
     val productTypeID: String? = null,
 
     val shortDescription: String? = null,
-    val sku: String? = null,
-    val weightGrams: Double? = null
+
+    /**
+     * 098
+     */
+    val unitBasis: UnitBasis? = null,
+
+    /**
+     * 098 — the COMPLETE proposed variant set (prices are SHOP prices), present only when it
+     * differs from live. A live variant missing from it is removed on approval.
+     */
+    val variants: List<VariantInputDTO>? = null
 )
 
 @Serializable
@@ -795,57 +936,65 @@ enum class ShopReviewState(val value: String) {
 }
 
 /**
- * Paged product list envelope. Structurally a `PagedDTO<ProductListItemDTO>` but declared
- * concretely (not a generic alias) so the Kotlin contract generator can name it.
+ * A shop's (and back-office's) view of one variant.
  */
 @Serializable
-data class ProductListDTO (
-    val items: List<ProductListItemDTO>,
-    val page: Double,
-    val pageSize: Double,
-    val total: Double
-)
-
-/**
- * A thin row in the shop catalog table (backend-paginated).
- */
-@Serializable
-data class ProductListItemDTO (
-    val brand: String? = null,
-    val categoryName: String,
-    val currency: String,
+data class ShopVariantDTO (
+    val customerCompareAtAmount: String? = null,
 
     /**
-     * 067 — what customers pay: the shop price plus Effy's margin.
+     * What the customer pays: shop price + Effy's margin. Null until the product is first
+     * approved.
      */
     val customerPriceAmount: String? = null,
 
+    val gtin: String? = null,
     val id: String,
-    val name: String,
-    val priceAmount: String,
-
-    @SerialName("primaryImageUrl")
-    val primaryImageURL: String? = null,
+    val label: String? = null,
 
     /**
-     * 067 — where the product stands with Effy's review.
+     * One of the product's gallery pictures, or null.
      */
-    val reviewState: ShopReviewState? = null,
+    @SerialName("mediaId")
+    val mediaID: String? = null,
+
+    @SerialName("optionValueIds")
+    val optionValueIDS: List<String?>,
 
     /**
-     * 067 — what the shop is paid. Equal to `priceAmount`, which is kept for installed app
-     * builds.
+     * Decimal string, up to 3 places ("1.25"), with `packUnit`; both null when no pack size.
      */
-    val shopPriceAmount: String? = null,
+    val packQuantity: String? = null,
+
+    val packUnit: PackUnit? = null,
+    val position: Long,
+    val shopCompareAtAmount: String? = null,
+
+    /**
+     * What the shop is paid.
+     */
+    val shopPriceAmount: String,
 
     val sku: String? = null,
-    val status: ProductStatus,
-    val typeName: String,
-    val updatedAt: String
+    val state: VariantState,
+    val stock: ProductStockDTO,
+    val weightGrams: Long,
+
+    /**
+     * True while nobody has recorded a real weight (032).
+     */
+    val weightIsAssumed: Boolean
 )
 
+@Serializable
+enum class VariantState(val value: String) {
+    @SerialName("active") Active("active"),
+    @SerialName("inactive") Inactive("inactive"),
+    @SerialName("removed") Removed("removed");
+}
+
 /**
- * A product's stock, as one operator screen needs it.
+ * A VARIANT's stock (098; a product's before), as one operator screen needs it.
  */
 @Serializable
 data class ProductStockDTO (
@@ -883,7 +1032,76 @@ data class ProductStockDTO (
     /**
      * false = unlimited, and identical to how the product behaved before 054 existed (FR-002).
      */
-    val tracked: Boolean
+    val tracked: Boolean,
+
+    /**
+     * 098 — stock is counted per variant.
+     */
+    @SerialName("variantId")
+    val variantID: String
+)
+
+/**
+ * Paged product list envelope. Structurally a `PagedDTO<ProductListItemDTO>` but declared
+ * concretely (not a generic alias) so the Kotlin contract generator can name it.
+ */
+@Serializable
+data class ProductListDTO (
+    val items: List<ProductListItemDTO>,
+    val page: Double,
+    val pageSize: Double,
+    val total: Double
+)
+
+/**
+ * A thin row in the shop catalog table (backend-paginated).
+ */
+@Serializable
+data class ProductListItemDTO (
+    val brand: String? = null,
+    val categoryName: String,
+    val currency: String,
+
+    /**
+     * 067/098 — the lowest customer price among active variants; null until first approved.
+     */
+    val customerPriceAmount: String? = null,
+
+    val id: String,
+    val name: String,
+
+    /**
+     * 098 — the LOWEST shop price among the product's active variants (say "From" when
+     * `priceVaries`). Equal to `shopPriceAmount`.
+     */
+    val priceAmount: String,
+
+    /**
+     * 098 — active variants' prices differ.
+     */
+    val priceVaries: Boolean,
+
+    @SerialName("primaryImageUrl")
+    val primaryImageURL: String? = null,
+
+    /**
+     * 067 — where the product stands with Effy's review.
+     */
+    val reviewState: ShopReviewState? = null,
+
+    /**
+     * 067/098 — the lowest shop price among active variants.
+     */
+    val shopPriceAmount: String? = null,
+
+    val status: ProductStatus,
+    val typeName: String,
+    val updatedAt: String,
+
+    /**
+     * 098 — variants that are not removed.
+     */
+    val variantCount: Double
 )
 
 @Serializable
@@ -963,6 +1181,7 @@ enum class StockMovementReason(val value: String) {
     @SerialName("order_paid") OrderPaid("order_paid"),
     @SerialName("pick_shortfall") PickShortfall("pick_shortfall"),
     @SerialName("received") Received("received"),
+    @SerialName("refund") Refund("refund"),
     @SerialName("tracking_disabled") TrackingDisabled("tracking_disabled"),
     @SerialName("tracking_enabled") TrackingEnabled("tracking_enabled");
 }
@@ -1130,12 +1349,23 @@ data class UpdateMediaRequest (
 data class UpdateProductRequest (
     val attributes: List<AttributeValueInputDTO>? = null,
     val brand: String? = null,
-    val compareAtAmount: String? = null,
     val expectedUpdatedAt: String,
-    val gtin: String? = null,
+
+    /**
+     * 096 — on a live product this is PROPOSED and reviewed, like every other detail (067).
+     */
+    val gstStatus: GstStatus? = null,
+
     val longDescription: String? = null,
     val name: String? = null,
-    val priceAmount: String? = null,
+
+    /**
+     * 098 — when present, BOTH are the complete target sets (send them together). On a draft
+     * they are written as they are; on a live product they become part of the pending change
+     * (R6). Variant state (active/inactive/removed) is never set here — it has its own
+     * immediate route.
+     */
+    val options: List<OptionInputDTO>? = null,
 
     @SerialName("primaryCategoryId")
     val primaryCategoryID: String? = null,
@@ -1144,12 +1374,13 @@ data class UpdateProductRequest (
     val productTypeID: String? = null,
 
     val shortDescription: String? = null,
-    val sku: String? = null,
 
     /**
-     * Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands.
+     * 098
      */
-    val weightGrams: Double? = null
+    val unitBasis: UnitBasis? = null,
+
+    val variants: List<VariantInputDTO>? = null
 )
 
 @Serializable

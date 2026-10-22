@@ -4,6 +4,8 @@ import { Minus, Plus, ShoppingCart } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
+import type { UnitPriceDTO } from "@effy/shared-types"
+
 import { ActionButton } from "@/components/storefront/actions"
 import { addItem } from "@/lib/cart-actions"
 import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
@@ -12,8 +14,13 @@ import { toast } from "@/lib/toast-store"
 
 /** The snapshot an add-to-cart captures (price/name/image frozen at add time — R8). */
 interface AddToCartProduct {
+  /** 098 — the size being bought: the cart line's identity. */
+  variantId: string
   productId: string
   name: string
+  /** 098 — the size's words, carried onto the line ("1 kg"). */
+  variantLabel?: string | null
+  unitPrice?: UnitPriceDTO | null
   imageUrl: string | null
   imageWidths?: number[]
   unitPriceAmount: string
@@ -28,7 +35,14 @@ interface AddToCartProduct {
 }
 
 /** Quantity stepper + Add to cart (US2). Writes to the device-local guest cart and confirms briefly. */
-export function AddToCartControl({ product }: { product: AddToCartProduct }) {
+export function AddToCartControl({
+  product,
+  unavailableText = "This item is currently unavailable.",
+}: {
+  product: AddToCartProduct
+  /** 098 — what to say when THIS size cannot be bought ("This size is sold out."). */
+  unavailableText?: string
+}) {
   const router = useRouter()
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
@@ -36,15 +50,18 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
   if (!product.available) {
     return (
       <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-        This item is currently unavailable.
+        {unavailableText}
       </p>
     )
   }
 
   function add() {
     addItem({
+      variantId: product.variantId,
       productId: product.productId,
       name: product.name,
+      variantLabel: product.variantLabel ?? null,
+      unitPrice: product.unitPrice ?? null,
       imageUrl: product.imageUrl,
       ...(product.imageWidths ? { imageWidths: product.imageWidths } : {}),
       unitPriceAmount: product.unitPriceAmount,
@@ -56,7 +73,7 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
     // here rides the ALWAYS-LOADED guest chunk and cost +1.0 KB on four routes last time it
     // was tried. Paying for the module at the moment of the event costs a guest nothing.
     void import("@/lib/telemetry").then(({ capture }) =>
-      capture({ name: "product_added_to_cart", props: { productId: product.productId, quantity: qty } }),
+      capture({ name: "product_added_to_cart", props: { productId: product.productId, variantId: product.variantId, quantity: qty } }),
     )
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2000)

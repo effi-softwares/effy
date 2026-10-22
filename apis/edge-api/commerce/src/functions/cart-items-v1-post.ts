@@ -10,12 +10,12 @@ import { cartService } from "../lib/wiring";
 
 export const handler = customerRoute(async ({ event, scope, customer }) => {
   const body = jsonBody(event);
-  const productId = stringField(body?.productId);
+  const variantId = stringField(body?.variantId);
   const quantity = intField(body?.quantity);
   const changeId = changeIdOf(body?.changeId);
-  if (!body || productId === null || quantity === null || changeId === null) {
-    return validationFailed(scope, "productId, quantity and changeId are required");
+  if (!body || variantId === null || quantity === null || changeId === null) {
+    return validationFailed(scope, "variantId, quantity and changeId are required");
   }
   if (changeId === "") return validationFailed(scope, "changeId is required");
-  return respond(scope, () => cartService.add(customer.id, productId, changeId, quantity));
+  return respond(scope, () => cartService.add(customer.id, variantId, changeId, quantity));
 });

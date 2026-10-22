@@ -14,10 +14,11 @@ export function lineInputs(v: unknown): LineInput[] | null {
   const out: LineInput[] = [];
   for (const item of v) {
     if (typeof item !== "object" || item === null) return null;
-    const productId = stringField((item as Record<string, unknown>).productId);
+    // 098 — a line is a variant.
+    const variantId = stringField((item as Record<string, unknown>).variantId);
     const quantity = intField((item as Record<string, unknown>).quantity);
-    if (productId === null || quantity === null) return null;
-    out.push({ productId, quantity });
+    if (variantId === null || quantity === null) return null;
+    out.push({ variantId, quantity });
   }
   return out;
 }

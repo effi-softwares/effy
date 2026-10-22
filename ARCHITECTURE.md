@@ -212,6 +212,12 @@ export const handler = async (event) => {
   - **Logic needed by more than one service lives in the shared library**, on its own import path
     where it carries a heavy dependency — the payment module is the example: three services move
     money, one module implements it.
+  - **The catalogue's variants have one writer each** (098), in the shared library's `catalog` module:
+    `applyVariantSet` writes a product's options, values and variants; `priceVariants` writes every
+    variant's customer price from the product's one margin; `setVariantState` takes a size on or off
+    sale; `refreshListing` writes the product's listing summary (lowest active price, "From") and is
+    called by each of them in the same transaction. Stock columns stay with the stock writers. A guard
+    test fails a second writer of any of it.
 - **Async event workers** — no HTTP auth:
   - A **webhook** with its own endpoint and **no authorizer** (it verifies a provider signature
     instead), then publishes a domain event.

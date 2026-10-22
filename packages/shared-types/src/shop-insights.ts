@@ -295,7 +295,8 @@ export interface ShopPickListDTO {
   courierPickup?: CourierPickupDTO
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
   deliveryMethod: "same_day" | "standard" | null
-  lines: Array<{ name: string; sku: string | null; quantity: WireInt }>
+  /** 098 — `variantLabel` is the size/flavour sold; null with no options. */
+  lines: Array<{ name: string; variantLabel?: string | null; sku: string | null; quantity: WireInt }>
 }
 
 /**

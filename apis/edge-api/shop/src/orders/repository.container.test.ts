@@ -141,14 +141,14 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     const itemIds: string[] = [];
     for (const l of lines) {
       const p = await pool.query<{ id: string }>(
-        `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by)
-         SELECT $1, pt.id, c.id, $2, $3, 'x', 'seed' FROM public.product_type pt, public.category c
-         RETURNING id`,
+        `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by) SELECT $1, pt.id, c.id, $2, 'x', 'seed' FROM public.product_type pt, public.category c RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE($3, $3)::numeric, ($3)::numeric FROM p RETURNING id)
+SELECT id FROM p`,
         [shop, l.name, l.price],
       );
       const oi = await pool.query<{ id: string }>(
-        `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
+         VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, $4, $5, $6, $7) RETURNING id`,
         [orderId, p.rows[0]!.id, shop, l.name, l.price, l.qty, l.price * l.qty],
       );
       itemIds.push(oi.rows[0]!.id);
@@ -275,6 +275,43 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     const milk = d.lines.find((l) => l.name === "Milk")!;
     expect(milk).toMatchObject({ unitPrice: "10.00", lineTotal: "30.00", refundedQuantity: 1 });
     expect(d.refunds[0]).toMatchObject({ amount: "10.00", actorKind: "shop", actorLabel: "Maya" });
+  });
+
+  /** 098 T062 — a line is a variant: two sizes of one product are two lines, each named by its size. */
+  it("098 — two sizes of one product are two labelled lines, in the detail and on the pick list", async () => {
+    const o = await order({ number: "EFY-V", recipient: "V", lines: [{ name: "Rice", price: 3, qty: 2 }] });
+    const first = (await pool.query<{ product_id: string; variant_id: string }>(
+      `SELECT product_id::text, variant_id::text FROM public.order_item WHERE id = $1`, [o.itemIds[0]],
+    )).rows[0]!;
+    // Two variants of one product are told apart by an option.
+    const size = (await pool.query<{ id: string }>(
+      `INSERT INTO public.product_option (product_id, position, name) VALUES ($1, 1, 'Size') RETURNING id`, [first.product_id],
+    )).rows[0]!.id;
+    const [small, large] = (await pool.query<{ id: string }>(
+      `INSERT INTO public.product_option_value (option_id, value, position) VALUES ($1, '500 g', 0), ($1, '1 kg', 1) RETURNING id`, [size],
+    )).rows.map((r) => r.id);
+    await pool.query(`UPDATE public.product_variant SET option1_value_id = $2, sku = 'R-500' WHERE id = $1`, [first.variant_id, small]);
+    const second = (await pool.query<{ id: string }>(
+      `INSERT INTO public.product_variant (product_id, shop_id, option1_value_id, position, sku, gtin, shop_price_amount, price_amount)
+       VALUES ($1, $2, $3, 1, 'R-1K', '9300000000014', 5.5, 5.5) RETURNING id`, [first.product_id, SHOP, large],
+    )).rows[0]!.id;
+    await pool.query(`UPDATE public.order_item SET variant_label = '500 g', sku = 'R-500' WHERE id = $1`, [o.itemIds[0]]);
+    await pool.query(
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, variant_label, sku, gtin, unit_price_amount, quantity, line_subtotal_amount)
+       VALUES ($1, $2, $3, $4, 'Rice', '1 kg', 'R-1K', '9300000000014', 5.5, 1, 5.5)`,
+      [o.orderId, first.product_id, second, SHOP],
+    );
+
+    const d = await readOrder(o.fulfillmentId, SHOP);
+    expect(d.lines.map((l) => [l.name, l.variantLabel, l.sku, l.gtin, l.orderedQuantity])).toEqual([
+      ["Rice", "1 kg", "R-1K", "9300000000014", 1],
+      ["Rice", "500 g", "R-500", null, 2],
+    ]);
+    const pick = (await readPickLists(SHOP)).lists.find((l) => l.orderNumber === "EFY-V")!;
+    expect(pick.lines).toEqual([
+      { name: "Rice", variantLabel: "1 kg", sku: "R-1K", quantity: 1 },
+      { name: "Rice", variantLabel: "500 g", sku: "R-500", quantity: 2 },
+    ]);
   });
 
   /** 089 — the label: its code, "package n of m" across shops, the coldest class, and no window (quickstart P5). */

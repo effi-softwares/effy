@@ -21,9 +21,9 @@ import { adoptSaved, applySaved, isInNamedList, isSaved, readSavedIds } from "./
 export const GUEST_CAP = 50
 
 
-async function send(path: string, method: "PUT" | "DELETE"): Promise<number> {
+async function send(path: string, method: "PUT" | "DELETE", body?: unknown): Promise<number> {
   try {
-    const res = await fetch(path, { method })
+    const res = await fetch(path, body === undefined ? { method } : { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     return res.status
   } catch {
     return 0 // transient — the mirror keeps the shopper's intent
@@ -44,8 +44,11 @@ async function send(path: string, method: "PUT" | "DELETE"): Promise<number> {
  * in a list the shopper named, and one tap on a heart must never take it out of that list. Nothing
  * is sent and nothing moves. The platform enforces the same rule, so a mirror that did not know
  * (`409`) lands in the same place after reverting.
+ *
+ * 098 — `variantId` is the size the shopper had selected; the platform remembers it so "add to cart"
+ * from the saved list adds that size. Saved items stay one per PRODUCT.
  */
-export async function toggleSaved(productId: string, saved: boolean): Promise<boolean | "chooser"> {
+export async function toggleSaved(productId: string, saved: boolean, variantId?: string | null): Promise<boolean | "chooser"> {
   const previous = isSaved(productId)
   if (previous === saved) return true // nothing to do, and nothing to revert if it fails
   if (!saved && isInNamedList(productId)) return "chooser"
@@ -57,7 +60,9 @@ export async function toggleSaved(productId: string, saved: boolean): Promise<bo
 
   applySaved(productId, saved)
 
-  const status = await send(`/api/saved/${productId}`, saved ? "PUT" : "DELETE")
+  const status = saved
+    ? await send(`/api/saved/${productId}`, "PUT", variantId ? { variantId } : undefined)
+    : await send(`/api/saved/${productId}`, "DELETE")
   // 401 = guest. 0 = the request never left. Neither is a refusal of the shopper's intent, so the
   // mirror stands. Anything else in the 4xx/5xx range is the platform saying no.
   if (status >= 400 && status !== 401) {

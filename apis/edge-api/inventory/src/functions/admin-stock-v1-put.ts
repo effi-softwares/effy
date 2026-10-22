@@ -1,4 +1,4 @@
-// PUT /inventory/v1/admin/shops/{shopId}/products/{productId}/stock — set a count on the shop's behalf (054 US4, FR-026).
+// PUT /inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock — set a count on the shop's behalf (054 US4, FR-026).
 //
 // ⚠ WRITE is admin/manager only (FR-026/FR-028) — this changes another organisation's records on
 // their behalf, which is the same tier 046 set for an outward reply and 053 for recording an arrival.
@@ -20,8 +20,8 @@ export const handler = async (
   const g = await backOfficeGate(event, context, "write");
   if (!g.ok) return g.response;
 
-  const productId = event.pathParameters?.productId;
-  if (!productId) return mapStockError(new Error("missing productId"), g.scope);
+  const variantId = event.pathParameters?.variantId;
+  if (!variantId) return mapStockError(new Error("missing variantId"), g.scope);
 
   const parsed = parseJsonBody<Record<string, unknown>>(event.body);
   if (!parsed.value) {
@@ -30,7 +30,7 @@ export const handler = async (
   }
 
   try {
-    return json(200, await service.setCount(g.actor, productId, parsed.value), g.scope);
+    return json(200, await service.setCount(g.actor, variantId, parsed.value), g.scope);
   } catch (err) {
     return mapStockError(err, g.scope);
   }

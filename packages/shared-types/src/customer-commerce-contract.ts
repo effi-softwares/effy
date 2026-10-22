@@ -96,7 +96,10 @@ import type {
   SavedListRenameRequest,
   SavedListEntryRequest,
   SavedListRefusal,
+  SaveItemRequest,
 } from "./saved-item";
+import type { OptionDTO, OptionValueDTO, StorefrontVariantDTO, VariantState } from "./variants";
+import type { UnitBasis, UnitPriceDTO } from "./unit-price";
 import type {
   DeliveryMethod,
   AustralianState,
@@ -294,4 +297,14 @@ export interface CustomerCommerceContract {
   deliveryNote: DeliveryNoteDTO;
   orderTaxDocuments: OrderTaxDocumentsDTO;
   businessIdentity: BusinessIdentityRequest;
+  // ── 098 product variants ──
+  // Reached through the product detail and the cart, and named here anyway so a later refactor of
+  // either cannot quietly drop them from the Kotlin.
+  option: OptionDTO;
+  optionValue: OptionValueDTO;
+  storefrontVariant: StorefrontVariantDTO;
+  variantState: VariantState;
+  unitPrice: UnitPriceDTO;
+  unitBasis: UnitBasis;
+  saveItemRequest: SaveItemRequest;
 }

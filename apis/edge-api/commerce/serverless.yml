@@ -196,7 +196,7 @@ functions:
     events:
       - httpApi:
           method: PATCH
-          path: /commerce/v1/cart/items/{productId}
+          path: /commerce/v1/cart/items/{variantId}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
@@ -207,7 +207,7 @@ functions:
     events:
       - httpApi:
           method: DELETE
-          path: /commerce/v1/cart/items/{productId}
+          path: /commerce/v1/cart/items/{variantId}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
@@ -229,7 +229,7 @@ functions:
     events:
       - httpApi:
           method: POST
-          path: /commerce/v1/cart/items/{productId}/set-aside
+          path: /commerce/v1/cart/items/{variantId}/set-aside
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
@@ -240,7 +240,7 @@ functions:
     events:
       - httpApi:
           method: POST
-          path: /commerce/v1/cart/saved/{productId}/restore
+          path: /commerce/v1/cart/saved/{variantId}/restore
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
@@ -251,7 +251,7 @@ functions:
     events:
       - httpApi:
           method: DELETE
-          path: /commerce/v1/cart/saved/{productId}
+          path: /commerce/v1/cart/saved/{variantId}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}

@@ -1,4 +1,4 @@
-// PATCH /commerce/v1/cart/items/{productId} — set an ABSOLUTE quantity; zero or less removes the
+// PATCH /commerce/v1/cart/items/{variantId} — set an ABSOLUTE quantity; zero or less removes the
 // line. Safe to repeat: setting 3 twice is 3.
 import { validationFailed } from "@effy/edge-shared";
 
@@ -11,5 +11,5 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
   const quantity = intField(body?.quantity);
   const changeId = changeIdOf(body?.changeId);
   if (!body || quantity === null || changeId === null) return validationFailed(scope, "quantity is required");
-  return respond(scope, () => cartService.setQty(customer.id, pathParam(event, "productId"), changeId, quantity));
+  return respond(scope, () => cartService.setQty(customer.id, pathParam(event, "variantId"), changeId, quantity));
 });

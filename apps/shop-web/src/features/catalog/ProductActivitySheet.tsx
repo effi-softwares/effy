@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 import type { ProductDetail } from "./model";
 import { actorLabel, stockChangeTitle } from "./stockMovementText";
-import { productStockQuery } from "./stockQueries";
+import { variantStockQuery } from "./stockQueries";
 
 /**
  * The product's Activity sheet (057 revision) — what used to be the right rail, moved onto a
@@ -36,15 +36,18 @@ import { productStockQuery } from "./stockQueries";
  */
 export function ProductActivitySheet({
   detail,
+  variantId,
   open,
   onOpenChange,
 }: {
   detail: ProductDetail;
+  /** 098 — the size whose stock changes are listed (the one the Inventory tab shows). */
+  variantId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   // Shares the Inventory tab's cache entry rather than issuing a second read (Principle VI).
-  const stock = useQuery(productStockQuery(detail.id));
+  const stock = useQuery(variantStockQuery(variantId));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

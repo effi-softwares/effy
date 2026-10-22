@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.saved.domain
 
+import com.effyshopping.customer.mobile.features.catalog.domain.UnitPrice
+
 /**
  * The saved-items domain (033) — a price-and-availability WATCHLIST, not a wishlist.
  *
@@ -63,6 +65,15 @@ data class SavedItem(
     val verdict: SavedVerdict,
     /** For grouping the list by aisle (FR-056). */
     val categoryKey: String?,
+    /**
+     * 098 — the size "Add to cart" adds: the one remembered when it was saved, else the product's only
+     * one. Null when it is sold in several sizes and none is remembered: the shopper chooses on its page.
+     */
+    val variantId: String? = null,
+    /** 098 — the remembered size's words ("1 kg"). */
+    val variantLabel: String? = null,
+    val variantCount: Int = 1,
+    val unitPrice: UnitPrice? = null,
 )
 
 /**
@@ -101,7 +112,7 @@ interface SavedRepository {
      * An ordinary save leaves it null and the item lands at the top — a deliberate re-save after a
      * completed removal is a NEW save, and the list must be able to say so (FR-018).
      */
-    suspend fun save(productId: String, restoreSavedAt: String? = null)
+    suspend fun save(productId: String, restoreSavedAt: String? = null, variantId: String? = null)
 
     /**
      * The HEART's un-save.
@@ -214,7 +225,7 @@ interface ListRepository {
     suspend fun lists(productId: String? = null): List<SavedList>
 
     /** [productId] is placed in the new list in the same action; a refusal creates nothing. */
-    suspend fun create(name: String, productId: String? = null): SavedList
+    suspend fun create(name: String, productId: String? = null, variantId: String? = null): SavedList
 
     suspend fun rename(listId: String, name: String): SavedList
 
@@ -222,7 +233,8 @@ interface ListRepository {
     suspend fun delete(listId: String)
 
     /** [restoreAddedAt] is set ONLY by undo: the product returns to the position it held. */
-    suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String? = null)
+    /** 098 — [variantId] is the size on screen, remembered with the product (a list holds products). */
+    suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String? = null, variantId: String? = null)
 
     /** Takes the product out of THIS list only. Never refused. */
     suspend fun removeEntry(listId: String, productId: String)

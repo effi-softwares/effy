@@ -28,12 +28,32 @@ export interface SearchParams {
  * The text this search scores and matches against.
  *
  * ⚠ It MUST stay character-identical to the expression the GIN trigram index is built on
- * (db/migrations/20260716092105_product_catalog.sql). Postgres matches an expression index by the
+ * (rebuilt without the stock code by db/migrations/20261026090000_product_variants.sql). Postgres matches an expression index by the
  * expression, so a stray space or a reordered column here silently drops the index and turns every
  * relevance search into a sequential scan — with no error and no visible symptom until the
  * catalogue grows. `trigram-index.guard.test.ts` reads the migration and compares.
  */
-export const TRIGRAM_EXPR = `lower(p.name || ' ' || coalesce(p.sku, '') || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)`;
+export const TRIGRAM_EXPR = `lower(p.name || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)`;
+
+/**
+ * 098 — a query that IS a variant's stock code or barcode finds its product (exactly, never fuzzily:
+ * codes moved off the product and out of the trigram text, R13). `q` is the raw query, bound once.
+ */
+export function codeMatchSql(q: string): string {
+  return `EXISTS (SELECT 1 FROM public.product_variant cv
+                  -- availability-exempt: product_variant — a visibility filter; a hidden variant is not findable.
+                  WHERE cv.product_id = p.id AND cv.state = 'active'
+                    AND (lower(cv.sku) = lower(${q}) OR cv.gtin = ${q}))`;
+}
+
+/** 098 — the id of the variant whose code `q` is, or NULL. Selected beside the card so the tile opens on it. */
+export function matchedVariantSql(q: string): string {
+  return `(SELECT mv.id::text FROM public.product_variant mv
+            -- availability-exempt: product_variant — a visibility filter.
+            WHERE mv.product_id = p.id AND mv.state = 'active'
+              AND (lower(mv.sku) = lower(${q}) OR mv.gtin = ${q})
+            ORDER BY mv.position LIMIT 1)`;
+}
 
 /** Mints `$n` placeholders over an argument list. */
 export type Binder = (value: unknown) => string;
@@ -53,9 +73,9 @@ export function binder(args: unknown[]): Binder {
 export function orderClause(sort: ProductSort): string {
   switch (sort) {
     case "price_asc":
-      return "\nORDER BY p.price_amount ASC, p.id ASC";
+      return "\nORDER BY p.list_price_amount ASC, p.id ASC";
     case "price_desc":
-      return "\nORDER BY p.price_amount DESC, p.id DESC";
+      return "\nORDER BY p.list_price_amount DESC, p.id DESC";
     case "relevance":
       return "\nORDER BY score DESC, p.id DESC";
     default:
@@ -72,9 +92,9 @@ export function cursorPredicate(p: SearchParams & { cursor: Cursor }, next: Bind
   const cur = p.cursor;
   switch (p.sort) {
     case "price_asc":
-      return `\n  AND (p.price_amount, p.id) > (${next(cur.key)}::numeric, ${next(cur.id)}::uuid)`;
+      return `\n  AND (p.list_price_amount, p.id) > (${next(cur.key)}::numeric, ${next(cur.id)}::uuid)`;
     case "price_desc":
-      return `\n  AND (p.price_amount, p.id) < (${next(cur.key)}::numeric, ${next(cur.id)}::uuid)`;
+      return `\n  AND (p.list_price_amount, p.id) < (${next(cur.key)}::numeric, ${next(cur.id)}::uuid)`;
     case "relevance":
       // `score` is a select-list alias, and SQL will not let WHERE reference one — so the
       // expression is repeated. Both occurrences are built from the same TRIGRAM_EXPR constant and
@@ -99,15 +119,15 @@ export function filters(p: SearchParams, next: Binder): string {
 
   if (p.q !== "") {
     const q = next(`%${p.q}%`);
-    sql += `\n  AND (p.name ILIKE ${q} OR p.brand ILIKE ${q} OR p.short_description ILIKE ${q})`;
+    sql += `\n  AND (p.name ILIKE ${q} OR p.brand ILIKE ${q} OR p.short_description ILIKE ${q} OR ${codeMatchSql(next(p.q.trim()))})`;
   }
   if (p.categoryKey !== "") {
     // The category and everything under it — an aisle link shows the whole aisle (lib/category-tree.ts).
     sql += `\n  AND p.primary_category_id IN ${categorySubtreeByKey(next(p.categoryKey))}`;
   }
-  if (p.minPrice !== "") sql += `\n  AND p.price_amount >= ${next(p.minPrice)}::numeric`;
-  if (p.maxPrice !== "") sql += `\n  AND p.price_amount <= ${next(p.maxPrice)}::numeric`;
-  if (p.saleOnly) sql += "\n  AND p.compare_at_amount IS NOT NULL AND p.compare_at_amount > p.price_amount";
+  if (p.minPrice !== "") sql += `\n  AND p.list_price_amount >= ${next(p.minPrice)}::numeric`;
+  if (p.maxPrice !== "") sql += `\n  AND p.list_price_amount <= ${next(p.maxPrice)}::numeric`;
+  if (p.saleOnly) sql += "\n  AND p.list_compare_at_amount IS NOT NULL AND p.list_compare_at_amount > p.list_price_amount";
   if (p.brands.length > 0) sql += `\n  AND p.brand = ANY(${next([...p.brands])}::text[])`;
 
   for (const [key, vals] of Object.entries(p.attributes)) {

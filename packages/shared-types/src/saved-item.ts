@@ -16,6 +16,7 @@
  */
 import type { WireInt } from "./cart";
 import type { ProductBadge } from "./storefront";
+import type { UnitPriceDTO } from "./unit-price";
 
 /**
  * Whether the shopper can buy a saved item right now.
@@ -77,6 +78,28 @@ export interface SavedItemDTO {
   verdict: SavedVerdict;
   /** For client-side grouping by aisle (FR-056). Absent when the product has no primary category. */
   categoryKey?: string;
+  /**
+   * 098 — the variant "Add to cart" adds: the one remembered when it was saved (FR-015a), else the
+   * product's only one. Null when the product is sold in several sizes and none is remembered (or the
+   * one remembered is no longer sold) — the shopper chooses. Price, verdict and image above are the
+   * REMEMBERED variant's when there is one, else the product's listing price and availability.
+   */
+  variantId: string | null;
+  /** 098 — its label ("1 kg"); null when none, or the product has no options. */
+  variantLabel: string | null;
+  /** 098 — products with more than one active variant: adding to the cart without a remembered one asks the shopper to choose. */
+  variantCount: WireInt;
+  unitPrice: UnitPriceDTO | null;
+}
+
+/**
+ * PUT /commerce/v1/saved/{productId} — save (idempotent). 098: `variantId` remembers the variant the
+ * shopper had selected; saving again with another one updates it. Both fields optional.
+ */
+export interface SaveItemRequest {
+  /** Set ONLY by undo. */
+  restoreSavedAt?: string;
+  variantId?: string | null;
 }
 
 /**
@@ -109,6 +132,8 @@ export interface SavedMembershipDTO {
 /** One device-held saved item being offered to an account (FR-028). */
 export interface SavedMergeItem {
   productId: string;
+  /** 098 — the variant the device remembered, if any. */
+  variantId?: string | null;
   /**
    * ⚠ The GUEST's save-time price travels with it. Taking the price at merge time instead would
    * silently erase the movement the watchlist exists to report, for exactly the shopper who saved
@@ -131,7 +156,10 @@ export interface SavedMergeRequest {
 /** Why one product could not be taken (a merge or a bulk add). */
 export interface SavedSkip {
   productId: string;
-  /** `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason. */
+  /**
+   * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason | 098 `choose_variant`
+   * (no variant remembered, or it is no longer sold — the shopper opens the product and chooses).
+   */
   reason: string;
 }
 
@@ -206,6 +234,8 @@ export interface SavedListCreateRequest {
   name: string;
   /** Place this product in the new list in the same action (068 FR-015). */
   productId?: string;
+  /** 098 — with `productId`: the variant to remember. */
+  variantId?: string | null;
 }
 
 export interface SavedListRenameRequest {
@@ -215,6 +245,8 @@ export interface SavedListRenameRequest {
 export interface SavedListEntryRequest {
   /** Set ONLY by undo, to return the product to the position it held in this list. */
   restoreAddedAt?: string;
+  /** 098 — the variant the shopper had selected; it becomes the product's remembered variant. */
+  variantId?: string | null;
 }
 
 /**

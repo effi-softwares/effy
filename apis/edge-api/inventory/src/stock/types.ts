@@ -42,11 +42,12 @@ export class StockError extends Error {
 }
 
 export const notFound = (): StockError =>
-  new StockError("not_found", "no such product");
+  new StockError("not_found", "no such variant");
 
-/** The state of one product's stock, before mapping to a DTO. */
+/** The state of one VARIANT's stock (098), before mapping to a DTO. */
 export interface StockRow {
   productId: string;
+  variantId: string;
   shopId: string;
   tracked: boolean;
   onHand: number | null;
@@ -65,15 +66,4 @@ export interface MovementRow {
   orderNumber: string | null;
   note: string | null;
   createdAt: string;
-}
-
-/**
- * The threshold actually in force: the product's own if set, else the shop's default, else none.
- *
- * ⚠ `null` means NOTHING counts as running low — it does NOT mean zero. A zero default would make
- * every product permanently "low", which is the same as no signal at all. A product at zero is still
- * reported, as `out`, by a separate rule (FR-005a).
- */
-export function effectiveThreshold(row: Pick<StockRow, "threshold" | "shopDefaultThreshold">): number | null {
-  return row.threshold ?? row.shopDefaultThreshold ?? null;
 }

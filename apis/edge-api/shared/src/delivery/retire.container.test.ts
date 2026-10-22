@@ -27,7 +27,8 @@ let shop: string;
 let customer: string;
 let n = 0;
 
-const apply = () => pool.query(migrationSql({ from: RETIRE })).then(() => null, (e: Error) => e.message);
+// ⚠ Up to 098, which refuses a database that has taken orders (it needs an empty catalogue).
+const apply = () => pool.query(migrationSql({ from: RETIRE, before: "20261026090000" })).then(() => null, (e: Error) => e.message);
 const openByDefinition = async () => Number((await pool.query(`SELECT count(*) AS n FROM public."order" o WHERE ${LEGACY_OPEN_ORDER_SQL("o")}`)).rows[0].n);
 const columnExists = async (table: string, column: string) =>
   ((await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`, [table, column])).rowCount ?? 0) > 0;

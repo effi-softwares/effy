@@ -27,6 +27,17 @@ data class ProductCard(
      * authoritatively resolved server-side at quote time; a blank key degrades to one package.
      */
     val packageKey: String = "",
+    /**
+     * 098 — the size this tile stands for: the one a search matched by stock code or barcode, else the
+     * product's default. Quick-add adds THIS size, and only when [variantCount] is 1.
+     */
+    val variantId: String = "",
+    /** 098 — sizes on sale. Above 1 the tile offers "Choose" (open the product) instead of quick-add. */
+    val variantCount: Int = 1,
+    /** 098 — sizes at different prices: the price shown is the lowest, said "From". */
+    val priceVaries: Boolean = false,
+    /** 098 — the comparison price of [priceAmount], when the platform gave one. */
+    val unitPrice: UnitPrice? = null,
 )
 
 data class Banner(
@@ -178,6 +189,33 @@ data class ProductDetail(
     val categoryPath: List<String>,
     /** The primary category's key — drives the related-products rail (025 FR-026). */
     val categoryKey: String,
+    /** 098 — the product's options in order; empty when it is sold one way (no selector). */
+    val options: List<VariantOption> = emptyList(),
+    /** 098 — the sizes on sale, in display order (never an inactive or removed one). */
+    val variants: List<Variant> = emptyList(),
+    /** 098 — the size to open on (the platform's choice: the first that can be bought). */
+    val defaultVariantId: String = "",
+)
+
+/** 098 — an option ("Size") and its values in the shop's order. */
+data class VariantOption(val id: String, val position: Int, val name: String, val values: List<VariantOptionValue>)
+
+data class VariantOptionValue(val id: String, val value: String, val position: Int)
+
+/** 098 — one size of a product, as a shopper may buy it. */
+data class Variant(
+    val id: String,
+    /** The value of the first option, then of the second; null where the product has no such option. */
+    val optionValueIds: Pair<String?, String?>,
+    /** "500 g / Brown"; null for a product sold one way. */
+    val label: String?,
+    val priceAmount: String,
+    val compareAtAmount: String?,
+    val unitPrice: UnitPrice?,
+    /** Can be bought now (the one availability rule). */
+    val available: Boolean,
+    /** The size's own picture, or null — the product's gallery stands. */
+    val imageUrl: String?,
 )
 
 /** The orderings a result set can be presented in (025 FR-016). */

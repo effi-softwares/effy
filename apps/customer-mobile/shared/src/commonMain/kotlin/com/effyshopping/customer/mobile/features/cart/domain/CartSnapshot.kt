@@ -54,6 +54,8 @@ data class CartSnapshot(
 data class CartNotice(
     /** Null for a cart-level notice (a promotional code that stopped applying). */
     val productId: String? = null,
+    /** 098 — the line (size) the notice is about; null for a cart-level notice. */
+    val variantId: String? = null,
     val kind: CartNoticeKind,
     /** Specifics where the kind alone is not enough. NEVER names or implies a shop. */
     val detail: String? = null,
@@ -135,6 +137,9 @@ data class ReorderOutcome(
 
 data class ReorderSkipped(
     val productId: String,
+    /** 098 — the size that could not come back, and its words. */
+    val variantId: String,
+    val variantLabel: String?,
     val name: String?,
     val reason: ReorderSkipReason,
 )

@@ -1,5 +1,6 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrationSql, transactorFor, type Transactor } from "@effy/edge-shared";
+import { insertTestProduct } from "@effy/edge-shared/testing";
 import { loadCartPolicy } from "@effy/edge-shared/cart-policy";
 import { bookConsignment, effyDays, handOver, melbourneDate, slotLoad } from "@effy/edge-shared/delivery";
 import {
@@ -106,6 +107,11 @@ let svc: CheckoutService;
 let shopId: string;
 let slotId: string;
 const product: Record<string, string> = {};
+/** 098 — the ids every test product is filed under. */
+const catalogIds = async () => ({
+  productTypeId: (await one<{ id: string }>(`SELECT id::text AS id FROM public.product_type WHERE key='chk-type'`)).id,
+  primaryCategoryId: (await one<{ id: string }>(`SELECT id::text AS id FROM public.category WHERE key='chk-cat'`)).id,
+});
 const PLAN = "00000000-0000-0000-0000-0000000000d1";
 let seq = 0;
 
@@ -126,7 +132,12 @@ async function shopper(cart: Record<string, number>) {
   );
   const { id: cartId } = await one<{ id: string }>(`INSERT INTO public.cart (customer_id) VALUES ($1) RETURNING id::text AS id`, [customerId]);
   for (const [name, qty] of Object.entries(cart)) {
-    await pool.query(`INSERT INTO public.cart_item (cart_id, product_id, quantity) VALUES ($1, $2, $3)`, [cartId, product[name], qty]);
+    // 098 — a line is a variant; each test product has exactly one.
+    await pool.query(
+      `INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity)
+       SELECT $1, v.product_id, v.id, $3 FROM public.product_variant v WHERE v.product_id = $2`,
+      [cartId, product[name], qty],
+    );
   }
   return { customerId, addressId, cartId, sub: tag };
 }
@@ -149,7 +160,7 @@ const orderRow = (orderId: string) =>
             delivery_handover AS handover, delivery_note AS note FROM public."order" WHERE id = $1`,
     [orderId],
   );
-const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_on_hand AS n FROM public.product WHERE id = $1`, [product[name]])).n;
+const stockOf = async (name: string) => (await one<{ n: number }>(`SELECT stock_on_hand AS n FROM public.product_variant WHERE product_id = $1`, [product[name]])).n;
 const pay = (orderId: string) => transact((tx) => finalizeSucceeded(tx, orderId));
 const bookedToday = async () => (await slotLoad(pool, melbourneDate(new Date()))).get(slotId) ?? 0;
 
@@ -172,16 +183,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       ["Scarce", "2.00", "2.00", true, 2],
       ["Last", "3.00", "3.00", true, 1],
     ] as const) {
-      product[name] = (
-        await one<{ id: string }>(
-          `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, shop_price_amount,
-                                       short_description, created_by, status, approved_at, stock_tracked, stock_on_hand)
-           SELECT $1, (SELECT id FROM public.product_type WHERE key='chk-type'), (SELECT id FROM public.category WHERE key='chk-cat'),
-                  $2, $3::numeric, $4::numeric, 'd', 'seed', 'active', now(), $5, $6
-           RETURNING id::text AS id`,
-          [shopId, name, price, shopPrice, tracked, onHand],
-        )
-      ).id;
+      product[name] = (await insertTestProduct(pool, { ...(await catalogIds()), shopId, name, price, shopPrice, tracked, onHand })).productId;
     }
 
     await pool.query(`
@@ -216,8 +218,8 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     });
     await pool.query(`DELETE FROM public.delivery_slot_booking`);
     await pool.query(`UPDATE public.delivery_slot SET capacity = 3, status = 'active' WHERE id = $1`, [slotId]);
-    await pool.query(`UPDATE public.product SET stock_on_hand = 2 WHERE id = $1`, [product.Scarce]);
-    await pool.query(`UPDATE public.product SET stock_on_hand = 1 WHERE id = $1`, [product.Last]);
+    await pool.query(`UPDATE public.product_variant SET stock_on_hand = 2 WHERE product_id = $1`, [product.Scarce]);
+    await pool.query(`UPDATE public.product_variant SET stock_on_hand = 1 WHERE product_id = $1`, [product.Last]);
   });
 
   afterAll(async () => {
@@ -281,12 +283,15 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const s = await shopper({ Scarce: 5, Milk: 1 });
     const r = await svc.createIntent(s.customerId, input(s.addressId), new Date());
     expect((await orderRow(r.orderId)).items).toBe("8.50"); // 2 × 2.00 + 4.50, not 5 × 2.00
-    const milk = await one<{ unit: string; shop: string; cls: string }>(
-      `SELECT unit_price_amount::text AS unit, shop_unit_price_amount::text AS shop, storage_class AS cls
-         FROM public.order_item WHERE order_id = $1 AND product_id = $2`,
+    const milk = await one<{ unit: string; shop: string; cls: string; sold: boolean; label: string | null }>(
+      `SELECT oi.unit_price_amount::text AS unit, oi.shop_unit_price_amount::text AS shop, oi.storage_class AS cls,
+              -- 098 — the line names the variant it sold, with its label and codes as they were.
+              oi.variant_id = v.id AND oi.sku IS NOT DISTINCT FROM v.sku AS sold, oi.variant_label AS label
+         FROM public.order_item oi JOIN public.product_variant v ON v.product_id = oi.product_id
+        WHERE oi.order_id = $1 AND oi.product_id = $2`,
       [r.orderId, product.Milk],
     );
-    expect(milk).toEqual({ unit: "4.50", shop: "4.00", cls: "ambient" });
+    expect(milk).toEqual({ unit: "4.50", shop: "4.00", cls: "ambient", sold: true, label: null });
   });
 
   it("an order whose earlier payment settled is NOT recycled: the next checkout gets its own order", async () => {
@@ -295,7 +300,11 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const intentId = (await one<{ i: string }>(`SELECT stripe_payment_intent_id AS i FROM public.payment WHERE order_id = $1`, [first.orderId])).i;
     gateway.settle(intentId, "succeeded"); // paid, and nothing told the platform
 
-    await pool.query(`INSERT INTO public.cart_item (cart_id, product_id, quantity) VALUES ($1, $2, 1) ON CONFLICT DO NOTHING`, [s.cartId, product.Milk]);
+    await pool.query(
+      `INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity)
+       SELECT $1, v.product_id, v.id, 1 FROM public.product_variant v WHERE v.product_id = $2 ON CONFLICT DO NOTHING`,
+      [s.cartId, product.Milk],
+    );
     const second = await svc.createIntent(s.customerId, input(s.addressId), new Date());
 
     expect(second.orderId).not.toBe(first.orderId);
@@ -719,16 +728,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
 
   /** A product at any price, in any shop — the basket rules are tested to the cent. */
   async function priced(name: string, price: string, inShop = shopId): Promise<string> {
-    product[name] = (
-      await one<{ id: string }>(
-        `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, shop_price_amount,
-                                     short_description, created_by, status, approved_at, stock_tracked, stock_on_hand)
-         SELECT $1, (SELECT id FROM public.product_type WHERE key='chk-type'), (SELECT id FROM public.category WHERE key='chk-cat'),
-                $2, $3::numeric, $3::numeric, 'd', 'seed', 'active', now(), false, NULL
-         RETURNING id::text AS id`,
-        [inShop, name, price],
-      )
-    ).id;
+    product[name] = (await insertTestProduct(pool, { ...(await catalogIds()), shopId: inShop, name, price })).productId;
     return product[name]!;
   }
   const otherShop = async (code: string) =>
@@ -1685,7 +1685,7 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const promos: PromoSource = async (i) =>
       pricePromotionsFor(pool, {
         customerId: i.customerId, enteredCodeId: await cartSvc.enteredCodeFor(i.customerId),
-        lines: i.lines.map((l) => ({ productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
+        lines: i.lines.map((l) => ({ variantId: l.variantId, productId: l.productId, unitCents: l.unitCents, quantity: l.quantity })),
         deliveryType: i.deliveryType, deliveryFeeCents: i.deliveryFeeCents, now: i.now, excludeOrderId: i.excludeOrderId ?? null,
       });
     const real = createCheckoutService({ store, gateway: gateway.gw, policy: () => loadCartPolicy(pool), promos, quoter: defaultQuoter(pool), publishableKey: "pk_test_x", transact });

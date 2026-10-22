@@ -140,7 +140,11 @@ function LineItem({
             )}
           </div>
           <div className="min-w-0">
-            <div className={cn("font-medium", unavailable && "text-muted-foreground")}>{item.productName}</div>
+            <div className={cn("font-medium", unavailable && "text-muted-foreground")}>
+              {item.productName}
+              {/* 098 — the size as it was sold. */}
+              {item.variantLabel ? <span className="font-normal text-muted-foreground"> · {item.variantLabel}</span> : null}
+            </div>
             {/* The unit price beside the line total: what makes a line checkable, not merely stated. */}
             <div className="text-xs text-muted-foreground">
               <span>{formatMoney(item.unitPriceAmount, currency)} each</span>
@@ -156,6 +160,8 @@ function LineItem({
       {buyAgain && (
         <td className="px-2 py-2.5 text-right max-md:hidden print:hidden">
           <BuyLineAgain
+            variantId={item.variantId}
+            variantLabel={item.variantLabel}
             productId={item.productId}
             name={item.productName}
             imageUrl={item.imageUrl ?? null}

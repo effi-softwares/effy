@@ -1423,3 +1423,19 @@ analytics event on either surface.
 
 ⚠ **Not walked on either surface.** The three telemetry events are declared on web and emit nothing
 until PostHog is initialised; mobile has no event taxonomy to declare them in.
+
+## §098 — Product sizes and flavours (2026-10-22)
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| A listing says "From $x" when a product's sizes cost different amounts | ✅ built | ✅ built | the lowest price among sizes on sale |
+| Quick-add on a tile only for a product sold one way; otherwise "Choose" | ✅ built | ✅ built | never a guessed size |
+| Size selector on the product page; price, availability and picture follow the choice | ✅ built (`?variant=` in the link) | ✅ built | sold-out sizes stay visible, struck through and announced |
+| Comparison price ("$0.64 / 100 g") beside a price | ✅ built | ✅ built | computed by the platform; words pinned by `unit-price.fixtures.json` |
+| Cart, checkout, order and receipt lines name the size | ✅ built | ✅ built | an order keeps the size and price it was sold at |
+| Saved items and lists remember the size on screen; "Choose size" when none is remembered | ✅ built | ✅ built | lists still hold products, one entry per product |
+
+⚠ **A cart from before 098 is dropped** on both surfaces (it named products, which can no longer be bought
+as such); the catalogue started afresh with 098, so no id in one exists.
+
+⚠ **Not walked on either surface.**

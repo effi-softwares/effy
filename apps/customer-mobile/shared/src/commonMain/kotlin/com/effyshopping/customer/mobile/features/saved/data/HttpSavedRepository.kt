@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.saved.data
 
+import com.effyshopping.customer.mobile.commerce.contract.SaveItemRequest
 import com.effyshopping.customer.mobile.commerce.contract.SavedItemDTO
 import com.effyshopping.customer.mobile.commerce.contract.SavedListCreateRequest
 import com.effyshopping.customer.mobile.commerce.contract.SavedListDTO
@@ -19,6 +20,7 @@ import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.effyJson
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
 import com.effyshopping.customer.mobile.core.http.toAppException
+import com.effyshopping.customer.mobile.features.catalog.data.toDomain
 import com.effyshopping.customer.mobile.features.saved.domain.DEFAULT_LIST_ID
 import com.effyshopping.customer.mobile.features.saved.domain.ListRefusal
 import com.effyshopping.customer.mobile.features.saved.domain.ListRefusedException
@@ -84,12 +86,12 @@ class HttpSavedRepository(private val edge: HttpClient) :
         edge.get(path).ensureListSuccess().body<List<SavedItemDTO>>().map { it.toDomain() }
     }
 
-    override suspend fun save(productId: String, restoreSavedAt: String?) {
+    override suspend fun save(productId: String, restoreSavedAt: String?, variantId: String?) {
         request {
             edge.put("commerce/v1/saved/$productId") {
-                if (restoreSavedAt != null) {
+                if (restoreSavedAt != null || variantId != null) {
                     contentType(ContentType.Application.Json)
-                    setBody(SaveBody(restoreSavedAt))
+                    setBody(SaveItemRequest(restoreSavedAt = restoreSavedAt, variantID = variantId))
                 }
             }.ensureListSuccess()
         }
@@ -146,10 +148,10 @@ class HttpSavedRepository(private val edge: HttpClient) :
             .ensureListSuccess().body<List<SavedListDTO>>().map { it.toDomain() }
     }
 
-    override suspend fun create(name: String, productId: String?): SavedList = request {
+    override suspend fun create(name: String, productId: String?, variantId: String?): SavedList = request {
         edge.post("commerce/v1/lists") {
             contentType(ContentType.Application.Json)
-            setBody(SavedListCreateRequest(name = name, productID = productId))
+            setBody(SavedListCreateRequest(name = name, productID = productId, variantID = variantId?.takeIf { productId != null }))
         }.ensureListSuccess().body<SavedListDTO>().toDomain()
     }
 
@@ -164,12 +166,12 @@ class HttpSavedRepository(private val edge: HttpClient) :
         request { edge.delete("commerce/v1/lists/$listId").ensureListSuccess() }
     }
 
-    override suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String?) {
+    override suspend fun addEntry(listId: String, productId: String, restoreAddedAt: String?, variantId: String?) {
         request {
             edge.put("commerce/v1/lists/$listId/entries/$productId") {
-                if (restoreAddedAt != null) {
+                if (restoreAddedAt != null || variantId != null) {
                     contentType(ContentType.Application.Json)
-                    setBody(SavedListEntryRequest(restoreAddedAt))
+                    setBody(SavedListEntryRequest(restoreAddedAt = restoreAddedAt, variantID = variantId))
                 }
             }.ensureListSuccess()
         }
@@ -198,10 +200,6 @@ class HttpSavedRepository(private val edge: HttpClient) :
             throw AppException(AppError.Unexpected)
         }
 }
-
-/** Undo's restore body. Absent for an ordinary save, which takes now() and lands at the top. */
-@Serializable
-private data class SaveBody(val restoreSavedAt: String)
 
 @Serializable
 private data class AddToCartBody(val changeId: String)
@@ -264,6 +262,10 @@ private fun SavedItemDTO.toDomain(): SavedItem = SavedItem(
     priceDropped = priceDropped ?: false,
     verdict = verdict.toDomain(),
     categoryKey = categoryKey,
+    variantId = variantID,
+    variantLabel = variantLabel,
+    variantCount = variantCount.toInt(),
+    unitPrice = unitPrice?.toDomain(),
 )
 
 /**

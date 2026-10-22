@@ -18,7 +18,7 @@ export interface RefundTarget {
   orderId: string
   orderNumber: string
   currency: string
-  lines: Pick<OrderLine, "orderItemId" | "name" | "sku" | "orderedQuantity" | "refundedQuantity" | "unitPrice">[]
+  lines: Pick<OrderLine, "orderItemId" | "name" | "variantLabel" | "sku" | "orderedQuantity" | "refundedQuantity" | "unitPrice">[]
 }
 
 type Reason = "item_not_supplied" | "item_unusable"
@@ -106,7 +106,10 @@ export function RefundSheet({
               className="border-border flex flex-wrap items-center justify-between gap-3 border-b py-2.5"
             >
               <div className="grid min-w-0 flex-1 gap-0.5">
-                <div className="text-[13.5px] font-medium">{l.name}</div>
+                <div className="text-[13.5px] font-medium">
+                  {l.name}
+                  {l.variantLabel ? ` — ${l.variantLabel}` : ""}
+                </div>
                 <div className="text-muted-foreground font-mono text-[12px]">
                   {l.sku ?? "no SKU"} · {formatMoney(l.unitPrice, detail.currency)} each
                   {l.refundedQuantity > 0 ? ` · ${l.refundedQuantity} already refunded` : ""}

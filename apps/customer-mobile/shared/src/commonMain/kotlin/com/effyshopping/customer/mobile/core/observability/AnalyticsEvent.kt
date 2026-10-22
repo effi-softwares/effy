@@ -21,6 +21,9 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     data object CartViewed : AnalyticsEvent("cart_viewed")
     data object CheckoutStarted : AnalyticsEvent("checkout_started")
     class OrderPlaced(orderId: String) : AnalyticsEvent("order_placed", mapOf("orderId" to orderId))
+    /** 098 — a size chosen on the product page (ids only). */
+    class VariantSelected(productId: String, variantId: String) :
+        AnalyticsEvent("variant_selected", mapOf("productId" to productId, "variantId" to variantId))
     data object SearchPerformed : AnalyticsEvent("search_performed")
 
     /**

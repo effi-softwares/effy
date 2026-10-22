@@ -41,7 +41,7 @@ class SavedWireContractTest {
         // ⚠ Read by the backend's wire.contract.test.ts (see the header). If you change it,
         // change the other in the same commit.
         const val SAVED_ITEM_WIRE_JSON =
-            """{"id":"9f2c1d4e-0000-0000-0000-000000000001","name":"Free Range Eggs 12pk","brand":"Effy","imageUrl":"https://media.example/eggs.jpg","priceAmount":"6.50","currency":"AUD","compareAtAmount":"8.00","badges":["on_sale"],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"8.00","priceDropped":true,"verdict":"purchasable","categoryKey":"dairy-eggs"}"""
+            """{"id":"9f2c1d4e-0000-0000-0000-000000000001","name":"Free Range Eggs 12pk","brand":"Effy","imageUrl":"https://media.example/eggs.jpg","priceAmount":"6.50","currency":"AUD","compareAtAmount":"8.00","badges":["on_sale"],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"8.00","priceDropped":true,"verdict":"purchasable","categoryKey":"dairy-eggs","variantId":"9f2c1d4e-0000-0000-0000-0000000000a1","variantLabel":"12 pack","variantCount":2,"unitPrice":{"amount":"0.54","basis":"each"}}"""
 
         // ⚠ 068 added `namedProductIds`. Byte-identical to SAVED_MEMBERSHIP_WIRE_JSON in
         // the backend's wire.contract.test.ts.
@@ -194,7 +194,7 @@ class SavedWireContractTest {
     @Test
     fun `an absent priceDropped decodes as no drop`() {
         val withoutFlag =
-            """{"id":"p1","name":"Milk","brand":null,"imageUrl":null,"priceAmount":"3.10","currency":"AUD","compareAtAmount":null,"badges":[],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"3.10","verdict":"purchasable"}"""
+            """{"id":"p1","name":"Milk","brand":null,"imageUrl":null,"priceAmount":"3.10","currency":"AUD","compareAtAmount":null,"badges":[],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"3.10","variantId":null,"variantLabel":null,"variantCount":2,"unitPrice":null,"verdict":"purchasable"}"""
 
         val dto = json.decodeFromString<SavedItemDTO>(withoutFlag)
         assertEquals(null, dto.priceDropped)
@@ -220,7 +220,7 @@ class SavedWireContractTest {
         )
         for ((wire, domain) in expected) {
             val payload =
-                """{"id":"p1","name":"Milk","brand":null,"imageUrl":null,"priceAmount":"3.10","currency":"AUD","compareAtAmount":null,"badges":[],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"3.10","verdict":"$wire"}"""
+                """{"id":"p1","name":"Milk","brand":null,"imageUrl":null,"priceAmount":"3.10","currency":"AUD","compareAtAmount":null,"badges":[],"savedAt":"2026-07-20T04:11:00Z","savedPriceAmount":"3.10","variantId":null,"variantLabel":null,"variantCount":2,"unitPrice":null,"verdict":"$wire"}"""
             assertEquals(domain, json.decodeFromString<SavedItemDTO>(payload).verdict, "wire value: $wire")
         }
     }
@@ -237,7 +237,7 @@ class SavedWireContractTest {
     @Test
     fun `an order line carries the product id a save needs`() {
         val orderItemJson =
-            """{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"9f2c1d4e-0000-0000-0000-000000000001","productName":"Free Range Eggs 12pk","unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00"}"""
+            """{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"9f2c1d4e-0000-0000-0000-000000000001","productName":"Free Range Eggs 12pk","variantId":"9f2c1d4e-0000-0000-0000-0000000000a1","variantLabel":"12 pack","unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00"}"""
 
         val dto = json.decodeFromString<OrderItemDTO>(orderItemJson)
 

@@ -48,7 +48,7 @@ class CheckoutMappersTest {
         fulfillments = emptyList(),
         grandTotalAmount = "25.00",
         id = "ord1",
-        items = listOf(OrderItemDTO(lineSubtotalAmount = "20.00", orderItemID = "oi1", productID = "p1", productName = "Item", quantity = 1.0, unitPriceAmount = "20.00")),
+        items = listOf(OrderItemDTO(lineSubtotalAmount = "20.00", orderItemID = "oi1", productID = "p1", variantID = "v1", productName = "Item", quantity = 1.0, unitPriceAmount = "20.00")),
         itemSubtotalAmount = "20.00",
         orderNumber = "EFY-1",
         paymentStatus = PaymentStatus.Succeeded,

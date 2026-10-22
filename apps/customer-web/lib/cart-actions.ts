@@ -57,13 +57,13 @@ async function send(call: () => Promise<Awaited<ReturnType<typeof cartApi.get>>>
 /** Add or increment a line. */
 export function addItem(line: GuestCartLine): void {
   applyAdd(line)
-  void send(() => cartApi.add(line.productId, line.quantity, newChangeId()))
+  void send(() => cartApi.add(line.variantId, line.quantity, newChangeId()))
 }
 
 /**
  * Set a line's ABSOLUTE quantity; 0 removes it.
  *
- * ⚠ DEBOUNCED per product, unlike add. A stepper is clicked repeatedly and only the value the shopper
+ * ⚠ DEBOUNCED per line (variant), unlike add. A stepper is clicked repeatedly and only the value the shopper
  * settles on matters, so ten clicks cost ONE request (FR-016, SC-005). Safe only because the payload is
  * absolute: dropping the intermediate values loses nothing, because the last one already says everything.
  * With increments it would corrupt the total — which is why 027 made quantities absolute.
@@ -80,13 +80,13 @@ interface PendingSend {
 
 const pendingSends = new Map<string, PendingSend>()
 
-export function setItemQuantity(productId: string, quantity: number): void {
-  applySetQty(productId, quantity)
+export function setItemQuantity(variantId: string, quantity: number): void {
+  applySetQty(variantId, quantity)
 
-  pendingSends.get(productId)?.timer && clearTimeout(pendingSends.get(productId)!.timer)
+  pendingSends.get(variantId)?.timer && clearTimeout(pendingSends.get(variantId)!.timer)
 
   const fire = () => {
-    pendingSends.delete(productId)
+    pendingSends.delete(variantId)
     // Minted HERE, not per click: one shopper action, one id — a retry of it must reuse the id (FR-018).
     const changeId = newChangeId()
     // ⚠ The value sent is the one the shopper CLICKED, captured above — not re-read from the mirror at fire
@@ -95,11 +95,11 @@ export function setItemQuantity(productId: string, quantity: number): void {
     // "set it to 4" into a delete the shopper never asked for. This matches mobile, where the queued change
     // carries its own quantity.
     void send(() =>
-      quantity <= 0 ? cartApi.remove(productId, changeId) : cartApi.setQuantity(productId, quantity, changeId),
+      quantity <= 0 ? cartApi.remove(variantId, changeId) : cartApi.setQuantity(variantId, quantity, changeId),
     )
   }
 
-  pendingSends.set(productId, { timer: setTimeout(fire, SEND_DEBOUNCE_MS), fire })
+  pendingSends.set(variantId, { timer: setTimeout(fire, SEND_DEBOUNCE_MS), fire })
 }
 
 /**
@@ -118,9 +118,9 @@ export function flushPendingCartSends(): void {
 }
 
 /** Remove a line. */
-export function removeItem(productId: string): void {
-  applyRemove(productId)
-  void send(() => cartApi.remove(productId, newChangeId()))
+export function removeItem(variantId: string): void {
+  applyRemove(variantId)
+  void send(() => cartApi.remove(variantId, newChangeId()))
 }
 
 /** Empty the payable cart. Set-aside items survive (FR-030/FR-032). */
@@ -137,18 +137,18 @@ export function clearAll(): void {
  * adopts it. A guest (401) has no saved list at all — a half-working local imitation would be worse than
  * the button not being there, which is why the UI hides it for them.
  */
-export async function setAsideItem(productId: string): Promise<boolean> {
-  return applyRemote(() => cartApi.setAside(productId, newChangeId()))
+export async function setAsideItem(variantId: string): Promise<boolean> {
+  return applyRemote(() => cartApi.setAside(variantId, newChangeId()))
 }
 
 /** Move a set-aside line back into the cart, at its CURRENT price (FR-029). */
-export async function restoreSavedItem(productId: string): Promise<boolean> {
-  return applyRemote(() => cartApi.restoreSaved(productId, newChangeId()))
+export async function restoreSavedItem(variantId: string): Promise<boolean> {
+  return applyRemote(() => cartApi.restoreSaved(variantId, newChangeId()))
 }
 
 /** Discard a set-aside line. */
-export async function deleteSavedItem(productId: string): Promise<boolean> {
-  return applyRemote(() => cartApi.deleteSaved(productId, newChangeId()))
+export async function deleteSavedItem(variantId: string): Promise<boolean> {
+  return applyRemote(() => cartApi.deleteSaved(variantId, newChangeId()))
 }
 
 /**

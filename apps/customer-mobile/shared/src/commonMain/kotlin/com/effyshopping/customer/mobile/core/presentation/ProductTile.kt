@@ -127,7 +127,14 @@ fun EffyProductCard(
             // The heart sits above the unavailable label: a shopper must still be able to un-save.
             imageOverlay?.invoke(this)
 
-            if (onCartQuantityChange != null && product.available) {
+            if (onCartQuantityChange != null && product.available && product.variantCount > 1) {
+                // 098 — sold in several sizes: the shopper chooses on the product page; never a guessed size.
+                TileChooseControl(
+                    name = product.name,
+                    onClick = { onClick(product.id) },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(EffySpacing.s),
+                )
+            } else if (onCartQuantityChange != null && product.available) {
                 TileCartControl(
                     name = product.name,
                     quantity = cartQuantity,
@@ -162,6 +169,10 @@ fun EffyProductCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            // 098 — sizes at different prices: the lowest, said as a lowest.
+            if (product.priceVaries) {
+                Text("From", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Text(
                 money(product.priceAmount, product.currency),
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
@@ -175,6 +186,24 @@ fun EffyProductCard(
                 DiscountChip(percentOff)
             }
         }
+        UnitPriceText(product.unitPrice)
+    }
+}
+
+/** 098 — the tile's control for a product sold in several sizes: "Choose" opens the product. */
+@Composable
+private fun TileChooseControl(name: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val interactions = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .effyPress(interactions)
+            .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClickLabel = "Choose a size of $name", onClick = onClick)
+            .clip(EffyStorefrontShape.control)
+            .background(MaterialTheme.colorScheme.background)
+            .border(1.dp, MaterialTheme.colorScheme.outline, EffyStorefrontShape.control)
+            .padding(horizontal = EffySpacing.md, vertical = 6.dp),
+    ) {
+        Text("Choose", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold))
     }
 }
 

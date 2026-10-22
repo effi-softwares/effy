@@ -22,12 +22,17 @@ export function PrintReceipt() {
  * as it does for any other add. The receipt's own figures are a record and are not reused.
  */
 export function BuyLineAgain({
+  variantId,
+  variantLabel,
   productId,
   name,
   imageUrl,
   unitPriceAmount,
   currency,
 }: {
+  /** 098 — the size that was sold; the same size goes back in the cart. */
+  variantId: string
+  variantLabel: string | null
   productId: string
   name: string
   imageUrl: string | null
@@ -41,7 +46,7 @@ export function BuyLineAgain({
       size="sm"
       className="print:hidden"
       onClick={() =>
-        addItem({ productId, name, imageUrl, unitPriceAmount, currency, quantity: 1, packageKey: DEFAULT_PACKAGE_KEY })
+        addItem({ variantId, variantLabel, productId, name, imageUrl, unitPriceAmount, currency, quantity: 1, packageKey: DEFAULT_PACKAGE_KEY })
       }
     >
       Buy again<span className="sr-only"> {name}</span>

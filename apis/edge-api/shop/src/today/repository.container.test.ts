@@ -82,11 +82,9 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
     status?: string;
   }): Promise<string> {
     const res = await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-         short_description, created_by, status, stock_tracked, stock_on_hand, low_stock_threshold, approved_at)
-       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', $3, $4, $5, $6, now()
-         FROM public.product_type pt, public.category c
-       RETURNING id`,
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) SELECT $1, pt.id, c.id, $2, 'x', 'seed', $3, now() FROM public.product_type pt, public.category c RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount, stock_tracked, stock_on_hand, low_stock_threshold) SELECT p.id, p.shop_id, COALESCE(10, 10)::numeric, (10)::numeric, $4, $5, $6 FROM p RETURNING id)
+SELECT id FROM p`,
       [
         opts.shop ?? SHOP,
         opts.name,
@@ -121,8 +119,7 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
     const orderId = o.rows[0]!.id;
     const productId = opts.productId ?? (await product({ name: `P-${opts.number}`, shop }));
     await pool.query(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount,
-         quantity, line_subtotal_amount) VALUES ($1,$2,$3,'Milk',10,$4,$5)`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, $4, $5)`,
       [orderId, productId, shop, qty, qty * 10],
     );
     const f = await pool.query<{ id: string }>(
@@ -185,9 +182,9 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
     it("carries real demand and derives cover from it", async () => {
       const id = await product({ name: "Stoneware mug", onHand: 3, threshold: 5 });
       await pool.query(
-        `INSERT INTO public.stock_movement (product_id, shop_id, quantity_delta, quantity_before,
+        `INSERT INTO public.stock_movement (product_id, variant_id, shop_id, quantity_delta, quantity_before,
            quantity_after, reason, actor_kind)
-         VALUES ($1,$2,-7,10,3,'order_paid','system')`,
+         VALUES ($1,(SELECT id FROM public.product_variant WHERE product_id = $1),$2,-7,10,3,'order_paid','system')`,
         [id, SHOP],
       );
 
@@ -207,11 +204,11 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
     it("ignores movements that are not sales, and sales older than a week", async () => {
       const id = await product({ name: "Wrap set", onHand: 0 });
       await pool.query(
-        `INSERT INTO public.stock_movement (product_id, shop_id, quantity_delta, quantity_before,
+        `INSERT INTO public.stock_movement (product_id, variant_id, shop_id, quantity_delta, quantity_before,
            quantity_after, reason, actor_kind, created_at) VALUES
-          ($1,$2,-4,10,6,'damage','shop', now()),
-          ($1,$2,-9,6,0,'order_paid','system', now() - interval '20 days'),
-          ($1,$2,-2,2,0,'order_paid','system', now() - interval '2 days')`,
+          ($1,(SELECT id FROM public.product_variant WHERE product_id = $1),$2,-4,10,6,'damage','shop', now()),
+          ($1,(SELECT id FROM public.product_variant WHERE product_id = $1),$2,-9,6,0,'order_paid','system', now() - interval '20 days'),
+          ($1,(SELECT id FROM public.product_variant WHERE product_id = $1),$2,-2,2,0,'order_paid','system', now() - interval '2 days')`,
         [id, SHOP],
       );
       const [row] = await readStockAttention(SHOP, 8);

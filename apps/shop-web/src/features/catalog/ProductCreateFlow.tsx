@@ -47,8 +47,9 @@ import {
   attributesValid,
   basicsComplete,
   collectAttributeInputs,
-  isValidPrice,
 } from "./validation";
+import { VariantEditor } from "./VariantEditor";
+import { shopPriceSummary, toInputs, variantSetErrors, variantSetValid } from "./variants";
 
 /**
  * The schema-driven, four-step create flow (FR-011/FR-012).
@@ -73,8 +74,9 @@ export interface ProductCreateFlowProps {
   onCreated: (productId: string) => void;
 }
 
-// Image is its own dedicated step, at step 3 — right after Basics (FR-010b / research R16).
-const STEP_TITLES = ["Product type", "Basics", "Image", "Details", "Review"] as const;
+// Image is its own dedicated step, after Basics (FR-010b / research R16). 098 — "Sizes & prices" sits
+// between them: what the product IS, then what it is sold AS, then what it looks like.
+const STEP_TITLES = ["Product type", "Basics", "Sizes & prices", "Image", "Details", "Review"] as const;
 
 export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProps) {
   const schema = useQuery(catalogSchemaQuery);
@@ -154,10 +156,15 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
       : step === 1
         ? basicsComplete(draft)
         : step === 2
-          ? !!imageFile
+          ? variantSetValid(draft.variantSet)
           : step === 3
-            ? !!selectedType && attributesValid(selectedType, draft.attributes)
-            : true;
+            ? !!imageFile
+            : step === 4
+              ? !!selectedType && attributesValid(selectedType, draft.attributes)
+              : true;
+  // 098 — a cell's refusal shows once the operator has typed into the set, never on an untouched form.
+  const variantErrors = variantSetErrors(draft.variantSet);
+  const [variantsTouched, setVariantsTouched] = useState(false);
 
   const busy = createProduct.isPending || uploadProgress != null;
 
@@ -174,20 +181,21 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
     if (!selectedType || !draft.primaryCategoryId || !imageFile) return;
     setFormError(null);
     try {
+      // 098 — the product and its variants are created together. ⚠ A blank weight is sent as null,
+      // NOT 0: an unanswered weight records the platform's stated assumption (FR-037).
+      const set = toInputs(draft.variantSet);
       const body: CreateProductRequest = {
         productTypeId: selectedType.id,
         primaryCategoryId: draft.primaryCategoryId,
         name: draft.name.trim(),
-        priceAmount: draft.priceAmount.trim(),
         shortDescription: draft.shortDescription.trim(),
         brand: draft.brand.trim() || null,
-        sku: draft.sku.trim() || null,
         longDescription: draft.longDescription.trim() || null,
-        // ⚠ Omitted when blank, NOT sent as 0. An unanswered weight must record the platform's stated
-        // assumption; a zero would ship free and nothing downstream would notice (FR-037).
-        weightGrams: draft.weightGrams.trim() ? Number(draft.weightGrams.trim()) : null,
         gstStatus: draft.gstStatus as GstStatus,
         attributes: collectAttributeInputs(selectedType, draft.attributes),
+        unitBasis: set.unitBasis,
+        options: set.options,
+        variants: set.variants,
       };
       // 1) create the product row, 2) attach the primary image (see ordering note above).
       const product = await createProduct.mutateAsync(body);
@@ -198,6 +206,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
       });
 
       track({ name: "product_created", productId: product.id });
+      track({ name: "product_variants_saved", productId: product.id, variantCount: set.variants.length });
       // 067 — the wizard's last button sends the finished product to Effy. ⚠ A FAILED SUBMIT IS NOT A
       // FAILED CREATE: the product exists as a draft with its image, so the shop lands on it and
       // submits from there rather than being told nothing was saved.
@@ -233,8 +242,19 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
       ) : step === 1 ? (
         <BasicsStep draft={draft} categories={orderedCategories} onField={update} />
       ) : step === 2 ? (
-        <ImageDropzone file={imageFile} onChange={setImageFile} disabled={busy} />
+        <VariantEditor
+          value={draft.variantSet}
+          onChange={(variantSet) => {
+            setVariantsTouched(true);
+            update({ variantSet });
+          }}
+          errors={variantErrors}
+          showErrors={variantsTouched}
+          disabled={busy}
+        />
       ) : step === 3 ? (
+        <ImageDropzone file={imageFile} onChange={setImageFile} disabled={busy} />
+      ) : step === 4 ? (
         <AttributesStep
           type={selectedType}
           values={draft.attributes}
@@ -255,7 +275,8 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
 
   const STEP_HINTS = [
     "Pick what kind of product this is. The type decides which details you are asked for next.",
-    "The essentials a shopper sees, and the weight delivery is priced on.",
+    "The essentials a shopper sees.",
+    "What the product is sold as. One price for one form — or add an option such as Size and price each size.",
     "One photograph. It is what the product looks like everywhere on the storefront.",
     "The details this product type asks for. Required ones are marked.",
     "Check it over. Nothing is sent to Effy until you press Submit for review. It goes on sale once Effy approves it.",
@@ -369,14 +390,14 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
                 <div className="truncate text-[13.5px] font-medium">
                   {draft.name.trim() || "Untitled product"}
                 </div>
-                <div className="text-muted-foreground truncate font-mono text-xs">
-                  {draft.sku.trim() || "no SKU"}
+                <div className="text-muted-foreground truncate text-xs">
+                  {draft.variantSet.variants.length === 1 ? "One variant" : `${draft.variantSet.variants.length} variants`}
                 </div>
               </div>
             </div>
             <div className="border-border flex justify-between gap-4 border-t pt-2.5 text-[13px]">
               <span className="text-muted-foreground">Price</span>
-              <span className="font-medium tabular-nums">{draft.priceAmount.trim() || "—"}</span>
+              <span className="font-medium tabular-nums">{previewPrice(draft)}</span>
             </div>
             <div className="flex justify-between gap-4 text-[13px]">
               <span className="text-muted-foreground">Type</span>
@@ -530,56 +551,13 @@ function BasicsStep({
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label htmlFor="p-price">
-            Price<span className="ml-0.5 text-destructive">*</span>
-          </Label>
-          <Input
-            id="p-price"
-            inputMode="decimal"
-            placeholder="0.00"
-            value={draft.priceAmount}
-            onChange={(e) => onField({ priceAmount: e.target.value })}
-          />
-          {draft.priceAmount && !isValidPrice(draft.priceAmount) ? (
-            <p className="text-xs text-destructive">Enter a positive amount (e.g. 4.99).</p>
-          ) : null}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="p-brand">Brand (optional)</Label>
-          <Input
-            id="p-brand"
-            value={draft.brand}
-            onChange={(e) => onField({ brand: e.target.value })}
-          />
-        </div>
-      </div>
-
       <div className="space-y-2">
-        <Label htmlFor="p-sku">SKU (optional)</Label>
-        <Input id="p-sku" value={draft.sku} onChange={(e) => onField({ sku: e.target.value })} />
-      </div>
-
-      {/* ⚠ Shipping weight (032, FR-036a). Optional, but the help text says what happens when it is
-          left blank — an operator who does not know that a default is recorded cannot tell later
-          which of their products were guessed at. */}
-      <div className="space-y-2">
-        <Label htmlFor="p-weight">Shipping weight (optional)</Label>
+        <Label htmlFor="p-brand">Brand (optional)</Label>
         <Input
-          id="p-weight"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          value={draft.weightGrams}
-          onChange={(e) => onField({ weightGrams: e.target.value })}
-          aria-describedby="p-weight-help"
+          id="p-brand"
+          value={draft.brand}
+          onChange={(e) => onField({ brand: e.target.value })}
         />
-        <p id="p-weight-help" className="text-sm text-muted-foreground">
-          In <strong>grams</strong>, including packaging — delivery is priced partly on weight. Leave
-          blank and we record an assumed weight you can correct later.
-        </p>
       </div>
 
       {/* 096 — every product is taxable or GST-free; it decides what a customer's tax invoice says. */}
@@ -728,21 +706,16 @@ function ReviewStep({
       <dt className="text-muted-foreground">Category</dt>
       <dd>{categoryName}</dd>
       <dt className="text-muted-foreground">Price</dt>
-      <dd>{draft.priceAmount || "—"}</dd>
+      <dd>{previewPrice(draft)}</dd>
+      <dt className="text-muted-foreground">Variants</dt>
+      <dd>{draft.variantSet.variants.length}</dd>
       {draft.brand ? (
         <>
           <dt className="text-muted-foreground">Brand</dt>
           <dd>{draft.brand}</dd>
         </>
       ) : null}
-      {draft.sku ? (
-        <>
-          <dt className="text-muted-foreground">SKU</dt>
-          <dd>{draft.sku}</dd>
-        </>
-      ) : null}
-      <dt className="text-muted-foreground">Shipping weight</dt>
-      <dd>{draft.weightGrams.trim() ? `${draft.weightGrams.trim()} g` : "assumed"}</dd>
+
       <dt className="text-muted-foreground">GST</dt>
       <dd>{draft.gstStatus ? GST_STATUS_WORDS[draft.gstStatus] : "—"}</dd>
       <dt className="text-muted-foreground">Description</dt>
@@ -752,3 +725,11 @@ function ReviewStep({
   );
 }
 
+
+/** "3.20", or "From 3.20" when the variants differ — what the shop typed, no margin. */
+function previewPrice(draft: ProductDraft): string {
+  const priced = draft.variantSet.variants.filter((r) => /^\d+(\.\d{1,2})?$/.test(r.shopPriceAmount.trim()));
+  if (priced.length === 0) return "—";
+  const s = shopPriceSummary({ variants: priced.map((r) => ({ state: "active", shopPriceAmount: r.shopPriceAmount.trim() })) as never });
+  return s.amount ? `${s.varies ? "From " : ""}${s.amount}` : "—";
+}

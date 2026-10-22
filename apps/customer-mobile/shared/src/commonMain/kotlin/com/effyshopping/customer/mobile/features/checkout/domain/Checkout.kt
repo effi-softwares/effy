@@ -95,6 +95,8 @@ data class ReceiptItem(
      */
     val productId: String,
     val productName: String,
+    /** 098 — the size as it was sold ("1 kg"); null for a product sold one way. */
+    val variantLabel: String? = null,
     val quantity: Int,
     val unitPriceAmount: String,
     val lineSubtotalAmount: String,

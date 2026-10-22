@@ -18,35 +18,37 @@ import { api } from "@/lib/api";
 //
 // Served by `edge-api/inventory`, not `edge-api/admin` — the admin stack is at 434 of
 // CloudFormation's 500 resources and had no room (research R6). Same gateway, same bearer.
+//
+// 098 — stock is counted per VARIANT (a size of a product), so the per-item routes name a variant.
 
 const base = (shopId: string) => `/inventory/v1/admin/shops/${shopId}`;
 
-export function getShopProductStock(
+export function getShopVariantStock(
   shopId: string,
-  productId: string,
+  variantId: string,
 ): Promise<ProductStockDetailDTO> {
-  return api.get<ProductStockDetailDTO>(`${base(shopId)}/products/${productId}/stock`);
+  return api.get<ProductStockDetailDTO>(`${base(shopId)}/variants/${variantId}/stock`);
 }
 
 export function getShopLowStock(shopId: string): Promise<LowStockRowDTO[]> {
   return api.get<LowStockRowDTO[]>(`${base(shopId)}/low-stock`);
 }
 
-export function setShopProductStock(
+export function setShopVariantStock(
   shopId: string,
-  productId: string,
+  variantId: string,
   body: SetStockRequest,
 ): Promise<ProductStockDetailDTO> {
-  return api.put<ProductStockDetailDTO>(`${base(shopId)}/products/${productId}/stock`, body);
+  return api.put<ProductStockDetailDTO>(`${base(shopId)}/variants/${variantId}/stock`, body);
 }
 
-export function setShopProductTracking(
+export function setShopVariantTracking(
   shopId: string,
-  productId: string,
+  variantId: string,
   body: SetTrackingRequest,
 ): Promise<ProductStockDetailDTO> {
   return api.put<ProductStockDetailDTO>(
-    `${base(shopId)}/products/${productId}/stock/tracking`,
+    `${base(shopId)}/variants/${variantId}/stock/tracking`,
     body,
   );
 }

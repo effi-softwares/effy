@@ -104,11 +104,9 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
 
   async function product(name: string, shop = SHOP): Promise<string> {
     const res = await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-         short_description, created_by, status, approved_at)
-       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', 'active', now()
-         FROM public.product_type pt, public.category c
-       RETURNING id`,
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at) SELECT $1, pt.id, c.id, $2, 'x', 'seed', 'active', now() FROM public.product_type pt, public.category c RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(10, 10)::numeric, (10)::numeric FROM p RETURNING id)
+SELECT id FROM p`,
       [shop, name],
     );
     return res.rows[0]!.id;
@@ -140,8 +138,7 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
     const orderId = o.rows[0]!.id;
     const productId = opts.productId ?? (await product(`P-${opts.number}`, shop));
     const item = await pool.query<{ id: string }>(
-      `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount,
-         quantity, line_subtotal_amount) VALUES ($1,$2,$3,'Milk',10,$4,$5) RETURNING id`,
+      `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Milk', 10, $4, $5) RETURNING id`,
       [orderId, productId, shop, qty, qty * 10],
     );
     const f = await pool.query<{ id: string }>(
@@ -388,8 +385,7 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
       const { orderId } = await paidOrder({ number: "EFY-9", qty: 2 }); // $20 from SHOP
       const p2 = await product("Other", OTHER_SHOP);
       await pool.query(
-        `INSERT INTO public.order_item (order_id, product_id, shop_id, product_name, unit_price_amount,
-           quantity, line_subtotal_amount) VALUES ($1,$2,$3,'Bread',10,4,40)`,
+        `INSERT INTO public.order_item (order_id, product_id, variant_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), $3, 'Bread', 10, 4, 40)`,
         [orderId, p2, OTHER_SHOP],
       );
       await pool.query(

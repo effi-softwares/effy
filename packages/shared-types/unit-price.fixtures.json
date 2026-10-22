@@ -1,0 +1,26 @@
+{
+  "_": "098 — unit pricing. Read by packages/shared-types/src/unit-price.test.ts AND embedded in the customer app's UnitPriceFixture.kt. Change both or neither.",
+  "cases": [
+    { "price": "3.20", "quantity": "500", "unit": "g", "basis": "per_100g", "amount": "0.64", "text": "$0.64 / 100 g" },
+    { "price": "5.50", "quantity": "1", "unit": "kg", "basis": "per_100g", "amount": "0.55", "text": "$0.55 / 100 g" },
+    { "price": "5.50", "quantity": "1", "unit": "kg", "basis": "per_kg", "amount": "5.50", "text": "$5.50 / kg" },
+    { "price": "3.20", "quantity": "500", "unit": "g", "basis": "per_kg", "amount": "6.40", "text": "$6.40 / kg" },
+    { "price": "21.00", "quantity": "5", "unit": "kg", "basis": "per_kg", "amount": "4.20", "text": "$4.20 / kg" },
+    { "price": "2.50", "quantity": "1.25", "unit": "l", "basis": "per_l", "amount": "2.00", "text": "$2.00 / L" },
+    { "price": "2.50", "quantity": "1.25", "unit": "l", "basis": "per_100ml", "amount": "0.20", "text": "$0.20 / 100 mL" },
+    { "price": "4.00", "quantity": "750", "unit": "ml", "basis": "per_l", "amount": "5.33", "text": "$5.33 / L" },
+    { "price": "4.00", "quantity": "750", "unit": "ml", "basis": "per_100ml", "amount": "0.53", "text": "$0.53 / 100 mL" },
+    { "price": "7.20", "quantity": "12", "unit": "each", "basis": "each", "amount": "0.60", "text": "$0.60 each" },
+    { "price": "5.00", "quantity": "3", "unit": "each", "basis": "each", "amount": "1.67", "text": "$1.67 each" },
+    { "price": "1.00", "quantity": "8", "unit": "each", "basis": "each", "amount": "0.13", "text": "$0.13 each" },
+    { "price": "0.05", "quantity": "1", "unit": "kg", "basis": "per_100g", "amount": "0.01", "text": "$0.01 / 100 g" },
+    { "price": "0.04", "quantity": "1", "unit": "kg", "basis": "per_100g", "amount": "0.00", "text": "$0.00 / 100 g" },
+    { "price": "12.00", "quantity": "0.125", "unit": "kg", "basis": "per_kg", "amount": "96.00", "text": "$96.00 / kg" },
+    { "price": "4.50", "quantity": "175", "unit": "g", "basis": "per_100g", "amount": "2.57", "text": "$2.57 / 100 g" },
+    { "price": "9.00", "quantity": "3.75", "unit": "l", "basis": "per_l", "amount": "2.40", "text": "$2.40 / L" },
+    { "price": "3.00", "quantity": "500", "unit": "ml", "basis": "per_kg", "amount": null, "text": null },
+    { "price": "3.00", "quantity": "6", "unit": "each", "basis": "per_100g", "amount": null, "text": null },
+    { "price": "3.00", "quantity": "0", "unit": "g", "basis": "per_100g", "amount": null, "text": null },
+    { "price": "3.00", "quantity": "1.2345", "unit": "kg", "basis": "per_kg", "amount": null, "text": null }
+  ]
+}

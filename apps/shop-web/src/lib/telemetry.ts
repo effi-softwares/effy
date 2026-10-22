@@ -19,6 +19,9 @@ export type ShopAnalyticsEvent =
   | { name: "product_create_started" }
   | { name: "product_created"; productId: string }
   | { name: "product_edit_saved"; productId: string }
+  // 098 — a product's sizes saved (a count, never a price), and a size put on or off sale.
+  | { name: "product_variants_saved"; productId: string; variantCount: number }
+  | { name: "product_variant_state_changed"; productId: string; state: "active" | "inactive" | "removed" }
   | { name: "product_archived"; productId: string }
   // 067 — review. ⚠ NEVER the send-back reason, a price or a margin: the first is free text written
   // about a shop's product, the others are the shop's money.

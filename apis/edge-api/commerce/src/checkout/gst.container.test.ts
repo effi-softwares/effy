@@ -26,15 +26,15 @@ d("096 US9 — GST status at checkout", () => {
     const store = createCheckoutStore(pool, transactorFor(pool));
     const shop = await one<{ id: string }>(`INSERT INTO public.shop (code, name) VALUES ('GST', 'Shop') RETURNING id`);
     const product = async (name: string, gst: string | null) => (await one<{ id: string }>(
-      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount, short_description, created_by, status, approved_at, gst_status)
-       VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 4.50, 'A thing', 'test', 'active', now(), $3)
-       RETURNING id`, [shop.id, name, gst])).id;
+      `WITH p AS (INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, short_description, created_by, status, approved_at, gst_status) VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1), $2, 'A thing', 'test', 'active', now(), $3) RETURNING *),
+     pv AS (INSERT INTO public.product_variant (product_id, shop_id, shop_price_amount, price_amount) SELECT p.id, p.shop_id, COALESCE(4.50, 4.50)::numeric, (4.50)::numeric FROM p RETURNING id)
+SELECT id FROM p`, [shop.id, name, gst])).id;
     const milk = await product("Milk", "gst_free");
     const soap = await product("Soap", "taxable");
     const mystery = await product("Mystery", null);
     const cust = await one<{ id: string }>(`INSERT INTO public.customer (cognito_sub, email) VALUES ('g1', 'g1@effyshopping.com') RETURNING id`);
     const cart = await one<{ id: string }>(`INSERT INTO public.cart (customer_id) VALUES ($1) RETURNING id`, [cust.id]);
-    for (const p of [milk, soap, mystery]) await pool.query(`INSERT INTO public.cart_item (cart_id, product_id, quantity) VALUES ($1, $2, 1)`, [cart.id, p]);
+    for (const p of [milk, soap, mystery]) await pool.query(`INSERT INTO public.cart_item (cart_id, product_id, variant_id, quantity) VALUES ($1, $2, (SELECT v.id FROM public.product_variant v WHERE v.product_id = ($2)::uuid ORDER BY v.position LIMIT 1), 1)`, [cart.id, p]);
 
     const lines = await store.cartLines(cust.id);
     expect(Object.fromEntries(lines.map((l) => [l.name, l.gstClassified]))).toEqual({ Milk: true, Soap: true, Mystery: false });

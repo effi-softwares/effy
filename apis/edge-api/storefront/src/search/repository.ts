@@ -3,7 +3,7 @@
 import { pooled, type Queryable } from "@effy/edge-shared";
 
 import { CARD_COLUMNS, CARD_FROM, CARD_SELECT, type CardRow } from "../lib/cards";
-import { binder, cursorPredicate, filters, orderClause, TRIGRAM_EXPR, type SearchParams } from "./filters";
+import { binder, cursorPredicate, filters, matchedVariantSql, orderClause, TRIGRAM_EXPR, type SearchParams } from "./filters";
 
 /**
  * CardRow plus the relevance score.
@@ -36,6 +36,8 @@ export function createSearchRepository(db: Queryable = pooled): SearchRepository
         p.sort === "relevance" && p.q !== ""
           ? `,\n       similarity(${TRIGRAM_EXPR}, ${next(p.q)}) AS score`
           : ",\n       0::real AS score";
+      // 098 — a query that is a variant's code opens the tile on that variant.
+      if (p.q !== "") sql += `,\n       ${matchedVariantSql(next(p.q.trim()))} AS matched_variant_id`;
       sql += CARD_FROM;
       sql += filters(p, next);
       if (p.cursor) sql += cursorPredicate({ ...p, cursor: p.cursor }, next);

@@ -32,7 +32,7 @@ class CartStoreTest {
 
     private fun line(id: String, qty: Int = 1, price: String = "5.00", available: Boolean = true) =
         GuestCartLine(
-            productId = id,
+            variantId = id, productId = id,
             name = "Product $id",
             imageUrl = null,
             unitPriceAmount = price,
@@ -240,7 +240,7 @@ class CartStoreTest {
         val prefs = InMemoryDevicePreferences()
         val s = store(prefs, this)
         s.add(line("p1"))
-        s.enqueue(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, productId = "p1", quantity = 1))
+        s.enqueue(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, variantId = "p1", quantity = 1))
         advanceUntilIdle()
 
         // A fresh process over the same storage.
@@ -268,7 +268,7 @@ class CartHonestyTest {
 
     private fun dtoLine(id: String, qty: Int, price: String, available: Boolean = true, was: String? = null) =
         GuestCartLine(
-            productId = id, name = id, imageUrl = null, unitPriceAmount = price,
+            variantId = id, productId = id, name = id, imageUrl = null, unitPriceAmount = price,
             currency = "AUD", quantity = qty, packageKey = "pkg_a",
             available = available, priceChangedFrom = was,
         )

@@ -572,7 +572,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             </div>
             <ul className="mt-2 divide-y">
               {guestLines.map((line) => (
-                <li key={line.productId} className="flex items-center gap-4 py-3">
+                <li key={line.variantId} className="flex items-center gap-4 py-3">
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-muted">
                     {line.imageUrl ? (
                       <CatalogImage src={line.imageUrl} widths={line.imageWidths} alt="" fill sizes="3rem" className="object-cover" />
@@ -580,7 +580,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{line.name}</p>
-                    <p className="text-xs text-muted-foreground">Qty {line.quantity}</p>
+                    {/* 098 — the size chosen, beside the quantity. */}
+                    <p className="text-xs text-muted-foreground">
+                      {line.variantLabel ? `${line.variantLabel} · ` : ""}Qty {line.quantity}
+                    </p>
                   </div>
                   <span className="shrink-0 text-sm font-semibold tabular-nums">
                     {formatMoney(formatCents(parseCents(line.unitPriceAmount) * line.quantity), line.currency)}

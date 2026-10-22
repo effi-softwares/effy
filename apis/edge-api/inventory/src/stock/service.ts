@@ -8,6 +8,7 @@
  * drift would show up as back-office being able to write something a shop cannot, or vice versa.
  */
 
+import { stockState } from "@effy/edge-shared";
 import { announce } from "@effy/edge-shared/live";
 import {
   OPERATOR_STOCK_REASONS,
@@ -19,7 +20,7 @@ import {
 } from "@effy/shared-types";
 
 import * as repo from "./repository";
-import { effectiveThreshold, notFound, StockError, type Actor, type MovementRow, type StockRow } from "./types";
+import { notFound, StockError, type Actor, type MovementRow, type StockRow } from "./types";
 
 // ── Validation ──────────────────────────────────────────────────────────────────────────────────
 
@@ -69,20 +70,12 @@ function optionalNote(value: unknown): string | null {
 
 // ── Mapping ─────────────────────────────────────────────────────────────────────────────────────
 
+/** 098 — one variant's stock as a screen shows it: the shared mapping, so "low" means one thing. */
 export function toStockDTO(row: StockRow): ProductStockDTO {
-  const threshold = effectiveThreshold(row);
-  const onHand = row.tracked ? (row.onHand ?? 0) : null;
-  return {
-    productId: row.productId,
-    tracked: row.tracked,
-    onHand,
-    threshold: row.threshold,
-    effectiveThreshold: threshold,
-    outOfStock: row.tracked && onHand === 0,
-    // ⚠ `low` EXCLUDES zero on purpose. An empty shelf and a thin one need different actions —
-    // restock now versus restock soon — and a row that claimed both would sort into two places.
-    low: row.tracked && threshold !== null && onHand !== null && onHand > 0 && onHand <= threshold,
-  };
+  return stockState({
+    productId: row.productId, variantId: row.variantId, tracked: row.tracked, onHand: row.onHand,
+    threshold: row.threshold, shopDefaultThreshold: row.shopDefaultThreshold,
+  });
 }
 
 function toMovementDTO(m: MovementRow): StockMovementDTO {
@@ -91,12 +84,12 @@ function toMovementDTO(m: MovementRow): StockMovementDTO {
 
 // ── Reads ───────────────────────────────────────────────────────────────────────────────────────
 
-export async function getStock(actor: Actor, productId: string): Promise<ProductStockDetailDTO> {
-  const row = await repo.readStock(productId, actor.shopId);
+export async function getStock(actor: Actor, variantId: string): Promise<ProductStockDetailDTO> {
+  const row = await repo.readStock(variantId, actor.shopId);
   if (!row) throw notFound();
   return {
     stock: toStockDTO(row),
-    movements: (await repo.readMovements(productId)).map(toMovementDTO),
+    movements: (await repo.readMovements(variantId)).map(toMovementDTO),
   };
 }
 
@@ -121,7 +114,7 @@ const stockChanged = (actor: Actor) => announce([{ scope: "shop", shopId: actor.
 /** Turn tracking on or off. Enabling REQUIRES a count — FR-003, and the database agrees. */
 export async function setTracking(
   actor: Actor,
-  productId: string,
+  variantId: string,
   body: Record<string, unknown>,
 ): Promise<ProductStockDetailDTO> {
   if (typeof body.tracked !== "boolean") {
@@ -139,27 +132,27 @@ export async function setTracking(
     }
     onHand = requireWholeNumber(body.onHand, "onHand");
   }
-  await repo.setTracking(actor, productId, body.tracked, onHand);
+  await repo.setTracking(actor, variantId, body.tracked, onHand);
   await stockChanged(actor);
-  return getStock(actor, productId);
+  return getStock(actor, variantId);
 }
 
 export async function setCount(
   actor: Actor,
-  productId: string,
+  variantId: string,
   body: Record<string, unknown>,
 ): Promise<ProductStockDetailDTO> {
   const onHand = requireWholeNumber(body.onHand, "onHand");
   const reason = requireReason(body.reason);
-  await requireTracked(actor, productId);
-  await repo.setCount(actor, productId, onHand, reason, optionalNote(body.note));
+  await requireTracked(actor, variantId);
+  await repo.setCount(actor, variantId, onHand, reason, optionalNote(body.note));
   await stockChanged(actor);
-  return getStock(actor, productId);
+  return getStock(actor, variantId);
 }
 
 export async function adjustCount(
   actor: Actor,
-  productId: string,
+  variantId: string,
   body: Record<string, unknown>,
 ): Promise<ProductStockDetailDTO> {
   if (typeof body.delta !== "number" || !Number.isInteger(body.delta)) {
@@ -173,24 +166,24 @@ export async function adjustCount(
     throw new StockError("validation", "the change is empty", { delta: "must not be zero" });
   }
   const reason = requireReason(body.reason);
-  await requireTracked(actor, productId);
-  await repo.adjustCount(actor, productId, body.delta, reason, optionalNote(body.note));
+  await requireTracked(actor, variantId);
+  await repo.adjustCount(actor, variantId, body.delta, reason, optionalNote(body.note));
   await stockChanged(actor);
-  return getStock(actor, productId);
+  return getStock(actor, variantId);
 }
 
 export async function setThreshold(
   actor: Actor,
-  productId: string,
+  variantId: string,
   body: Record<string, unknown>,
 ): Promise<ProductStockDetailDTO> {
   const threshold =
     body.threshold === null || body.threshold === undefined
       ? null
       : requireWholeNumber(body.threshold, "threshold");
-  await repo.setThreshold(actor, productId, threshold);
+  await repo.setThreshold(actor, variantId, threshold);
   await stockChanged(actor);
-  return getStock(actor, productId);
+  return getStock(actor, variantId);
 }
 
 export async function setSettings(actor: Actor, body: Record<string, unknown>) {
@@ -208,8 +201,8 @@ export async function setSettings(actor: Actor, body: Record<string, unknown>) {
  * success. The database would refuse it anyway (the write matches no row), but that refusal is
  * indistinguishable from "no such product" and would tell the operator the wrong thing entirely.
  */
-async function requireTracked(actor: Actor, productId: string): Promise<StockRow> {
-  const row = await repo.readStock(productId, actor.shopId);
+async function requireTracked(actor: Actor, variantId: string): Promise<StockRow> {
+  const row = await repo.readStock(variantId, actor.shopId);
   if (!row) throw notFound();
   if (!row.tracked) {
     throw new StockError("conflict", "stock is not being tracked for this product");

@@ -92,6 +92,12 @@ See the numbers: `make gateway-usage ENV=<env>` (deployed) · `pnpm --filter @ef
 | `shop` | shared | shop | shop console: fulfilment, pick lists, products, insights, shop-manager refund |
 | `inventory` | shared | shop | stock — a shop managing its own |
 | `inventory-staff` (same source as `inventory`) | **staff** | back-office | stock — staff managing it on a shop's behalf (`/inventory/v1/admin/…`) |
+
+> **098 — stock is per variant.** The per-item stock routes name a variant: `/inventory/v1/variants/{variantId}/stock[...]`
+> (shop) and `/inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock[...]` (staff). The cart's per-line routes
+> are keyed by `{variantId}` (`/commerce/v1/cart/items/{variantId}`, `/commerce/v1/cart/saved/{variantId}`); saved items
+> and lists stay keyed by `{productId}`. One new shop route: `POST /shop/v1/products/{id}/variants/{variantId}/state`
+> (`shop`, shared gateway). Renames replaced routes one for one — no gateway integrations were added by them.
 | `driver` | shared | driver | driver app |
 | `admin` | **staff** | back-office | staff, shops, catalogue admin, delivery configuration |
 | `admin-promotions` (same source as `admin`, 095) | **staff** | back-office | promotions, display groups, skins and pictures (`/admin/v1/promotions…`, `/admin/v1/promotion-groups…`, `/admin/v1/promotion-skins…`) — split out at CloudFormation's 500-resource limit |

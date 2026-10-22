@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { AddressDTO } from "@effy/shared-types"
 
+import { addToCart, resetCart } from "@/lib/cart-store"
 import { CheckoutFlow } from "./CheckoutFlow"
 
 // Never reach the real Stripe SDK; pin the responsive form to Dialog; silence telemetry.
@@ -53,12 +54,9 @@ beforeEach(() => {
   intentBodies = []
   addressWrites = 0
   addressPatches = []
-  window.localStorage.setItem(
-    "effy:cart",
-    JSON.stringify([
-      { productId: "p1", name: "Sourdough loaf", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a1b2" },
-    ]),
-  )
+  // 098 — a cart line is a size (variant); seeded through the store, never its storage key.
+  resetCart()
+  addToCart({ variantId: "v1", productId: "p1", name: "Sourdough loaf", imageUrl: null, unitPriceAmount: "10.00", currency: "AUD", quantity: 1, packageKey: "pkg_a1b2" })
 
   vi.stubGlobal(
     "fetch",

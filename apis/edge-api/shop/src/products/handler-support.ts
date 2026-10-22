@@ -5,7 +5,7 @@
 import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 import type { AuthedEvent, RequestScope } from "@effy/edge-shared";
-import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
+import { forbidden, problem, ProblemType, stockState, subject, unavailable } from "@effy/edge-shared";
 import type {
   CatalogSchemaDTO,
   CategoryDTO,
@@ -137,17 +137,39 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     primaryCategoryId: d.primaryCategoryId,
     categoryName: d.categoryName,
     name: d.name,
-    sku: d.sku,
-    gtin: d.gtin,
     brand: d.brand,
-    priceAmount: d.priceAmount,
     currency: d.currency,
-    compareAtAmount: d.compareAtAmount,
     shortDescription: d.shortDescription,
     longDescription: d.longDescription,
-    weightGrams: d.weightGrams,
-    weightIsAssumed: d.weightIsAssumed,
     gstStatus: d.gstStatus,
+    unitBasis: d.unitBasis,
+    // 098 — the options and every variant, each with its shop price, the customer price and its stock.
+    options: d.options.map((o) => ({
+      id: o.id, position: o.position, name: o.name,
+      values: o.values.map((v) => ({ id: v.id, value: v.value, position: v.position })),
+    })),
+    variants: d.variants.map((v) => ({
+      id: v.id,
+      position: v.position,
+      optionValueIds: v.optionValueIds,
+      label: v.label,
+      sku: v.sku,
+      gtin: v.gtin,
+      shopPriceAmount: v.shopPriceAmount,
+      shopCompareAtAmount: v.shopCompareAtAmount,
+      customerPriceAmount: v.priceAmount,
+      customerCompareAtAmount: v.compareAtAmount,
+      weightGrams: v.weightGrams,
+      weightIsAssumed: v.weightIsAssumed,
+      packQuantity: v.packQuantity,
+      packUnit: v.packUnit,
+      mediaId: v.mediaId,
+      state: v.state,
+      stock: stockState({
+        productId: d.id, variantId: v.id, tracked: v.stockTracked, onHand: v.stockOnHand,
+        threshold: v.lowStockThreshold, shopDefaultThreshold: d.shopDefaultThreshold,
+      }),
+    })),
     status: d.status,
     attributes: d.attributes.map((a) => ({
       attributeId: a.attributeId,
@@ -172,13 +194,9 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     missingMandatoryAttributes: d.missingMandatoryAttributes,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
-    // 067 — review state and the two prices. `priceAmount` stays the SHOP price, so an installed
-    // shop-mobile build keeps showing what the shop entered.
+    // 067 — review state. The two prices are per variant (098), above.
     reviewState: d.reviewState,
     reviewReason: d.reviewReason,
-    shopPriceAmount: d.priceAmount,
-    customerPriceAmount: d.customerPriceAmount,
-    customerCompareAtAmount: d.customerCompareAtAmount,
     pendingChange: d.pendingChange
       ? {
           state: d.pendingChange.state,
@@ -219,11 +237,12 @@ export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
         priceAmount: i.priceAmount,
         currency: i.currency,
         status: i.status,
-        sku: i.sku,
         updatedAt: i.updatedAt,
         reviewState: i.reviewState,
         shopPriceAmount: i.priceAmount,
         customerPriceAmount: i.customerPriceAmount,
+        priceVaries: i.priceVaries,
+        variantCount: i.variantCount,
       }),
     ),
     total: p.total,

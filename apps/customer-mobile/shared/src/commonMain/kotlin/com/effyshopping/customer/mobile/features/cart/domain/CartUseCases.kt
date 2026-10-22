@@ -32,7 +32,7 @@ class AddToCart(
             PendingChange(
                 changeId = newUuid(),
                 kind = PendingChangeKind.Add,
-                productId = line.productId,
+                variantId = line.variantId,
                 quantity = line.quantity,
             ),
         )
@@ -49,15 +49,15 @@ class SetCartQuantity(
     private val store: CartStore,
     private val sync: CartSyncCoordinator,
 ) {
-    operator fun invoke(productId: String, quantity: Int) {
-        store.setQuantity(productId, quantity)
+    operator fun invoke(variantId: String, quantity: Int) {
+        store.setQuantity(variantId, quantity)
         // ⚠ DEBOUNCED, unlike add: a stepper is tapped repeatedly and only the value the shopper settles on
         // matters. Safe only because the payload is absolute (FR-016/SC-005).
         sync.submitDebounced(
             PendingChange(
                 changeId = newUuid(),
                 kind = if (quantity <= 0) PendingChangeKind.Remove else PendingChangeKind.SetQuantity,
-                productId = productId,
+                variantId = variantId,
                 quantity = quantity,
             ),
         )
@@ -69,10 +69,10 @@ class RemoveFromCart(
     private val store: CartStore,
     private val sync: CartSyncCoordinator,
 ) {
-    operator fun invoke(productId: String) {
-        store.remove(productId)
+    operator fun invoke(variantId: String) {
+        store.remove(variantId)
         sync.submit(
-            PendingChange(changeId = newUuid(), kind = PendingChangeKind.Remove, productId = productId),
+            PendingChange(changeId = newUuid(), kind = PendingChangeKind.Remove, variantId = variantId),
         )
     }
 }
@@ -102,9 +102,9 @@ class SetAside(
     private val repo: CartRepository,
     private val isSignedIn: () -> Boolean,
 ) {
-    suspend operator fun invoke(productId: String): Boolean {
+    suspend operator fun invoke(variantId: String): Boolean {
         if (!isSignedIn()) return false
-        return runCatching { store.adopt(repo.setAside(productId, newUuid())) }.getOrDefault(false)
+        return runCatching { store.adopt(repo.setAside(variantId, newUuid())) }.getOrDefault(false)
     }
 }
 
@@ -114,9 +114,9 @@ class RestoreSaved(
     private val repo: CartRepository,
     private val isSignedIn: () -> Boolean,
 ) {
-    suspend operator fun invoke(productId: String): Boolean {
+    suspend operator fun invoke(variantId: String): Boolean {
         if (!isSignedIn()) return false
-        return runCatching { store.adopt(repo.restoreSaved(productId, newUuid())) }.getOrDefault(false)
+        return runCatching { store.adopt(repo.restoreSaved(variantId, newUuid())) }.getOrDefault(false)
     }
 }
 
@@ -126,9 +126,9 @@ class DeleteSaved(
     private val repo: CartRepository,
     private val isSignedIn: () -> Boolean,
 ) {
-    suspend operator fun invoke(productId: String): Boolean {
+    suspend operator fun invoke(variantId: String): Boolean {
         if (!isSignedIn()) return false
-        return runCatching { store.adopt(repo.deleteSaved(productId, newUuid())) }.getOrDefault(false)
+        return runCatching { store.adopt(repo.deleteSaved(variantId, newUuid())) }.getOrDefault(false)
     }
 }
 
@@ -226,7 +226,7 @@ class MergeCartOnSignIn(
             return runCatching { store.adopt(repo.get()) }.getOrDefault(false)
         }
         val merged = repo.merge(
-            lines = lines.map { PendingLine(it.productId, it.quantity) },
+            lines = lines.map { PendingLine(it.variantId, it.quantity) },
             changeId = newUuid(),
         )
         return store.adopt(merged)

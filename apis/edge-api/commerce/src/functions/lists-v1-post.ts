@@ -15,7 +15,8 @@ export const handler = customerRoute(async ({ event, scope, customer }) => {
     if (!isUuid(productId)) return badBody(scope, "invalid_product_id");
   }
   try {
-    const list = await savedService.createList(customer.id, (body.name as string | undefined) ?? "", (productId as string | null | undefined) ?? null);
+    const variantId = typeof body.variantId === "string" ? body.variantId : null;
+    const list = await savedService.createList(customer.id, (body.name as string | undefined) ?? "", (productId as string | null | undefined) ?? null, variantId);
     return json(201, list, scope);
   } catch (err) {
     return savedError(scope, err, "create list");

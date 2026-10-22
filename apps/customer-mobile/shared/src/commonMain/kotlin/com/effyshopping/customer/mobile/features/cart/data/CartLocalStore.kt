@@ -87,7 +87,9 @@ class CartLocalStore(private val prefs: DevicePreferences) {
          * cheap to rebuild compared with the cost of getting a migration subtly wrong, and the shopper
          * sees an empty cart rather than a wrong one.
          */
-        const val SCHEMA_VERSION = 1
+        // 2 — 098: a line is a VARIANT (`variantId`), and a queued change names one. A version-1 blob
+        // names products, which can no longer be bought as such; it is discarded, never migrated.
+        const val SCHEMA_VERSION = 2
 
         /**
          * `ignoreUnknownKeys` is deliberate ON TOP of the version check. The version catches a shape we

@@ -263,7 +263,7 @@ class PaymentViewModelTest {
         val cart = cartStore()
         cart.add(
             GuestCartLine(
-                productId = "p1",
+                variantId = "p1", productId = "p1",
                 name = "Milk",
                 imageUrl = null,
                 unitPriceAmount = "3.50",
@@ -284,7 +284,7 @@ class PaymentViewModelTest {
         val cart = cartStore()
         cart.add(
             GuestCartLine(
-                productId = "p1",
+                variantId = "p1", productId = "p1",
                 name = "Milk",
                 imageUrl = null,
                 unitPriceAmount = "3.50",

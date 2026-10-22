@@ -2,12 +2,15 @@
 // which shop fulfils a product (019 FR-038).
 import { imageWidthsField } from "@effy/edge-shared";
 import { productOffer } from "@effy/edge-shared/promotions";
-import type {
-  MediaDTO,
-  ProductAttributeGroupDTO,
-  ProductBadge,
-  StorefrontCategoryDTO,
-  StorefrontProductDetailDTO,
+import {
+  unitPrice,
+  type MediaDTO,
+  type OptionDTO,
+  type ProductAttributeGroupDTO,
+  type ProductBadge,
+  type StorefrontCategoryDTO,
+  type StorefrontProductDetailDTO,
+  type StorefrontVariantDTO,
 } from "@effy/shared-types";
 
 import { imageUrl, type ImageAddress } from "../lib/cards";
@@ -80,6 +83,35 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
         )
       ).flatMap((m) => (m.imageUrl === null ? [] : [{ ...m, imageUrl: m.imageUrl }]));
 
+      // 098 — the variants a shopper may choose between, each priced and judged on its own.
+      const variants: StorefrontVariantDTO[] = await Promise.all(
+        row.variants.map(async (v) => ({
+          id: String(v.id),
+          optionValueIds: [v.option1 === null ? null : String(v.option1), v.option2 === null ? null : String(v.option2)] as [string | null, string | null],
+          label: v.label,
+          priceAmount: v.price_amount,
+          compareAtAmount: v.compare_at_amount,
+          unitPrice: unitPrice(v.price_amount, v.pack_quantity, v.pack_unit, row.unit_basis),
+          available: v.available,
+          imageUrl: await imageAddress(v.storage_key),
+          ...imageWidthsField(v.image_widths),
+        })),
+      );
+      const options: OptionDTO[] = row.options
+        .map((o) => ({
+          id: String(o.id),
+          position: Number(o.position),
+          name: o.name,
+          values: o.values.map((x) => ({ id: String(x.id), value: x.value, position: Number(x.position) })),
+        }))
+        .filter((o) => o.values.length > 0);
+      // FR-014 — open on the first variant that can be bought, else the first. A link that names a
+      // variant is honoured by the CLIENT (it holds the list), so this response stays one cacheable
+      // document per product.
+      const defaultVariant = variants.find((v) => v.available) ?? variants[0];
+      if (!defaultVariant) return null; // a product with no active variant is not on sale
+      const shown = variants.reduce((min, v) => (Number(v.priceAmount) < Number(min.priceAmount) ? v : min), variants[0]!);
+
       const badges: ProductBadge[] = [];
       if (row.compare_at_amount !== null) badges.push("on_sale");
       if (row.is_new) badges.push("new");
@@ -104,6 +136,14 @@ export function createCatalogService(repo: CatalogRepository, imageAddress: Imag
         attributes: groupAttributes(attrRows),
         categoryPath,
         categoryKey: row.primary_category_key,
+        priceVaries: new Set(variants.map((v) => Number(v.priceAmount))).size > 1,
+        variantId: defaultVariant.id,
+        variantCount: variants.length,
+        unitPrice: shown.unitPrice,
+        options,
+        variants,
+        defaultVariantId: defaultVariant.id,
+        unitBasis: row.unit_basis,
       };
     },
   };

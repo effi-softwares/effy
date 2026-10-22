@@ -12,9 +12,9 @@ const setShopStockSettings = vi.hoisted(() => vi.fn());
 vi.mock("./stockRepo", () => ({
   getShopLowStock,
   setShopStockSettings,
-  getShopProductStock: vi.fn(),
-  setShopProductStock: vi.fn(),
-  setShopProductTracking: vi.fn(),
+  getShopVariantStock: vi.fn(),
+  setShopVariantStock: vi.fn(),
+  setShopVariantTracking: vi.fn(),
 }));
 
 const { ShopStockPanel } = await import("./ShopStockPanel");
@@ -22,7 +22,9 @@ const { ShopStockPanel } = await import("./ShopStockPanel");
 function row(over: Partial<LowStockRowDTO> = {}): LowStockRowDTO {
   return {
     productId: "p1",
+    variantId: "v1",
     name: "Milk",
+    variantLabel: null,
     sku: "MLK-1",
     onHand: 2,
     effectiveThreshold: 5,
@@ -48,8 +50,8 @@ beforeEach(() => {
 describe("the restock list", () => {
   it("tells OUT apart from LOW in words, not by colour (Principle V, 041)", async () => {
     getShopLowStock.mockResolvedValue([
-      row({ productId: "p1", name: "Milk", onHand: 0, severity: "out" }),
-      row({ productId: "p2", name: "Bread", onHand: 2, severity: "low" }),
+      row({ productId: "p1", variantId: "v1", name: "Milk", variantLabel: "2 L", onHand: 0, severity: "out" }),
+      row({ productId: "p2", variantId: "v2", name: "Bread", onHand: 2, severity: "low" }),
     ]);
     renderPanel();
 
@@ -58,6 +60,8 @@ describe("the restock list", () => {
     // assertion. If this ever becomes colour-only, this test fails.
     expect(await screen.findByText("Out of stock")).toBeInTheDocument();
     expect(screen.getByText("Low")).toBeInTheDocument();
+    // 098 — stock is per size, and the size is named on its row.
+    expect(screen.getByText(/2 L/)).toBeInTheDocument();
   });
 
   it("says plainly that untracked products never appear, rather than showing an ambiguous blank", async () => {

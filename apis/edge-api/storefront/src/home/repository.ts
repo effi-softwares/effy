@@ -1,5 +1,5 @@
 // The Home rails. Wire rows only; composition is the service's job.
-import { availabilityPredicate, pooled, type Queryable } from "@effy/edge-shared";
+import { pooled, productAvailableSql, type Queryable } from "@effy/edge-shared";
 
 import { CARD_SELECT, type CardRow } from "../lib/cards";
 import { categorySubtreeById } from "../lib/category-tree";
@@ -21,7 +21,7 @@ export interface RailRow extends CardRow {
 // carry only available products. A SEARCH RESULT or a PRODUCT PAGE is somewhere a shopper navigated
 // to deliberately, or linked to, and there FR-013/A10 keep an out-of-stock product visible and
 // marked. Two different questions, two different filters, one shared rule underneath.
-const RAIL_WHERE = `WHERE ${availabilityPredicate("p")}`;
+const RAIL_WHERE = `WHERE ${productAvailableSql("p")}`;
 
 export interface HomeRepository {
   /**
@@ -47,7 +47,7 @@ WITH candidates AS (
     SELECT c.id, c.key, c.name,
            row_number() OVER (ORDER BY c.display_order ASC, count(p.id) DESC, c.key ASC) AS pos
     FROM public.category c
-    JOIN public.product p ON p.primary_category_id = c.id AND ${availabilityPredicate("p")}
+    JOIN public.product p ON p.primary_category_id = c.id AND ${productAvailableSql("p")}
     -- availability-exempt: public.category — a retired category is hidden whatever its products hold.
     WHERE c.status = 'active'
     GROUP BY c.id, c.key, c.name, c.display_order
@@ -65,8 +65,8 @@ LIMIT $1) x)
     (SELECT 'on_sale', NULL::text, 1::bigint, x.*
        FROM (${CARD_SELECT}
 ${RAIL_WHERE}
-  AND p.compare_at_amount IS NOT NULL
-  AND p.compare_at_amount > p.price_amount
+  AND p.list_compare_at_amount IS NOT NULL
+  AND p.list_compare_at_amount > p.list_price_amount
 ORDER BY p.created_at DESC
 LIMIT $1) x)
     UNION ALL
