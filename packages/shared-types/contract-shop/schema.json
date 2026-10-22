@@ -576,6 +576,13 @@
         "gatheredQuantity": {
           "type": "number"
         },
+        "gtin": {
+          "description": "098 — the variant's barcode as sold.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "imageUrl": {
           "description": "Presigned; may be absent.",
           "type": [
@@ -600,6 +607,20 @@
         },
         "unavailableQuantity": {
           "type": "number"
+        },
+        "variantCode": {
+          "description": "098 — Effy's code for the variant as sold (V + 6).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "variantLabel": {
+          "description": "098 — the variant's label as sold (\"1 kg\"); null with no options. A picker must never guess the size.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1998,6 +2019,10 @@
       "additionalProperties": false,
       "description": "A shop's (and back-office's) view of one variant.",
       "properties": {
+        "code": {
+          "description": "Effy's permanent code for this variant (`V` + 6, e.g. V7K3Q9M) — generated, never edited.",
+          "type": "string"
+        },
         "customerCompareAtAmount": {
           "type": [
             "string",
@@ -2012,6 +2037,7 @@
           ]
         },
         "gtin": {
+          "description": "The manufacturer's barcode printed on the pack (GTIN/EAN), when it has one.",
           "type": [
             "string",
             "null"
@@ -2067,6 +2093,7 @@
           "type": "string"
         },
         "sku": {
+          "description": "The shop's OWN stock code — optional, unique within the shop.",
           "type": [
             "string",
             "null"
@@ -2091,6 +2118,7 @@
         "position",
         "optionValueIds",
         "label",
+        "code",
         "sku",
         "gtin",
         "shopPriceAmount",

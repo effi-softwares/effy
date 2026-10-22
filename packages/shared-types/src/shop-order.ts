@@ -160,6 +160,8 @@ export interface FulfillmentItemDTO {
   name: string;
   /** 098 — the variant's label as sold ("1 kg"); null with no options. A picker must never guess the size. */
   variantLabel?: string | null;
+  /** 098 — Effy's code for the variant as sold (V + 6). */
+  variantCode?: string | null;
   sku: string | null;
   /** 098 — the variant's barcode as sold. */
   gtin?: string | null;

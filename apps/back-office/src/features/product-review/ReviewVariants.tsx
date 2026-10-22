@@ -32,7 +32,8 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
           <thead>
             <tr>
               {named ? <th>Size</th> : null}
-              <th>SKU</th>
+              <th>Effy code</th>
+              <th>Shop code</th>
               <th>Barcode</th>
               <th className="text-right">Shop price</th>
               <th className="text-right">Customers pay</th>
@@ -50,6 +51,8 @@ export function ReviewVariants({ variants, entry }: { variants: readonly ReviewV
               return (
                 <tr key={v.id} className={v.change === "removed" ? "text-muted-foreground" : undefined}>
                   {named ? <th scope="row" className="text-left font-medium">{v.label ?? "—"}</th> : null}
+                  {/* A size the change ADDS gets its code when approved. */}
+                  <td className="font-mono text-xs">{v.code ?? "On approval"}</td>
                   <td className="font-mono text-xs">{v.sku ?? "—"}</td>
                   <td className="font-mono text-xs">{v.gtin ?? "—"}</td>
                   <td className="text-right tabular-nums">

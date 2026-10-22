@@ -157,6 +157,7 @@ function toItemDTO(i: FulfillmentItem): FulfillmentItemDTO {
     orderItemId: i.orderItemId,
     name: i.name,
     variantLabel: i.variantLabel,
+    variantCode: i.variantCode,
     sku: i.sku,
     gtin: i.gtin,
     imageUrl: i.imageUrl,

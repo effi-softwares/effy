@@ -43,7 +43,7 @@ export function codeMatchSql(q: string): string {
   return `EXISTS (SELECT 1 FROM public.product_variant cv
                   -- availability-exempt: product_variant — a visibility filter; a hidden variant is not findable.
                   WHERE cv.product_id = p.id AND cv.state = 'active'
-                    AND (lower(cv.sku) = lower(${q}) OR cv.gtin = ${q}))`;
+                    AND (lower(cv.sku) = lower(${q}) OR cv.gtin = ${q} OR cv.code = upper(${q})))`;
 }
 
 /** 098 — the id of the variant whose code `q` is, or NULL. Selected beside the card so the tile opens on it. */
@@ -51,7 +51,7 @@ export function matchedVariantSql(q: string): string {
   return `(SELECT mv.id::text FROM public.product_variant mv
             -- availability-exempt: product_variant — a visibility filter.
             WHERE mv.product_id = p.id AND mv.state = 'active'
-              AND (lower(mv.sku) = lower(${q}) OR mv.gtin = ${q})
+              AND (lower(mv.sku) = lower(${q}) OR mv.gtin = ${q} OR mv.code = upper(${q}))
             ORDER BY mv.position LIMIT 1)`;
 }
 

@@ -286,7 +286,8 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
     const milk = await one<{ unit: string; shop: string; cls: string; sold: boolean; label: string | null }>(
       `SELECT oi.unit_price_amount::text AS unit, oi.shop_unit_price_amount::text AS shop, oi.storage_class AS cls,
               -- 098 — the line names the variant it sold, with its label and codes as they were.
-              oi.variant_id = v.id AND oi.sku IS NOT DISTINCT FROM v.sku AS sold, oi.variant_label AS label
+              oi.variant_id = v.id AND oi.sku IS NOT DISTINCT FROM v.sku AND oi.variant_code = v.code AS sold,
+              oi.variant_label AS label
          FROM public.order_item oi JOIN public.product_variant v ON v.product_id = oi.product_id
         WHERE oi.order_id = $1 AND oi.product_id = $2`,
       [r.orderId, product.Milk],

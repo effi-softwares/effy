@@ -496,6 +496,11 @@ data class FulfillmentItemDTO (
     val gatheredQuantity: Double,
 
     /**
+     * 098 — the variant's barcode as sold.
+     */
+    val gtin: String? = null,
+
+    /**
      * Presigned; may be absent.
      */
     @SerialName("imageUrl")
@@ -508,7 +513,18 @@ data class FulfillmentItemDTO (
     val orderItemID: String,
 
     val sku: String? = null,
-    val unavailableQuantity: Double
+    val unavailableQuantity: Double,
+
+    /**
+     * 098 — Effy's code for the variant as sold (V + 6).
+     */
+    val variantCode: String? = null,
+
+    /**
+     * 098 — the variant's label as sold ("1 kg"); null with no options. A picker must never
+     * guess the size.
+     */
+    val variantLabel: String? = null
 )
 
 @Serializable
@@ -940,6 +956,11 @@ enum class ShopReviewState(val value: String) {
  */
 @Serializable
 data class ShopVariantDTO (
+    /**
+     * Effy's permanent code for this variant (`V` + 6, e.g. V7K3Q9M) — generated, never edited.
+     */
+    val code: String,
+
     val customerCompareAtAmount: String? = null,
 
     /**
@@ -948,7 +969,11 @@ data class ShopVariantDTO (
      */
     val customerPriceAmount: String? = null,
 
+    /**
+     * The manufacturer's barcode printed on the pack (GTIN/EAN), when it has one.
+     */
     val gtin: String? = null,
+
     val id: String,
     val label: String? = null,
 
@@ -975,7 +1000,11 @@ data class ShopVariantDTO (
      */
     val shopPriceAmount: String,
 
+    /**
+     * The shop's OWN stock code — optional, unique within the shop.
+     */
     val sku: String? = null,
+
     val state: VariantState,
     val stock: ProductStockDTO,
     val weightGrams: Long,

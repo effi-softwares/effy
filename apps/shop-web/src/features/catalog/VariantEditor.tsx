@@ -18,6 +18,7 @@ import { MicroLabel, TableFrame, Td, Th } from "@/components/console/primitives"
 
 import {
   addMissingRows,
+  applyToAll,
   newId,
   previewUnitPrice,
   rowLabel,
@@ -51,7 +52,11 @@ export interface VariantEditorProps {
 const NONE = "__none__";
 
 export function VariantEditor({ value, onChange, errors, showErrors, media, disabled }: VariantEditorProps) {
-  const err = (path: string) => (showErrors ? errors[path] : undefined);
+  // A cell's refusal shows once the operator has LEFT that cell, or once they try to continue
+  // (`showErrors`) — never on rows they have not reached yet.
+  const [left, setLeft] = useState<ReadonlySet<string>>(new Set());
+  const leave = (path: string) => () => setLeft((s) => (s.has(path) ? s : new Set(s).add(path)));
+  const err = (path: string) => (showErrors || left.has(path) ? errors[path] : undefined);
 
   function setOptions(next: OptionInputDTO[]) {
     const options = next.map((o, i) => ({ ...o, position: i + 1 }));
@@ -65,6 +70,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
   }
 
   const hasOptions = value.options.length > 0;
+  const many = value.variants.length > 1;
   const missing = hasOptions && addMissingRows(value).length > value.variants.length;
 
   return (
@@ -137,17 +143,47 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
       {/* ── Variants ─────────────────────────────────────────────────────────────────────────── */}
       <div className="grid gap-2">
         <MicroLabel>{hasOptions ? `Variants (${value.variants.length} of up to ${VARIANT_LIMITS.variants})` : "Price and codes"}</MicroLabel>
+        {!hasOptions && value.variants[0]?.code ? (
+          <p className="text-muted-foreground text-[13px]">
+            Effy code <span className="text-foreground font-mono">{value.variants[0].code}</span>
+          </p>
+        ) : null}
         {err("variants") ? <p className="text-destructive text-xs">{err("variants")}</p> : null}
         <TableFrame>
           <thead className="bg-muted">
             <tr>
-              {hasOptions ? <Th>Variant</Th> : null}
-              <Th width="110px">Your price *</Th>
-              <Th width="110px">Was</Th>
-              <Th width="130px">SKU</Th>
-              <Th width="150px">Barcode</Th>
-              <Th width="110px">Weight (g)</Th>
-              <Th width="170px">Pack size</Th>
+              {hasOptions ? (
+                <Th>
+                  Variant
+                  <ColumnHelp>Effy code once saved</ColumnHelp>
+                </Th>
+              ) : null}
+              <Th width="120px">
+                Your price *
+                <ColumnHelp>What Effy pays you</ColumnHelp>
+                {many ? <ApplyAll label="price" disabled={disabled} onClick={() => onChange({ ...value, variants: applyToAll(value, "shopPriceAmount") })} /> : null}
+              </Th>
+              <Th width="110px">
+                Was
+                <ColumnHelp>Earlier price, for a sale</ColumnHelp>
+              </Th>
+              <Th width="130px">
+                Your code
+                <ColumnHelp>Your own stock code (optional)</ColumnHelp>
+              </Th>
+              <Th width="150px">
+                Barcode
+                <ColumnHelp>Number on the pack (optional)</ColumnHelp>
+              </Th>
+              <Th width="120px">
+                Weight (g)
+                <ColumnHelp>Packed, for delivery</ColumnHelp>
+                {many ? <ApplyAll label="weight" disabled={disabled} onClick={() => onChange({ ...value, variants: applyToAll(value, "weightGrams") })} /> : null}
+              </Th>
+              <Th width="170px">
+                Pack size
+                <ColumnHelp>e.g. 500 g — for unit price</ColumnHelp>
+              </Th>
               {media && media.length > 0 ? <Th width="140px">Picture</Th> : null}
               {hasOptions ? <Th width="44px" /> : null}
             </tr>
@@ -161,6 +197,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                   {hasOptions ? (
                     <Td>
                       <span className="font-medium">{rowLabel(value, r)}</span>
+                      <span className="text-muted-foreground block font-mono text-[11.5px]">{r.code ?? "New"}</span>
                       {cell("optionValueIds") ? <CellError text={cell("optionValueIds")!} /> : null}
                     </Td>
                   ) : null}
@@ -172,6 +209,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       value={r.shopPriceAmount}
                       disabled={disabled}
                       aria-invalid={!!cell("shopPriceAmount")}
+                      onBlur={leave(`variants[${i}].shopPriceAmount`)}
                       onChange={(e) => patchRow(i, { shopPriceAmount: e.target.value })}
                     />
                     {cell("shopPriceAmount") ? <CellError text={cell("shopPriceAmount")!} /> : null}
@@ -184,17 +222,19 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       value={r.shopCompareAtAmount}
                       disabled={disabled}
                       aria-invalid={!!cell("shopCompareAtAmount")}
+                      onBlur={leave(`variants[${i}].shopCompareAtAmount`)}
                       onChange={(e) => patchRow(i, { shopCompareAtAmount: e.target.value })}
                     />
                     {cell("shopCompareAtAmount") ? <CellError text={cell("shopCompareAtAmount")!} /> : null}
                   </Td>
                   <Td>
                     <Input
-                      aria-label={`SKU for ${rowLabel(value, r)}`}
+                      aria-label={`Your code for ${rowLabel(value, r)}`}
                       className="font-mono"
                       value={r.sku}
                       disabled={disabled}
                       aria-invalid={!!cell("sku")}
+                      onBlur={leave(`variants[${i}].sku`)}
                       onChange={(e) => patchRow(i, { sku: e.target.value })}
                     />
                     {cell("sku") ? <CellError text={cell("sku")!} /> : null}
@@ -207,6 +247,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       value={r.gtin}
                       disabled={disabled}
                       aria-invalid={!!cell("gtin")}
+                      onBlur={leave(`variants[${i}].gtin`)}
                       onChange={(e) => patchRow(i, { gtin: e.target.value })}
                     />
                     {cell("gtin") ? <CellError text={cell("gtin")!} /> : null}
@@ -219,6 +260,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                       value={r.weightGrams}
                       disabled={disabled}
                       aria-invalid={!!cell("weightGrams")}
+                      onBlur={leave(`variants[${i}].weightGrams`)}
                       onChange={(e) => patchRow(i, { weightGrams: e.target.value })}
                     />
                     {cell("weightGrams") ? <CellError text={cell("weightGrams")!} /> : null}
@@ -232,6 +274,7 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
                         value={r.packQuantity}
                         disabled={disabled}
                         aria-invalid={!!cell("packQuantity")}
+                        onBlur={leave(`variants[${i}].packQuantity`)}
                         onChange={(e) => patchRow(i, { packQuantity: e.target.value })}
                       />
                       <Select
@@ -306,6 +349,26 @@ export function VariantEditor({ value, onChange, errors, showErrors, media, disa
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** One plain line under a column heading: what goes in it. */
+function ColumnHelp({ children }: { children: string }) {
+  return <span className="text-muted-foreground block text-[11px] font-normal tracking-normal normal-case">{children}</span>;
+}
+
+/** Copies the first row's value down the column. */
+function ApplyAll({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      className="text-primary mt-0.5 block text-[11px] font-medium tracking-normal normal-case hover:underline disabled:opacity-50"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`Use the first row's ${label} for every variant`}
+    >
+      Apply first to all
+    </button>
   );
 }
 

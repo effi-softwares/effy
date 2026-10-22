@@ -250,6 +250,7 @@ function toItem(row: repo.OrderItemRow): AdminOrderItemDTO {
     variantId: row.variant_id,
     productName: row.product_name,
     variantLabel: row.variant_label,
+    variantCode: row.variant_code,
     sku: row.sku,
     unitPriceAmount: row.unit_price_amount,
     quantity: row.quantity,

@@ -368,13 +368,15 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
 INSERT INTO public.order_item
     (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount,
      storage_class, shop_unit_price_amount, shop_line_subtotal_amount, gst_status,
-     variant_id, variant_label, sku, gtin)
+     variant_id, variant_label, sku, gtin, variant_code)
 VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::numeric,
         -- 096 — the product's GST status as it is NOW, frozen on the line: a later change to the
         -- product never alters what this order's tax invoice says.
         (SELECT p.gst_status FROM public.product p WHERE p.id = $2),
         -- 098 — the variant, and its label and codes AS SOLD (snapshots, like the name and price).
-        $11, $12, $13, $14)`,
+        $11, $12, $13, $14,
+        -- 098 — Effy's code for the variant (never changes, but kept beside its siblings).
+        (SELECT v.code FROM public.product_variant v WHERE v.id = $11))`,
             [
               orderId, l.productId, l.shopId, l.name, formatCents(l.unitCents), l.quantity, formatCents(l.unitCents * l.quantity),
               storageClassOrAmbient(l.storageClass), formatCents(l.shopUnitCents), formatCents(l.shopUnitCents * l.quantity),

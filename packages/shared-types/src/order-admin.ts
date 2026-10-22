@@ -530,7 +530,9 @@ export interface AdminOrderItemDTO {
   productName: string;
   /** 098 — the variant's label as sold; null for a product with no options. */
   variantLabel: string | null;
-  /** 098 — the variant's stock code as sold. */
+  /** 098 — Effy's code for the variant as sold (V + 6). */
+  variantCode: string | null;
+  /** 098 — the shop's own stock code as sold. */
   sku: string | null;
   unitPriceAmount: string;
   quantity: number;

@@ -153,6 +153,7 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
       position: v.position,
       optionValueIds: v.optionValueIds,
       label: v.label,
+      code: v.code,
       sku: v.sku,
       gtin: v.gtin,
       shopPriceAmount: v.shopPriceAmount,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { OptionInputDTO, ProductDetailDTO } from "@effy/shared-types";
 
-import { addMissingRows, draftFromDetail, emptyRow, emptyVariantSet, syncRows, toInputs, variantSetErrors, type VariantSetDraft } from "./variants";
+import { addMissingRows, applyToAll, draftFromDetail, emptyRow, emptyVariantSet, syncRows, toInputs, variantSetErrors, type VariantSetDraft } from "./variants";
 
 let n = 0;
 const id = () => `00000000-0000-4000-8000-${String(++n).padStart(12, "0")}`;
@@ -69,3 +69,20 @@ describe("098 — shop-web variant sets", () => {
     expect(draftFromDetail(pending).variants[0]!.shopPriceAmount).toBe("2.50");
   });
 });
+
+describe("applyToAll (098)", () => {
+  it("copies the first row's price or weight down the column, and never a code", () => {
+    const set = { unitBasis: "" as const, options: [], variants: [
+      { ...emptyRow(0), shopPriceAmount: "4.50", weightGrams: "500", sku: "A" },
+      { ...emptyRow(1), shopPriceAmount: "", weightGrams: "", sku: "B" },
+    ] }
+    const priced = applyToAll(set, "shopPriceAmount")
+    expect(priced.map((r) => r.shopPriceAmount)).toEqual(["4.50", "4.50"])
+    expect(priced.map((r) => r.sku)).toEqual(["A", "B"])
+    expect(applyToAll(set, "weightGrams").map((r) => r.weightGrams)).toEqual(["500", "500"])
+  })
+
+  it("a new row has no Effy code until it is saved", () => {
+    expect(emptyRow(0).code).toBeNull()
+  })
+})

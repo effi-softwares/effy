@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-import { PACKAGE_CODE_ALPHABET, isPackageCode, packageToken, parsePackageToken } from "./package-code"
+import { PACKAGE_CODE_ALPHABET, isPackageCode, isVariantCode, packageToken, parsePackageToken } from "./package-code"
 
 const FIXTURES = JSON.parse(readFileSync(resolve(__dirname, "../package-code.fixtures.json"), "utf8")) as {
   reads: Array<{ read: string; code: string | null }>
@@ -52,5 +52,22 @@ describe("package codes (089)", () => {
     const chars = [...PACKAGE_CODE_ALPHABET].filter((c) => new RegExp(`[${cls}]`).test(c))
     expect(chars.join("")).toBe(PACKAGE_CODE_ALPHABET)
     for (const c of "01OILU") expect(new RegExp(`[${cls}]`).test(c)).toBe(false)
+  })
+})
+
+describe("variant codes (098)", () => {
+  const migration = readFileSync(resolve(__dirname, "../../../db/migrations/20261027090000_variant_code.sql"), "utf8")
+
+  it("the database generates them from the same alphabet, with the V", () => {
+    expect(migration).toContain(`alphabet constant text := '${PACKAGE_CODE_ALPHABET}'`)
+    expect(migration).toContain("candidate := 'V';")
+  })
+
+  it("is V + six, and can never be mistaken for a package or bag code", () => {
+    expect(isVariantCode("V7K3Q9M")).toBe(true)
+    expect(isVariantCode("7K3Q9M")).toBe(false)
+    expect(isPackageCode("V7K3Q9M")).toBe(false)
+    expect(isVariantCode("V7K3Q9O")).toBe(false) // O is a look-alike
+    expect(isVariantCode("v7k3q9m")).toBe(false)
   })
 })

@@ -162,9 +162,10 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
             : step === 4
               ? !!selectedType && attributesValid(selectedType, draft.attributes)
               : true;
-  // 098 — a cell's refusal shows once the operator has typed into the set, never on an untouched form.
+  // 098 — a cell's refusal shows once the operator has left that cell (the editor tracks it), and every
+  // refusal shows once they press Next — never on rows they have not reached yet.
   const variantErrors = variantSetErrors(draft.variantSet);
-  const [variantsTouched, setVariantsTouched] = useState(false);
+  const [variantsAttempted, setVariantsAttempted] = useState(false);
 
   const busy = createProduct.isPending || uploadProgress != null;
 
@@ -244,12 +245,9 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
       ) : step === 2 ? (
         <VariantEditor
           value={draft.variantSet}
-          onChange={(variantSet) => {
-            setVariantsTouched(true);
-            update({ variantSet });
-          }}
+          onChange={(variantSet) => update({ variantSet })}
           errors={variantErrors}
-          showErrors={variantsTouched}
+          showErrors={variantsAttempted}
           disabled={busy}
         />
       ) : step === 3 ? (
@@ -314,7 +312,15 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
                 </Button>
               ) : null}
               {step < STEP_TITLES.length - 1 ? (
-                <Button type="button" onClick={() => goToStep(step + 1)} disabled={!canAdvance}>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    // The sizes step says what is missing instead of greying Next out with no reason.
+                    if (step === 2 && !canAdvance) setVariantsAttempted(true);
+                    else goToStep(step + 1);
+                  }}
+                  disabled={!canAdvance && step !== 2}
+                >
                   Next
                 </Button>
               ) : (

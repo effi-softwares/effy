@@ -115,6 +115,8 @@ export interface OrderLine {
   name: string;
   /** 098 — the variant's label as sold; null with no options. */
   variantLabel: string | null;
+  /** 098 — Effy's code for the variant as sold. */
+  variantCode: string | null;
   sku: string | null;
   /** 098 — the variant's barcode as sold. */
   gtin: string | null;

@@ -68,7 +68,11 @@ export interface ShopVariantDTO {
   position: WireInt
   optionValueIds: OptionValueIds
   label: string | null
+  /** Effy's permanent code for this variant (`V` + 6, e.g. V7K3Q9M) — generated, never edited. */
+  code: string
+  /** The shop's OWN stock code — optional, unique within the shop. */
   sku: string | null
+  /** The manufacturer's barcode printed on the pack (GTIN/EAN), when it has one. */
   gtin: string | null
   /** What the shop is paid. */
   shopPriceAmount: string

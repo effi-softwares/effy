@@ -10,6 +10,7 @@ import { fulfillmentMutationError } from "../errorText"
 import { formatMoney, refundableQuantity, type OrderLine } from "../orderConsole"
 import { invalidateOrders } from "../queries"
 import { issueShopRefund } from "../repo"
+import { lineCodes } from "../codes";
 
 /** What the sheet needs to know about the order: the portion, the order, and this shop's priced lines. */
 export interface RefundTarget {
@@ -18,7 +19,7 @@ export interface RefundTarget {
   orderId: string
   orderNumber: string
   currency: string
-  lines: Pick<OrderLine, "orderItemId" | "name" | "variantLabel" | "sku" | "orderedQuantity" | "refundedQuantity" | "unitPrice">[]
+  lines: Pick<OrderLine, "orderItemId" | "name" | "variantLabel" | "variantCode" | "sku" | "orderedQuantity" | "refundedQuantity" | "unitPrice">[]
 }
 
 type Reason = "item_not_supplied" | "item_unusable"
@@ -111,7 +112,7 @@ export function RefundSheet({
                   {l.variantLabel ? ` — ${l.variantLabel}` : ""}
                 </div>
                 <div className="text-muted-foreground font-mono text-[12px]">
-                  {l.sku ?? "no SKU"} · {formatMoney(l.unitPrice, detail.currency)} each
+                  {lineCodes(l.variantCode, l.sku)} · {formatMoney(l.unitPrice, detail.currency)} each
                   {l.refundedQuantity > 0 ? ` · ${l.refundedQuantity} already refunded` : ""}
                 </div>
               </div>

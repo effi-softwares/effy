@@ -190,11 +190,9 @@ export function SizesEditDialog({ detail, open, onOpenChange }: EditProps) {
     >
       <VariantEditor
         value={set}
-        onChange={(next) => {
-          setTouched(true);
-          setSet(next);
-        }}
+        onChange={setSet}
         errors={errors}
+        // Every refusal once Save is pressed; before that, only a cell the operator has left.
         showErrors={touched}
         media={(detail.pendingChange?.media ?? detail.media).map((m) => ({ storageKey: m.storageKey, url: m.url, altText: m.altText }))}
         disabled={edit.saving}

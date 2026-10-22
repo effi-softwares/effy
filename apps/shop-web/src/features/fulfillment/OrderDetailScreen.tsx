@@ -332,6 +332,8 @@ function printPickList(detail: OrderDetail) {
         readyBy: detail.readyBy,
         lines: detail.lines.map((l) => ({
           name: l.name,
+          variantLabel: l.variantLabel,
+          variantCode: l.variantCode,
           sku: l.sku,
           quantity: l.orderedQuantity,
         })),

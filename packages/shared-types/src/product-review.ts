@@ -84,6 +84,8 @@ export interface ReviewFieldChangeDTO {
 export interface ReviewVariantDTO {
   id: string;
   label: string | null;
+  /** Effy's code; null for a variant a pending change ADDS (it gets one when approved). */
+  code: string | null;
   sku: string | null;
   gtin: string | null;
   shopPriceAmount: string;

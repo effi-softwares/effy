@@ -177,7 +177,9 @@ export interface ShopOrderLineDTO {
   name: string
   /** 098 — the variant's label as sold ("1 kg"); null for a product with no options. */
   variantLabel: string | null
-  /** The variant's stock code as sold. */
+  /** 098 — Effy's code for the variant as sold (V + 6). */
+  variantCode: string | null
+  /** The shop's own stock code as sold. */
   sku: string | null
   /** 098 — the variant's barcode as sold, so a picker can check the item in hand (FR-022). */
   gtin: string | null

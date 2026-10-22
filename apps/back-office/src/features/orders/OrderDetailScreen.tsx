@@ -291,7 +291,11 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                                 {i.productName}
                                 {/* 098 — the size as sold, and its stock code. */}
                                 {i.variantLabel ? <span className="text-muted-foreground"> — {i.variantLabel}</span> : null}
-                                {i.sku ? <span className="block font-mono text-xs text-muted-foreground">{i.sku}</span> : null}
+                                {i.variantCode || i.sku ? (
+                                  <span className="block font-mono text-xs text-muted-foreground">
+                                    {[i.variantCode, i.sku].filter(Boolean).join(" · ")}
+                                  </span>
+                                ) : null}
                               </span>
                             </div>
                           </td>

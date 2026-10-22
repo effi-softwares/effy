@@ -356,7 +356,7 @@ export async function searchProducts(q: string, limit: number): Promise<{ id: st
           AND (p.name ILIKE '%' || $1 || '%' OR p.brand ILIKE '%' || $1 || '%'
                -- 098 — stock codes are the variants'; a promotion still targets the PRODUCT.
                OR EXISTS (SELECT 1 FROM public.product_variant v
-                           WHERE v.product_id = p.id AND v.state <> 'removed' AND v.sku ILIKE '%' || $1 || '%'))
+                           WHERE v.product_id = p.id AND v.state <> 'removed' AND (v.sku ILIKE '%' || $1 || '%' OR v.code = upper($1))))
         ORDER BY p.name LIMIT $2`,
       [q, limit],
     )

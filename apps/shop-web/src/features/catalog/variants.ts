@@ -26,6 +26,8 @@ import {
 /** One variant row as typed: every field a string, so "" survives as "not answered". */
 export interface VariantRowDraft {
   id: string;
+  /** Effy's code for a variant that exists (V + 6); null for one not saved yet. Never edited, never sent. */
+  code: string | null;
   position: number;
   optionValueIds: OptionValueIds;
   sku: string;
@@ -52,7 +54,7 @@ export function newId(): string {
 
 export function emptyRow(position: number, optionValueIds: OptionValueIds = [null, null]): VariantRowDraft {
   return {
-    id: newId(), position, optionValueIds, sku: "", gtin: "", shopPriceAmount: "", shopCompareAtAmount: "",
+    id: newId(), code: null, position, optionValueIds, sku: "", gtin: "", shopPriceAmount: "", shopCompareAtAmount: "",
     weightGrams: "", packQuantity: "", packUnit: "", mediaStorageKey: null,
   };
 }
@@ -98,7 +100,7 @@ export function syncRows(prev: readonly OptionInputDTO[], next: readonly OptionI
         reused.add(parent.id);
       } else if (parent) {
         // Further copies take its prices and weight, but not its codes (a code names one item).
-        out.push({ ...parent, id: newId(), sku: "", gtin: "", mediaStorageKey: parent.mediaStorageKey, optionValueIds: ids });
+        out.push({ ...parent, id: newId(), code: null, sku: "", gtin: "", mediaStorageKey: parent.mediaStorageKey, optionValueIds: ids });
       } else {
         out.push(emptyRow(0, ids));
       }
@@ -116,6 +118,17 @@ export function addMissingRows(set: VariantSetDraft): VariantRowDraft[] {
   const have = new Set(set.variants.map((r) => key(r.optionValueIds)));
   const missing = optionCombinations(set.options).filter((ids) => !have.has(key(ids)));
   return [...set.variants, ...missing.map((ids, i) => emptyRow(set.variants.length + i, ids))].map((r, i) => ({ ...r, position: i }));
+}
+
+/**
+ * "Apply to all" — the FIRST row's value of [field] copied to every row. For the columns that are
+ * usually the same across sizes or colours (a price, a weight); codes are never copied (a code names
+ * one item).
+ */
+export function applyToAll(set: VariantSetDraft, field: "shopPriceAmount" | "weightGrams"): VariantRowDraft[] {
+  const first = set.variants[0];
+  if (!first) return set.variants;
+  return set.variants.map((r) => ({ ...r, [field]: first[field] }));
 }
 
 export function rowLabel(set: Pick<VariantSetDraft, "options">, row: Pick<VariantRowDraft, "optionValueIds">): string {
@@ -187,9 +200,10 @@ export function previewUnitPrice(set: VariantSetDraft, row: VariantRowDraft): Un
 
 // ── From the server ────────────────────────────────────────────────────────────────────────────
 
-function rowFromVariant(v: Pick<ShopVariantDTO, "id" | "position" | "optionValueIds" | "sku" | "gtin" | "shopPriceAmount" | "shopCompareAtAmount" | "weightGrams" | "weightIsAssumed" | "packQuantity" | "packUnit">, mediaKey: string | null): VariantRowDraft {
+function rowFromVariant(v: Pick<ShopVariantDTO, "id" | "code" | "position" | "optionValueIds" | "sku" | "gtin" | "shopPriceAmount" | "shopCompareAtAmount" | "weightGrams" | "weightIsAssumed" | "packQuantity" | "packUnit">, mediaKey: string | null): VariantRowDraft {
   return {
     id: v.id,
+    code: v.code,
     position: v.position,
     optionValueIds: [v.optionValueIds[0] ?? null, v.optionValueIds[1] ?? null],
     sku: v.sku ?? "",
@@ -212,11 +226,12 @@ export function draftFromDetail(detail: ProductDetailDTO): VariantSetDraft {
   const proposed = detail.pendingChange?.proposed;
   const basis = proposed && "unitBasis" in proposed ? proposed.unitBasis ?? null : detail.unitBasis;
   if (proposed?.options && proposed.variants) {
+    const codes = new Map(detail.variants.map((v) => [v.id, v.code]));
     return {
       unitBasis: basis ?? "",
       options: proposed.options,
       variants: proposed.variants.map((v, i) => ({
-        id: v.id, position: i, optionValueIds: [v.optionValueIds[0] ?? null, v.optionValueIds[1] ?? null],
+        id: v.id, code: codes.get(v.id) ?? null, position: i, optionValueIds: [v.optionValueIds[0] ?? null, v.optionValueIds[1] ?? null],
         sku: v.sku ?? "", gtin: v.gtin ?? "", shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount ?? "",
         weightGrams: v.weightGrams == null ? "" : String(v.weightGrams), packQuantity: v.packQuantity ?? "",
         packUnit: v.packUnit ?? "", mediaStorageKey: v.mediaStorageKey ?? null,

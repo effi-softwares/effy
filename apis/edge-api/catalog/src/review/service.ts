@@ -257,6 +257,8 @@ function reviewVariants(live: VariantSet, target: SetInput | null, margin: Margi
       return {
         id: v.id,
         label: variantLabel(set.options, v.optionValueIds),
+        // A variant the change adds has no code until approval creates it.
+        code: liveRows.get(v.id)?.code ?? null,
         sku: v.sku ?? null,
         gtin: v.gtin ?? null,
         shopPriceAmount: v.shopPriceAmount,
@@ -275,7 +277,7 @@ function reviewVariants(live: VariantSet, target: SetInput | null, margin: Margi
     for (const v of live.variants) {
       if (v.state === "removed" || kept.has(v.id)) continue;
       out.push({
-        id: v.id, label: v.label, sku: v.sku, gtin: v.gtin,
+        id: v.id, label: v.label, code: v.code, sku: v.sku, gtin: v.gtin,
         shopPriceAmount: v.shopPriceAmount, shopCompareAtAmount: v.shopCompareAtAmount,
         customerPriceAmount: v.priceAmount ?? v.shopPriceAmount, customerCompareAtAmount: v.compareAtAmount,
         weightGrams: v.weightGrams, packQuantity: v.packQuantity, packUnit: v.packUnit, state: v.state, change: "removed",

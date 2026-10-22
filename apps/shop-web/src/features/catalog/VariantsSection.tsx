@@ -60,7 +60,8 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
               <Th>{hasOptions ? "Variant" : "Item"}</Th>
               <Th align="right">Your price</Th>
               <Th align="right">Customers pay</Th>
-              <Th>SKU</Th>
+              <Th>Effy code</Th>
+              <Th>Your code</Th>
               <Th>Barcode</Th>
               <Th align="right">Weight</Th>
               <Th align="right">In stock</Th>
@@ -92,6 +93,7 @@ export function VariantsSection({ detail, onEdit }: { detail: ProductDetail; onE
                     {approved && v.customerPriceAmount ? formatMoney(v.customerPriceAmount, detail.currency) : "Set when approved"}
                     {unit ? <span className="text-muted-foreground block text-[12px]">{unitPriceText(unit)}</span> : null}
                   </Td>
+                  <Td className="font-mono text-[12.5px]">{v.code}</Td>
                   <Td className="font-mono text-[12.5px]">{v.sku ?? "—"}</Td>
                   <Td className="font-mono text-[12.5px]">{v.gtin ?? "—"}</Td>
                   <Td align="right" className="tabular-nums">

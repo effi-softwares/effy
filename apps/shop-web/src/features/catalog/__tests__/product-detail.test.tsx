@@ -126,8 +126,13 @@ describe("product edit and persist", () => {
     const price = await screen.findByLabelText(/^price for/i)
     await userEvent.clear(price)
     await userEvent.type(price, "-3")
-
+    // 098 — not while typing: a cell says what is wrong once the operator leaves it…
+    expect(screen.queryByText(/enter a price like/i)).toBeNull()
+    await userEvent.tab()
     expect(screen.getByText(/enter a price like/i)).toBeInTheDocument()
+
+    // …and Save refuses, and stays refused until it is fixed.
+    await userEvent.click(screen.getByRole("button", { name: /^save$/i }))
     expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled()
     expect(updateProduct).not.toHaveBeenCalled()
   })

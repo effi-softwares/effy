@@ -58,6 +58,7 @@ interface ItemRow {
   order_item_id: string;
   name: string;
   variant_label: string | null;
+  variant_code: string | null;
   sku: string | null;
   gtin: string | null;
   storage_key: string | null;
@@ -163,6 +164,7 @@ SELECT oi.id AS order_item_id,
        oi.product_name AS name,
        -- 098 — the variant, its stock code and barcode AS SOLD: a picker must never guess the size.
        oi.variant_label,
+       oi.variant_code,
        oi.sku,
        oi.gtin,
        pm.storage_key,
@@ -211,6 +213,7 @@ function mapItem(r: ItemRow): FulfillmentItem {
     orderItemId: r.order_item_id,
     name: r.name,
     variantLabel: r.variant_label,
+    variantCode: r.variant_code,
     sku: r.sku,
     gtin: r.gtin,
     imageUrl: r.storage_key,

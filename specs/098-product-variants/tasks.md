@@ -164,6 +164,14 @@ runs against the new schema. Stories then add the variant behaviour on top.
 
 ---
 
+## Phase 10: Amendment — Effy codes and a clearer grid (FR-027, FR-028)
+
+- [X] T074 Migration `db/migrations/20261027090000_variant_code.sql`: `product_variant.code` (V + 6, database default `public.new_variant_code()`, unique, checked, backfilled one row per statement) and `order_item.variant_code` (snapshot); format pinned in `packages/shared-types/src/package-code.ts` (`isVariantCode`) + test
+- [X] T075 Code on the wire: `ShopVariantDTO.code`, `ReviewVariantDTO.code`, order line `variantCode` (shop console, fulfilment, pick lists, back-office orders); checkout snapshots it; storefront, shop product and promotion searches match it
+- [X] T076 shop-web: Effy code in the grid and the Sizes table, "Your code" for the shop's own; codes shown "Effy · yours" on order, refund and printed pick lines (`fulfillment/codes.ts`); printed pick lists also name the size
+- [X] T077 shop-web grid: column help, errors after leaving a cell or on Next/Save, "Apply first to all" for price and weight (`applyToAll` + tests)
+- [X] T078 back-office: Effy code in the review sizes table ("On approval" for an added size) and on order lines
+
 ## Dependencies & Execution Order
 
 - **Phase 1 → Phase 2 → stories.** Phase 2 is blocking: the dropped columns break every reader until T016–T024 are done.

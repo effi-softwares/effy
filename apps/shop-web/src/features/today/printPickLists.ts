@@ -25,6 +25,9 @@ export async function printAwaitingPickLists(): Promise<{ printed: number; more:
       readyBy: null,
       lines: l.lines.map((line) => ({
         name: line.name,
+        // 098 — the size and its codes: a picker must never guess which pack.
+        variantLabel: line.variantLabel ?? null,
+        variantCode: line.variantCode ?? null,
         sku: line.sku,
         quantity: line.quantity,
       })),

@@ -308,7 +308,7 @@ SELECT id FROM p`,
       ["Rice", "500 g", "R-500", null, 2],
     ]);
     const pick = (await readPickLists(SHOP)).lists.find((l) => l.orderNumber === "EFY-V")!;
-    expect(pick.lines).toEqual([
+    expect(pick.lines.map(({ variantCode: _code, ...l }) => l)).toEqual([
       { name: "Rice", variantLabel: "1 kg", sku: "R-1K", quantity: 1 },
       { name: "Rice", variantLabel: "500 g", sku: "R-500", quantity: 2 },
     ]);

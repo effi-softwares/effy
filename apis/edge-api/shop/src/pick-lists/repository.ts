@@ -24,7 +24,7 @@ export interface PickListRow {
   courierPickup?: CourierPickupDTO;
   /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
   deliveryMethod: "same_day" | "standard" | null;
-  lines: Array<{ name: string; variantLabel: string | null; sku: string | null; quantity: number }>;
+  lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
 }
 
 /**
@@ -41,7 +41,7 @@ SELECT sf.id::text AS fulfillment_id,
        COALESCE(
          json_agg(
            -- 098 — the variant and its stock code AS SOLD.
-           json_build_object('name', oi.product_name, 'variantLabel', oi.variant_label, 'sku', oi.sku, 'quantity', oi.quantity)
+           json_build_object('name', oi.product_name, 'variantLabel', oi.variant_label, 'variantCode', oi.variant_code, 'sku', oi.sku, 'quantity', oi.quantity)
            ORDER BY oi.product_name, oi.variant_label NULLS FIRST
          ) FILTER (WHERE oi.id IS NOT NULL),
          '[]'::json
@@ -69,7 +69,7 @@ interface PickListDbRow {
   paid_at: Date;
   delivery_method: "same_day" | "standard" | null;
   delivered_by: DeliveredBy;
-  lines: Array<{ name: string; variantLabel: string | null; sku: string | null; quantity: number }>;
+  lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
 }
 
 export async function readPickLists(

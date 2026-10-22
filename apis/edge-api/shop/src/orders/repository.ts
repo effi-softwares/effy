@@ -339,6 +339,7 @@ interface LineRecord {
   order_item_id: string;
   name: string;
   variant_label: string | null;
+  variant_code: string | null;
   sku: string | null;
   gtin: string | null;
   pick_note: string | null;
@@ -364,6 +365,7 @@ SELECT oi.id AS order_item_id,
        oi.product_name AS name,
        -- 098 — the variant, its stock code and its barcode AS SOLD (snapshots on the line).
        oi.variant_label,
+       oi.variant_code,
        oi.sku,
        oi.gtin,
        pm.storage_key,
@@ -635,6 +637,7 @@ async function toLine(r: LineRecord): Promise<OrderLine> {
     orderItemId: r.order_item_id,
     name: r.name,
     variantLabel: r.variant_label,
+    variantCode: r.variant_code,
     sku: r.sku,
     gtin: r.gtin,
     // ⚠ PRESIGNED, not the raw storage key. The pick DTO hands the key through as `imageUrl`, which

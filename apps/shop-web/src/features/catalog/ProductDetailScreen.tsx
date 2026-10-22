@@ -129,7 +129,7 @@ function ProductDetailBody({ productId }: { productId: string }) {
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-muted-foreground text-[12.5px] whitespace-nowrap">
               {detail.variants.filter((v) => v.state !== "removed").length === 1
-                ? (detail.variants[0]?.sku ?? "no SKU")
+                ? (detail.variants[0]?.code ?? "")
                 : `${detail.variants.filter((v) => v.state !== "removed").length} sizes`}
             </span>
             <MetaDivider />

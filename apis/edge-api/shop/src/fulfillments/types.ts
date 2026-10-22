@@ -153,6 +153,8 @@ export interface FulfillmentItem {
   name: string;
   /** 098 */
   variantLabel: string | null;
+  /** 098 — Effy's code for the variant as sold. */
+  variantCode: string | null;
   sku: string | null;
   /** 098 */
   gtin: string | null;

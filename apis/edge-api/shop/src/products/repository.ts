@@ -678,7 +678,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
              -- 098 — a variant's stock code or barcode finds its product.
              OR EXISTS (SELECT 1 FROM public.product_variant sv
                          WHERE sv.product_id = p.id AND sv.state <> 'removed'
-                           AND (lower(sv.sku) LIKE '%' || lower($2) || '%' OR sv.gtin = $2)))
+                           AND (lower(sv.sku) LIKE '%' || lower($2) || '%' OR sv.gtin = $2 OR sv.code = upper($2))))
         AND ($3::uuid IS NULL OR p.product_type_id = $3)
         AND ($4::uuid IS NULL OR p.primary_category_id = $4)
         AND ($5::text IS NULL OR p.status = $5)

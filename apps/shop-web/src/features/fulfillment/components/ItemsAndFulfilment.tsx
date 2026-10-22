@@ -21,6 +21,7 @@ import {
   type PickMode,
 } from "../orderConsole"
 import { useSetPicks, useTransitionFulfillment } from "../queries"
+import { lineCodes } from "../codes";
 
 /**
  * "Items and fulfilment" — the design's merged section (057 A3 revision 2): the priced lines ARE the
@@ -251,7 +252,7 @@ function LineRow({
           {line.variantLabel ? <span className="text-foreground"> — {line.variantLabel}</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{line.sku ?? "no SKU"}</span>
+          <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{lineCodes(line.variantCode, line.sku)}</span>
           {line.gtin ? <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{line.gtin}</span> : null}
           <span
             className={cn(
@@ -566,7 +567,7 @@ function FulfilDialog({
                 {l.name}
                 {l.variantLabel ? ` — ${l.variantLabel}` : ""}
               </div>
-              <div className="text-muted-foreground font-mono text-[12px]">{l.sku ?? "no SKU"}</div>
+              <div className="text-muted-foreground font-mono text-[12px]">{lineCodes(l.variantCode, l.sku)}</div>
             </div>
             <div className="text-[13px] whitespace-nowrap tabular-nums">
               {l.gatheredQuantity} <span className="text-muted-foreground">of {l.orderedQuantity}</span>
