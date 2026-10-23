@@ -42,12 +42,10 @@ export const PROMISE_LABEL: Record<DeliveryPromise, string> = {
 // ── 079: who delivers an order ───────────────────────────────────────────────────────────────────
 
 /**
- * "Delivered by Effy" / "Courier delivery" — the same two names the customer reads
- * (`DELIVERY_TYPE_WORDS`). An order placed before 079 has no type and says so with a dash: nothing
- * about an old order is guessed.
+ * "Delivered by Effy" / "Courier delivery" — the same two names the customer reads (`DELIVERY_TYPE_WORDS`).
  */
-export function deliveryTypeText(type: DeliveryType | null): string {
-  return type ? DELIVERY_TYPE_WORDS[type] : "—";
+export function deliveryTypeText(type: DeliveryType): string {
+  return DELIVERY_TYPE_WORDS[type];
 }
 
 /** The list filter's options, in the order they are offered. */

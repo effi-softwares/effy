@@ -154,7 +154,7 @@ export interface DutyResponse {
 
 // ── Today (phase-aware home) ─────────────────────────────────────────────────────────────────────
 
-export type DriverPhase = "collection" | "same_day_delivery" | "idle";
+export type DriverPhase = "collection" | "delivery" | "idle";
 
 /**
  * A compact reference to the active/queued work item shown on the home.
@@ -297,7 +297,7 @@ export interface RoundOpening {
 /** 072 — a round the driver holds besides the current one. Readable in full; a count here. */
 export interface UpcomingRound {
   runId: string;
-  kind: "collection" | "same_day_delivery";
+  kind: "collection" | "delivery";
   /** `null` = open now. */
   opening: RoundOpening | null;
   deadlineAt: string;
@@ -335,13 +335,8 @@ export interface CollectionStopSummary {
    */
   address: string | null;
   packageCount: WireInt;
-  /** 089 — the codes printed on this stop's package labels, for matching a scan with no signal. */
-  packageCodes?: string[];
-  /**
-   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
-   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
-   */
-  parcels?: ParcelDTO[];
+  /** 096 — the stop's live BAGS, each with its own code ("Bag n of N"), for matching a scan with no signal. */
+  parcels: ParcelDTO[];
   status: CollectionStopStatus;
 }
 
@@ -355,11 +350,8 @@ export interface DriverCollectionRunDTO {
   /** 072 — the collection run's time: when collecting must be finished. */
   deadlineAt: string;
   dueLabel: string;
-  /**
-   * 090 — where each package on this run goes at the hub, in the platform's words, so the hub scan
-   * can say it with no signal. Optional: absent from an older server.
-   */
-  hubSort?: HubSortInstruction[];
+  /** 090 — where each package on this run goes at the hub, in the platform's words, so the hub scan can say it with no signal. */
+  hubSort: HubSortInstruction[];
   /** 092 rev 2 — the run map. */
   map?: RunMapDTO | null;
   /** 093 — the run's stage and its words. */
@@ -371,7 +363,7 @@ export interface DriverCollectionRunDTO {
 export interface HubSortInstruction {
   packageCode: string;
   /** 096 — the codes of every bag of this package: each bag scanned at the hub gets this instruction. */
-  parcelCodes?: string[];
+  parcelCodes: string[];
   /**
    * `load_now` | `shelve` | `courier_bay` (`HubSortKind`). ⚠ A STRING ON THE WIRE, NOT AN ENUM: the
    * driver app decodes enums as closed sets, and a fourth kind added later would fail the whole run
@@ -421,25 +413,16 @@ export interface ManifestLine {
 }
 
 export interface CollectionPackage {
-  /**
-   * The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was on the
-   * wire the app could not say WHICH package a report was about, so it sent none and the whole stop
-   * was marked unavailable. Optional only so an app built against it still reads an older server.
-   */
-  packageId?: string;
-  /** 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers. */
-  packageCode?: string;
-  /**
-   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
-   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
-   */
-  parcels?: ParcelDTO[];
+  /** The package's own id — what `CollectRequest.packages[].packageId` names. */
+  packageId: string;
+  /** 089 — the code printed on this package's label (`EFY1:<code>`): bag 1's. */
+  packageCode: string;
+  /** 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for every bag. */
+  parcels: ParcelDTO[];
   ref: string; // the order number the package belongs to
   destinationSuburb: string;
-  /** @deprecated 082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9). */
-  method: PackageMethod;
   /** 082 — who takes it from the hub: an Effy driver, or a courier. What the app says. */
-  deliveredBy?: "effy" | "courier";
+  deliveredBy: "effy" | "courier";
   /** 082 — the day and window an Effy parcel is for, in words written by the server; null when none. */
   windowLabel?: string | null;
   /**
@@ -537,22 +520,16 @@ export interface HubCheckinRequest extends ParcelStepFields {
 }
 export interface HubCheckinResponse {
   scannedTotal: WireInt;
-  sameDayCount: WireInt;
-  /** @deprecated 080 — read `courierCount`. Kept for driver builds that predate it. */
-  standardCount: WireInt; // staged for the external carrier; leaves the driver's active work
-  /** 080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says "Courier". */
-  courierCount?: WireInt;
+  /** 080 — parcels a COURIER takes from the hub. The app says "Courier". */
+  courierCount: WireInt;
   /**
    * 082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two
    * groups, "Effy delivery" (these) and "Courier", and the driver classifies nothing.
    * ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am – 12 pm"): the app has
    * no timezone database and never formats a day itself. A parcel sold no window has null instants.
-   * ⚠ `sameDayCount` / `standardCount` above are @deprecated — compatibility (083): kept so installed apps keep working
-   * (a driver build from before 082 reads them). So are the `same_day_delivery` values of
-   * `DriverPhase`, `DriverRunType` and a round's `kind`: they mean "an Effy delivery round".
    */
-  effyCount?: WireInt;
-  effyGroups?: HubCheckinEffyGroup[];
+  effyCount: WireInt;
+  effyGroups: HubCheckinEffyGroup[];
   /**
    * 092 — when the courier next collects from the hub, in the server's words ("4 pm", "tomorrow
    * 10 am"); null when no courier parcel was checked in or no courier service is set up.
@@ -596,13 +573,8 @@ export interface DeliveryDropSummary {
   orderRef: string;
   customerSuburb: string;
   packageCount: WireInt;
-  /** 089 — the codes printed on this drop's package labels, for matching a scan with no signal. */
-  packageCodes?: string[];
-  /**
-   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
-   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
-   */
-  parcels?: ParcelDTO[];
+  /** 096 — the drop's live BAGS, each with its own code ("Bag n of N"), for matching a scan with no signal. */
+  parcels: ParcelDTO[];
   /**
    * The delivery window as a ready-made label, e.g. "5 pm – 7 pm" (Melbourne time). ⚠ Null from 049
    * until 069 — the field existed and nothing could fill it, because no window was ever sold.
@@ -633,9 +605,9 @@ export interface DeliveryRunDTO {
   dueLabel: string;
   /**
    * 088 — parcels from failed drops on this run, still with the driver, to be checked back in at the
-   * hub. `null` (or absent, from an older server) when there are none.
+   * hub. `null` when there are none.
    */
-  toReturn?: ParcelsToReturn | null;
+  toReturn: ParcelsToReturn | null;
   /** 092 rev 2 — the run map. */
   map?: RunMapDTO | null;
   /** 093 — the run's stage and its words. */
@@ -655,21 +627,15 @@ export interface ParcelsToReturn {
   count: WireInt;
   /** Order numbers only — no address, no customer (049 FR-013). */
   orders: string[];
-  /** 090 — the label codes of the parcels to return, for the return scan. */
-  packageCodes?: string[];
   /** 092 rev 2 — each parcel, for the Return to hub screen: its ref, where it was for and why it came back. */
-  parcels?: ReturnParcel[];
+  parcels: ReturnParcel[];
 }
 
 export interface ReturnParcel {
   ref: string;
   packageCode: string;
-  /**
-   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
-   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
-   */
-  parcels?: ParcelDTO[];
-
+  /** 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for every bag. */
+  parcels: ParcelDTO[];
   /** "8 Scotchmer St, Fitzroy North". */
   place: string | null;
   reason: DeliveryFailureReason | null;
@@ -718,13 +684,10 @@ export interface ParcelReturnResponse {
  */
 export interface DropPackageRef {
   ref: string;
-  /** 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers. */
-  packageCode?: string;
-  /**
-   * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for
-   * every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
-   */
-  parcels?: ParcelDTO[];
+  /** 089 — the code printed on this package's label (`EFY1:<code>`): bag 1's. */
+  packageCode: string;
+  /** 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts for every bag. */
+  parcels: ParcelDTO[];
   fromShopCount: WireInt; // how many shops contributed — never shop identity
   items: ManifestLine[];
   summary: ClassSummary;
@@ -867,7 +830,7 @@ export interface HistoryDropRow {
  * ⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and then a
  * same-day round in the same shift; neither is a role they hold.
  */
-export type DriverRunType = "collection" | "same_day_delivery";
+export type DriverRunType = "collection" | "delivery";
 
 export interface HistoryRunRow {
   runId: string;

@@ -122,7 +122,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
   const now = new Date();
   const upcoming: UpcomingRound[] = later.map((r) => ({
     runId: r.id,
-    kind: r.kind === "collection" ? "collection" : "same_day_delivery",
+    kind: r.kind,
     opening: openingOf(r.opens_at, now),
     deadlineAt: r.deadline_at.toISOString(),
     dueLabel: formatMoment(r.deadline_at, now),
@@ -158,7 +158,7 @@ export async function today(driverId: string): Promise<TodayDTO> {
   // What the driver is physically holding — the hub row's subtitle, and the honest count.
   const totalPackages = packages.filter((p) => p.state === "picked_up").length;
 
-  const phase: DriverPhase = round.kind === "collection" ? "collection" : "same_day_delivery";
+  const phase: DriverPhase = round.kind;
 
   const toRef = (s: StopRow): TodayItemRef => {
     // ⚠ 064 — THE HUB IS A WORK ITEM NOW, and it needs its own title because it has no shop and no
@@ -315,7 +315,6 @@ export async function collectionRun(runId: string, driverId: string): Promise<Dr
         shopCode: s.shop_code ?? "",
         address: addressLine([s.address_line1, s.address_line2, s.suburb, s.state, s.postcode]),
         packageCount: pkgs.length,
-        packageCodes: pkgs.map((p) => p.package_code), // 089
         parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []), // 096
         status: stopStatus(s.stop_status, pkgs.some((p) => p.state === "not_available")),
       } satisfies CollectionStopSummary;
@@ -361,7 +360,6 @@ export async function collectionStop(
         parcels: bags.get(p.package_id) ?? [], // 096 — this package's bags
         ref: p.order_number,
         destinationSuburb: p.destination_suburb ?? "",
-        method: p.method,
         // 082 — what the app says: who takes it from the hub, and (Effy's) the day and window it is for.
         deliveredBy: p.delivered_by,
         windowLabel: p.delivered_by === "effy" && p.window_start && p.window_end
@@ -414,7 +412,6 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         orderRef: pkgs[0]?.order_number ?? "",
         customerSuburb: s.destination_suburb ?? "",
         packageCount: pkgs.length,
-        packageCodes: pkgs.map((p) => p.package_code), // 089
         parcels: pkgs.flatMap((p) => bags.get(p.package_id) ?? []), // 096
         // 069 — the window the CUSTOMER WAS SOLD, read from the order, never derived. ⚠ This read
         // `window: null` from 049 until 069, under a comment saying there was no window and that

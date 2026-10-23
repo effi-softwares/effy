@@ -1,5 +1,5 @@
 import type { AuthedEvent } from "@effy/edge-shared"
-import { claim, subject } from "@effy/edge-shared"
+import { subject } from "@effy/edge-shared"
 
 /**
  * TWO TOKENS, AND THEIR `sub`s MUST MATCH (012 FR-035, research R12).

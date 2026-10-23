@@ -10,7 +10,7 @@
 import { withTransaction } from "@effy/edge-shared";
 import { PLANNER_PASS_LOCK, removeAssignment } from "@effy/edge-shared/delivery";
 import { accountFor, countByPackage, expectedParcels, recordHandovers, recordReads, writeParcelHolds } from "@effy/edge-shared/labels";
-import type { LabelReadDTO, MissingReason, ParcelHandover, ParcelMissing } from "@effy/shared-types";
+import type { LabelReadDTO, ParcelHandover, ParcelMissing } from "@effy/shared-types";
 
 import { assertRoundOpen } from "./open";
 import { assertNothingToHandIn } from "./sequence";

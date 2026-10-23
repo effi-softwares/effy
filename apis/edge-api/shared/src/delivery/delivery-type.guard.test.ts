@@ -12,9 +12,8 @@ import { describe, expect, it } from "vitest";
  *      and by nothing else; a second writer is a second idea of what "from" was, and an entry that
  *      does not match the order it describes. The same function is the only thing that changes a
  *      PLACED order's type — checkout sets it on the pending order, and only there.
- *   2. WHO TAKES A PACKAGE IS THE DATABASE'S ANSWER (`public.package_delivered_by`). Until 079 "a
- *      standard package with a window is Effy's" was spelled out five times in the orders service;
- *      the reader that forgets the window hands an Effy parcel to a carrier.
+ *   2. WHO TAKES A PACKAGE IS `order.delivery_type`. Re-deriving it from a package's method or window
+ *      (as the orders service once did, five times) hands an Effy parcel to a carrier.
  *   3. NOTHING REMEMBERS WHETHER A COURIER ORDER CAN BE PLACED. That was a constant three callers
  *      had to check; it is now part of the coverage answer itself.
  */
@@ -81,8 +80,8 @@ describe("079 — who takes a package is decided in the database", () => {
     expect(where).toEqual([]);
   });
 
-  it("the function is reached through the one SQL fragment", () => {
-    expect(naming("package_delivered_by(")).toEqual(["shared/src/delivery/delivery-type.ts"]);
+  it("who delivers is the order's own column — nothing re-derives it from the method or window", () => {
+    expect(naming("package_delivered_by(")).toEqual([]);
   });
 });
 

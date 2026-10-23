@@ -41,7 +41,6 @@ export const TILE_RADIUS = 0.22
 export const SPLASH_GROUND = {
   // The tile's own ground, so the launcher icon opens into the splash without a change of colour.
   "customer-mobile": "#09090b",
-  "shop-mobile": "#09090b",
   // 092 — the driver app opens exactly as the customer app does.
   "driver-mobile": "#09090b",
 }

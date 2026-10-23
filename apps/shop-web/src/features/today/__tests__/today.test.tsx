@@ -55,7 +55,6 @@ function today(over: Partial<ShopTodayDTO> = {}): ShopTodayDTO {
         paidAt: "2026-09-14T03:59:30.000Z",
         itemCount: 4,
         deliveredBy: "effy_driver",
-        deliveryMethod: "same_day",
         total: "57.80",
         currency: "AUD",
       },
@@ -202,7 +201,6 @@ describe("Today (US1)", () => {
             // ⚠ 079 — a "standard" order an EFFY DRIVER delivers (a later-day window): the customer's word
             // would tell this shop the wrong thing, which is why the line no longer prints it.
             deliveredBy: "effy_driver",
-            deliveryMethod: "standard",
             total: "12.00",
             currency: "AUD",
           },

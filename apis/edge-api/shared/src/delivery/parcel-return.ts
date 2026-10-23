@@ -57,8 +57,6 @@ export interface ToReturn {
   runId: string;
   count: number;
   orders: string[];
-  /** 090 — the parcels' label codes, for the return scan. */
-  packageCodes: string[];
   /** 096 — the packages to return (server-side only; not on the driver wire). */
   packageIds: string[];
   /** 092 rev 2 — each parcel: its order, label code, where it was for, and why it came back. */
@@ -76,7 +74,6 @@ export async function toReturnOnRound(db: Queryable, roundId: string): Promise<T
     runId: roundId,
     count: res.rows.length,
     orders: [...new Set(res.rows.map((r) => r.order_number))],
-    packageCodes: res.rows.map((r) => r.package_code),
     packageIds: res.rows.map((r) => r.package_id),
     parcels: res.rows.map((r) => ({ ref: r.order_number, packageCode: r.package_code, place: r.place || null, reason: r.reason, parcels: bags.get(r.package_id) ?? [] })),
   };

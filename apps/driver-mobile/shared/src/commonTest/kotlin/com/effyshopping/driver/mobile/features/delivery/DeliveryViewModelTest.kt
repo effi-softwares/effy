@@ -163,8 +163,8 @@ class DeliveryViewModelTest {
 
     /** 093 — a package declared not loaded rides the load; a drop with nothing loaded leaves the run. */
     @Test fun loading_with_a_package_declared_missing() = runTest {
-        val lone = DropSummary("d1", 1, "EFY-1", "Carlton", 1, DropStatus.STAGED, packageCodes = listOf("AAAAAA"))
-        val pair = DropSummary("d2", 2, "EFY-2", "Fitzroy", 2, DropStatus.STAGED, packageCodes = listOf("BBBBBB", "CCCCCC"))
+        val lone = DropSummary("d1", 1, "EFY-1", "Carlton", 1, DropStatus.STAGED, bags = listOf(com.effyshopping.driver.mobile.core.scan.Bag("AAAAAA", 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT)))
+        val pair = DropSummary("d2", 2, "EFY-2", "Fitzroy", 2, DropStatus.STAGED, bags = listOf("BBBBBB", "CCCCCC").map { com.effyshopping.driver.mobile.core.scan.Bag(it, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) })
         val repo = FakeDeliveryRepo().apply { offline = true; run = DeliveryRun("r1", "planned", listOf(lone, pair)) }
         val v = vm(repo)
         v.loadRun()
@@ -176,7 +176,7 @@ class DeliveryViewModelTest {
         assertEquals(missing, repo.lastNotLoaded)
         val drops = v.state.value.run!!.drops
         assertEquals(listOf("d2"), drops.map { it.dropId })
-        assertEquals(listOf("BBBBBB"), drops.single().packageCodes)
+        assertEquals(listOf("BBBBBB"), drops.single().bagCodes)
         assertEquals(DropStatus.OUT_FOR_DELIVERY, drops.single().status)
         assertEquals("Van loaded · 2 bags left for dispatch", v.state.value.notice)
     }

@@ -26,6 +26,7 @@ const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
   currency: "AUD",
   notices: [],
   discount: null,
+  promotions: [],
   checkout: { allowed: false, blockedReason: "empty", minimumSubtotalAmount: null, remainingAmount: null },
   limits: { maxLineQuantity: 99, maxDistinctItems: 100 },
   ...over,

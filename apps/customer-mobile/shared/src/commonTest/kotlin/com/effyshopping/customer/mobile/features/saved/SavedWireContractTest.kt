@@ -48,11 +48,6 @@ class SavedWireContractTest {
         const val SAVED_MEMBERSHIP_WIRE_JSON =
             """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001","1a7b0000-0000-0000-0000-000000000002"],"count":2,"namedProductIds":["9f2c1d4e-0000-0000-0000-000000000001"]}"""
 
-        // What a backend from BEFORE 068 emitted. This
-        // build can be pointed at a stale backend and must still decode it.
-        const val SAVED_MEMBERSHIP_PRE_068_WIRE_JSON =
-            """{"productIds":["9f2c1d4e-0000-0000-0000-000000000001"],"count":1}"""
-
         // Read by the backend's wire.contract.test.ts.
         const val SAVED_LISTS_WIRE_JSON =
             """[{"id":"default","isDefault":true,"name":null,"count":12,"onlyHereCount":9},{"id":"5d1e0000-0000-0000-0000-000000000005","isDefault":false,"name":"Weekly Items","count":5,"onlyHereCount":2,"containsProduct":true}]"""
@@ -95,7 +90,7 @@ class SavedWireContractTest {
      */
     @Test
     fun `Kotlin emits a whole number for count - never a float`() {
-        val dto = SavedMembershipDTO(count = 1, productIDS = listOf("9f2c1d4e-0000-0000-0000-000000000001"))
+        val dto = SavedMembershipDTO(count = 1, productIDS = listOf("9f2c1d4e-0000-0000-0000-000000000001"), namedProductIDS = emptyList())
         val encoded = json.encodeToString(SavedMembershipDTO.serializer(), dto)
 
         assertTrue(encoded.contains("\"count\":1"), "expected an integer, got: $encoded")
@@ -113,17 +108,6 @@ class SavedWireContractTest {
         assertEquals(2L, dto.count)
         assertEquals(2, dto.productIDS.size)
         assertEquals(listOf("9f2c1d4e-0000-0000-0000-000000000001"), dto.namedProductIDS)
-    }
-
-    /**
-     * ⚠ 068. A backend from before lists existed sends no `namedProductIds`. The field is optional so
-     * that this decodes; a required field would turn a stale backend into "no hearts at all".
-     */
-    @Test
-    fun `Kotlin still decodes a membership payload from before lists existed`() {
-        val dto = json.decodeFromString<SavedMembershipDTO>(SAVED_MEMBERSHIP_PRE_068_WIRE_JSON)
-        assertEquals(1L, dto.count)
-        assertEquals(null, dto.namedProductIDS)
     }
 
     @Test

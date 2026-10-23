@@ -16,7 +16,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
 object ScanContexts {
     /** S1 — at a shop: this stop's bags; another stop's bag is a hard stop naming that shop. */
     fun shopStop(run: CollectionRun, stop: ShopStop): ScanContext {
-        val bags = stop.packages.flatMap { it.allBags }
+        val bags = stop.packages.flatMap { it.bags }
         return ScanContext(
             expected = bags.map { it.code }.toSet(),
             bags = bags.numbers(),
@@ -47,7 +47,7 @@ object ScanContexts {
      * bag — named by its drop number and suburb.
      */
     fun drop(run: DeliveryRun, drop: Drop): ScanContext {
-        val bags = drop.packages.flatMap { it.allBags }
+        val bags = drop.packages.flatMap { it.bags }
         return ScanContext(
             expected = bags.map { it.code }.toSet(),
             bags = bags.numbers(),
@@ -61,6 +61,6 @@ object ScanContexts {
     /** S5 — back at the hub after failed drops: the bags to return. */
     fun returnToHub(toReturn: ParcelsToReturn): ScanContext = ScanContext(
         expected = toReturn.bagCodes.toSet(),
-        bags = toReturn.parcels.flatMap { it.allBags }.numbers(),
+        bags = toReturn.parcels.flatMap { it.bags }.numbers(),
     )
 }

@@ -22,8 +22,6 @@ export interface PickListRow {
   deliveredBy: DeliveredBy;
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
-  deliveryMethod: "same_day" | "standard" | null;
   lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
 }
 
@@ -36,7 +34,6 @@ SELECT sf.id::text AS fulfillment_id,
        o.order_number,
        COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
        COALESCE(o.placed_at, o.created_at) AS paid_at,
-       sf.delivery_method,
        ${DELIVERED_BY_SQL} AS delivered_by,
        COALESCE(
          json_agg(
@@ -51,7 +48,7 @@ SELECT sf.id::text AS fulfillment_id,
   LEFT JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
  WHERE sf.shop_id = $1
    AND sf.status IN ('pending', 'received')
- GROUP BY sf.id, o.order_number, o.delivery_address, o.placed_at, o.created_at, sf.delivery_method, o.delivery_type
+ GROUP BY sf.id, o.order_number, o.delivery_address, o.placed_at, o.created_at, o.delivery_type
  ORDER BY COALESCE(o.placed_at, o.created_at) ASC
  LIMIT $2
 `;
@@ -67,7 +64,6 @@ interface PickListDbRow {
   order_number: string;
   customer_name: string;
   paid_at: Date;
-  delivery_method: "same_day" | "standard" | null;
   delivered_by: DeliveredBy;
   lines: Array<{ name: string; variantLabel: string | null; variantCode: string | null; sku: string | null; quantity: number }>;
 }
@@ -89,7 +85,6 @@ export async function readPickLists(
     customerName: r.customer_name,
     paidAt: r.paid_at,
     deliveredBy: r.delivered_by,
-    deliveryMethod: r.delivery_method,
     lines: r.lines,
   }));
 

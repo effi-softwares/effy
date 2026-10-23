@@ -1,25 +1,25 @@
+import type { Banner } from "../promotion-groups"
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it } from "vitest"
 
-import type { BannerDTO } from "@effy/shared-types"
+
 
 import { OFFER_THEMES } from "@/components/storefront/PromoBanner"
 
 import { OfferBannerCard, OffersPanels } from "./OffersPanels"
 
-function banner(over: Partial<BannerDTO> = {}): BannerDTO {
+function banner(over: Partial<Banner> = {}): Banner {
   return {
     key: "b1",
     title: "20% off your first grocery order",
     subtitle: "Applied at checkout",
     imageUrl: "https://example.test/promo.jpg",
     href: "/promotions/b1",
-    placement: "inline",
     ...over,
   }
 }
 
-function many(n: number): BannerDTO[] {
+function many(n: number): Banner[] {
   return Array.from({ length: n }, (_, i) =>
     banner({ key: `b${i}`, title: `Offer ${i}`, href: `/promotions/b${i}` }),
   )

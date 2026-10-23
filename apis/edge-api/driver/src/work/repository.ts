@@ -63,7 +63,6 @@ export interface PackageRow {
   /** 089 — the code printed on the package's label. */
   package_code: string;
   order_number: string;
-  method: "standard" | "same_day";
   delivered_by: "effy" | "courier";
   window_start: Date | null;
   window_end: Date | null;

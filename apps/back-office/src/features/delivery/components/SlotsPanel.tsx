@@ -39,8 +39,7 @@ import { slotGridQuery, useCreateSlot, usePatchSlot } from "../queries";
 export function SlotsPanel({ canManage }: { canManage: boolean }) {
   const grid = useQuery(slotGridQuery());
   const slots = { ...grid, data: grid.data?.items };
-  // A server older than 078 sends no days: today alone, from the fields it has always sent.
-  const days: DeliverySlotDayDTO[] = grid.data?.days ?? [{ date: "", isToday: true, nonDelivery: false }];
+  const days: DeliverySlotDayDTO[] = grid.data?.days ?? [];
   const patch = usePatchSlot();
   const [editing, setEditing] = useState<DeliverySlotDTO | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);

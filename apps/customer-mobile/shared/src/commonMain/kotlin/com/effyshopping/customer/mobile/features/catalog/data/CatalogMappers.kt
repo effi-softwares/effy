@@ -1,13 +1,10 @@
 package com.effyshopping.customer.mobile.features.catalog.data
 
-import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as BannerTargetDTO
 import com.effyshopping.customer.mobile.commerce.contract.ShopperPromotionDTO
-import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as BannerPlacementDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetDTO
 import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
-import com.effyshopping.customer.mobile.commerce.contract.TargetKind as Kind
-import com.effyshopping.customer.mobile.commerce.contract.TargetClass
+import com.effyshopping.customer.mobile.commerce.contract.BannerTargetKind as Kind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
 import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
@@ -67,28 +64,6 @@ internal fun ProductBadgeDTO.toDomain(): ProductBadge = when (this) {
     ProductBadgeDTO.New -> ProductBadge.NEW
 }
 
-internal fun BannerDTO.toDomain(): Banner = Banner(
-    key = key,
-    title = title,
-    subtitle = subtitle,
-    imageUrl = imageURL,
-    href = href,
-    // The wire carries an integer (`WireInt` → Long). Absent means "above the first section", which
-    // is the sensible place for a banner whose position nobody set.
-    position = position?.toInt() ?: 0,
-    code = code,
-    terms = terms,
-    target = target?.toDomain(),
-    // ⚠ TOLERANT. An absent or unrecognised placement becomes CAROUSEL rather than a failure — a
-    // promotion must never disappear from the storefront because the server learned a new placement
-    // before the app did. A live offer in the wrong section beats a live offer nowhere.
-    placement = when (placement) {
-        BannerPlacementDTO.Inline -> BannerPlacement.INLINE
-        BannerPlacementDTO.Carousel -> BannerPlacement.CAROUSEL
-        null -> BannerPlacement.CAROUSEL
-    },
-)
-
 /**
  * Map the wire's flattened target onto the domain's sealed one.
  *
@@ -100,15 +75,6 @@ internal fun BannerDTO.toDomain(): Banner = Banner(
  * tap, not the whole storefront.
  */
 internal fun BannerTargetDTO.toDomain(): BannerTarget? = when (kind) {
-    Kind.Search -> BannerTarget.Search
-    Kind.Sale -> BannerTarget.Sale
-    Kind.Category -> categoryKey?.let { BannerTarget.Category(it) }
-    Kind.Product -> productID?.let { BannerTarget.Product(it) }
-    Kind.Promotion -> promotionID?.let { BannerTarget.Promotion(it) }
-}
-
-/** The same target as `BannerDTO` carries it — the generator names the identical shape twice. */
-internal fun TargetClass.toDomain(): BannerTarget? = when (kind) {
     Kind.Search -> BannerTarget.Search
     Kind.Sale -> BannerTarget.Sale
     Kind.Category -> categoryKey?.let { BannerTarget.Category(it) }
@@ -151,7 +117,7 @@ internal fun ShopperPromotionDTO.toBanner(placement: BannerPlacement, position: 
 )
 
 internal fun StorefrontHomeDTO.toDomain(): HomeContent = HomeContent(
-    banners = banners.map { it.toDomain() },
+    banners = emptyList(),
     rails = rails.map { it.toDomain() },
 )
 

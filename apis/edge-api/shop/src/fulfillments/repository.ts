@@ -12,11 +12,10 @@
 import { query, withTransaction } from "@effy/edge-shared";
 
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
-import type pg from "pg";
 
 import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 import { assertReadyForPickup } from "../parcels/repository";
-import { promiseFrom, isAtRisk } from "./promise";
+import { promiseFor, isAtRisk } from "./promise";
 import {
   ACTIVE_STATUSES,
   COMPLETED_STATUSES,
@@ -105,8 +104,7 @@ SELECT sf.id,
  WHERE sf.shop_id = $1
    AND sf.status = ANY($2::text[])
  GROUP BY sf.id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, sf.item_count, o.delivery_type
- -- ⚠ Ordered by placed_at alone. sf.promised_ready_at was a per-package delivery promise and
--- was dropped with delivery; this is the ordering the queue had before 021.
+ -- Oldest first: every package has the same ready-by offset, so this is promise order.
 ORDER BY o.placed_at ASC, sf.id ASC
 `;
 
@@ -119,7 +117,7 @@ export async function listQueue(
   const res = await query<SummaryRow>(LIST_QUEUE, [shopId, statuses]);
   const pickups = await courierPickups(shopId, res.rows.map((r) => r.id));
   return res.rows.map((r) => {
-    const promise = { ...promiseFrom(r.placed_at, null, null), deliveredBy: r.delivered_by, ...pickupOf(pickups, r.id) };
+    const promise = { ...promiseFor(r.placed_at), deliveredBy: r.delivered_by, ...pickupOf(pickups, r.id) };
     return {
       id: r.id,
       orderNumber: r.order_number,
@@ -273,7 +271,7 @@ export async function readDetail(
     placedAt: row.placed_at,
     status: row.status,
     stateChangedAt: row.state_changed_at,
-    promise: { ...promiseFrom(row.placed_at, null, null), deliveredBy: row.delivered_by, ...pickupOf(pickups, fulfillmentId) },
+    promise: { ...promiseFor(row.placed_at), deliveredBy: row.delivered_by, ...pickupOf(pickups, fulfillmentId) },
     delivery: mapDelivery(row.delivery_address ?? {}),
     items: items.rows.map(mapItem),
   };

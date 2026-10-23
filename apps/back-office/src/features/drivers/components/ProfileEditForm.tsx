@@ -1,17 +1,11 @@
 import { useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 
 import type { AdminDriverProfile, AdminDriverUpdateRequest } from "@effy/shared-types";
 import {
   Button,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Textarea,
 } from "@effy/design-system/ui";
 

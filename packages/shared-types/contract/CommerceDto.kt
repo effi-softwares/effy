@@ -144,113 +144,6 @@ data class AttributeGroupItem (
 )
 
 @Serializable
-data class BannerDTO (
-    /**
-     * The code a shopper types in the cart. Shown so the banner is actionable, not just
-     * decorative.
-     */
-    val code: String? = null,
-
-    /**
-     * Retained for `customer-web`. Mobile ignores it in favour of `target`.
-     */
-    val href: String? = null,
-
-    @SerialName("imageUrl")
-    val imageURL: String? = null,
-
-    /**
-     * 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only
-     * `imageUrl`. Derive each copy's address with `renditionUrl`.
-     */
-    val imageWidths: List<Double>? = null,
-
-    /**
-     * The promotion id. Stable across reads — clients use it as a list key.
-     */
-    val key: String,
-
-    /**
-     * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never
-     * both.
-     *
-     * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client
-     * reading a server that has not been redeployed degrades to the safe case rather than
-     * losing the banner.
-     */
-    val placement: BannerPlacement? = null,
-
-    /**
-     * Where this banner sits in Home's section sequence: 0 above the first section, n after the
-     * nth.
-     *
-     * ⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`,
-     * the wire carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while
-     * every unit test passed, because the fakes spoke Kotlin at both ends and never crossed the
-     * wire. The fix was made at the contract so the generated Kotlin cannot regress; this field
-     * takes the same treatment.
-     */
-    val position: Long? = null,
-
-    val subtitle: String? = null,
-    val target: TargetClass? = null,
-
-    /**
-     * The condition sentence, e.g. `"On orders over $30"` — COMPOSED SERVER-SIDE from the
-     * promotion's minimum, so both surfaces phrase one promotion identically. Null when it has
-     * no conditions.
-     *
-     * FR-037d: a shopper must learn of a condition from the banner or from where it leads —
-     * never first at payment.
-     */
-    val terms: String? = null,
-
-    val title: String
-)
-
-/**
- * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never
- * both.
- *
- * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client
- * reading a server that has not been redeployed degrades to the safe case rather than
- * losing the banner.
- *
- * Where an advertised promotion appears on Home (029 FR-027). **Exclusive** — never both.
- *
- * ⚠ Declared ONCE, here, and imported by both `storefront.ts` (the shopper-facing banner)
- * and `promotion.ts` (the operator-facing promotion). It was briefly declared in both,
- * which typechecked in each file alone and collided the moment the package re-exported them
- * — the same union in two places is precisely the drift Principle II exists to prevent.
- */
-@Serializable
-enum class BannerPlacement(val value: String) {
-    @SerialName("carousel") Carousel("carousel"),
-    @SerialName("inline") Inline("inline");
-}
-
-@Serializable
-data class TargetClass (
-    val kind: TargetKind,
-    val categoryKey: String? = null,
-
-    @SerialName("productId")
-    val productID: String? = null,
-
-    @SerialName("promotionId")
-    val promotionID: String? = null
-)
-
-@Serializable
-enum class TargetKind(val value: String) {
-    @SerialName("category") Category("category"),
-    @SerialName("product") Product("product"),
-    @SerialName("promotion") Promotion("promotion"),
-    @SerialName("sale") Sale("sale"),
-    @SerialName("search") Search("search");
-}
-
-@Serializable
 data class BillingAddressDTO (
     val city: String,
 
@@ -312,8 +205,7 @@ data class CartDTO (
     val currency: String,
 
     /**
-     * The entered code's line, as before 094 — kept for installed apps. `promotions` lists
-     * every one.
+     * The entered code's line, for the code field. `promotions` lists every promotion applying.
      */
     val discount: CartDiscountDTO? = null,
 
@@ -339,7 +231,7 @@ data class CartDTO (
     /**
      * 094 — every promotion applying, automatic and by code.
      */
-    val promotions: List<CartPromotionLineDTO>? = null,
+    val promotions: List<CartPromotionLineDTO>,
 
     /**
      * 094 — promotions the shopper might expect that do not apply, each with its sentence.
@@ -991,9 +883,8 @@ data class CreateCheckoutIntentResponse (
  * The order's delivery charge with this window chosen.
  *
  * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
- * delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single
- * `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads
- * the same after the business changes its prices.
+ * delivery), exactly as sold. Stored with the order and never recomputed, so it reads the
+ * same after the business changes its prices.
  */
 @Serializable
 data class DeliveryFeeDTO (
@@ -1455,7 +1346,6 @@ data class PriceBounds (
  */
 @Serializable
 data class StorefrontHomeDTO (
-    val banners: List<BannerDTO>,
     val rails: List<StorefrontRailDTO>
 )
 
@@ -1708,8 +1598,7 @@ data class OrderDTO (
      * internal grouping.
      *
      * ⚠ 079 — EMPTY for a courier order, which has no window and no day: read `delivery` and
-     * print `deliverySummary`. (Empty, not "standard", so a client built before 079 prints no
-     * arrival rather than a wrong one.)
+     * print `deliverySummary`.
      */
     val arrivalEstimates: List<ArrivalEstimateDTO>,
 
@@ -1741,11 +1630,10 @@ data class OrderDTO (
     val currency: String,
 
     /**
-     * 079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an
-     * order placed before 079. Every surface prints this through `deliverySummary`
-     * (`delivery-type.ts`).
+     * 079 — who delivers the order, and for a courier the estimate it was sold. Every surface
+     * prints this through `deliverySummary` (`delivery-type.ts`).
      */
-    val delivery: OrderDeliveryDTO? = null,
+    val delivery: OrderDeliveryDTO,
 
     /**
      * The SHIPPING address snapshot (the main one — where the order is delivered).
@@ -1755,25 +1643,19 @@ data class OrderDTO (
     /**
      * 094 — what delivery promotions took off the fee.
      */
-    val deliveryDiscountAmount: String? = null,
+    val deliveryDiscountAmount: String,
 
     /**
      * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free
-     * delivery), exactly as sold. ⚠ ABSENT on an order placed before 077: render the single
-     * `deliveryFeeAmount` row instead. Stored with the order and never recomputed, so it reads
-     * the same after the business changes its prices.
+     * delivery), exactly as sold. Stored with the order and never recomputed, so it reads the
+     * same after the business changes its prices.
      */
-    val deliveryFee: DeliveryFeeDTO? = null,
+    val deliveryFee: DeliveryFeeDTO,
 
     /**
      * 051 FR-043 — the delivery fee as charged.
-     *
-     * ⚠ The column has existed since 019 and the receipt read never selected it, so delivery
-     * sat inside the total and appeared nowhere. A receipt whose lines do not add up to its
-     * total is not one a shopper can check — and for a GST-inclusive Australian sale that is a
-     * real gap, not a cosmetic one.
      */
-    val deliveryFeeAmount: String? = null,
+    val deliveryFeeAmount: String,
 
     /**
      * 066 — what the customer told the driver when the order was placed, or null/absent when
@@ -1785,11 +1667,9 @@ data class OrderDTO (
     /**
      * The promotional discount applied at payment (027 FR-049). The platform's own computation
      * at that moment, stored on the order — so a receipt stays explainable years later even if
-     * the code has since been changed or disabled. "0.00" (or absent, on a pre-027 order) when
-     * no code was used. Invariant: grandTotal = itemSubtotal − discount. (There is no delivery
-     * fee on this platform.)
+     * the promotion has since been changed or disabled. "0.00" when none applied.
      */
-    val discountAmount: String? = null,
+    val discountAmount: String,
 
     val fulfillments: List<OrderFulfillmentDTO>,
 
@@ -1829,10 +1709,9 @@ data class OrderDTO (
     val promoCode: String? = null,
 
     /**
-     * 094 — each promotion applied and what it took off; an order from before 094 shows its one
-     * code.
+     * 094 — each promotion applied and what it took off.
      */
-    val promotions: List<OrderPromotionDTO>? = null,
+    val promotions: List<OrderPromotionDTO>,
 
     /**
      * What has actually been returned or is on its way. Absent when there are no refunds.
@@ -1931,14 +1810,12 @@ data class OrderAddressDTO (
 )
 
 /**
- * 079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an
- * order placed before 079. Every surface prints this through `deliverySummary`
- * (`delivery-type.ts`).
+ * 079 — who delivers the order, and for a courier the estimate it was sold. Every surface
+ * prints this through `deliverySummary` (`delivery-type.ts`).
  *
- * An order's delivery, as a customer contract carries it. ABSENT on an order placed before
- * 079.
+ * An order's delivery, as a customer contract carries it.
  *
- * 079 — who delivers it. ⚠ ABSENT on an order placed before 079.
+ * 079 — who delivers it.
  */
 @Serializable
 data class OrderDeliveryDTO (
@@ -1962,8 +1839,8 @@ data class OrderDeliveryDTO (
     val moved: OrderDeliveryMoveDTO? = null,
 
     /**
-     * 085 — absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`:
-     * the arrival carries the day and no hours. `asap`: no arrival at all, only `asapEstimate`.
+     * 085 — absent on a courier order. ⚠ `day`: the arrival carries the day and no hours.
+     * `asap`: no arrival at all, only `asapEstimate`.
      */
     val promise: PromiseEnum? = null,
 
@@ -2008,9 +1885,8 @@ enum class CompensationKind(val value: String) {
 }
 
 /**
- * 085 — absent on a courier order and on one placed before 085 (read as `window`). ⚠ `day`:
- * the arrival carries the day and no hours. `asap`: no arrival at all, only
- * `asapEstimate`.
+ * 085 — absent on a courier order. ⚠ `day`: the arrival carries the day and no hours.
+ * `asap`: no arrival at all, only `asapEstimate`.
  *
  * 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as
  * possible".
@@ -2281,9 +2157,9 @@ data class OrderSummaryDTO (
     val deliveredAt: String? = null,
 
     /**
-     * 079 — who delivers it. ⚠ ABSENT on an order placed before 079.
+     * 079 — who delivers it.
      */
-    val delivery: OrderDeliveryDTO? = null,
+    val delivery: OrderDeliveryDTO,
 
     /**
      * The whole amount has gone back.
@@ -2318,9 +2194,8 @@ data class OrderSummaryDTO (
      * list. Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's;
      * `null` where a line has no picture.
      *
-     * ⚠ OPTIONAL, and absent from a server not yet redeployed: the list then shows no pictures,
-     * which is what it showed before. ⚠ Pictures of the customer's own lines only — never a
-     * shop, a package, or how many suppliers fill the order.
+     * ⚠ Pictures of the customer's own lines only — never a shop, a package, or how many
+     * suppliers fill the order.
      */
     val thumbnails: List<String?>? = null,
 
@@ -2587,8 +2462,7 @@ enum class ProductSort(val value: String) {
 @Serializable
 data class PromotionDTO (
     /**
-     * NON-nullable, unlike `BannerDTO.code` — a screen whose purpose is to hand over a code
-     * must have one.
+     * NON-nullable: a screen whose purpose is to hand over a code must have one.
      */
     val code: String,
 
@@ -2606,7 +2480,7 @@ data class PromotionDTO (
     val subtitle: String? = null,
 
     /**
-     * The same sentence `BannerDTO.terms` carries, from the same server-side composer.
+     * The terms sentence, from the server-side composer.
      */
     val terms: String? = null,
 
@@ -3084,6 +2958,8 @@ enum class GroupSize(val value: String) {
 }
 
 /**
+ * Where a tap goes.
+ *
  * Where a promotional banner leads (028).
  *
  * ⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL
@@ -3098,12 +2974,10 @@ enum class GroupSize(val value: String) {
  * promotion screen; it does not. That rule protects shoppers from CONTENT reachable only
  * via a carousel slide, and a promotion detail contains nothing the banner face does not
  * already announce — it is the banner's own message, stated in full. See `PromotionDTO`.
- *
- * Where a tap goes.
  */
 @Serializable
 data class BannerTarget (
-    val kind: TargetKind,
+    val kind: BannerTargetKind,
     val categoryKey: String? = null,
 
     @SerialName("productId")
@@ -3112,6 +2986,15 @@ data class BannerTarget (
     @SerialName("promotionId")
     val promotionID: String? = null
 )
+
+@Serializable
+enum class BannerTargetKind(val value: String) {
+    @SerialName("category") Category("category"),
+    @SerialName("product") Product("product"),
+    @SerialName("promotion") Promotion("promotion"),
+    @SerialName("sale") Sale("sale"),
+    @SerialName("search") Search("search");
+}
 
 /**
  * A customer's ask.
@@ -3473,11 +3356,9 @@ data class SavedMembershipDTO (
      * because one tap must never remove something from a list the shopper built (068 FR-020).
      * The platform enforces the same rule (`409`), so a client that ignores this field is safe,
      * just less graceful.
-     *
-     * Optional: a backend older than 068 omits it, and absent reads as empty.
      */
     @SerialName("namedProductIds")
-    val namedProductIDS: List<String>? = null,
+    val namedProductIDS: List<String>,
 
     @SerialName("productIds")
     val productIDS: List<String>

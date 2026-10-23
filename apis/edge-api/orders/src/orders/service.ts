@@ -14,7 +14,6 @@ import type {
   HandoverDueFilter,
   HandoverRowDTO,
   OrderAwaiting,
-  OrderStage,
   OrderStatus,
   RefundDTO,
   RefundRequestDTO,
@@ -86,9 +85,8 @@ export function toSummary(
       const a = assignments.get(id);
       return a?.collect?.assignmentId === null || a?.deliver?.assignmentId === null;
     }),
-    deliveryType: row.delivery_type ?? null,
-    // 085 — what an Effy order was sold; one from before 085 was sold a window.
-    promise: row.delivery_type === "effy" ? (row.delivery_promise ?? "window") : null,
+    deliveryType: row.delivery_type,
+    promise: row.delivery_type === "effy" ? row.delivery_promise! : null,
     // 073 — the least advanced package's status, in the words every staff screen uses.
     statusView: leastAdvanced(views),
     id: row.id,
@@ -181,7 +179,6 @@ export function toPackage(
     handoffAt: row.handoff_at,
     now,
     deliveredBy: row.delivered_by,
-    courierOrder: row.courier_order,
     placedDate: row.placed_date,
     promisedDate: row.promised_date,
     windowEnd: row.window_end,
@@ -288,8 +285,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
       repo.items(orderId),
       repo.packages(orderId),
       repo.history(orderId),
-      // 079 — one more read in the same wave; nothing for an order placed before 079.
-      order.delivery_type ? repo.deliveryTypeHistory(orderId) : Promise.resolve([]),
+      repo.deliveryTypeHistory(orderId),
       refundRepo.refunds(orderId),
       refundRepo.refundLines(orderId),
       refundRepo.proposedRefunds(orderId),
@@ -307,7 +303,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     // 080 — each courier parcel's live consignment, and the order's collection-mode history.
     order.delivery_type === "courier" ? consignmentsFor(db, pkgIds) : Promise.resolve(new Map()),
     order.delivery_type === "courier" ? repo.courierCollectionHistory(orderId) : Promise.resolve([]),
-    // 081 — every move by back-office, with its compensation; none for an order placed before 079.
+    // 081 — every move by back-office, with its compensation.
     order.delivery_type ? deliveryMovesFor(db, orderId) : Promise.resolve([]),
     // 091 — how each package was handed over at each step (090's record).
     repo.handovers(pkgIds),
@@ -366,11 +362,11 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     stage: stageFor(statuses),
     placedAt: order.placed_at ? order.placed_at.toISOString() : null,
     createdAt: order.created_at.toISOString(),
-    // 079 — who delivers it, why, and every change since. All empty for an order placed before 079.
+    // 079 — who delivers it, why, and every change since.
     deliveryType: order.delivery_type,
     deliveryTypeReason: order.delivery_type_reason,
     courierEstimate: order.courier_estimate,
-    promise: order.delivery_type === "effy" ? (order.delivery_promise ?? "window") : null,
+    promise: order.delivery_type === "effy" ? order.delivery_promise! : null,
     asapEstimate: order.asap_estimate ?? null,
     courierCollection: order.courier_collection ?? null,
     deliveryMoves,
@@ -397,7 +393,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     itemSubtotalAmount: order.item_subtotal_amount,
     deliveryFeeAmount: order.delivery_fee_amount,
     // 077 — "How this fee was built" (FR-037). ⚠ The staff gateway only; absent before 077.
-    ...(order.delivery_fee_breakdown ? { deliveryFeeBreakdown: order.delivery_fee_breakdown } : {}),
+    deliveryFeeBreakdown: order.delivery_fee_breakdown,
     discountAmount: order.discount_amount,
     promoCode: order.promo_code,
     // 094 — each promotion as sold, with its internal name for staff; old orders show their one code.
@@ -577,7 +573,7 @@ function toRefundRequest(
 
 /**
  * 080 — when a courier parcel is due out: its service's next pickup after it reached the hub (or
- * from now, if it has not yet), or null when there is no service to ask (an order from before 080).
+ * from now, if it has not yet), or null when its service has no pickup days.
  */
 export function courierDueOut(
   r: { courier_order: boolean; checked_in_at: Date | null; service_weekdays: number[] | null; service_cutoff: string | null },

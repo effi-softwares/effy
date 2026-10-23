@@ -87,13 +87,6 @@ describe("refreshSaved", () => {
     expect(isInNamedList("a")).toBe(false)
   })
 
-  it("reads a backend from before 068 as having nothing named", async () => {
-    adoptSaved(["a"], ["a"])
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ productIds: ["a"] }) }))
-    await refreshSaved()
-    expect(isInNamedList("a")).toBe(false)
-  })
-
   it("leaves the mirror alone for a guest", async () => {
     adoptSaved(["a"])
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401 }))

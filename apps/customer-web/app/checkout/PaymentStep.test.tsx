@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { useEffect } from "react"
 import { describe, expect, it, vi } from "vitest"
 
 import type { CreateCheckoutIntentResponse } from "@effy/shared-types"
@@ -10,6 +11,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 // The step asks the platform whether the order is already paid (FR-042); answer "no" so the card path
 // renders. A mock omitting this would make every test here navigate away.
 let confirmResult: unknown = { paymentIntent: { status: "requires_payment_method" }, error: undefined }
+// Off by default: most tests are about the shell, not a filled-in card.
+let cardComplete = false
 vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
   ok: true,
   json: async () => (String(url).includes("confirm") ? { paid: false } : { paymentMethods: [] }),
@@ -17,12 +20,22 @@ vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
 
 // The three PCI-scoped inputs are provider iframes; stand them in with labelled boxes so the SHELL —
 // which is the part Effy owns and this feature is about — can be asserted.
+function cardField(testId: string) {
+  return function CardField({ onChange }: { onChange?: (e: { complete: boolean }) => void }) {
+    useEffect(() => {
+      if (cardComplete) onChange?.({ complete: true })
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as the real element reports on load
+    }, [])
+    return <div data-testid={testId} />
+  }
+}
+
 vi.mock("@stripe/react-stripe-js", () => ({
-  useStripe: () => ({}),
+  useStripe: () => ({ confirmCardPayment: async () => confirmResult }),
   useElements: () => ({ getElement: () => ({}) }),
-  CardNumberElement: () => <div data-testid="card-number" />,
-  CardExpiryElement: () => <div data-testid="card-expiry" />,
-  CardCvcElement: () => <div data-testid="card-cvc" />,
+  CardNumberElement: cardField("card-number"),
+  CardExpiryElement: cardField("card-expiry"),
+  CardCvcElement: cardField("card-cvc"),
   // 051 US2: the wallet row shares this module. A mock missing it makes every PaymentStep test throw
   // — the same stale-mock failure `CheckoutFlow.address.test.tsx` hit when PaymentForm was replaced.
   // Reports no wallet, which is the branch this suite wants: US1's assertions are about the card path.
@@ -111,12 +124,24 @@ describe("PaymentStep (051 US1)", () => {
    * failed. The fix is a `finally`, and this is what stops it regressing.
    */
   it("clears the busy state on every outcome, including success", async () => {
-    for (const status of ["succeeded", "processing", "requires_payment_method"]) {
-      confirmResult = { paymentIntent: { status }, error: undefined }
-      const { unmount } = render(<PaymentStep intent={intent()} onBack={vi.fn()} />)
-      // The control returns to a usable label rather than staying on "Paying…".
-      expect(screen.getByRole("button", { name: /pay \$/i })).toBeInTheDocument()
-      unmount()
+    cardComplete = true
+    const assign = vi.fn()
+    vi.stubGlobal("location", { ...window.location, assign, origin: "http://localhost" })
+    try {
+      for (const status of ["succeeded", "processing", "requires_payment_method"]) {
+        confirmResult = { paymentIntent: { status }, error: undefined }
+        const { unmount } = render(<PaymentStep intent={intent()} onBack={vi.fn()} />)
+        const pay = await screen.findByRole("button", { name: /pay \$/i })
+        await waitFor(() => expect(pay).toBeEnabled())
+        fireEvent.click(pay)
+        // The control returns to a usable label rather than staying on "Paying…".
+        await waitFor(() => expect(screen.getByRole("button", { name: /pay \$/i })).toBeEnabled())
+        unmount()
+      }
+      expect(assign).toHaveBeenCalledTimes(2)
+    } finally {
+      cardComplete = false
+      vi.unstubAllGlobals()
     }
   })
 

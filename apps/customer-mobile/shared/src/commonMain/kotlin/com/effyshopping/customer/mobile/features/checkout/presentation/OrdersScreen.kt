@@ -258,7 +258,7 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (
             listOfNotNull(
                 order.placedAt?.let { placed -> DeliveryWindowText.epochMillisOrNull(placed)?.let { "Placed ${DeliveryWindowText.formatDay(DeliveryWindowText.melbourneDay(it))}" } },
                 // 079 — who delivers it, in the same two names as everywhere else.
-                order.delivery?.let { if (it.type == DeliveryType.COURIER) DeliveryTypeWords.COURIER else DeliveryTypeWords.EFFY },
+                if (order.delivery.type == DeliveryType.COURIER) DeliveryTypeWords.COURIER else DeliveryTypeWords.EFFY,
             ).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -316,7 +316,7 @@ internal fun orderArrivalLine(order: OrderSummary): String? {
     order.deliveredAt?.let { at -> DeliveryWindowText.epochMillisOrNull(at)?.let { return "Delivered ${DeliveryWindowText.formatDay(DeliveryWindowText.melbourneDay(it))}" } }
     if (order.status in setOf("cancelled", "refunded") || order.fullyRefunded) return null
     val delivery = order.delivery
-    if (delivery?.type == DeliveryType.COURIER) {
+    if (delivery.type == DeliveryType.COURIER) {
         return delivery.courierEstimate?.let { DeliveryTypeWords.courierEstimateSentence(it) }
     }
     val arrival = order.arrivals.firstOrNull() ?: return null

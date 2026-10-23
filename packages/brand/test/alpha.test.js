@@ -40,9 +40,9 @@ describe("every iOS app icon is submission-safe", () => {
   const iosIcons = TARGETS.filter((t) => t.slot.startsWith("ios-app-icon"))
 
   test("all three appearances exist for both mobile apps", () => {
-    // Nine: {customer, shop, driver} × {light, dark, tinted}. The dark and tinted slots were declared
-    // but EMPTY in the template Contents.json — FR-007a fills them.
-    assert.equal(iosIcons.length, 9)
+    // Six: {customer, driver} × {light, dark, tinted}. The dark and tinted slots were declared but
+    // EMPTY in the template Contents.json — FR-007a fills them.
+    assert.equal(iosIcons.length, 6)
   })
 
   for (const t of iosIcons) {

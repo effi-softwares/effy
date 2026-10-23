@@ -9,7 +9,7 @@
 // the days on sale are 078's `effyDays`. This file only puts them on one screen.
 
 import { nextRunInstant, packageStatuses, query, type Queryable } from "@effy/edge-shared";
-import { deliveredBySql, effyDays, loadSlotSettings, nonDeliveryDates } from "@effy/edge-shared/delivery";
+import { effyDays, loadSlotSettings, nonDeliveryDates } from "@effy/edge-shared/delivery";
 import { anyTimeDayLabel, formatArrival, formatDeliveryDay, formatDeliveryWindow, type DispatchWindowsResponse } from "@effy/shared-types";
 
 import { loadSchedule } from "../planner/repository";
@@ -49,7 +49,7 @@ const WINDOW_PARCELS = `
      AND sf.status NOT IN ('withdrawn', 'unfulfillable')
      AND opd.window_start IS NOT NULL
      AND (opd.window_start AT TIME ZONE 'Australia/Melbourne')::date = $1::date
-     AND ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} = 'effy'
+     AND o.delivery_type = 'effy'
    ORDER BY opd.window_start, o.order_number, sf.id
 `;
 

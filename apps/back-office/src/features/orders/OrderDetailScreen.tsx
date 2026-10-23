@@ -23,7 +23,7 @@ import { leastAdvanced, type PackageStatusView } from "@effy/shared-types";
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console";
 
 import { PageHeader } from "@/components/patterns/Page";
-import { DetailRows, Panel } from "@/components/patterns/Panel";
+import { Panel } from "@/components/patterns/Panel";
 import { Callout } from "@/components/patterns/States";
 import { initialsOf } from "@/components/shell/identity";
 import { useHeaderDetail } from "@/components/shell/SiteHeader";
@@ -127,7 +127,7 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
           <>
             <span className="bo-code text-2xl font-semibold">{order.orderNumber}</span>
             {status ? <PackageStatusPill view={status} showDetail={false} icons /> : null}
-            {order.deliveryType ? <Badge variant={order.deliveryType === "effy" ? "success" : "secondary"}>{deliveryTypeText(order.deliveryType)}</Badge> : null}
+            <Badge variant={order.deliveryType === "effy" ? "success" : "secondary"}>{deliveryTypeText(order.deliveryType)}</Badge>
           </>
         }
         meta={
@@ -353,8 +353,8 @@ export function OrderDetailScreen({ orderId, highlight }: { orderId: string; hig
                       />
                     ) : null}
                   </dl>
-                  {/* 077 — staff only. Absent on an order placed before the fee engine. */}
-                  {order.deliveryFeeBreakdown ? <FeeBreakdown breakdown={order.deliveryFeeBreakdown} /> : null}
+                  {/* 077 — staff only. */}
+                  <FeeBreakdown breakdown={order.deliveryFeeBreakdown} />
                 </div>
               </Panel>
             </TabsContent>

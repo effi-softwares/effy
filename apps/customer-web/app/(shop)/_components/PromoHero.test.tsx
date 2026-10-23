@@ -1,8 +1,9 @@
+import type { Banner } from "../promotion-groups"
 import { fireEvent, render } from "@testing-library/react"
 import { act } from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { BannerDTO } from "@effy/shared-types"
+
 
 import { PromoHero } from "./PromoHero"
 
@@ -12,7 +13,7 @@ import { PromoHero } from "./PromoHero"
  * which one is showing.
  */
 
-function banner(i: number, over: Partial<BannerDTO> = {}): BannerDTO {
+function banner(i: number, over: Partial<Banner> = {}): Banner {
   return {
     key: `promo-${i}`,
     title: `Promotion ${i}`,

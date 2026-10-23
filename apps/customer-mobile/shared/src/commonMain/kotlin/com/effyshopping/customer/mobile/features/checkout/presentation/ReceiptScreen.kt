@@ -591,7 +591,7 @@ private fun ArrivalSection(receipt: Receipt) {
     // order was sold, in the words the website prints. ⚠ Never the arrival estimates — a courier
     // order has none, and "We'll confirm your delivery date" would be a promise nobody made.
     val delivery = receipt.delivery
-    if (delivery?.type == DeliveryType.COURIER && delivery.courierEstimate != null) {
+    if (delivery.type == DeliveryType.COURIER && delivery.courierEstimate != null) {
         val (partner, estimate) = DeliveryTypeWords.courierLines(delivery.courierEstimate)
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
@@ -623,8 +623,7 @@ private fun ArrivalSection(receipt: Receipt) {
     ) {
         Column(Modifier.weight(1f, fill = false)) {
             Text(
-                // An order Effy delivers says so; one placed before delivery types says "Arriving".
-                if (delivery?.type == DeliveryType.EFFY) DeliveryTypeWords.EFFY else "Arriving",
+                DeliveryTypeWords.EFFY,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

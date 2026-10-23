@@ -19,7 +19,7 @@
 //
 // ⚠ There is NO whole-cart replace. Merge has no "delete what is absent" clause — that clause is
 // what would let a stale device wipe lines it had never heard of (027 FR-010).
-import { parseCents, pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
+import { pooled, renditionWidthsSql, withTransaction, type Queryable, type Transactor } from "@effy/edge-shared";
 import { variantLabelSql } from "@effy/edge-shared/catalog";
 import type { PackUnit, UnitBasis } from "@effy/shared-types";
 

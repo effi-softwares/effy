@@ -1,6 +1,5 @@
 import type { ReactNode } from "react"
 
-import type { FulfillmentStatus } from "../model"
 import type { OrderRow } from "../orderConsole"
 import { PAYMENT_LABEL } from "../orderConsole"
 import { cn } from "@/lib/utils"

@@ -49,14 +49,6 @@ const TARGETS = [
     identity: "storefront",
   },
   {
-    out: resolve(here, "../compose-shop/EffyTokens.kt"),
-    pkg: "com.effyshopping.shop.mobile.design",
-    identity: "console",
-    sharedOut: resolve(here, "../compose-shop/EffyLayoutTokens.kt"),
-    typographyOut: resolve(here, "../compose-shop/EffyTypography.kt"),
-    resPkg: "com.effyshopping.shop.mobile.resources",
-  },
-  {
     out: resolve(here, "../compose-driver/EffyTokens.kt"),
     pkg: "com.effyshopping.driver.mobile.design",
     // 092 / constitution v3.5.0 — the driver app wears the STOREFRONT identity too (its redesign canvas):

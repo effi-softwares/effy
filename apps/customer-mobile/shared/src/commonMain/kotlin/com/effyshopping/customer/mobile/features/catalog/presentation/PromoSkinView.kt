@@ -126,7 +126,7 @@ fun PromoSkinView(
         .clip(shape)
         .background(colour(s.background.colour))
         .then(s.shape.outline?.let { Modifier.border(1.dp, colour(it), shape) } ?: Modifier)
-        .then(if (opens) Modifier.clickable(role = Role.Button, onClickLabel = headline, onClick = onOpen!!) else Modifier)
+        .then(if (opens) Modifier.clickable(role = Role.Button, onClickLabel = headline, onClick = onOpen) else Modifier)
 
     when (look.layout) {
         SkinLayout.HEADER_CARD -> Column(frame.background(colour(s.body?.colour ?: "#ffffff"))) {
@@ -254,7 +254,7 @@ private fun Actions(s: SkinSettings, code: String?, onCopied: (String) -> Unit) 
     var copied by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (showChip) Chip(s, code!!)
+        if (showChip) Chip(s, code)
         if (words != null) {
             val label = if (copied) "Copied" else words
             val tint = colour(s.button.text)

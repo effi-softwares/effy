@@ -77,12 +77,11 @@ class CourierWireTest {
     }
 
     @Test
-    fun `an order in the list says who delivers it - and one placed before delivery types says nothing`() {
+    fun `an order in the list says who delivers it`() {
         fun row(extra: String) = json.decodeFromString<OrderSummaryDTO>(
             """{"id":"o1","orderNumber":"EFY-1","status":"paid","placedAt":null,"itemCount":2,"grandTotalAmount":"19.00","currency":"AUD"$extra}""",
         ).toDomain()
         assertEquals(OrderDelivery(DeliveryType.COURIER, "2–4 business days"), row(""","delivery":{"type":"courier","courierEstimate":"2–4 business days"}""").delivery)
         assertEquals(OrderDelivery(DeliveryType.EFFY, null), row(""","delivery":{"type":"effy","courierEstimate":null}""").delivery)
-        assertNull(row("").delivery)
     }
 }

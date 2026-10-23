@@ -29,15 +29,8 @@ import type { CartDTO, UnitPriceDTO } from "@effy/shared-types"
 
 import { computeCartTotals } from "./cart-totals"
 
-/**
- * ⚠ 098 — a line is a VARIANT (a size of a product), so the mirror is keyed by `variantId` and the
- * envelope moved to a new key. Earlier mirrors (`effy:cart`, `effy:cart:v2`) name products, which can
- * no longer be bought as such — and 098 started the catalogue afresh, so no id in them exists. They
- * are DROPPED on first read, never migrated: a line guessed onto "the product's first size" would put
- * something in the cart the shopper did not choose.
- */
+/** ⚠ 098 — a line is a VARIANT (a size of a product), so the mirror is keyed by `variantId`. */
 const KEY = "effy:cart:v3"
-const RETIRED_KEYS = ["effy:cart", "effy:cart:v2"] as const
 const SCHEMA_VERSION = 3
 const MAX_QTY = 99
 
@@ -216,7 +209,7 @@ let cacheRaw = ""
 function read(): CartMirror {
   if (typeof window === "undefined") return EMPTY_MIRROR
   const raw = window.localStorage.getItem(KEY)
-  if (raw === null) return dropRetired()
+  if (raw === null) return EMPTY_MIRROR
   if (raw === cacheRaw) return cache
   try {
     const parsed = JSON.parse(raw) as Envelope
@@ -226,16 +219,6 @@ function read(): CartMirror {
   }
   cacheRaw = raw
   return cache
-}
-
-/** Forget the product-keyed mirrors of before 098 (see KEY), once, and start empty. */
-function dropRetired(): CartMirror {
-  try {
-    for (const k of RETIRED_KEYS) window.localStorage.removeItem(k)
-  } catch {
-    /* storage disabled — the mirror is best-effort */
-  }
-  return EMPTY_MIRROR
 }
 
 function write(next: CartMirror): void {
@@ -372,7 +355,7 @@ function fromDTO(dto: CartDTO): CartMirror {
     currency: dto.currency,
     notices: dto.notices,
     discount: dto.discount,
-    promotions: dto.promotions ?? [],
+    promotions: dto.promotions,
     promotionsNotApplied: dto.promotionsNotApplied ?? [],
     checkout: dto.checkout,
     limits: dto.limits,

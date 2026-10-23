@@ -83,13 +83,6 @@ export type ShopOrderPaymentState = (typeof SHOP_ORDER_PAYMENT_STATES)[number]
 export const SHOP_ORDER_ATTENTION = ["any", "at_risk", "short", "on_track"] as const
 export type ShopOrderAttention = (typeof SHOP_ORDER_ATTENTION)[number]
 
-/**
- * @deprecated 079 — the customer's word for the delivery, which a shop is no longer shown. Kept on
- * the wire for shop apps installed before 079; removed at the delivery-model cutover.
- */
-export const SHOP_ORDER_METHODS = ["any", "same_day", "standard"] as const
-export type ShopOrderMethod = (typeof SHOP_ORDER_METHODS)[number]
-
 /** 079 — the "Fulfilment" filter: who takes the package away from the shop. */
 export const SHOP_ORDER_DELIVERED_BY = ["any", "effy_driver", "courier"] as const
 export type ShopOrderDeliveredBy = (typeof SHOP_ORDER_DELIVERED_BY)[number]
@@ -109,8 +102,6 @@ export interface ShopOrderListQuery {
   q?: string
   attention?: ShopOrderAttention
   payment?: ShopOrderPaymentState | "any"
-  /** @deprecated 079 — use `deliveredBy`. */
-  method?: ShopOrderMethod
   deliveredBy?: ShopOrderDeliveredBy
   range?: ShopOrderRange
   sort?: ShopOrderSort
@@ -144,8 +135,6 @@ export interface ShopOrderRowDTO {
   deliveredBy: DeliveredBy
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** @deprecated — compatibility (083): kept so installed apps keep working. The customer's word (079); shops are shown `deliveredBy`. */
-  deliveryMethod: "same_day" | "standard" | null
   /** Open (pending/received/picking) and within 15 minutes of — or past — its ready-by. */
   atRisk: boolean
   payment: ShopOrderPaymentState
@@ -216,7 +205,6 @@ export interface ShopOrderMoneyDTO {
   // ⚠ 077: NO delivery fee. A shop never sees what the customer paid for delivery, or any part of it
   // (FR-038). `shop-order.guard` fails a shop contract that carries one.
   discount: string
-  promoCode: string | null
   total: string
   /** Refunds that SETTLED. */
   refunded: string
@@ -252,22 +240,6 @@ export interface ShopOrderNoteDTO {
   body: string
   authorLabel: string | null
   createdAt: string
-}
-
-/**
- * 089 — one package's label. ⚠ NO WINDOW, DAY OR ESTIMATE: the label says EFFY or COURIER (from
- * `deliveredBy`), the one thing a shop is told about delivery (079).
- */
-export interface ShopPackageLabelDTO {
-  /** The permanent code; the label's QR and barcode carry `EFY1:<code>`. */
-  packageCode: string
-  /** This package's place among the order's packages, from 1. */
-  position: WireInt
-  /** How many packages the whole order has, across shops (a count, never who). */
-  packageCount: WireInt
-  suburb: string | null
-  /** The coldest storage class among its products. */
-  cold: "frozen" | "chilled" | null
 }
 
 /**
@@ -327,15 +299,8 @@ export interface ShopOrderDetailDTO {
   deliveredBy: DeliveredBy
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** @deprecated — compatibility (083): kept so installed apps keep working. The customer's word (079); shops are shown `deliveredBy`. */
-  deliveryMethod: "same_day" | "standard" | null
   atRisk: boolean
   delivery: FulfillmentDeliveryDTO
-  /**
-   * @deprecated — compatibility (096): bag 1's 089 label data, kept so installed builds keep working.
-   * Labels are printed per bag from `parcels` + `labelCommon`.
-   */
-  label: ShopPackageLabelDTO
   /** 096 — this package's live bags, each with its own label. */
   parcels: ShopParcelLabelDTO[]
   /** 096 — what every bag's label shares (spec US10). */

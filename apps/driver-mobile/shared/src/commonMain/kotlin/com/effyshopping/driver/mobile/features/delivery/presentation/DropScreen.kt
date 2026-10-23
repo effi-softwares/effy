@@ -149,7 +149,7 @@ private fun OpenDrop(
     startScanning: Boolean,
     onBackToRun: () -> Unit,
 ) {
-    val canScan = drop.packages.any { it.allBags.isNotEmpty() }
+    val canScan = drop.packages.any { it.bags.isNotEmpty() }
     var stage by rememberSaveable(drop.dropId) {
         // 093 — never straight to the door scan for a drop that is still at the hub.
         mutableStateOf(if (startScanning && canScan && drop.loaded && rememberIsOpenNow(drop)) DropStage.Scan else DropStage.Detail)
@@ -166,7 +166,7 @@ private fun OpenDrop(
     when (stage) {
         DropStage.Scan -> {
             val run = state.run
-            val bags = drop.packages.flatMap { it.allBags }
+            val bags = drop.packages.flatMap { it.bags }
             val base = if (run != null) ScanContexts.drop(run, drop)
             else ScanContext(bags.map { it.code }.toSet(), bags = bags.associate { it.code to com.effyshopping.driver.mobile.core.scan.BagNumber(it.seq, it.of) })
             val street = splitAddress(drop.addressFull).first
@@ -176,7 +176,7 @@ private fun OpenDrop(
                 context = base,
                 // 096 — one row per bag: every bag of every package is handed over.
                 items = drop.packages.flatMapIndexed { i, p ->
-                    p.allBags.map { b ->
+                    p.bags.map { b ->
                         val words = listOfNotNull("Package ${i + 1} of $n".takeIf { n > 1 }, b.title().takeIf { b.of > 1 }).joinToString(" · ").ifEmpty { "Package 1 of 1" }
                         ScanItem(
                             b.code, words,

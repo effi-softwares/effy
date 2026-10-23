@@ -2,13 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BreachCheckUnavailableError, isPasswordBreached } from "./password";
 
-/**
- * The SHA-1 of "password" is 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8.
- * Prefix = 5BAA6, suffix = 1E4C9B93F3F0682250B6CF8331B7EE68FD8. That split is the whole protocol,
- * and these tests assert it holds — because the day it silently stops holding, every password on the
- * platform is unscreened and nothing fails.
- */
-const PWNED_PREFIX = "5BAA6";
 const PWNED_SUFFIX = "1E4C9B93F3F0682250B6CF8331B7EE68FD8";
 
 function mockRange(body: string, ok = true, status = 200) {

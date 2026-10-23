@@ -373,8 +373,7 @@ fun ReturnHubScreen(
     var scanning by rememberSaveable { mutableStateOf(startScanning) }
     if (ret != null && scanning && ret.bagCodes.isNotEmpty()) {
         // 096 — one row per bag coming back.
-        val rows = ret.parcels.flatMap { p -> p.allBags.map { b -> p to b } }
-            .ifEmpty { ret.packageCodes.map { c -> null to com.effyshopping.driver.mobile.core.scan.Bag(c, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) } }
+        val rows = ret.parcels.flatMap { p -> p.bags.map { b -> p to b } }
         ScanPanel(
             title = "Return to hub", backLabel = backLabel,
             context = ScanContexts.returnToHub(ret),
@@ -460,7 +459,7 @@ fun ReturnHubScreen(
  * bags: each package code stands for its one bag.
  */
 internal fun dropBags(d: com.effyshopping.driver.mobile.features.delivery.domain.DropSummary): List<Pair<com.effyshopping.driver.mobile.core.scan.Bag, String>> {
-    val bags = d.bags.ifEmpty { d.packageCodes.map { com.effyshopping.driver.mobile.core.scan.Bag(it, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) } }
+    val bags = d.bags
     val packages = bags.count { it.seq == 1 }
     var pkg = 0
     return bags.map { b ->

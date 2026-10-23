@@ -55,23 +55,22 @@ export interface OrderSummaryDTO {
   currency: string;
   /** 027 — set when a promotional code was used, so history can mark a discounted order. */
   promoCode?: string | null;
-  /** 079 — who delivers it. ⚠ ABSENT on an order placed before 079. */
-  delivery?: OrderDeliveryDTO;
+  /** 079 — who delivers it. */
+  delivery: OrderDeliveryDTO;
   /**
    * 084 — the primary picture of the order's first few lines (at most four), for the order list.
    * Short-lived presigned URLs, read from the LIVE catalogue like the receipt line's; `null` where a
    * line has no picture.
    *
-   * ⚠ OPTIONAL, and absent from a server not yet redeployed: the list then shows no pictures, which
-   * is what it showed before. ⚠ Pictures of the customer's own lines only — never a shop, a package,
-   * or how many suppliers fill the order.
+   * ⚠ Pictures of the customer's own lines only — never a shop, a package, or how many suppliers fill
+   * the order.
    */
   thumbnails?: (string | null)[];
   /** 086 — index-aligned with `thumbnails`: each one's smaller copies (see `imageWidths`). */
   thumbnailWidths?: number[][];
   /**
    * 084 — what the order list says beside the totals. ⚠ ALL OPTIONAL, each absent (never empty or
-   * false) when it does not apply or the server predates it; a client then says less, never something
+   * false) when it does not apply; a client then says less, never something
    * else. ⚠ Each is derived by the same function the receipt uses, so the list and the order page
    * cannot disagree — and none of them says how many suppliers or packages there are.
    */
@@ -199,30 +198,22 @@ export interface OrderDTO {
   itemSubtotalAmount: string;
   /**
    * The promotional discount applied at payment (027 FR-049). The platform's own computation at that
-   * moment, stored on the order — so a receipt stays explainable years later even if the code has since
-   * been changed or disabled. "0.00" (or absent, on a pre-027 order) when no code was used.
-   * Invariant: grandTotal = itemSubtotal − discount. (There is no delivery fee on this platform.)
+   * moment, stored on the order — so a receipt stays explainable years later even if the promotion has
+   * since been changed or disabled. "0.00" when none applied.
    */
-  discountAmount?: string;
-  /** 094 — each promotion applied and what it took off; an order from before 094 shows its one code. */
-  promotions?: OrderPromotionDTO[];
+  discountAmount: string;
+  /** 094 — each promotion applied and what it took off. */
+  promotions: OrderPromotionDTO[];
   /** 094 — what delivery promotions took off the fee. */
-  deliveryDiscountAmount?: string;
-  /**
-   * 051 FR-043 — the delivery fee as charged.
-   *
-   * ⚠ The column has existed since 019 and the receipt read never selected it, so delivery sat inside
-   * the total and appeared nowhere. A receipt whose lines do not add up to its total is not one a
-   * shopper can check — and for a GST-inclusive Australian sale that is a real gap, not a cosmetic one.
-   */
-  deliveryFeeAmount?: string;
+  deliveryDiscountAmount: string;
+  /** 051 FR-043 — the delivery fee as charged. */
+  deliveryFeeAmount: string;
   /**
    * 077 — the same charge as lines (delivery, window surcharge, small-order fee, free delivery),
-   * exactly as sold. ⚠ ABSENT on an order placed before 077: render the single `deliveryFeeAmount`
-   * row instead. Stored with the order and never recomputed, so it reads the same after the
+   * exactly as sold. Stored with the order and never recomputed, so it reads the same after the
    * business changes its prices.
    */
-  deliveryFee?: DeliveryFeeDTO;
+  deliveryFee: DeliveryFeeDTO;
   /**
    * The literal code used, denormalised beside the discount so the receipt can still say "SPRING20"
    * independently of the promotion record. Null/absent when no code was used.
@@ -312,15 +303,14 @@ export interface OrderDTO {
    * (FR-009), and the entries are deliberately unordered with respect to any internal grouping.
    *
    * ⚠ 079 — EMPTY for a courier order, which has no window and no day: read `delivery` and print
-   * `deliverySummary`. (Empty, not "standard", so a client built before 079 prints no arrival
-   * rather than a wrong one.)
+   * `deliverySummary`.
    */
   arrivalEstimates: ArrivalEstimateDTO[];
   /**
-   * 079 — who delivers the order, and for a courier the estimate it was sold. ⚠ ABSENT on an order
-   * placed before 079. Every surface prints this through `deliverySummary` (`delivery-type.ts`).
+   * 079 — who delivers the order, and for a courier the estimate it was sold. Every surface prints
+   * this through `deliverySummary` (`delivery-type.ts`).
    */
-  delivery?: OrderDeliveryDTO;
+  delivery: OrderDeliveryDTO;
 }
 
 /**

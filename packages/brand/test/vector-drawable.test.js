@@ -83,7 +83,6 @@ describe("every committed VectorDrawable is renderable", () => {
   // The check that would have caught this before it reached a device.
   const dirs = [
     "apps/customer-mobile/androidApp/src/main/res/drawable",
-    "apps/shop-mobile/androidApp/src/main/res/drawable",
     "apps/driver-mobile/androidApp/src/main/res/drawable",
   ]
   for (const dir of dirs) {

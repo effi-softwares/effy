@@ -16,13 +16,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 // exists to make impossible.
 const targets = [
   resolve(here, "../compose/EffyTokens.kt"),
-  resolve(here, "../compose-shop/EffyTokens.kt"),
   resolve(here, "../compose-driver/EffyTokens.kt"),
   resolve(here, "../compose/EffyLayoutTokens.kt"),
-  resolve(here, "../compose-shop/EffyLayoutTokens.kt"),
   resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
   resolve(here, "../compose/EffyTypography.kt"),
-  resolve(here, "../compose-shop/EffyTypography.kt"),
   // 087 — the driver typography was generated since 026 and never listed here (unguarded), and the
   // customer app's storefront shapes are new.
   resolve(here, "../compose-driver/EffyTypography.kt"),

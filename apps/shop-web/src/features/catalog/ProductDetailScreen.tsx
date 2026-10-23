@@ -44,7 +44,7 @@ import {
   SizesEditDialog,
 } from "./ProductEditDialogs";
 import { productDetailQuery } from "./queries";
-import { isApproved, reviewChip, workingDetail } from "./review";
+import { reviewChip, workingDetail } from "./review";
 import { ReviewPanel } from "./ReviewPanel";
 import { SectionAssignment } from "./SectionAssignment";
 import { defaultStockVariantId, shopPriceSummary } from "./variants";

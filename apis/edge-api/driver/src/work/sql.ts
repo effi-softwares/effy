@@ -14,7 +14,6 @@
 //
 // ⚠ NO COORDINATE IS SELECTED ANYWHERE, and none exists to select (D20/D22).
 
-import { deliveredBySql } from "@effy/edge-shared/delivery";
 
 /**
  * Every unfinished round the driver holds, the CURRENT one first (072).
@@ -115,7 +114,7 @@ export const ROUND_STOPS = `
  * Packages at each stop of a round, with the order they belong to.
  *
  * ⚠ 082 — `delivered_by` and the window are what the driver is TOLD ("Effy delivery, Thu 4–6 pm" /
- * "Courier"); `method` is still selected only because driver builds that predate them read it (E9).
+ * "Courier").
  */
 export const ROUND_PACKAGES = `
   SELECT rp.id                                  AS round_package_id,
@@ -124,8 +123,7 @@ export const ROUND_PACKAGES = `
          sf.id                                  AS package_id,
          sf.package_code                        AS package_code,
          o.order_number                         AS order_number,
-         COALESCE(sf.delivery_method, 'standard') AS method,
-         ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
+         o.delivery_type AS delivered_by,
          opd.window_start                       AS window_start,
          opd.window_end                         AS window_end,
          COALESCE((SELECT ds.any_time FROM public.delivery_slot ds WHERE ds.id = opd.slot_id), false) AS any_time,

@@ -203,11 +203,10 @@ data class Receipt(
     val grandTotalAmount: String,
     val currency: String,
     /**
-     * 079 — who delivers the order, and a courier's timeframe as it was SOLD. Null for an order placed
-     * before orders had a delivery type. ⚠ For a courier order [arrivalEstimates] is empty: say it
-     * through `deliverySummary`, never from a package's own method.
+     * 079 — who delivers the order, and a courier's timeframe as it was SOLD. ⚠ For a courier order
+     * [arrivalEstimates] is empty: say it through `deliverySummary`, never from a package's own method.
      */
-    val delivery: OrderDelivery? = null,
+    val delivery: OrderDelivery,
     /** 052 — when the order was placed, pre-formatted by the mapper. Empty when unknown. */
     val placedAt: String = "",
     /** 052 — server-derived progress (FR-008). */
@@ -582,8 +581,8 @@ data class OrderSummary(
     val itemCount: Int,
     val grandTotalAmount: String,
     val currency: String,
-    /** 079 — who delivers it; null for an order placed before orders had a delivery type. */
-    val delivery: OrderDelivery? = null,
+    /** 079 — who delivers it. */
+    val delivery: OrderDelivery,
     // ── 087 (Orders board) — read from fields the orders list has carried since 084/086. Every one is
     // optional: an order from before them degrades to the row it always had, never to an invented value.
     /** When it was placed (ISO). */

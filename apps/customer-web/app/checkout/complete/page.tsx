@@ -12,7 +12,6 @@ import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
 import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
 import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { ActionLink } from "@/components/storefront/actions"
-import { Display } from "@/components/storefront/kit"
 import { edgeApi, uncached } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 

@@ -48,8 +48,6 @@ export interface LiveOrder {
   deliveredBy: "effy_driver" | "courier";
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
-  deliveryMethod: "same_day" | "standard" | null;
   total: string;
   currency: string;
 }

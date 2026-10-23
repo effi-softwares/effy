@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { melbourneDate } from "../delivery/schedule";
 import { collectionDeadline, endOfLocalDay } from "./collection-deadline";
 
 /**

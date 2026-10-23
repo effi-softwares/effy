@@ -17,9 +17,6 @@ import { DELIVERED_BY_SQL, type DeliveredBy } from "../lib/delivered-by";
 import type { Backlog, LiveOrder, StockAttention } from "./types";
 import { courierPickups, pickupOf } from "../lib/courier-pickup";
 
-/** Portions nobody has started picking — the Orders list's "Awaiting pick" tab, to the letter. */
-const AWAITING = `sf.status IN ('pending', 'received')`;
-
 /**
  * The backlog, the ready count and the low-stock counts — ONE round trip.
  *
@@ -181,7 +178,6 @@ SELECT sf.id::text AS fulfillment_id,
        o.order_number,
        COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
        COALESCE(o.placed_at, o.created_at) AS paid_at,
-       sf.delivery_method,
        ${DELIVERED_BY_SQL} AS delivered_by,
        o.grand_total_amount::text AS total,
        o.currency,
@@ -201,7 +197,6 @@ interface LiveRow {
   order_number: string;
   customer_name: string;
   paid_at: Date;
-  delivery_method: "same_day" | "standard" | null;
   delivered_by: DeliveredBy;
   total: string;
   currency: string;
@@ -219,7 +214,6 @@ export async function readLiveOrders(shopId: string, limit: number): Promise<Liv
     paidAt: r.paid_at,
     itemCount: r.item_count,
     deliveredBy: r.delivered_by,
-    deliveryMethod: r.delivery_method,
     total: r.total,
     currency: r.currency,
   }));

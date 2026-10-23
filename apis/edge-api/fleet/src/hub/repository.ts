@@ -1,6 +1,5 @@
 // 096 US5 — the hub station's reads. Raw SQL; every query names columns the migrations really have
 // (`hub.container.test.ts` runs them against the real ones).
-import { deliveredBySql } from "@effy/edge-shared/delivery";
 import type { ParcelZone } from "@effy/shared-types";
 
 type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
@@ -36,7 +35,7 @@ export async function expectedBags(tx: Tx): Promise<ExpectedBagRow[]> {
             o.order_number,
             EXISTS (SELECT 1 FROM public.package_handover h
                      WHERE h.parcel_id = p.id AND h.step = 'checkin' AND h.round_id = dr.id) AS checked_in,
-            ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
+            o.delivery_type AS delivered_by,
             opd.window_start, opd.window_end,
             COALESCE((SELECT ds.any_time FROM public.delivery_slot ds WHERE ds.id = opd.slot_id), false) AS any_time
        FROM public.driver_round dr
@@ -103,7 +102,7 @@ export async function sortFacts(tx: Tx, packageId: string): Promise<SortFactsRow
   const res = await tx.query(
     `SELECT (SELECT count(*) FROM public.package_parcel l WHERE l.shop_fulfillment_id = sf.id AND l.voided_at IS NULL)::int AS of,
             o.order_number,
-            ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
+            o.delivery_type AS delivered_by,
             opd.window_start, opd.window_end,
             COALESCE((SELECT ds.any_time FROM public.delivery_slot ds WHERE ds.id = opd.slot_id), false) AS any_time
        FROM public.shop_fulfillment sf

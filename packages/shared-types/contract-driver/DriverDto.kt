@@ -188,7 +188,7 @@ data class CollectionPackage (
     /**
      * 082 — who takes it from the hub: an Effy driver, or a courier. What the app says.
      */
-    val deliveredBy: DeliveredBy? = null,
+    val deliveredBy: DeliveredBy,
 
     val destinationSuburb: String,
 
@@ -198,28 +198,22 @@ data class CollectionPackage (
      */
     val items: List<ManifestLine>,
 
-    val method: PackageMethod,
-
     /**
-     * 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older
-     * servers.
+     * 089 — the code printed on this package's label (`EFY1:<code>`): bag 1's.
      */
-    val packageCode: String? = null,
+    val packageCode: String,
 
     /**
-     * The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was
-     * on the wire the app could not say WHICH package a report was about, so it sent none and
-     * the whole stop was marked unavailable. Optional only so an app built against it still
-     * reads an older server.
+     * The package's own id — what `CollectRequest.packages[].packageId` names.
      */
     @SerialName("packageId")
-    val packageID: String? = null,
+    val packageID: String,
 
     /**
      * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     * for every bag.
      */
-    val parcels: List<ParcelDTO>? = null,
+    val parcels: List<ParcelDTO>,
 
     val ref: String,
     val summary: ClassSummary,
@@ -278,12 +272,6 @@ enum class TemperatureClass(val value: String) {
     @SerialName("not_recorded") NotRecorded("not_recorded");
 }
 
-@Serializable
-enum class PackageMethod(val value: String) {
-    @SerialName("same_day") SameDay("same_day"),
-    @SerialName("standard") Standard("standard");
-}
-
 /**
  * A live parcel as every surface sees it. `of` = this package's live bags.
  */
@@ -338,9 +326,9 @@ data class DriverCollectionRunDTO (
 
     /**
      * 090 — where each package on this run goes at the hub, in the platform's words, so the hub
-     * scan can say it with no signal. Optional: absent from an older server.
+     * scan can say it with no signal.
      */
-    val hubSort: List<HubSortInstruction>? = null,
+    val hubSort: List<HubSortInstruction>,
 
     /**
      * 092 rev 2 — the run map.
@@ -385,7 +373,7 @@ data class HubSortInstruction (
      * 096 — the codes of every bag of this package: each bag scanned at the hub gets this
      * instruction.
      */
-    val parcelCodes: List<String>? = null
+    val parcelCodes: List<String>
 )
 
 @Serializable
@@ -476,18 +464,13 @@ data class CollectionStopSummary (
      */
     val address: String? = null,
 
-    /**
-     * 089 — the codes printed on this stop's package labels, for matching a scan with no signal.
-     */
-    val packageCodes: List<String>? = null,
-
     val packageCount: Long,
 
     /**
-     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     * 096 — the stop's live BAGS, each with its own code ("Bag n of N"), for matching a scan
+     * with no signal.
      */
-    val parcels: List<ParcelDTO>? = null,
+    val parcels: List<ParcelDTO>,
 
     val sequence: Long,
     val shopCode: String,
@@ -674,16 +657,15 @@ data class DropPackageRef (
     val items: List<ManifestLine>,
 
     /**
-     * 089 — the code printed on this package's label (`EFY1:<code>`). Optional for older
-     * servers.
+     * 089 — the code printed on this package's label (`EFY1:<code>`): bag 1's.
      */
-    val packageCode: String? = null,
+    val packageCode: String,
 
     /**
      * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     * for every bag.
      */
-    val parcels: List<ParcelDTO>? = null,
+    val parcels: List<ParcelDTO>,
 
     val ref: String,
     val summary: ClassSummary
@@ -719,19 +701,13 @@ data class DeliveryDropSummary (
 
     val failureReason: DeliveryFailureReason? = null,
     val orderRef: String,
-
-    /**
-     * 089 — the codes printed on this drop's package labels, for matching a scan with no signal.
-     */
-    val packageCodes: List<String>? = null,
-
     val packageCount: Long,
 
     /**
-     * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     * 096 — the drop's live BAGS, each with its own code ("Bag n of N"), for matching a scan
+     * with no signal.
      */
-    val parcels: List<ParcelDTO>? = null,
+    val parcels: List<ParcelDTO>,
 
     val proofMethod: ProofMethod? = null,
     val sequence: Long,
@@ -809,7 +785,7 @@ data class DeliveryRunDTO (
 
     /**
      * 088 — parcels from failed drops on this run, still with the driver, to be checked back in
-     * at the hub. `null` (or absent, from an older server) when there are none.
+     * at the hub. `null` when there are none.
      */
     val toReturn: ParcelsToReturn? = null
 )
@@ -832,15 +808,10 @@ data class ParcelsToReturn (
     val orders: List<String>,
 
     /**
-     * 090 — the label codes of the parcels to return, for the return scan.
-     */
-    val packageCodes: List<String>? = null,
-
-    /**
      * 092 rev 2 — each parcel, for the Return to hub screen: its ref, where it was for and why
      * it came back.
      */
-    val parcels: List<ReturnParcel>? = null,
+    val parcels: List<ReturnParcel>,
 
     @SerialName("runId")
     val runID: String
@@ -852,9 +823,9 @@ data class ReturnParcel (
 
     /**
      * 096 — the package's live BAGS, each with its own code ("Bag n of N"). Every step accounts
-     * for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.
+     * for every bag.
      */
-    val parcels: List<ParcelDTO>? = null,
+    val parcels: List<ParcelDTO>,
 
     /**
      * "8 Scotchmer St, Fitzroy North".
@@ -1039,7 +1010,7 @@ data class HistoryRunRow (
 @Serializable
 enum class DriverRunType(val value: String) {
     @SerialName("collection") Collection("collection"),
-    @SerialName("same_day_delivery") SameDayDelivery("same_day_delivery");
+    @SerialName("delivery") Delivery("delivery");
 }
 
 /**
@@ -1154,21 +1125,20 @@ data class HubCheckinRequest (
 @Serializable
 data class HubCheckinResponse (
     /**
-     * 080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says
-     * "Courier".
+     * 080 — parcels a COURIER takes from the hub. The app says "Courier".
      */
-    val courierCount: Long? = null,
+    val courierCount: Long,
 
     /**
      * 082 — parcels EFFY delivers, in all and by the day and window each waits for. The app
      * shows two groups, "Effy delivery" (these) and "Courier", and the driver classifies
      * nothing. ⚠ `label` is written by the server ("Today, 4 pm – 6 pm", "Thu 15 Oct, 10 am –
      * 12 pm"): the app has no timezone database and never formats a day itself. A parcel sold
-     * no window has null instants. ⚠ `sameDayCount` / `standardCount` above are
+     * no window has null instants.
      */
-    val effyCount: Long? = null,
+    val effyCount: Long,
 
-    val effyGroups: List<HubCheckinEffyGroup>? = null,
+    val effyGroups: List<HubCheckinEffyGroup>,
 
     /**
      * 093 — packages declared not in the van at this check-in, now held for dispatch.
@@ -1182,9 +1152,7 @@ data class HubCheckinResponse (
      */
     val nextCourierPickupLabel: String? = null,
 
-    val sameDayCount: Long,
-    val scannedTotal: Long,
-    val standardCount: Long
+    val scannedTotal: Long
 )
 
 /**
@@ -1396,7 +1364,6 @@ data class ProblemJSON (
      */
     val errors: List<ProblemFieldIssue>? = null,
 
-    val fields: List<ProblemFieldIssue>? = null,
     val instance: String? = null,
     val status: Double,
     val title: String,
@@ -1616,8 +1583,8 @@ enum class TodayItemRefKind(val value: String) {
 @Serializable
 enum class DriverPhase(val value: String) {
     @SerialName("collection") Collection("collection"),
-    @SerialName("idle") Idle("idle"),
-    @SerialName("same_day_delivery") SameDayDelivery("same_day_delivery");
+    @SerialName("delivery") Delivery("delivery"),
+    @SerialName("idle") Idle("idle");
 }
 
 /**

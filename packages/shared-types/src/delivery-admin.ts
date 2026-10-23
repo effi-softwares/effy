@@ -18,8 +18,6 @@ import type { DeliveryFeeDTO } from "./delivery-fee";
 
 /** A configured thing that is switched on or off. (Named for the 047 distance tier, which 077 removed.) */
 export type ActiveStatus = "active" | "disabled";
-/** @deprecated 077 — the tiers are gone; use `ActiveStatus`. Kept so existing slot/run code reads unchanged. */
-export type RingStatus = ActiveStatus;
 
 /** A weight slab within a plan (upper-bound band). */
 export interface WeightBandDTO {
@@ -153,7 +151,7 @@ export interface CollectionRunDTO {
   id: string;
   runTime: string;
   label: string | null;
-  status: RingStatus;
+  status: ActiveStatus;
 }
 
 /** The singleton delivery settings: the hub every distance is measured from, and the same-day prep buffer. */
@@ -287,8 +285,6 @@ export interface CourierReachDTO {
    * courier delivery until it is.
    */
   pending: boolean;
-  /** @deprecated 079 — `blockedBy.length === 0`. */
-  canBeOffered: boolean;
   exclusions: CourierExclusionDTO[];
 }
 
@@ -398,14 +394,14 @@ export interface DeliverySlotDTO {
    * day's limit for them. Exactly one, always on; no API sets this flag.
    */
   anyTime?: boolean;
-  status: RingStatus;
+  status: ActiveStatus;
   /** Confirmed bookings plus holds that have not lapsed, for today (Melbourne). */
   bookedToday: number;
   /** Late payers honoured above capacity today (FR-009b). Normally zero; always zero with no limit. */
   overCapacityToday: number;
   /**
    * 078 — how full this window is on each offered day, in the order of the response's `days`.
-   * Absent on the create/update responses and from a server older than 078.
+   * Absent on the create/update responses.
    */
   load?: DeliverySlotLoadDTO[];
   updatedAt: string;
@@ -428,10 +424,10 @@ export interface DeliverySlotDayDTO {
   nonDelivery: boolean;
 }
 
-/** `GET /fleet/v1/delivery-slots`. `days` is absent from a server older than 078. */
+/** `GET /fleet/v1/delivery-slots`. */
 export interface DeliverySlotsResponseDTO {
   items: DeliverySlotDTO[];
-  days?: DeliverySlotDayDTO[];
+  days: DeliverySlotDayDTO[];
 }
 
 export interface DeliverySlotInput {
@@ -443,7 +439,7 @@ export interface DeliverySlotInput {
 }
 
 /** PATCH: any of the four, and/or the status. A slot is never deleted. */
-export type DeliverySlotPatch = Partial<DeliverySlotInput> & { status?: RingStatus };
+export type DeliverySlotPatch = Partial<DeliverySlotInput> & { status?: ActiveStatus };
 
 /** One date with no standard delivery. */
 export interface NonDeliveryDateDTO {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { requireDriver, toMeDTO } from "./service";
-import { DriverAccessError, type DriverRecord } from "./types";
+import { type DriverRecord } from "./types";
 import * as repo from "./repository";
 
 const ACTIVE: DriverRecord = {

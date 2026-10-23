@@ -27,8 +27,6 @@ export interface ProblemJSON {
    * (053 found it; 054 fixed the reader in `@effy/api-client`).
    */
   errors?: ProblemFieldIssue[];
-  /** @deprecated The wire uses `errors`. Kept so older readers still compile. */
-  fields?: ProblemFieldIssue[];
   /**
    * A stable, machine-readable refusal code, where the route defines one (069: the checkout's
    * `slot_required` / `slot_unavailable` / `date_unavailable`). A contract value a client switches

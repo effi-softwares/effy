@@ -312,10 +312,6 @@ d("081 — moving an order between Effy and courier delivery", () => {
     await pool.query(`UPDATE public.payment SET status = 'requires_payment' WHERE order_id = $1`, [unpaid.order]);
     expect(await refusal(toCourier(unpaid.order, "points_difference", 250, await updatedAt(unpaid.order)))).toBe("not_paid");
 
-    const old = await effyOrder();
-    await pool.query(`UPDATE public."order" SET delivery_type = NULL, delivery_type_reason = NULL WHERE id = $1`, [old.order]);
-    expect(await refusal(toCourier(old.order, "points_difference", 250, await updatedAt(old.order)))).toBe("no_delivery_type");
-
     const noService = await effyOrder();
     await pool.query(`UPDATE public.courier_service SET is_default = false`);
     try {

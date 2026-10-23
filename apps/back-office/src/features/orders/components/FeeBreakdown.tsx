@@ -9,7 +9,7 @@ const kg = (grams: number) => `${Number((grams / 1000).toFixed(3))} kg`;
  * worked out again, so it explains the fee that was charged even after the business changed prices.
  *
  * ⚠ STAFF ONLY: it names the distance, the weight and the plan. Rendered nowhere a customer or a
- * shop can see. ⚠ A detail list, not a card. Absent for an order placed before 077.
+ * shop can see. ⚠ A detail list, not a card.
  */
 export function FeeBreakdown({ breakdown }: { breakdown: DeliveryFeeBreakdownDTO }) {
   const { inputs, parts } = breakdown;

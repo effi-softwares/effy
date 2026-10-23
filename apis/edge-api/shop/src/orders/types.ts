@@ -1,4 +1,4 @@
-import type { CourierPickupDTO, ParcelZone, ShopLabelCommonDTO, ShopPackageLabelDTO, ShopParcelLabelDTO } from "@effy/shared-types";
+import type { CourierPickupDTO, ParcelZone, ShopLabelCommonDTO, ShopParcelLabelDTO } from "@effy/shared-types";
 // Domain types for the shop ORDER CONSOLE (057 Amendment A3). Wire DTOs live in @effy/shared-types
 // (`shop-order-console`); nothing wire-shaped escapes the handler (Principle VI).
 //
@@ -47,9 +47,6 @@ export const PAYMENT_STATES: readonly PaymentState[] = [
 export type Attention = "any" | "at_risk" | "short" | "on_track";
 export const ATTENTIONS: readonly Attention[] = ["any", "at_risk", "short", "on_track"];
 
-/** @deprecated 079 — the customer's word. Kept for shop apps installed before 079; see `DeliveredByFilter`. */
-export type Method = "any" | "same_day" | "standard";
-export const METHODS: readonly Method[] = ["any", "same_day", "standard"];
 
 /** 079 — who takes the package away from the shop. */
 export type DeliveredByFilter = "any" | "effy_driver" | "courier";
@@ -67,7 +64,6 @@ export interface OrderListQuery {
   q: string;
   attention: Attention;
   payment: PaymentState | "any";
-  method: Method;
   deliveredBy: DeliveredByFilter;
   range: Range;
   sort: SortKey;
@@ -91,8 +87,6 @@ export interface OrderRow {
   deliveredBy: "effy_driver" | "courier";
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
-  deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
   payment: PaymentState;
   total: string;
@@ -162,12 +156,8 @@ export interface OrderDetail {
   deliveredBy: "effy_driver" | "courier";
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. */
-  deliveryMethod: "same_day" | "standard" | null;
   atRisk: boolean;
   delivery: FulfillmentDelivery;
-  /** @deprecated — compatibility (096): bag 1's 089 label data. */
-  label: ShopPackageLabelDTO;
   /** 096 — this package's live bags. */
   parcels: ShopParcelLabelDTO[];
   /** 096 — what every bag's label shares. */
@@ -182,8 +172,6 @@ export interface OrderDetail {
     shopSubtotal: string;
     itemSubtotal: string;
     discount: string;
-    /** @deprecated — compatibility (094). Always null: a shop never sees which promotion applied. */
-    promoCode: string | null;
     total: string;
     refunded: string;
     refundPending: string;

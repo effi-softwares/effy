@@ -11,10 +11,10 @@ export interface SummaryRow {
   item_count: number;
   grand_total_amount: string;
   currency: string;
-  /** 079 — who delivers the order, and a courier's timeframe as sold. Both null before 079. */
-  delivery_type?: "effy" | "courier" | null;
+  /** 079 — who delivers the order, and a courier's timeframe as sold. */
+  delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
-  /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
+  /** 085 — what an Effy order was sold (null for a courier order), and the "as soon as possible" estimate as told. */
   delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
   /**
@@ -48,16 +48,16 @@ export interface OrderRow {
   item_subtotal_amount: string;
   discount_amount: string;
   promo_code: string | null;
-  /** 094 — what delivery promotions took off, and each promotion as sold (null before 094). */
+  /** 094 — what delivery promotions took off, and each promotion as sold. */
   delivery_discount_amount: string;
   promotions: { headline: string | null; name: string; code: string | null; goods: string; delivery: string }[] | null;
   delivery_fee_amount: string;
   /**
-   * 077 — the delivery charge as the lines the customer was sold, or null on an order placed before
-   * 077. ⚠ `delivery_fee_breakdown->'lines'` and NOTHING else from that column: the rest holds a
-   * distance and the plan's prices, which a customer must never be sent (FR-032).
+   * 077 — the delivery charge as the lines the customer was sold. ⚠ `delivery_fee_breakdown->'lines'`
+   * and NOTHING else from that column: the rest holds a distance and the plan's prices, which a
+   * customer must never be sent (FR-032).
    */
-  delivery_fee_lines?: { kind: string; amount: string }[] | null;
+  delivery_fee_lines: { kind: string; amount: string }[];
   grand_total_amount: string;
   currency: string;
   payment_status: string | null;
@@ -66,12 +66,12 @@ export interface OrderRow {
   points_value_amount?: string;
   card_paid_amount?: string | null;
   /**
-   * 079 — who delivers the order, and a courier's timeframe as it was SOLD. Both null on an order
-   * placed before 079. ⚠ Never the reason: a customer is told who delivers, not why (076 FR-023).
+   * 079 — who delivers the order, and a courier's timeframe as it was SOLD. ⚠ Never the reason: a
+   * customer is told who delivers, not why (076 FR-023).
    */
-  delivery_type?: "effy" | "courier" | null;
+  delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
-  /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
+  /** 085 — what an Effy order was sold (null for a courier order), and the "as soon as possible" estimate as told. */
   delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
   /**

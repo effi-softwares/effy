@@ -127,8 +127,8 @@ export function mapFulfillmentError(
 
 function toPromiseDTO(p: DeliveryPromise): DeliveryPromiseDTO {
   return {
-    serviceLevel: p.serviceLevel, readyBy: p.readyBy.toISOString(),
-    ...(p.deliveredBy ? { deliveredBy: p.deliveredBy } : {}),
+    readyBy: p.readyBy.toISOString(),
+    deliveredBy: p.deliveredBy,
     ...(p.courierPickup ? { courierPickup: p.courierPickup } : {}),
   };
 }

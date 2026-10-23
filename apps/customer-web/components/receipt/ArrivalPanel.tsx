@@ -12,9 +12,8 @@ import { TrackingLink } from "@/components/receipt/TrackingLink"
  *
  * ⚠ A TIME ONLY WHEN A WINDOW WAS SOLD (069). 052 corrected a designed "Today, 5:00 – 8:00 pm" down
  * to a date because the business had not made that promise. It has now: a same-day order carries the
- * window the customer chose, and this panel says it. An order with no window — every standard order,
- * and everything placed before 069 — still shows a day and nothing finer, and an order with no
- * promise at all still says the date will be confirmed. Nothing is derived here.
+ * window the customer chose, and this panel says it. A day sold with no time shows the day and nothing
+ * finer. Nothing is derived here.
  *
  * ⚠ More than one estimate means the order arrives in more than one delivery. That is a fact about
  * the CUSTOMER'S experience — it names no shop and implies no fulfilment structure (FR-009).

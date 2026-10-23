@@ -83,8 +83,8 @@ object DeliveryTypeWords {
 /** 085 — "As soon as possible — usually within 2–3 days". The estimate is the business's own words. */
 fun asapSentence(estimate: String): String = "${DeliveryWindowWords.ASAP_ESTIMATE_PREFIX} $estimate".trim()
 
-/** What a customer surface prints for an order's delivery. [heading] is null for an order placed before 079. */
-data class DeliverySummary(val heading: String?, val lines: List<String>)
+/** What a customer surface prints for an order's delivery. */
+data class DeliverySummary(val heading: String, val lines: List<String>)
 
 /**
  * How an order is delivered, in the words every customer surface prints.
@@ -95,18 +95,17 @@ data class DeliverySummary(val heading: String?, val lines: List<String>)
  *   courier                → "Courier delivery" · the partner line, then the estimate as an estimate
  *   Effy, a window today   → "Delivered by Effy" · "Same-day delivery · Today, 4 pm – 6 pm"
  *   Effy, a later day      → "Delivered by Effy" · "Standard delivery · Thu 8 Oct, 4 pm – 6 pm"
- *   placed before 079      → no heading · one line per distinct promise, as it was sold
  *
  * ⚠ A courier order NEVER reads its arrival estimates. ⚠ One line per DISTINCT promise: a line per
  * package told the customer how many suppliers there were.
  */
 fun deliverySummary(
-    delivery: OrderDelivery?,
+    delivery: OrderDelivery,
     arrivals: List<ArrivalEstimate>,
     nowEpochMillis: Long,
     offsetAt: (Long) -> Int = ::melbourneOffsetSeconds,
 ): DeliverySummary {
-    if (delivery?.type == DeliveryType.COURIER) {
+    if (delivery.type == DeliveryType.COURIER) {
         val lines = DeliveryTypeWords.courierLines(delivery.courierEstimate.orEmpty()).toMutableList()
         // 080 — several consignments: tracking comes by email. One link is drawn by the screen.
         if (delivery.tracking is OrderTracking.ByEmail) lines += DeliveryTypeWords.TRACKING_BY_EMAIL
@@ -115,14 +114,14 @@ fun deliverySummary(
         return DeliverySummary(DeliveryTypeWords.COURIER, lines)
     }
     // 085 — "as soon as possible" reads no arrival either: it was sold an estimate, never a day.
-    if (delivery?.promise == DeliveryPromise.ASAP) {
+    if (delivery.promise == DeliveryPromise.ASAP) {
         return DeliverySummary(DeliveryTypeWords.EFFY, listOf(asapSentence(delivery.asapEstimate.orEmpty())) + DeliveryTypeWords.movedLines(delivery.moved))
     }
     // A day with no time arrives with its day and no hours; say that the missing hours are the promise.
-    val anyTime = if (delivery?.promise == DeliveryPromise.DAY) " · ${DeliveryWindowWords.ANY_TIME_DAY}" else ""
+    val anyTime = if (delivery.promise == DeliveryPromise.DAY) " · ${DeliveryWindowWords.ANY_TIME_DAY}" else ""
     fun said(a: ArrivalEstimate?) = DeliveryWindowText.formatArrival(a?.promisedFrom, a?.promisedTo, a?.windowStart, a?.windowEnd, nowEpochMillis, offsetAt)
     val distinct = arrivals.distinctBy { listOf(it.method, it.promisedFrom, it.promisedTo, it.windowStart, it.windowEnd) }
     val lines = (if (distinct.isEmpty()) listOf(said(null)) else distinct.map { "${DeliveryTypeWords.methodWord(it.method)} · ${said(it)}$anyTime" }) +
-        DeliveryTypeWords.movedLines(delivery?.moved)
-    return DeliverySummary(if (delivery?.type == DeliveryType.EFFY) DeliveryTypeWords.EFFY else null, lines)
+        DeliveryTypeWords.movedLines(delivery.moved)
+    return DeliverySummary(DeliveryTypeWords.EFFY, lines)
 }

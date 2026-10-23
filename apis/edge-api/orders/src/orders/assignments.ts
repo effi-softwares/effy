@@ -4,7 +4,6 @@
 // this only shows the result, so the order screens stay one service and one request.
 
 import { query, reasonWords, type ExclusionReason } from "@effy/edge-shared";
-import { deliveredBySql } from "@effy/edge-shared/delivery";
 import type { OrderAssignment } from "@effy/shared-types";
 
 /**
@@ -17,7 +16,7 @@ import type { OrderAssignment } from "@effy/shared-types";
  * over a fulfilment `sf`, its order `o` and its captured delivery row `opd`.
  */
 export const DELIVERY_DUE_SQL = `(
-  ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} = 'effy'
+  o.delivery_type = 'effy'
   AND (opd.window_start IS NULL
        OR public.round_opens_at('delivery', opd.window_end, opd.window_start) <= now())
 )`;

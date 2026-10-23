@@ -11,7 +11,6 @@ import com.effyshopping.driver.mobile.features.collection.domain.GetCollectionRu
 import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionPackage
-import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
@@ -130,7 +129,7 @@ class CollectionViewModelTest {
     /** Backlog C2 — a check-in with no signal is saved, then read again once it has been sent. */
     @Test fun an_offline_check_in_shows_its_split_once_sent() = runTest {
         val pending = MutableStateFlow(setOf<String>())
-        val split = HubSplit(3, 3, 0, 0, emptyList())
+        val split = HubSplit(3, 0, emptyList())
         val repo = FakeCollectionRepo(split = split).apply { offline = true }
         val v = vm(repo, pending = pending)
 
@@ -210,15 +209,15 @@ class CollectionViewModelTest {
 
     /** 093/096 — bags not in the van ride the check-in, each with its reason. */
     @Test fun missing_bags_ride_the_check_in() = runTest {
-        val repo = FakeCollectionRepo(split = HubSplit(1, 1, 0))
+        val repo = FakeCollectionRepo(split = HubSplit(1, 0, emptyList()))
         val v = vm(repo)
         v.checkIn(emptyList(), listOf(com.effyshopping.driver.mobile.core.scan.MissingBag("ZZZZZZ", "not_in_van")))
         assertEquals(listOf(com.effyshopping.driver.mobile.core.scan.MissingBag("ZZZZZZ", "not_in_van")), repo.missing)
     }
 
     private fun pkg(id: String) = CollectionPackage(
-        ref = "EFY-$id", destinationSuburb = "Carlton", method = PackageMethod.SAME_DAY,
-        items = emptyList(), summary = ClassSummary.Empty, packageId = id,
+        ref = "EFY-$id", destinationSuburb = "Carlton", items = emptyList(), summary = ClassSummary.Empty,
+        goesToCourier = false, packageId = id, packageCode = id, bags = emptyList(),
     )
 
     /**
@@ -246,7 +245,7 @@ class CollectionViewModelTest {
         val repo = FakeCollectionRepo().apply {
             packages = listOf(
                 pkg("a").copy(packageCode = "AAAAAA", bags = listOf(bag("AAAAAA", 1, 2), bag("AAAAA2", 2, 2))),
-                pkg("b").copy(packageCode = "BBBBBB"),
+                pkg("b").copy(packageCode = "BBBBBB", bags = listOf(bag("BBBBBB", 1, 1))),
             )
         }
         val v = vm(repo); v.loadStop("s1")
@@ -256,7 +255,8 @@ class CollectionViewModelTest {
     }
 
     @Test fun a_ticked_collect_hands_over_every_bag_by_hand() = runTest {
-        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a").copy(packageCode = "AAAAAA"), pkg("b")) }
+        val bag = com.effyshopping.driver.mobile.core.scan.Bag("AAAAAA", 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT)
+        val repo = FakeCollectionRepo().apply { packages = listOf(pkg("a").copy(packageCode = "AAAAAA", bags = listOf(bag)), pkg("b")) }
         val v = vm(repo); v.loadStop("s1")
         v.togglePackage("a"); v.togglePackage("b")
         v.collect("s1") {}
@@ -264,7 +264,7 @@ class CollectionViewModelTest {
     }
 
     @Test fun a_scanned_check_in_carries_the_methods() = runTest {
-        val repo = FakeCollectionRepo(split = HubSplit(1, 1, 0))
+        val repo = FakeCollectionRepo(split = HubSplit(1, 0, emptyList()))
         val v = vm(repo)
         val handed = listOf(com.effyshopping.driver.mobile.core.scan.HandedOver("AAAAAA", com.effyshopping.driver.mobile.core.scan.HandMethod.SCAN))
         v.checkIn(handed)
@@ -298,10 +298,10 @@ class CollectionViewModelTest {
     }
 
     @Test fun check_in_stores_the_split() = runTest {
-        val repo = FakeCollectionRepo(split = HubSplit(23, 9, 14))
+        val split = HubSplit(23, 14, listOf(com.effyshopping.driver.mobile.features.collection.domain.EffyGroup("Today", 9, dueToday = true)))
+        val repo = FakeCollectionRepo(split = split)
         val v = vm(repo); v.checkIn()
-        assertEquals(9, v.state.value.hubSplit?.sameDayCount)
-        assertEquals(14, v.state.value.hubSplit?.standardCount)
+        assertEquals(split, v.state.value.hubSplit)
     }
 
     /**

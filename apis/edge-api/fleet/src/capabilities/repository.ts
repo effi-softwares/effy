@@ -15,9 +15,6 @@
 // are not the same shape.
 
 import {
-  coverageAggregateSql,
-  coverageLabel,
-  type DriverCoverageAggregate,
   query,
 } from "@effy/edge-shared";
 import type { DriverCapability, DriverCapabilitySummary } from "@effy/shared-types";

@@ -1,5 +1,8 @@
 package com.effyshopping.customer.mobile.features.checkout
 
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryPromise
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryType
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderDelivery
 import com.effyshopping.customer.mobile.core.presentation.EffyStatusKind
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderStage
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderSummary
@@ -24,6 +27,7 @@ class OrderSummaryRowTest {
     ) = OrderSummary(
         id = "o1", orderNumber = "EF-1", status = status, itemCount = 3,
         grandTotalAmount = "20.00", currency = "AUD", stage = stage, fullyRefunded = fullyRefunded,
+        delivery = OrderDelivery(type = DeliveryType.EFFY, courierEstimate = null, promise = DeliveryPromise.WINDOW),
     )
 
     @Test

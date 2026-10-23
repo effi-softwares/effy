@@ -135,7 +135,7 @@ SELECT id FROM p`, [shop],
   it("a new package has bag 1 with its package code, in its coldest zone (R1)", async () => {
     const fid = await order(["ambient", "frozen"]);
     const d = await read(fid);
-    expect(d.parcels).toEqual([expect.objectContaining({ seq: 1, of: 1, zone: "frozen", code: d.label.packageCode, custody: "at_shop" })]);
+    expect(d.parcels).toEqual([expect.objectContaining({ seq: 1, of: 1, zone: "frozen", code: expect.stringMatching(/^[2-9A-HJKMNP-TV-Z]{6}$/), custody: "at_shop" })]);
     expect(d.labelCommon).toEqual({ service: "effy_driver", orderNumber: expect.any(String), packedOn: null, recipientName: "Amelia Thompson",
       line1: "14 Lydiard Street North", line2: "Unit 3", suburb: "Ballarat Central", state: "VIC", postcode: "3350",
       country: "AU", phone: "0412 345 678" });

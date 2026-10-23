@@ -24,7 +24,6 @@ import type {
   ProductAttributeGroupDTO,
   StorefrontProductDetailDTO,
   StorefrontRailDTO,
-  BannerDTO,
   StorefrontHomeDTO,
   StorefrontCategoryDTO,
   ProductSort,
@@ -114,7 +113,6 @@ export type {
   ProductAttributeGroupDTO,
   StorefrontProductDetailDTO,
   StorefrontRailDTO,
-  BannerDTO,
   StorefrontHomeDTO,
   StorefrontCategoryDTO,
   ProductSort,
@@ -198,7 +196,6 @@ export interface CustomerCommerceContract {
   productCard: StorefrontProductCardDTO;
   productDetail: StorefrontProductDetailDTO;
   rail: StorefrontRailDTO;
-  banner: BannerDTO;
   media: MediaDTO;
   attributeGroup: ProductAttributeGroupDTO;
   category: StorefrontCategoryDTO;

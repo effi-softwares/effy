@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 
 import { btnClass } from "@/components/storefront/actions"
 

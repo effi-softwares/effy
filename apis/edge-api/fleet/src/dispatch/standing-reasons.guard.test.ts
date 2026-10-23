@@ -48,8 +48,8 @@ describe("UNASSIGNED_WORK joins standing reasons by stage", () => {
   // The hub-side half must list exactly what the delivery gather would plan.
   it("lists hub-side packages by the delivery gather's own conditions", () => {
     expect(hubSide).toMatch(/rp\.state\s*=\s*'picked_up'/);
-    // 082 — Effy delivers it (079's one definition, never the method), and its day has come.
-    expect(hubSide).toMatch(/package_delivered_by\([\s\S]*?opd\.slot_id\)\s*=\s*'effy'/);
+    // 082 — Effy delivers it (the order's type, never the method), and its day has come.
+    expect(hubSide).toMatch(/o\.delivery_type\s*=\s*'effy'/);
     expect(hubSide).toMatch(/opd\.window_start IS NULL OR opd\.window_start <= \$1::timestamptz/);
     expect(hubSide).not.toMatch(/delivery_method\s*=\s*'same_day'/);
     expect(hubSide).toMatch(/sf\.status\s*=\s*'collected'/);

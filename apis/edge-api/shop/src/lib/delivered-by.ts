@@ -1,4 +1,3 @@
-import { fulfilmentDeliveredBySql } from "@effy/edge-shared/delivery";
 import type { DeliveredBy } from "@effy/shared-types";
 
 export type { DeliveredBy };
@@ -16,4 +15,4 @@ export type { DeliveredBy };
  * method; the day the new delivery model goes on, a "standard" package is one an Effy driver
  * delivers, and the word would be wrong on the screen of the one person handing it over.
  */
-export const DELIVERED_BY_SQL = `CASE ${fulfilmentDeliveredBySql("o", "sf")} WHEN 'effy' THEN 'effy_driver' ELSE 'courier' END`;
+export const DELIVERED_BY_SQL = `CASE o.delivery_type WHEN 'effy' THEN 'effy_driver' ELSE 'courier' END`;

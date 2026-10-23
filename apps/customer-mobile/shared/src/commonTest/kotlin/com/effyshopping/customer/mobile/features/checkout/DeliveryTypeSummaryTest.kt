@@ -40,8 +40,8 @@ class DeliveryTypeSummaryTest {
 
     private fun JsonObject.str(key: String): String? = this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.content
 
-    private fun delivery(input: JsonObject): OrderDelivery? =
-        input["delivery"]?.takeIf { it !is JsonNull }?.jsonObject?.let {
+    private fun delivery(input: JsonObject): OrderDelivery =
+        input.getValue("delivery").jsonObject.let {
             OrderDelivery(
                 type = if (it.str("type") == "courier") DeliveryType.COURIER else DeliveryType.EFFY,
                 courierEstimate = it.str("courierEstimate"),
@@ -86,7 +86,7 @@ class DeliveryTypeSummaryTest {
             val expect = c.getValue("expect").jsonObject
             val now = assertNotNull(DeliveryWindowText.epochMillisOrNull(c.str("now")!!))
             assertEquals(
-                DeliverySummary(heading = expect.str("heading"), lines = expect.getValue("lines").jsonArray.map { it.jsonPrimitive.content }),
+                DeliverySummary(heading = expect.str("heading")!!, lines = expect.getValue("lines").jsonArray.map { it.jsonPrimitive.content }),
                 deliverySummary(delivery(input), arrivals(input), now, aedt),
                 c.str("name"),
             )

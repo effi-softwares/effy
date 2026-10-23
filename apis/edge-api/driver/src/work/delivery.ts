@@ -123,7 +123,7 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
       const manifest = manifests.get(id);
       return {
         ref: r.order_number,
-        packageCode: codes.get(id), // 089 — the code on bag 1's label
+        packageCode: codes.get(id)!, // 089 — the code on bag 1's label
         parcels: bags.get(id) ?? [], // 096 — every bag of this package
         // ⚠ HOW MANY shops contributed, never WHICH. Hidden fulfilment is a product rule, not a UI
         // choice — a driver learning which shops served an order would leak it to the customer. A
@@ -209,7 +209,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
   const res = await query<{
     local_date: string;
     run_id: string;
-    kind: string;
+    kind: "collection" | "delivery";
     completed_at: Date | null;
     stop_count: string;
     package_count: string;
@@ -314,7 +314,7 @@ export async function history(driverId: string): Promise<HistoryDTO> {
   for (const r of runRows) {
     byDay.get(r.local_date)!.runs.push({
       runId: r.run_id,
-      type: r.kind === "collection" ? "collection" : "same_day_delivery",
+      type: r.kind,
       completedAt: r.completed_at ? r.completed_at.toISOString() : null,
       stopCount: Number(r.stop_count),
       packageCount: Number(r.package_count),

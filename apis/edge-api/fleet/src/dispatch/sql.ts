@@ -5,7 +5,7 @@
 // before automation is even needed — Effy sits below where an SMB vendor says an engine is required.
 // The engine earns its place by making the common case automatic and the EXCEPTIONAL case visible.
 
-import { COURIER_COLLECTION_SQL, deliveredBySql } from "@effy/edge-shared/delivery";
+import { COURIER_COLLECTION_SQL } from "@effy/edge-shared/delivery";
 import { ROUND_STAGE_COLUMNS, ROUND_STAGE_LATERAL, TO_RETURN_SQL } from "@effy/edge-shared/delivery";
 
 /** 093 — a dispatcher's waiver of the cross-run gate, with who gave it. */
@@ -16,7 +16,6 @@ const WAIVER_COLUMNS = `wv.reason AS waiver_reason, wv.created_at AS waiver_at,
          COALESCE(NULLIF(btrim(wst.name), ''), wst.email::text) AS waiver_staff`;
 
 /** Who takes a parcel to the customer — 079's one definition, over these queries' aliases. */
-const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
 
 /** Every round today, with who holds it and how much is left. */
 export const DAY_ROUNDS = `
@@ -83,7 +82,7 @@ export const UNASSIGNED_WORK = `
          o.order_number                          AS order_number,
          s.name                                  AS shop_name,
          z.name                                  AS zone_name,
-         ${DELIVERED_BY}                         AS delivered_by,
+         o.delivery_type                         AS delivered_by,
          opd.window_start                        AS window_start,
          sf.state_changed_at                     AS ready_since,
          'collection'::text                      AS stage,
@@ -139,7 +138,7 @@ export const UNASSIGNED_WORK = `
     LEFT JOIN public.assignment_exclusion   ae ON ae.shop_fulfillment_id = sf.id
                                               AND ae.kind = 'delivery'
    WHERE rp.state = 'picked_up'
-     AND ${DELIVERED_BY} = 'effy'
+     AND o.delivery_type = 'effy'
      AND (opd.window_start IS NULL OR opd.window_start <= $1::timestamptz)
      AND sf.status = 'collected'
      AND NOT EXISTS (

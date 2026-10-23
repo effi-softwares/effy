@@ -110,10 +110,8 @@ export function isLegalTransition(from: FulfillmentStatus, to: FulfillmentStatus
  * link, a fee or another shop's parcel.
  */
 export interface DeliveryPromise {
-  serviceLevel: string;
   readyBy: Date;
-  /** Absent only where a caller derives a promise without a fulfilment to ask about. */
-  deliveredBy?: "effy_driver" | "courier";
+  deliveredBy: "effy_driver" | "courier";
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
 }

@@ -32,10 +32,10 @@ function money(amount: string | null, currency: string): string {
  * them; an unknown kind (a newer backend) is dropped rather than printed as a code.
  */
 export function deliveryLinesVars(
-  lines: { kind: string; amount: string }[] | null | undefined,
+  lines: { kind: string; amount: string }[],
   currency: string,
 ): { hasDeliveryLines: boolean; deliveryLines: { label: string; amount: string }[] } {
-  const known = (lines ?? []).filter((l): l is { kind: DeliveryFeeLineKind; amount: string } => l.kind in DELIVERY_FEE_LINE_LABEL);
+  const known = lines.filter((l): l is { kind: DeliveryFeeLineKind; amount: string } => l.kind in DELIVERY_FEE_LINE_LABEL);
   return {
     hasDeliveryLines: known.length > 0,
     deliveryLines: known.map((l) => ({ label: DELIVERY_FEE_LINE_LABEL[l.kind], amount: money(l.amount, currency) })),
@@ -130,7 +130,6 @@ export function arrivalText(
  * carrying. It says who delivers and the ESTIMATE THE ORDER WAS SOLD (the order's own copy, never
  * today's setting), in the same two sentences the checkout and the order page print (`courierLines`).
  *
- * An order Effy delivers — and every order placed before 079 — reads exactly as it did.
  */
 export function deliveryVars(
   order: { delivery_type?: string | null; courier_estimate?: string | null; delivery_promise?: string | null; asap_estimate?: string | null },
@@ -161,7 +160,7 @@ export function deliveryVars(
   return { deliveryLabel: "Arriving", deliveryEstimate: arrival.estimate, deliveryMethod: arrival.method, deliveryPreheader: `Arriving ${arrival.estimate}.` };
 }
 
-/** What the receipt says when the platform has promised no day. Every order placed before 069. */
+/** What the receipt says when the platform has promised no day. */
 const UNCONFIRMED = "a date we'll confirm";
 
 function midSentence(text: string): string {
@@ -235,7 +234,7 @@ export function createReceiptSender(opts: ReceiptSenderOptions) {
         hasDiscount: isPositive(discountTotal(order)),
         discountLabel: order.promotion_names?.length
           ? `Discount · ${order.promotion_names.join(", ")}`
-          : order.promo_code ? `Discount ${order.promo_code}` : "Discount",
+          : "Discount",
         discountAmount: money(discountTotal(order), currency),
         hasDeliveryFee: isPositive(order.delivery_fee_amount),
         deliveryFee: money(order.delivery_fee_amount, currency),

@@ -72,6 +72,6 @@ describe("the shop service never reads the customer's delivery promise (069)", (
 
   it("still reads its OWN ready-by — the guard must not have been satisfied by deleting the promise", () => {
     const all = files.map((f) => readFileSync(f, "utf8")).join("\n");
-    expect(all).toMatch(/promised_ready_at/);
+    expect(all).toMatch(/DEFAULT_READY_WINDOW_MS/);
   });
 });

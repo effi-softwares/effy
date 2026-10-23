@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AuthedEvent } from "./claims";
-import { groups, parseGroups, subject } from "./claims";
+import { parseGroups, subject } from "./claims";
 
 // The stringified-groups gotcha (research D3): the raw JWT carries a JSON array, but
 // the authorizer context stringifies it — differently per gateway flavor. The parser

@@ -10,7 +10,7 @@
 // could not be noticed by anyone.
 
 import { bagsToCheckIn, closeRunCheckin, collectedPackages } from "@effy/edge-shared/delivery";
-import { query, withTransaction } from "@effy/edge-shared";
+import { withTransaction } from "@effy/edge-shared";
 import { accountFor, countByPackage, expectedParcels, recordHandovers, recordReads, writeParcelHolds } from "@effy/edge-shared/labels";
 import type { CollectRequest, HubCheckinRequest, HubCheckinResponse } from "@effy/shared-types";
 

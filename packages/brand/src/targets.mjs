@@ -319,7 +319,6 @@ export const TARGETS = [
 
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────
   ...mobileTargets("customer-mobile", "customer-mobile", "tile"),
-  ...mobileTargets("shop-mobile", "shop-mobile", "tile"),
   // 092 — the driver app gets the same set of icons and splash as the customer app (out of scope before).
   // 092 — its own mark: the "e." whose full stop is a blue steering wheel (src/logo-driver.svg).
   ...mobileTargets("driver-mobile", "driver-mobile", "driver").map((t) => ({ ...t, mark: "driver" })),
@@ -356,12 +355,10 @@ export const MANAGED_DIRS = [
   "apps/shop-web/public",
   "apps/back-office/public",
   "apps/customer-mobile/androidApp/src/main/res/drawable",
-  "apps/shop-mobile/androidApp/src/main/res/drawable",
   "apps/driver-mobile/androidApp/src/main/res/drawable",
   "apps/customer-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
-  "apps/shop-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
   "apps/driver-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
-  ...["customer-mobile", "shop-mobile", "driver-mobile"].flatMap((app) => [
+  ...["customer-mobile", "driver-mobile"].flatMap((app) => [
     ...ANDROID_MIPMAP.map(([density]) => `apps/${app}/androidApp/src/main/res/mipmap-${density}`),
     `apps/${app}/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`,
   ]),

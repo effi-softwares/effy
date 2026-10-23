@@ -100,9 +100,10 @@ day — that word is ROUTING; a courier order's customer DTO carries `delivery` 
 - ⚠ **SHOPS ARE TOLD "Effy driver" / "Courier" AND NOTHING ELSE** (`deliveredBy`, `DELIVERED_BY_WORDS`);
   `scripts/check-shop-delivery-words.sh` fails "same-day"/"standard" on a shop screen. Drivers and dispatch
   likewise: `scripts/check-driver-delivery-words.sh`.
-- ⚠ **COMPATIBILITY FIELDS ARE KEPT ON THE DRIVER AND SHOP WIRE (083)** so installed apps keep working —
-  there is no app-update mechanism: driver `kind: "same_day_delivery"`, `sameDayCount`, `standardCount`;
-  shop `deliveryMethod`. Marked `@deprecated — compatibility (083)`. Do not remove them without one.
+- ⚠ **NO COMPATIBILITY FIELDS (cleanup, 2026-10-23).** With no installed builds, every field kept only for an
+  older app or server was removed (a driver round's kind is `delivery`; no `deliveryMethod` for shops; no
+  `home.banners`). A contract field is required unless it is genuinely absent in some state. There is
+  still no app-update mechanism: once builds are in people's hands, a removal needs a compatibility plan.
 
 **Courier parcels (080).** A courier order's parcels reach the courier **via the hub** or by **pickup from
 the supplier** (`order.courier_collection`; staff may switch one order until its first parcel leaves). The
@@ -157,13 +158,12 @@ The full platform is **five active client surfaces + one backend + DB migrations
 The customer audience gets **two surfaces kept at parity** (a native mobile build and a native web
 build); the shop audience has **one — `shop-web`**.
 
-⚠ **THE SHOP MOBILE APP IS STOPPED (2026-10-21, operator decision).** `apps/shop-mobile` stays in the
-tree but is no longer developed: no feature plans, tasks or parity work for it, and it is never a "gap".
-Every shop feature is built for `shop-web` only.
+⚠ **THERE IS NO SHOP MOBILE APP.** It was stopped on 2026-10-21 and deleted on 2026-10-23 (with its
+Kotlin contract, Cognito app client and brand assets); git history has it. Every shop feature is built
+for `shop-web` only.
 
 - **Mobile (2 active):** `customer` / `driver` — Kotlin Multiplatform + Compose Multiplatform
-  (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito). (`shop` —
-  stopped, above.)
+  (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito).
 - **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `shop-web` (Vite SPA, shop
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
@@ -492,23 +492,20 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   pages, tabs, and detail rows.
 
 ## Mobile apps (scaffolded)
-Three KMP + Compose Multiplatform apps live under `apps/`, each an **independent Gradle build** with
+Two KMP + Compose Multiplatform apps live under `apps/`, each an **independent Gradle build** with
 the standard three-module layout (`shared` + `androidApp` + `iosApp`) and package root
 `com.effyshopping.<app>.mobile`:
 - `apps/customer-mobile` — `com.effyshopping.customer.mobile` — the customer shopping app.
 - `apps/driver-mobile` — `com.effyshopping.driver.mobile` — the driver delivery app.
-- `apps/shop-mobile` — `com.effyshopping.shop.mobile` — the shop-operator app. ⚠ **STOPPED
-  (2026-10-21)** — kept in the tree, not developed; shop features go to `shop-web` only.
 
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
-compileSdk + targetSdk 36**. ⚠ **ALL THREE APPS MUST PIN THE SAME TRIO — `composeMultiplatform`,
+compileSdk + targetSdk 36**. ⚠ **BOTH APPS MUST PIN THE SAME TRIO — `composeMultiplatform`,
 `kotlin` AND `material3` — AND THE DRIVER APP ONCE DID NOT.** Commit `6c7beaf` bumped it to CMP 1.12.0
 / Kotlin 2.4.20 and left `material3` at 1.11.0-alpha07; material3 1.11 calls
 `foundation.style.StyleScope.border(Dp, Color)`, whose signature changed in foundation 1.12, so every
 screen with an `OutlinedTextField` — starting with **sign-in** — died at launch with
 `kotlin.internal.IrLinkageError`. Gradle resolved, Kotlin compiled, host tests passed: Kotlin/Native
-defers an unresolved symbol to RUNTIME. All three are currently the base KMP template (commonMain
-`Greeting`/`Platform` stubs); each feature's stack is layered in per that feature's plan/tasks.
+defers an unresolved symbol to RUNTIME.
 
 ## Current status
 Built so far: the **infrastructure** (four Cognito pools, dev DB, the shared and staff HTTP gateways), the
@@ -517,20 +514,15 @@ three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`
 (011 — the first PUBLIC surface, Next.js 16 SSR)** — on the shared packages
 `@effy/{design-system,shared-types,api-client,web-kit}`.
 
-**Two of the three KMP mobile apps are now built** (KMP + Compose, Clean Architecture + MVVM, native
-Amplify auth behind a `commonMain` `AuthDriver`; a formal `ViewModel → UseCase → Driver/Repository`
-domain layer): **`apps/customer-mobile` (013)** and **`apps/shop-mobile` (014 — signed off, EMAIL_OTP
-only, single-token, the RBAC manager gate, tablet-first; ⚠ development STOPPED 2026-10-21 — the shop
-audience is `shop-web` only)**. ⚠ **`apps/driver-mobile` is BUILT TOO** —
+**Both KMP mobile apps are built** (KMP + Compose, Clean Architecture + MVVM, native Amplify auth behind
+a `commonMain` `AuthDriver`; a formal `ViewModel → UseCase → Driver/Repository` domain layer):
+**`apps/customer-mobile` (013)** and **`apps/driver-mobile`** —
 049 gave it the full hub-and-spoke operation and **060 gave it its appearance** (all 45 design screens,
 cobalt). ⚠ **MapLibre was ADOPTED AND THEN REMOVED in the same feature** — it aborted the app under
 Xcode's debug build (SIGABRT on its own render thread) and `MapLibreAbsentGuardTest` keeps it out; the
 map is a **schematic**, not cartography. This sentence said "OpenStreetMap via MapLibre + OpenFreeMap"
-and had been false since that removal. ⚠ The sentence here previously read *"remains the base
-template"*, which had been **false since 049** and is the same stale-claim shape that left the app out of
-the shared asset pipeline for four features (see 060 T019). All three mobile apps share a **production
-navigation shell** (015 — `packages/mobile-kit`:
-adaptive bottom-bar/rail + per-tab back stacks; customer guest-first with deferred sign-in, shop login-first;
+and had been false since that removal. Both apps share a **production navigation shell** (015 —
+`packages/mobile-kit`: adaptive bottom-bar/rail + per-tab back stacks; customer guest-first with deferred sign-in;
 built on stable Material 3, Nav3-migration-ready).
 
 **The commerce path is built and live in dev**: catalogue, search and facets, cart and promo, saved
@@ -637,7 +629,7 @@ Features recorded:
 - **019-customer-commerce-flow** — Customer Commerce Flow (Browse → Order)
 - **017-platform-theme-tokens** — Platform Theme & Design Tokens Refresh
 - **015-mobile-app-shell** — Mobile App Shell & Navigation (Customer + Shop)
-- **014-shop-mobile-foundation** — Shop Mobile Foundation (Bootstrap)
+- **014-shop-mobile-foundation** — Shop Mobile Foundation (Bootstrap) — app deleted 2026-10-23
 - **013-customer-mobile-foundation** — Customer Mobile Foundation
 - **012-customer-profile-management** — Customer Profile Management
 - **011-customer-storefront-web** — Customer Storefront (Bootstrap)

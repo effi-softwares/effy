@@ -555,7 +555,6 @@ data class ProblemJSON (
      */
     val errors: List<ProblemFieldIssue>? = null,
 
-    val fields: List<ProblemFieldIssue>? = null,
     val instance: String? = null,
     val status: Double,
     val title: String,

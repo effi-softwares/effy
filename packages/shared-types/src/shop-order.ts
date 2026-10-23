@@ -86,24 +86,15 @@ export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = [
 /**
  * What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).
  *
- * Owned by 021. While only one service level exists, `readyBy` is a constant offset from the order's
- * placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).
+ * `readyBy` is a constant offset from the order's placement, so ordering by promise IS ordering by
+ * arrival (FR-001b, SC-020).
  *
  * ⚠ 079 — it says who takes the package away as ONE OF TWO WORDS (`deliveredBy`), and nothing more:
  * there is still no driver's name, no courier company and no reference here, by design.
  */
 export interface DeliveryPromiseDTO {
-  /**
-   * @deprecated 079 — a constant ("standard") that was printed to shop staff as if it meant
-   * something. It is the customer's word, and a shop is shown `deliveredBy`. Kept on the wire for
-   * shop apps installed before 079.
-   */
-  serviceLevel: string;
-  /**
-   * 079 — who takes this package away from the shop: an Effy driver or a courier. Absent from a
-   * server older than 079. Print it through `DELIVERED_BY_WORDS`.
-   */
-  deliveredBy?: DeliveredBy;
+  /** 079 — who takes this package away from the shop. Print it through `DELIVERED_BY_WORDS`. */
+  deliveredBy: DeliveredBy;
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO;
   /** ISO-8601. The time by which THIS shop must be ready. */

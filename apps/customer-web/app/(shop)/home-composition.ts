@@ -1,4 +1,5 @@
-import type { BannerDTO, StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontRailDTO } from "@effy/shared-types"
+import type { Banner } from "./promotion-groups"
+import type { StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontRailDTO } from "@effy/shared-types"
 
 /**
  * The home page's section sequence, as data (039 US3).
@@ -18,7 +19,7 @@ import type { BannerDTO, StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontRai
 export type HomeSection =
   | { kind: "categories"; categories: StorefrontCategoryDTO[] }
   | { kind: "rail"; key: string; rail: StorefrontRailDTO; href: string }
-  | { kind: "offers"; block: "a" | "b"; title: string; banners: BannerDTO[] }
+  | { kind: "offers"; block: "a" | "b"; title: string; banners: Banner[] }
 
 /** How many promotions the large-plus-two-stacked block shows before the next block takes over. */
 const OFFERS_PER_BLOCK = 3
@@ -59,8 +60,8 @@ function railSection(rail: StorefrontRailDTO | undefined): HomeSection | null {
 export function composeSections(
   home: StorefrontHomeDTO,
   categories: StorefrontCategoryDTO[],
-  /** 094 — the `home-between` display group; absent → the deprecated `inline` banners. */
-  between?: BannerDTO[],
+  /** 094 — the `home-between` display group; absent when its read failed. */
+  between: Banner[] = [],
 ): HomeSection[] {
   const sections: HomeSection[] = []
   const used = new Set<string>()
@@ -76,21 +77,11 @@ export function composeSections(
     sections.push({ kind: "categories", categories })
   }
 
-  // ⚠ NO CAROUSEL SECTION (operator direction, 2026-08-09). `PromoCarousel` used to occupy this slot
-  // with the `carousel`-placement banners; it is removed and the component deleted.
-  //
-  // ⚠ CAROUSEL-PLACEMENT BANNERS ARE NOT ORPHANED — `PromoHero` renders `home.banners` UNFILTERED at
-  // the top of the page, so every advertised promotion still appears. But that is the ONLY thing
-  // showing them now: restore the static `Hero` in place of `PromoHero` and the carousel-placement
-  // promotions vanish from the storefront with nothing reporting it. The `inline` ones below are
-  // unaffected either way.
-
-  // ⚠ `inline` is the DEDICATED OFFERS placement (029 FR-027), exclusive with `carousel`. Block A
-  // takes the first three and block B takes what is left — so FR-020's "MUST NOT duplicate a promotion
-  // already shown above" is structural: there is one list and each block consumes from it.
-  const offers = between ?? home.banners.filter((b) => b.placement === "inline")
-  const blockA = offers.slice(0, OFFERS_PER_BLOCK)
-  const blockB = offers.slice(OFFERS_PER_BLOCK, OFFERS_PER_BLOCK * 2)
+  // The hero promotions are `PromoHero`'s (the `home-hero` group). The offers between sections are the
+  // `home-between` group: block A takes the first three and block B what is left, so FR-020's "MUST NOT
+  // duplicate a promotion already shown above" is structural — one list, each block consumes from it.
+  const blockA = between.slice(0, OFFERS_PER_BLOCK)
+  const blockB = between.slice(OFFERS_PER_BLOCK, OFFERS_PER_BLOCK * 2)
 
   // 2 — the discount rail leads: it is the reason a shopper who is only browsing keeps scrolling.
   const onSale = take("on_sale")

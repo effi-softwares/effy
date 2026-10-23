@@ -223,7 +223,7 @@ async function Overview({ searchParams }: { searchParams: Promise<{ tab?: string
                       <span className="font-medium">{o.orderNumber}</span>
                       <span className="block text-xs text-muted-foreground">
                         {o.itemCount} {o.itemCount === 1 ? "item" : "items"}
-                        {o.delivery ? ` · ${DELIVERY_TYPE_WORDS[o.delivery.type]}` : ""}
+                        {` · ${DELIVERY_TYPE_WORDS[o.delivery.type]}`}
                       </span>
                     </td>
                     <td className="py-3 pr-4 max-sm:hidden">{day(o.placedAt, SHORT) ?? "—"}</td>

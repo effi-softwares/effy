@@ -160,20 +160,16 @@
           },
           "type": "array"
         },
-        "method": {
-          "$ref": "#/definitions/PackageMethod",
-          "deprecated": "082 — routing, never shown. Read `deliveredBy`. Kept for driver builds that predate it (E9)."
-        },
         "packageCode": {
-          "description": "089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers.",
+          "description": "089 — the code printed on this package's label (`EFY1:<code>`): bag 1's.",
           "type": "string"
         },
         "packageId": {
-          "description": "The package's own id — what `CollectRequest.packages[].packageId` names. ⚠ Until this was on the wire the app could not say WHICH package a report was about, so it sent none and the whole stop was marked unavailable. Optional only so an app built against it still reads an older server.",
+          "description": "The package's own id — what `CollectRequest.packages[].packageId` names.",
           "type": "string"
         },
         "parcels": {
-          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag.",
           "items": {
             "$ref": "#/definitions/ParcelDTO"
           },
@@ -194,9 +190,12 @@
         }
       },
       "required": [
+        "packageId",
+        "packageCode",
+        "parcels",
         "ref",
         "destinationSuburb",
-        "method",
+        "deliveredBy",
         "items",
         "summary"
       ],
@@ -273,18 +272,11 @@
             "null"
           ]
         },
-        "packageCodes": {
-          "description": "089 — the codes printed on this stop's package labels, for matching a scan with no signal.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "packageCount": {
           "$ref": "#/definitions/WireInt"
         },
         "parcels": {
-          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "description": "096 — the stop's live BAGS, each with its own code (\"Bag n of N\"), for matching a scan with no signal.",
           "items": {
             "$ref": "#/definitions/ParcelDTO"
           },
@@ -313,6 +305,7 @@
         "shopCode",
         "address",
         "packageCount",
+        "parcels",
         "status"
       ],
       "type": "object"
@@ -502,18 +495,11 @@
         "orderRef": {
           "type": "string"
         },
-        "packageCodes": {
-          "description": "089 — the codes printed on this drop's package labels, for matching a scan with no signal.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "packageCount": {
           "$ref": "#/definitions/WireInt"
         },
         "parcels": {
-          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "description": "096 — the drop's live BAGS, each with its own code (\"Bag n of N\"), for matching a scan with no signal.",
           "items": {
             "$ref": "#/definitions/ParcelDTO"
           },
@@ -560,6 +546,7 @@
         "orderRef",
         "customerSuburb",
         "packageCount",
+        "parcels",
         "window",
         "status",
         "summary"
@@ -643,7 +630,7 @@
               "type": "null"
             }
           ],
-          "description": "088 — parcels from failed drops on this run, still with the driver, to be checked back in at the hub. `null` (or absent, from an older server) when there are none."
+          "description": "088 — parcels from failed drops on this run, still with the driver, to be checked back in at the hub. `null` when there are none."
         }
       },
       "required": [
@@ -652,7 +639,8 @@
         "drops",
         "opening",
         "deadlineAt",
-        "dueLabel"
+        "dueLabel",
+        "toReturn"
       ],
       "type": "object"
     },
@@ -687,7 +675,7 @@
           "type": "string"
         },
         "hubSort": {
-          "description": "090 — where each package on this run goes at the hub, in the platform's words, so the hub scan can say it with no signal. Optional: absent from an older server.",
+          "description": "090 — where each package on this run goes at the hub, in the platform's words, so the hub scan can say it with no signal.",
           "items": {
             "$ref": "#/definitions/HubSortInstruction"
           },
@@ -747,7 +735,8 @@
         "stops",
         "opening",
         "deadlineAt",
-        "dueLabel"
+        "dueLabel",
+        "hubSort"
       ],
       "type": "object"
     },
@@ -817,7 +806,7 @@
       "description": "⚠ `LocationRequest` STOOD HERE AND IS GONE (061) — see the note below.",
       "enum": [
         "collection",
-        "same_day_delivery",
+        "delivery",
         "idle"
       ],
       "type": "string"
@@ -826,7 +815,7 @@
       "description": "The two kinds of work a driver run can be. Named as a type by 056 because back-office reads it too — it was an inline union used once, and a second consumer is exactly when a concept earns a name (Principle II: one definition per concept, not one per file).\n\n⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and then a same-day round in the same shift; neither is a role they hold.",
       "enum": [
         "collection",
-        "same_day_delivery"
+        "delivery"
       ],
       "type": "string"
     },
@@ -922,11 +911,11 @@
           "type": "array"
         },
         "packageCode": {
-          "description": "089 — the code printed on this package's label (`EFY1:<code>`). Optional for older servers.",
+          "description": "089 — the code printed on this package's label (`EFY1:<code>`): bag 1's.",
           "type": "string"
         },
         "parcels": {
-          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag.",
           "items": {
             "$ref": "#/definitions/ParcelDTO"
           },
@@ -941,6 +930,8 @@
       },
       "required": [
         "ref",
+        "packageCode",
+        "parcels",
         "fromShopCount",
         "items",
         "summary"
@@ -1458,12 +1449,11 @@
       "properties": {
         "courierCount": {
           "$ref": "#/definitions/WireInt",
-          "description": "080 — parcels a COURIER takes from the hub (package_delivered_by = courier). The app says \"Courier\"."
+          "description": "080 — parcels a COURIER takes from the hub. The app says \"Courier\"."
         },
         "effyCount": {
           "$ref": "#/definitions/WireInt",
-          "deprecated": "— compatibility (083): kept so installed apps keep working\n(a driver build from before 082 reads them). So are the `same_day_delivery` values of\n`DriverPhase`, `DriverRunType` and a round's `kind`: they mean \"an Effy delivery round\".",
-          "description": "082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two groups, \"Effy delivery\" (these) and \"Courier\", and the driver classifies nothing. ⚠ `label` is written by the server (\"Today, 4 pm – 6 pm\", \"Thu 15 Oct, 10 am – 12 pm\"): the app has no timezone database and never formats a day itself. A parcel sold no window has null instants. ⚠ `sameDayCount` / `standardCount` above are"
+          "description": "082 — parcels EFFY delivers, in all and by the day and window each waits for. The app shows two groups, \"Effy delivery\" (these) and \"Courier\", and the driver classifies nothing. ⚠ `label` is written by the server (\"Today, 4 pm – 6 pm\", \"Thu 15 Oct, 10 am – 12 pm\"): the app has no timezone database and never formats a day itself. A parcel sold no window has null instants."
         },
         "effyGroups": {
           "items": {
@@ -1482,21 +1472,15 @@
             "null"
           ]
         },
-        "sameDayCount": {
-          "$ref": "#/definitions/WireInt"
-        },
         "scannedTotal": {
           "$ref": "#/definitions/WireInt"
-        },
-        "standardCount": {
-          "$ref": "#/definitions/WireInt",
-          "deprecated": "080 — read `courierCount`. Kept for driver builds that predate it."
         }
       },
       "required": [
         "scannedTotal",
-        "sameDayCount",
-        "standardCount"
+        "courierCount",
+        "effyCount",
+        "effyGroups"
       ],
       "type": "object"
     },
@@ -1524,6 +1508,7 @@
       },
       "required": [
         "packageCode",
+        "parcelCodes",
         "kind",
         "label"
       ],
@@ -1677,13 +1662,6 @@
         "temperatureClass"
       ],
       "type": "object"
-    },
-    "PackageMethod": {
-      "enum": [
-        "same_day",
-        "standard"
-      ],
-      "type": "string"
     },
     "ParcelDTO": {
       "additionalProperties": false,
@@ -1839,13 +1817,6 @@
           },
           "type": "array"
         },
-        "packageCodes": {
-          "description": "090 — the label codes of the parcels to return, for the return scan.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "parcels": {
           "description": "092 rev 2 — each parcel, for the Return to hub screen: its ref, where it was for and why it came back.",
           "items": {
@@ -1860,7 +1831,8 @@
       "required": [
         "runId",
         "count",
-        "orders"
+        "orders",
+        "parcels"
       ],
       "type": "object"
     },
@@ -1936,13 +1908,6 @@
         },
         "errors": {
           "description": "⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues under `errors`; `fields` was the name only this type used, so every reader keying off it saw nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).",
-          "items": {
-            "$ref": "#/definitions/ProblemFieldIssue"
-          },
-          "type": "array"
-        },
-        "fields": {
-          "deprecated": "The wire uses `errors`. Kept so older readers still compile.",
           "items": {
             "$ref": "#/definitions/ProblemFieldIssue"
           },
@@ -2101,7 +2066,7 @@
           "type": "string"
         },
         "parcels": {
-          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag; `packageCode(s)` is bag 1's code and stays for reading old labels.",
+          "description": "096 — the package's live BAGS, each with its own code (\"Bag n of N\"). Every step accounts for every bag.",
           "items": {
             "$ref": "#/definitions/ParcelDTO"
           },
@@ -2131,6 +2096,7 @@
       "required": [
         "ref",
         "packageCode",
+        "parcels",
         "place",
         "reason"
       ],
@@ -2541,7 +2507,7 @@
         "kind": {
           "enum": [
             "collection",
-            "same_day_delivery"
+            "delivery"
           ],
           "type": "string"
         },

@@ -2,7 +2,6 @@ import type { DeliveryFeeBreakdownDTO, DeliveryFeeDTO, DeliveryFeeLineDTO } from
 
 import { formatCents } from "../lib/money";
 import type { FeeLine } from "./engine";
-import type { Plan } from "./plan";
 import type { PricedFee } from "./quote";
 
 /**

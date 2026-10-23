@@ -18,7 +18,6 @@ vi.mock("@effy/edge-shared", () => ({
 }))
 
 const { addNote, changeStatus, detail, list, reply } = await import("./service")
-const { FeedbackError } = await import("./types")
 
 const actor = { sub: "staff-1", name: "Alex Ops" }
 

@@ -1,7 +1,8 @@
+import type { Banner } from "../promotion-groups"
 import { render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 
-import { starterSettings, type BannerDTO } from "@effy/shared-types"
+import { starterSettings } from "@effy/shared-types"
 
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 
@@ -10,7 +11,7 @@ const { isDesigned } = await import("./skin-designed")
 const { PromoHero } = await import("./PromoHero")
 
 /** 095 — a promotion wears its place's skin; Classic (or no skin) keeps the pre-095 drawing. */
-const banner = (over: Partial<BannerDTO> & Record<string, unknown> = {}) => ({
+const banner = (over: Partial<Banner> & Record<string, unknown> = {}) => ({
   key: "p1",
   title: "10% off the winter shop",
   subtitle: "3 times per customer",

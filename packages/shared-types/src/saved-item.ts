@@ -123,10 +123,8 @@ export interface SavedMembershipDTO {
    * "Saved" is un-saved; a product in a named list opens the list chooser instead, because one tap
    * must never remove something from a list the shopper built (068 FR-020). The platform enforces
    * the same rule (`409`), so a client that ignores this field is safe, just less graceful.
-   *
-   * Optional: a backend older than 068 omits it, and absent reads as empty.
    */
-  namedProductIds?: string[];
+  namedProductIds: string[];
 }
 
 /** One device-held saved item being offered to an account (FR-028). */

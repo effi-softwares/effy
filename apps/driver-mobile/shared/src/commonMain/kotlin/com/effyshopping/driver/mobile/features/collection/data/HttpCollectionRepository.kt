@@ -14,7 +14,6 @@ import com.effyshopping.driver.mobile.contract.DriverCollectionRunDTO
 import com.effyshopping.driver.mobile.contract.HubCheckinRequest
 import com.effyshopping.driver.mobile.contract.HubCheckinResponse
 import com.effyshopping.driver.mobile.contract.DeliveredBy as DtoDeliveredBy
-import com.effyshopping.driver.mobile.contract.PackageMethod as DtoMethod
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
@@ -33,7 +32,6 @@ import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
 import com.effyshopping.driver.mobile.features.collection.domain.HubSort
 import com.effyshopping.driver.mobile.features.collection.domain.HubSortKind
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
-import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.Collected
 import com.effyshopping.driver.mobile.features.collection.domain.PackageOutcome
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
@@ -111,9 +109,8 @@ class HttpCollectionRepository(
             offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in", queued = { null }) {
                 val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
                 HubSplit(
-                    r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt(), r.courierCount?.toInt(),
-                    // 082 — null from a server that predates it; the domain falls back to the counts above.
-                    r.effyGroups?.map { g -> EffyGroup(g.label, g.count.toInt(), g.dueToday) },
+                    r.scannedTotal.toInt(), r.courierCount.toInt(),
+                    r.effyGroups.map { g -> EffyGroup(g.label, g.count.toInt(), g.dueToday) },
                     nextCourierPickupLabel = r.nextCourierPickupLabel?.takeIf { it.isNotBlank() },
                     held = r.held?.toInt() ?: 0,
                 )
@@ -144,22 +141,18 @@ private fun stopStatus(s: CollectionStopStatus): StopStatus = when (s) {
     CollectionStopStatus.CollectionStopStatusShort -> StopStatus.SHORT
 }
 
-private fun method(m: DtoMethod): PackageMethod =
-    if (m == DtoMethod.SameDay) PackageMethod.SAME_DAY else PackageMethod.STANDARD
-
 private fun DriverCollectionRunDTO.toDomain() = CollectionRun(
     runId = runID,
     status = status,
     stops = stops.map {
         CollectionStop(
             it.stopID, it.sequence.toInt(), it.shopName, it.shopCode, it.packageCount.toInt(), stopStatus(it.status), it.address,
-            packageCodes = it.packageCodes.orEmpty(),
-            bags = it.parcels.orEmpty().map { b -> b.toDomain() },
+            bags = it.parcels.map { b -> b.toDomain() },
         )
     },
     opening = opening.toOpening(),
     dueLabel = dueLabel,
-    hubSort = hubSort.orEmpty().map { HubSort(it.packageCode, hubSortKind(it.kind), it.label, bagCodes = it.parcelCodes.orEmpty()) },
+    hubSort = hubSort.map { HubSort(it.packageCode, hubSortKind(it.kind), it.label, bagCodes = it.parcelCodes) },
     map = map?.toDomain(),
 )
 
@@ -177,12 +170,12 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
     shopCode = shopCode,
     packages = packages.map { p ->
         CollectionPackage(
-            p.ref, p.destinationSuburb, method(p.method), p.items.map { it.toDomain() }, p.summary.toDomain(),
-            toCourier = p.deliveredBy?.let { it == DtoDeliveredBy.Courier },
-            windowLabel = p.windowLabel,
+            p.ref, p.destinationSuburb, p.items.map { it.toDomain() }, p.summary.toDomain(),
+            goesToCourier = p.deliveredBy == DtoDeliveredBy.Courier,
             packageId = p.packageID,
             packageCode = p.packageCode,
-            bags = p.parcels.orEmpty().map { b -> b.toDomain() },
+            bags = p.parcels.map { b -> b.toDomain() },
+            windowLabel = p.windowLabel,
         )
     },
     status = stopStatus(status),

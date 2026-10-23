@@ -54,13 +54,6 @@ describe("079 — the order's delivery type, for staff", () => {
     expect(screen.getByText("Delivered by Effy", { selector: "dd" })).toBeInTheDocument();
     expect(screen.queryByText("Customer was told")).not.toBeInTheDocument();
   });
-
-  it("⚠ an order placed before delivery types says so, and invents nothing", () => {
-    render(<DeliveryTypeSection formatDateTime={when} order={order({})} />);
-    expect(screen.getByText(/placed before orders had a delivery type/)).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByText("Delivered by")).not.toBeInTheDocument();
-  });
 });
 
 describe("081 — moves by back-office, on the order", () => {

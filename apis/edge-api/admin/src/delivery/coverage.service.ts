@@ -143,7 +143,6 @@ export async function list(input: ListQuery): Promise<CoverageListDTO> {
       blockedBy,
       // On and ready, waiting for the new delivery model: no customer is offered it yet (079 FR-035).
       pending: courier.state === "courier_pending",
-      canBeOffered: blockedBy.length === 0,
       exclusions,
     },
     counts: { listed: totals.listed, manualDistance: totals.manualDistance, needsReview: totals.needsReview, todayNotOffered: totals.todayNotOffered },

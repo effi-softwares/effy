@@ -30,11 +30,11 @@ export type DeliveryTypeReason = "in_coverage" | "out_of_coverage" | "no_window"
 /** 085 — what an Effy order was sold: a time on a day, a day with no time, or "as soon as possible". */
 export type DeliveryPromise = "window" | "day" | "asap";
 
-/** An order's delivery, as a customer contract carries it. ABSENT on an order placed before 079. */
+/** An order's delivery, as a customer contract carries it. */
 export interface OrderDeliveryDTO {
   type: DeliveryType;
   /**
-   * 085 — absent on a courier order and on one placed before 085 (read as `window`).
+   * 085 — absent on a courier order.
    * ⚠ `day`: the arrival carries the day and no hours. `asap`: no arrival at all, only `asapEstimate`.
    */
   promise?: DeliveryPromise;
@@ -143,21 +143,21 @@ export function asapSentence(estimate: string): string {
 
 /** What a customer surface prints for an order's delivery. */
 export interface DeliverySummary {
-  /** "Delivered by Effy" / "Courier delivery"; null for an order placed before 079. */
-  heading: string | null;
+  /** "Delivered by Effy" / "Courier delivery". */
+  heading: string;
   /** Never empty. */
   lines: string[];
 }
 
 /** The fields `deliverySummary` reads — the customer's `OrderDTO` satisfies it. */
 export interface DeliverySummaryInput {
-  delivery?: OrderDeliveryDTO | null;
+  delivery: OrderDeliveryDTO;
   arrivalEstimates: readonly (ArrivalPromise & { method?: string | null })[];
 }
 
 /**
  * The customer's word for an Effy delivery, from the package's method: "Same-day delivery" for a
- * window today, "Standard delivery" for a later day (and for every order that predates windows).
+ * window today, "Standard delivery" for a later day.
  * ⚠ Never call it for a courier order: its packages' method is how they are routed, not what was sold.
  */
 export function deliveryMethodWord(method: string | null | undefined): string {
@@ -174,7 +174,6 @@ export function deliveryMethodWord(method: string | null | undefined): string {
  *   Effy, a later day      → "Delivered by Effy" · "Standard delivery · Thu 8 Oct, 4 pm – 6 pm"
  *   Effy, a day, no time   → "Delivered by Effy" · "Standard delivery · Thu 8 Oct · Any time during the day"
  *   Effy, as soon as poss. → "Delivered by Effy" · "As soon as possible — usually within 2–3 days"
- *   placed before 079      → no heading · one line per distinct promise, as it was sold
  *   moved by back-office   → the above, then `movedLines` (081)
  *
  * ⚠ A courier order NEVER reads its arrival estimates: it has no window and no day, and the
@@ -183,7 +182,7 @@ export function deliveryMethodWord(method: string | null | undefined): string {
  * many suppliers there were.
  */
 export function deliverySummary(order: DeliverySummaryInput, now: Date): DeliverySummary {
-  if (order.delivery?.type === "courier") {
+  if (order.delivery.type === "courier") {
     const lines = courierLines(order.delivery.courierEstimate ?? "");
     // 080 — several consignments: say tracking comes by email. One link is a link, not a sentence;
     // surfaces render it from `delivery.tracking` themselves.
@@ -193,17 +192,17 @@ export function deliverySummary(order: DeliverySummaryInput, now: Date): Deliver
     return { heading: DELIVERY_TYPE_WORDS.courier, lines };
   }
   // "As soon as possible" was sold an estimate, never a day.
-  if (order.delivery?.promise === "asap") {
+  if (order.delivery.promise === "asap") {
     const lines = [asapSentence(order.delivery.asapEstimate ?? ""), ...movedLines(order.delivery.moved)];
     return { heading: DELIVERY_TYPE_WORDS.effy, lines };
   }
-  const anyTime = order.delivery?.promise === "day" ? ` · ${DELIVERY_WINDOW_WORDS.anyTimeDay}` : "";
+  const anyTime = order.delivery.promise === "day" ? ` · ${DELIVERY_WINDOW_WORDS.anyTimeDay}` : "";
   const arrivals = distinctArrivals(order.arrivalEstimates);
   const lines = arrivals.length === 0
     ? [formatArrival({ promisedFrom: null, promisedTo: null }, now)]
     : arrivals.map((a) => `${deliveryMethodWord(a.method)} · ${formatArrival(a, now)}${anyTime}`);
-  lines.push(...movedLines(order.delivery?.moved));
-  return { heading: order.delivery?.type === "effy" ? DELIVERY_TYPE_WORDS.effy : null, lines };
+  lines.push(...movedLines(order.delivery.moved));
+  return { heading: DELIVERY_TYPE_WORDS.effy, lines };
 }
 
 /**

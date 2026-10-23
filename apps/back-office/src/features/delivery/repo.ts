@@ -90,7 +90,7 @@ export async function listSlots(): Promise<DeliverySlotDTO[]> {
 }
 /**
  * 078 — the same route, whole: every window with how full it is on today and on each Effy delivery
- * day after it. `days` is absent from a server older than 078; the panel then shows today alone.
+ * day after it.
  */
 export function listSlotGrid(): Promise<DeliverySlotsResponseDTO> {
   return api.get<DeliverySlotsResponseDTO>("/fleet/v1/delivery-slots");

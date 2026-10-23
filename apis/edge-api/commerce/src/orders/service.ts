@@ -79,11 +79,11 @@ export function paymentSplit(row: Pick<OrderRow, "points_used" | "points_value_a
 
 /**
  * 079 — who delivers the order, as the customer contract carries it: the type, and a courier's
- * timeframe AS SOLD (the order's own copy — never today's setting). ABSENT on an order placed before
- * 079, which has no delivery type; every surface prints the result through `deliverySummary`.
+ * timeframe AS SOLD (the order's own copy — never today's setting). Every surface prints the result
+ * through `deliverySummary`.
  */
 function deliveryOf(row: {
-  delivery_type?: "effy" | "courier" | null;
+  delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
   delivery_promise?: DeliveryPromise | null;
   asap_estimate?: string | null;
@@ -96,16 +96,14 @@ function deliveryOf(row: {
   moved_compensation?: string | null;
   moved_amount_cents?: number | null;
   moved_points?: number | null;
-}): { delivery?: OrderDeliveryDTO } {
-  if (!row.delivery_type) return {};
+}): { delivery: OrderDeliveryDTO } {
   const courier = row.delivery_type === "courier";
   const tracking = courier ? trackingOf(row) : undefined;
   const moved = movedOf(row);
   return {
     delivery: {
       type: row.delivery_type, courierEstimate: courier ? row.courier_estimate ?? null : null,
-      // 085 — what was sold; an Effy order from before 085 was sold a window.
-      ...(courier ? {} : { promise: row.delivery_promise ?? "window" }),
+      ...(courier ? {} : { promise: row.delivery_promise! }),
       ...(!courier && row.delivery_promise === "asap" && row.asap_estimate ? { asapEstimate: row.asap_estimate } : {}),
       ...(tracking ? { tracking } : {}), ...(moved ? { moved } : {}),
     },
@@ -266,16 +264,10 @@ export function createOrdersService(deps: { repo: OrdersRepository; imageAddress
         itemSubtotalAmount: row.item_subtotal_amount,
         discountAmount: row.discount_amount,
         deliveryFeeAmount: row.delivery_fee_amount,
-        // 077 — the same charge as lines. ⚠ Absent on an order placed before 077, which has only
-        // the single amount above; never an empty array standing in for "unknown".
-        ...(row.delivery_fee_lines ? { deliveryFee: { lines: row.delivery_fee_lines, totalAmount: row.delivery_fee_amount } } : {}),
+        // 077 — the same charge as lines, exactly as sold.
+        deliveryFee: { lines: row.delivery_fee_lines, totalAmount: row.delivery_fee_amount },
         promoCode: row.promo_code,
-        // 094 — each promotion as sold; an order from before 094 shows its one code.
-        promotions: row.promotions
-          ? row.promotions.map((p) => ({ headline: p.headline ?? p.name, code: p.code, goodsAmount: p.goods, deliveryAmount: p.delivery }))
-          : row.promo_code && row.discount_amount !== "0.00"
-            ? [{ headline: row.promo_code, code: row.promo_code, goodsAmount: row.discount_amount, deliveryAmount: "0.00" }]
-            : [],
+        promotions: (row.promotions ?? []).map((p) => ({ headline: p.headline ?? p.name, code: p.code, goodsAmount: p.goods, deliveryAmount: p.delivery })),
         deliveryDiscountAmount: row.delivery_discount_amount,
         grandTotalAmount: row.grand_total_amount,
         currency: row.currency,

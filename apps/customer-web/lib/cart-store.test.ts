@@ -114,6 +114,7 @@ describe("the cart mirror — persistence and adoption", () => {
     currency: "AUD",
     notices: [],
     discount: null,
+    promotions: [],
     checkout: { allowed: false, blockedReason: "empty", minimumSubtotalAmount: null, remainingAmount: null },
     limits: { maxLineQuantity: 99, maxDistinctItems: 100 },
     ...over,
@@ -150,15 +151,6 @@ describe("the cart mirror — persistence and adoption", () => {
   })
 
   // 098 — a mirror from before variants names products, which can no longer be bought as such.
-  it("drops a product-keyed cart from before 098 instead of guessing a size for it", () => {
-    window.localStorage.clear()
-    window.localStorage.setItem("effy:cart", JSON.stringify([line("legacy", 3)]))
-    window.localStorage.setItem("effy:cart:v2", JSON.stringify({ version: 2, cart: { lines: [line("old", 1)] } }))
-    expect(readCart().lines).toEqual([])
-    expect(window.localStorage.getItem("effy:cart")).toBeNull()
-    expect(window.localStorage.getItem("effy:cart:v2")).toBeNull()
-  })
-
   it("two sizes of one product are two lines; changing one leaves the other", () => {
     window.localStorage.clear()
     addToCart({ ...line("p", 1), variantId: "p-500g", variantLabel: "500 g" })

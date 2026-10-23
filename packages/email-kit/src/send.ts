@@ -11,7 +11,7 @@ import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 
 import { profileFor, replyAddressFor, type Audience } from "./audience.js";
 import { CATALOG, messageTagFor, type MessageEntry, type TemplateId, type VarsFor } from "./catalog.js";
-import { identityFromEnv, MailConfigError } from "./config.js";
+import { identityFromEnv } from "./config.js";
 import { render } from "./render.js";
 
 // ⚠ Re-exported so existing importers of `@effy/email-kit/send` (the config-contract tests, edge

@@ -33,7 +33,6 @@ export const handler = async (
           // untyped here); 080 found it adding `courierPickup` beside it.
           deliveredBy: l.deliveredBy,
           ...(l.courierPickup ? { courierPickup: l.courierPickup } : {}),
-          deliveryMethod: l.deliveryMethod,
           lines: l.lines,
         })),
         more,

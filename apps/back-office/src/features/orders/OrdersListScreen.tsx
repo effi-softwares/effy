@@ -293,7 +293,7 @@ function OrderRow({ order: o, focused }: { order: OrderSummary; focused: boolean
       <td data-m="badge">{o.statusView ? <PackageStatusPill view={o.statusView} showDetail={false} icons /> : "—"}</td>
       <td data-m="meta">
         {/* 079 — who delivers it; a dash for an order from before delivery types — nothing is guessed. */}
-        <span className="whitespace-nowrap">{o.deliveryType ? deliveryTypeText(o.deliveryType) : "—"}</span>
+        <span className="whitespace-nowrap">{deliveryTypeText(o.deliveryType)}</span>
         {o.promise && o.promise !== "window" ? <span className="bo-sub">{PROMISE_LABEL[o.promise]}</span> : null}
       </td>
       <td data-m="hide">

@@ -51,7 +51,11 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
     itemSubtotalAmount: "22.60",
     discountAmount: "0.00",
     deliveryFeeAmount: "8.00",
+    deliveryFee: { lines: [{ kind: "delivery", amount: "8.00" }], totalAmount: "8.00" },
     promoCode: null,
+    promotions: [],
+    deliveryDiscountAmount: "0.00",
+    delivery: { type: "effy", courierEstimate: null, promise: "window" },
     grandTotalAmount: "30.60",
     currency: "AUD",
     paymentStatus: "succeeded",
@@ -105,7 +109,9 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
           itemSubtotalAmount: "6.20",
           discountAmount: "1.20",
           promoCode: "SPRING10",
+          promotions: [{ headline: "Spring offer", code: "SPRING10", goodsAmount: "1.20", deliveryAmount: "0.00" }],
           deliveryFeeAmount: "8.00",
+          deliveryFee: { lines: [{ kind: "delivery", amount: "8.00" }], totalAmount: "8.00" },
           grandTotalAmount: "13.00",
         })}
       />,
@@ -122,7 +128,7 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
   it("omits a zero discount and a zero delivery fee entirely", () => {
     render(
       <ReceiptDocument
-        order={order({ discountAmount: "0.00", deliveryFeeAmount: "0.00", grandTotalAmount: "22.60" })}
+        order={order({ discountAmount: "0.00", deliveryFeeAmount: "0.00", deliveryFee: { lines: [], totalAmount: "0.00" }, grandTotalAmount: "22.60" })}
       />,
     )
     expect(screen.queryByText(/Discount/)).not.toBeInTheDocument()

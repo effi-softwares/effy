@@ -4,7 +4,7 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, parseJsonBody, preamble, problem, ProblemType } from "@effy/edge-shared";
 
-import { gate, mapOrderError, toOrderDTO } from "../orders/handler-support";
+import { gate, mapOrderError } from "../orders/handler-support";
 import * as parcels from "../parcels/service";
 
 export const handler = async (

@@ -1,5 +1,3 @@
-import type { Queryable } from "../lib/db";
-import { coverageForPostcode } from "./coverage";
 
 const POSTCODE = /^[0-9]{4}$/;
 

@@ -39,7 +39,7 @@ fi
 # A delay inside a loop, in a file that also calls a re-read from that loop. Deliberately simple:
 # it reads each file once and reports a `while` block containing both `delay(` and a call whose
 # name starts with refresh/reload/load/fetch/poll.
-mobile_hits=$(find apps/customer-mobile/shared/src/commonMain apps/shop-mobile/shared/src/commonMain apps/driver-mobile/shared/src/commonMain \
+mobile_hits=$(find apps/customer-mobile/shared/src/commonMain apps/driver-mobile/shared/src/commonMain \
     -name '*.kt' -print0 2>/dev/null \
   | xargs -0 awk '
       FNR == 1 { inloop = 0; depth = 0; hasdelay = 0; hasread = 0 }

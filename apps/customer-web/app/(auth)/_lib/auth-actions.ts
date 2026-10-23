@@ -5,7 +5,6 @@ import {
   confirmSignIn,
   confirmSignUp,
   resetPassword,
-  confirmResetPassword,
   resendSignUpCode,
   signIn,
   signInWithRedirect,

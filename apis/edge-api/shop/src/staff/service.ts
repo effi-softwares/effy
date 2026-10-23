@@ -1,4 +1,4 @@
-import { authorizeShopManager, authorizeShopRefund, upsertOnContact } from "./repository";
+import { authorizeShopRefund, upsertOnContact } from "./repository";
 import type { ShopStaffRecord } from "./types";
 
 // Orchestration only: no HTTP, no SQL (constitution Principle VI).

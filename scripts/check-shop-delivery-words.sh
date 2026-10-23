@@ -25,7 +25,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 hits=$(grep -rnE "([\"'\`>][^\"'\`<]*\b([Ss]ame-[Dd]ay|Same [Dd]ay|[Ss]tandard delivery)\b)|([\"'\`>]Standard[\"'\`<])" \
-    apps/shop-web/src apps/shop-mobile/shared/src/commonMain \
+    apps/shop-web/src \
     --include='*.ts' --include='*.tsx' --include='*.kt' 2>/dev/null \
   | grep -vE "(\.test\.|__tests__/|/commonTest/)" \
   | grep -vE "^[^:]+:[0-9]+:\s*(//|\*|/\*)" \

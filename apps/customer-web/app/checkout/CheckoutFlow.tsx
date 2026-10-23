@@ -108,7 +108,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [step, setStep] = useState<Step>("review")
   const [intent, setIntent] = useState<CreateCheckoutIntentResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // 047: the delivery quote for the chosen address — serviceability + the standard fee, shown BEFORE
   // pay (no drip). The server owns the fee; this display never sends one. Re-fetched when the shipping
@@ -317,7 +316,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     }
     setBusy(true)
     setError(null)
-    setNotice(null)
     try {
       // Send `billingAddressId` ONLY when the customer diverged — the toggle is OFF and the chosen
       // billing differs from shipping. Same-as / equal → omit it so the server stores NULL (FR-009/010).

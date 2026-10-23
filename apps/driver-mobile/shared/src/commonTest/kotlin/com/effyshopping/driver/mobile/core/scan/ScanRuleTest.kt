@@ -3,7 +3,6 @@ package com.effyshopping.driver.mobile.core.scan
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionPackage
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
-import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRun
@@ -12,6 +11,7 @@ import com.effyshopping.driver.mobile.features.delivery.domain.DropPackage
 import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
 import com.effyshopping.driver.mobile.features.delivery.domain.ParcelsToReturn
+import com.effyshopping.driver.mobile.features.delivery.domain.ReturnParcel
 import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,16 +22,17 @@ import kotlin.test.assertTrue
 /** 090 — one rule, every step (quickstart P1). */
 class ScanRuleTest {
     private fun label(code: String) = "EFY1:$code"
+    private fun bags(vararg codes: String) = codes.map { Bag(it, 1, 1, BagZone.AMBIENT) }
 
     // ── S1 — at a shop ──────────────────────────────────────────────────────────────────────────
     private val run = CollectionRun(
         runId = "r1", status = "active",
         stops = listOf(
-            CollectionStop("s1", 1, "Green Grocer", "GG", 2, StopStatus.ASSIGNED, packageCodes = listOf("AAAAAA", "BBBBBB")),
-            CollectionStop("s2", 2, "Fish Co", "FC", 1, StopStatus.ASSIGNED, packageCodes = listOf("CCCCCC")),
+            CollectionStop("s1", 1, "Green Grocer", "GG", 2, StopStatus.ASSIGNED, bags = bags("AAAAAA", "BBBBBB")),
+            CollectionStop("s2", 2, "Fish Co", "FC", 1, StopStatus.ASSIGNED, bags = bags("CCCCCC")),
         ),
     )
-    private fun pkg(code: String) = CollectionPackage("EFY-1", "Richmond", PackageMethod.SAME_DAY, emptyList(), ClassSummary.Empty, packageCode = code)
+    private fun pkg(code: String) = CollectionPackage("EFY-1", "Richmond", emptyList(), ClassSummary.Empty, goesToCourier = false, packageId = code, packageCode = code, bags = bags(code))
     private val stop = ShopStop("s1", "Green Grocer", "GG", listOf(pkg("AAAAAA"), pkg("BBBBBB")), StopStatus.ASSIGNED)
 
     @Test fun at_a_shop_each_expected_package_counts_once_and_the_stop_completes() {
@@ -74,13 +75,13 @@ class ScanRuleTest {
     private val deliveryRun = DeliveryRun(
         runId = "d1", status = "active",
         drops = listOf(
-            DropSummary("p1", 1, "EFY-1", "Carlton", 2, DropStatus.STAGED, packageCodes = listOf("DDDDDD", "EEEEEE")),
-            DropSummary("p2", 2, "EFY-2", "Fitzroy", 1, DropStatus.STAGED, packageCodes = listOf("FFFFFF")),
+            DropSummary("p1", 1, "EFY-1", "Carlton", 2, DropStatus.STAGED, bags = bags("DDDDDD", "EEEEEE")),
+            DropSummary("p2", 2, "EFY-2", "Fitzroy", 1, DropStatus.STAGED, bags = bags("FFFFFF")),
         ),
     )
     private val drop = Drop(
         dropId = "p1", orderRef = "EFY-1", customerName = "A", addressFull = "1 St", instructions = null,
-        packages = listOf(DropPackage("EFY-1", 1, packageCode = "DDDDDD"), DropPackage("EFY-1", 1, packageCode = "EEEEEE")),
+        packages = listOf(DropPackage("EFY-1", 1, packageCode = "DDDDDD", bags = bags("DDDDDD")), DropPackage("EFY-1", 1, packageCode = "EEEEEE", bags = bags("EEEEEE"))),
         status = DropStatus.ARRIVED,
     )
 
@@ -100,13 +101,13 @@ class ScanRuleTest {
 
     // ── S5 — return ─────────────────────────────────────────────────────────────────────────────
     @Test fun returning_expects_the_parcels_to_return() {
-        val s = ScanSession(ScanContexts.returnToHub(ParcelsToReturn("d1", 1, listOf("EFY-2"), listOf("FFFFFF"))))
+        val s = ScanSession(ScanContexts.returnToHub(ParcelsToReturn("d1", 1, listOf("EFY-2"), listOf(ReturnParcel("EFY-2", "FFFFFF", null, null, bags("FFFFFF"))))))
         assertEquals(ScanOutcome.Accepted("FFFFFF"), s.judge(label("FFFFFF")))
         assertTrue(s.isComplete)
     }
 
     @Test fun undo_forgets_a_scan() {
-        val s = ScanSession(ScanContexts.returnToHub(ParcelsToReturn("d1", 1, listOf("EFY-2"), listOf("FFFFFF"))))
+        val s = ScanSession(ScanContexts.returnToHub(ParcelsToReturn("d1", 1, listOf("EFY-2"), listOf(ReturnParcel("EFY-2", "FFFFFF", null, null, bags("FFFFFF"))))))
         s.judge(label("FFFFFF"))
         s.forget("FFFFFF")
         assertFalse(s.isComplete)

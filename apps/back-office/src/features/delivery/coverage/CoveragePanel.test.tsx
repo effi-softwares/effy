@@ -29,7 +29,7 @@ const { CoveragePanel, CourierPage } = await import("./CoveragePanel");
 
 const courier = (over: Partial<CourierReachDTO> = {}): CourierReachDTO => ({
   offered: false, whenNoWindows: false, collectionDefault: "hub", defaultService: null,
-  blockedBy: [], pending: false, canBeOffered: true, exclusions: [], ...over,
+  blockedBy: [], pending: false, exclusions: [], ...over,
 });
 
 const service = (over: Partial<CourierServiceDTO> = {}): CourierServiceDTO => ({

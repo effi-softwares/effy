@@ -4,10 +4,9 @@
 // to select (D20/D22). A shop has an ADDRESS so a driver knows where to drive; nothing computes how
 // far it is.
 
-import { COURIER_COLLECTION_SQL, deliveredBySql, heldSql, vehicleCheckStateSql } from "@effy/edge-shared/delivery";
+import { COURIER_COLLECTION_SQL, heldSql, vehicleCheckStateSql } from "@effy/edge-shared/delivery";
 
 /** Who takes a parcel to the customer — 079's one definition, over the gathers' aliases. */
-const DELIVERED_BY = deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id");
 
 /**
  * Packages a wave may pick up: ready, not already in an open assignment, and — for a delivery wave —
@@ -32,7 +31,7 @@ export const GATHER_COLLECTION = `
          sf.shop_id                              AS shop_id,
          s.name                                  AS shop_name,
          s.address_line1, s.address_line2, s.suburb, s.postcode, s.state,
-         ${DELIVERED_BY}                         AS delivered_by,
+         o.delivery_type                         AS delivered_by,
          opd.window_start                        AS window_start,
          opd.window_end                          AS window_end,
          z.id                                    AS zone_id,
@@ -173,7 +172,7 @@ export const GATHER_DELIVERY = `
     LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = (o.delivery_address ->> 'postalCode')
     LEFT JOIN public.delivery_zone          z  ON z.id = zp.zone_id AND z.status = 'active'
    WHERE rp.state = 'picked_up'
-     AND ${DELIVERED_BY} = 'effy'
+     AND o.delivery_type = 'effy'
      AND (opd.window_start IS NULL OR opd.window_start <= $2::timestamptz)
      -- 093 — declared missing at loading or check-in: held for a dispatcher, never re-planned by itself.
      AND NOT ${heldSql("sf.id")}

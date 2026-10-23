@@ -29,12 +29,5 @@ internal fun ParcelDTO.toDomain(): Bag = Bag(
     },
 )
 
-/**
- * The bags a package travels as. An older server sends none: then the package's own code stands for its
- * one bag, exactly as before 096.
- */
-fun bagsOrPackage(bags: List<Bag>, packageCode: String?): List<Bag> =
-    bags.ifEmpty { listOfNotNull(packageCode).map { Bag(it, 1, 1, BagZone.AMBIENT) } }
-
 /** The numbering the scan rule's words need ("Bag 2 of 3"). */
 fun List<Bag>.numbers(): Map<String, BagNumber> = associate { it.code to BagNumber(it.seq, it.of) }

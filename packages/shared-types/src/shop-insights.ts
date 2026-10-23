@@ -94,8 +94,6 @@ export interface ShopLiveOrderDTO {
   deliveredBy: DeliveredBy
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
-  deliveryMethod: "same_day" | "standard" | null
   /**
    * ⚠ The ORDER's total — the same figure the Orders list shows for this row (057 A3), which is why
    * it is not the same basis as Insights' Revenue (this shop's goods only, FR-032). The Insights
@@ -297,8 +295,6 @@ export interface ShopPickListDTO {
   deliveredBy: DeliveredBy
   /** 080 — present only when a courier collects this package from the shop. */
   courierPickup?: CourierPickupDTO
-  /** @deprecated 079 — the customer's word; shops are shown `deliveredBy`. Removed at the cutover. */
-  deliveryMethod: "same_day" | "standard" | null
   /** 098 — `variantLabel` is the size/flavour sold; null with no options. */
   lines: Array<{ name: string; variantLabel?: string | null; variantCode?: string | null; sku: string | null; quantity: WireInt }>
 }

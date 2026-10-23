@@ -84,9 +84,8 @@ export async function refreshSaved(): Promise<void> {
   try {
     const res = await fetch("/api/saved/ids")
     if (!res.ok) return // 401 = guest; the local mirror is already their truth
-    const body = (await res.json()) as { productIds?: string[]; namedProductIds?: string[] }
-    // A backend from before 068 sends no `namedProductIds`; an empty set is the safe reading.
-    if (Array.isArray(body.productIds)) adoptSaved(body.productIds, body.namedProductIds ?? [])
+    const body = (await res.json()) as { productIds: string[]; namedProductIds: string[] }
+    adoptSaved(body.productIds, body.namedProductIds)
   } catch {
     /* transient — the next page load repairs it */
   }

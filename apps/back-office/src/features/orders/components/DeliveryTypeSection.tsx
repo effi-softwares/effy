@@ -62,44 +62,38 @@ export function DeliveryTypeSection({
           </h2>
         </div>
         <div className="bo-panel__body space-y-4">
-          {!order.deliveryType ? (
-            <p className="text-sm text-muted-foreground">
-              This order was placed before orders had a delivery type. Each package says who delivered it.
-            </p>
-          ) : (
-            <dl className="bo-dl bo-dl--tight">
+          <dl className="bo-dl bo-dl--tight">
+            <div className="bo-dl__row">
+              <dt>Delivered by</dt>
+              <dd className="font-semibold">{deliveryTypeText(order.deliveryType)}</dd>
+            </div>
+            {order.deliveryTypeReason ? (
               <div className="bo-dl__row">
-                <dt>Delivered by</dt>
-                <dd className="font-semibold">{deliveryTypeText(order.deliveryType)}</dd>
+                <dt>Why</dt>
+                <dd>{DELIVERY_REASON_LABEL[order.deliveryTypeReason]}</dd>
               </div>
-              {order.deliveryTypeReason ? (
-                <div className="bo-dl__row">
-                  <dt>Why</dt>
-                  <dd>{DELIVERY_REASON_LABEL[order.deliveryTypeReason]}</dd>
-                </div>
-              ) : null}
-              {order.courierEstimate ? (
-                <div className="bo-dl__row">
-                  <dt>Customer was told</dt>
-                  {/* The estimate AS SOLD — the order's own copy, in the sentence the customer read. */}
-                  <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
-                </div>
-              ) : null}
-              {/* 085 — what an Effy order was sold. The packages show the day and window it is planned for. */}
-              {order.promise ? (
-                <div className="bo-dl__row">
-                  <dt>Sold as</dt>
-                  <dd>{PROMISE_LABEL[order.promise]}</dd>
-                </div>
-              ) : null}
-              {order.promise === "asap" && order.asapEstimate ? (
-                <div className="bo-dl__row">
-                  <dt>Customer was told</dt>
-                  <dd>{asapSentence(order.asapEstimate)}</dd>
-                </div>
-              ) : null}
-            </dl>
-          )}
+            ) : null}
+            {order.courierEstimate ? (
+              <div className="bo-dl__row">
+                <dt>Customer was told</dt>
+                {/* The estimate AS SOLD — the order's own copy, in the sentence the customer read. */}
+                <dd>{courierEstimateSentence(order.courierEstimate)}</dd>
+              </div>
+            ) : null}
+            {/* 085 — what an Effy order was sold. The packages show the day and window it is planned for. */}
+            {order.promise ? (
+              <div className="bo-dl__row">
+                <dt>Sold as</dt>
+                <dd>{PROMISE_LABEL[order.promise]}</dd>
+              </div>
+            ) : null}
+            {order.promise === "asap" && order.asapEstimate ? (
+              <div className="bo-dl__row">
+                <dt>Customer was told</dt>
+                <dd>{asapSentence(order.asapEstimate)}</dd>
+              </div>
+            ) : null}
+          </dl>
 
           {children}
 

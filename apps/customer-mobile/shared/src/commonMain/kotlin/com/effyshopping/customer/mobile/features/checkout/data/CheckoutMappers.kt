@@ -248,7 +248,7 @@ internal fun com.effyshopping.customer.mobile.commerce.contract.OrderSummaryDTO.
         itemCount = itemCount.toInt(),
         grandTotalAmount = grandTotalAmount,
         currency = currency,
-        delivery = delivery?.toDomain(),
+        delivery = delivery.toDomain(),
         placedAt = placedAt,
         stage = stage?.toDomainStage(),
         arrivals = arrivalEstimates.orEmpty().map {
@@ -322,12 +322,12 @@ internal fun OrderDTO.toReceipt(): Receipt {
         // ⚠ 052 — previously UNMAPPED, so the receipt's lines did not add up whenever delivery was
         // charged (051 FR-043 fixed this on web and never here).
         deliveryFeeAmount = deliveryFeeAmount,
-        deliveryFee = deliveryFee?.toDomain(),
+        deliveryFee = deliveryFee.toDomain(),
         grandTotalAmount = grandTotalAmount,
         currency = currency,
         placedAt = placedAt.orEmpty(),
         // 079 — MAPPED (see `cancellable` below for why that needs saying).
-        delivery = delivery?.toDomain(),
+        delivery = delivery.toDomain(),
         stage = stage.toDomainStage(),
         paymentMethod = paymentMethod?.let {
             PaymentMethodSummary(type = it.type.value, brand = it.brand, last4 = it.last4)

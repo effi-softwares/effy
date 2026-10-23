@@ -301,15 +301,15 @@ fun ShopStopScreen(
     }
     val open = rememberIsOpen(stop.opening)
     val alreadyCollected = stop.status.done
-    val canScan = open && !alreadyCollected && stop.packages.any { it.allBags.isNotEmpty() }
+    val canScan = open && !alreadyCollected && stop.packages.any { it.bags.isNotEmpty() }
     var scanning by rememberSaveable(stop.stopId) { mutableStateOf(startScanning && canScan) }
     var reporting by rememberSaveable(stop.stopId) { mutableStateOf<String?>(null) }
     val run = state.run
     // 096 — a bag not scanned is asked about: it's here (ticked by hand), or it wasn't at the shop.
     var accounting by remember(stop.stopId) { mutableStateOf<List<HandedOver>?>(null) }
     if (scanning) {
-        val live = stop.packages.filter { it.key !in state.reportedPackages && it.allBags.isNotEmpty() }
-        val bags = live.flatMap { p -> p.allBags.map { b -> p to b } }
+        val live = stop.packages.filter { it.key !in state.reportedPackages && it.bags.isNotEmpty() }
+        val bags = live.flatMap { p -> p.bags.map { b -> p to b } }
         val base = if (run != null) ScanContexts.shopStop(run, stop) else ScanContext(emptySet())
         accounting?.let { scanned ->
             val done = scanned.map { it.code }.toSet()
@@ -637,7 +637,7 @@ fun HubCheckinScreen(
     // package left at its shop has no instruction and is not coming.
     val sortByBag = run?.hubSort.orEmpty().flatMap { hs -> hs.bagCodes.ifEmpty { listOf(hs.packageCode) }.map { it to hs } }.toMap()
     fun comingBags(s: com.effyshopping.driver.mobile.features.collection.domain.CollectionStop) =
-        bagsOrPackageCodes(s).filter { b -> sortByBag.isEmpty() || b.code in sortByBag }
+        s.bags.filter { b -> sortByBag.isEmpty() || b.code in sortByBag }
     if (run != null && split == null && !state.checkInSending) {
         accounting?.let { scanned ->
             val done = scanned.map { it.code }.toSet()
@@ -867,10 +867,6 @@ private fun Sending() {
     }
     DriverAlert(DriverAlertKind.Info, Res.drawable.lucide_info, title = "No need to wait here", description = "You can close the app. If the hub's Wi-Fi is available, connect to it to send now.")
 }
-
-/** 096 — a stop's bags, or one per package code from an older server. */
-internal fun bagsOrPackageCodes(s: com.effyshopping.driver.mobile.features.collection.domain.CollectionStop): List<com.effyshopping.driver.mobile.core.scan.Bag> =
-    s.bags.ifEmpty { s.packageCodes.map { com.effyshopping.driver.mobile.core.scan.Bag(it, 1, 1, com.effyshopping.driver.mobile.core.scan.BagZone.AMBIENT) } }
 
 /** "1 bag" / "3 bags". */
 internal fun bagsWord(n: Int): String = if (n == 1) "1 bag" else "$n bags"

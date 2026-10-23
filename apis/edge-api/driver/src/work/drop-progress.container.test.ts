@@ -274,7 +274,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
     expect(t.activeRunId).toBe(roundId);
     expect(t.active).toBeNull();
     expect(t.toReturn).toMatchObject({ runId: roundId, count: 1, orders: ["EFY-WALK01"] });
-    expect(t.toReturn?.packageCodes).toHaveLength(1);
+    expect(t.toReturn?.parcels).toHaveLength(1);
 
     const run = await deliveryRun(roundId, driverId);
     expect(run.toReturn?.count).toBe(1);
@@ -292,7 +292,7 @@ d("064 fix — a drop advances through every state the app sends", () => {
     const drop = await deliveryDrop(dropId, driverId);
     expect(drop.packages.map((p) => p.packageCode)).toEqual([code]);
     const run = await deliveryRun(roundId, driverId);
-    expect(run.drops[0]!.packageCodes).toEqual([code]);
+    expect(run.drops[0]!.parcels.map((b) => b.code)).toEqual([code]);
   });
 
   /** 090/096 — how each BAG was handed over is recorded with the hand-over itself (quickstart Q11). */

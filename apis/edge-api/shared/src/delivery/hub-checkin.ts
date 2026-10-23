@@ -19,7 +19,6 @@ import {
 
 import { expectedParcels, type StepParcel } from "../labels/parcels";
 import { nextCourierPickup, parseClock } from "./courier-pickup";
-import { deliveredBySql } from "./delivery-type";
 import { heldSql } from "./held";
 
 type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
@@ -50,11 +49,10 @@ export async function closeRunCheckin(
   closer: { by: "driver" } | { by: "admin_staff"; sub: string },
 ): Promise<Omit<HubCheckinResponse, "held">> {
   const counts = await tx.query(
-    `SELECT COALESCE(sf.delivery_method, 'standard') AS method,
-            rp.state                                 AS state,
+    `SELECT rp.state                                 AS state,
             -- 080 — who takes it from the hub: what the driver is told ("Courier"), never the
             -- customer's word for the delivery.
-            ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} AS delivered_by,
+            o.delivery_type AS delivered_by,
             opd.window_start                         AS window_start,
             opd.window_end                           AS window_end,
             -- 085 — the "Any time" window: the customer was sold the day, not these hours.
@@ -69,24 +67,19 @@ export async function closeRunCheckin(
       WHERE rs.round_id = $1
         -- 093 — a package declared not in the van did not arrive.
         AND NOT ${heldSql("rp.shop_fulfillment_id")}
-      GROUP BY 1, 2, 3, 4, 5, 6`,
+      GROUP BY 1, 2, 3, 4, 5`,
     [runId],
   );
 
-  const n = (method: string, state: string) =>
-    counts.rows.filter((r: any) => r.method === method && r.state === state).reduce((a: number, r: any) => a + Number(r.n), 0);
-
-  const sameDay = n("same_day", "picked_up");
-  const standard = n("standard", "picked_up");
-  const courier = counts.rows
-    .filter((r: any) => r.delivered_by === "courier" && r.state === "picked_up")
-    .reduce((a: number, r: any) => a + Number(r.n), 0);
-  const arrived = sameDay + standard;
+  const pickedUp = counts.rows.filter((r: any) => r.state === "picked_up");
+  const total = (rows: any[]) => rows.reduce((a: number, r: any) => a + Number(r.n), 0);
+  const arrived = total(pickedUp);
+  const courier = total(pickedUp.filter((r: any) => r.delivered_by === "courier"));
 
   // 082 — Effy's parcels by the day and window each waits for, earliest first, those sold no window
   // last. The label is written here; the app never formats a day.
   const at = new Date();
-  const effyRows = counts.rows.filter((r: any) => r.delivered_by === "effy" && r.state === "picked_up");
+  const effyRows = pickedUp.filter((r: any) => r.delivered_by === "effy");
   const byWindow = new Map<string, HubCheckinEffyGroup>();
   for (const r of effyRows) {
     const windowStart = r.window_start ? new Date(r.window_start).toISOString() : null;
@@ -110,7 +103,7 @@ export async function closeRunCheckin(
   const effyGroups = [...byWindow.values()].sort((a, b) =>
     a.windowStart === null ? 1 : b.windowStart === null ? -1 : a.windowStart.localeCompare(b.windowStart));
   const effyCount = effyGroups.reduce((a, g) => a + g.count, 0);
-  const expected = counts.rows.reduce((a: number, r: any) => a + Number(r.n), 0);
+  const expected = total(counts.rows);
 
   // ⚠ UNIQUE (round_id) makes a retry a retry. The run's own driver is recorded whoever closed it.
   await tx.query(
@@ -133,7 +126,7 @@ export async function closeRunCheckin(
   const nextCourierPickupLabel = courier > 0 ? await courierPickupLabel(tx, at) : null;
 
   return {
-    scannedTotal: arrived, sameDayCount: sameDay, standardCount: standard, courierCount: courier, effyCount, effyGroups,
+    scannedTotal: arrived, courierCount: courier, effyCount, effyGroups,
     nextCourierPickupLabel,
   };
 }

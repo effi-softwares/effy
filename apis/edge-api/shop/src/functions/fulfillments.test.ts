@@ -57,7 +57,6 @@ function event(
   } as unknown as AuthedEvent;
 }
 
-const ACTOR = { shopId: "shop-1", staffId: "staff-1" };
 
 const DETAIL = {
   id: "f-1",

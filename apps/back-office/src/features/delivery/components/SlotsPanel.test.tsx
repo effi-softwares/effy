@@ -34,9 +34,14 @@ const refusal = (status: number, fields?: { field: string; message: string }[]) 
   kind: "unknown", status, title: "Refused", fields,
 });
 
+const TODAY = [{ date: "2026-10-11", isToday: true, nonDelivery: false }];
+
 beforeEach(() => {
   vi.clearAllMocks();
-  repo.listSlotGrid.mockResolvedValue({ items: [slot(), slot({ id: "s2", startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", bookedToday: 3 })] });
+  repo.listSlotGrid.mockResolvedValue({
+    days: TODAY,
+    items: [slot(), slot({ id: "s2", startTime: "19:00", endTime: "21:00", cutoffTime: "17:00", bookedToday: 3 })],
+  });
   repo.createSlot.mockResolvedValue(slot({ id: "s3" }));
   repo.patchSlot.mockResolvedValue(slot());
 });
@@ -88,7 +93,7 @@ describe("SlotsPanel — what an operator reads", () => {
   });
 
   it("⚠ shows 'No limit' in the limit column for a slot without one — never 'null', never 'Full'", async () => {
-    repo.listSlotGrid.mockResolvedValue({ items: [slot({ capacity: null, bookedToday: 40 })] });
+    repo.listSlotGrid.mockResolvedValue({ days: TODAY, items: [slot({ capacity: null, bookedToday: 40 })] });
     renderPanel();
     const row = (await screen.findByText("17:00 – 19:00")).closest("tr")!;
     const cells = within(row).getAllByRole("cell").map((c) => c.textContent);
@@ -98,19 +103,19 @@ describe("SlotsPanel — what an operator reads", () => {
   });
 
   it("says in words when a late payer took a slot over capacity", async () => {
-    repo.listSlotGrid.mockResolvedValue({ items: [slot({ bookedToday: 4, overCapacityToday: 1 })] });
+    repo.listSlotGrid.mockResolvedValue({ days: TODAY, items: [slot({ bookedToday: 4, overCapacityToday: 1 })] });
     renderPanel();
     expect(await screen.findByText("1 over capacity")).toBeInTheDocument();
   });
 
   it("⚠ warns when no window is active — Effy delivery is then offered to nobody", async () => {
-    repo.listSlotGrid.mockResolvedValue({ items: [slot({ status: "disabled" })] });
+    repo.listSlotGrid.mockResolvedValue({ days: TODAY, items: [slot({ status: "disabled" })] });
     renderPanel();
     expect(await screen.findByRole("status")).toHaveTextContent(/Effy delivery is not being offered/i);
   });
 
   it("warns the same way when there are no slots at all", async () => {
-    repo.listSlotGrid.mockResolvedValue({ items: [] });
+    repo.listSlotGrid.mockResolvedValue({ days: TODAY, items: [] });
     renderPanel();
     expect(await screen.findByRole("status")).toHaveTextContent(/not being offered/i);
   });

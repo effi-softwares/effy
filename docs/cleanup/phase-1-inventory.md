@@ -129,3 +129,29 @@ one alarm entry and the `rendition_queue_url` parameter); redeploy back-office.
 `round_opens_at`. That is fixture drift, not a product bug; Phase 5 moves such tests onto the single
 baseline migration. Running files in parallel causes setup timeouts and shared-key collisions in
 driver/fleet/commerce — run them with `--no-file-parallelism`.
+
+## Phase 3 — in progress (2026-10-23)
+
+Done so far, all suites green (JS typecheck + tests, customer and driver app host tests, guard scripts):
+- **Unused code guarded:** 65 unused imports/locals removed; `noUnusedLocals` + `noUnusedParameters` on in all
+  25 tsconfigs. Found on the way: the wallet button ignored `disabled` during a card payment (fixed), and the
+  "busy state clears on every outcome" payment test never pressed Pay (now does, and was proven to fail
+  without the fix).
+- **shop-mobile deleted** (app, Kotlin contract + generator, Compose theme, brand assets, `sm-*` targets,
+  Cognito app client + authorizer audience in Terraform). Untracked local files remain in `apps/shop-mobile/`
+  (build output, `secrets.properties`) for the operator to delete.
+- **Compatibility removed:** every `@deprecated` field (shop `deliveryMethod`/`label`/`promoCode`/`serviceLevel`,
+  driver `method`/`sameDayCount`/`standardCount`/`same_day_delivery`, storefront `home.banners`, `Problem.fields`,
+  `RingStatus`, `canBeOffered`) and every "optional for an older server" field in the driver contract.
+- **Old-order paths removed:** `deliveredBySql` and `package_delivered_by(` callers → `o.delivery_type`; no
+  "placed before 077/079/085/094" branches in commerce, orders, notifications, override, customer-web,
+  back-office or the customer app; `deliverySummary` (+ Kotlin twin + shared fixture) always has a heading.
+- Also fixed: 5 promotion-skin icons that were never declared in the design-system asset source.
+
+Open findings for the operator:
+- The customer app never calls its Kotlin `deliverySummary` — its screens word deliveries themselves, so the
+  "one wording" rule is enforced only by a test of an unused function.
+- Back-office cancel-order route has no button (kept).
+- Container-test fixtures still create orders with no `delivery_type`: fixed together with Phase 5's NOT NULL.
+- Effy planner/dispatch code still handles "a package with no window" (orders before 069); every Effy order
+  now has one — verify and remove with Phase 5.

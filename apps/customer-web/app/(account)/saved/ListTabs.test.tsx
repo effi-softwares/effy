@@ -62,7 +62,7 @@ describe("068 — the lists tab row", () => {
   })
 
   it("deletes on confirmation and returns to Saved", async () => {
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) =>
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
       init?.method === "DELETE"
         ? { ok: true, status: 204, json: async () => undefined }
         : { ok: true, status: 200, json: async () => ({ productIds: [], namedProductIds: [] }) },

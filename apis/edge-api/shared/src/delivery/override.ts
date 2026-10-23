@@ -25,7 +25,7 @@
  * ⚠ Nothing here announces; the caller does after commit, with what `MoveResult` names.
  */
 import type {
-  AdminDeliveryMoveDTO, CustomerCompensationDTO, OrderDeliveryMoveDTO, DeliveryCompensationKind, DeliveryMoveChoiceDTO,
+  AdminDeliveryMoveDTO, CustomerCompensationDTO, DeliveryCompensationKind, DeliveryMoveChoiceDTO,
   DeliveryMovePreviewDTO, DeliveryMoveRefusal, DeliveryMoveWindowDTO, DeliveryType,
 } from "@effy/shared-types";
 import { anyTimeDayLabel, formatArrival } from "@effy/shared-types";
@@ -53,7 +53,6 @@ import { normalizePostcode } from "./zone";
 export const MOVE_REFUSAL_WORDS: Record<DeliveryMoveRefusal, string> = {
   not_found: "That order does not exist.",
   not_paid: "Only a paid order can be moved.",
-  no_delivery_type: "This order was placed before the new delivery model and keeps how it was sold.",
   already_courier: "This order is already going by courier.",
   already_effy: "Effy already delivers this order.",
   handed_over: "A parcel of this order is already with the courier.",
@@ -174,7 +173,7 @@ export interface MoveFacts {
   orderId: string;
   status: string;
   paid: boolean;
-  type: DeliveryType | null;
+  type: DeliveryType;
   updatedAt: string;
   customerId: string;
   postcode: string | null;
@@ -209,7 +208,7 @@ const cents = (v: string | number | null | undefined) => Math.round(Number(v ?? 
 export async function loadMoveFacts(q: Queryable, orderId: string, opts: { lock?: boolean } = {}): Promise<MoveFacts | null> {
   const o = (
     await q.query<{
-      id: string; status: string; delivery_type: DeliveryType | null; updated_at: Date; customer_id: string;
+      id: string; status: string; delivery_type: DeliveryType; updated_at: Date; customer_id: string;
       delivery_address: Record<string, unknown> | null; fee: string | null; breakdown: { inputs?: { grams?: number; basketCents?: number } } | null;
       subtotal: string; discount: string | null; paid: boolean;
     }>(
@@ -334,7 +333,6 @@ export const collectionFor = (f: MoveFacts): "hub" | "supplier" => (f.collected 
  */
 export function guardMove(f: MoveFacts, to: DeliveryType): DeliveryMoveRefusal | null {
   if (!f.paid) return "not_paid";
-  if (f.type === null) return "no_delivery_type";
   if (to === "courier" && f.type === "courier") return "already_courier";
   if (to === "effy" && f.type === "effy") return "already_effy";
   if (f.packages.some((p) => p.delivered)) return "delivered";
@@ -739,7 +737,7 @@ export async function changeEffyWindow(tx: Queryable, input: ChangeEffyWindowInp
   const f = await loadMoveFacts(tx, input.orderId, { lock: true });
   if (!f) throw new DeliveryMoveError("not_found");
   if (!f.paid) throw new DeliveryMoveError("not_paid");
-  if (f.type !== "effy") throw new DeliveryMoveError(f.type === null ? "no_delivery_type" : "already_courier");
+  if (f.type !== "effy") throw new DeliveryMoveError("already_courier");
   if (f.packages.some((p) => p.delivered)) throw new DeliveryMoveError("delivered");
   if (f.packages.some((p) => p.handed)) throw new DeliveryMoveError("handed_over");
   if (hasParcelToReturn(f)) throw new DeliveryMoveError("with_driver_after_failure");

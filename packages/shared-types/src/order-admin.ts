@@ -149,10 +149,10 @@ export interface AdminOrderSummaryDTO {
   drivers: { collect: string[]; deliver: string[] };
   /** 073 — some package is waiting for a driver and nobody has it. */
   needsDriver: boolean;
-  /** 079 — who delivers the order. Null for an order placed before 079. */
-  deliveryType: DeliveryType | null;
-  /** 085 — what an Effy order was sold. Null for a courier order and one placed before delivery types. */
-  promise?: DeliveryPromise | null;
+  /** 079 — who delivers the order. */
+  deliveryType: DeliveryType;
+  /** 085 — what an Effy order was sold. Null for a courier order. */
+  promise: DeliveryPromise | null;
 }
 
 /** 085 — the order list's promise filter (Effy orders only). */
@@ -373,16 +373,16 @@ export interface AdminOrderDetailDTO {
   stage: OrderStage;
   placedAt: string | null;
   createdAt: string;
-  /** 079 — who delivers the order; null for an order placed before 079 (nothing below is then set). */
-  deliveryType: DeliveryType | null;
-  deliveryTypeReason: DeliveryTypeReason | null;
+  /** 079 — who delivers the order. */
+  deliveryType: DeliveryType;
+  deliveryTypeReason: DeliveryTypeReason;
   /** 079 — the courier timeframe as it was SOLD; null unless a courier delivers. */
   courierEstimate: string | null;
-  /** 085 — what an Effy order was sold. Null for courier and pre-delivery-type orders. */
-  promise?: DeliveryPromise | null;
+  /** 085 — what an Effy order was sold. Null for a courier order. */
+  promise: DeliveryPromise | null;
   /** 085 — the estimate an "as soon as possible" customer was told. */
   asapEstimate?: string | null;
-  /** 079 — oldest first. Empty for an order placed before 079: its history is not invented. */
+  /** 079 — oldest first. */
   deliveryTypeHistory: DeliveryTypeChangeDTO[];
   /** 080 — how this courier order's parcels reach the courier; null unless a courier delivers. */
   courierCollection: "hub" | "supplier" | null;
@@ -406,11 +406,8 @@ export interface AdminOrderDetailDTO {
 
   itemSubtotalAmount: string;
   deliveryFeeAmount: string;
-  /**
-   * 077 — how `deliveryFeeAmount` was built, exactly as stored when the order was placed (FR-037).
-   * Absent on an order placed before 077.
-   */
-  deliveryFeeBreakdown?: DeliveryFeeBreakdownDTO;
+  /** 077 — how `deliveryFeeAmount` was built, exactly as stored when the order was placed (FR-037). */
+  deliveryFeeBreakdown: DeliveryFeeBreakdownDTO;
   discountAmount: string;
   promoCode: string | null;
   /** 094 — each promotion applied, as sold; staff also see its internal name. */
@@ -640,7 +637,7 @@ export type DeliveryCompensationKind = (typeof DELIVERY_COMPENSATION_KINDS)[numb
 
 /** Why a move is refused. Each is said to staff in one line (back-office `errorText.ts`). */
 export type DeliveryMoveRefusal =
-  | "not_found" | "not_paid" | "no_delivery_type" | "already_courier" | "already_effy"
+  | "not_found" | "not_paid" | "already_courier" | "already_effy"
   | "handed_over" | "delivered" | "out_for_delivery" | "with_driver_after_failure" | "courier_not_ready"
   | "not_in_area" | "window_unavailable" | "changed" | "compensation_changed";
 

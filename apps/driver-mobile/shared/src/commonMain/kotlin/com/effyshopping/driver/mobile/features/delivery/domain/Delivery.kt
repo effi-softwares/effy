@@ -44,9 +44,7 @@ data class DropSummary(
     val summary: ClassSummary = ClassSummary.Empty,
     /** 069 — the window the customer was sold; null for an order placed before 069. */
     val window: DeliveryWindow? = null,
-    /** 089 — the codes on this drop's package labels; empty from an older server. */
-    val packageCodes: List<String> = emptyList(),
-    /** 096 — every bag of this drop's packages; empty from an older server. */
+    /** 096 — every bag of this drop's packages. */
     val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
     /** 092 rev 2 — the street line, and how a finished drop ended. */
     val street: String? = null,
@@ -54,8 +52,7 @@ data class DropSummary(
     val proofMethod: ProofMethod? = null,
     val failureReason: FailureReason? = null,
 ) {
-    /** The bags to count: the server's, or one per package code from an older server. */
-    val bagCodes: List<String> get() = bags.map { it.code }.ifEmpty { packageCodes }
+    val bagCodes: List<String> get() = bags.map { it.code }
 }
 
 data class DeliveryRun(
@@ -88,13 +85,11 @@ data class ParcelsToReturn(
     val runId: String,
     val count: Int,
     val orders: List<String>,
-    /** 090 — their label codes, for the return scan; empty from an older server. */
-    val packageCodes: List<String> = emptyList(),
     /** 092 rev 2 — each parcel, for the Return to hub screen. */
     val parcels: List<ReturnParcel> = emptyList(),
 ) {
-    /** 096 — the bags to bring back (one per package code from an older server). */
-    val bagCodes: List<String> get() = parcels.flatMap { it.allBags }.map { it.code }.ifEmpty { packageCodes }
+    /** 096 — the bags to bring back. */
+    val bagCodes: List<String> get() = parcels.flatMap { it.bags }.map { it.code }
 }
 
 /** 092 rev 2 — one parcel coming back: its order ref, label code, where it was for, why. 096 — and its bags. */
@@ -104,9 +99,7 @@ data class ReturnParcel(
     val place: String?,
     val reason: FailureReason?,
     val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
-) {
-    val allBags: List<com.effyshopping.driver.mobile.core.scan.Bag> get() = com.effyshopping.driver.mobile.core.scan.bagsOrPackage(bags, packageCode)
-}
+)
 
 /**
  * One physical package at a drop (065).
@@ -119,13 +112,11 @@ data class DropPackage(
     val fromShopCount: Int,
     val items: List<ManifestLine> = emptyList(),
     val summary: ClassSummary = ClassSummary.Empty,
-    /** 089 — the code on this package's label; null from an older server. */
-    val packageCode: String? = null,
+    /** 089 — the code on this package's label: bag 1's. */
+    val packageCode: String,
     /** 096 — this package's bags. */
     val bags: List<com.effyshopping.driver.mobile.core.scan.Bag> = emptyList(),
-) {
-    val allBags: List<com.effyshopping.driver.mobile.core.scan.Bag> get() = com.effyshopping.driver.mobile.core.scan.bagsOrPackage(bags, packageCode)
-}
+)
 
 /**
  * How the customer asked for the order to be handed over (066).

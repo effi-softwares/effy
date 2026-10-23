@@ -6,7 +6,7 @@ import { inPeriod, matchesFilter, orderRowWords, periodsFor } from "./order-summ
 const NOW = new Date("2026-10-12T02:00:00Z") // midday in Melbourne
 const order = (over: Partial<OrderSummaryDTO> = {}): OrderSummaryDTO => ({
   id: "o1", orderNumber: "EF-1", status: "paid", placedAt: "2026-10-12T00:00:00Z", itemCount: 3,
-  grandTotalAmount: "26.00", currency: "AUD", ...over,
+  grandTotalAmount: "26.00", currency: "AUD", delivery: { type: "effy", courierEstimate: null, promise: "window" }, ...over,
 })
 const window = { method: "same_day" as const, promisedFrom: null, promisedTo: null, windowStart: "2026-10-12T16:00:00+11:00", windowEnd: "2026-10-12T18:00:00+11:00" }
 

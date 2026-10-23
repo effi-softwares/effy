@@ -87,17 +87,17 @@ export interface ReceiptOrderRow {
   promotion_names?: string[] | null;
   delivery_fee_amount: string | null;
   /**
-   * 077 — the delivery charge as the lines the customer was sold; null before 077. ⚠ Only the
+   * 077 — the delivery charge as the lines the customer was sold. ⚠ Only the
    * `lines` key of `delivery_fee_breakdown`: the rest is the business's pricing, never mailed.
    */
-  delivery_fee_lines?: { kind: string; amount: string }[] | null;
+  delivery_fee_lines: { kind: string; amount: string }[];
   /**
-   * 079 — who delivers the order, and a courier's timeframe AS SOLD (the order's own copy). Both
-   * null on an order placed before 079. ⚠ Never the reason: a customer is not told why.
+   * 079 — who delivers the order, and a courier's timeframe AS SOLD (the order's own copy). ⚠ Never
+   * the reason: a customer is not told why.
    */
-  delivery_type?: "effy" | "courier" | null;
+  delivery_type: "effy" | "courier";
   courier_estimate?: string | null;
-  /** 085 — what an Effy order was sold, and the "as soon as possible" estimate as told. Null before 085. */
+  /** 085 — what an Effy order was sold (null for a courier order), and the "as soon as possible" estimate as told. */
   delivery_promise?: "window" | "day" | "asap" | null;
   asap_estimate?: string | null;
   grand_total_amount: string;

@@ -563,13 +563,6 @@
           },
           "type": "array"
         },
-        "fields": {
-          "deprecated": "The wire uses `errors`. Kept so older readers still compile.",
-          "items": {
-            "$ref": "#/definitions/ProblemFieldIssue"
-          },
-          "type": "array"
-        },
         "instance": {
           "type": "string"
         },

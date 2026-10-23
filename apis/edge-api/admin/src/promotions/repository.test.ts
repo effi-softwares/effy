@@ -20,17 +20,6 @@ async function codeOf(p: Promise<unknown>): Promise<string> {
   }
 }
 
-/** A fake pg client whose query() returns queued results in order; records every call for assertions. */
-function fakeClient(results: unknown[]) {
-  const calls: { text: string; params: unknown[] }[] = [];
-  const q = vi.fn((text: string, params: unknown[] = []) => {
-    calls.push({ text, params });
-    return Promise.resolve(results.shift() ?? { rows: [], rowCount: 0 });
-  });
-  return { client: { query: q }, calls };
-}
-const auditCall = (calls: { text: string; params: unknown[] }[]) =>
-  calls.find((c) => c.text.includes("admin.audit_log"));
 
 beforeEach(() => {
   query.mockReset();

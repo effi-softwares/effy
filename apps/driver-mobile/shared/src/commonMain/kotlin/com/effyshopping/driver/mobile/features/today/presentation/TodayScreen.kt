@@ -566,8 +566,8 @@ private fun ReturnStep(today: Today, onOpenReturn: (String, Boolean) -> Unit, on
             val hubPoint = today.map?.hub?.let { "${it.lat},${it.lng}" }
             DriverButton("To the hub", onClick = { hubPoint?.let(onNavigate) }, enabled = hubPoint != null, style = DriverButtonStyle.Outline, icon = Res.drawable.lucide_navigation, tall = false, modifier = Modifier.weight(1f))
             DriverButton(
-                if (toReturn.packageCodes.isNotEmpty()) "Scan in" else "Check in",
-                onClick = { onOpenReturn(toReturn.runId, toReturn.packageCodes.isNotEmpty()) },
+                if (toReturn.bagCodes.isNotEmpty()) "Scan in" else "Check in",
+                onClick = { onOpenReturn(toReturn.runId, toReturn.bagCodes.isNotEmpty()) },
                 loading = returning, icon = Res.drawable.lucide_scan_line, tall = false, modifier = Modifier.weight(1f),
             )
         }

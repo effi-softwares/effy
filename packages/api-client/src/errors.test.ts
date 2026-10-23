@@ -27,15 +27,6 @@ describe("toDomainError reads field issues off the wire", () => {
     expect(err.fields).toEqual([{ field: "onHand", message: "must be a whole number" }]);
   });
 
-  it("still accepts `fields`, so a service serialising either shape is understood", () => {
-    const err = toDomainError(400, {
-      title: "Validation failed",
-      status: 400,
-      fields: [{ field: "delta", message: "must not be zero" }],
-    } as never);
-    expect(err.fields).toEqual([{ field: "delta", message: "must not be zero" }]);
-  });
-
   it("is undefined when the body carries no field issues at all", () => {
     expect(toDomainError(500, { title: "Server error", status: 500 } as never).fields).toBeUndefined();
   });

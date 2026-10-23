@@ -47,12 +47,10 @@ const SOURCE = resolve(here, "../mobile-assets");
 // source per app so neither receives — and the drift check never demands — files it does not draw.
 const STOREFRONT_ONLY = (name) => /^(geist_|lucide_)/.test(name) || name === "GEIST-OFL.txt" || name === "LUCIDE-LICENSE.txt";
 const CONSOLE_FONT_ONLY = (name) => /^general_sans_/.test(name) || name === "LICENSE.md";
-const consoleApp = (_kind, name) => !STOREFRONT_ONLY(name);
 const storefrontApp = (kind, name) => !(kind === "font" && CONSOLE_FONT_ONLY(name));
 
 export const APPS = [
   { name: "customer-mobile", kinds: ["drawable", "font"], accept: storefrontApp, root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
-  { name: "shop-mobile", kinds: ["drawable", "font"], accept: consoleApp, root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
   { name: "driver-mobile", kinds: ["drawable", "font"], accept: storefrontApp, root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
 ];
 

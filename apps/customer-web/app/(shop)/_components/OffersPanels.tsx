@@ -1,6 +1,7 @@
+import type { Banner } from "../promotion-groups"
 import Link from "next/link"
 
-import type { BannerDTO } from "@effy/shared-types"
+
 
 import { ArrowRight } from "lucide-react"
 
@@ -29,7 +30,7 @@ import { SkinnedPromotion } from "./SkinnedPromotion"
  * renders nothing at all. There is deliberately no placeholder tile — an empty frame in a promotional
  * block reads as a broken advert, and a shopper cannot tell it from a promotion that failed to load.
  */
-export function offerHref(banner: BannerDTO): string | null {
+export function offerHref(banner: Banner): string | null {
   return banner.href ?? (banner.target?.kind === "promotion" ? `/promotions/${banner.target.promotionId}` : null)
 }
 
@@ -81,7 +82,7 @@ export function OfferBannerCard({
   theme,
   imageUrl,
 }: {
-  banner: BannerDTO
+  banner: Banner
   theme: PromoTheme
   imageUrl?: string | null
 }) {
@@ -120,7 +121,7 @@ export function OfferBannerCard({
 }
 
 /** The plain offer card the Offers index still uses. */
-export function OfferCard({ banner }: { banner: BannerDTO }) {
+export function OfferCard({ banner }: { banner: Banner }) {
   const href = offerHref(banner)
   return (
     <Card className="relative h-full gap-3 p-5">

@@ -21,7 +21,6 @@ FILES=(
   apis/edge-api/notifications/src/fcm/sender.ts
   apis/edge-api/notifications/src/worker/drain.ts
   apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/observability/AnalyticsEvent.kt
-  apps/shop-mobile/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/core/observability/AnalyticsEvent.kt
   apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/core/observability/AnalyticsEvent.kt
 )
 
@@ -33,7 +32,8 @@ for f in "${FILES[@]}"; do
   [ -f "$f" ] || continue
   # Skip comment lines (JS/Kotlin //, /*, *, /**; SQL --; shell #) to reduce prose false positives,
   # then match remaining code lines. `|| true` so a no-match grep doesn't trip `set -e`.
-  if hits=$(grep -nEi "$PII_PATTERN" "$f" | grep -vE '^[0-9]+:[[:space:]]*(/|\*|//|--|#)' || true); then
+  # A notification CHANNEL named "email" is not an email address in a payload.
+  if hits=$(grep -nEi "$PII_PATTERN" "$f" | grep -vE '^[0-9]+:[[:space:]]*(/|\*|//|--|#)' | grep -vE 'NotificationChannel|channel === "email"' || true); then
     if [ -n "$hits" ]; then
       echo "✗ possible PII field in telemetry/notification payload: $f"
       echo "$hits"

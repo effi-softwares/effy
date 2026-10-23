@@ -7,9 +7,6 @@ import { asapSentence, DELIVERY_TYPE_WORDS, DELIVERY_WINDOW_WORDS, formatArrival
  * ⚠ ONE PLACE, so the badge, the line and the filter cannot disagree about the same order. Everything
  * is read from what the server derived (`stage`, `fullyRefunded`, `arrivalEstimates`) — nothing here
  * works a stage out for itself.
- *
- * ⚠ A row from a server that predates those fields still reads sensibly: it says "Paid" and nothing
- * about where the order is, which is what the list said before.
  */
 export type OrderFilter = "all" | "progress" | "delivered" | "refunded" | "cancelled"
 export const ORDER_FILTERS: ReadonlyArray<{ key: OrderFilter; label: string }> = [
@@ -69,19 +66,19 @@ export function orderRowWords(o: OrderSummaryDTO, now: Date = new Date()): Order
 
 /** The promise the order was sold: a window or a day; for a courier, its estimate — said as one. */
 function promiseOf(o: OrderSummaryDTO, now: Date): string | null {
-  if (o.delivery?.type === "courier") {
+  if (o.delivery.type === "courier") {
     return o.delivery.courierEstimate
       ? `${DELIVERY_TYPE_WORDS.courierEstimatePrefix} ${o.delivery.courierEstimate} ${DELIVERY_TYPE_WORDS.courierEstimateSuffix}`
       : null
   }
   // 085 — "as soon as possible" was sold an estimate, never a day.
-  if (o.delivery?.promise === "asap") return o.delivery.asapEstimate ? asapSentence(o.delivery.asapEstimate) : null
+  if (o.delivery.promise === "asap") return o.delivery.asapEstimate ? asapSentence(o.delivery.asapEstimate) : null
   const first = o.arrivalEstimates?.[0]
   if (!first) return null
   // No promise on record says so in its own words; that is not something to prefix with "Arriving".
   if (!first.windowStart && !first.promisedFrom && !first.promisedTo) return null
   const day = formatArrival(first, now)
-  return o.delivery?.promise === "day" ? `${day}, ${DELIVERY_WINDOW_WORDS.anyTimeDay.toLowerCase()}` : day
+  return o.delivery.promise === "day" ? `${day}, ${DELIVERY_WINDOW_WORDS.anyTimeDay.toLowerCase()}` : day
 }
 
 export function matchesFilter(o: OrderSummaryDTO, filter: OrderFilter): boolean {

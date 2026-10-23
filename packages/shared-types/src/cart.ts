@@ -202,10 +202,10 @@ export interface CartDTO {
   grandTotalAmount: string;
   currency: string;
   notices: CartNoticeDTO[];
-  /** The entered code's line, as before 094 — kept for installed apps. `promotions` lists every one. */
+  /** The entered code's line, for the code field. `promotions` lists every promotion applying. */
   discount: CartDiscountDTO | null;
   /** 094 — every promotion applying, automatic and by code. */
-  promotions?: CartPromotionLineDTO[];
+  promotions: CartPromotionLineDTO[];
   /** 094 — promotions the shopper might expect that do not apply, each with its sentence. */
   promotionsNotApplied?: CartNotAppliedDTO[];
   checkout: CartCheckoutStateDTO;

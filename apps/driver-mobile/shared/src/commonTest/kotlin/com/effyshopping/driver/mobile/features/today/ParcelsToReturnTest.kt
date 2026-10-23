@@ -26,15 +26,14 @@ import kotlin.test.assertNull
 class ParcelsToReturnTest {
     @BeforeTest fun setup() { Dispatchers.setMain(Dispatchers.Unconfined) }
 
-    private val base = """{"phase":"same_day_delivery","activeRunId":"r1","active":null,"upNext":[],
+    private val base = """{"phase":"delivery","activeRunId":"r1","active":null,"upNext":[],
         "remainingCount":0,"opening":null,"deadlineAt":null,"dueLabel":null,"upcoming":[]"""
 
-    /** ⚠ A server without 088 sends no field; one with it sends it. Both must decode. */
-    @Test fun today_decodes_with_and_without_the_field() {
-        assertNull(effyJson.decodeFromString(TodayDTO.serializer(), "$base}").toReturn)
+    @Test fun today_decodes_nothing_to_return_and_parcels_to_return() {
+        assertNull(effyJson.decodeFromString(TodayDTO.serializer(), "$base,\"toReturn\":null}").toReturn)
         val with = effyJson.decodeFromString(
             TodayDTO.serializer(),
-            """$base,"toReturn":{"runId":"r1","count":2,"orders":["EFY-1","EFY-2"]}}""",
+            """$base,"toReturn":{"runId":"r1","count":2,"orders":["EFY-1","EFY-2"],"parcels":[]}}""",
         )
         assertEquals(2L, with.toReturn?.count)
         assertEquals(listOf("EFY-1", "EFY-2"), with.toReturn?.orders)

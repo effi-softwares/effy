@@ -314,25 +314,6 @@ SELECT id FROM p`,
     ]);
   });
 
-  /** 089 — the label: its code, "package n of m" across shops, the coldest class, and no window (quickstart P5). */
-  it("089 — carries the label's code, place among the order's packages and cold class; never a window", async () => {
-    const o = await order({ number: "EFY-L", recipient: "L", lines: [{ name: "Ice cream", price: 6, qty: 1 }, { name: "Milk", price: 3, qty: 1 }] });
-    await pool.query(`UPDATE public.order_item SET storage_class = 'frozen' WHERE id = $1`, [o.itemIds[0]]);
-    await pool.query(`UPDATE public.order_item SET storage_class = 'chilled' WHERE id = $1`, [o.itemIds[1]]);
-    // A second shop's package of the same order, created after this shop's.
-    await pool.query(
-      `INSERT INTO public.shop_fulfillment (order_id, shop_id, status, item_count, subtotal_amount, created_at)
-       VALUES ($1, $2, 'received', 1, 5, now() + interval '1 second')`,
-      [o.orderId, OTHER_SHOP],
-    );
-
-    const d = await readOrder(o.fulfillmentId, SHOP);
-    expect(d.label).toMatchObject({ position: 1, packageCount: 2, suburb: "Melbourne", cold: "frozen" });
-    expect(d.label.packageCode).toMatch(/^[2-9A-HJKMNP-TV-Z]{6}$/);
-    const wire = JSON.stringify(d.label);
-    expect(wire).not.toMatch(/window|slot|estimate|same.?day|standard/i);
-  });
-
   it("refuses another shop's order (indistinguishable from a missing one)", async () => {
     const o = await order({ number: "EFY-X", recipient: "X", shop: OTHER_SHOP });
     await expect(readOrder(o.fulfillmentId, SHOP)).rejects.toMatchObject({ kind: "not_found" });

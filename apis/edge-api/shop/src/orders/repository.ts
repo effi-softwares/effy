@@ -96,7 +96,6 @@ WITH base AS (
          sf.item_count,
          COALESCE(fi.gathered, 0)::int    AS gathered_count,
          COALESCE(fi.unavailable, 0)::int AS unavailable_count,
-         sf.delivery_method,
          ${DELIVERED_BY_SQL} AS delivered_by,
          COALESCE(o.delivery_address ->> 'recipientName', '') AS customer_name,
          o.grand_total_amount AS total,
@@ -143,17 +142,15 @@ WITH base AS (
           OR ($3::text = 'short'    AND unavailable_count > 0)
           OR ($3::text = 'on_track' AND NOT at_risk AND unavailable_count = 0))
      AND ($4::text = 'any' OR payment = $4)
-     AND ($5::text = 'any' OR delivery_method = $5)
-     -- 079 — who takes it away. ⚠ The filter shop staff use; $5 is the customer's word, kept for
-     -- shop apps installed before 079.
-     AND ($7::text = 'any' OR delivered_by = $7)
-     AND (   $6::text = 'any'
+     -- 079 — who takes it away.
+     AND ($6::text = 'any' OR delivered_by = $6)
+     AND (   $5::text = 'any'
           -- ⚠ "Today" is the Melbourne day (047's timezone rule), not the server's UTC day — a 9am
           -- order in Melbourne is still "yesterday" in UTC.
-          OR ($6::text = 'today' AND placed_at >= (date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
+          OR ($5::text = 'today' AND placed_at >= (date_trunc('day', now() AT TIME ZONE 'Australia/Melbourne')
                                              AT TIME ZONE 'Australia/Melbourne'))
-          OR ($6::text = '7d'  AND placed_at >= now() - interval '7 days')
-          OR ($6::text = '30d' AND placed_at >= now() - interval '30 days'))
+          OR ($5::text = '7d'  AND placed_at >= now() - interval '7 days')
+          OR ($5::text = '30d' AND placed_at >= now() - interval '30 days'))
 )`;
 
 /**
@@ -177,7 +174,6 @@ interface RowRecord {
   item_count: number;
   gathered_count: number;
   unavailable_count: number;
-  delivery_method: "same_day" | "standard" | null;
   delivered_by: DeliveredBy;
   customer_name: string;
   total: string;
@@ -211,7 +207,7 @@ async function shopStatuses(ids: readonly string[]): Promise<Map<string, Package
 }
 
 export async function listOrders(shopId: string, q: OrderListQuery): Promise<OrderList> {
-  const filterArgs = [shopId, likePattern(q.q), q.attention, q.payment, q.method, q.range, q.deliveredBy];
+  const filterArgs = [shopId, likePattern(q.q), q.attention, q.payment, q.range, q.deliveredBy];
   const direction = q.dir === "asc" ? "ASC" : "DESC";
   const offset = (q.page - 1) * q.pageSize;
 
@@ -220,9 +216,9 @@ export async function listOrders(shopId: string, q: OrderListQuery): Promise<Ord
       `${FILTERED}
        SELECT *, count(*) OVER () AS full_count
          FROM filtered
-        WHERE ($8::text = 'all' OR tab = $8::text)
+        WHERE ($7::text = 'all' OR tab = $7::text)
         ORDER BY ${ORDER_BY[q.sort]} ${direction}, id ${direction}
-        LIMIT $9 OFFSET $10`,
+        LIMIT $8 OFFSET $9`,
       [...filterArgs, q.tab, q.pageSize, offset],
     ),
     query<{ tab: OrderTab; n: string }>(
@@ -262,7 +258,6 @@ function toRow(r: RowRecord): Omit<OrderRow, "statusView"> {
     gatheredCount: r.gathered_count,
     unavailableCount: r.unavailable_count,
     deliveredBy: r.delivered_by,
-    deliveryMethod: r.delivery_method,
     atRisk: r.at_risk,
     payment: r.payment,
     total: money(r.total),
@@ -282,7 +277,6 @@ interface HeadRecord {
   paid_at: Date | null;
   status: FulfillmentStatus;
   state_changed_at: Date;
-  delivery_method: "same_day" | "standard" | null;
   delivered_by: DeliveredBy;
   unfulfillable_reason: string | null;
   delivery_address: Record<string, unknown> | null;
@@ -313,7 +307,7 @@ interface HeadRecord {
 const READ_HEAD = `
 SELECT sf.id, sf.order_id, o.order_number,
        ${PLACED} AS placed_at, o.placed_at AS paid_at,
-       sf.status, sf.state_changed_at, sf.delivery_method, sf.unfulfillable_reason,
+       sf.status, sf.state_changed_at, sf.unfulfillable_reason,
        ${DELIVERED_BY_SQL} AS delivered_by,
        o.delivery_address,
        o.item_subtotal_amount, o.discount_amount, o.promo_code,
@@ -443,29 +437,6 @@ SELECT n.id, n.body, ss.name AS author_name, n.created_at
 `;
 
 /**
- * 089 — what this package's label needs beyond what the detail already has: its permanent code, its
- * place among the ORDER's packages ("package 2 of 3" — a count of other shops' packages, never who
- * they are), and the coldest storage class among its products (065: frozen beats chilled).
- *
- * ⚠ NO WINDOW, DAY OR ESTIMATE (spec Clarifications): a shop is told who takes a package away and
- * nothing else about delivery (079).
- */
-const READ_LABEL = `
-  SELECT sf.package_code,
-         (SELECT count(*) FROM public.shop_fulfillment o2
-           WHERE o2.order_id = sf.order_id AND (o2.created_at, o2.id) <= (sf.created_at, sf.id))::int AS position,
-         (SELECT count(*) FROM public.shop_fulfillment o3 WHERE o3.order_id = sf.order_id)::int AS package_count,
-         -- The order line's snapshot (065), the same fact the driver's manifest reads — not the
-         -- product's live attribute, which a shop can change after the sale.
-         (SELECT CASE WHEN bool_or(oi.storage_class = 'frozen')  THEN 'frozen'
-                      WHEN bool_or(oi.storage_class = 'chilled') THEN 'chilled' END
-            FROM public.order_item oi
-           WHERE oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id) AS cold
-    FROM public.shop_fulfillment sf
-   WHERE sf.id = $1 AND sf.shop_id = $2
-`;
-
-/**
  * 096 — this package's live bags for the label and the pack step. "Printed" (`current`) means printed
  * since the bag's number or zone last changed; `custody` is the latest hand-over, in shop words — never
  * a driver's name (073).
@@ -523,19 +494,16 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
   if (!row) throw new FulfillmentError("not_found", "order not found");
 
   const args = [fulfillmentId, shopId];
-  const [lines, refunds, tags, notes, label, bags, zones, scanRule] = await Promise.all([
+  const [lines, refunds, tags, notes, bags, zones, scanRule] = await Promise.all([
     query<LineRecord>(READ_LINES, args),
     query<RefundRecord>(READ_REFUNDS, args),
     query<{ tag: string }>(READ_TAGS, args),
     query<{ id: string; body: string; author_name: string | null; created_at: Date }>(READ_NOTES, args),
-    query<{ package_code: string; position: number; package_count: number; cold: "frozen" | "chilled" | null }>(READ_LABEL, args),
     query<ParcelRecord>(READ_PARCELS, args),
     query<{ storage_class: ParcelZone }>(READ_ZONES_NEEDED, args),
     // 096 — whether back-office requires every bag scanned as packed (fleet writes it).
     query<{ pack_scan_required: boolean }>(`SELECT pack_scan_required FROM public.shop WHERE id = $1`, [shopId]),
   ]);
-  const lbl = label.rows[0]!;
-
   const mappedLines = await Promise.all(lines.rows.map(toLine));
   const shopSubtotal = lines.rows.reduce((c, l) => c + cents(l.line_subtotal_amount), 0);
   const total = cents(row.grand_total_amount);
@@ -555,7 +523,6 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
     stateChangedAt: row.state_changed_at,
     readyBy: new Date(row.placed_at.getTime() + DEFAULT_READY_WINDOW_MS),
     deliveredBy: row.delivered_by,
-    deliveryMethod: row.delivery_method,
     atRisk: row.at_risk,
     delivery: mapDelivery(row.delivery_address ?? {}),
     lines: mappedLines,
@@ -565,7 +532,6 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       itemSubtotal: money(row.item_subtotal_amount),
       discount: money(row.discount_amount),
       // ⚠ 094 FR-035 — a shop never sees which promotion applied. Kept on the wire for installed apps.
-      promoCode: null,
       total: money(row.grand_total_amount),
       refunded: money(row.refunded),
       refundPending: money(row.refund_pending),
@@ -594,13 +560,6 @@ export async function readOrder(fulfillmentId: string, shopId: string): Promise<
       collectedAt: row.collected_at,
       deliveredAt: row.delivered_at,
       unfulfillableReason: row.unfulfillable_reason,
-    },
-    label: {
-      packageCode: lbl.package_code,
-      position: Number(lbl.position),
-      packageCount: Number(lbl.package_count),
-      suburb: typeof row.delivery_address?.["city"] === "string" ? (row.delivery_address["city"] as string) : null,
-      cold: lbl.cold,
     },
     parcels: bags.rows.map((b) => ({
       parcelId: b.id,

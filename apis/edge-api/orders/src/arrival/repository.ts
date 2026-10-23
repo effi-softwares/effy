@@ -4,7 +4,7 @@
 // `delivered` only from a delivery task, and delivery tasks are created only for `same_day`
 // packages. So most orders never finished. This is the other route to the same terminal state.
 
-import { enqueueOrderDeliveredIfComplete, query, withTransaction } from "@effy/edge-shared";
+import { enqueueOrderDeliveredIfComplete, withTransaction } from "@effy/edge-shared";
 
 import { OrderActionError } from "../lib/errors";
 

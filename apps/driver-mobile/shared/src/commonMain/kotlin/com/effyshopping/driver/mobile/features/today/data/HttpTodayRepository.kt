@@ -65,7 +65,7 @@ class HttpTodayRepository(
 private fun TodayDTO.toDomain(): Today = Today(
     phase = when (phase) {
         DriverPhase.Collection -> Phase.COLLECTION
-        DriverPhase.SameDayDelivery -> Phase.DELIVERY
+        DriverPhase.Delivery -> Phase.DELIVERY
         DriverPhase.Idle -> Phase.IDLE
     },
     activeRunId = activeRunID,
@@ -80,7 +80,7 @@ private fun TodayDTO.toDomain(): Today = Today(
             // Exhaustive on purpose: a third kind of round on the wire must fail to compile here.
             phase = when (it.kind) {
                 DriverRunType.Collection -> Phase.COLLECTION
-                DriverRunType.SameDayDelivery -> Phase.DELIVERY
+                DriverRunType.Delivery -> Phase.DELIVERY
             },
             opening = it.opening.toOpening(),
             dueLabel = it.dueLabel,

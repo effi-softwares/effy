@@ -1,6 +1,10 @@
 package com.effyshopping.customer.mobile.features.checkout
 
 import com.effyshopping.customer.mobile.commerce.contract.ArrivalEstimateDTO
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeDTO
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryType as DtoDeliveryType
+import com.effyshopping.customer.mobile.commerce.contract.OrderDeliveryDTO
+import com.effyshopping.customer.mobile.commerce.contract.PromiseEnum
 import com.effyshopping.customer.mobile.commerce.contract.Method as DtoMethod
 import com.effyshopping.customer.mobile.commerce.contract.OrderAddressDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderStage as DtoOrderStage
@@ -32,7 +36,7 @@ class CheckoutMappersTest {
 
     private fun order(
         billing: OrderAddressDTO?,
-        deliveryFee: String? = null,
+        deliveryFee: String = "0.00",
         method: PaymentMethodSummaryDTO? = null,
         arrivals: List<ArrivalEstimateDTO> = emptyList(),
         stage: DtoOrderStage = DtoOrderStage.Confirmed,
@@ -57,6 +61,11 @@ class CheckoutMappersTest {
         stage = stage,
         arrivalEstimates = arrivals,
         deliveryFeeAmount = deliveryFee,
+        deliveryFee = DeliveryFeeDTO(lines = emptyList(), totalAmount = deliveryFee),
+        delivery = OrderDeliveryDTO(type = DtoDeliveryType.Effy, promise = PromiseEnum.Window),
+        discountAmount = "0.00",
+        deliveryDiscountAmount = "0.00",
+        promotions = emptyList(),
         paymentMethod = method,
         // 055
         cancellable = cancellable,
@@ -302,12 +311,5 @@ class CheckoutMappersTest {
             ),
             fee.lines.map { it.kind to it.amount },
         )
-    }
-
-    @Test
-    fun `077 - an order placed before the fee engine has no lines, and keeps its single amount`() {
-        val r = order(billing = null, deliveryFee = "6.00").toReceipt()
-        assertNull(r.deliveryFee)
-        assertEquals("6.00", r.deliveryFeeAmount)
     }
 }

@@ -3,6 +3,8 @@
 import { ExpressCheckoutElement } from "@stripe/react-stripe-js"
 import { useState } from "react"
 
+import { cn } from "@/lib/utils"
+
 /**
  * One-tap wallets (051 US2) — Apple Pay, Google Pay and Link.
  *
@@ -44,7 +46,11 @@ export function WalletRow({
   if (available === "no") return null
 
   return (
-    <div className={available === "unknown" ? "min-h-0" : undefined}>
+    // While a card payment is in flight the wallet must not start a second one.
+    <div
+      aria-disabled={disabled || undefined}
+      className={cn(available === "unknown" && "min-h-0", disabled && "pointer-events-none opacity-50")}
+    >
       <ExpressCheckoutElement
         options={{
           // Effy's buttons are pills everywhere on the platform; the wallet row matches the pay

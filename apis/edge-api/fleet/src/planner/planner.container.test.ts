@@ -52,7 +52,6 @@ import { recordParcelReturn, toReturnOnRound } from "@effy/edge-shared/delivery"
 import { createFirstParcels } from "@effy/edge-shared/labels";
 import { staffReturnParcels } from "../dispatch/return";
 import { runPass } from "./service";
-import type { PlannablePackage, PlannerCandidate } from "./types";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 

@@ -230,7 +230,6 @@ export type { BtnVariant, BtnSize } from "./actions"
 
 // The strings live in `./fields` (next/image-free) — client components import them from there.
 export { input, select } from "./fields"
-import { input } from "./fields"
 
 export function Field({
   label,

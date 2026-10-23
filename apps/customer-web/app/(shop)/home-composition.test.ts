@@ -1,12 +1,7 @@
+import type { Banner } from "./promotion-groups"
 import { describe, expect, it } from "vitest"
 
-import type {
-  BannerDTO,
-  StorefrontCategoryDTO,
-  StorefrontHomeDTO,
-  StorefrontProductCardDTO,
-  StorefrontRailDTO,
-} from "@effy/shared-types"
+import type { StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontProductCardDTO, StorefrontRailDTO } from "@effy/shared-types"
 
 import { composeSections, isEmptyStore, railHref } from "./home-composition"
 
@@ -50,12 +45,12 @@ function category(key: string, productCount = 5): StorefrontCategoryDTO {
   return { key, name: key, parentKey: null, productCount, imageUrl: null }
 }
 
-function banner(key: string, placement?: BannerDTO["placement"]): BannerDTO {
-  return { key, title: key, subtitle: null, imageUrl: null, href: null, placement }
+function banner(key: string): Banner {
+  return { key, title: key, subtitle: null, imageUrl: null, href: null }
 }
 
 function home(over: Partial<StorefrontHomeDTO> = {}): StorefrontHomeDTO {
-  return { banners: [], rails: [], ...over }
+  return { rails: [], ...over }
 }
 
 const kinds = (s: ReturnType<typeof composeSections>) =>
@@ -83,11 +78,9 @@ describe("railHref — where a rail's 'view all' leads (research R6)", () => {
 describe("composeSections — the order is fixed and named (FR-001)", () => {
   it("emits the full contract sequence when every slot has data", () => {
     const sections = composeSections(
-      home({
-        banners: [banner("b1", "inline")],
-        rails: [rail("featured"), rail("on_sale"), rail("category:pantry"), rail("category:meals")],
-      }),
+      home({ rails: [rail("featured"), rail("on_sale"), rail("category:pantry"), rail("category:meals")] }),
       [category("pantry")],
+      [banner("b1")],
     )
 
     expect(kinds(sections)).toEqual([
@@ -153,7 +146,7 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
   })
 
   it("omits the offer block when there are no banners", () => {
-    const sections = composeSections(home({ banners: [], rails: [rail("featured")] }), [])
+    const sections = composeSections(home({ rails: [rail("featured")] }), [], [])
 
     expect(kinds(sections)).toEqual(["rail:featured"])
   })
@@ -171,48 +164,9 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
 })
 
 /**
- * Banner placement (029 FR-027), after `PromoCarousel` was removed from the page.
- *
- * ⚠ THE PAGE NOW CONSUMES ONLY `inline`. `carousel`-placement banners are not a section here at all —
- * `PromoHero` renders `home.banners` unfiltered at the top of the page instead. These tests pin the
- * half that is still this file's business: the offer blocks take `inline` and nothing else, so a
- * carousel-placement promotion can never be shown twice by the sections below the hero.
- */
-describe("composeSections — banner placement (029 FR-027)", () => {
-  it("gives the offer blocks ONLY inline-placement banners", () => {
-    const sections = composeSections(
-      home({ banners: [banner("a", "carousel"), banner("b", "inline")], rails: [] }),
-      [],
-    )
-
-    const offers = sections.find((s) => s.kind === "offers")
-    expect(offers && offers.kind === "offers" && offers.banners.map((x) => x.key)).toEqual(["b"])
-  })
-
-  /**
-   * ⚠ A MISSING placement means "carousel", matching the database column's default — so a banner from
-   * a server that has not been redeployed must NOT fall into the offer blocks.
-   */
-  it("treats a banner with no placement as carousel, so it is not an offer", () => {
-    const sections = composeSections(home({ banners: [banner("a")], rails: [] }), [])
-
-    expect(kinds(sections)).toEqual([])
-  })
-
-  it("emits no section at all when every banner is carousel-placement", () => {
-    const sections = composeSections(
-      home({ banners: [banner("a", "carousel"), banner("b", "carousel")], rails: [] }),
-      [],
-    )
-
-    expect(kinds(sections)).toEqual([])
-  })
-})
-
-/**
  * FR-020 — the second offers block "MUST NOT duplicate a promotion already shown above".
  *
- * ⚠ Structural rather than checked: there is ONE list of inline banners and each block consumes from
+ * ⚠ Structural rather than checked: there is ONE list of offers and each block consumes from
  * it, so a duplicate is not something the code has to remember to avoid. These tests pin that property
  * so a later refactor cannot quietly turn `slice` into two independent filters.
  */
@@ -221,13 +175,14 @@ describe("composeSections — the two offer blocks never repeat a promotion (FR-
     s.flatMap((x) => (x.kind === "offers" ? x.banners.map((b) => b.key) : []))
 
   function inlineBanners(n: number) {
-    return Array.from({ length: n }, (_, i) => banner(`o${i}`, "inline"))
+    return Array.from({ length: n }, (_, i) => banner(`o${i}`))
   }
 
   it("puts the first three in block A and the rest in block B", () => {
     const sections = composeSections(
-      home({ banners: inlineBanners(5), rails: [rail("on_sale"), rail("category:pantry")] }),
+      home({ rails: [rail("on_sale"), rail("category:pantry")] }),
       [],
+      inlineBanners(5),
     )
 
     const blocks = sections.filter((s) => s.kind === "offers")
@@ -245,24 +200,22 @@ describe("composeSections — the two offer blocks never repeat a promotion (FR-
 
   it("never shows the same promotion twice, at any count", () => {
     for (const n of [1, 2, 3, 4, 5, 6, 9]) {
-      const keys = offersIn(composeSections(home({ banners: inlineBanners(n) }), []))
+      const keys = offersIn(composeSections(home(), [], inlineBanners(n)))
       expect(new Set(keys).size, `duplicate promotion with ${n} offers`).toBe(keys.length)
     }
   })
 
   it("omits block B entirely when three or fewer promotions are advertised", () => {
-    const sections = composeSections(home({ banners: inlineBanners(3) }), [])
+    const sections = composeSections(home(), [], inlineBanners(3))
 
     expect(sections.filter((s) => s.kind === "offers")).toHaveLength(1)
   })
 
   it("places block A before the featured rail and block B after the category rails", () => {
     const sections = composeSections(
-      home({
-        banners: inlineBanners(4),
-        rails: [rail("on_sale"), rail("featured"), rail("category:pantry")],
-      }),
+      home({ rails: [rail("on_sale"), rail("featured"), rail("category:pantry")] }),
       [],
+      inlineBanners(4),
     )
 
     expect(kinds(sections)).toEqual([
@@ -274,11 +227,8 @@ describe("composeSections — the two offer blocks never repeat a promotion (FR-
     ])
   })
 
-  it("emits no offer block at all when nothing is advertised inline", () => {
-    const sections = composeSections(
-      home({ banners: [banner("c", "carousel")], rails: [rail("featured")] }),
-      [],
-    )
+  it("emits no offer block at all when nothing is advertised", () => {
+    const sections = composeSections(home({ rails: [rail("featured")] }), [])
 
     expect(sections.filter((s) => s.kind === "offers")).toHaveLength(0)
   })

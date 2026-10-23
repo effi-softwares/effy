@@ -179,14 +179,12 @@ d("070 — storefront reads against the real schema", () => {
   });
 
   it("home rails carry only purchasable products; an empty category gets no rail", async () => {
-    const promotions = createPromotionService(pool);
-    const home = await createHomeService(createHomeRepository(pool), promotions, noImage).home();
+    const home = await createHomeService(createHomeRepository(pool), noImage).home();
     const all = home.rails.flatMap((r) => r.products.map((p) => p.name));
     expect(all).not.toContain("Sold Out Milk");
     expect(all).not.toContain("Draft Loaf");
     expect(home.rails.map((r) => r.key)).not.toContain("category:sft-empty");
     expect(home.rails.find((r) => r.key === "on_sale")?.products.map((p) => p.name)).toContain("Soy Milk");
-    expect(Array.isArray(home.banners)).toBe(true);
   });
 
   it("categories: purchasable counts as numbers, sold-out excluded from the count", async () => {
@@ -233,7 +231,6 @@ d("070 — storefront reads against the real schema", () => {
     const [hero, unknown] = await promotions.groups(["home-hero", "nope"]);
     expect(hero!.promotions.map((p) => p.headline)).toEqual(["Five off"]);
     expect(unknown).toEqual({ key: "nope", promotions: [] });
-    expect((await promotions.banners()).map((x) => [x.title, x.placement])).toEqual([["Five off", "carousel"]]);
     expect(await promotions.promotion(a)).toMatchObject({ title: "Five off", code: "" });
     expect(await promotions.promotion(b)).toBeNull();
   });
@@ -309,11 +306,10 @@ d("070 — storefront reads against the real schema", () => {
         `INSERT INTO public.media_rendition (storage_key, status, widths) VALUES ('products/oat/0.jpg', 'ready', '{160,320}')`,
       );
 
-      const promotions = createPromotionService(pool);
       const answers: unknown[] = [
         await createSearchService(createSearchRepository(pool)).search(q({ categoryKey: "sft-dairy" })),
         await createSearchService(createSearchRepository(pool)).cardsByIds([ids["Oat Milk"]!, ids["Sourdough"]!]),
-        await createHomeService(createHomeRepository(pool), promotions).home(),
+        await createHomeService(createHomeRepository(pool)).home(),
         await createCatalogService(createCatalogRepository(pool)).categories(),
         await createCatalogService(createCatalogRepository(pool)).productDetail(ids["Oat Milk"]!),
         await createCatalogService(createCatalogRepository(pool)).productDetail(ids["Sourdough"]!),

@@ -20,10 +20,10 @@ const DEFAULT_ROWS: RailRow[] = [
   on("category:bakery", card("bakery-1"), "Bakery"),
 ];
 
-function build(rows: RailRow[] = DEFAULT_ROWS, banners = [{ key: "b1" }] as never[]) {
+function build(rows: RailRow[] = DEFAULT_ROWS) {
   const limits: number[][] = [];
   const repo: HomeRepository = { rails: async (l, max) => (limits.push([l, max]), rows) };
-  return { svc: createHomeService(repo, { banners: async () => banners }, async () => null), limits };
+  return { svc: createHomeService(repo, async () => null), limits };
 }
 
 describe("home", () => {
@@ -32,7 +32,6 @@ describe("home", () => {
     expect(home.rails.map((r) => [r.key, r.title])).toEqual([
       ["featured", "Featured"], ["on_sale", "On sale"], ["category:dairy", "Dairy"], ["category:bakery", "Bakery"],
     ]);
-    expect(home.banners).toHaveLength(1);
   });
 
   it("asks for the rail and category limits the design fixes", async () => {
@@ -61,8 +60,8 @@ describe("home", () => {
     expect(home.rails.map((r) => r.key)).not.toContain("on_sale");
   });
 
-  it("nothing to show is { banners: [], rails: [] } — both keys present", async () => {
-    const home = await build([], []).svc.home();
-    expect(home).toEqual({ banners: [], rails: [] });
+  it("nothing to show is { rails: [] }", async () => {
+    const home = await build([]).svc.home();
+    expect(home).toEqual({ rails: [] });
   });
 });

@@ -113,9 +113,8 @@ describe("077 — deliveryLinesVars", () => {
     });
   });
 
-  it("an order placed before 077 has none, and keeps its single row", () => {
-    expect(deliveryLinesVars(null, "AUD")).toEqual({ hasDeliveryLines: false, deliveryLines: [] });
-    expect(deliveryLinesVars(undefined, "AUD")).toEqual({ hasDeliveryLines: false, deliveryLines: [] });
+  it("no lines, no line block", () => {
+    expect(deliveryLinesVars([], "AUD")).toEqual({ hasDeliveryLines: false, deliveryLines: [] });
   });
 
   it("a kind this build does not know is dropped, never printed as a code", () => {

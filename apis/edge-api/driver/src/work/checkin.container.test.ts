@@ -160,11 +160,10 @@ describe.skipIf(!RUN)("hub check-in against real PostgreSQL", () => {
     await collectStop(runId, stopId, driverId, { changeId: "c1", packages: await shown(stopId) });
 
     const res = await hubCheckin(runId, driverId);
-    expect(res.sameDayCount).toBe(1);
-    expect(res.standardCount).toBe(1);
-    // 080 P14 — the driver is told "Courier" for the parcel a courier takes from the hub: an order
-    // from before delivery types, sold standard with no window, is a carrier's (package_delivered_by).
+    expect(res.scannedTotal).toBe(2);
+    // 080 P14 — the driver is told "Courier" for the parcel a courier takes from the hub.
     expect(res.courierCount).toBe(1);
+    expect(res.effyCount).toBe(1);
     // 092 — no courier service is set up here, so there is no pickup to tell.
     expect(res.nextCourierPickupLabel).toBeNull();
 

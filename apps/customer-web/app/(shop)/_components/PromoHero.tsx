@@ -1,6 +1,7 @@
+import type { Banner } from "../promotion-groups"
 import Link from "next/link"
 
-import type { BannerDTO } from "@effy/shared-types"
+
 
 import { ArrowRight } from "lucide-react"
 
@@ -19,8 +20,8 @@ import { offerHref } from "./OffersPanels"
 /**
  * THE PROMOTIONS HERO — a carousel of every advertised promotion, with two promo cards beside it.
  *
- * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. It is built from `home.banners`, which is kept for at most a
- * minute (`getHome`, FR-015a's listing tier) — "this offer is still available" is a claim another
+ * ⚠ IT CANNOT LIVE IN THE STATIC SHELL. It is built from the `home-hero` and `home-side` display groups,
+ * kept for at most a minute (FR-015a's listing tier) — "this offer is still available" is a claim another
  * shopper can falsify (029), so it is never prerendered. The page's largest element arrives by stream.
  *
  * ⚠ THE WORDS SIT ON A DRAWN BANNER, NOT ON ARTWORK (2026-10-12). The band is a flat promo colour with
@@ -161,7 +162,7 @@ function ClassicSlide({ banner, controls }: { banner: PlacedBanner; controls: bo
  * One card beside the hero. With a code: the code in a dashed tag and a copy button, wrapping so the
  * button never leaves the card. Without one: the whole card is the link to where the offer leads.
  */
-function SideCard({ banner, theme }: { banner: BannerDTO; theme: PromoTheme }) {
+function SideCard({ banner, theme }: { banner: Banner; theme: PromoTheme }) {
   const href = offerHref(banner)
   const detail = banner.code ? (banner.terms ?? banner.subtitle) : banner.subtitle
   return (

@@ -5,7 +5,6 @@
 // driver receive work". Two implementations of that rule would eventually disagree, and the register
 // would tell an operator a driver is fine while whatever assigns work passes over them.
 
-import { deliveredBySql } from "@effy/edge-shared/delivery";
 
 /**
  * Is the driver on duty right now? An open duty session (`ended_at IS NULL`) is what "on duty" means
@@ -116,4 +115,4 @@ export const READY_TO_DELIVER = `
     LEFT JOIN public.order_package_delivery opd
       ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id
    WHERE sf.status = 'collected'
-     AND ${deliveredBySql("o", "COALESCE(opd.method, sf.delivery_method)", "opd.slot_id")} = 'effy'`;
+     AND o.delivery_type = 'effy'`;

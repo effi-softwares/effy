@@ -13,7 +13,7 @@ import { createSuggestRepository } from "../suggest/repository";
 import { createSuggestService } from "../suggest/service";
 
 export const promotionService = createPromotionService();
-export const homeService = createHomeService(createHomeRepository(), promotionService);
+export const homeService = createHomeService(createHomeRepository());
 export const searchService = createSearchService(createSearchRepository());
 export const suggestService = createSuggestService(createSuggestRepository());
 export const facetService = createFacetService(createFacetRepository());

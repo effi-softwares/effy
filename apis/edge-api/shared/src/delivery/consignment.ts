@@ -2,7 +2,6 @@ import type { ConsignmentEventKind, ConsignmentState } from "@effy/shared-types"
 
 import type { Queryable } from "../lib/db";
 import { enqueueOrderDeliveredIfComplete } from "../lib/order-completion";
-import { deliveredBySql } from "./delivery-type";
 
 /**
  * Courier consignments (080) — the ONE writer of `courier_consignment`, its events, a parcel's carrier
@@ -59,7 +58,7 @@ async function lockPackage(tx: Queryable, packageId: string): Promise<PackageRow
   const row = (
     await tx.query<PackageRow>(
       `SELECT sf.id::text AS id, sf.order_id::text AS order_id, sf.status, opd.method,
-              ${deliveredBySql("o", "opd.method", "opd.slot_id")} AS delivered_by,
+              o.delivery_type AS delivered_by,
               ${COURIER_COLLECTION_SQL("o")} AS collection,
               o.courier_service_id::text AS order_service_id,
               c.cognito_sub AS customer_sub,

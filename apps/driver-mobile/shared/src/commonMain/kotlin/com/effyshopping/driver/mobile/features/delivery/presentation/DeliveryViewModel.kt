@@ -263,7 +263,7 @@ class DeliveryViewModel(
                     ids.settled(arrive)
                 }
                 // 096 — every bag of the drop goes with the proof: scanned, typed, or handed over by hand.
-                val bags = _state.value.drop?.takeIf { it.dropId == dropId }?.packages.orEmpty().flatMap { it.allBags }.map { it.code }
+                val bags = _state.value.drop?.takeIf { it.dropId == dropId }?.packages.orEmpty().flatMap { it.bags }.map { it.code }
                 val outcome = completeWithMedia(dropId, method, bytes, note, ids.of(action), withRestByHand(handed, bags))
                 ids.settled(action)
                 // Saved with no signal, the re-read cannot reach the platform; the run's copy is
@@ -317,7 +317,6 @@ class DeliveryViewModel(
                                         else it.copy(
                                             status = DropStatus.OUT_FOR_DELIVERY,
                                             bags = it.bags.filterNot { b -> b.code in missing },
-                                            packageCodes = it.packageCodes.filterNot { c -> c in missing },
                                         )
                                     },
                             )

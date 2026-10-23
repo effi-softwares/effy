@@ -205,7 +205,7 @@ class CollectionViewModel(
         }
         val missingCodes = missing.map { it.code }.toSet()
         // 096 — every bag of every collected package: scanned, typed, ticked by hand, or declared missing.
-        val handed = packages.filter { it.key !in now.reportedPackages }.flatMap { it.allBags }
+        val handed = packages.filter { it.key !in now.reportedPackages }.flatMap { it.bags }
             .filter { it.code !in missingCodes }
             .map { com.effyshopping.driver.mobile.core.scan.HandedOver(it.code, methods[it.code] ?: com.effyshopping.driver.mobile.core.scan.HandMethod.MANUAL) }
         _state.update { it.copy(isWorking = true, message = null) }

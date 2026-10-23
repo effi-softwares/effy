@@ -2,36 +2,6 @@ import type { DeliveryType, DeliveryTypeReason } from "@effy/shared-types";
 
 import type { Queryable } from "../lib/db";
 
-/**
- * Who takes a package to the customer, as a SQL expression: `'effy'` or `'courier'`, for every order
- * there has ever been (079 research R2).
- *
- * ⚠ THE DECISION IS `public.package_delivered_by`'S AND NOBODY ELSE'S. Before 079 "a standard
- * package with a window is Effy's" was spelled `slot_id IS NULL` in five places across the orders
- * service; a sixth reader that forgot it would have handed an Effy parcel to a carrier. Pass the
- * aliases of the order row, the package's method and its slot — and select or compare the result.
- * `delivery-type.guard.test.ts` fails a reader that goes back to deciding from the window.
- */
-export const deliveredBySql = (orderAlias: string, method: string, slotId: string): string =>
-  `public.package_delivered_by(${orderAlias}.delivery_type, ${method}, ${slotId})`;
-
-/**
- * The same answer for a shop's PORTION of an order (`shop_fulfillment`), for callers that hold the
- * portion and not its captured delivery row — the shop service.
- *
- * ⚠ THE WINDOW IS LOOKED UP IN HERE, ON PURPOSE. A shop is never told when the customer's delivery
- * is (069), and a guard keeps the shop service from so much as naming the column that says so. It
- * does not need to: it asks who takes the package away, and the database works that out from a fact
- * the shop never sees. Pass the aliases of the order row and the fulfilment row.
- */
-export const fulfilmentDeliveredBySql = (orderAlias: string, fulfilmentAlias: string): string =>
-  deliveredBySql(
-    orderAlias,
-    `${fulfilmentAlias}.delivery_method`,
-    `(SELECT d.slot_id FROM public.order_package_delivery d
-       WHERE d.order_id = ${fulfilmentAlias}.order_id AND d.shop_id = ${fulfilmentAlias}.shop_id)`,
-  );
-
 /** Who did it: the checkout itself, at payment — or a member of staff. */
 export type DeliveryTypeActor = { kind: "checkout" } | { kind: "staff"; sub: string };
 

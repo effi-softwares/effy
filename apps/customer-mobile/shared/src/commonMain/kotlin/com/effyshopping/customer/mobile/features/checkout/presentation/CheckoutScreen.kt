@@ -516,7 +516,7 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         null -> "Delivery"
     }
     val subtitle = when {
-        type == DeliveryType.EFFY && quote?.effyWindows != null -> "Choose one delivery option for the whole order."
+        type == DeliveryType.EFFY && quote.effyWindows != null -> "Choose one delivery option for the whole order."
         else -> null
     }
     NumberedCard(2, heading, subtitle) {

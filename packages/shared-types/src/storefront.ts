@@ -19,7 +19,6 @@ import type { ProductOfferDTO } from "./promotions";
 // generated Kotlin emit an Int rather than a Double — a second copy of the alias would be a second
 // thing that can drift, which defeats the entire point of having it (027's `1.0` into a Go `int`).
 import type { WireInt } from "./cart";
-import type { BannerPlacement } from "./banner";
 import type { UnitBasis, UnitPriceDTO } from "./unit-price";
 import type { OptionDTO, StorefrontVariantDTO } from "./variants";
 
@@ -141,49 +140,6 @@ export type BannerTarget =
  * assumed at least one banner has to handle `[]`.
  */
 /**
- * @deprecated — compatibility (094). Installed apps read `home.banners`; new clients read display
- * groups (`PromotionGroupsDTO`). Built by the storefront from the `home-hero` and `home-between` groups.
- */
-export interface BannerDTO {
-  /** The promotion id. Stable across reads — clients use it as a list key. */
-  key: string;
-  title: string;
-  subtitle: string | null;
-  imageUrl: string | null;
-  /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
-  imageWidths?: number[];
-  /** Retained for `customer-web`. Mobile ignores it in favour of `target`. */
-  href: string | null;
-  /** The code a shopper types in the cart. Shown so the banner is actionable, not just decorative. */
-  code?: string | null;
-  /**
-   * The condition sentence, e.g. `"On orders over $30"` — COMPOSED SERVER-SIDE from the promotion's
-   * minimum, so both surfaces phrase one promotion identically. Null when it has no conditions.
-   *
-   * FR-037d: a shopper must learn of a condition from the banner or from where it leads — never
-   * first at payment.
-   */
-  terms?: string | null;
-  target?: BannerTarget | null;
-  /**
-   * Where this banner sits in Home's section sequence: 0 above the first section, n after the nth.
-   *
-   * ⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`, the wire
-   * carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while every unit test
-   * passed, because the fakes spoke Kotlin at both ends and never crossed the wire. The fix was made
-   * at the contract so the generated Kotlin cannot regress; this field takes the same treatment.
-   */
-  position?: WireInt;
-  /**
-   * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never both.
-   *
-   * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client reading a
-   * server that has not been redeployed degrades to the safe case rather than losing the banner.
-   */
-  placement?: BannerPlacement;
-}
-
-/**
  * One advertised promotion in full — the destination of a banner tap
  * (`GET /v1/storefront/promotions/:id`).
  *
@@ -203,9 +159,9 @@ export interface PromotionDTO {
   imageUrl: string | null;
   /** 086 — widths (px) of this picture's smaller copies, ascending; absent or [] → only `imageUrl`. Derive each copy's address with `renditionUrl`. */
   imageWidths?: number[];
-  /** NON-nullable, unlike `BannerDTO.code` — a screen whose purpose is to hand over a code must have one. */
+  /** NON-nullable: a screen whose purpose is to hand over a code must have one. */
   code: string;
-  /** The same sentence `BannerDTO.terms` carries, from the same server-side composer. */
+  /** The terms sentence, from the server-side composer. */
   terms: string | null;
   /**
    * How long is left — `"Ends in 3 days"`, `"Ends tomorrow"`. Null when the promotion never ends.
@@ -219,7 +175,6 @@ export interface PromotionDTO {
 
 /** The composed Home payload (GET /v1/storefront/home). */
 export interface StorefrontHomeDTO {
-  banners: BannerDTO[];
   rails: StorefrontRailDTO[];
 }
 

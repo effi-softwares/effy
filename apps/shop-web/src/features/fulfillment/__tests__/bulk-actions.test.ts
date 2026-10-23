@@ -22,7 +22,7 @@ function row(over: Partial<FulfillmentSummary> = {}): FulfillmentSummary {
     itemCount: 2,
     gatheredCount: 0,
     unavailableCount: 0,
-    promise: { serviceLevel: "standard", readyBy: "2026-09-02T02:00:00Z" },
+    promise: { readyBy: "2026-09-02T02:00:00Z", deliveredBy: "effy_driver" },
     atRisk: false,
     ...over,
   }

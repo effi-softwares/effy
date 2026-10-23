@@ -18,6 +18,7 @@ function repoWith(over: Partial<OrdersRepository> = {}): OrdersRepository {
       delivery_address: { recipientName: "A Customer", line1: "1 Test St", postalCode: "3121" }, billing_address: null,
       delivery_handover: null, delivery_note: null,
       item_subtotal_amount: "20.00", discount_amount: "0.00", promo_code: null, delivery_discount_amount: "0.00", promotions: null, delivery_fee_amount: "6.00",
+      delivery_fee_lines: [{ kind: "delivery", amount: "6.00" }], delivery_type: "effy", delivery_promise: "window",
       grand_total_amount: "26.00", currency: "AUD", payment_status: "succeeded",
     }),
     items: async () => [
@@ -44,7 +45,7 @@ describe("the receipt", () => {
   it("carries exactly the contract's keys for an ordinary order — and none of the optional ones", async () => {
     const o = await read();
     expect(Object.keys(o).sort()).toEqual([
-      "arrivalEstimates", "cancellable", "currency", "deliveryAddress", "deliveryDiscountAmount", "deliveryFeeAmount", "deliveryInstructions", "discountAmount",
+      "arrivalEstimates", "cancellable", "currency", "delivery", "deliveryAddress", "deliveryDiscountAmount", "deliveryFee", "deliveryFeeAmount", "deliveryInstructions", "discountAmount",
       "fulfillments", "grandTotalAmount", "id", "itemSubtotalAmount", "items", "orderNumber", "paymentMethod", "paymentStatus",
       "placedAt", "promoCode", "promotions", "stage", "status",
     ]);
@@ -118,7 +119,8 @@ describe("the receipt", () => {
     const wire = JSON.stringify(o);
     expect(wire).not.toContain("FULFILMENT-INTERNAL-ID");
     expect(wire).not.toMatch(/shop/i);
-    expect(wire).not.toMatch(/failureReason|kind|reason/);
+    // A refund's failure reason is never shown; the fee lines' own `kind` is not a reason.
+    expect(JSON.stringify({ ...o, deliveryFee: undefined })).not.toMatch(/failureReason|kind|reason/);
   });
 
   it("how it was paid is the family, the brand and the last four — nothing else", async () => {
@@ -150,16 +152,16 @@ describe("the receipt", () => {
 
   it("the history is a plain list of summaries", async () => {
     const svc = createOrdersService({
-      repo: repoWith({ list: async () => [{ id: ORDER, order_number: "EFY-ABC123", status: "paid", placed_at: null, item_count: 3, grand_total_amount: "26.00", currency: "AUD" }] }),
+      repo: repoWith({ list: async () => [{ id: ORDER, order_number: "EFY-ABC123", status: "paid", placed_at: null, item_count: 3, grand_total_amount: "26.00", currency: "AUD", delivery_type: "effy", delivery_promise: "window" }] }),
     });
     expect(await svc.list("cust")).toEqual([
-      { id: ORDER, orderNumber: "EFY-ABC123", status: "paid", placedAt: null, itemCount: 3, grandTotalAmount: "26.00", currency: "AUD" },
+      { id: ORDER, orderNumber: "EFY-ABC123", status: "paid", placedAt: null, itemCount: 3, grandTotalAmount: "26.00", currency: "AUD", delivery: { type: "effy", courierEstimate: null, promise: "window" } },
     ]);
   });
 });
 
 describe("what the order list says beside the totals (084)", () => {
-  const base = { id: ORDER, order_number: "EFY-ABC123", placed_at: null, item_count: 3, grand_total_amount: "26.00", currency: "AUD" };
+  const base = { id: ORDER, order_number: "EFY-ABC123", placed_at: null, item_count: 3, grand_total_amount: "26.00", currency: "AUD", delivery_type: "effy" as const, delivery_promise: "window" as const };
   const imageAddress = async (k: string | null) => (k ? `https://img/${k}` : null);
   const list = async (row: object) =>
     (await createOrdersService({ repo: repoWith({ list: async () => [{ ...base, ...row } as never] }), imageAddress }).list("cust"))[0]!;
@@ -279,12 +281,6 @@ describe("085 — the customer is told what was SOLD, not what the packages carr
     expect(o.delivery).toEqual({ type: "effy", courierEstimate: null, promise: "asap", asapEstimate: "usually within 2–3 days" });
     expect(o.arrivalEstimates).toEqual([]);
     expect(JSON.stringify(o)).not.toContain("2026-10-08T");
-  });
-
-  it("an Effy order from before 085 was sold a window, and still shows it", async () => {
-    const o = await effy({ delivery_promise: null });
-    expect(o.delivery?.promise).toBe("window");
-    expect(o.arrivalEstimates[0]!.windowStart).toBe("2026-10-10T12:00:00+11:00");
   });
 
   it("a courier order carries no promise", async () => {

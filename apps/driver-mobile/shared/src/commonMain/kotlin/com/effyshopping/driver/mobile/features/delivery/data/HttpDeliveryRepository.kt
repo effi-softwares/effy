@@ -271,8 +271,7 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
             // 069 — ⚠ `window` (the label) existed on this DTO since 049 and was never mapped, because
             // it was always null. It is real now, and so are the instants beside it.
             window = DeliveryWindow.of(it.window, it.deliveryWindow?.startAt, it.deliveryWindow?.endAt),
-            packageCodes = it.packageCodes.orEmpty(),
-            bags = it.parcels.orEmpty().map { b -> b.toDomain() },
+            bags = it.parcels.map { b -> b.toDomain() },
             street = it.street?.takeIf { s -> s.isNotBlank() },
             completedAtIso = it.completedAt,
             proofMethod = it.proofMethod?.toDomain(),
@@ -289,8 +288,8 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
 
 /** 088/092 — the wire's parcels to return → the domain's. Shared with Today's read. */
 internal fun com.effyshopping.driver.mobile.contract.ParcelsToReturn.toParcels() = ParcelsToReturn(
-    runID, count.toInt(), orders, packageCodes.orEmpty(),
-    parcels = parcels.orEmpty().map { ReturnParcel(it.ref, it.packageCode, it.place?.takeIf { p -> p.isNotBlank() }, it.reason?.toDomain(), bags = it.parcels.orEmpty().map { b -> b.toDomain() }) },
+    runID, count.toInt(), orders,
+    parcels = parcels.map { ReturnParcel(it.ref, it.packageCode, it.place?.takeIf { p -> p.isNotBlank() }, it.reason?.toDomain(), bags = it.parcels.map { b -> b.toDomain() }) },
 )
 
 internal fun DeliveryFailureReason.toDomain(): FailureReason = when (this) {
@@ -315,7 +314,7 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     customerName = customerName,
     addressFull = addressFull,
     instructions = instructions,
-    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain(), p.packageCode, bags = p.parcels.orEmpty().map { b -> b.toDomain() }) },
+    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain(), p.packageCode, bags = p.parcels.map { b -> b.toDomain() }) },
     status = dropStatus(status),
     summary = summary.toDomain(),
     // 066 — exhaustive on purpose: a third preference on the wire must fail to compile here.

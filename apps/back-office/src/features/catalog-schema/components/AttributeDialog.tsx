@@ -20,7 +20,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
 } from "@effy/design-system/ui";
 
 import { track } from "@/lib/telemetry";

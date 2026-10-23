@@ -231,7 +231,7 @@ d("065 — driver item manifest", () => {
     expect(first.packageCode).toMatch(/^[2-9A-HJKMNP-TV-Z]{6}$/);
     expect(first.packageCode).not.toBe(second.packageCode);
     const run = await collectionRun(roundId, driverId);
-    expect(run.stops.find((st) => st.stopId === stopId)?.packageCodes?.sort()).toEqual([first.packageCode, second.packageCode].sort());
+    expect(run.stops.find((st) => st.stopId === stopId)?.parcels.map((b) => b.code).sort()).toEqual([first.packageCode, second.packageCode].sort());
     // 090 — and each carries its hub instruction, in the platform's words.
     expect(run.hubSort?.map((h) => h.packageCode).sort()).toEqual([first.packageCode, second.packageCode].sort());
     for (const h of run.hubSort ?? []) expect(["load_now", "shelve", "courier_bay"]).toContain(h.kind);
@@ -269,7 +269,7 @@ d("065 — driver item manifest", () => {
   it("a standard package carries its manifest too", async () => {
     const { driverId, roundId, stopId } = await pickupFixture();
     const stop = await collectionStop(roundId, stopId, driverId);
-    const standard = stop.packages.find((p) => p.method === "standard")!;
+    const standard = stop.packages.find((p) => p.deliveredBy === "courier")!;
     expect(standard.items).toHaveLength(2);
   });
 

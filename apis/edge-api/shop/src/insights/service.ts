@@ -12,7 +12,7 @@ import type {
 
 import { readComputedAt, readHours, readTopProducts, signThumbnails } from "./repository";
 import type { HourRow } from "./repository";
-import { addLocalDays, bucketsFor, localParts, planFor, windowLabel } from "./window";
+import { addLocalDays, bucketsFor, localParts, planFor } from "./window";
 
 export const TOP_PRODUCT_LIMIT = 5;
 

@@ -33,7 +33,6 @@ import {
   orderRowTone,
   PAYMENT_LABEL,
   TAB_LABEL,
-  toCsv,
   toListQuery,
   validateOrdersSearch,
   type OrderRow,
@@ -43,7 +42,6 @@ import {
 import { courierPickupLine } from "./courierPickup"
 import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
 import { orderListQuery } from "./queries"
-import { listOrders } from "./repo"
 
 /**
  * The Orders list — transcribed from the imported design's `isOrders` block ("Effy Shop Console.dc.html"),

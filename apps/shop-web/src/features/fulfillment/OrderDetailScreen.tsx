@@ -115,9 +115,9 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           {/* Every Effy order is placed online — the storefront or the app — so that is its channel. */}
           <div className="text-muted-foreground text-[12.5px]">
             {formatWhen(detail.placedAt)} · Online store ·{" "}
-            {/* 089 — the package's code (bag 1's label carries it). */}
+            {/* 089 — the package's code: bag 1's. */}
             <span className="font-mono" aria-label="Package code">
-              {detail.parcels[0]?.code ?? detail.label.packageCode}
+              {detail.parcels[0]?.code}
             </span>
           </div>
         </div>

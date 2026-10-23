@@ -76,7 +76,6 @@ export function consignmentError(err: unknown): string {
  */
 const DELIVERY_MOVE_COPY: Record<string, string> = {
   not_paid: "Only a paid order can be moved.",
-  no_delivery_type: "This order was placed before the new delivery model and keeps how it was sold.",
   already_courier: "This order is already going by courier.",
   already_effy: "Effy already delivers this order.",
   handed_over: "A parcel of this order is already with the courier.",

@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 
 import {
   Button,
@@ -12,11 +11,6 @@ import {
   DialogTitle,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@effy/design-system/ui";
 
 import { track } from "@/lib/telemetry";
@@ -24,7 +18,6 @@ import { track } from "@/lib/telemetry";
 import { driverActionError } from "../errorText";
 import { useCreateDriver } from "../queries";
 
-const NO_ZONE = "none";
 
 /**
  * Provision a driver — the platform record and a driver-app sign-in, created together (FR-013).

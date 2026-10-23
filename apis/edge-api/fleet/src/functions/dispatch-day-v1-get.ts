@@ -1,7 +1,7 @@
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
-import { json, preamble, problem } from "@effy/edge-shared";
+import { json, preamble } from "@effy/edge-shared";
 
 import { denied, guard } from "../shared/handler-support";
 import { mapDispatchError } from "../shared/dispatch-handler-support";

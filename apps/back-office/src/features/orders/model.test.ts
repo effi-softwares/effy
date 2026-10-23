@@ -82,7 +82,6 @@ describe("nextActionFor — which control the operator is offered", () => {
   it("079 — an order's delivery type and its changes, in the customer's two names", () => {
     expect(deliveryTypeText("effy")).toBe("Delivered by Effy");
     expect(deliveryTypeText("courier")).toBe("Courier delivery");
-    expect(deliveryTypeText(null)).toBe("—");
     const at = "2026-10-09T03:00:00Z";
     expect(deliveryChangeText({ from: null, to: "courier", reason: "out_of_coverage", actor: { kind: "checkout" }, note: null, at })).toBe("Courier delivery");
     expect(deliveryChangeText({ from: "effy", to: "courier", reason: "staff_change", actor: { kind: "staff", sub: "s" }, note: null, at }))

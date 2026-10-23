@@ -3,7 +3,7 @@
 import { validationFailed } from "@effy/edge-shared";
 
 import { respond } from "../cart/respond";
-import { changeIdOf, customerRoute, intField, jsonBody, pathParam, stringField } from "../lib/route";
+import { changeIdOf, customerRoute, intField, jsonBody, pathParam } from "../lib/route";
 import { cartService } from "../lib/wiring";
 
 export const handler = customerRoute(async ({ event, scope, customer }) => {

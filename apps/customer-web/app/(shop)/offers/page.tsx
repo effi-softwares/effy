@@ -1,7 +1,8 @@
+import type { Banner } from "../promotion-groups"
 import type { Metadata } from "next"
 import { Suspense } from "react"
 import { Tag } from "lucide-react"
-import { PROMOTION_GROUP_KEYS, type BannerDTO } from "@effy/shared-types"
+import { PROMOTION_GROUP_KEYS } from "@effy/shared-types"
 
 import { EmptyState } from "@/components/storefront/kit"
 import { Badge } from "@/components/ui/badge"
@@ -102,7 +103,7 @@ async function OfferList() {
 }
 
 /** An offer with a code: the code is the point, so it is on the card with its Copy button. */
-function CodeOffer({ offer }: { offer: BannerDTO }) {
+function CodeOffer({ offer }: { offer: Banner }) {
   return (
     <Card className="h-full gap-3 p-5">
       <Badge variant="primary-muted" className="self-start">

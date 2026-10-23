@@ -1,4 +1,4 @@
-import { collectionDeadline, localDateParts, type CollectionRun } from "../lib/collection-deadline";
+import { localDateParts, type CollectionRun } from "../lib/collection-deadline";
 import type { Queryable } from "../lib/db";
 
 export type { CollectionRun };

@@ -1,6 +1,6 @@
 // Repository for shop-local sections (016, US5): raw SQL, shop-scoped. Every query is bound to the
 // caller-resolved shop id (never client input). A duplicate section name in a shop → 409 conflict.
-import { query, withTransaction } from "@effy/edge-shared";
+import { query } from "@effy/edge-shared";
 
 import { ProductError } from "../products/types";
 import type { ShopSection } from "./types";

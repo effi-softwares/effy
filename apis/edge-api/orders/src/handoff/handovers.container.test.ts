@@ -24,7 +24,7 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
-import { previewMove, recordDeliveryType } from "@effy/edge-shared/delivery";
+import { recordDeliveryType } from "@effy/edge-shared/delivery";
 import { deliveryTypeHistory, findOrder, packages } from "../orders/repository";
 import { listHandovers, listOrders, toPackage } from "../orders/service";
 import { OrderActionError } from "../lib/errors";
@@ -384,31 +384,6 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     expect(await numbers("courier")).toEqual([`${courier.orderNumber}:courier`]);
     // "Awaiting handover" finds the courier's package, never Effy's.
     expect((await listOrders({ limit: 50, awaiting: "handover" })).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber]);
-  });
-
-  /**
-   * ⚠ 083 P7 — AN ORDER SOLD THE OLD WAY FINISHES THE OLD WAY, WITH THE NEW MODEL ON. Nothing on this
-   * path reads the switch: who delivers an old order is answered from what it was sold (079), so the
-   * moment the new checkout starts changes nothing for a parcel already on its way.
-   */
-  it("⚠ 083 P7/P13 — an old standard order is still the carrier's and can be handed over; an old same-day one is still Effy's", async () => {
-    const std = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
-    const today = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(3) });
-
-    // ⚠ Not on the handover list any more — its due-out rule went with the old arrangement, and
-    // none was open when it did — but whose it is has not changed, and neither has what can be done.
-    expect(await everywhere()).toEqual([]);
-    expect(await refusal(today.fulfillmentId)).toBe("not_standard");
-    expect(await refusal(std.fulfillmentId)).toBeNull();
-    expect((await toPackage((await packages(std.orderId))[0]!)).deliveredBy).toBe("courier");
-    expect((await toPackage((await packages(today.orderId))[0]!)).deliveredBy).toBe("effy");
-
-    // Neither can be moved between Effy and courier: it keeps how it was sold (081).
-    for (const o of [std, today]) {
-      await pool.query(`INSERT INTO public.payment (order_id, provider, stripe_payment_intent_id, amount, currency, status) VALUES ($1, 'stripe', $2, 12, 'AUD', 'succeeded')`, [o.orderId, `pi_${o.orderNumber}`]);
-      expect((await previewMove(pool, o.orderId, "courier")).refusal?.code).toBe("no_delivery_type");
-      expect((await findOrder(o.orderId))!.delivery_type).toBeNull();
-    }
   });
 
   it("the order detail: type, why, the estimate as sold, and the history — nothing invented for an old order", async () => {

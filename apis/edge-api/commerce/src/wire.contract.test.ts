@@ -1,4 +1,4 @@
-import { keyPaths, kotlinFixture, kotlinFixtureJson, wire } from "@effy/edge-shared/testing";
+import { kotlinFixture, kotlinFixtureJson, wire } from "@effy/edge-shared/testing";
 import type { QuoteResult } from "@effy/edge-shared/delivery";
 import type { PaymentGateway } from "@effy/edge-shared/payments";
 import { describe, expect, it } from "vitest";
@@ -160,7 +160,7 @@ describe("an order line", () => {
         get: async () => ({
           id: "11111111-1111-4111-8111-111111111111", order_number: "EFY-1", status: "paid", placed_at: null, delivery_address: {}, billing_address: null,
           delivery_handover: null, delivery_note: null, item_subtotal_amount: "13.00", discount_amount: "0.00", promo_code: null, delivery_discount_amount: "0.00", promotions: null,
-          delivery_fee_amount: "0.00", grand_total_amount: "13.00", currency: "AUD", payment_status: "succeeded",
+          delivery_fee_amount: "0.00", delivery_fee_lines: [], delivery_type: "effy", delivery_promise: "window", grand_total_amount: "13.00", currency: "AUD", payment_status: "succeeded",
         }),
         items: async () => [{ order_item_id: "1a2b3c4d-0000-0000-0000-000000000009", product_id: EGGS, variant_id: "v1", variant_label: null, product_name: "Free Range Eggs 12pk", unit_price_amount: "6.50", quantity: 2, line_subtotal_amount: "13.00", discount_amount: "0.00", image_key: null, image_widths: null }],
         fulfillments: async () => [], shortfalls: async () => [], arrivals: async () => [], paymentMethod: async () => null, refunds: async () => [], list: async () => [],

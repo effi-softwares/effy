@@ -175,55 +175,37 @@ function LineItem({
 }
 
 function Totals({ order }: { order: OrderDTO }) {
-  const discount = order.discountAmount && order.discountAmount !== "0.00" ? order.discountAmount : null
-  const delivery =
-    order.deliveryFeeAmount && order.deliveryFeeAmount !== "0.00" ? order.deliveryFeeAmount : null
-
   return (
     <div className="mt-4 ml-auto max-w-sm">
       <dl className="flex flex-col gap-2">
         <Row label="Items subtotal" value={formatMoney(order.itemSubtotalAmount, order.currency)} />
-        {/* 094 — one row per promotion as sold; an order from before 094 has one code. */}
-        {order.promotions && order.promotions.length > 0
-          ? order.promotions
-              .filter((p) => p.goodsAmount !== "0.00")
-              .map((p) => (
-                <Row
-                  key={`${p.headline}-${p.code ?? ""}`}
-                  label={
-                    <>
-                      {p.headline}
-                      {p.code ? <span className="font-medium text-foreground"> {p.code}</span> : null}
-                    </>
-                  }
-                  value={`−${formatMoney(p.goodsAmount, order.currency)}`}
-                />
-              ))
-          : discount ? (
-              <Row
-                label={
-                  <>
-                    Discount{" "}
-                    {order.promoCode ? <span className="font-medium text-foreground">{order.promoCode}</span> : null}
-                  </>
-                }
-                value={`−${formatMoney(discount, order.currency)}`}
-              />
-            ) : null}
-        {order.deliveryDiscountAmount && order.deliveryDiscountAmount !== "0.00" ? (
+        {/* 094 — one row per promotion as sold. */}
+        {order.promotions
+          .filter((p) => p.goodsAmount !== "0.00")
+          .map((p) => (
+            <Row
+              key={`${p.headline}-${p.code ?? ""}`}
+              label={
+                <>
+                  {p.headline}
+                  {p.code ? <span className="font-medium text-foreground"> {p.code}</span> : null}
+                </>
+              }
+              value={`−${formatMoney(p.goodsAmount, order.currency)}`}
+            />
+          ))}
+        {order.deliveryDiscountAmount !== "0.00" ? (
           <Row label="Delivery offer" value={`−${formatMoney(order.deliveryDiscountAmount, order.currency)}`} />
         ) : null}
-        {/* 077 — an order placed since the fee engine shows the lines it was SOLD with (stored, never
-            re-priced); a free delivery is shown as the lines that make its $0. Before 077, one row. */}
-        {order.deliveryFee && order.deliveryFee.lines.length > 0
-          ? order.deliveryFee.lines.map((l, i) => (
-              <Row
-                key={`${l.kind}-${i}`}
-                label={DELIVERY_FEE_LINE_LABEL[l.kind]}
-                value={l.amount.startsWith("-") ? `−${formatMoney(l.amount.slice(1), order.currency)}` : formatMoney(l.amount, order.currency)}
-              />
-            ))
-          : delivery ? <Row label="Delivery" value={formatMoney(delivery, order.currency)} /> : null}
+        {/* 077 — the lines the order was SOLD with (stored, never re-priced); a free delivery is shown as
+            the lines that make its $0. */}
+        {order.deliveryFee.lines.map((l, i) => (
+          <Row
+            key={`${l.kind}-${i}`}
+            label={DELIVERY_FEE_LINE_LABEL[l.kind]}
+            value={l.amount.startsWith("-") ? `−${formatMoney(l.amount.slice(1), order.currency)}` : formatMoney(l.amount, order.currency)}
+          />
+        ))}
       </dl>
 
       <div className="mt-3 flex items-baseline justify-between gap-4 border-t pt-3">
