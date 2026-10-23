@@ -49,14 +49,6 @@ export interface ShopStaffRecordDTO {
   lastSeenAt: string;
 }
 
-/** Wire DTO for GET /shop/v1/manager-ping (contracts/shop-manager-ping.contract.md). */
-export interface ShopManagerPingDTO {
-  audience: "shop";
-  scope: "shop_manager";
-  subject: string;
-  message: string;
-}
-
 /** Domain shapes the console renders — roles narrowed to known ShopRole. */
 export interface ShopSummary {
   id: string;

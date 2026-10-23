@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 
 import { Button, Input, Label } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
@@ -11,19 +11,18 @@ import { Panel } from "@/components/patterns/Panel";
 
 import { sessionQuery } from "@/features/auth/queries";
 
-import { canManageDelivery, canSwitchDeliveryModel } from "./access";
+import { canManageDelivery } from "./access";
 import { deliveryMutationError } from "./errorText";
 import { DeliveryDaysPanel } from "./components/DeliveryDaysPanel";
 import { SlotsPanel } from "./components/SlotsPanel";
 import { CoveragePanel, CourierPage } from "./coverage/CoveragePanel";
-import { GoLivePanel } from "./golive/GoLivePanel";
 import { PricingPanel } from "./pricing/PricingPanel";
 import {
   collectionRunsQuery, settingsQuery, useCreateCollectionRun,
   useDeleteCollectionRun, usePutSettings,
 } from "./queries";
 
-const TABS: readonly string[] = ["coverage", "courier", "pricing", "slots", "days", "schedule", "settings", "go-live"];
+const TABS: readonly string[] = ["coverage", "courier", "pricing", "slots", "days", "schedule", "settings"];
 
 /** The page each sidebar entry opens (redesign, folder "Delivery settings"): its title and its one line. */
 const PAGES: Record<string, { title: string; description: string }> = {
@@ -43,23 +42,16 @@ const PAGES: Record<string, { title: string; description: string }> = {
     title: "Hub and timings",
     description: "Where every distance is measured from, and how long a shop needs before a collection run.",
   },
-  "go-live": {
-    title: "Go-live history",
-    description: "When the delivery model began and when the old arrangement was removed.",
-  },
 };
 
 export function DeliveryScreen() {
   const { data: session } = useQuery(sessionQuery);
   const roles = session?.status === "signed-in" ? session.identity.roles : [];
   const canManage = canManageDelivery(roles);
-  // 083 — the page is in the URL, so the go-live checklist can link to the page that fixes each item.
   const search = useSearch({ strict: false }) as { tab?: string };
-  const navigate = useNavigate();
   const raw = TABS.includes(search.tab ?? "") ? search.tab! : "coverage";
   // Collection runs live on the Days page now.
   const tab = raw === "schedule" ? "days" : raw;
-  const goTo = (next: string) => void navigate({ to: "/delivery", search: { tab: next } });
 
   if (tab === "coverage") return <CoveragePanel canManage={canManage} />;
   if (tab === "courier") return <CourierPage canManage={canManage} />;
@@ -78,10 +70,8 @@ export function DeliveryScreen() {
           <DeliveryDaysPanel canManage={canManage} />
           <SchedulePanel canManage={canManage} />
         </>
-      ) : tab === "settings" ? (
-        <SettingsPanel canManage={canManage} />
       ) : (
-        <GoLivePanel canSwitch={canSwitchDeliveryModel(roles)} onGoToTab={goTo} />
+        <SettingsPanel canManage={canManage} />
       )}
       </div>
     </>

@@ -56,16 +56,12 @@ import type {
   HistoryDropRow,
   HistoryDetailDTO,
   TimelineEntry,
-  ActivityItem,
-  ActivityReadRequest,
   DriverVehicleCheckState,
   VehicleCheckEntry,
   VehicleCheckRequest,
   VehicleCheckResponse,
   LoadStep,
   ParcelsUnaccountedProblem,
-  DriverReadsRequest,
-  DriverReadsResponse,
 } from "./driver";
 import type { LabelReadDTO, ParcelDTO, ParcelHandover, ParcelMissing } from "./parcels";
 import type { ProblemJSON } from "./problem";
@@ -118,8 +114,6 @@ export interface DriverContract {
   historyDrop: HistoryDropRow;
   historyDetail: HistoryDetailDTO;
   timelineEntry: TimelineEntry;
-  activityItem: ActivityItem;
-  activityRead: ActivityReadRequest;
   vehicleCheckState: DriverVehicleCheckState;
   vehicleCheckEntry: VehicleCheckEntry;
   vehicleCheckRequest: VehicleCheckRequest;
@@ -129,8 +123,6 @@ export interface DriverContract {
   parcelHandover: ParcelHandover;
   parcelMissing: ParcelMissing;
   labelRead: LabelReadDTO;
-  readsRequest: DriverReadsRequest;
-  readsResponse: DriverReadsResponse;
   parcelsUnaccounted: ParcelsUnaccountedProblem;
   problem: ProblemJSON;
 }

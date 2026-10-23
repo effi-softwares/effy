@@ -16,8 +16,6 @@ import { assertRoundOpen } from "./open";
 import { assertNothingToHandIn } from "./sequence";
 import { NotFoundError } from "./service";
 
-export const MISSING_REASONS: ReadonlySet<MissingReason> = new Set(["not_at_hub", "damaged", "wrong_temperature", "other"]);
-
 export interface LoadResult {
   /** The drops this call moved to out for delivery — the ones whose shops are told. */
   loadedDropIds: string[];

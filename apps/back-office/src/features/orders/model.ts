@@ -23,10 +23,8 @@ export interface OrderListParams {
   awaiting?: OrderAwaiting;
   /** 073 — only orders with a package nobody is collecting or delivering. */
   needsDriver?: boolean;
-  /** 079 — who delivers the order; `legacy` = placed before orders had a delivery type. */
+  /** 079 — who delivers the order. */
   deliveryType?: AdminOrderDeliveryFilter;
-  /** 083 — with `deliveryType: "legacy"`: only the old orders that are still open. */
-  stillOpen?: boolean;
   /** 085 — what an Effy order was sold. */
   promise?: DeliveryPromise;
   cursor?: string;
@@ -56,7 +54,6 @@ export function deliveryTypeText(type: DeliveryType | null): string {
 export const DELIVERY_FILTER_LABEL: Record<AdminOrderDeliveryFilter, string> = {
   effy: DELIVERY_TYPE_WORDS.effy,
   courier: DELIVERY_TYPE_WORDS.courier,
-  legacy: "Placed before delivery types",
 };
 
 /** Why an order has its delivery type — staff words. A customer is never told this. */

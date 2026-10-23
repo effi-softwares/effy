@@ -216,7 +216,3 @@ export async function readInsights(
   };
 }
 
-/** The window label the subtitle states ("26 August – 1 September"). */
-export function labelFor(range: InsightsRange, now: Date, timezone: string): string {
-  return windowLabel(planFor(range, now, timezone), timezone);
-}

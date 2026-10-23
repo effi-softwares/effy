@@ -132,33 +132,6 @@ functions:
           method: GET
           path: /shop/readyz
 
-  platformStatusV1:
-    handler: src/functions/platform-status-v1-get.handler
-    description: Proving read v1 (three-layer traversal to the dev DB), public
-    events:
-      - httpApi:
-          method: GET
-          path: /shop/v1/status
-
-  platformStatusV2:
-    handler: src/functions/platform-status-v2-get.handler
-    description: Proving read v2 — version-coexistence demo (reshaped payload), public
-    events:
-      - httpApi:
-          method: GET
-          path: /shop/v2/status
-
-  shopPingV1:
-    handler: src/functions/shop-ping-v1-get.handler
-    description: Shop identity-enforcement proving route (shop pool)
-    events:
-      - httpApi:
-          method: GET
-          path: /shop/v1/ping
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
-
   shopMeV1:
     handler: src/functions/shop-me-v1-get.handler
     description: Shop-identity read — records (JIT upsert) + returns the platform record (007)
@@ -166,17 +139,6 @@ functions:
       - httpApi:
           method: GET
           path: /shop/v1/me
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
-
-  shopManagerPingV1:
-    handler: src/functions/shop-manager-ping-v1-get.handler
-    description: Manager-only proving route — authorizes from the DB record (role AND status AND shop scope, 007)
-    events:
-      - httpApi:
-          method: GET
-          path: /shop/v1/manager-ping
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -438,17 +400,6 @@ functions:
       - httpApi:
           method: POST
           path: /shop/v1/fulfillments/{id}/courier-handover
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
-
-  fulfillmentItemV1:
-    handler: src/functions/fulfillment-item-v1-patch.handler
-    description: Record picking progress / flag an item unavailable — no money moves (FR-010b) — 020
-    events:
-      - httpApi:
-          method: PATCH
-          path: /shop/v1/fulfillments/{id}/items/{orderItemId}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}

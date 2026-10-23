@@ -211,14 +211,6 @@ export async function readPromotion(id: string, now: Date): Promise<{ record: Pr
   return { record, extras };
 }
 
-export async function isUsed(id: string): Promise<boolean> {
-  return (await query<{ used: boolean }>(`SELECT public.promotion_is_used($1) AS used`, [id])).rows[0]?.used ?? false;
-}
-
-export async function promotionUpdatedAt(id: string): Promise<Date | null> {
-  return (await query<{ updated_at: Date }>(`SELECT updated_at FROM public.promotion WHERE id = $1`, [id])).rows[0]?.updated_at ?? null;
-}
-
 // ── writes ──────────────────────────────────────────────────────────────────────────────────────
 
 async function writeExtras(tx: Queryable, id: string, x: PromotionWriteExtras, actor: string) {

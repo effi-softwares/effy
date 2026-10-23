@@ -144,8 +144,3 @@ export async function readVariantSets(
   return out;
 }
 
-/** Only the values some given variant names — what a shopper's selector shows. */
-export function optionsInUse(set: VariantSet): OptionRow[] {
-  const used = new Set(set.variants.flatMap((v) => v.optionValueIds.filter((x): x is string => x !== null)));
-  return set.options.map((o) => ({ ...o, values: o.values.filter((v) => used.has(v.id)) }));
-}

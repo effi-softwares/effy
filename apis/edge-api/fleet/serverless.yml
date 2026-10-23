@@ -554,18 +554,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  dispatchCustodyV1:
-    handler: src/functions/dispatch-custody-v1-get.handler
-    description: >-
-      064 — every package currently in a driver's hands. Derived, never stored. Read = any active staff.
-    events:
-      - httpApi:
-          method: GET
-          path: /fleet/v1/custody
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
   dispatchDayV1:
     handler: src/functions/dispatch-day-v1-get.handler
     description: >-

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { migrationSql } from "../lib/load-migrations";
 import { slotLoad } from "./slots";
-import { changeEffyWindow, DeliveryMoveError, deliveryMovesFor, latestMoveForCustomer, moveToCourier, moveToEffy, previewMove } from "./override";
+import { changeEffyWindow, DeliveryMoveError, deliveryMovesFor, moveToCourier, moveToEffy, previewMove } from "./override";
 import { recordParcelReturn } from "./parcel-return";
 
 /**
@@ -210,10 +210,6 @@ d("081 — moving an order between Effy and courier delivery", () => {
       compensation: "points_difference", amount: "2.50", points: 250, window: { date: TODAY },
       courier: { courierName: "Test Courier", collection: "hub" },
     });
-    // What the customer is told: to, when, what they got. Nothing else.
-    const latest = await latestMoveForCustomer(pool, o.order);
-    expect(latest).toMatchObject({ to: "courier", compensation: { kind: "points", amount: "2.50", points: 250 } });
-    expect(Object.keys(latest!).sort()).toEqual(["at", "compensation", "to"]);
     // The customer was charged nothing and the order total is what it was.
     expect((await one<{ g: string }>(`SELECT grand_total_amount::text AS g FROM public."order" WHERE id = $1`, [o.order])).g).toBe("49.00");
   });
@@ -278,7 +274,6 @@ d("081 — moving an order between Effy and courier delivery", () => {
     await toCourier(e.order, "none", 0, await updatedAt(e.order), "Customer asked for courier");
     expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.points_entry WHERE customer_id = $1`, [e.customerId])).n)).toBe(0);
     expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.refund WHERE order_id = $1`, [e.order])).n)).toBe(0);
-    expect(await latestMoveForCustomer(pool, e.order)).toMatchObject({ compensation: null });
     // Nothing given with no reason why is refused by the database itself.
     const f = await effyOrder();
     expect(await refusal(toCourier(f.order, "none", 0, await updatedAt(f.order)))).toMatch(/delivery_override_none_note_ck/);
@@ -370,7 +365,6 @@ d("081 — moving an order between Effy and courier delivery", () => {
     expect(Number((await one<{ n: string }>(`SELECT count(*) AS n FROM public.refund WHERE order_id = $1`, [o.order])).n)).toBe(0);
     const moves = await deliveryMovesFor(pool, o.order);
     expect(moves.map((m) => [m.to, m.compensation, m.amount])).toEqual([["courier", "points_difference", "2.50"], ["effy", "none", "0.00"]]);
-    expect(await latestMoveForCustomer(pool, o.order)).toMatchObject({ to: "effy", compensation: null });
   });
 
   it("P9 — back to Effy is refused for a full window, an address Effy does not reach, or a parcel with the courier", async () => {

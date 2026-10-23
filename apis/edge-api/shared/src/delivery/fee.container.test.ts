@@ -1,6 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -105,16 +102,6 @@ async function seedBefore077(pool: Pool, standardFactor = "1.000"): Promise<void
   `);
 }
 
-function preflightSql(): string {
-  let cur = __dirname;
-  for (let i = 0; i < 12; i += 1) {
-    const candidate = resolve(cur, "specs", "077-delivery-fee-engine-v2", "preflight.sql");
-    if (existsSync(candidate)) return readFileSync(candidate, "utf8");
-    cur = dirname(cur);
-  }
-  throw new Error("could not find specs/077-delivery-fee-engine-v2/preflight.sql");
-}
-
 /** Run a migration that is expected to fail, in a transaction that is then thrown away. */
 async function expectRefused(pool: Pool, sql: string, message: RegExp): Promise<void> {
   const client = await pool.connect();
@@ -130,8 +117,6 @@ async function expectRefused(pool: Pool, sql: string, message: RegExp): Promise<
 let container: StartedPostgreSqlContainer;
 let pool: Pool;
 let before: { postcode: string; tier_price_cents: number; tier_matches_distance: boolean }[];
-let preflight: { postcode: string; tier_today: string; tier_after: string; fee_1kg_today: string; fee_1kg_after: string }[];
-let preflightVerdict: { standard_factor: string; verdict: string }[];
 let shop: string;
 
 d("077 — the fee engine migration carries today's prices across", () => {
@@ -142,11 +127,6 @@ d("077 — the fee engine migration carries today's prices across", () => {
     await pool.query(migrationSql({ before: M077 }));
     await seedBefore077(pool);
     before = (await pool.query(BEFORE)).rows;
-
-    // The pre-flight is two statements; the driver returns one result per statement.
-    const results = (await pool.query(preflightSql())) as unknown as { rows: never[] }[];
-    preflightVerdict = results[0]!.rows;
-    preflight = results[1]!.rows;
 
     // P15 — refused, and nothing changed, before it is ever applied properly.
     await expectRefused(pool, migrationSql({ from: M077, before: "20261008135722" }), /EFFY_TODAY_PREMIUM is not set/);
@@ -245,17 +225,6 @@ d("077 — the fee engine migration carries today's prices across", () => {
     const was = before.find((r) => r.postcode === "3141")!;
     expect(oldStandardFee(was.tier_price_cents, 500)).toBe(1500);
     expect((await laterDayFee("3141", 500)).totalCents).toBe(600);
-  });
-
-  it("P16 — and the pre-flight showed the operator exactly that postcode, with both fees, before anything changed", () => {
-    expect(preflightVerdict).toHaveLength(1);
-    expect(Number(preflightVerdict[0]!.standard_factor)).toBe(1);
-    expect(preflightVerdict[0]!.verdict).toMatch(/^ok/);
-    expect(preflight).toEqual([
-      expect.objectContaining({ postcode: "3141", tier_today: "Far", tier_after: "Inner", fee_1kg_today: "15.00", fee_1kg_after: "6.00" }),
-    ]);
-    // …which is precisely the complement of the set P16 proved unchanged.
-    expect(preflight.map((r) => r.postcode)).toEqual(before.filter((r) => !r.tier_matches_distance).map((r) => r.postcode));
   });
 
   it("P10 — a postcode added afterwards, far beyond every band, is priced without touching the plan", async () => {
@@ -409,11 +378,6 @@ d("077 — the migration refuses a standard multiplier other than 1", () => {
     await expectRefused(p2, migrationSql({ from: M077, env: { EFFY_TODAY_PREMIUM: TODAY_PREMIUM } }), /standard multiplier of 1\.200, not 1/);
     const cols = await p2.query(`SELECT 1 FROM information_schema.columns WHERE table_name = 'delivery_fee_plan' AND column_name = 'kind'`);
     expect(cols.rowCount).toBe(0);
-  });
-
-  it("the pre-flight says so first", async () => {
-    const results = (await p2.query(preflightSql())) as unknown as { rows: { verdict: string }[] }[];
-    expect(results[0]!.rows[0]!.verdict).toMatch(/^STOP/);
   });
 
   it("T035 — the tier-dropping migration refuses to run before the fee engine's first", async () => {

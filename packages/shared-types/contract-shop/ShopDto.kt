@@ -657,27 +657,6 @@ enum class Severity(val value: String) {
 }
 
 /**
- * Wire DTO for GET /shop/v1/manager-ping (contracts/shop-manager-ping.contract.md).
- */
-@Serializable
-data class ShopManagerPingDTO (
-    val audience: Audience,
-    val message: String,
-    val scope: Scope,
-    val subject: String
-)
-
-@Serializable
-enum class Audience(val value: String) {
-    @SerialName("shop") Shop("shop");
-}
-
-@Serializable
-enum class Scope(val value: String) {
-    @SerialName("shop_manager") ShopManager("shop_manager");
-}
-
-/**
  * ⚠ DEV-ONLY SCAFFOLD (POST /shop/v1/fulfillments/{id}/pickup) — FR-030…FR-034.
  *
  * Stands in for a driver collecting the order so the lifecycle is exercisable before a

@@ -24,8 +24,7 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql } from "@effy/edge-shared";
-import { legacyOpenOrders, previewMove, recordDeliveryType } from "@effy/edge-shared/delivery";
-
+import { previewMove, recordDeliveryType } from "@effy/edge-shared/delivery";
 import { deliveryTypeHistory, findOrder, packages } from "../orders/repository";
 import { listHandovers, listOrders, toPackage } from "../orders/service";
 import { OrderActionError } from "../lib/errors";
@@ -372,21 +371,19 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
     expect(await refusal(moved.fulfillmentId)).toBeNull();
   });
 
-  it("the order list: filter by who delivers — and an order from before 079 is `legacy`, never guessed", async () => {
+  it("the order list: filter by who delivers", async () => {
     const effy = await seedPackage({ method: "standard", promisedDay: await melDay(2), window: later(50) });
     const courier = await seedPackage({ method: "standard", promisedDay: null });
-    const old = await seedPackage({ method: "standard", promisedDay: await melDay(3) });
     await sell(effy.orderId, "effy", "in_coverage");
     await sell(courier.orderId, "courier", "no_window", "2–4 business days");
 
-    const numbers = async (deliveryType?: "effy" | "courier" | "legacy") =>
+    const numbers = async (deliveryType?: "effy" | "courier") =>
       (await listOrders({ limit: 50, deliveryType })).items.map((o) => `${o.orderNumber}:${o.deliveryType}`).sort();
-    expect(await numbers()).toEqual([`${effy.orderNumber}:effy`, `${courier.orderNumber}:courier`, `${old.orderNumber}:null`].sort());
+    expect(await numbers()).toEqual([`${effy.orderNumber}:effy`, `${courier.orderNumber}:courier`].sort());
     expect(await numbers("effy")).toEqual([`${effy.orderNumber}:effy`]);
     expect(await numbers("courier")).toEqual([`${courier.orderNumber}:courier`]);
-    expect(await numbers("legacy")).toEqual([`${old.orderNumber}:null`]);
-    // "Awaiting handover" finds the courier's and the old carrier's package, never Effy's.
-    expect((await listOrders({ limit: 50, awaiting: "handover" })).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber, old.orderNumber].sort());
+    // "Awaiting handover" finds the courier's package, never Effy's.
+    expect((await listOrders({ limit: 50, awaiting: "handover" })).items.map((o) => o.orderNumber).sort()).toEqual([courier.orderNumber]);
   });
 
   /**
@@ -412,33 +409,6 @@ d("079 — who delivers a package is one answer, for old orders and new (P12, P1
       expect((await previewMove(pool, o.orderId, "courier")).refusal?.code).toBe("no_delivery_type");
       expect((await findOrder(o.orderId))!.delivery_type).toBeNull();
     }
-  });
-
-  /**
-   * ⚠ 083 P8 — THE LIST IS THE COUNT. The go-live page says "N old orders still open" and links here;
-   * both read `LEGACY_OPEN_ORDER_SQL`, so the list can never show a different N.
-   */
-  it("⚠ 083 P8 — `still open` lists exactly the old-kind orders the go-live count counts", async () => {
-    const open1 = await seedPackage({ method: "standard", promisedDay: await melDay(2) });
-    const open2 = await seedPackage({ method: "same_day", promisedDay: await melDay(0), window: later(3) });
-    const arrived = await seedPackage({ method: "standard", promisedDay: await melDay(1) });
-    await pool.query(`INSERT INTO public.package_arrival (shop_fulfillment_id, source, recorded_by_sub) VALUES ($1, 'staff_recorded', 's')`, [arrived.fulfillmentId]);
-    const cancelled = await seedPackage({ method: "standard", promisedDay: await melDay(1), orderStatus: "canceled" });
-    const typed = await seedPackage({ method: "standard", promisedDay: await melDay(2), window: later(50) });
-    await sell(typed.orderId, "effy", "in_coverage");
-
-    const listed = async (stillOpen: boolean) => (await listOrders({ limit: 50, deliveryType: "legacy", stillOpen })).items.map((o) => o.orderNumber).sort();
-    expect(await listed(false)).toEqual([open1, open2, arrived, cancelled].map((o) => o.orderNumber).sort());
-    expect(await listed(true)).toEqual([open1.orderNumber, open2.orderNumber].sort());
-    expect((await legacyOpenOrders(pool)).open).toBe(2);
-
-    // Close them the ways an order closes; the list and the count fall together.
-    await pool.query(`INSERT INTO public.package_arrival (shop_fulfillment_id, source, recorded_by_sub) VALUES ($1, 'staff_recorded', 's')`, [open1.fulfillmentId]);
-    expect(await listed(true)).toEqual([open2.orderNumber]);
-    expect((await legacyOpenOrders(pool)).open).toBe(1);
-    await pool.query(`UPDATE public."order" SET status = 'canceled' WHERE id = $1`, [open2.orderId]);
-    expect(await listed(true)).toEqual([]);
-    expect(await legacyOpenOrders(pool)).toMatchObject({ open: 0, lastClosedAt: expect.any(Date) });
   });
 
   it("the order detail: type, why, the estimate as sold, and the history — nothing invented for an old order", async () => {

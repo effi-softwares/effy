@@ -830,18 +830,3 @@ export async function deliveryMovesFor(q: Queryable, orderId: string): Promise<A
   }));
 }
 
-/**
- * The customer's view of the LATEST move, or null. ⚠ To, when, and what they received — never the
- * reason, the fee, the difference or the cost (SC-008).
- */
-export async function latestMoveForCustomer(q: Queryable, orderId: string): Promise<OrderDeliveryMoveDTO | null> {
-  const r = (
-    await q.query<{ to_type: DeliveryType; created_at: Date; compensation: string; amount_cents: number; points: number | null }>(
-      `SELECT to_type, created_at, compensation, amount_cents, points
-         FROM public.delivery_override WHERE order_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1`,
-      [orderId],
-    )
-  ).rows[0];
-  if (!r) return null;
-  return { to: r.to_type, at: new Date(r.created_at).toISOString(), compensation: r.to_type === "courier" ? customerCompensationOf(r) : null };
-}

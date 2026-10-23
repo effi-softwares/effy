@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { optionalPositiveInt, parseJsonBody, requireNonEmptyString } from "./validate";
+import { parseJsonBody } from "./validate";
 
 describe("parseJsonBody", () => {
   it("parses a JSON object", () => {
@@ -18,20 +18,5 @@ describe("parseJsonBody", () => {
     const v = parseJsonBody(body);
     expect(v.value).toBeUndefined();
     expect(v.errors[0]?.field).toBe("body");
-  });
-});
-
-describe("field validators", () => {
-  it("requireNonEmptyString flags missing/blank values", () => {
-    expect(requireNonEmptyString({ name: "ok" }, "name")).toBeUndefined();
-    expect(requireNonEmptyString({}, "name")?.field).toBe("name");
-    expect(requireNonEmptyString({ name: "   " }, "name")?.field).toBe("name");
-  });
-
-  it("optionalPositiveInt accepts absence, rejects junk", () => {
-    expect(optionalPositiveInt({}, "limit")).toBeUndefined();
-    expect(optionalPositiveInt({ limit: 20 }, "limit")).toBeUndefined();
-    expect(optionalPositiveInt({ limit: -1 }, "limit")?.field).toBe("limit");
-    expect(optionalPositiveInt({ limit: "20" }, "limit")?.field).toBe("limit");
   });
 });

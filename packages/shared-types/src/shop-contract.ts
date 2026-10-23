@@ -15,7 +15,6 @@ import type {
   ShopLifecycleStatus,
   ShopSummaryDTO,
   ShopStaffRecordDTO,
-  ShopManagerPingDTO,
 } from "./shop";
 import type { ProblemJSON } from "./problem";
 import type {
@@ -70,7 +69,6 @@ export type {
   ShopLifecycleStatus,
   ShopSummaryDTO,
   ShopStaffRecordDTO,
-  ShopManagerPingDTO,
   ProblemJSON,
   CatalogSchemaDTO,
   ProductListItemDTO,
@@ -122,7 +120,6 @@ export interface ShopContract {
   lifecycleStatus: ShopLifecycleStatus;
   shopSummary: ShopSummaryDTO;
   staffRecord: ShopStaffRecordDTO;
-  managerPing: ShopManagerPingDTO;
   problem: ProblemJSON;
   // ── 016 shop-facing catalog subset ──
   catalogSchema: CatalogSchemaDTO;

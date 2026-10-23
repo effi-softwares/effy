@@ -6,8 +6,6 @@ export type RenditionFailure = "unsupported" | "corrupt" | "too_large";
 export interface RenditionRepository {
   recordReady(key: string, widths: readonly number[], sourceWidth: number | null, sourceHeight: number | null): Promise<void>;
   recordFailed(key: string, failure: RenditionFailure, sourceWidth?: number | null, sourceHeight?: number | null): Promise<void>;
-  /** Keys under `prefix` that already have a row, by status — what the backfill skips. */
-  knownKeys(prefix: string): Promise<{ ready: Set<string>; failed: Set<string> }>;
 }
 
 export function createRenditionRepository(db: Queryable = pooled): RenditionRepository {
@@ -28,18 +26,6 @@ ON CONFLICT (storage_key) DO UPDATE
     },
     async recordFailed(key, failure, w = null, h = null) {
       await upsert(key, "failed", [], w ?? null, h ?? null, failure);
-    },
-    async knownKeys(prefix) {
-      const rows = (
-        await db.query<{ storage_key: string; status: string }>(
-          `SELECT storage_key, status FROM public.media_rendition WHERE storage_key LIKE $1 || '%'`,
-          [prefix],
-        )
-      ).rows;
-      const ready = new Set<string>();
-      const failed = new Set<string>();
-      for (const r of rows) (r.status === "ready" ? ready : failed).add(r.storage_key);
-      return { ready, failed };
     },
   };
 }

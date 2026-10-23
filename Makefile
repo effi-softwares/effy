@@ -26,12 +26,12 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: gateway-usage help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-up-one db-down db-shopper-role check-goose \
-        live-guards shop-words-guard driver-words-guard legacy-delivery-guard purge-orders wipe-devcreate-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        live-guards shop-words-guard driver-words-guard legacy-delivery-guard purge-orders wipe-dev create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-lighthouse cw-depcruise \
-        shop-verify-isolation shop-verify-gate shop-token-claims \
+        shop-verify-isolation shop-token-claims \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
         brand-gen brand-check email-gen email-check email-preview \
@@ -468,13 +468,6 @@ shop-verify-isolation: ## OPERATOR: cross-pool isolation at BOTH gateways (SHOP_
 	STAFF="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/staff/api_endpoint)" || exit 1; \
 	SHARED_API="$$SHARED" STAFF_API="$$STAFF" SHOP_TOKEN="$(SHOP_TOKEN)" BO_TOKEN="$(BO_TOKEN)" \
 	CUSTOMER_TOKEN="$(CUSTOMER_TOKEN)" DRIVER_TOKEN="$(DRIVER_TOKEN)" bash scripts/verify-cross-pool.sh
-
-shop-verify-gate: ## OPERATOR: SC-005 manager gate is backend-authoritative (MANAGER_TOKEN=.. STAFF_TOKEN=.. NOBODY_TOKEN=..)
-	@test -n "$(MANAGER_TOKEN)" && test -n "$(STAFF_TOKEN)" && test -n "$(NOBODY_TOKEN)" \
-		|| { echo 'usage: make shop-verify-gate MANAGER_TOKEN=eyJ... STAFF_TOKEN=eyJ... NOBODY_TOKEN=eyJ... ENV=dev'; exit 1; }
-	@API="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
-	API_ENDPOINT="$$API" MANAGER_TOKEN="$(MANAGER_TOKEN)" STAFF_TOKEN="$(STAFF_TOKEN)" NOBODY_TOKEN="$(NOBODY_TOKEN)" \
-		bash scripts/verify-manager-gate.sh
 
 shop-token-claims: ## Decode a Cognito ACCESS token's claims (TOKEN=eyJ..) — settles research R6
 	@test -n "$(TOKEN)" || { echo 'usage: make shop-token-claims TOKEN=eyJ...'; exit 1; }

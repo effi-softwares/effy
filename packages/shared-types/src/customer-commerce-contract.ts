@@ -103,9 +103,6 @@ import type { UnitBasis, UnitPriceDTO } from "./unit-price";
 import type {
   DeliveryMethod,
   AustralianState,
-  ServiceabilityDTO,
-  LocalityDTO,
-  LocalitiesResultDTO,
   DeliveryQuoteDTO,
   DeliveryChoiceRefusalDTO,
 } from "./delivery";
@@ -184,9 +181,6 @@ export type {
   SavedListRefusal,
   DeliveryMethod,
   AustralianState,
-  ServiceabilityDTO,
-  LocalityDTO,
-  LocalitiesResultDTO,
   DeliveryQuoteDTO,
 };
 
@@ -268,9 +262,6 @@ export interface CustomerCommerceContract {
   savedListRefusal: SavedListRefusal;
   // ⚠ 047 delivery. Referencing them here is what makes them EXIST in Kotlin (same rule as saved-item
   // above). DeliveryMethod / AustralianState are reached transitively; the rest each need a field.
-  serviceability: ServiceabilityDTO;
-  locality: LocalityDTO;
-  localitiesResult: LocalitiesResultDTO;
   deliveryQuote: DeliveryQuoteDTO;
   // The windows are reached through the quote; the refusal body is reached from nothing, so it is
   // named here or it would never be generated.

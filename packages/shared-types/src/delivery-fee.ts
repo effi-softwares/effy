@@ -60,12 +60,3 @@ export interface DeliveryFeeDTO {
   promotionAmount?: string;
 }
 
-/**
- * The business's public basket offer (077): what a cart can say before there is an address to
- * price. A null value means the rule is not set.
- */
-export interface DeliveryOfferDTO {
-  freeDeliveryOverAmount: string | null;
-  smallOrderUnderAmount: string | null;
-  smallOrderFeeAmount: string | null;
-}

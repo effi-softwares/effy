@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { lastOrderCutoff, melbourneDate } from "../delivery/schedule";
+import { melbourneDate } from "../delivery/schedule";
 import { collectionDeadline, endOfLocalDay } from "./collection-deadline";
 
 /**
@@ -115,28 +115,6 @@ describe("checkout cutoff == collection deadline − prep buffer", () => {
     const deadline = collectionDeadline({ hour: runHour, minute: runMinute }, new Date(onDate));
     const cutoff = new Date(deadline.getTime() - bufferMin * 60_000);
     expect(cutoff.toISOString()).toBe(want);
-  });
-
-  /**
-   * ⚠ THE REAL CHECKOUT FUNCTION, not the formula above. Asked a moment before the expected
-   * cutoff it must answer exactly that instant; asked a moment after, that run is gone.
-   */
-  it.each(FIXTURES)("checkout's own sameDayCutoff agrees: $name", ({ runHour, runMinute, bufferMin, expect: want }) => {
-    const run = [{ hour: runHour, minute: runMinute }];
-    const at = new Date(want).getTime();
-    // ⚠ A buffer longer than the time since midnight puts the cutoff on the PREVIOUS local day. Such
-    // a run can never be ordered for on its own day, and checkout says so by offering nothing —
-    // it does not reach back and sell tomorrow's run as "same-day".
-    if (melbourneDate(new Date(at)) !== melbourneDate(new Date(at + bufferMin * 60_000))) {
-      expect(lastOrderCutoff(new Date(at - 1000), run, bufferMin)).toBeNull();
-      expect(lastOrderCutoff(new Date(at + bufferMin * 60_000 - 1000), run, bufferMin)).toBeNull();
-      return;
-    }
-    expect(lastOrderCutoff(new Date(at - 1000), run, bufferMin)?.toISOString()).toBe(want);
-    expect(lastOrderCutoff(new Date(at), run, bufferMin)?.toISOString()).toBe(want); // the cutoff instant itself is still in time
-    const after = lastOrderCutoff(new Date(at + 1000), run, bufferMin);
-    // Either nothing can be made today, or the answer is a LATER day's cutoff — never this one.
-    if (after) expect(after.getTime()).toBeGreaterThan(at);
   });
 
   it("covers both DST transitions — a fixture set without them proves nothing", () => {

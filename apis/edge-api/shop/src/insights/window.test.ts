@@ -1,16 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  addLocalDays,
-  bucketsFor,
-  isoWeek,
-  localHourStart,
-  offsetMinutes,
-  planFor,
-  startOfLocalDay,
-  startOfLocalWeek,
-  windowLabel,
-} from "./window";
+import { addLocalDays, bucketsFor, isoWeek, offsetMinutes, planFor, startOfLocalDay, startOfLocalWeek, windowLabel } from "./window";
 
 /**
  * The calendar arithmetic (058, US3).
@@ -139,30 +129,6 @@ describe("⚠ buckets across daylight saving", () => {
     const plan = planFor("today", new Date("2026-09-14T04:30:00Z"), MELBOURNE);
     const buckets = bucketsFor(plan, MELBOURNE);
     expect(buckets.at(-1)!.partial).toBe(true);
-  });
-});
-
-describe("bucket keys agree with the database's", () => {
-  it("⚠ keeps the two 02:00 hours APART on the day daylight saving ends", () => {
-    // Melbourne, 2026-04-05: 02:30 happens twice — once at +11 (15:30Z) and once at +10 (16:30Z).
-    // Rebuilding the instant from the wall-clock fields cannot tell them apart and collapses both
-    // into one bucket, which is what the first draft of this function did. The SQL side
-    // (`triggers.container.test.ts`) asserts the same two instants stay distinct.
-    const firstPass = localHourStart(new Date("2026-04-04T15:30:00Z"), MELBOURNE);
-    const secondPass = localHourStart(new Date("2026-04-04T16:30:00Z"), MELBOURNE);
-
-    expect(firstPass.toISOString()).toBe("2026-04-04T15:00:00.000Z");
-    expect(secondPass.toISOString()).toBe("2026-04-04T16:00:00.000Z");
-    expect(firstPass.toISOString()).not.toBe(secondPass.toISOString());
-  });
-
-  it("computes the same hour start the migration's shop_local_hour does", () => {
-    // Mirrors `triggers.container.test.ts`, which asserts the SQL side of this same instant. If the
-    // two ever disagree, the reader addresses buckets the writer never wrote — and every figure
-    // reads as zero, with nothing failing.
-    expect(localHourStart(new Date("2026-06-01T04:17:00Z"), ADELAIDE).toISOString()).toBe(
-      "2026-06-01T03:30:00.000Z",
-    );
   });
 });
 

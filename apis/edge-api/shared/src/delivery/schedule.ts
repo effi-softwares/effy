@@ -10,25 +10,6 @@ export function melbourneDate(at: Date): string {
 }
 
 /**
- * The LATEST instant an order can still be placed for collection TODAY, given the active collection
- * runs and the shop prep buffer. A run is makeable when now ≤ run_time − buffer. `null` when no run
- * today can still be made.
- *
- * ⚠ Judged in Melbourne, never in UTC or the shopper's device clock (047 FR-041). ⚠ The window rule
- * (`judgeWindow`) applies the same arithmetic per window; this is the day-level form the
- * cross-language collection contract pins (`collection-deadline.contract.test.ts`).
- */
-export function lastOrderCutoff(now: Date, runs: readonly CollectionRun[], bufferMin: number): Date | null {
-  let best: Date | null = null;
-  for (const run of runs) {
-    const cutoff = new Date(collectionDeadline(run, now).getTime() - bufferMin * 60_000);
-    if (now.getTime() > cutoff.getTime()) continue; // this run's cutoff has passed
-    if (!best || cutoff.getTime() > best.getTime()) best = cutoff;
-  }
-  return best;
-}
-
-/**
  * The active collection runs and the prep buffer. A plan can exist before the schedule does, so a
  * missing settings row is buffer 0 rather than an error; the runs decide what can be collected.
  */

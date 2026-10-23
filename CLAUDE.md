@@ -25,16 +25,11 @@ removed; what it was, and how to read an order sold that way, is
 [docs/archive/delivery-model-v1.md](docs/archive/delivery-model-v1.md). ⚠ `same_day` / `standard` on a
 package are **not** legacy: for an Effy order they are the customer's words for *a window today* / *a
 window on a later day*. `scripts/check-no-legacy-delivery.sh` fails the old path's identifiers, not those words.
-- ⚠ **AN ORDER FROM BEFORE DELIVERY TYPES HAS NO `delivery_type`, AND NEVER GETS ONE.** It reads through
-  `public.package_delivered_by(type, method, slot)` (same-day or sold a window = Effy; else a carrier's)
-  and shows the day or window it was sold. "Still open" for such orders is `LEGACY_OPEN_ORDER_SQL`
-  (`shared/src/delivery/legacy.ts`); the removal migration refused to run while one was.
-- ⚠ **`public.delivery_model_v2_at` ANSWERS TRUE FOR GOOD** and no service calls it
-  (`windows.guard.test.ts`); `delivery_settings.delivery_model_v2_from` is the record of when the model
-  began and `legacy_model_removed_at` of when the old one went. The go-live route
-  (`admin/src/delivery/go-live.*`) is still the switch's one writer, and after the removal it refuses
-  everything (409 `removed`). ⚠ A database that took orders and was never switched over cannot run the
-  removal migration; one with no orders (a new environment) can.
+- ⚠ **THE GO-LIVE PAGE, SWITCH AND "OLD ORDERS STILL OPEN" ARE GONE (cleanup, 2026-10-23).** Dev was
+  wiped, so no order from before delivery types exists. Until the cleanup's database rebuild makes
+  `order.delivery_type` required, `public.package_delivered_by(type, method, slot)` still reads a NULL
+  type the old way, and `public.delivery_model_v2_at` (always true) is still called from inside the
+  database only.
 
 **Coverage (076).** Where Effy delivers is **one flat list of postcodes**; "who delivers to this address" —
 `effy` | `courier` | `none` — is decided by `public.coverage_for_postcode` **only** (read through
@@ -584,7 +579,7 @@ Features recorded:
 - **096-parcel-labels-scanning** — Order Package Labels, Scanning & Printed Documents (a code and carrier-style label per bag; every hand-over per bag; scan-to-find and the hub station; hand-over report; delivery note; GST status; tax invoice on request) — complete in dev (migrated, deployed, walked)
 - **097-same-day-by-postcode** — Delivery Today, Postcode by Postcode (staff switch "today" off for far postcodes; the calendar leaves today out; no new customer wording) — complete in dev (migrated, deployed, walked)
 - **095-promotion-skins** — Promotion Skins (staff-designed skins on six layouts, any colour AA-checked on the server, chosen per group placement; pictures on promotions; `mega-nav` in the aisles menu; Classic = as before) — complete in dev, signed off; promotion routes deploy as stack `admin-promotions`
-- **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — complete in dev (migrated, deployed, walked); stage C table removal open
+- **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — complete in dev (migrated, deployed, walked), stage C applied
 - **093-driver-work-sequence** — Driver Work in One Order (server-enforced steps; collector delivers; missing packages held; run stage; vehicle check off by default) — complete in dev (migrated, deployed, walked)
 - **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — complete in dev (deployed, walked)
 - **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — complete in dev (deployed, walked)

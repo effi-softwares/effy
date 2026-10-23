@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { effyFee, feeLines } from "./engine";
-import { feeDTO, offerDTO, storedBreakdown } from "./fee-wire";
+import { feeDTO, storedBreakdown } from "./fee-wire";
 import type { Plan } from "./plan";
 import type { PricedFee } from "./quote";
 
@@ -51,18 +51,6 @@ describe("storedBreakdown — what the order keeps", () => {
         smallOrderCents: 0, totalCents: 800,
       },
       lines: feeDTO(fee).lines,
-    });
-  });
-});
-
-describe("offerDTO — what a cart can say before there is an address", () => {
-  it("unset rules are null, never zero", () => {
-    expect(offerDTO(plan())).toEqual({ freeDeliveryOverAmount: null, smallOrderUnderAmount: null, smallOrderFeeAmount: null });
-  });
-
-  it("set rules are amounts", () => {
-    expect(offerDTO(plan({ freeOverCents: 8000, smallOrderUnderCents: 2000, smallOrderFeeCents: 300 }))).toEqual({
-      freeDeliveryOverAmount: "80.00", smallOrderUnderAmount: "20.00", smallOrderFeeAmount: "3.00",
     });
   });
 });

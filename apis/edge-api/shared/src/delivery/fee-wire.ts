@@ -1,4 +1,4 @@
-import type { DeliveryFeeBreakdownDTO, DeliveryFeeDTO, DeliveryFeeLineDTO, DeliveryOfferDTO } from "@effy/shared-types";
+import type { DeliveryFeeBreakdownDTO, DeliveryFeeDTO, DeliveryFeeLineDTO } from "@effy/shared-types";
 
 import { formatCents } from "../lib/money";
 import type { FeeLine } from "./engine";
@@ -51,14 +51,3 @@ export function storedBreakdown(fee: PricedFee): DeliveryFeeBreakdownDTO {
   };
 }
 
-/**
- * The business's public basket offer under a plan (077): what a cart can say before there is an
- * address and a window to price. ⚠ Three amounts that depend on the basket alone — never a fee.
- */
-export function offerDTO(plan: Plan): DeliveryOfferDTO {
-  return {
-    freeDeliveryOverAmount: plan.freeOverCents === null ? null : formatCents(plan.freeOverCents),
-    smallOrderUnderAmount: plan.smallOrderUnderCents === null ? null : formatCents(plan.smallOrderUnderCents),
-    smallOrderFeeAmount: plan.smallOrderUnderCents === null ? null : formatCents(plan.smallOrderFeeCents),
-  };
-}

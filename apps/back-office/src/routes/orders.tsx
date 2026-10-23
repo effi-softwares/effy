@@ -16,17 +16,15 @@ export const ordersIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "orders",
   // The list's view and its delivery filters live in the URL (redesign: "a view is a saved filter —
-  // its link opens the same list for anyone"). 083 — the go-live page links here with
-  // `?delivery=legacy&open=true` for the old orders still open.
+  // its link opens the same list for anyone").
   validateSearch: (search: Record<string, unknown>): OrdersSearch => ({
     ...(typeof search.view === "string" && (ORDER_VIEWS as readonly string[]).includes(search.view)
       ? { view: search.view as OrderView }
       : {}),
-    ...(search.delivery === "legacy" || search.delivery === "effy" || search.delivery === "courier"
+    ...(search.delivery === "effy" || search.delivery === "courier"
       ? { delivery: search.delivery }
       : {}),
     ...(search.sold === "window" || search.sold === "day" || search.sold === "asap" ? { sold: search.sold } : {}),
-    ...(search.open === true || search.open === "true" ? { open: true } : {}),
   }),
   component: OrdersListScreen,
 });

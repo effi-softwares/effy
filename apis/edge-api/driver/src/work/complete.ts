@@ -200,31 +200,3 @@ export async function hubCheckin(
 
 export { collectedPackages };
 
-/** Report a package that could not be collected, outside the collect call (the 049 route). */
-export async function reportIssue(
-  runId: string,
-  stopId: string,
-  driverId: string,
-  packageId: string | undefined,
-  note: string | undefined,
-): Promise<void> {
-  const owns = await query(
-    `SELECT 1 FROM public.round_stop rs
-       JOIN public.driver_round dr ON dr.id = rs.round_id
-      WHERE rs.id = $1 AND rs.round_id = $2 AND dr.driver_id = $3`,
-    [stopId, runId, driverId],
-  );
-  if ((owns.rowCount ?? 0) === 0) throw new NotFoundError();
-
-  // 072 — "the shop could not supply it" is a thing a driver finds out AT the shop. Before the round
-  // opens it would mark a package unavailable hours before anybody has been to look.
-  await assertRoundOpen({ query: (text, values) => query(text, values) }, runId);
-
-  await query(
-    `UPDATE public.round_package
-        SET state = 'not_available', settled_at = now()
-      WHERE stop_id = $1 AND state = 'assigned'
-        AND ($2::uuid IS NULL OR shop_fulfillment_id = $2::uuid)`,
-    [stopId, packageId ?? null],
-  );
-}

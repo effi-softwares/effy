@@ -25,25 +25,3 @@ export function parseJsonBody<T extends Record<string, unknown>>(
   }
 }
 
-export function requireNonEmptyString(
-  obj: Record<string, unknown>,
-  field: string,
-): FieldError | undefined {
-  const v = obj[field];
-  if (typeof v !== "string" || v.trim().length === 0) {
-    return { field, message: "must be a non-empty string" };
-  }
-  return undefined;
-}
-
-export function optionalPositiveInt(
-  obj: Record<string, unknown>,
-  field: string,
-): FieldError | undefined {
-  const v = obj[field];
-  if (v === undefined) return undefined;
-  if (typeof v !== "number" || !Number.isInteger(v) || v <= 0) {
-    return { field, message: "must be a positive integer" };
-  }
-  return undefined;
-}

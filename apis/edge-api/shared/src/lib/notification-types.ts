@@ -71,13 +71,6 @@ export const KNOWN_SHOP_NOTIFICATION_TYPES: readonly ShopNotificationType[] =
  */
 export type AttentionKind = "awaiting_pick" | "out_of_stock" | "low_stock" | "refund_proposed";
 
-export const ATTENTION_KINDS: readonly AttentionKind[] = [
-  "awaiting_pick",
-  "out_of_stock",
-  "low_stock",
-  "refund_proposed",
-];
-
 export const ATTENTION_TYPE: Record<AttentionKind, ShopNotificationType> = {
   awaiting_pick: "shop_awaiting_pick",
   out_of_stock: "shop_out_of_stock",

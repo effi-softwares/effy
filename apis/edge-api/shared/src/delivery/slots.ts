@@ -287,31 +287,6 @@ export async function ownLiveHoldsByDate(
   return out;
 }
 
-/**
- * The places this customer's OWN unpaid checkout is holding on a date.
- *
- * A quote subtracts these: without it a customer who reached the payment step in a capacity-1 slot
- * and went back would be told the slot they are holding is full — by their own hold.
- */
-export async function ownLiveHolds(
-  q: Queryable,
-  customerId: string | null,
-  date: string,
-): Promise<Map<string, number>> {
-  if (!customerId) return new Map();
-  const rows = await q.query<{ slot_id: string; n: number }>(
-    `
-		SELECT b.slot_id::text AS slot_id, count(*)::int AS n
-		FROM public.delivery_slot_booking b
-		JOIN public."order" o ON o.id = b.order_id
-		WHERE o.customer_id = $1 AND o.status = 'pending_payment'
-		  AND b.delivery_date = $2::date AND b.state = 'held' AND b.held_until > now()
-		GROUP BY b.slot_id`,
-    [customerId, date],
-  );
-  return new Map(rows.rows.map((r) => [r.slot_id, r.n]));
-}
-
 /** The individually excluded delivery dates from `from` (yyyy-mm-dd) onward. */
 export async function nonDeliveryDates(q: Queryable, from: string): Promise<Set<string>> {
   const rows = await q.query<{ day: string }>(

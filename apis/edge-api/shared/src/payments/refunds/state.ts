@@ -23,9 +23,6 @@ import type { RefundStatus as ProviderRefundStatus } from "../gateway";
 export const REFUND_SUBMITTING = "submitting";
 export const REFUND_SUBMITTED = "submitted";
 export const REFUND_SUCCEEDED = "succeeded";
-export const REFUND_FAILED = "failed";
-export const REFUND_REFUSED = "refused";
-
 export const REASON_ITEM_NOT_SUPPLIED = "item_not_supplied";
 export const REASON_ITEM_UNUSABLE = "item_unusable";
 export const REASON_ORDER_CANCELLED = "order_cancelled";

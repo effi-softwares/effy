@@ -295,13 +295,8 @@ quickstart walked by the operator. Only stage C (removing the old tables) is ope
   - storefront groups, the public promotion page and product offer badges.
 
   Unit suites pass in every service, customer-web (700), back-office promotions and the customer app's host tests.
-- **Not done.** The Stage C migration is authored at
-  [specs/094-promotions-rebuild/stage-c/remove_promo_code.sql](specs/094-promotions-rebuild/stage-c/remove_promo_code.sql).
-  ⚠ It is deliberately NOT in `db/migrations`, so `make db-up` cannot apply it early. First remove the
-  remaining old reads in a release: `commerce` cart/checkout `promo_code_id`, `orders` `LEFT JOIN
-  promo_code`, `finalize` clearing `promo_code_id`, and admin's legacy audit lookup. Then move it in under a
-  new timestamp. The app does not send
-  `expectedDiscount` yet; it is optional.
+- **Stage C done.** The old promo tables were dropped by `20261021090000_remove_promo_code.sql` (applied to
+  dev). The app does not send `expectedDiscount` yet; it is optional.
 - **Operator steps (dev)**, in order:
   1. `make db-up ENV=dev` (or `db-up-one`) for `20261020090000_promotions_rebuild.sql`.
   2. `make edge-deploy SERVICE=admin ENV=dev`.

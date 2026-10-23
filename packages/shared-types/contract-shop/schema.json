@@ -1849,33 +1849,6 @@
       ],
       "type": "string"
     },
-    "ShopManagerPingDTO": {
-      "additionalProperties": false,
-      "description": "Wire DTO for GET /shop/v1/manager-ping (contracts/shop-manager-ping.contract.md).",
-      "properties": {
-        "audience": {
-          "const": "shop",
-          "type": "string"
-        },
-        "message": {
-          "type": "string"
-        },
-        "scope": {
-          "const": "shop_manager",
-          "type": "string"
-        },
-        "subject": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "audience",
-        "scope",
-        "subject",
-        "message"
-      ],
-      "type": "object"
-    },
     "ShopReviewState": {
       "description": "Where a product stands with Effy's review (067), as a shop is shown it.\n\n⚠ SIX STATES FROM TWO FACTS: whether the product has ever been approved, and whether something is waiting. \"live\" means approved — whether it is ON SALE is still `status`.",
       "enum": [
@@ -2490,9 +2463,6 @@
     "lowStockRow": {
       "$ref": "#/definitions/LowStockRowDTO"
     },
-    "managerPing": {
-      "$ref": "#/definitions/ShopManagerPingDTO"
-    },
     "pickupStubRequest": {
       "$ref": "#/definitions/PickupStubRequest"
     },
@@ -2584,7 +2554,6 @@
     "lifecycleStatus",
     "shopSummary",
     "staffRecord",
-    "managerPing",
     "problem",
     "catalogSchema",
     "productListItem",

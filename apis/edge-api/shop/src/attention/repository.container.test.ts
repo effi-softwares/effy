@@ -252,8 +252,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
   });
 
   it("⚠ resolves recipients and their manager flag from the PLATFORM RECORD", async () => {
-    // ⚠ 056 found TWO WRONG COLUMN NAMES only in a container test — both typecheck perfectly and
-    // fail at runtime. This query joins four tables that three slices own.
+    // ⚠ Column names are only checked here: a wrong one typechecks and fails at runtime.
     const staff = await pool.query<{ id: string }>(
       `INSERT INTO public.shop_staff (shop_id, cognito_sub, email, status)
        VALUES ($1,'sub-boss','boss@example.test','active'), ($1,'sub-pick','pick@example.test','active'),
@@ -262,13 +261,7 @@ describe.skipIf(!RUN)("attention state — real PostgreSQL, real migrations", ()
       [SHOP],
     );
     const bossId = staff.rows[0]!.id;
-    const role = await pool.query<{ id: string }>(
-      `SELECT id FROM public.shop_role WHERE name = 'shop_manager'`,
-    );
-    await pool.query(
-      `INSERT INTO public.shop_staff_role (shop_staff_id, shop_role_id) VALUES ($1,$2)`,
-      [bossId, role.rows[0]!.id],
-    );
+    await pool.query(`INSERT INTO public.shop_staff_role (staff_id, role_key) VALUES ($1, 'shop_manager')`, [bossId]);
 
     const recipients = await tx((c) => recipientsForShop(c, SHOP));
     const bySub = Object.fromEntries(recipients.map((r) => [r.sub, r.isManager]));

@@ -4,13 +4,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { instantAtLocalTime } from "../lib/collection-deadline";
 import { migrationSql } from "../lib/load-migrations";
-import { searchLocalities } from "./locality";
 import { loadActivePlan, loadPlan, NoActivePlanError } from "./plan";
 import { quote } from "./quote";
 import { loadSlots, loadSlotSettings, lockSlot, slotLoad } from "./slots";
 import { coverageForPostcode } from "./coverage";
 import { windowKey } from "./windows";
-import { serviceableForPostcode } from "./zone";
 
 /**
  * 070 — the delivery reads against the REAL schema.
@@ -94,27 +92,11 @@ d("070 — delivery reads against the real schema", () => {
     await expect(loadActivePlan(pool, "courier")).rejects.toBeInstanceOf(NoActivePlanError);
   });
 
-  // ⚠ 076 — being LISTED is what serves a postcode. A group's status no longer decides: "disabled"
-  // means a removed group, and removing a group never takes delivery away from its postcodes.
-  it("serviceability: on the list yes — whatever its group's status — not on the list no", async () => {
-    expect(await serviceableForPostcode(pool, "3121")).toBe(true);
-    expect(await serviceableForPostcode(pool, "3550")).toBe(true);
-    expect(await serviceableForPostcode(pool, "3999")).toBe(false);
-  });
-
-  it("the coverage answer the quote reads agrees with serviceability, and names the group", async () => {
+  it("coverage: on the list yes — whatever its group's status — not on the list no; names the group", async () => {
     expect(await coverageForPostcode(pool, "3121")).toMatchObject({ kind: "effy", groupId: ZONE, distanceKm: 3.4 });
     // In a removed group: listed, and treated as ungrouped.
     expect(await coverageForPostcode(pool, "3550")).toMatchObject({ kind: "effy", groupId: null });
     expect((await coverageForPostcode(pool, "3999")).kind).toBe("none");
-  });
-
-  it("locality search: name prefix (case-insensitive), postcode prefix, alphabetical, bounded", async () => {
-    expect(await searchLocalities(pool, "rich", 8)).toEqual([{ name: "RICHMOND", state: "VIC", postcode: "3121" }]);
-    expect((await searchLocalities(pool, "300", 8)).map((l) => l.postcode)).toContain("3000");
-    const b = (await searchLocalities(pool, "b", 50)).map((l) => l.name);
-    expect(b.indexOf("BALLARAT CENTRAL")).toBeLessThan(b.indexOf("BENDIGO"));
-    expect(await searchLocalities(pool, "b", 1)).toHaveLength(1);
   });
 
   it("slot settings come back as numbers, with the migration's defaults", async () => {

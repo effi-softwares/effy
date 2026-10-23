@@ -12,11 +12,6 @@ export async function recordAndLoad(
   return upsertOnContact(sub, email, tokenRoles);
 }
 
-/** Decide the manager gate from the platform record — role AND status AND shop scope. */
-export async function isActiveShopManager(sub: string): Promise<boolean> {
-  return authorizeShopManager(sub);
-}
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**

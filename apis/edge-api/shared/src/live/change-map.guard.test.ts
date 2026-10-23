@@ -95,11 +95,9 @@ const SILENT: Record<string, string> = {
   "shop/insights-reconcile": "rebuilds the prepared analytics rollup; Insights is not a live screen (FR-030)",
 
   // ── driver
-  "driver/driver-activity-read-v1-post": "marks the driver's own activity feed read",
   "driver/driver-devices-v1-id-delete": "push device registration — the other channel",
   "driver/driver-devices-v1-post": "push device registration — the other channel",
   "driver/driver-drop-proof-presign-v1-post": "issues an upload URL; changes nothing until the proof is submitted",
-  "driver/driver-reads-v1-post": "096 — records label reads only (a refused scan, a lookup); no screen shows them live",
 
   // ── fleet
   "fleet/vehicle-create-v1-post": "vehicle register — no screen in FR-029",

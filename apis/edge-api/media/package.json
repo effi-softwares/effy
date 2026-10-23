@@ -7,7 +7,6 @@
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1088.0",
-    "@aws-sdk/client-sqs": "3.1088.0",
     "@effy/edge-shared": "workspace:*",
     "@effy/shared-types": "workspace:*",
     "pg": "8.22.0",

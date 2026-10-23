@@ -7,7 +7,7 @@ import { Route, SearchX, Truck, UserX } from "lucide-react";
 
 import { cn } from "@effy/design-system";
 import { Button, Skeleton } from "@effy/design-system/ui";
-import { ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types";
+import { ADMIN_ORDER_DELIVERY_FILTERS, ADMIN_ORDER_PROMISE_FILTERS, type DeliveryPromise } from "@effy/shared-types";
 import { ErrorState, PackageStatusPill } from "@effy/web-kit/console";
 
 import { Kbd } from "@/components/patterns/Kbd";
@@ -33,9 +33,8 @@ export const ORDER_VIEWS = ["all", "driver", "handover", "arrival", "refund", "c
 export type OrderView = (typeof ORDER_VIEWS)[number];
 export interface OrdersSearch {
   view?: OrderView;
-  delivery?: "effy" | "courier" | "legacy";
+  delivery?: "effy" | "courier";
   sold?: DeliveryPromise;
-  open?: boolean;
 }
 
 const VIEW_LABEL: Record<OrderView, string> = {
@@ -89,9 +88,8 @@ export function OrdersListScreen() {
       q: q.trim() || undefined,
       deliveryType: search.sold ? undefined : search.delivery,
       promise: search.sold,
-      stillOpen: search.delivery === "legacy" && search.open ? true : undefined,
     }),
-    [q, search.delivery, search.sold, search.open],
+    [q, search.delivery, search.sold],
   );
   const params = useMemo<OrderListParams>(
     () => ({ ...base, ...viewParams(view), cursor: cursors[cursors.length - 1], limit: rows }),
@@ -173,8 +171,8 @@ export function OrdersListScreen() {
           <Facet
             label="Delivery"
             value={search.delivery ?? null}
-            onChange={(v) => setSearch({ delivery: v ?? undefined, open: undefined, sold: v === "effy" ? search.sold : undefined })}
-            options={(["effy", "courier", "legacy"] as const).map((f) => ({ value: f, label: DELIVERY_FILTER_LABEL[f] }))}
+            onChange={(v) => setSearch({ delivery: v ?? undefined, sold: v === "effy" ? search.sold : undefined })}
+            options={ADMIN_ORDER_DELIVERY_FILTERS.map((f) => ({ value: f, label: DELIVERY_FILTER_LABEL[f] }))}
           />
           <Facet
             label="Sold as"
@@ -182,18 +180,11 @@ export function OrdersListScreen() {
             onChange={(v) => setSearch({ sold: v ?? undefined, delivery: v ? "effy" : search.delivery })}
             options={ADMIN_ORDER_PROMISE_FILTERS.map((p) => ({ value: p, label: PROMISE_LABEL[p] }))}
           />
-          {search.delivery === "legacy" && search.open ? (
-            <button type="button" className="bo-facet is-set" onClick={() => setSearch({ open: undefined })} data-testid="still-open-chip">
-              Still open
-              <span className="bo-facet__sep" aria-hidden="true" />
-              <span className="bo-facet__val">Remove</span>
-            </button>
-          ) : null}
           {filtered ? (
             <ResetFilters
               onReset={() => {
                 setQ("");
-                setSearch({ delivery: undefined, sold: undefined, open: undefined });
+                setSearch({ delivery: undefined, sold: undefined });
               }}
             />
           ) : null}
@@ -221,7 +212,7 @@ export function OrdersListScreen() {
                 size="sm"
                 onClick={() => {
                   setQ("");
-                  setSearch({ view: undefined, delivery: undefined, sold: undefined, open: undefined });
+                  setSearch({ view: undefined, delivery: undefined, sold: undefined });
                 }}
               >
                 Clear filters
@@ -281,7 +272,6 @@ function clean(s: OrdersSearch): OrdersSearch {
   if (s.view && s.view !== "all") out.view = s.view;
   if (s.delivery) out.delivery = s.delivery;
   if (s.sold) out.sold = s.sold;
-  if (s.open && s.delivery === "legacy") out.open = true;
   return out;
 }
 

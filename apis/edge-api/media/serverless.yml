@@ -5,8 +5,7 @@
 #
 # ⚠ NO HTTP ROUTE, AND NO GATEWAY. Uploads are presigned PUTs no Lambda observes, so the bucket is the
 # only place that knows a picture arrived: it notifies a queue (infra/envs/<env>/media.tf), and
-# `render` reads that queue. `renditionBackfill` is invoked by the operator. Neither gateway's
-# integration count changes (the `live` precedent).
+# `render` reads that queue. Neither gateway's integration count changes (the `live` precedent).
 #
 # ⚠ DEPLOY ORDER: the Terraform that creates the queue first (this file reads its ARN and URL from
 # SSM), then the migration (the table), then this service.
@@ -51,7 +50,6 @@ provider:
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
-    RENDITION_QUEUE_URL: ${ssm:/effy/${sls:stage}/media/rendition_queue_url}
   iam:
     role:
       statements:
@@ -68,21 +66,11 @@ provider:
         - Effect: Allow
           Action: s3:PutObject
           Resource: arn:aws:s3:::${ssm:/effy/${sls:stage}/media/bucket}/renditions/*
-        # The backfill lists the two original prefixes.
-        - Effect: Allow
-          Action: s3:ListBucket
-          Resource: arn:aws:s3:::${ssm:/effy/${sls:stage}/media/bucket}
-          Condition:
-            StringLike:
-              s3:prefix:
-                - products/*
-                - promotions/*
         - Effect: Allow
           Action:
             - sqs:ReceiveMessage
             - sqs:DeleteMessage
             - sqs:GetQueueAttributes
-            - sqs:SendMessage
           Resource: ${ssm:/effy/${sls:stage}/media/rendition_queue_arn}
   layers:
     - ${param:secretsExtensionArn}
@@ -120,8 +108,3 @@ functions:
           arn: ${ssm:/effy/${sls:stage}/media/rendition_queue_arn}
           # ONE picture per invocation: a bad picture must never fail its neighbours.
           batchSize: 1
-  renditionBackfill:
-    handler: src/functions/rendition-backfill.handler
-    description: OPERATOR — queue every existing picture that has no copies yet (086 FR-011). Safe to re-run.
-    memorySize: 512
-    timeout: 900

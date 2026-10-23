@@ -23,16 +23,8 @@ export const STAFF_DEBIT_REASONS = ["credited_in_error", "correction", "other"] 
 /** Reasons a platform flow may credit for. Closed: a new flow adds its own. */
 export const AUTO_CREDIT_REASONS = ["courier_override_compensation"] as const;
 
-export type StaffCreditReason = (typeof STAFF_CREDIT_REASONS)[number];
-export type StaffDebitReason = (typeof STAFF_DEBIT_REASONS)[number];
-export type AutoCreditReason = (typeof AUTO_CREDIT_REASONS)[number];
-
 /** Kinds whose reason is the kind itself — nobody chooses it. */
 const FIXED: ReadonlySet<EntryKind> = new Set(["returned", "spent", "expired", "forfeited"]);
-
-export function isCreditKind(kind: string): kind is CreditKind {
-  return (CREDIT_KINDS as readonly string[]).includes(kind);
-}
 
 /** Whether `reason` may be recorded on an entry of `kind`. */
 export function isValidReason(kind: EntryKind, reason: string): boolean {

@@ -37,10 +37,3 @@ export function groups(event: AuthedEvent): string[] {
   return parseGroups(claim(event, "cognito:groups"));
 }
 
-// hasAnyGroup: absent claim = empty set = deny; exact-case comparison (Cognito group
-// names are case-sensitive identifiers). Any group hierarchy lives HERE, never in
-// individual handlers (research D4).
-export function hasAnyGroup(event: AuthedEvent, allowed: readonly string[]): boolean {
-  const held = groups(event);
-  return held.some((g) => allowed.includes(g));
-}

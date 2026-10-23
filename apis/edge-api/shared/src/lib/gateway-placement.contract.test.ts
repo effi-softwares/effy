@@ -140,7 +140,7 @@ describe("inventory — one service, two stacks, nothing declared twice and noth
   it("the back-office paths are in the staff stack, and nothing else is", () => {
     for (const r of httpRoutes(shop)) expect(r.path, "a back-office stock route is in the shop stack").not.toContain("/inventory/v1/admin/");
     const staffPaths = httpRoutes(staff).map((r) => r.path).filter((p) => !p.startsWith("/inventory-staff/"));
-    expect(staffPaths.length).toBe(6);
+    expect(staffPaths.length).toBe(5);
     for (const p of staffPaths) expect(p.startsWith("/inventory/v1/admin/"), `${p} is in the staff stack but is not a back-office path`).toBe(true);
   });
 

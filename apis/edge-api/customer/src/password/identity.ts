@@ -110,7 +110,5 @@ function decodeSub(token: string): string | undefined {
   }
 }
 
-/** The verified email claim, required by the recovery + notification paths. */
-export function callerEmail(event: AuthedEvent): string | undefined {
-  return claim(event, "email")
-}
+
+

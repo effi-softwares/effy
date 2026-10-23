@@ -3,7 +3,6 @@ package com.effyshopping.customer.mobile.features.checkout
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryFeeLineKind
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryMethod
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
-import com.effyshopping.customer.mobile.commerce.contract.ServiceabilityDTO
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,9 +32,6 @@ class DeliveryWireContractTest {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
 
     companion object {
-        // What GET /storefront/v1/serviceability answers.
-        const val SERVICEABILITY_WIRE = """{"postcode":"3121","serviced":true}"""
-
         // Read by the backend's wire.contract.test.ts, byte for byte.
         // ⚠ 083: a serviced address answers `effyWindows` (or `courier` — see CourierWireTest) and
         // nothing else. The delivery charge is the ORDER's, one per window (077).
@@ -45,13 +41,6 @@ class DeliveryWireContractTest {
         // Read by the backend's wire.contract.test.ts, byte for byte.
         const val DELIVERY_QUOTE_NO_WINDOWS_WIRE =
             """{"postcode":"3121","serviced":true,"coverage":"effy","expiresAt":"2026-08-24T12:20:00+10:00","freeDeliveryRemainingAmount":null,"effyWindows":{"days":[{"date":"2026-08-24","section":"same_day","windows":[],"closedReason":"closed","anyTime":null}],"unavailable":"no_windows","asap":null}}"""
-    }
-
-    @Test
-    fun `Kotlin decodes the server's serviceability bytes`() {
-        val dto = json.decodeFromString<ServiceabilityDTO>(SERVICEABILITY_WIRE)
-        assertEquals("3121", dto.postcode)
-        assertTrue(dto.serviced)
     }
 
     @Test

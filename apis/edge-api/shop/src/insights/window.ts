@@ -116,29 +116,6 @@ export function instantOfLocal(
   return corrected;
 }
 
-/**
- * The UTC instant at which the local hour containing `at` began — the rollup's bucket key.
- *
- * ⚠ IT EXISTS TO MIRROR THE DATABASE, and is deliberately not used for bucketing anything here: the
- * chart walks whole hours from the window's start (`bucketsFor`), and the rollup rows are keyed by
- * the SQL function. What this gives is a cross-check — `window.test.ts` asserts it produces exactly
- * the instants `public.shop_local_hour` does, so a divergence between the reader's idea of an hour
- * and the writer's is caught HERE rather than as a screen full of zeros that nothing explains.
- *
- * ⚠ IT SUBTRACTS THE ELAPSED PART OF THE HOUR FROM THE INSTANT, rather than rebuilding the instant
- * from the wall-clock fields. Rebuilding is ambiguous on the day daylight saving ends: 02:30 happens
- * twice, both read "02:30", and asking "when does local 02:00 begin?" has two answers — so the first
- * of the two hours would be silently attributed to the second. The first draft did exactly that, and
- * the 25-bucket test caught it skipping an hour of a real trading day. Anchoring on the instant has
- * no ambiguity to resolve.
- */
-export function localHourStart(at: Date, timeZone: string): Date {
-  const p = localParts(at, timeZone);
-  const elapsed =
-    p.minute * 60_000 + at.getUTCSeconds() * 1_000 + at.getUTCMilliseconds();
-  return new Date(at.getTime() - elapsed);
-}
-
 /** Local midnight that starts the day containing `at`. */
 export function startOfLocalDay(at: Date, timeZone: string): Date {
   const p = localParts(at, timeZone);

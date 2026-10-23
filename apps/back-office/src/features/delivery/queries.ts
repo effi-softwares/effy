@@ -8,12 +8,11 @@ import {
   removeCourierExclusion, removeCoverageGroup, removeCoveragePostcode, renameCoverageGroup, updateCourier,
   type CoverageFilters,
   createCourierService, listCourierServices, updateCourierService,
-  getGoLive, putGoLiveSwitch,
 } from "./repo";
 import type {
   AddCoveragePostcodesRequest, DeliveryDaysInput, DeliverySettingsDTO, DeliverySlotInput, DeliverySlotPatch,
   FeePlanInput, FeePlanKind, FeeSimulationRequest, NonDeliveryDateInput, PatchCoveragePostcodesRequest, CourierReachUpdateDTO,
-  CourierServiceInput, GoLiveSwitchRequest,
+  CourierServiceInput,
 } from "@effy/shared-types";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Mutations invalidate the root
@@ -166,19 +165,3 @@ export const useUpdateCourierService = () => useCoverageMutation((v: { id: strin
 
 // ── going live with the new delivery model (083) ───────────────────────────────────────────────────
 
-/**
- * ⚠ Under the delivery ROOT on purpose: every delivery mutation on the other tabs (a plan activated,
- * a window disabled, a postcode removed) invalidates the root, and each of them can change whether
- * the platform is ready. The live `coverage` kind re-reads it too (features/live/routes.ts).
- */
-export const GO_LIVE_ROOT = [...ROOT, "go-live"] as const;
-export const goLiveQuery = () => queryOptions({ queryKey: GO_LIVE_ROOT, queryFn: getGoLive });
-
-export function useSetGoLiveSwitch() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: GoLiveSwitchRequest) => putGoLiveSwitch(body),
-    // Settled, not success: a refusal means the page is showing something that is no longer true.
-    onSettled: () => invalidate(qc),
-  });
-}

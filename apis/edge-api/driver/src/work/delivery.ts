@@ -9,7 +9,6 @@ import { ANY_TIME_LABEL, formatDeliveryWindow, type DeliveryWindow } from "@effy
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
 import { liveParcelsByPackage } from "@effy/edge-shared/labels";
 import type {
-  ActivityItem,
   DeliveryDropDTO,
   HandoverPreference,
   DropStatusRequest,
@@ -533,35 +532,6 @@ async function renderProof(r: ProofColumns): Promise<HistoryDetailDTO["proof"]> 
     note: r.proof_note,
     capturedAt: r.proof_captured_at.toISOString(),
   };
-}
-
-/**
- * GET /driver/v1/activity.
- *
- * ⚠ DERIVED FROM ROUNDS, NOT A STORED FEED. A notification table would be a second place the truth
- * about a driver's work lives, and the two would disagree the first time one write failed (027's
- * counted-not-stored rule). A round that changed under a driver IS the activity.
- */
-export async function activity(driverId: string): Promise<ActivityItem[]> {
-  const res = await query<{ id: string; changed_note: string | null; updated_at: Date; kind: string }>(
-    `SELECT id, changed_note, updated_at, kind
-       FROM public.driver_round
-      WHERE driver_id = $1 AND changed_note IS NOT NULL
-      ORDER BY updated_at DESC
-      LIMIT 50`,
-    [driverId],
-  );
-  return res.rows.map((r) => ({
-    id: r.id,
-    type: "run_assigned",
-    body: r.changed_note ?? "",
-    createdAt: r.updated_at.toISOString(),
-    // ⚠ Always false: there is nowhere to record a read receipt, and claiming otherwise would make
-    // the badge lie. Slice D or a later slice adds the store if the feed proves worth keeping.
-    read: false,
-    runId: r.id,
-    dropId: null,
-  }));
 }
 
 /** A drop's window as the label the app shows and the instants it judges Due and Late by. */

@@ -167,16 +167,6 @@ export async function readCatalogSchema(): Promise<CatalogSchema> {
   return { productTypes, categories: cats };
 }
 
-/** The mandatory-attribute id set of a product type (used by the service to enforce create/publish). */
-export async function mandatoryAttributeIds(productTypeId: string): Promise<string[]> {
-  const res = await query<{ attribute_definition_id: string }>(
-    `SELECT attribute_definition_id FROM public.product_type_attribute
-      WHERE product_type_id = $1 AND is_mandatory = true`,
-    [productTypeId],
-  );
-  return res.rows.map((r) => r.attribute_definition_id);
-}
-
 /** The active-attribute assignments of a type, for typed-value validation (data_type + allowed set). */
 export async function assignmentsForType(productTypeId: string): Promise<SchemaAttribute[]> {
   const schema = await readCatalogSchema();

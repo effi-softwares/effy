@@ -11,8 +11,8 @@ import type { NavItem } from "@effy/web-kit/console";
 //
 // The Management item is gated by the SAME role the backend gate checks. Nav visibility REFLECTS
 // the authoritative backend gate — it is never a second source of truth. A shop_staff or
-// role-less operator never sees a control it cannot use, and /shop/v1/manager-ping refuses them
-// if they ask directly anyway.
+// role-less operator never sees a control it cannot use, and the backend refuses them if they ask
+// directly anyway.
 export const NAV: NavItem<ShopRole>[] = [
   // 058: "Today" — the screen answers "what needs doing now", and the label should say so.
   { label: "Today", to: "/", icon: LayoutDashboard, group: "Platform" },

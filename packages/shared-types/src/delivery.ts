@@ -12,7 +12,7 @@
  */
 
 import type { CheckoutPointsDTO } from "./checkout";
-import type { DeliveryFeeDTO, DeliveryOfferDTO } from "./delivery-fee";
+import type { DeliveryFeeDTO } from "./delivery-fee";
 
 /**
  * The customer's two words for WHEN an Effy order arrives: `same_day` = a window today, `standard` =
@@ -53,35 +53,6 @@ export const COVERAGE_REFUSAL_SENTENCE = "Sorry, we can't deliver to this addres
 
 /** Australian state / territory — the closed set the place record uses. */
 export type AustralianState = "ACT" | "NSW" | "NT" | "QLD" | "SA" | "TAS" | "VIC" | "WA";
-
-/**
- * The single serviceability decision (FR-001), answered before a cart exists and again at checkout by the
- * SAME predicate (FR-004). ⚠ No zone id, name, fee, or window may be added.
- */
-export interface ServiceabilityDTO {
-  postcode: string;
-  /** Kept for clients released before 076. Always `coverage !== "none"`. */
-  serviced: boolean;
-  /** 076 — who delivers. Absent only from a server older than 076. */
-  coverage?: CoverageKind;
-  /**
-   * 077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and from a
-   * server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the window.
-   */
-  offer?: DeliveryOfferDTO;
-}
-
-/** One place, fully identified — the only selectable unit (FR-007). */
-export interface LocalityDTO {
-  name: string;
-  state: AustralianState;
-  postcode: string;
-}
-
-/** The locality typeahead result (030): ≤ 8, alphabetical, never ordered by serviceability. */
-export interface LocalitiesResultDTO {
-  items: LocalityDTO[];
-}
 
 /**
  * The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted

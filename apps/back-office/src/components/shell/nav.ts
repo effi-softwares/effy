@@ -148,7 +148,6 @@ export const NAV_GROUPS: readonly NavGroup[] = [
           { key: "windows", label: "Delivery windows", to: "/delivery", tab: "slots" },
           { key: "days", label: "Days and runs", to: "/delivery", tab: "days" },
           { key: "hub", label: "Hub and timings", to: "/delivery", tab: "settings" },
-          { key: "golive", label: "Go-live history", to: "/delivery", tab: "go-live" },
         ],
       },
       { key: "deliverability", label: "Email deliverability", to: "/deliverability", icon: MailWarning, count: "deliverability" },

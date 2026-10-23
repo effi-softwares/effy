@@ -55,7 +55,6 @@ describe("back-office sidebar — which page is lit", () => {
   it("lights exactly one Delivery tab, Coverage when the URL names none", () => {
     expect(key("/delivery")).toBe("coverage");
     expect(key("/delivery", "pricing")).toBe("pricing");
-    expect(key("/delivery", "go-live")).toBe("golive");
     expect(DEFAULT_TAB["/delivery"]).toBe("coverage");
   });
 

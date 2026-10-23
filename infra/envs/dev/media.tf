@@ -445,13 +445,6 @@ resource "aws_ssm_parameter" "media_rendition_queue_arn" {
   tier  = "Standard"
 }
 
-resource "aws_ssm_parameter" "media_rendition_queue_url" {
-  name  = "/effy/${var.env}/media/rendition_queue_url"
-  type  = "String"
-  value = aws_sqs_queue.media_renditions.url
-  tier  = "Standard"
-}
-
 # ── Alarms (FR-020) — regional, to the operator alerts topic ────────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "media_renditions_dlq" {
   alarm_name          = "${module.shared.name_prefix}-media-renditions-dlq"

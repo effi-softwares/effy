@@ -14,14 +14,6 @@ export const CACHE_SECONDS = {
   listing: { maxAge: 30, staleWhileRevalidate: 30 },
   /** The same few characters are typed by many shoppers. */
   suggestions: { maxAge: 60 },
-  /**
-   * ⚠ FIVE MINUTES, NOT A DAY (076). Staff add and remove postcodes from a screen; a day of public
-   * caching would keep telling people "yes" about a postcode that had left the list, while the
-   * checkout — which is never cached — refused them.
-   */
-  serviceability: { maxAge: 300 },
-  /** Suburb names and postcodes: reference data. */
-  localities: { maxAge: 86400 },
 } as const satisfies Record<string, { maxAge: number; staleWhileRevalidate?: number }>;
 
 export type CachePolicy = keyof typeof CACHE_SECONDS;

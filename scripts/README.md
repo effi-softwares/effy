@@ -9,30 +9,14 @@ They are not infrastructure (`infra/scripts/` holds the Terraform/DB plumbing: `
 | Script | `make` target | Proves |
 |---|---|---|
 | `verify-cross-pool.sh` | `shop-verify-isolation` | SC-004 — a credential is usable only against its own audience, **both directions** |
-| `verify-manager-gate.sh` | `shop-verify-gate` | SC-005 / SC-005a — the manager gate is decided from the platform record (role AND status AND shop scope), and its denial names no term |
 | `token-claims.sh` | `shop-token-claims` | research R6 — whether a Cognito access token carries `email`, and whether `username` is an address or a UUID |
-
-### `EXPECT_SHOP` — which half of the gate has data
-
-007 ships the shop schema but **no way to create a shop** (that is back-office shop management,
-the next slice). The gate's predicate inner-joins `public.shop`, so:
-
-```bash
-make shop-verify-gate …                    # EXPECT_SHOP=0 (default, pre-shop-management)
-                                           #   asserts the manager is REFUSED for lack of a shop
-make shop-verify-gate … EXPECT_SHOP=1     # once a shop exists and the manager is assigned
-                                           #   asserts the manager is SERVED
-```
-
-Both settings prove the gate. What changes is which side of it there is data for. The `0` case is
-not a weaker check — a `shop_manager` holding the role in `cognito:groups` and still being refused
-is the clearest possible demonstration that the **platform record, not the token, decides**.
 
 ## Maintenance
 
 | Script | `make` target | Does |
 |---|---|---|
 | `purge-orders.sh` | `purge-orders` | Deletes every order and everything derived from it — fulfilment, payments, delivery packages, driver work, the order half of the event ledgers |
+| `wipe-dev.sh` | `wipe-dev` | Resets dev to empty: rebuilds the database from every migration, deletes every Cognito user in the four pools and empties the media bucket |
 
 `purge-orders` is here for the same reason as the rest: it cannot be a product feature. An order is a
 financial record and nothing in the platform may erase one, so clearing dev's accumulated test orders

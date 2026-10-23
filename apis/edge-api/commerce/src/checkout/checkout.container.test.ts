@@ -1558,23 +1558,10 @@ d("070 — checkout, finalisation and the webhook against the real schema", () =
       const re = await svc.createIntent(e.customerId, windowOn(e.addressId, offered()[2]!), new Date());
       await pay(re.orderId);
       const eo = await orders.get(scope, e.customerId, re.orderId);
-      expect(eo.delivery).toEqual({ type: "effy", courierEstimate: null });
+      expect(eo.delivery).toEqual({ type: "effy", courierEstimate: null, promise: "window" });
       expect(eo.arrivalEstimates).toHaveLength(1);
       expect(eo.arrivalEstimates[0]).toMatchObject({ method: "standard", promisedTo: offered()[2] });
     }));
-
-    // ⚠ 083 P12 — an order from BEFORE delivery types still reads as it was sold: no `delivery`
-    // block (nothing is guessed), and its arrival as the day it was promised. Such an order can no
-    // longer be placed, so one is made the way they all are stored: no type, a standard day, no window.
-    const old = await shopper({ Milk: 2 });
-    const ro = await svc.createIntent(old.customerId, input(old.addressId), new Date());
-    await pay(ro.orderId);
-    await pool.query(`UPDATE public."order" SET delivery_type = NULL, delivery_type_reason = NULL WHERE id = $1`, [ro.orderId]);
-    await pool.query(`UPDATE public.order_package_delivery SET slot_id = NULL, window_start = NULL, window_end = NULL WHERE order_id = $1`, [ro.orderId]);
-    const oldOrder = await orders.get(scope, old.customerId, ro.orderId);
-    expect(oldOrder).not.toHaveProperty("delivery");
-    expect(oldOrder.arrivalEstimates).toEqual([expect.objectContaining({ method: "standard", windowStart: null, promisedTo: offered()[1] })]);
-    expect((await orders.list(old.customerId))[0]).not.toHaveProperty("delivery");
   });
 
   it("⚠ 080 P11 — a customer follows a courier order by ONE link, or is told tracking comes by email; never a count", async () => {

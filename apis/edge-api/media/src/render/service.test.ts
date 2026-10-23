@@ -26,7 +26,6 @@ function harness(objects: Record<string, Buffer>) {
   const repo: RenditionRepository = {
     recordReady: async (key, widths, w, h) => void rows.push({ key, status: "ready", widths, w, h }),
     recordFailed: async (key, failure, w, h) => void rows.push({ key, status: "failed", failure, w, h }),
-    knownKeys: async () => ({ ready: new Set(), failed: new Set() }),
   };
   return { deps: { s3: s3 as never, bucket: "b", repo }, written, rows };
 }

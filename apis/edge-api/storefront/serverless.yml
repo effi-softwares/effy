@@ -171,19 +171,3 @@ functions:
       - httpApi:
           method: GET
           path: /storefront/v1/promotion-groups
-
-  serviceabilityV1:
-    handler: src/functions/serviceability-v1-get.handler
-    description: Does Effy deliver to this postcode — the same predicate the checkout quote uses. Public.
-    events:
-      - httpApi:
-          method: GET
-          path: /storefront/v1/serviceability
-
-  localitiesV1:
-    handler: src/functions/localities-v1-get.handler
-    description: Address typeahead — suburbs by name or postcode prefix, never ordered by serviceability. Public.
-    events:
-      - httpApi:
-          method: GET
-          path: /storefront/v1/localities

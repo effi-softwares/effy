@@ -159,7 +159,6 @@ export interface UnassignedWorkDTO {
   targetAt: string | null;
 }
 
-
 /** One driver's line in the dispatcher's day view. */
 export interface DispatchRoundSummaryDTO {
   round: RoundDTO;
@@ -395,36 +394,6 @@ export interface ResolveExceptionRequest {
 export interface ResolveExceptionResponse {
   exceptionId: string;
   resolvedAt: string;
-}
-
-/**
- * A package currently in a driver's hands.
- *
- * ⚠ DERIVED ON READ, NEVER STORED (research R7 — 027's counted-not-stored rule, fifth application).
- * A custody table would be a second source of truth for a fact the round rows already state
- * completely, and 063 found an FK that was "wrong in principle" by duplicating exactly that way.
- *
- * ⚠ FR-018 DEPENDS ON THIS BEING EXACT. 056 found that standing a driver down could strand physical
- * goods permanently and invisibly — the work stayed claimed and every sweep skipped it. This is the
- * read that makes it visible before a shift can end.
- */
-export interface CustodyPackageDTO {
-  packageId: string;
-  orderNumber: string;
-  shopName: string;
-  /** Since when this driver has held it. */
-  heldSince: string; // ISO 8601
-  roundKind: RoundKind;
-  /** 088 — from a failed delivery, to be returned to the hub (as opposed to on its way to a door). */
-  toReturn?: boolean;
-}
-
-/** GET /fleet/v1/custody — and the shape the duty-end warning renders. */
-export interface CustodyDTO {
-  driverId: string;
-  driverName: string;
-  packages: CustodyPackageDTO[];
-  packageCount: WireInt;
 }
 
 // ── 082 — dispatch across the days on sale ───────────────────────────────────────────────────────

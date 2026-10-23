@@ -159,15 +159,3 @@ export async function recordArrival(input: RecordArrivalInput): Promise<ArrivalR
   });
 }
 
-/** Whether an order has any package still awaiting arrival — used by the list's `awaiting` filter. */
-export async function orderIsFinished(orderId: string): Promise<boolean> {
-  const res = await query<{ finished: boolean }>(
-    `SELECT NOT EXISTS (
-       SELECT 1 FROM public.shop_fulfillment sf
-    LEFT JOIN public.package_arrival pa ON pa.shop_fulfillment_id = sf.id
-        WHERE sf.order_id = $1 AND pa.id IS NULL
-     ) AS finished`,
-    [orderId],
-  );
-  return res.rows[0]?.finished ?? false;
-}

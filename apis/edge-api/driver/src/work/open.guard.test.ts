@@ -24,7 +24,6 @@ const read = (rel: string) => readFileSync(resolve(root, rel), "utf8");
 /** Route → the function that must call the gate, and the file it lives in. */
 const GATED: Record<string, { file: string; fn: string }> = {
   "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect": { file: "src/work/complete.ts", fn: "collectStop" },
-  "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue": { file: "src/work/complete.ts", fn: "reportIssue" },
   "POST /driver/v1/hub/checkin": { file: "src/work/complete.ts", fn: "hubCheckin" },
   "POST /driver/v1/delivery/drops/{dropId}/status": { file: "src/work/delivery.ts", fn: "setDropStatus" },
   "POST /driver/v1/delivery/drops/{dropId}/proof/presign": { file: "src/proof/service.ts", fn: "presignProof" },
@@ -38,10 +37,8 @@ const GATED: Record<string, { file: string; fn: string }> = {
 const EXEMPT: Record<string, string> = {
   "POST /driver/v1/duty": "going on or off duty is not work on a round",
   "POST /driver/v1/vehicle-check": "a check of the vehicle, made before any round (093)",
-  "POST /driver/v1/reads": "records reads only (096) — a refused scan or a lookup moves nothing on any round",
   "POST /driver/v1/devices": "registers a push token",
   "DELETE /driver/v1/devices/{token}": "removes a push token",
-  "POST /driver/v1/activity/read": "marks the activity feed read",
 };
 
 /** Every `METHOD path` the service declares, read from serverless.yml. */

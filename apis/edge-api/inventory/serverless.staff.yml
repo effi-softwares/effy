@@ -161,17 +161,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
 
-  adminStockThresholdPutV1:
-    handler: src/functions/admin-stock-threshold-v1-put.handler
-    description: Set a product's own low-stock threshold on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
-    events:
-      - httpApi:
-          method: PUT
-          path: /inventory/v1/admin/shops/{shopId}/variants/{variantId}/stock/threshold
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/staff/authorizer/back-office_id}
-
   adminSettingsPutV1:
     handler: src/functions/admin-settings-v1-put.handler
     description: Set a shop's default low-stock threshold on their behalf (054 US4, FR-026). Write = admin/manager only.

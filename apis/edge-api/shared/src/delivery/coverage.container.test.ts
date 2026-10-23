@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrationSql } from "../lib/load-migrations";
 import { courierReachesPostcode, coverageForPostcode } from "./coverage";
 import { quote } from "./quote";
-import { serviceableForPostcode } from "./zone";
 
 /**
  * 076 — the coverage migration against REAL data, and the one function that decides.
@@ -116,13 +115,6 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     expect(allPostcodes.length).toBeGreaterThanOrEqual(6);
   });
 
-  it("P1 — the same postcodes are served after as before, for every postcode in the country's data", async () => {
-    const servedBefore = new Set(before.map((r) => r.postcode));
-    for (const postcode of allPostcodes) {
-      expect(await serviceableForPostcode(pool, postcode), `${postcode} served before=${servedBefore.has(postcode)}`).toBe(servedBefore.has(postcode));
-    }
-  });
-
   it("P1 — a disabled zone's postcodes left the list, and the migration recorded which", async () => {
     expect((await pool.query(`SELECT 1 FROM public.delivery_zone_postcode WHERE postcode = '3550'`)).rowCount).toBe(0);
     const audit = await pool.query<{ detail: { postcodes: string[] } }>(
@@ -205,7 +197,6 @@ d("076 — the coverage migration changes nothing for anyone", () => {
       expect(await at("7000", new Date("2020-01-01T00:00:00Z"))).toMatchObject({ kind: "courier" });
       await settings(`delivery_model_v2_from = NULL`);
       expect(await at("7000")).toMatchObject({ kind: "courier", reason: "courier_offered" });
-      expect(await serviceableForPostcode(pool, "7000")).toBe(true);
       expect(await at("9999")).toMatchObject({ kind: "none", reason: "unknown_postcode" });
       // …and the same question asked of the function the checkout's no-window fallback uses.
       expect(await courierReachesPostcode(pool, "7000", new Date())).toBe(true);
@@ -276,12 +267,10 @@ d("076 — the coverage migration changes nothing for anyone", () => {
     expect(await answers()).toEqual(was);
   });
 
-  it("P16 — the up-front answer, the coverage answer and the quote agree for every postcode", async () => {
+  it("P16 — the coverage answer and the quote agree for every postcode", async () => {
     for (const postcode of [...allPostcodes, "9999"]) {
       const coverage = await coverageForPostcode(pool, postcode);
-      const upFront = await serviceableForPostcode(pool, postcode);
       const res = await quote(pool, null, postcode, [{ shopId, grams: 1500 }], new Date(), 5000);
-      expect(upFront, `${postcode}: up-front vs coverage`).toBe(coverage.kind !== "none");
       expect(res.serviced, `${postcode}: quote vs coverage`).toBe(coverage.kind !== "none");
       expect(res.coverage, `${postcode}: the quote's own coverage`).toBe(coverage.kind);
     }

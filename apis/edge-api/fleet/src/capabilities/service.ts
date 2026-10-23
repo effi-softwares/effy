@@ -8,7 +8,8 @@ import * as driverRepo from "../drivers/repository";
 import { recordAudit } from "../shared/audit";
 import { notFound, validationError } from "../shared/errors";
 import * as repo from "./repository";
-import { CAPABILITY_FUNCTIONS } from "./sql";
+
+const CAPABILITY_FUNCTIONS = ["collection", "delivery"] as const;
 
 export async function listCapabilities(driverId: string): Promise<DriverCapability[]> {
   const driver = await driverRepo.getDriver(driverId);

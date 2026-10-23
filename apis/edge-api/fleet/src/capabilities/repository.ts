@@ -134,18 +134,6 @@ export async function summariseForDrivers(
   return out;
 }
 
-/**
- * One line describing what a driver covers, for their OWN account screen in the driver app.
- *
- * ⚠ THE RULE ITSELF LIVES IN `@effy/edge-shared` (062). The driver service answers the same question
- * for the driver themselves, and two copies of a label expression drift silently — a SELECT that
- * returns the wrong string still returns successfully.
- */
-export async function coverageLabelForDriver(driverId: string): Promise<string | null> {
-  const res = await query<DriverCoverageAggregate>(coverageAggregateSql("$1"), [driverId]);
-  return coverageLabel(res.rows[0]);
-}
-
 /** Look up a zone for validation. ⚠ Carries `status` so a DISABLED zone can be refused at grant time
  *  with a message naming it, rather than accepted and silently never matched. */
 export async function findZone(zoneId: string): Promise<{ id: string; name: string; status: string } | null> {

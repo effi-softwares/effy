@@ -175,17 +175,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
-  driverCollectIssueV1:
-    handler: src/functions/driver-collect-issue-v1-post.handler
-    description: 063 — report a package that could not be collected. It stays ready for a later wave.
-    events:
-      - httpApi:
-          method: POST
-          path: /driver/v1/collection/runs/{runId}/stops/{stopId}/issue
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
-
   driverHubCheckinV1:
     handler: src/functions/driver-hub-checkin-v1-post.handler
     description: >-
@@ -277,17 +266,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
-  driverReadsV1:
-    handler: src/functions/driver-reads-v1-post.handler
-    description: 096 - label reads with no hand-over (refused scans, lookups), replayed in order offline.
-    events:
-      - httpApi:
-          method: POST
-          path: /driver/v1/reads
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
-
   driverHistoryV1:
     handler: src/functions/driver-history-v1-get.handler
     description: 063 — finished rounds by local day. ⚠ Thin until Slice D captures proof.
@@ -306,29 +284,6 @@ functions:
       - httpApi:
           method: GET
           path: /driver/v1/history/{kind}/{id}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
-
-  driverActivityV1:
-    handler: src/functions/driver-activity-v1-get.handler
-    description: 063 — derived from rounds, never a stored feed.
-    events:
-      - httpApi:
-          method: GET
-          path: /driver/v1/activity
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
-
-  driverActivityReadV1:
-    handler: src/functions/driver-activity-read-v1-post.handler
-    description: >-
-      063 — an honest no-op: there is no read receipt to store.
-    events:
-      - httpApi:
-          method: POST
-          path: /driver/v1/activity/read
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}

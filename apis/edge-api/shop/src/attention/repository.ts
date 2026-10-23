@@ -134,10 +134,9 @@ export interface Recipient {
 export async function recipientsForShop(tx: PoolClient, shopId: string): Promise<Recipient[]> {
   const res = await tx.query<{ cognito_sub: string; is_manager: boolean }>(
     `SELECT ss.cognito_sub,
-            bool_or(sr.name = 'shop_manager') AS is_manager
+            coalesce(bool_or(ssr.role_key = 'shop_manager'), false) AS is_manager
        FROM public.shop_staff ss
-       LEFT JOIN public.shop_staff_role ssr ON ssr.shop_staff_id = ss.id
-       LEFT JOIN public.shop_role sr        ON sr.id = ssr.shop_role_id
+       LEFT JOIN public.shop_staff_role ssr ON ssr.staff_id = ss.id
       WHERE ss.shop_id = $1
         AND ss.status = 'active'
         AND ss.cognito_sub IS NOT NULL

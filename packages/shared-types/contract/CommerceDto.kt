@@ -79,8 +79,6 @@ data class AddressDTO (
  *
  * 076 — who delivers to this address. `none` ⇔ not serviced. `courier` is returned only
  * when a courier order can be placed (079); the quote then carries `courier`.
- *
- * 076 — who delivers. Absent only from a server older than 076.
  */
 @Serializable
 enum class CoverageKind(val value: String) {
@@ -1632,39 +1630,6 @@ data class PaymentMethodDTO (
      */
     val usable: Boolean
 )
-
-/**
- * The locality typeahead result (030): ≤ 8, alphabetical, never ordered by serviceability.
- */
-@Serializable
-data class LocalitiesResultDTO (
-    val items: List<LocalityDTO>
-)
-
-/**
- * One place, fully identified — the only selectable unit (FR-007).
- */
-@Serializable
-data class LocalityDTO (
-    val name: String,
-    val postcode: String,
-    val state: AustralianState
-)
-
-/**
- * Australian state / territory — the closed set the place record uses.
- */
-@Serializable
-enum class AustralianState(val value: String) {
-    @SerialName("ACT") Act("ACT"),
-    @SerialName("NT") NT("NT"),
-    @SerialName("NSW") Nsw("NSW"),
-    @SerialName("QLD") Qld("QLD"),
-    @SerialName("SA") Sa("SA"),
-    @SerialName("TAS") Tas("TAS"),
-    @SerialName("VIC") Vic("VIC"),
-    @SerialName("WA") Wa("WA");
-}
 
 /**
  * A product image (its permanent public address + alt text).
@@ -3597,47 +3562,6 @@ data class ProductSearchResultDTO (
      * Total products matching the refinements, ignoring pagination (025 FR-016a).
      */
     val total: Double
-)
-
-/**
- * The single serviceability decision (FR-001), answered before a cart exists and again at
- * checkout by the SAME predicate (FR-004). ⚠ No zone id, name, fee, or window may be added.
- */
-@Serializable
-data class ServiceabilityDTO (
-    /**
-     * 076 — who delivers. Absent only from a server older than 076.
-     */
-    val coverage: CoverageKind? = null,
-
-    /**
-     * 077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and
-     * from a server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the
-     * window.
-     */
-    val offer: DeliveryOfferDTO? = null,
-
-    val postcode: String,
-
-    /**
-     * Kept for clients released before 076. Always `coverage !== "none"`.
-     */
-    val serviced: Boolean
-)
-
-/**
- * 077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and
- * from a server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the
- * window.
- *
- * The business's public basket offer (077): what a cart can say before there is an address
- * to price. A null value means the rule is not set.
- */
-@Serializable
-data class DeliveryOfferDTO (
-    val freeDeliveryOverAmount: String? = null,
-    val smallOrderFeeAmount: String? = null,
-    val smallOrderUnderAmount: String? = null
 )
 
 /**

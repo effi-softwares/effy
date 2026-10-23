@@ -21,14 +21,6 @@ export type DeliveryEventType =
   | "reject"
   | "delivery_delay";
 
-export const DELIVERY_EVENT_TYPES: readonly DeliveryEventType[] = [
-  "bounce",
-  "complaint",
-  "delivery",
-  "reject",
-  "delivery_delay",
-] as const;
-
 /**
  * One outcome, for one message, to one address — normalised off the wire.
  *

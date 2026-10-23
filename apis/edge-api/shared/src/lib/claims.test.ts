@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AuthedEvent } from "./claims";
-import { groups, hasAnyGroup, parseGroups, subject } from "./claims";
+import { groups, parseGroups, subject } from "./claims";
 
 // The stringified-groups gotcha (research D3): the raw JWT carries a JSON array, but
 // the authorizer context stringifies it — differently per gateway flavor. The parser
@@ -35,25 +35,6 @@ function eventWithClaims(claims: Record<string, string>): AuthedEvent {
   } as unknown as AuthedEvent;
 }
 
-describe("hasAnyGroup", () => {
-  const allowed = ["admin", "manager", "csa"];
-
-  it("passes a member (HTTP API stringified form)", () => {
-    expect(hasAnyGroup(eventWithClaims({ "cognito:groups": "[manager]" }), allowed)).toBe(true);
-  });
-
-  it("denies when the claim is absent (group-less user has NO claim)", () => {
-    expect(hasAnyGroup(eventWithClaims({}), allowed)).toBe(false);
-  });
-
-  it("denies on case mismatch — Cognito group names are exact-case", () => {
-    expect(hasAnyGroup(eventWithClaims({ "cognito:groups": "[Admin]" }), allowed)).toBe(false);
-  });
-
-  it("denies a non-member", () => {
-    expect(hasAnyGroup(eventWithClaims({ "cognito:groups": "[warehouse]" }), allowed)).toBe(false);
-  });
-});
 
 describe("subject", () => {
   it("reads sub from the authorizer claims", () => {

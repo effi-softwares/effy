@@ -18,8 +18,6 @@ const POLICY: Record<string, CachePolicy | null> = {
   "products-v1-get.ts": "listing",
   "facets-v1-get.ts": "listing",
   "suggestions-v1-get.ts": "suggestions",
-  "serviceability-v1-get.ts": "serviceability",
-  "localities-v1-get.ts": "localities",
   "product-v1-get.ts": null,
   "home-v1-get.ts": "listing",
   "categories-v1-get.ts": "listing",
@@ -59,6 +57,5 @@ describe("storefront cache headers", () => {
 
   it("says the header the way a browser reads it", () => {
     expect(cacheControl("listing")).toBe("public, max-age=30, stale-while-revalidate=30");
-    expect(cacheControl("serviceability")).toBe("public, max-age=300");
   });
 });

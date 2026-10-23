@@ -8,7 +8,6 @@ import { forbidden, problem, ProblemType, refused, subject, unavailable } from "
 
 import { canManageDelivery, isActiveStaff } from "./authz";
 import { CoverageError } from "./coverage.service";
-import { GoLiveError } from "./go-live.service";
 import { PricingError } from "./pricing.repository";
 import { DeliveryError } from "./types";
 
@@ -71,13 +70,3 @@ export function mapPricingError(err: unknown, scope: RequestScope): APIGatewayPr
   return unavailable(scope);
 }
 
-/** Map a GoLiveError (083) to problem+json; the console keys its words off `code`. A 403 is the uniform one. */
-export function mapGoLiveError(err: unknown, scope: RequestScope): APIGatewayProxyStructuredResultV2 {
-  if (err instanceof GoLiveError) {
-    if (err.status === 403) return forbidden(scope);
-    return refused(scope, err.status, err.code, err.message, { code: err.code, ...err.extra });
-  }
-  if (err instanceof SyntaxError) return refused(scope, 400, "validation_failed", "the request body is not JSON", { code: "validation_failed" });
-  scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "go-live op failed");
-  return unavailable(scope);
-}

@@ -1,5 +1,5 @@
-// The queue's consumer: one uploaded picture per invocation (086). Fed by the bucket's upload
-// notifications, and by the backfill, which sends the same shape.
+// The queue's consumer: one uploaded picture per invocation (086), fed by the bucket's upload
+// notifications.
 import { S3Client } from "@aws-sdk/client-s3";
 import { emitMetric, logger, metricNamespace } from "@effy/edge-shared";
 import type { SQSEvent } from "aws-lambda";

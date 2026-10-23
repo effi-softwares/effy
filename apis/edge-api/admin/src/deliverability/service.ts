@@ -26,11 +26,6 @@ function ses(): SESv2Client {
   return client
 }
 
-/** Test seam, matching the mailer convention in edge-auth. */
-export function resetSesForTests(): void {
-  client = undefined
-}
-
 // ── Outcome → conclusion ─────────────────────────────────────────────────────────────────────
 
 /**

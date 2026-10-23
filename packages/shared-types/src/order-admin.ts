@@ -158,8 +158,8 @@ export interface AdminOrderSummaryDTO {
 /** 085 — the order list's promise filter (Effy orders only). */
 export const ADMIN_ORDER_PROMISE_FILTERS = ["window", "day", "asap"] as const satisfies readonly DeliveryPromise[];
 
-/** 079 — the order list's delivery filter. `legacy` = placed before 079 (no delivery type). */
-export const ADMIN_ORDER_DELIVERY_FILTERS = ["effy", "courier", "legacy"] as const;
+/** 079 — the order list's delivery filter. */
+export const ADMIN_ORDER_DELIVERY_FILTERS = ["effy", "courier"] as const;
 export type AdminOrderDeliveryFilter = (typeof ADMIN_ORDER_DELIVERY_FILTERS)[number];
 
 /** 079 — one entry in an order's delivery-type history: the checkout's decision, then any change. */

@@ -399,7 +399,3 @@ export async function forfeit(tx: Queryable, customerId: string, now: Date): Pro
   return remaining;
 }
 
-/** The customer's token subject, for addressing a live update after commit. */
-export async function customerSubOf(q: Queryable, customerId: string): Promise<string | null> {
-  return (await q.query<{ sub: string }>(`SELECT cognito_sub AS sub FROM public.customer WHERE id = $1`, [customerId])).rows[0]?.sub ?? null;
-}

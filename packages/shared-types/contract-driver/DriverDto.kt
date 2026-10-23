@@ -10,41 +10,6 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 
 @Serializable
-data class ActivityItem (
-    val body: String,
-    val createdAt: String,
-
-    @SerialName("dropId")
-    val dropID: String? = null,
-
-    val id: String,
-    val read: Boolean,
-
-    @SerialName("runId")
-    val runID: String? = null,
-
-    val type: ActivityType
-)
-
-@Serializable
-enum class ActivityType(val value: String) {
-    @SerialName("cutoff_missed") CutoffMissed("cutoff_missed"),
-    @SerialName("issue_ack") IssueACK("issue_ack"),
-    @SerialName("packages_ready") PackagesReady("packages_ready"),
-    @SerialName("reminder") Reminder("reminder"),
-    @SerialName("run_assigned") RunAssigned("run_assigned"),
-    @SerialName("sameday_window") SamedayWindow("sameday_window");
-}
-
-/**
- * POST /driver/v1/activity/read
- */
-@Serializable
-data class ActivityReadRequest (
-    val ids: List<String>
-)
-
-@Serializable
 data class CollectRequest (
     @SerialName("changeId")
     val changeID: String,
@@ -1511,20 +1476,6 @@ data class ProofResponse (
 enum class ProofResponseStatus(val value: String) {
     @SerialName("delivered") Delivered("delivered");
 }
-
-/**
- * POST /driver/v1/reads — 096: reads with no hand-over (a refused scan, a lookup), replayed
- * in order offline.
- */
-@Serializable
-data class DriverReadsRequest (
-    val reads: List<LabelReadDTO>
-)
-
-@Serializable
-data class DriverReadsResponse (
-    val recorded: Long
-)
 
 /**
  * GET /driver/v1/today

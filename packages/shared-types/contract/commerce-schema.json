@@ -173,20 +173,6 @@
       ],
       "type": "object"
     },
-    "AustralianState": {
-      "description": "Australian state / territory — the closed set the place record uses.",
-      "enum": [
-        "ACT",
-        "NSW",
-        "NT",
-        "QLD",
-        "SA",
-        "TAS",
-        "VIC",
-        "WA"
-      ],
-      "type": "string"
-    },
     "BannerDTO": {
       "additionalProperties": false,
       "deprecated": "— compatibility (094). Installed apps read `home.banners`; new clients read display\ngroups (`PromotionGroupsDTO`). Built by the storefront from the `home-hero` and `home-between` groups.",
@@ -1564,36 +1550,6 @@
       ],
       "type": "string"
     },
-    "DeliveryOfferDTO": {
-      "additionalProperties": false,
-      "description": "The business's public basket offer (077): what a cart can say before there is an address to price. A null value means the rule is not set.",
-      "properties": {
-        "freeDeliveryOverAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "smallOrderFeeAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "smallOrderUnderAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "freeDeliveryOverAmount",
-        "smallOrderUnderAmount",
-        "smallOrderFeeAmount"
-      ],
-      "type": "object"
-    },
     "DeliveryPromise": {
       "description": "085 — what an Effy order was sold: a time on a day, a day with no time, or \"as soon as possible\".",
       "enum": [
@@ -1952,43 +1908,6 @@
       },
       "required": [
         "paymentMethods"
-      ],
-      "type": "object"
-    },
-    "LocalitiesResultDTO": {
-      "additionalProperties": false,
-      "description": "The locality typeahead result (030): ≤ 8, alphabetical, never ordered by serviceability.",
-      "properties": {
-        "items": {
-          "items": {
-            "$ref": "#/definitions/LocalityDTO"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "items"
-      ],
-      "type": "object"
-    },
-    "LocalityDTO": {
-      "additionalProperties": false,
-      "description": "One place, fully identified — the only selectable unit (FR-007).",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "postcode": {
-          "type": "string"
-        },
-        "state": {
-          "$ref": "#/definitions/AustralianState"
-        }
-      },
-      "required": [
-        "name",
-        "state",
-        "postcode"
       ],
       "type": "object"
     },
@@ -3606,32 +3525,6 @@
       ],
       "type": "string"
     },
-    "ServiceabilityDTO": {
-      "additionalProperties": false,
-      "description": "The single serviceability decision (FR-001), answered before a cart exists and again at checkout by the SAME predicate (FR-004). ⚠ No zone id, name, fee, or window may be added.",
-      "properties": {
-        "coverage": {
-          "$ref": "#/definitions/CoverageKind",
-          "description": "076 — who delivers. Absent only from a server older than 076."
-        },
-        "offer": {
-          "$ref": "#/definitions/DeliveryOfferDTO",
-          "description": "077 — the basket offer, when Effy delivers here. Absent for `courier` and `none`, and from a server older than 077. ⚠ An offer, never a fee: the fee needs the basket and the window."
-        },
-        "postcode": {
-          "type": "string"
-        },
-        "serviced": {
-          "description": "Kept for clients released before 076. Always `coverage !== \"none\"`.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "postcode",
-        "serviced"
-      ],
-      "type": "object"
-    },
     "ShopperPromotionDTO": {
       "additionalProperties": false,
       "description": "One promotion as both customer clients show it, from either group read.",
@@ -5134,12 +5027,6 @@
     "listPaymentMethods": {
       "$ref": "#/definitions/ListPaymentMethodsResponse"
     },
-    "localitiesResult": {
-      "$ref": "#/definitions/LocalitiesResultDTO"
-    },
-    "locality": {
-      "$ref": "#/definitions/LocalityDTO"
-    },
     "media": {
       "$ref": "#/definitions/MediaDTO"
     },
@@ -5246,9 +5133,6 @@
     "searchResult": {
       "$ref": "#/definitions/ProductSearchResultDTO"
     },
-    "serviceability": {
-      "$ref": "#/definitions/ServiceabilityDTO"
-    },
     "storefrontVariant": {
       "$ref": "#/definitions/StorefrontVariantDTO"
     },
@@ -5327,9 +5211,6 @@
     "savedListRenameRequest",
     "savedListEntryRequest",
     "savedListRefusal",
-    "serviceability",
-    "locality",
-    "localitiesResult",
     "deliveryQuote",
     "deliveryChoiceRefusal",
     "paymentMethod",

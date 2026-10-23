@@ -2,75 +2,6 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
-    "ActivityItem": {
-      "additionalProperties": false,
-      "properties": {
-        "body": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
-        },
-        "dropId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "id": {
-          "type": "string"
-        },
-        "read": {
-          "type": "boolean"
-        },
-        "runId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "type": {
-          "$ref": "#/definitions/ActivityType"
-        }
-      },
-      "required": [
-        "id",
-        "type",
-        "body",
-        "createdAt",
-        "read",
-        "runId",
-        "dropId"
-      ],
-      "type": "object"
-    },
-    "ActivityReadRequest": {
-      "additionalProperties": false,
-      "description": "POST /driver/v1/activity/read",
-      "properties": {
-        "ids": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "ids"
-      ],
-      "type": "object"
-    },
-    "ActivityType": {
-      "enum": [
-        "run_assigned",
-        "packages_ready",
-        "sameday_window",
-        "reminder",
-        "issue_ack",
-        "cutoff_missed"
-      ],
-      "type": "string"
-    },
     "ClassSummary": {
       "additionalProperties": false,
       "description": "Units IN THE BAG per class (065). Counts only lines the shop actually supplied — a line marked unavailable is in no bucket. Every field is always present; a client omits a zero when rendering.",
@@ -890,34 +821,6 @@
         "idle"
       ],
       "type": "string"
-    },
-    "DriverReadsRequest": {
-      "additionalProperties": false,
-      "description": "POST /driver/v1/reads — 096: reads with no hand-over (a refused scan, a lookup), replayed in order offline.",
-      "properties": {
-        "reads": {
-          "items": {
-            "$ref": "#/definitions/LabelReadDTO"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "reads"
-      ],
-      "type": "object"
-    },
-    "DriverReadsResponse": {
-      "additionalProperties": false,
-      "properties": {
-        "recorded": {
-          "$ref": "#/definitions/WireInt"
-        }
-      },
-      "required": [
-        "recorded"
-      ],
-      "type": "object"
     },
     "DriverRunType": {
       "description": "The two kinds of work a driver run can be. Named as a type by 056 because back-office reads it too — it was an inline union used once, and a second consumer is exactly when a concept earns a name (Principle II: one definition per concept, not one per file).\n\n⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and then a same-day round in the same shift; neither is a role they hold.",
@@ -2756,12 +2659,6 @@
   },
   "description": "Aggregator — codegen entry only. Every field forces a type into the schema.",
   "properties": {
-    "activityItem": {
-      "$ref": "#/definitions/ActivityItem"
-    },
-    "activityRead": {
-      "$ref": "#/definitions/ActivityReadRequest"
-    },
     "collectRequest": {
       "$ref": "#/definitions/CollectRequest"
     },
@@ -2891,12 +2788,6 @@
     "proofResponse": {
       "$ref": "#/definitions/ProofResponse"
     },
-    "readsRequest": {
-      "$ref": "#/definitions/DriverReadsRequest"
-    },
-    "readsResponse": {
-      "$ref": "#/definitions/DriverReadsResponse"
-    },
     "returnParcel": {
       "$ref": "#/definitions/ReturnParcel"
     },
@@ -2987,8 +2878,6 @@
     "historyDrop",
     "historyDetail",
     "timelineEntry",
-    "activityItem",
-    "activityRead",
     "vehicleCheckState",
     "vehicleCheckEntry",
     "vehicleCheckRequest",
@@ -2998,8 +2887,6 @@
     "parcelHandover",
     "parcelMissing",
     "labelRead",
-    "readsRequest",
-    "readsResponse",
     "parcelsUnaccounted",
     "problem"
   ],

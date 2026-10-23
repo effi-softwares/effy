@@ -118,7 +118,7 @@ describe("inventory service deployment contract", () => {
       .map(([, name]) => name!)
       .filter((name) => blockFor(name, staffYaml).includes("/inventory/v1/admin/"));
 
-    expect(adminFns.length, "the six admin routes — the derivation above is broken").toBe(6);
+    expect(adminFns.length, "the five admin routes — the derivation above is broken").toBe(5);
 
     for (const fn of adminFns) {
       const block = blockFor(fn, staffYaml);

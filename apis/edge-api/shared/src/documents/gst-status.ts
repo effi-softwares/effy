@@ -12,7 +12,6 @@ type Tx = { query: (text: string, values?: unknown[]) => Promise<any> };
 export type GstActor = { kind: "shop_staff"; sub: string } | { kind: "admin_staff"; sub: string };
 export type GstVia = "create" | "review" | "direct" | "bulk";
 
-export const GST_STATUSES: readonly GstStatus[] = ["taxable", "gst_free"];
 export const isGstStatus = (v: unknown): v is GstStatus => v === "taxable" || v === "gst_free";
 
 /** Set one product's status. A repeat of the current status changes and records nothing. */

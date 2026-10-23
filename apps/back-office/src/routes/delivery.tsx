@@ -10,7 +10,7 @@ import { appRoute } from "./app";
 export const deliveryIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "delivery",
-  // 083 — which tab is open; the go-live checklist links to the tab that fixes each item.
+  // Which tab is open.
   validateSearch: (search: Record<string, unknown>): { tab?: string } =>
     typeof search.tab === "string" ? { tab: search.tab } : {},
   component: DeliveryScreen,

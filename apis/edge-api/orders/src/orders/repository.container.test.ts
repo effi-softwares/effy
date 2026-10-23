@@ -29,7 +29,6 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
 }));
 
 import { migrationSql } from "@effy/edge-shared";
-
 import { history, list, packages, viewCounts } from "./repository";
 import { listOrders } from "./service";
 
@@ -326,7 +325,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         `INSERT INTO public.carrier_handoff (shop_fulfillment_id, recorded_by_sub) VALUES ($1, 's')`,
         [fulfillmentId],
       );
-      const counts = await viewCounts({ stillOpen: false });
+      const counts = await viewCounts({});
       expect(Number(counts.total)).toBe((await list({ limit: 50 })).length);
       expect(Number(counts.handover)).toBe((await list({ awaiting: "handover", limit: 50 })).length);
       expect(Number(counts.arrival)).toBe((await list({ awaiting: "arrival", limit: 50 })).length);

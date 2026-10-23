@@ -45,10 +45,9 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { migrationSql, presignUpload } from "@effy/edge-shared";
-
 import { recordFailure, recordProof } from "../proof/repository";
 import { presignProof } from "../proof/service";
-import { collectStop, hubCheckin, reportIssue } from "./complete";
+import { collectStop, hubCheckin } from "./complete";
 import { deliveryDrop, setDropStatus } from "./delivery";
 import { loadRun } from "./load";
 import { RoundNotOpenError } from "./open";
@@ -186,14 +185,13 @@ d("072 — a round cannot be worked before it opens", () => {
   // ── C7 ──────────────────────────────────────────────────────────────────────────────────────────
 
   describe("C7 — before it opens, every progressing route refuses and writes nothing", () => {
-    it("collection: collect, report an issue, hub check-in", async () => {
+    it("collection: collect, hub check-in", async () => {
       // A run three hours off opens in two and a quarter.
-      const { roundId, stopId, sfId } = await collectionRound(180);
+      const { roundId, stopId } = await collectionRound(180);
       const before = await snapshot();
 
       const calls: Array<[string, () => Promise<unknown>]> = [
         ["collect", async () => collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })],
-        ["issue", () => reportIssue(roundId, stopId, driverId, sfId, "shop was shut")],
         ["hub check-in", () => hubCheckin(roundId, driverId)],
       ];
       for (const [name, call] of calls) {
@@ -239,7 +237,6 @@ d("072 — a round cannot be worked before it opens", () => {
 
       await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).rejects.toMatchObject({ name: "NotFoundError" });
       await expect(hubCheckin(roundId, driverId)).rejects.toMatchObject({ name: "NotFoundError" });
-      await expect(reportIssue(roundId, stopId, driverId, undefined, undefined)).rejects.toMatchObject({ name: "NotFoundError" });
     });
   });
 
@@ -250,12 +247,6 @@ d("072 — a round cannot be worked before it opens", () => {
       const { roundId, stopId } = await collectionRound(30); // opened fifteen minutes ago
       await expect(collectStop(roundId, stopId, driverId, { changeId: change(), packages: await shown(stopId) })).resolves.toMatchObject({ collected: 1 });
       await expect(hubCheckin(roundId, driverId)).resolves.toMatchObject({ scannedTotal: 1 });
-    });
-
-    it("an issue can be reported on an open round", async () => {
-      const { roundId, stopId, sfId } = await collectionRound(30);
-      await expect(reportIssue(roundId, stopId, driverId, sfId, "not ready")).resolves.toBeUndefined();
-      expect((await one<{ state: string }>(`SELECT state FROM public.round_package`)).state).toBe("not_available");
     });
 
     it("delivery round whose window is inside the lead time", async () => {

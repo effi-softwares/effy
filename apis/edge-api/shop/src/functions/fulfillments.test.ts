@@ -30,7 +30,6 @@ vi.mock("../fulfillments/service", () => ({
 }));
 
 import { handler as getOne } from "./fulfillment-get-v1-get";
-import { handler as patchItem } from "./fulfillment-item-v1-patch";
 import { handler as postPickup } from "./fulfillment-pickup-v1-post";
 import { handler as postStatus } from "./fulfillment-status-v1-post";
 import { handler as listAll } from "./fulfillments-list-v1-get";
@@ -103,7 +102,6 @@ describe("authorization — uniform and fail-closed (FR-019, FR-020, SC-008)", (
     ["list", listAll],
     ["get", getOne],
     ["status", postStatus],
-    ["item", patchItem],
   ];
 
   it.each(HANDLERS)("%s rejects a request with no verified subject", async (_n, h) => {
@@ -285,56 +283,6 @@ describe("POST /shop/v1/fulfillments/{id}/status — transitions (US3)", () => {
       statusCode: number;
     };
     expect(res.statusCode).toBe(400);
-  });
-});
-
-describe("PATCH .../items/{orderItemId} — picking progress (US2)", () => {
-  it("records progress", async () => {
-    grants();
-    updateItemProgress.mockResolvedValue(DETAIL);
-
-    const res = (await patchItem(
-      event({ sub: "s" }, { path: { id: "f-1", orderItemId: "oi-1" }, body: { gatheredQuantity: 2 } }),
-      ctx,
-    )) as { statusCode: number };
-
-    expect(res.statusCode).toBe(200);
-    expect(updateItemProgress).toHaveBeenCalledWith(expect.anything(), "f-1", "oi-1", {
-      gatheredQuantity: 2,
-    });
-  });
-
-  it("maps over-accounting to 400 with a field error", async () => {
-    grants();
-    updateItemProgress.mockImplementation(async () => {
-      throw new FulfillmentError("validation", "quantities exceed the quantity ordered", [
-        { field: "gatheredQuantity", message: "gathered + unavailable cannot exceed ordered" },
-      ]);
-    });
-
-    const res = (await patchItem(
-      event(
-        { sub: "s" },
-        { path: { id: "f-1", orderItemId: "oi-1" }, body: { gatheredQuantity: 99 } },
-      ),
-      ctx,
-    )) as { statusCode: number; body: string };
-
-    expect(res.statusCode).toBe(400);
-    expect(JSON.parse(res.body).errors).toHaveLength(1);
-  });
-
-  it("maps editing a non-picking portion to 409", async () => {
-    grants();
-    updateItemProgress.mockImplementation(async () => {
-      throw new FulfillmentError("conflict", "items can only be recorded while picking");
-    });
-
-    const res = (await patchItem(
-      event({ sub: "s" }, { path: { id: "f-1", orderItemId: "oi-1" }, body: { gatheredQuantity: 1 } }),
-      ctx,
-    )) as { statusCode: number };
-    expect(res.statusCode).toBe(409);
   });
 });
 

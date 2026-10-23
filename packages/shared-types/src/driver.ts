@@ -484,14 +484,6 @@ export interface ParcelStepFields {
   reads?: LabelReadDTO[];
 }
 
-/** POST /driver/v1/reads — 096: reads with no hand-over (a refused scan, a lookup), replayed in order offline. */
-export interface DriverReadsRequest {
-  reads: LabelReadDTO[];
-}
-export interface DriverReadsResponse {
-  recorded: WireInt;
-}
-
 /** 096 — the 409 a step answers when a live bag was neither handed over nor declared missing. */
 export interface ParcelsUnaccountedProblem {
   type: "parcels_unaccounted";
@@ -702,7 +694,6 @@ export const MISSING_REASON_WORDS: Record<MissingReason, string> = {
   wrong_temperature: "Wrong temperature",
   other: "Other",
 };
-
 
 export interface LoadResponse {
   /** How many drops this call moved to out for delivery. */
@@ -939,31 +930,6 @@ export interface HistoryStop {
   proofMethod: ProofMethod | null;
   /** 092 rev 2 — why a drop came back to the hub. */
   failureReason?: DeliveryFailureReason | null;
-}
-
-export type ActivityType =
-  | "run_assigned"
-  | "packages_ready"
-  | "sameday_window"
-  | "reminder"
-  | "issue_ack"
-  | "cutoff_missed";
-
-export interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  body: string;
-  createdAt: string;
-  read: boolean;
-  runId: string | null;
-  dropId: string | null;
-}
-/** GET /driver/v1/activity */
-export type ActivityDTO = ActivityItem[];
-
-/** POST /driver/v1/activity/read */
-export interface ActivityReadRequest {
-  ids: string[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════

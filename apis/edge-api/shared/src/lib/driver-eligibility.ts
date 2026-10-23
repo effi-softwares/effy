@@ -159,11 +159,6 @@ export function eligibilityReasons(input: EligibilityInput): ExclusionReason[] {
   return reasons;
 }
 
-/** Convenience for call sites that only branch. Never use it where a reason must be recorded. */
-export function isEligible(input: EligibilityInput): boolean {
-  return eligibilityReasons(input).length === 0;
-}
-
 /**
  * Choose between eligible drivers (FR-014): fewest packages assigned **today** wins.
  *

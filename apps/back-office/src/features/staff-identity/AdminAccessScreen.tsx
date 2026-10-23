@@ -8,7 +8,7 @@ import { Panel } from "@/components/patterns/Panel";
 import { canManageCatalog } from "@/features/catalog-schema/access";
 import { canDebitPoints, canEditPointsSettings } from "@/features/customers/access";
 import { canRepairDelivery } from "@/features/deliverability/access";
-import { canManageDelivery, canSwitchDeliveryModel } from "@/features/delivery/access";
+import { canManageDelivery } from "@/features/delivery/access";
 import { canDispatch } from "@/features/dispatch/access";
 import { canManageDrivers } from "@/features/drivers/access";
 import { canResolveExceptions } from "@/features/exceptions/access";
@@ -46,7 +46,6 @@ const PERMISSIONS: readonly { what: string; rule: Rule }[] = [
   { what: "Change delivery settings", rule: canManageDelivery },
   { what: "Re-enable email to an address", rule: canRepairDelivery },
   { what: "Change points settings", rule: canEditPointsSettings },
-  { what: "Switch the delivery model", rule: canSwitchDeliveryModel },
 ];
 
 const ROLES: readonly { role: BackOfficeRole; label: string }[] = [
