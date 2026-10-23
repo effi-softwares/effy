@@ -4,8 +4,8 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
-**098-product-variants — Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** 🔨 **BUILT
-2026-10-22 — NOT MIGRATED, DEPLOYED OR WALKED.** A product is now its shared details plus one or more **variants**
+**098-product-variants — Product Variants: Sizes, Flavours, Per-Variant Stock and Unit Pricing.** ✅ **BUILT
+2026-10-22 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** A product is now its shared details plus one or more **variants**
 (up to two options such as Size and Flavour, up to 20 values each, up to 50 variants). Each variant has its own shop
 price, "was" price, SKU, barcode, weight, pack size, stock and optional picture; a product sold one way has exactly
 one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](specs/098-product-variants/tasks.md).
@@ -87,8 +87,7 @@ one variant and no selector. Spec, plan, tasks: [specs/098-product-variants/](sp
   `aws apigatewayv2 delete-route`, then redeploy `commerce` (CloudFormation's delete of the gone routes succeeds).
   Inventory's rename changed the literal segment too (`products` → `variants`), so it does not collide.
 
-**096-parcel-labels-scanning — Order Package Labels, Scanning & Printed Documents.** 🔨 **BUILT 2026-10-22 — NOT
-MIGRATED, DEPLOYED OR WALKED** (an earlier deploy of the P1 set may have been run; see the operator steps). Every physical
+**096-parcel-labels-scanning — Order Package Labels, Scanning & Printed Documents.** ✅ **BUILT 2026-10-22 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked)**. Every physical
 bag of an order now has its own permanent code and a professional carrier-style label; every hand-over is per bag and
 on record; back-office can scan anything to find it and run a hub station; customers get a delivery note and, once Effy's
 tax details are entered, an ATO-style tax invoice. Grounded in [research-08](docs/research/logistics/research-08-labels-scanning-documents.md).
@@ -155,8 +154,7 @@ Spec, plan, tasks: [specs/096-parcel-labels-scanning/](specs/096-parcel-labels-s
   and rounding with the accountant), classify every product, then turn invoices on; (7) the walk in
   [quickstart.md](specs/096-parcel-labels-scanning/quickstart.md).
 
-**097-same-day-by-postcode — Delivery Today, Postcode by Postcode.** 🔨 **BUILT 2026-10-21 — NOT MIGRATED, DEPLOYED OR
-WALKED.** Each postcode on Effy's list now says whether a window TODAY may be sold there (default: offered). Staff
+**097-same-day-by-postcode — Delivery Today, Postcode by Postcode.** ✅ **BUILT 2026-10-21 — COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Each postcode on Effy's list now says whether a window TODAY may be sold there (default: offered). Staff
 switch far postcodes off in bulk from Delivery → Coverage; customers there get Standard delivery from the next
 delivery day, with no new wording. Spec, plan, tasks: [specs/097-same-day-by-postcode/](specs/097-same-day-by-postcode/tasks.md).
 
@@ -312,8 +310,7 @@ quickstart walked by the operator. Only stage C (removing the old tables) is ope
   5. Back-office, customer-web, then the app.
   6. Walk `specs/094-promotions-rebuild/quickstart.md`.
 
-**093-driver-work-sequence — Driver Work in One Order, and Trips That Join Up.** 🚧 **BUILT (2026-10-17); NOT
-MIGRATED, DEPLOYED OR WALKED.** Research: [research-07](docs/research/logistics/research-07-driver-task-sequencing.md)
+**093-driver-work-sequence — Driver Work in One Order, and Trips That Join Up.** ✅ **BUILT (2026-10-17); COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Research: [research-07](docs/research/logistics/research-07-driver-task-sequencing.md)
 (Onfleet Route Load, Bringg linked tasks, Track-POD load check, Amazon Flex/DSP, Shipsy hub exceptions). Spec,
 plan, tasks: [specs/093-driver-work-sequence/](specs/093-driver-work-sequence/tasks.md).
 
@@ -355,7 +352,7 @@ plan, tasks: [specs/093-driver-work-sequence/](specs/093-driver-work-sequence/ta
   together: the collect body and drop status changed, with no compatibility kept — the app has no installed
   users). Then walk `specs/093-driver-work-sequence/quickstart.md`; turn the vehicle check on when ready.
 
-**092-driver-mobile-redesign — Driver App Redesign.** 🚧 **BUILT (2026-10-16). `driver` DEPLOYED TO DEV; APP NOT WALKED.**
+**092-driver-mobile-redesign — Driver App Redesign.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: deployed and walked).**
 Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built from the canvas
 `docs/reference-screens/Effy Driver Mobile v2/` (61 artboards). Spec, plan, tasks:
 [specs/092-driver-mobile-redesign/](specs/092-driver-mobile-redesign/tasks.md).
@@ -444,7 +441,7 @@ Driver backlog G1–G3 with E1–E5, F1 and the scanning screens H6–H11. Built
   app build. Walk on a device: sign in, go on duty, a collection run by scan and by tick, hub check-in, load the
   van, a drop by scan (photo, left safely, signature), Can't deliver, return to hub, dark mode.
 
-**091-handover-visibility — Scan Versus Manual Visibility.** 🚧 **BUILT (2026-10-16). NOT DEPLOYED.** Driver
+**091-handover-visibility — Scan Versus Manual Visibility.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: deployed and walked).** Driver
 backlog H12: three read-only views of 090's `package_handover`, each in the service that owns its screen; no
 route, no migration. Spec, plan, tasks: [specs/091-handover-visibility/](specs/091-handover-visibility/tasks.md).
 
@@ -458,8 +455,7 @@ route, no migration. Spec, plan, tasks: [specs/091-handover-visibility/](specs/0
 - **Operator steps**: `make edge-deploy SERVICE=orders|fleet|admin ENV=dev` → back-office. Data appears once
   drivers use the scanning screens.
 
-**090-scanning-foundation — Package Scanning: Foundations.** 🚧 **BUILT (2026-10-16). NOT MIGRATED, DEPLOYED
-OR WALKED.** Everything under the scanning screens (driver backlog H4, H5 and the platform halves of
+**090-scanning-foundation — Package Scanning: Foundations.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Everything under the scanning screens (driver backlog H4, H5 and the platform halves of
 H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanning-foundation/](specs/090-scanning-foundation/tasks.md).
 
 - **One scan rule** (`core/scan/ScanRule.kt`, pure, offline): Accepted / AlreadyScanned / BelongsElsewhere
@@ -487,7 +483,7 @@ H6–H10); the screens follow the redesign. Spec, plan, tasks: [specs/090-scanni
 - **Operator steps**: `make db-up ENV=dev` → `make edge-deploy SERVICE=driver ENV=dev`. No app release needed
   until the redesign's screens use the reader; on a device, read a printed 089 label to check the reader.
 
-**089-package-labels — Package Labels.** 🚧 **BUILT (2026-10-16). NOT MIGRATED, DEPLOYED OR WALKED.**
+**089-package-labels — Package Labels.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).**
 Driver backlog H1–H3: the prerequisite for scanning. Spec, plan, tasks: [specs/089-package-labels/](specs/089-package-labels/tasks.md).
 
 - **Every package has a permanent 6-character code** — `shop_fulfillment.package_code`, generated by the
@@ -517,8 +513,7 @@ Driver backlog H1–H3: the prerequisite for scanning. Spec, plan, tasks: [specs
   `SERVICE=orders`, `SERVICE=driver` (ENV=dev) → shop-web and back-office. No driver app build needed.
   Walk: [quickstart.md](specs/089-package-labels/quickstart.md) — including scanning a printed QR with a phone.
 
-**088-failed-parcel-return — Return Failed Parcels to the Hub.** 🚧 **BUILT (2026-10-16). NOT MIGRATED,
-DEPLOYED OR WALKED.** Driver backlog A4. A parcel on a failed drop stays in the driver's custody until it is
+**088-failed-parcel-return — Return Failed Parcels to the Hub.** ✅ **BUILT (2026-10-16). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Driver backlog A4. A parcel on a failed drop stays in the driver's custody until it is
 checked back in at the hub; the round finishes only then; a returned parcel waits for staff to choose its
 next step. Spec, plan, tasks: [specs/088-failed-parcel-return/](specs/088-failed-parcel-return/tasks.md).
 Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D2, D4–D5, F2–F3 — see
@@ -556,8 +551,7 @@ Built with the driver backlog's sprints 1–2 (A1–A3, B1–B3, C1–C6, D1–D
   and `SERVICE=driver` → back-office → the driver app. The previous app build keeps working (it ignores
   `toReturn`; staff can record its returns). Walk: [quickstart.md](specs/088-failed-parcel-return/quickstart.md).
 
-**087-customer-mobile-redesign — Customer Mobile Redesign.** 🚧 **BUILT (2026-10-14). NOT WALKED, NOT SIGNED
-OFF.** The customer mobile app takes the storefront identity the website adopted in 084, iOS-first, from
+**087-customer-mobile-redesign — Customer Mobile Redesign.** ✅ **BUILT (2026-10-14). COMPLETE (operator-reported 2026-10-23: walked).** The customer mobile app takes the storefront identity the website adopted in 084, iOS-first, from
 the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards committed to
 `docs/reference-screens/Effy Customer Mobile/`). Spec, plan, tasks: [specs/087-customer-mobile-redesign/](specs/087-customer-mobile-redesign/tasks.md).
 **No backend, migration, Terraform or deploy step.**
@@ -620,8 +614,7 @@ the design canvas (https://claude.ai/artifact/WSJRR99YaDrAU6LJaChbQv; boards com
 - ⚠ **OPERATOR STEPS**: walk `specs/087-customer-mobile-redesign/quickstart.md` on an iPhone (incl. SE)
   and an Android phone — boards side by side, large text, reduce motion, edge swipe — and sign off.
 
-**086-catalogue-image-delivery — Catalogue Pictures That Load Once.** 🚧 **BUILT (2026-10-14). NOT APPLIED,
-NOT MIGRATED, NOT DEPLOYED, NOT WALKED.** Backlog PERF-02 + PERF-03. Every shopper picture (product,
+**086-catalogue-image-delivery — Catalogue Pictures That Load Once.** ✅ **BUILT (2026-10-14). COMPLETE IN DEV (operator-reported 2026-10-23: applied, migrated, deployed and walked).** Backlog PERF-02 + PERF-03. Every shopper picture (product,
 aisle, promotion) has ONE permanent address on a CDN that browsers keep for a year, and is delivered as a
 WebP copy at about the size it is drawn. Spec, plan, tasks: [specs/086-catalogue-image-delivery/](specs/086-catalogue-image-delivery/tasks.md).
 
@@ -670,8 +663,7 @@ WebP copy at about the size it is drawn. Spec, plan, tasks: [specs/086-catalogue
   (2) `make db-up ENV=dev`; (3) deploy `media`, upload one picture, check its row and `w320.webp`, run
   `renditionBackfill` (twice); (4) deploy `storefront` and `commerce`; (5) deploy customer-web; (6) walk.
 
-**085-flexible-standard-delivery — Flexible Standard Delivery.** 🚧 **BUILT (2026-10-13). NOT MIGRATED, NOT
-DEPLOYED, NOT WALKED, NOT SIGNED OFF.** Standard delivery lets a customer choose a **day with no time**
+**085-flexible-standard-delivery — Flexible Standard Delivery.** ✅ **BUILT (2026-10-13). COMPLETE IN DEV (operator-reported 2026-10-23: migrated, deployed and walked).** Standard delivery lets a customer choose a **day with no time**
 (the default), **"No particular day"** (as soon as possible), or — behind "Need a specific time?" — a
 window. Same-day delivery is unchanged. One choice per order, nothing pre-selected. Spec, plan, tasks and
 the walk: [specs/085-flexible-standard-delivery/](specs/085-flexible-standard-delivery/tasks.md).

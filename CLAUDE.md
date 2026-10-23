@@ -580,20 +580,20 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
-- **098-product-variants** — Product Variants (up to two options, per-variant price/codes/weight/stock, one margin per product, unit pricing, sizes on every surface; carts from before 098 dropped) — built; NOT migrated, deployed or walked
-- **096-parcel-labels-scanning** — Order Package Labels, Scanning & Printed Documents (a code and carrier-style label per bag; every hand-over per bag; scan-to-find and the hub station; hand-over report; delivery note; GST status; tax invoice on request) — built; NOT migrated, deployed or walked
-- **097-same-day-by-postcode** — Delivery Today, Postcode by Postcode (staff switch "today" off for far postcodes; the calendar leaves today out; no new customer wording) — built; NOT migrated, deployed or walked
+- **098-product-variants** — Product Variants (up to two options, per-variant price/codes/weight/stock, one margin per product, unit pricing, sizes on every surface; carts from before 098 dropped) — complete in dev (migrated, deployed, walked)
+- **096-parcel-labels-scanning** — Order Package Labels, Scanning & Printed Documents (a code and carrier-style label per bag; every hand-over per bag; scan-to-find and the hub station; hand-over report; delivery note; GST status; tax invoice on request) — complete in dev (migrated, deployed, walked)
+- **097-same-day-by-postcode** — Delivery Today, Postcode by Postcode (staff switch "today" off for far postcodes; the calendar leaves today out; no new customer wording) — complete in dev (migrated, deployed, walked)
 - **095-promotion-skins** — Promotion Skins (staff-designed skins on six layouts, any colour AA-checked on the server, chosen per group placement; pictures on promotions; `mega-nav` in the aisles menu; Classic = as before) — complete in dev, signed off; promotion routes deploy as stack `admin-promotions`
 - **094-promotions-rebuild** — Promotions Rebuilt (four kinds, automatic or by code, targeting and limits; display groups replace banner placements; uses held at the intent) — complete in dev (migrated, deployed, walked); stage C table removal open
-- **093-driver-work-sequence** — Driver Work in One Order (server-enforced steps; collector delivers; missing packages held; run stage; vehicle check off by default) — built; NOT migrated, deployed or walked
-- **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — built, `driver` deployed to dev; app not walked
-- **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — built; NOT deployed
-- **090-scanning-foundation** — Package Scanning: Foundations (one scan rule, the camera reader, hand-over records, hub sort, load the van; no screens) — built; NOT migrated, deployed or walked
-- **089-package-labels** — Package Labels (a permanent code per package; shops print QR + Code 128 labels; EFFY/COURIER only) — built; NOT migrated, deployed or walked
-- **088-failed-parcel-return** — Return Failed Parcels to the Hub (driver backlog A4; custody now sees delivery parcels) — built; NOT migrated, deployed or walked
-- **087-customer-mobile-redesign** — Customer Mobile Redesign (storefront identity; five tabs with Cart; sheets not dialogs; iOS transitions) — built; NOT walked or signed off
-- **086-catalogue-image-delivery** — Catalogue Pictures That Load Once (one permanent CDN address; WebP copies made at upload) — built; NOT applied, migrated, deployed or walked
-- **085-flexible-standard-delivery** — Flexible Standard Delivery (a day with no time, "as soon as possible", a time opt-in — all through one "Any time" window) — built; NOT migrated, deployed, walked or signed off
+- **093-driver-work-sequence** — Driver Work in One Order (server-enforced steps; collector delivers; missing packages held; run stage; vehicle check off by default) — complete in dev (migrated, deployed, walked)
+- **092-driver-mobile-redesign** — Driver App Redesign (storefront identity; three tabs; two-tap drops; scanning screens) — complete in dev (deployed, walked)
+- **091-handover-visibility** — Scan Versus Manual Visibility (order, round and shop views of the hand-over record) — complete in dev (deployed, walked)
+- **090-scanning-foundation** — Package Scanning: Foundations (one scan rule, the camera reader, hand-over records, hub sort, load the van; no screens) — complete in dev (migrated, deployed, walked)
+- **089-package-labels** — Package Labels (a permanent code per package; shops print QR + Code 128 labels; EFFY/COURIER only) — complete in dev (migrated, deployed, walked)
+- **088-failed-parcel-return** — Return Failed Parcels to the Hub (driver backlog A4; custody now sees delivery parcels) — complete in dev (migrated, deployed, walked)
+- **087-customer-mobile-redesign** — Customer Mobile Redesign (storefront identity; five tabs with Cart; sheets not dialogs; iOS transitions) — complete (walked)
+- **086-catalogue-image-delivery** — Catalogue Pictures That Load Once (one permanent CDN address; WebP copies made at upload) — complete in dev (applied, migrated, deployed, walked)
+- **085-flexible-standard-delivery** — Flexible Standard Delivery (a day with no time, "as soon as possible", a time opt-in — all through one "Any time" window) — complete in dev (migrated, deployed, walked)
 - **084-customer-storefront-redesign** — Customer Storefront Redesign (its own identity; session re-implemented; aisles include their sub-aisles) — built, `storefront` + `commerce` deployed to dev; not walked or signed off
 - **083-delivery-model-cutover** — Delivery Model Cutover (the switch; the old same-day/standard arrangement removed) — both stages deployed to dev, marked complete; not walked
 - **082-driver-operations-realignment** — Driver Operations Realignment (Effy delivery on its own day; permissions without a method) — signed off, deployed to dev
